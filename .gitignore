@@ -1,0 +1,8 @@
+# General
+.DS_Store
+
+# IDE
+*.idea
+*.iml
+
+target
