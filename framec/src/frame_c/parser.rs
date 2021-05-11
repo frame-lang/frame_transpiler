@@ -363,7 +363,7 @@ impl<'a> Parser<'a> {
     }
 
     /* --------------------------------------------------------------------- */
-
+    
     fn system(&mut self) -> SystemNode {
         let mut header = String::new();
         let mut interface_block_node_opt = Option::None;
