@@ -1,6 +1,31 @@
-# Frame Language Transpiler v0.3.48
+# Frame Language Transpiler v0.4.00
 
 Hi! So very glad you are interested in Frame.
+
+## v0.4.00 Development Branch
+
+**This is a development branch that includes language changes as well as code generation for Rust and is unstable.**
+
+These new features include:
+
+1. Triple ``` token for demarcating an unparsed header string above the Frame system spec.
+
+```
+Header
+```
+
+2. Single `code` token for indicating unparsed strings in the Frame system spec.
+3. Action native code definitions indicated by using braces with backtics: {`native code`}  
+
+-actions-
+
+someAction {`
+	println!("{}", msg);
+`}
+
+There is also a sample Rust file called RustMachine.frm in the ./examples directory.
+
+## Purpose
 
 This project contains the code for building the Frame Language Transpiler - the Framepiler.  The Framepiler is written in Rust and transpiles Frame specification documents into 6 programming languages (more to come) and UML documentation.
 
