@@ -766,7 +766,7 @@ impl Arcanum {
         }
     }
 
-    pub fn get_event_ret_opt(&mut self, msg:&str, state_name_opt:&Option<String>) -> Option<String> {
+    pub fn get_event_ret_opt(&mut self, msg:&str, state_name_opt:&Option<String>) -> Option<TypeNode> {
         let a = self.get_event(msg,state_name_opt);
         let b = match a {
             Some(c) => c,
@@ -927,14 +927,14 @@ impl ScopeSymbol for InterfaceMethodSymbol {
 pub struct EventSymbol {
     pub msg:String,
     pub params_opt:Option<Vec<ParameterSymbol>>,
-    pub ret_type_opt:Option<String>,
+    pub ret_type_opt:Option<TypeNode>,
     pub is_enter_msg:bool,
     pub is_exit_msg:bool,
 }
 
 impl EventSymbol {
 
-    pub fn new(symbol_config:&SymbolConfig,msg:&String,params_opt:Option<Vec<ParameterSymbol>>,ret_type_opt:Option<String>,state_name_opt:Option<String>) -> EventSymbol {
+    pub fn new(symbol_config:&SymbolConfig,msg:&String,params_opt:Option<Vec<ParameterSymbol>>,ret_type_opt:Option<TypeNode>,state_name_opt:Option<String>) -> EventSymbol {
 
         let (msg_name,is_enter_msg,is_exit_msg) = EventSymbol::get_event_msg(symbol_config,&state_name_opt,msg);
 
@@ -1061,7 +1061,7 @@ impl StateSymbol {
         self.requires_state_context
     }
 
-    pub fn add_parameter(&mut self, name:String,param_type:Option<String>,scope: IdentifierDeclScope) -> SymbolType {
+    pub fn add_parameter(&mut self, name:String,param_type:Option<TypeNode>,scope: IdentifierDeclScope) -> SymbolType {
 
         self.requires_state_context = true;
 
@@ -1174,12 +1174,12 @@ impl StateSymbol {
 
 pub struct ParameterSymbol {
     pub name:String,
-    pub param_type:Option<String>,
+    pub param_type:Option<TypeNode>,
     pub scope: IdentifierDeclScope,
 }
 
 impl ParameterSymbol {
-    pub fn new(name: String, param_type: Option<String>, scope: IdentifierDeclScope) -> ParameterSymbol {
+    pub fn new(name: String, param_type: Option<TypeNode>, scope: IdentifierDeclScope) -> ParameterSymbol {
         ParameterSymbol {
             name: name,
             param_type,
@@ -1195,7 +1195,7 @@ impl ParameterSymbol {
             Some(param_type) => {
                 match &other.param_type_opt {
                     Some(other_param_type) => {
-                        return &param_type == &other_param_type;
+                        return &param_type.get_type_str() == &other_param_type.get_type_str();
                     },
                     None => return false,
                 }
@@ -1417,7 +1417,7 @@ impl EventHandlerParamsScopeSymbol {
     }
 
 
-    pub fn add_parameter(&mut self, name:String,param_type:Option<String>,scope: IdentifierDeclScope) -> SymbolType {
+    pub fn add_parameter(&mut self, name:String,param_type:Option<TypeNode>,scope: IdentifierDeclScope) -> SymbolType {
 
         // NOTE: the parameters here are the ones found in the decl of the event handler.
         // The event itself may have others, but they must be declared here in order to be
@@ -1630,7 +1630,7 @@ impl ScopeSymbol for DomainBlockScopeSymbol {
 
 pub struct ActionDeclSymbol {
     pub name:String,
-    pub ast_node:Option<Rc<RefCell<ActionDeclNode>>>,
+    pub ast_node:Option<Rc<RefCell<ActionNode>>>,
 }
 
 impl ActionDeclSymbol {
@@ -1642,7 +1642,7 @@ impl ActionDeclSymbol {
         }
     }
 
-    pub fn set_ast_node(&mut self, ast_node:Rc<RefCell<ActionDeclNode>>) {
+    pub fn set_ast_node(&mut self, ast_node:Rc<RefCell<ActionNode>>) {
         self.ast_node = Some(Rc::clone(&ast_node));
     }
 }
@@ -1684,14 +1684,14 @@ impl Symbol for ActionCallSymbol {
 
 pub struct VariableSymbol {
     pub name:String,
-    pub var_type:Option<String>,
+    pub var_type:Option<TypeNode>,
     pub scope: IdentifierDeclScope,
     pub ast_node:Option<Rc<RefCell<VariableDeclNode>>>,
 }
 
 impl VariableSymbol {
 
-    pub fn new(name:String, var_type:Option<String>, scope: IdentifierDeclScope) -> VariableSymbol {
+    pub fn new(name:String, var_type:Option<TypeNode>, scope: IdentifierDeclScope) -> VariableSymbol {
         VariableSymbol {
             name,
             var_type,

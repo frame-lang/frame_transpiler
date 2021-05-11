@@ -14,11 +14,7 @@ use downcast_rs::__std::cell::RefCell;
 use std::rc::Rc;
 use super::symbol_table::SymbolType::*;
 use super::ast::AssignmentExprNode;
-use super::visitors::AstVisitorReturnType::FrameEventExprType;
-use super::ast::IdentifierDeclScope::StateVar;
-use std::collections::VecDeque;
-use crate::frame_c::utils::{SystemHierarchy, Node};
-use crate::frame_c::visitors::AstVisitorReturnType::CallExpressionNode;
+use crate::frame_c::utils::{SystemHierarchy};
 
 pub struct ParseError {
     // TODO:
@@ -369,6 +365,7 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     fn system(&mut self) -> SystemNode {
+        let mut header = String::new();
         let mut interface_block_node_opt = Option::None;
         let mut machine_block_node_opt = Option::None;
         let mut actions_block_node_opt = Option::None;
@@ -377,6 +374,7 @@ impl<'a> Parser<'a> {
         if self.match_token(&vec![EofTok]) {
             self.error_at_current("Empty system.");
             return SystemNode::new(String::from("error"),
+                                   header,
                                    None,
                                    None,
                                    None,
@@ -384,6 +382,17 @@ impl<'a> Parser<'a> {
                                    0)
         }
 
+        if self.match_token(&vec![ThreeTicksTok]) {
+            while self.match_token(&vec![SuperStringTok]) {
+                let tok = self.previous();
+                header.push_str(&*tok.lexeme.clone());
+            }
+            if let Err(parse_error) =  self.consume(TokenType::ThreeTicksTok, "Expected '```'.") {
+                self.error_at_current("Expected closing ```.");
+                let sync_tokens = &vec![SystemTok];
+                self.synchronize(sync_tokens);
+            }
+        }
         // TODO: Error handling
         if !self.match_token(&vec![SystemTok]) {
             self.error_at_current("Expected #.");
@@ -441,6 +450,7 @@ impl<'a> Parser<'a> {
         self.arcanum.exit_parse_scope();
 
         SystemNode::new(system_name,
+                        header,
                         interface_block_node_opt,
                         machine_block_node_opt,
                         actions_block_node_opt,
@@ -482,7 +492,7 @@ impl<'a> Parser<'a> {
         let name = self.previous().lexeme.clone();
 
         let mut params_opt:Option<Vec<ParameterNode>> = Option::None;
-        let mut return_type_opt:Option<String> = Option::None;
+        let mut return_type_opt:Option<TypeNode> = Option::None;
         let mut alias_opt:Option<MessageNode> = Option::None;
 
         if self.match_token(&vec![TokenType::LBracketTok]) {
@@ -495,14 +505,11 @@ impl<'a> Parser<'a> {
 
         // Parse return type
         if self.match_token(&vec![TokenType::ColonTok]) {
-            if !self.match_token(&vec![TokenType::IdentifierTok]) {
-                self.error_at_current("Expected return type name.");
-                return Err(ParseError::new("TODO"));
-            }
-            let id = self.previous();
-            let return_type = id.lexeme.clone();
 
-            return_type_opt = Some(return_type);
+            match self.type_decl() {
+                Ok(type_node) => return_type_opt = Some(type_node),
+                Err(parse_error) => return Err(parse_error),
+            }
         }
 
         // Parse alias
@@ -553,7 +560,35 @@ impl<'a> Parser<'a> {
         Ok(InterfaceMethodNode::new(name, params_opt, return_type_opt, alias_opt))
     }
 
-    /* -----------------------ƒ---------------------------------------------- */
+
+    /* --------------------------------------------------------------------- */
+
+
+    fn type_decl(&mut self) -> Result<TypeNode,ParseError> {
+        let mut is_reference = false;
+
+        if self.match_token(&vec![TokenType::SuperStringTok]) {
+            let id = self.previous();
+            let type_str = id.lexeme.clone();
+            Ok(TypeNode::new(true,false, type_str))
+        } else {
+            if self.match_token(&vec![TokenType::AndTok]) {
+                is_reference = true
+            }
+            if !self.match_token(&vec![TokenType::IdentifierTok]) {
+                self.error_at_current("Expected return type name.");
+                return Err(ParseError::new("TODO"));
+            }
+
+            let id = self.previous();
+            let type_str = id.lexeme.clone();
+
+            Ok(TypeNode::new(false,is_reference, type_str))
+        }
+
+    }
+
+    /* --------------------------------------------------------------------- */
 
     // message => '|' ( identifier | string | '>' | '>>' | '>>>' | '<' | '<<' | '<<<' ) '|'
 
@@ -659,18 +694,18 @@ impl<'a> Parser<'a> {
         let id = self.previous();
         let param_name = id.lexeme.clone();
 
-        let mut param_type_opt:Option<String> = None;
+        let mut param_type_opt:Option<TypeNode> = None;
 
         if self.match_token(&vec![TokenType::ColonTok]) {
-            if !self.match_token(&vec![TokenType::IdentifierTok]) {
-                self.error_at_previous("Expected parameter type.");
-                return Err(ParseError::new("TODO"));
+            match self.type_decl() {
+                Ok(type_node) => param_type_opt = Some(type_node),
+                Err(parse_error) => return Err(parse_error),
             }
 
-            let id = self.previous();
-            let param_type = id.lexeme.clone();
+            // let id = self.previous();
+            // let param_type = id.lexeme.clone();
 
-            param_type_opt = Some(param_type);
+            //param_type_opt = Some(param_type);
         }
 
         let scope = self.arcanum.get_current_identifier_scope();
@@ -745,7 +780,7 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    fn action_decl(&mut self) -> Result<Rc<RefCell<ActionDeclNode>>,ParseError> {
+    fn action_decl(&mut self) -> Result<Rc<RefCell<ActionNode>>,ParseError> {
 
         let action_name = self.previous().lexeme.clone();
 
@@ -759,21 +794,40 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let mut type_opt:Option<String> = None;
+        let mut type_opt:Option<TypeNode> = None;
 
         if self.match_token(&vec![ColonTok]) {
-            if !self.match_token(&vec![TokenType::IdentifierTok]) {
-                self.error_at_previous("Expected parameter type.");
-                return Err(ParseError::new("TODO"));
+            // if !self.match_token(&vec![TokenType::IdentifierTok]) {
+            //     self.error_at_previous("Expected parameter type.");
+            //     return Err(ParseError::new("TODO"));
+            // }
+            //
+            // let id = self.previous();
+            // let type_name = id.lexeme.clone();
+            //
+            // type_opt = Some(type_name);
+
+            match self.type_decl() {
+                Ok(type_node) => type_opt = Some(type_node),
+                Err(parse_error) => return Err(parse_error),
             }
-
-            let id = self.previous();
-            let type_name = id.lexeme.clone();
-
-            type_opt = Some(type_name);
         }
 
-        let action_decl_node = ActionDeclNode::new(action_name.clone(),params,type_opt);
+        let mut code_opt:Option<String> = None;
+
+        if self.match_token(&vec![OpenBraceTok]) {
+
+            if self.match_token(&vec![SuperStringTok]) {
+                let token = self.previous();
+                code_opt = Some(token.lexeme.clone());
+            }
+
+            if let Err(parse_error) =  self.consume(CloseBraceTok, "Expected '}'.") {
+                return Err(parse_error);
+            }
+        }
+
+        let action_decl_node = ActionNode::new(action_name.clone(), params, type_opt, code_opt);
         let action_decl_rcref = Rc::new(RefCell::new(action_decl_node));
 
         if self.is_building_symbol_table {
@@ -846,17 +900,21 @@ impl<'a> Parser<'a> {
         };
 
 
-        let mut type_opt:Option<String> = None;
+        let mut type_node_opt:Option<TypeNode> = None;
 
         if self.match_token(&vec![ColonTok]) {
-            if !self.match_token(&vec![TokenType::IdentifierTok]) {
-                self.error_at_previous("Expected parameter type.");
-                return Err(ParseError::new("TODO"));
+            // if !self.match_token(&vec![TokenType::IdentifierTok]) {
+            //     self.error_at_previous("Expected parameter type.");
+            //     return Err(ParseError::new("TODO"));
+            // }
+            //
+            // let type_name = self.previous().lexeme.clone();
+            //
+            // type_opt = Some(type_name);
+            match self.type_decl() {
+                Ok(type_node) => type_node_opt = Some(type_node),
+                Err(parse_error) => return Err(parse_error),
             }
-
-            let type_name = self.previous().lexeme.clone();
-
-            type_opt = Some(type_name);
         }
 
         let initializer_expr_t_opt;
@@ -889,13 +947,13 @@ impl<'a> Parser<'a> {
             return Err(ParseError::new("TODO"));
         }
 
-        let variable_decl_node = VariableDeclNode::new(name.clone(), type_opt.clone(), is_constant, initializer_expr_t_opt,identifier_decl_scope.clone());
+        let variable_decl_node = VariableDeclNode::new(name.clone(), type_node_opt.clone(), is_constant, initializer_expr_t_opt,identifier_decl_scope.clone());
         let variable_decl_node_rcref = Rc::new(RefCell::new(variable_decl_node));
 
         if self.is_building_symbol_table { // syntactic pass
             // add variable to current symbol table
             let scope = self.arcanum.get_current_identifier_scope();
-            let variable_symbol = VariableSymbol::new(name.clone(),type_opt.clone(),scope);
+            let variable_symbol = VariableSymbol::new(name.clone(),type_node_opt,scope);
             let variable_symbol_rcref = Rc::new(RefCell::new(variable_symbol));
             let variable_symbol_t = match identifier_decl_scope {
                 IdentifierDeclScope::DomainBlock => SymbolType::DomainVariableSymbolT { domain_variable_symbol_rcref: variable_symbol_rcref },
@@ -1412,7 +1470,7 @@ impl<'a> Parser<'a> {
 
                                     for param in &parameters {
                                         let param_name = &param.param_name.clone();
-                                        let mut param_type_opt: Option<String> = None;
+                                        let mut param_type_opt: Option<TypeNode> = None;
                                         if param.param_type_opt.is_some() {
                                             let pt = &param.param_type_opt.as_ref().unwrap().clone();
                                             param_type_opt = Some(pt.clone());
@@ -1451,17 +1509,18 @@ impl<'a> Parser<'a> {
 
         // Parse return type
         if self.match_token(&vec![TokenType::ColonTok]) {
-            if !self.match_token(&vec![TokenType::IdentifierTok]) {
-                self.error_at_current("Expected return type name.");
-                return Err(ParseError::new("TODO"));
+            let return_type_opt;
+            match self.type_decl() {
+                Ok(type_node) => return_type_opt = Some(type_node),
+                Err(parse_error) => return Err(parse_error),
             }
             if is_declaring_event {
                 // declaring event so add return type to event symbol
-                let id = self.previous();
-                let return_type = id.lexeme.clone();
+                // let id = self.previous();
+                // let return_type = id.lexeme.clone();
 
                 let event_symbol_rcref = self.arcanum.get_event(&*msg,&self.state_name_opt).unwrap();
-                event_symbol_rcref.borrow_mut().ret_type_opt = Some(return_type);
+                event_symbol_rcref.borrow_mut().ret_type_opt = return_type_opt;
             }
         }
 
@@ -1529,11 +1588,11 @@ impl<'a> Parser<'a> {
     // TODO: - explore just returning the TerminatorType
     fn event_handler_terminator(&mut self,event_symbol_rcfef:Rc<RefCell<EventSymbol>>) ->  Result<TerminatorExpr,ParseError> {
 
-        let x = event_symbol_rcfef.borrow();
-        let ret_type = match &x.ret_type_opt {
-            Some(ret_type) => ret_type.clone(),
-            None => String::new(),
-        };
+        // let x = event_symbol_rcfef.borrow();
+        // let ret_type = match &x.ret_type_opt {
+        //     Some(ret_type) => ret_type.clone(),
+        //     None => None,
+        // };
 
         if self.match_token(&vec![TokenType::CaretTok]) {
             if self.match_token(&vec![TokenType::LParenTok]) {

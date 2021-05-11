@@ -2,10 +2,8 @@
 
 use super::super::ast::*;
 use super::super::symbol_table::*;
-use super::super::symbol_table::SymbolType::*;
 use super::super::visitors::*;
 use super::super::scanner::{Token,TokenType};
-use downcast_rs::__std::env::var;
 
 
 pub struct PythonVisitor {
@@ -891,6 +889,22 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    fn visit_frame_messages_enum(&mut self, interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
+       panic!("Error - visit_frame_messages_enum() only used in Rust.");
+
+        // AstVisitorReturnType::InterfaceBlockNode {}
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_interface_parameters(&mut self, interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
+        panic!("visit_interface_parameters() not valid for target language.");
+
+        // AstVisitorReturnType::InterfaceBlockNode {}
+    }
+
+    //* --------------------------------------------------------------------- *//
+
     fn visit_interface_block_node(&mut self, interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
         self.newline();
         self.add_code("# ===================== Interface Block =================== #");
@@ -958,7 +972,7 @@ impl AstVisitor for PythonVisitor {
         self.newline();
         self.add_code(&format!("self._state_(e)"));
 
-        match &interface_method_node.return_type {
+        match &interface_method_node.return_type_opt {
             Some(_) => {
                 self.newline();
                 self.add_code(&format!("return e._return"));
@@ -1020,6 +1034,22 @@ impl AstVisitor for PythonVisitor {
         }
 
         AstVisitorReturnType::ActionBlockNode {}
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_action_node_rust_trait(&mut self, _: &ActionsBlockNode) -> AstVisitorReturnType {
+        panic!("Error - visit_action_node_rust_trait() not implemented.");
+
+        // AstVisitorReturnType::ActionBlockNode {}
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_actions_node_rust_impl(&mut self, _: &ActionsBlockNode) -> AstVisitorReturnType {
+        panic!("Error - visit_actions_node_rust_impl() not implemented.");
+
+        // AstVisitorReturnType::ActionBlockNode {}
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2063,7 +2093,7 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_decl_node(&mut self, action_decl_node: &ActionDeclNode) -> AstVisitorReturnType {
+    fn visit_action_decl_node(&mut self, action_decl_node: &ActionNode) -> AstVisitorReturnType {
 
         let mut subclass_code = String::new();
 
@@ -2096,6 +2126,21 @@ impl AstVisitor for PythonVisitor {
         self.subclass_code.push(subclass_code);
 
         AstVisitorReturnType::ActionDeclNode {}
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_action_impl_node(&mut self, action_decl_node: &ActionNode) -> AstVisitorReturnType {
+        panic!("visit_action_impl_node() not implemented.");
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_domain_variable_decl_node(&mut self, variable_decl_node: &VariableDeclNode) -> AstVisitorReturnType {
+
+        self.visit_variable_decl_node(variable_decl_node);
+
+        AstVisitorReturnType::VariableDeclNode {}
     }
 
     //* --------------------------------------------------------------------- *//

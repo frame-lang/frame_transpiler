@@ -3,9 +3,6 @@ use std::fmt::Display;
 use std::collections::HashMap;
 use crate::compiler::exe;
 use crate::frame_c::scanner::TokenType::*;
-use crate::frame_c::ast::OperatorType::LogicalXor;
-// use crate::exe;
-// use crate::scanner::TokenType::*;
 
 enum MatchType {
     BoolTok,
@@ -71,6 +68,28 @@ impl Scanner {
     // caller.
     pub fn scan_tokens(mut self) -> (bool,String,Vec<Token>) {
 
+        // Scan header
+        while self.is_whitespace() {
+            self.advance();
+        }
+        if self.peek() == '`' {
+            self.sync_start();
+            if !self.match_first_header_token() {
+                return (self.has_errors,self.errors.clone(),self.tokens);
+            }
+            self.sync_start();
+            while !self.is_at_end() {
+                if self.peek() == '`' {
+                    self.add_string_token_literal(SuperStringTok, TokenLiteral::None);
+                    self.sync_start();
+                    if self.match_last_header_token() {
+                        break;
+                    }
+                }
+                self.advance();
+            }
+        }
+
         while !self.is_at_end() {
             self.sync_start();
             self.scan_token();
@@ -86,6 +105,39 @@ impl Scanner {
                        , self.start
                        , len));
         return (self.has_errors,self.errors.clone(),self.tokens);
+    }
+
+    fn is_whitespace(&self) -> bool {
+        if self.peek() == ' '
+            || self.peek() == '\n'
+            || self.peek() == '\r'
+            || self.peek() == '\t'  {
+            return true;
+        }
+        return false;
+    }
+
+    fn match_first_header_token(&mut self,) -> bool {
+        for i in 0..3 {
+            if !self.match_char('`') {
+                self.error(self.line, "Malformed header token.");
+                return false
+            }
+        }
+        self.add_string_token_literal(ThreeTicksTok, TokenLiteral::None);
+
+        true
+    }
+
+    fn match_last_header_token(&mut self,) -> bool {
+        for i in 0..3 {
+            if !self.match_char('`') {
+                return false
+            }
+        }
+        self.add_string_token_literal(ThreeTicksTok, TokenLiteral::None);
+
+        true
     }
 
     fn sync_start(&mut self) {
@@ -183,9 +235,11 @@ impl Scanner {
             },
             '&' => {
                 if self.match_char('&') {
-                    self.add_token(LogicalAndTok);
+                    self.add_token(LogicalAndTok)
                 } else if self.match_char('|') {
                     self.add_token(LogicalXorTok)
+                } else {
+                    self.add_token(AndTok)
                 }
             },
             '?' => {
@@ -248,9 +302,12 @@ impl Scanner {
                         panic!("Unexpected character.");
                     }
                 } else {
-                    self.add_token(OpenCurlyBraceTok);
+                    self.add_token(OpenBraceTok);
                 }
             },
+            '}' => {
+                self.add_token(CloseBraceTok);
+            }
             ':' => {
                 if self.match_char(':') {
                     self.add_token(TestTerminatorTok);
@@ -316,6 +373,7 @@ impl Scanner {
             return false;
         }
         self.current += 1;
+        self.token_str = String::from(&self.source[self.start..self.current]);
 
         true
     }
@@ -583,7 +641,7 @@ impl Scanner {
         }
 
         self.advance();
-        self. add_string_token_literal(SuperStringTok, TokenLiteral::None);
+        self.add_string_token_literal(SuperStringTok, TokenLiteral::None);
     }
 }
 
@@ -609,7 +667,7 @@ pub enum TokenType {
     LTTok,                  // <
     LTx2Tok,                // <<
     LTx3Tok,                // <<<
-//    AndTok,                 // &
+    AndTok,                 // &
     PipeTok,                // |
     CaretTok,               // ^
     LogicalAndTok,          // &&
@@ -627,14 +685,15 @@ pub enum TokenType {
     TransitionTok,
     ChangeStateTok,
     StringTok,
+    ThreeTicksTok,          // ```
     SuperStringTok,         // `stuff + "stuff"`
     NumberTok,
     VarTok,                 // let
     ConstTok,               // const
     SingleLineCommentTok,   // --- comment
     MultiLineCommentTok,    // {-- comments --}
-    OpenCurlyBraceTok,      // {
-    CloseCurlyBraceTok,     // }
+    OpenBraceTok,           // {
+    CloseBraceTok,          // }
     TrueTok,                // true
     FalseTok,               // false
     NullTok,                // null

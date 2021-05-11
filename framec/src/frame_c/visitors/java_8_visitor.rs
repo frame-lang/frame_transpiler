@@ -5,7 +5,6 @@ use super::super::symbol_table::*;
 use super::super::symbol_table::SymbolType::*;
 use super::super::visitors::*;
 use super::super::scanner::{Token,TokenType};
-use downcast_rs::__std::env::var;
 
 
 pub struct Java8Visitor {
@@ -97,30 +96,30 @@ impl Java8Visitor {
         let var_type = match &*symbol_type {
             DomainVariableSymbolT { domain_variable_symbol_rcref } => {
                 match &domain_variable_symbol_rcref.borrow().var_type {
-                    Some(x) => x.clone(),
+                    Some(x) => x.get_type_str(),
                     None => String::from("<?>"),
                 }
             },
             StateParamSymbolT { state_param_symbol_rcref } => {
                 match &state_param_symbol_rcref.borrow().param_type {
-                    Some(x) => x.clone(),
+                    Some(x) => x.get_type_str(),
                     None => String::from("<?>"),
                 }
             },
             StateVariableSymbolT { state_variable_symbol_rcref } => {
                 match &state_variable_symbol_rcref.borrow().var_type {
-                    Some(x) => x.clone(),
+                    Some(x) => x.get_type_str(),
                     None => String::from("<?>"),
                 }                    },
             EventHandlerParamSymbolT { event_handler_param_symbol_rcref } => {
                 match &event_handler_param_symbol_rcref.borrow().param_type {
-                    Some(x) => x.clone(),
+                    Some(x) => x.get_type_str(),
                     None => String::from("<?>"),
                 }
             },
             EventHandlerVariableSymbolT { event_handler_variable_symbol_rcref } => {
                 match &event_handler_variable_symbol_rcref.borrow().var_type {
-                    Some(x) => x.clone(),
+                    Some(x) => x.get_type_str(),
                     None => String::from("<?>"),
                 }
             },
@@ -215,7 +214,7 @@ impl Java8Visitor {
         for param in params {
             self.add_code(&format!("{}", separator));
             let param_type: String = match &param.param_type_opt {
-                Some(ret_type) => ret_type.clone(),
+                Some(ret_type) => ret_type.get_type_str(),
                 None => String::from("<?>"),
             };
             self.add_code(&format!("{} {}", param_type, param.param_name));
@@ -231,7 +230,7 @@ impl Java8Visitor {
             self.add_code(&format!("{}", separator));
             subclass_actions.push_str(&format!("{}", separator));
             let param_type: String = match &param.param_type_opt {
-                Some(ret_type) => ret_type.clone(),
+                Some(ret_type) => ret_type.get_type_str(),
                 None => String::from("<?>"),
             };
             self.add_code(&format!("{} {}", param_type, param.param_name));
@@ -247,7 +246,7 @@ impl Java8Visitor {
         for param in params {
             output.push_str(&format!("{}", separator));
             let param_type: String = match &param.param_type_opt {
-                Some(ret_type) => ret_type.clone(),
+                Some(ret_type) => ret_type.get_type_str(),
                 None => String::from("<?>"),
             };
             output.push_str(&format!("{} {}", param_type, param.param_name));
@@ -973,6 +972,22 @@ impl AstVisitor for Java8Visitor {
 
     //* --------------------------------------------------------------------- *//
 
+    fn visit_frame_messages_enum(&mut self, interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
+        panic!("Error - visit_frame_messages_enum() only used in Rust.");
+
+        // AstVisitorReturnType::InterfaceBlockNode {}
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_interface_parameters(&mut self, interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
+        panic!("visit_interface_parameters() not valid for target language.");
+
+        // AstVisitorReturnType::InterfaceBlockNode {}
+    }
+
+    //* --------------------------------------------------------------------- *//
+
     fn visit_interface_block_node(&mut self, interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
         self.newline();
         self.add_code("//===================== Interface Block ===================//");
@@ -990,8 +1005,8 @@ impl AstVisitor for Java8Visitor {
     fn visit_interface_method_node(&mut self, interface_method_node: &InterfaceMethodNode) -> AstVisitorReturnType {
 
         self.newline();
-        let return_type = match &interface_method_node.return_type {
-            Some(ret) => ret.clone(),
+        let return_type = match &interface_method_node.return_type_opt {
+            Some(ret) => ret.get_type_str(),
             None => "void".to_string(),
         };
 
@@ -1041,10 +1056,10 @@ impl AstVisitor for Java8Visitor {
         self.newline();
         self.add_code(&format!("_state_.call(e);"));
 
-        match &interface_method_node.return_type {
+        match &interface_method_node.return_type_opt {
             Some(return_type) => {
                 self.newline();
-                self.add_code(&format!("return ({}) e._return;",return_type));
+                self.add_code(&format!("return ({}) e._return;",return_type.get_type_str()));
             },
             None => {}
         }
@@ -1107,6 +1122,22 @@ impl AstVisitor for Java8Visitor {
         self.newline();
 
         AstVisitorReturnType::ActionBlockNode {}
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_action_node_rust_trait(&mut self, _: &ActionsBlockNode) -> AstVisitorReturnType {
+        panic!("Error - visit_action_node_rust_trait() not implemented.");
+
+        // AstVisitorReturnType::ActionBlockNode {}
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_actions_node_rust_impl(&mut self, _: &ActionsBlockNode) -> AstVisitorReturnType {
+        panic!("Error - visit_actions_node_rust_impl() not implemented.");
+
+        // AstVisitorReturnType::ActionBlockNode {}
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2160,7 +2191,7 @@ impl AstVisitor for Java8Visitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_decl_node(&mut self, action_decl_node: &ActionDeclNode) -> AstVisitorReturnType {
+    fn visit_action_decl_node(&mut self, action_decl_node: &ActionNode) -> AstVisitorReturnType {
 
         let mut subclass_code = String::new();
 
@@ -2168,7 +2199,7 @@ impl AstVisitor for Java8Visitor {
         self.newline_to_string(&mut subclass_code);
 
         let action_ret_type:String = match &action_decl_node.type_opt {
-            Some(ret_type) => ret_type.clone(),
+            Some(ret_type) => ret_type.get_type_str(),
             None => String::from("void"),
         };
 
@@ -2191,10 +2222,19 @@ impl AstVisitor for Java8Visitor {
 
     //* --------------------------------------------------------------------- *//
 
+    fn visit_domain_variable_decl_node(&mut self, variable_decl_node: &VariableDeclNode) -> AstVisitorReturnType {
+
+        self.visit_variable_decl_node(variable_decl_node);
+
+        AstVisitorReturnType::VariableDeclNode {}
+    }
+
+    //* --------------------------------------------------------------------- *//
+
     fn visit_variable_decl_node(&mut self, variable_decl_node: &VariableDeclNode) -> AstVisitorReturnType {
 
         let var_type = match &variable_decl_node.type_opt {
-            Some(x) => x.clone(),
+            Some(x) => x.get_type_str(),
             None => String::from("<?>"),
         };
         let var_name =  &variable_decl_node.name;
@@ -2208,6 +2248,12 @@ impl AstVisitor for Java8Visitor {
         self.deserialize.push(format!("\t{} = bag.domain[\"{}\"];",var_name,var_name));
 
         AstVisitorReturnType::VariableDeclNode {}
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_action_impl_node(&mut self, action_decl_node: &ActionNode) -> AstVisitorReturnType {
+        panic!("visit_action_impl_node() not implemented.");
     }
 
     //* --------------------------------------------------------------------- *//

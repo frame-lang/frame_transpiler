@@ -1,5 +1,3 @@
-use std::{fs, env};
-use std::io::Error;
 use super::scanner::*;
 use super::parser::*;
 use super::symbol_table::*;
@@ -11,12 +9,13 @@ use crate::frame_c::visitors::plantuml_visitor::PlantUmlVisitor;
 use crate::frame_c::visitors::python_visitor::PythonVisitor;
 use crate::frame_c::visitors::gdscript_3_2_visitor::GdScript32Visitor;
 use crate::frame_c::visitors::java_8_visitor::Java8Visitor;
+use crate::frame_c::visitors::rust_visitor::RustVisitor;
 
 
 /* --------------------------------------------------------------------- */
 
 static IS_DEBUG:bool = false;
-static FRAMEC_VERSION:&str = "emitted from framec_v0.3.48";
+static FRAMEC_VERSION:&str = "emitted from framec_v0.4.00";
 
 pub struct exe {
 }
@@ -128,6 +127,17 @@ impl exe {
                                              , comments);
             visitor.run(&system_node);
             return visitor.get_code();
+        } else if output_format == "GDScript32" {
+            let mut visitor = GdScript32Visitor::new(semantic_parser.get_arcanum()
+                                                     , generate_exit_args
+                                                     , generate_state_context
+                                                     , generate_state_stack
+                                                     , generate_change_state
+                                                     , generate_transition_state
+                                                     ,FRAMEC_VERSION
+                                                     , comments);
+            visitor.run(&system_node);
+            return visitor.get_code();
         } else if output_format == "Java_8" {
             let mut visitor = Java8Visitor::new(semantic_parser.get_arcanum()
                                                    , generate_exit_args
@@ -150,17 +160,6 @@ impl exe {
                                                    , comments);
             visitor.run(&system_node);
             return visitor.get_code();
-        } else if output_format == "GDScript32" {
-            let mut visitor = GdScript32Visitor::new(semantic_parser.get_arcanum()
-                                                 , generate_exit_args
-                                                 , generate_state_context
-                                                 , generate_state_stack
-                                                 , generate_change_state
-                                                 , generate_transition_state
-                                                 ,FRAMEC_VERSION
-                                                 , comments);
-            visitor.run(&system_node);
-            return visitor.get_code();
         } else if output_format == "PlantUml" {
             // let x = (&semantic_parser).get_arcanum();
             // semantic_parser = semantic_parser.into_inner();
@@ -178,6 +177,17 @@ impl exe {
                                                 , comments);
             visitor.run(&system_node);
             visitor.code
+        } else if output_format == "Rust" {
+            let mut visitor = RustVisitor::new(semantic_parser.get_arcanum()
+                                             , generate_exit_args
+                                             , generate_state_context
+                                             , generate_state_stack
+                                             , generate_change_state
+                                             , generate_transition_state
+                                             , FRAMEC_VERSION
+                                             , comments);
+            visitor.run(&system_node);
+            return visitor.get_code();
         } else {
             format!("Error - unrecognized output format {}.",output_format)
         }

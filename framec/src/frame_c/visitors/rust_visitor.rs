@@ -6,8 +6,44 @@ use super::super::symbol_table::SymbolType::*;
 use super::super::visitors::*;
 use super::super::scanner::{Token,TokenType};
 
+struct Config {
+    state_var_name:String,
+    start_system_msg:String,
+    stop_system_msg:String,
+    enter_msg:String,
+    exit_msg:String,
+    frame_event:String,
+    frame_message:String,
+    frame_event_return:String,
+    frame_event_variable_name:String,
+    frame_event_message_attribute_name:String,
+    frame_event_parameters_attribute_name:String,
+    frame_event_return_attribute_name:String,
 
-pub struct CsVisitor {
+}
+
+impl Config {
+    fn new() -> Config {
+        Config {
+            state_var_name:String::from("state"),
+            start_system_msg:String::from("Start"),
+            stop_system_msg:String::from("Stop"),
+            enter_msg:String::from("Enter"),
+            exit_msg:String::from("Exit"),
+            frame_event:String::from("FrameEvent"),
+            frame_message:String::from("FrameMessage"),
+            frame_event_return:String::from("FrameEventReturn"),
+            frame_event_variable_name:String::from("e"),
+            frame_event_message_attribute_name:String::from("message"),
+            frame_event_parameters_attribute_name:String::from("parameters"),
+            frame_event_return_attribute_name:String::from("ret"),
+
+        }
+    }
+}
+
+pub struct RustVisitor {
+    config:Config,
     compiler_version:String,
     code:String,
     dent:usize,
@@ -22,7 +58,7 @@ pub struct CsVisitor {
     first_state_name:String,
     serialize:Vec<String>,
     deserialize:Vec<String>,
-    subclass_code:Vec<String>,
+//    subclass_code:Vec<String>,
     warnings:Vec<String>,
     has_states:bool,
     errors:Vec<String>,
@@ -32,9 +68,10 @@ pub struct CsVisitor {
     generate_state_stack:bool,
     generate_change_state:bool,
     generate_transition_state:bool,
+    current_message:String,
 }
 
-impl CsVisitor {
+impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
@@ -45,9 +82,10 @@ impl CsVisitor {
                   , generate_change_state:bool
                   , generate_transition_state:bool
                   , compiler_version:&str
-                  , comments:Vec<Token>) -> CsVisitor {
+                  , comments:Vec<Token>) -> RustVisitor {
 
-        CsVisitor {
+        RustVisitor {
+            config:Config::new(),
             compiler_version:compiler_version.to_string(),
             code:String::from(""),
             dent:0,
@@ -64,7 +102,7 @@ impl CsVisitor {
             deserialize:Vec::new(),
             has_states:false,
             errors:Vec::new(),
-            subclass_code:Vec::new(),
+ //           subclass_code:Vec::new(),
             warnings:Vec::new(),
             visiting_call_chain_literal_variable:false,
             generate_exit_args,
@@ -72,9 +110,21 @@ impl CsVisitor {
             generate_state_stack,
             generate_change_state,
             generate_transition_state,
+            current_message:String::new(),
         }
     }
 
+    //* --------------------------------------------------------------------- *//
+
+    pub fn get_msg_enum(&self, msg:&str) -> String {
+        match msg {
+            ">>" => self.config.start_system_msg.clone(),
+            "<<" => self.config.stop_system_msg.clone(),
+            ">" => self.config.enter_msg.clone(),
+            "<" => self.config.exit_msg.clone(),
+            _ => RustVisitor::uppercase_first_letter(msg),
+        }
+    }
 
     //* --------------------------------------------------------------------- *//
 
@@ -86,7 +136,7 @@ impl CsVisitor {
             }
             error_list
         } else  {
-           self.code.clone()
+            self.code.clone()
         }
     }
 
@@ -186,8 +236,10 @@ impl CsVisitor {
                 if self.visiting_call_chain_literal_variable {
                     code.push_str("(");
                 }
-                code.push_str(&format!("({}) e._parameters[\"{}\"]"
-                                       ,var_type
+                code.push_str(&format!("{}.{}.as_ref().unwrap().get_{}_{}()"
+                                        ,self.config.frame_event_variable_name
+                                        ,self.config.frame_event_parameters_attribute_name
+                                        ,self.current_message
                                        ,variable_node.id_node.name.lexeme));
                 if self.visiting_call_chain_literal_variable {
                     code.push_str(")");
@@ -210,31 +262,31 @@ impl CsVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn format_parameter_list(&mut self,params:&Vec<ParameterNode>) {
-        let mut separator = "";
+        let mut separator = ",";
         for param in params {
             self.add_code(&format!("{}", separator));
             let param_type: String = match &param.param_type_opt {
                 Some(ret_type) => ret_type.get_type_str(),
                 None => String::from("<?>"),
             };
-            self.add_code(&format!("{} {}", param_type, param.param_name));
+            self.add_code(&format!("{}:{}", param.param_name, param_type));
             separator = ",";
         }
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn format_actions_parameter_list(&mut self, params:&Vec<ParameterNode>,subclass_actions:&mut String) {
-        let mut separator = "";
+    fn format_actions_parameter_list(&mut self, params:&Vec<ParameterNode>) {
+        let mut separator = ",";
         for param in params {
             self.add_code(&format!("{}", separator));
-            subclass_actions.push_str(&format!("{}", separator));
+//            subclass_actions.push_str(&format!("{}", separator));
             let param_type: String = match &param.param_type_opt {
                 Some(ret_type) => ret_type.get_type_str(),
                 None => String::from("<?>"),
             };
-            self.add_code(&format!("{} {}", param_type, param.param_name));
-            subclass_actions.push_str(&format!("{} {}", param_type, param.param_name));
+            self.add_code(&format!("{}:{}", param.param_name, param_type));
+ //           subclass_actions.push_str(&format!("{} {}", param_type, param.param_name));
             separator = ",";
         }
     }
@@ -257,7 +309,23 @@ impl CsVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn format_action_name(&mut self,action_name:&String) -> String {
-        return format!("{}_do",action_name)
+        return format!("{}",action_name)
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn uppercase_first_letter(s: &str) -> String {
+        let mut c = s.chars();
+        match c.next() {
+            None => String::new(),
+            Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+        }
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn format_state_name(&self,state_name:&String) -> String {
+        return format!("{}_state",state_name.to_lowercase())
     }
 
     //* --------------------------------------------------------------------- *//
@@ -317,15 +385,15 @@ impl CsVisitor {
                         StatementType::ExpressionStmt { expr_stmt_t } => {
                             match expr_stmt_t {
                                 ExprStmtType::ActionCallStmtT { action_call_stmt_node }
-                                    => action_call_stmt_node.accept(self),                        // // TODO
+                                => action_call_stmt_node.accept(self),                        // // TODO
                                 ExprStmtType::CallStmtT { call_stmt_node }
-                                    => call_stmt_node.accept(self),
+                                => call_stmt_node.accept(self),
                                 ExprStmtType::CallChainLiteralStmtT { call_chain_literal_stmt_node }
-                                    => call_chain_literal_stmt_node.accept(self),
+                                => call_chain_literal_stmt_node.accept(self),
                                 ExprStmtType::AssignmentStmtT { assignment_stmt_node }
-                                    => assignment_stmt_node.accept(self),
+                                => assignment_stmt_node.accept(self),
                                 ExprStmtType::VariableStmtT { variable_stmt_node }
-                                    => variable_stmt_node.accept(self),
+                                => variable_stmt_node.accept(self),
                             }
                         },
                         StatementType::TransitionStmt { transition_statement } => {
@@ -360,9 +428,9 @@ impl CsVisitor {
         self.newline();
         if let Some(_) = system_node.get_first_state() {
             self.newline();
-            self.add_code(&format!("private delegate void FrameState(FrameEvent e);"));
-            self.newline();
-            self.add_code(&format!("private FrameState _state_;"));
+            // self.add_code(&format!("private delegate void FrameState(FrameEvent e);"));
+            // self.newline();
+            // self.add_code(&format!("private FrameState _state_;"));
             if self.generate_state_context {
                 self.newline();
                 self.add_code(&format!("private StateContext _stateContext_;"));
@@ -380,7 +448,7 @@ impl CsVisitor {
                     if self.generate_exit_args {
                         self.add_code(&format!("private void _transition_(FrameState newState,Dictionary<String,object> exitArgs) {{"));
                     } else {
-                        self.add_code(&format!("private void _transition_(FrameState newState) {{"));
+                        self.add_code(&format!("fn transition(&mut self, newState:FrameState) {{"));
                     }
                 }
                 self.indent();
@@ -388,12 +456,12 @@ impl CsVisitor {
                 if self.generate_exit_args {
                     self.add_code(&format!("FrameEvent exitEvent = new FrameEvent(\"<\",exitArgs);"));
                 } else {
-                    self.add_code(&format!("FrameEvent exitEvent = new FrameEvent(\"<\",null);"));
+                    self.add_code(&format!("let mut exit_event = FrameEvent::new(FrameMessage::Exit,None);"));
                 }
                 self.newline();
-                self.add_code(&format!("_state_(exitEvent);"));
+                self.add_code(&format!("(self.{})(self,&mut exit_event);",&self.config.state_var_name));
                 self.newline();
-                self.add_code(&format!("_state_ = newState;"));
+                self.add_code(&format!("self.{} = newState;",&self.config.state_var_name));
                 self.newline();
                 if self.generate_state_context {
                     self.add_code(&format!("_stateContext_ = stateContext;"));
@@ -401,10 +469,10 @@ impl CsVisitor {
                     self.add_code(&format!("FrameEvent enterEvent = new FrameEvent(\">\",_stateContext_.getEnterArgs());"));
                     self.newline();
                 } else {
-                    self.add_code(&format!("FrameEvent enterEvent = new FrameEvent(\">\",null);"));
+                    self.add_code(&format!("let mut enter_event = FrameEvent::new(FrameMessage::Enter,None);"));
                     self.newline();
                 }
-                self.add_code(&format!("_state_(enterEvent);"));
+                self.add_code(&format!("(self.{})(self,&mut enter_event);",&self.config.state_var_name));
                 self.outdent();
                 self.newline();
                 self.add_code(&format!("}}"));
@@ -458,7 +526,7 @@ impl CsVisitor {
                 self.add_code(&format!("private void _changeState_(FrameState newState) {{"));
                 self.indent();
                 self.newline();
-                self.add_code(&format!("_state_ = newState;"));
+                self.add_code(&format!("{} = newState;",&self.config.state_var_name));
                 self.outdent();
                 self.newline();
                 self.add_code(&format!("}}"));
@@ -481,12 +549,12 @@ impl CsVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn generate_subclass(&mut self) {
-        for line in self.subclass_code.iter() {
-            self.code.push_str(&*format!("{}",line));
-            self.code.push_str(&*format!("\n{}",self.dent()));
-        }
-    }
+    // fn generate_subclass(&mut self) {
+    //     for line in self.subclass_code.iter() {
+    //         self.code.push_str(&*format!("{}",line));
+    //         self.code.push_str(&*format!("\n{}",self.dent()));
+    //     }
+    // }
 
     //* --------------------------------------------------------------------- *//
 
@@ -622,9 +690,9 @@ impl CsVisitor {
 
         let enter_args_opt = match &transition_statement.target_state_context_t {
             StateContextType::StateRef { state_context_node}
-                => &state_context_node.enter_args_opt,
+            => &state_context_node.enter_args_opt,
             StateContextType::StateStackPop {}
-                => &None,
+            => &None,
         };
 
         if let Some(enter_args) = enter_args_opt {
@@ -666,9 +734,9 @@ impl CsVisitor {
 
         let target_state_args_opt = match &transition_statement.target_state_context_t {
             StateContextType::StateRef { state_context_node}
-                => &state_context_node.state_ref_args_opt,
+            => &state_context_node.state_ref_args_opt,
             StateContextType::StateStackPop {}
-                => &Option::None,
+            => &Option::None,
         };
 //
         if let Some(state_args) = target_state_args_opt {
@@ -738,15 +806,25 @@ impl CsVisitor {
         };
         if self.generate_state_context {
             if self.generate_exit_args {
-                self.add_code(&format!("_transition_({},{},stateContext);",self.format_target_state_name(target_state_name),exit_args));
+                self.add_code(&format!("self.transition({}::{},{},stateContext);"
+                                       ,self.system_name
+                                       ,self.format_target_state_name(target_state_name)
+                                       ,exit_args));
             } else {
-                self.add_code(&format!("_transition_({},stateContext);",self.format_target_state_name(target_state_name)));
+                self.add_code(&format!("self.transition({}::{},stateContext);",
+                                       self.system_name
+                                       ,self.format_target_state_name(target_state_name)));
             }
         } else {
             if self.generate_exit_args {
-                self.add_code(&format!("_transition_({},{});",self.format_target_state_name(target_state_name),exit_args));
+                self.add_code(&format!("self.transition({}::{},{});"
+                                       ,self.system_name
+                                       ,self.format_target_state_name(target_state_name)
+                                       ,exit_args));
             } else {
-                self.add_code(&format!("_transition_({});",self.format_target_state_name(target_state_name)));
+                self.add_code(&format!("self.transition({}::{});"
+                                       ,self.system_name
+                                       ,self.format_target_state_name(target_state_name)));
             }
         }
     }
@@ -754,7 +832,7 @@ impl CsVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn format_target_state_name(&self,state_name:&str) -> String {
-        format!("_s{}_",state_name)
+        format!("{}_state",state_name.to_lowercase())
     }
 
     //* --------------------------------------------------------------------- *//
@@ -846,7 +924,7 @@ impl CsVisitor {
 
 //* --------------------------------------------------------------------- *//
 
-impl AstVisitor for CsVisitor {
+impl AstVisitor for RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
@@ -854,10 +932,140 @@ impl AstVisitor for CsVisitor {
         self.system_name = system_node.name.clone();
         self.add_code(&format!("// {}",self.compiler_version));
         self.newline();
-        self.add_code("// get include files at https://github.com/frame-lang/frame-ancillary-files");
+        self.add_code(&system_node.header);
+        // self.newline();
+        // self.add_code("// get include files at https://github.com/frame-lang/frame-ancillary-files");
+        // self.newline();
+
+        // self.newline();
+        // self.newline();
+        // self.add_code("use std::collections::HashMap;");
+        // self.newline();
+        // self.newline();
+
+        if let Some(interface_block_node) = &system_node.interface_block_node_opt {
+            interface_block_node.accept_frame_messages_enum(self);
+            interface_block_node.accept_frame_parameters(self);
+
+        }
+
         self.newline();
         self.newline();
-        self.add_code(&format!("public partial class {} {{", system_node.name));
+
+        self.add_code("type FrameState = fn(&mut Machine, &mut FrameEvent);");
+
+        self.newline();
+        self.newline();
+        self.add_code("enum FrameEventParameter {");
+        self.indent();
+        self.newline();
+        self.add_code("None,");
+
+        if let Some(interface_block_node) = &system_node.interface_block_node_opt {
+            for interface_method_node in &interface_block_node.interface_methods {
+                let if_name = interface_method_node.name.clone();
+                if let Some(params) = &interface_method_node.params {
+                    for param in params {
+                        let param_type = match &param.param_type_opt {
+                            Some(param_type) => param_type.get_type_str(),
+                            None => "<?>".to_string().clone(),
+                        };
+                        self.newline();
+                        self.add_code(&format!("{}{} {{param:{}}},",RustVisitor::uppercase_first_letter(&if_name)
+                                               ,RustVisitor::uppercase_first_letter(&param.param_name)
+                                               ,param_type
+                        ));
+                    }
+                }
+            }
+        }
+
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.newline();
+        self.newline();
+
+        self.add_code("enum FrameEventReturn {");
+        self.indent();
+        self.newline();
+        self.add_code("None,");
+
+        if let Some(interface_block_node) = &system_node.interface_block_node_opt {
+            for interface_method_node in &interface_block_node.interface_methods {
+                let if_name = interface_method_node.name.clone();
+                if let Some(return_type) = &interface_method_node.return_type_opt {
+                    self.newline();
+                    self.add_code(&format!("{} {{return_type:{}}},",RustVisitor::uppercase_first_letter(&if_name),return_type.get_type_str()));
+                }
+            }
+        }
+
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.newline();
+        self.newline();
+        self.add_code("struct FrameEvent {");
+        self.indent();
+        self.newline();
+        self.add_code("message: FrameMessage,");
+        self.newline();
+        self.add_code("parameters:Option<FrameParameters>,");
+        self.newline();
+        self.add_code("ret:FrameEventReturn,");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.newline();
+        self.newline();
+        self.add_code("impl FrameEvent {");
+        self.indent();
+        self.newline();
+        self.add_code("fn new(message:FrameMessage, parameters:Option<FrameParameters>) -> FrameEvent {");
+        self.indent();
+        self.newline();
+        self.add_code("FrameEvent {");
+        self.indent();
+        self.newline();
+        self.add_code("message,");
+        self.newline();
+        self.add_code("parameters,");
+        self.newline();
+        self.add_code("ret:FrameEventReturn::None,");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.newline();
+        if let Some(actions_block_node) = &system_node.actions_block_node_opt {
+            actions_block_node.accept_rust_trait(self);
+        }
+        self.newline();
+
+        self.add_code(&format!("pub struct {} {{", self.system_name));
+        self.indent();
+        self.newline();
+        self.add_code(&format!("{}:FrameState,",&self.config.state_var_name));
+
+        if let Some(domain_block_node) = &system_node.domain_block_node_opt {
+            domain_block_node.accept(self);
+        }
+
+        self.outdent();
+        self.newline();
+
+        self.add_code("}");
+
+        self.newline();
+        self.newline();
+
+        self.add_code(&format!("impl {} {{", system_node.name));
         self.indent();
         self.newline();
 
@@ -874,33 +1082,53 @@ impl AstVisitor for CsVisitor {
         // generate constructor
 
         if self.has_states {
-            self.add_code(&format!("public {}() {{",system_node.name));
+            self.add_code(&format!("fn new() -> {} {{",system_node.name));
             self.indent();
             self.newline();
             self.newline();
-            self.add_code(&format!("_state_ = _s{}_;", self.first_state_name));
-            if self.generate_state_context {
-                self.newline();
-                self.add_code(&format!("_stateContext_ = new StateContext(_s{}_);", self.first_state_name));
-                if let Some(state_symbol_rcref) = self.arcanium.get_state(&self.first_state_name) {
-                    //   self.newline();
-                    let state_symbol = state_symbol_rcref.borrow();
-                    let state_node = &state_symbol.state_node.as_ref().unwrap().borrow();
-                    // generate local state variables
-                    if state_node.vars.is_some() {
-                        for var_rcref in state_node.vars.as_ref().unwrap() {
-                            let var = var_rcref.borrow();
-                            let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
-                            let mut expr_code = String::new();
-                            expr_t.accept_to_string(self, &mut expr_code);
-                            self.newline();
-                            self.add_code(&format!("_stateContext_.addStateVar(\"{}\",{});", var.name, expr_code));
-                        }
-                    }
+            self.add_code(&format!("{} {{", system_node.name));
+            self.indent();
+            self.newline();
+            self.add_code(&format!("{}:{}::{},",&self.config.state_var_name, system_node.name, self.format_state_name(&self.first_state_name)));
 
+            if let Some(domain_block_node) = &system_node.domain_block_node_opt {
+                for variable_decl_node_rcref in &domain_block_node.member_variables {
+                    let variable_decl_node = variable_decl_node_rcref.borrow();
+                 //   variable_decl_node.accept(self);
+
+                    let var_init_expr = &variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
+                    let mut code = String::new();
+                    var_init_expr.accept_to_string(self, &mut code);
+                    self.newline();
+                    self.add_code(&format!("{}:{},",variable_decl_node.name,code));
                 }
             }
 
+            // if self.generate_state_context {
+            //     self.newline();
+            //     self.add_code(&format!("_stateContext_ = new StateContext(_s{}_);", self.first_state_name));
+            //     if let Some(state_symbol_rcref) = self.arcanium.get_state(&self.first_state_name) {
+            //         //   self.newline();
+            //         let state_symbol = state_symbol_rcref.borrow();
+            //         let state_node = &state_symbol.state_node.as_ref().unwrap().borrow();
+            //         // generate local state variables
+            //         if state_node.vars.is_some() {
+            //             for var_rcref in state_node.vars.as_ref().unwrap() {
+            //                 let var = var_rcref.borrow();
+            //                 let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
+            //                 let mut expr_code = String::new();
+            //                 expr_t.accept_to_string(self, &mut expr_code);
+            //                 self.newline();
+            //                 self.add_code(&format!("_stateContext_.addStateVar(\"{}\",{});", var.name, expr_code));
+            //             }
+            //         }
+            //
+            //     }
+            // }
+
+            self.outdent();
+            self.newline();
+            self.add_code(&format!("}}"));
             self.outdent();
             self.newline();
             self.add_code(&format!("}}"));
@@ -918,9 +1146,9 @@ impl AstVisitor for CsVisitor {
         self.deserialize.push("void _deserialize__do(Bag data) {".to_string());
 
 
-        self.subclass_code.push("".to_string());
-        self.subclass_code.push("/********************\n".to_string());
-        self.subclass_code.push(format!("public partial class {}Controller : {} {{",system_node.name,system_node.name));
+        // self.subclass_code.push("".to_string());
+        // self.subclass_code.push("/********************\n".to_string());
+        // self.subclass_code.push(format!("public partial class {}Controller : {} {{",system_node.name,system_node.name));
 
         if let Some(interface_block_node) = &system_node.interface_block_node_opt {
             interface_block_node.accept(self);
@@ -930,16 +1158,8 @@ impl AstVisitor for CsVisitor {
             machine_block_node.accept(self);
         }
 
-        if let Some(actions_block_node) = &system_node.actions_block_node_opt {
-            actions_block_node.accept(self);
-        }
-
-        if let Some(domain_block_node) = &system_node.domain_block_node_opt {
-            domain_block_node.accept(self);
-        }
-
-        self.subclass_code.push(format!("}}"));
-        self.subclass_code.push("\n********************/".to_string());
+        // self.subclass_code.push(format!("}}"));
+        // self.subclass_code.push("\n********************/".to_string());
 
         self.serialize.push("".to_string());
         self.serialize.push("\treturn JSON.stringify(bag);".to_string());
@@ -962,25 +1182,156 @@ impl AstVisitor for CsVisitor {
         self.add_code("}");
         self.newline();
 
-        self.generate_subclass();
+        if let Some(actions_block_node) = &system_node.actions_block_node_opt {
+            actions_block_node.accept_rust_impl(self);
+        }
+
+        // self.generate_subclass();
 
         AstVisitorReturnType::SystemNode {}
     }
 
+
     //* --------------------------------------------------------------------- *//
 
     fn visit_frame_messages_enum(&mut self, interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
-        panic!("Error - visit_frame_messages_enum() only used in Rust.");
+        self.newline();
+        self.add_code("enum FrameMessage {");
+        self.indent();
+        self.newline();
+        self.add_code("Enter,");
+        self.newline();
+        self.add_code("Exit,");
+        self.newline();
 
-        // AstVisitorReturnType::InterfaceBlockNode {}
+        for interface_method_node in &interface_block_node.interface_methods {
+            self.add_code(&format!("{},", RustVisitor::uppercase_first_letter(&interface_method_node.name)));
+            self.newline();
+        }
+
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+
+        AstVisitorReturnType::InterfaceBlockNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
     fn visit_interface_parameters(&mut self, interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
-        panic!("visit_interface_parameters() not valid for target language.");
+        self.newline();
+        self.newline();
+        self.add_code("struct FrameParameters {");
+        self.indent();
+        self.newline();
+        self.add_code("parameters:HashMap<String, FrameEventParameter>");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.newline();
+        self.newline();
+        self.add_code("impl FrameParameters {");
+        self.indent();
+        self.newline();
+        self.add_code("fn new() -> FrameParameters {");
+        self.indent();
+        self.newline();
+        self.add_code("FrameParameters {");
+        self.indent();
+        self.newline();
+        self.add_code("parameters:HashMap::new()");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
 
-        // AstVisitorReturnType::InterfaceBlockNode {}
+
+        for interface_method_node in &interface_block_node.interface_methods {
+            let if_name = interface_method_node.name.clone();
+            if let Some(params) = &interface_method_node.params {
+                for param in params {
+                    let param_type = match &param.param_type_opt {
+                        Some(param_type) => param_type.get_type_str(),
+                        None => "<?>".to_string().clone(),
+                    };
+                    self.newline();
+                    self.newline();
+                    self.add_code(&format!("fn set_{}_{}(&mut self,{}:{}) {{",interface_method_node.name
+                                                                         ,param.param_name
+                            ,param.param_name
+                            ,param_type
+                    ));
+                    self.indent();
+                    self.newline();
+                    self.add_code(&format!("self.parameters.insert(String::from(\"{}_{}\"),FrameEventParameter::{}{} {{param:{}}} );"
+                                           ,interface_method_node.name
+                                           ,param.param_name
+                                           ,RustVisitor::uppercase_first_letter(&interface_method_node.name)
+                                           ,RustVisitor::uppercase_first_letter(&param.param_name)
+                                           ,param.param_name
+                    ));
+                    self.outdent();
+                    self.newline();
+                    self.add_code("}");
+                    self.newline();
+                    self.newline();
+                    self.add_code(&format!("fn get_{}_{}(&self) -> {} {{",interface_method_node.name
+                                           ,param.param_name
+                                           ,param_type
+                    ));
+                    self.indent();
+                    self.newline();
+                    self.add_code(&format!("match self.parameters.get(\"{}_{}\") {{"
+                                           ,interface_method_node.name
+                                           ,param.param_name));
+                    self.indent();
+                    self.newline();
+                    self.add_code("Some(parameter) => {");
+                    self.indent();
+                    self.newline();
+                    self.add_code("match parameter {");
+                    self.indent();
+                    self.newline();
+                    self.add_code(&format!("FrameEventParameter::{}{} {{param}} => {{"
+                                           ,RustVisitor::uppercase_first_letter(&if_name)
+                                           ,RustVisitor::uppercase_first_letter(&*param.param_name)));
+                    self.indent();
+                    self.newline();
+                    self.add_code("param.clone()");
+                    self.outdent();
+                    self.newline();
+                    self.add_code("},");
+                    self.newline();
+                    self.add_code("_ => panic!(\"Invalid parameter\"),");
+                    self.outdent();
+                    self.newline();
+                    self.add_code("}"); // match self.parameters.get
+                    self.outdent();
+                    self.newline();
+                    self.add_code("},"); // Some(parameter)
+                    self.newline();
+                    self.add_code("None => panic!(\"Invalid parameter\"),");
+                    self.outdent();
+                    self.newline();
+                    self.add_code("}"); // match
+                    self.outdent();
+                    self.newline();
+                    self.add_code("}");
+                }
+            }
+        }
+
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+
+        // for interface_method_node in &interface_block_node.interface_methods {
+        //     interface_method_node.accept(self);
+        // }
+
+        AstVisitorReturnType::InterfaceBlockNode {}
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1002,61 +1353,100 @@ impl AstVisitor for CsVisitor {
     fn visit_interface_method_node(&mut self, interface_method_node: &InterfaceMethodNode) -> AstVisitorReturnType {
 
         self.newline();
-        let return_type = match &interface_method_node.return_type_opt {
-            Some(ret) => ret.get_type_str(),
-            None => "void".to_string(),
-        };
+        // let return_type = match &interface_method_node.return_type {
+        //     Some(ret) => ret.clone(),
+        //     None => "void".to_string(),
+        // };
 
         // see if an alias exists.
-        let method_name_or_alias: &String;
+        // let method_name_or_alias: &String;
+        //
+        // match &interface_method_node.alias {
+        //     Some(alias_message_node) => {
+        //         // For Rust we map >> and << back to the method names as we aren't using strings
+        //         if self.config.start_system_msg == alias_message_node.name {
+        //             method_name_or_alias = &interface_method_node.name;
+        //         } else if self.config.stop_system_msg == alias_message_node.name {
+        //             method_name_or_alias = &interface_method_node.name;
+        //         } else {
+        //             method_name_or_alias = &alias_message_node.name;
+        //         }
+        //     },
+        //     None => {
+        //         method_name_or_alias = &interface_method_node.name;
+        //     }
+        // }
 
-        match &interface_method_node.alias {
-            Some(alias_message_node) => {
-                method_name_or_alias = &alias_message_node.name;
-            },
-            None => {
-                method_name_or_alias = &interface_method_node.name;
-            }
-        }
-
-        self.add_code(&format!("public {} {}(",return_type, interface_method_node.name));
+        self.add_code(&format!("fn {} (&mut self", interface_method_node.name));
 
         match &interface_method_node.params {
             Some (params)
-            =>  self.format_parameter_list(params).clone(),
+                =>  self.format_parameter_list(params).clone(),
             None => {},
         }
 
-        self.add_code(") {");
+        self.add_code(")");
+        match &interface_method_node.return_type_opt {
+            Some(return_type) => {
+                self.add_code(&format!(" -> {}",return_type.get_type_str()));
+            },
+            None => {}
+        }
+        self.add_code(" {");
         self.indent();
-        let mut params_param_code;
+        let mut params_param_code= String::from("");
+        // let mut frame_parameters = FrameParameters::new();
+        // frame_parameters.set_toggle_msg(msg);
+
         if interface_method_node.params.is_some() {
-            params_param_code = String::from("parameters");
+            params_param_code = String::from("Some(frame_parameters)");
             self.newline();
-            self.add_code("Dictionary<String,object> parameters = new Dictionary<String,object>();");
+            self.add_code("let mut frame_parameters = FrameParameters::new();");
             match &interface_method_node.params {
                 Some(params) => {
                     for param in params {
                         let pname = &param.param_name;
                         self.newline();
-                        self.add_code(&format!("parameters[\"{}\"] = {};\n", pname, pname));
+                        self.add_code(&format!("frame_parameters.set_{}_{}({});",&interface_method_node.name,pname,pname));
                     }
                 },
                 None => {}
             }
         } else {
-            params_param_code = String::from("null");
+            params_param_code = String::from("None");
         }
 
+        // self.indent();
         self.newline();
-        self.add_code(&format!("FrameEvent e = new FrameEvent(\"{}\",{});", method_name_or_alias,params_param_code));
+        self.add_code(&format!("let mut e = {}::new({}::{},{});"
+                                ,self.config.frame_event
+                                ,self.config.frame_message
+                                ,self.get_msg_enum(&interface_method_node.name)
+                                ,&params_param_code));
+        // self.indent();
+        // self.newline();
+        // self.add_code(&format!("message : String::from(\"{}\"),", method_name_or_alias));
+        // self.outdent();
+        // self.newline();
+        // self.add_code("};");
         self.newline();
-        self.add_code(&format!("_state_(e);"));
+        self.add_code(&format!("(self.state)(self, &mut e);"));
 
         match &interface_method_node.return_type_opt {
             Some(return_type) => {
                 self.newline();
-                self.add_code(&format!("return ({}) e._return;",return_type.get_type_str()));
+                self.add_code("match e.ret {");
+                self.indent();
+                self.newline();
+                self.add_code(&format!("{}::{} {{return_type}} => return_type.clone(),"
+                    ,self.config.frame_event_return
+                    ,RustVisitor::uppercase_first_letter(&interface_method_node.name)));
+                self.newline();
+                self.add_code("_ => panic!(\"Bad return type for toggle()\"),");
+                self.outdent();
+                self.newline();
+                self.add_code("}");
+         //       self.add_code(&format!("return ({}) e._return;",return_type));
             },
             None => {}
         }
@@ -1105,17 +1495,48 @@ impl AstVisitor for CsVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_actions_block_node(&mut self, actions_block_node: &ActionsBlockNode) -> AstVisitorReturnType {
+    fn visit_actions_block_node(&mut self, _: &ActionsBlockNode) -> AstVisitorReturnType {
+        panic!("Error - visit_actions_block_node() not called for Rust.");
+
+        // AstVisitorReturnType::ActionBlockNode {}
+    }
+
+    //* --------------------------------------------------------------------- *//
+    //
+    // fn visit_action_node_rust_trait(&mut self, actions_block_node: &ActionsBlockNode) -> AstVisitorReturnType {
+    //     self.newline();
+    //     self.add_code(&format!("trait {}_Actions {{ ",self.system_name));
+    //     self.indent();
+    //     self.newline();
+    //
+    //     for action_decl_node_rcref in &actions_block_node.actions {
+    //         let action_decl_node = action_decl_node_rcref.borrow();
+    //         action_decl_node.accept(self);
+    //     }
+    //
+    //     self.outdent();
+    //     self.newline();
+    //     self.add_code("}");
+    //     self.newline();
+    //
+    //     AstVisitorReturnType::ActionBlockNode {}
+    // }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_action_node_rust_trait(&mut self, actions_block_node: &ActionsBlockNode) -> AstVisitorReturnType {
         self.newline();
-        self.newline();
-        self.add_code("//===================== Actions Block ===================//");
-        self.newline();
+        self.add_code(&format!("trait {}Actions {{ ",self.system_name));
+        self.indent();
 
         for action_decl_node_rcref in &actions_block_node.actions {
             let action_decl_node = action_decl_node_rcref.borrow();
             action_decl_node.accept(self);
         }
 
+        self.outdent();
+        self.newline();
+        self.add_code("}");
         self.newline();
 
         AstVisitorReturnType::ActionBlockNode {}
@@ -1123,18 +1544,22 @@ impl AstVisitor for CsVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_node_rust_trait(&mut self, _: &ActionsBlockNode) -> AstVisitorReturnType {
-        panic!("Error - visit_action_node_rust_trait() not implemented.");
+    fn visit_actions_node_rust_impl(&mut self, actions_block_node: &ActionsBlockNode) -> AstVisitorReturnType {
+        self.newline();
 
-        // AstVisitorReturnType::ActionBlockNode {}
-    }
+        self.add_code(&format!("impl {}Actions for {} {{ ",self.system_name,self.system_name));
+        self.indent();
+        self.newline();
 
-    //* --------------------------------------------------------------------- *//
+        for action_decl_node_rcref in &actions_block_node.actions {
+            let action_decl_node = action_decl_node_rcref.borrow();
+            action_decl_node.accept_rust_impl(self);
+        }
+        self.outdent();
+        self.newline();
+        self.add_code("}");
 
-    fn visit_actions_node_rust_impl(&mut self, _: &ActionsBlockNode) -> AstVisitorReturnType {
-        panic!("Error - visit_actions_node_rust_impl() not implemented.");
-
-        // AstVisitorReturnType::ActionBlockNode {}
+        AstVisitorReturnType::ActionBlockNode {}
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1145,9 +1570,9 @@ impl AstVisitor for CsVisitor {
         self.add_code("//===================== Domain Block ===================//");
         self.newline();
 
-         for variable_decl_node_rcref in &domain_block_node.member_variables {
+        for variable_decl_node_rcref in &domain_block_node.member_variables {
             let variable_decl_node = variable_decl_node_rcref.borrow();
-            variable_decl_node.accept(self);
+            variable_decl_node.accept_rust_domain_var_decl(self);
         }
 
         AstVisitorReturnType::DomainBlockNode {}
@@ -1161,13 +1586,15 @@ impl AstVisitor for CsVisitor {
         self.current_state_name_opt = Some(state_node.name.clone());
         self.newline();
         self.newline();
-        self.add_code(&format!("private void _s{}_(FrameEvent e) {{", state_node.name));
+        self.add_code(&format!("fn {}(&mut self, e:&mut FrameEvent) {{", self.format_state_name(&state_node.name)));
         self.indent();
 
-        self.serialize.push(format!("\tif (_state_ == _s{}_) stateName = \"{}\"",state_node.name,state_node.name));
+        // @TODO
+        // self.serialize.push(format!("\tif (_state_ == _s{}_) stateName = \"{}\"",state_node.name,state_node.name));
+        //
+        // self.deserialize.push(format!("\t\tcase \"{}\": _state_ = _s{}_; break;",state_node.name,state_node.name));
 
-        self.deserialize.push(format!("\t\tcase \"{}\": _state_ = _s{}_; break;",state_node.name,state_node.name));
-
+        // this allows for logging and other kinds of calls for each event in the state
         if let Some(calls) = &state_node.calls {
             for call in calls {
                 self.newline();
@@ -1176,6 +1603,13 @@ impl AstVisitor for CsVisitor {
             }
         }
 
+        self.newline();
+        self.add_code(&format!("match {}.{} {{"
+                                ,self.config.frame_event_variable_name
+                                ,self.config.frame_event_message_attribute_name));
+        self.indent();
+        self.newline();
+
         self.first_event_handler = true; // context for formatting
 
         if state_node.evt_handlers_rcref.len() > 0 {
@@ -1183,14 +1617,19 @@ impl AstVisitor for CsVisitor {
                 evt_handler_node.as_ref().borrow().accept(self);
             }
         }
-
+        self.newline();
+        self.add_code("_ => {");
         match &state_node.dispatch_opt {
             Some(dispatch) => {
                 dispatch.accept(self);
             },
             None => {},
         }
+        self.add_code("}");
 
+        self.outdent();
+        self.newline();
+        self.add_code("}");
         self.outdent();
         self.newline();
         self.add_code("}");
@@ -1207,19 +1646,18 @@ impl AstVisitor for CsVisitor {
         self.generate_comment(evt_handler_node.line);
 //        let mut generate_final_close_paren = true;
         if let MessageType::CustomMessage {message_node} = &evt_handler_node.msg_t {
-            if self.first_event_handler {
-                self.add_code(&format!("if (e._message.Equals(\"{}\")) {{", message_node.name));
-            } else {
-                self.add_code(&format!("else if (e._message.Equals(\"{}\")) {{", message_node.name));
-            }
+            self.current_message = message_node.name.clone();
+            self.add_code(&format!("FrameMessage::{} => {{", self.get_msg_enum(&message_node.name)));
         } else { // AnyMessage ( ||* )
-            if self.first_event_handler {
-                // This logic is for when there is only the catch all event handler ||*
-                self.add_code(&format!("if (true) {{"));
-            } else {
-                // other event handlers preceded ||*
-                self.add_code(&format!("else {{"));
-            }
+            // This feature requires dynamic dispatch.
+            panic!("||* not supported for Rust.");
+            // if self.first_event_handler {
+            //     // This logic is for when there is only the catch all event handler ||*
+            //     self.add_code(&format!("_ => {{"));
+            // } else {
+            //     // other event handlers preceded ||*
+            //     self.add_code(&format!("else {{"));
+            // }
         }
         self.generate_comment(evt_handler_node.line);
 
@@ -1253,10 +1691,11 @@ impl AstVisitor for CsVisitor {
         terminator_node.accept(self);
         self.outdent();
         self.newline();
-        self.add_code(&format!("}}"));
+        self.add_code(&format!("}},"));
 
         // this controls formatting here
         self.first_event_handler = false;
+        self.current_message = String::new();
         self.current_event_ret_type = String::new();
 
         AstVisitorReturnType::EventHandlerNode {}
@@ -1270,9 +1709,15 @@ impl AstVisitor for CsVisitor {
             TerminatorType::Return => {
                 match &evt_handler_terminator_node.return_expr_t_opt {
                     Some(expr_t) => {
-                        self.add_code(&format!("e._return = "));
+                        self.add_code(&format!("{}.{} = "
+                                                ,self.config.frame_event_variable_name
+                                                ,self.config.frame_event_return_attribute_name));
+                        self.add_code(&format!("{}::{} {{return_type:"
+                            ,self.config.frame_event_return
+                            ,RustVisitor::uppercase_first_letter(&self.current_message)));
                         expr_t.accept(self);
-                        self.add_code(";");
+
+                        self.add_code("};");
                         self.newline();
                         self.add_code("return;");
                         self.newline();
@@ -1385,7 +1830,7 @@ impl AstVisitor for CsVisitor {
     fn visit_action_call_expression_node(&mut self, action_call: &ActionCallExprNode) -> AstVisitorReturnType {
 
         let action_name = self.format_action_name(&action_call.identifier.name.lexeme);
-        self.add_code(&format!("{}", action_name));
+        self.add_code(&format!("self.{}", action_name));
 
         action_call.call_expr_list.accept(self);
 
@@ -1420,9 +1865,9 @@ impl AstVisitor for CsVisitor {
 
         match &transition_statement.target_state_context_t {
             StateContextType::StateRef {..}
-                => self.generate_state_ref_transition(transition_statement),
+            => self.generate_state_ref_transition(transition_statement),
             StateContextType::StateStackPop {}
-                => self.generate_state_stack_pop_transition(transition_statement),
+            => self.generate_state_stack_pop_transition(transition_statement),
         };
 
         AstVisitorReturnType::CallStatementNode {}
@@ -1443,9 +1888,9 @@ impl AstVisitor for CsVisitor {
 
         match &change_state_stmt_node.state_context_t {
             StateContextType::StateRef {..}
-                => self.generate_state_ref_change_state(change_state_stmt_node),
+            => self.generate_state_ref_change_state(change_state_stmt_node),
             StateContextType::StateStackPop {}
-                => self.errors.push(format!("Fatal error - change state stack pop not implemented."),)
+            => self.errors.push(format!("Fatal error - change state stack pop not implemented."),)
         };
 
         AstVisitorReturnType::ChangeStateStmtNode {}
@@ -1464,9 +1909,12 @@ impl AstVisitor for CsVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_dispatch_node(&mut self, dispatch_node: &DispatchNode) -> AstVisitorReturnType {
+        self.indent();
         self.newline();
-        self.add_code(&format!("_s{}_(e);", dispatch_node.target_state_ref.name));
+        self.add_code(&format!("({}::{})(self,e);",self.system_name
+                            , self.format_state_name(&dispatch_node.target_state_ref.name)));
         self.generate_comment(dispatch_node.line);
+        self.outdent();
         self.newline();
 
         AstVisitorReturnType::DispatchNode {}
@@ -1683,13 +2131,13 @@ impl AstVisitor for CsVisitor {
             // TODO: use string_match_test_node.expr_t.accept(self) ?
             match &string_match_test_node.expr_t {
                 ExprType::CallExprT { call_expr_node: method_call_expr_node }
-                    => method_call_expr_node.accept(self),
+                => method_call_expr_node.accept(self),
                 ExprType::ActionCallExprT { action_call_expr_node }
-                    => action_call_expr_node.accept(self),
+                => action_call_expr_node.accept(self),
                 ExprType::CallChainLiteralExprT { call_chain_expr_node }
-                    => call_chain_expr_node.accept(self),
+                => call_chain_expr_node.accept(self),
                 ExprType::VariableExprT { var_node: id_node }
-                    => id_node.accept(self),
+                => id_node.accept(self),
                 ExprType::ExprListT {expr_list_node} => {
                     // must be only 1 expression in the list
                     if expr_list_node.exprs_t.len() != 1 {
@@ -1718,13 +2166,13 @@ impl AstVisitor for CsVisitor {
                     self.add_code(&format!(" || ("));
                     match &string_match_test_node.expr_t {
                         ExprType::CallExprT { call_expr_node: method_call_expr_node }
-                            => method_call_expr_node.accept(self),
+                        => method_call_expr_node.accept(self),
                         ExprType::ActionCallExprT { action_call_expr_node }
-                            => action_call_expr_node.accept(self),
+                        => action_call_expr_node.accept(self),
                         ExprType::CallChainLiteralExprT { call_chain_expr_node }
-                            => call_chain_expr_node.accept(self),
+                        => call_chain_expr_node.accept(self),
                         ExprType::VariableExprT { var_node: id_node }
-                            => id_node.accept(self),
+                        => id_node.accept(self),
                         _ => self.errors.push(format!("TODO")),
                     }
                     self.add_code(&format!(" == \"{}\")",match_string));
@@ -1845,13 +2293,13 @@ impl AstVisitor for CsVisitor {
             self.add_code(&format!("{} (", if_or_else_if));
             match &number_match_test_node.expr_t {
                 ExprType::CallExprT { call_expr_node: method_call_expr_node }
-                    => method_call_expr_node.accept(self),
+                => method_call_expr_node.accept(self),
                 ExprType::ActionCallExprT { action_call_expr_node }
-                    => action_call_expr_node.accept(self),
+                => action_call_expr_node.accept(self),
                 ExprType::CallChainLiteralExprT { call_chain_expr_node }
-                    => call_chain_expr_node.accept(self),
+                => call_chain_expr_node.accept(self),
                 ExprType::VariableExprT { var_node: id_node }
-                    => id_node.accept(self),
+                => id_node.accept(self),
                 ExprType::ExprListT {expr_list_node} => {
                     // must be only 1 expression in the list
                     if expr_list_node.exprs_t.len() != 1 {
@@ -1873,13 +2321,13 @@ impl AstVisitor for CsVisitor {
                     self.add_code(&format!(" || ("));
                     match &number_match_test_node.expr_t {
                         ExprType::CallExprT { call_expr_node: method_call_expr_node }
-                            => method_call_expr_node.accept(self),
+                        => method_call_expr_node.accept(self),
                         ExprType::ActionCallExprT { action_call_expr_node }
-                            => action_call_expr_node.accept(self),
+                        => action_call_expr_node.accept(self),
                         ExprType::CallChainLiteralExprT { call_chain_expr_node }
-                            => call_chain_expr_node.accept(self),
+                        => call_chain_expr_node.accept(self),
                         ExprType::VariableExprT { var_node: id_node }
-                            => id_node.accept(self),
+                        => id_node.accept(self),
                         _ => self.errors.push(format!("TODO.")),
                     }
                     self.add_code(&format!(" == {})",match_number.match_pattern_number));
@@ -2046,6 +2494,9 @@ impl AstVisitor for CsVisitor {
                 => self.add_code("null"),
             TokenType::NilTok
                 => self.add_code("null"),
+            TokenType::SuperStringTok => {
+                self.add_code(&format!("{}", literal_expression_node.value));
+            },
             _ => self.errors.push(format!("TODO: visit_literal_expression_node")),
         }
 
@@ -2075,6 +2526,9 @@ impl AstVisitor for CsVisitor {
             },
             TokenType::NullTok => {
                 output.push_str("null");
+            },
+            TokenType::SuperStringTok => {
+                output.push_str(&format!("{}", literal_expression_node.value));
             },
             _ => self.errors.push(format!("TODO: visit_literal_expression_node_to_string")),
         }
@@ -2132,11 +2586,11 @@ impl AstVisitor for CsVisitor {
                 }
             },
             StateStackOperationType::Pop => {
-               if self.generate_state_context {
-                   self.add_code(&format!("StateContext stateContext = _stateStack_pop_()"));
-               } else {
-                   self.add_code(&format!("FrameState state = _stateStack_pop_()"));
-               }
+                if self.generate_state_context {
+                    self.add_code(&format!("StateContext stateContext = _stateStack_pop_()"));
+                } else {
+                    self.add_code(&format!("FrameState state = _stateStack_pop_()"));
+                }
             }
         }
         AstVisitorReturnType::StateStackOperationStatementNode {}
@@ -2157,10 +2611,19 @@ impl AstVisitor for CsVisitor {
 
         // TODO: make this code generate from settings
         match frame_event_part {
-            FrameEventPart::Event => self.add_code(&format!("e")),
-            FrameEventPart::Message => self.add_code(&format!("e._message")),
-            FrameEventPart::Param {param_tok} => self.add_code(&format!("e._parameters[\"{}\"]",param_tok.lexeme)),
-            FrameEventPart::Return => self.add_code(&format!("e._return")),
+            FrameEventPart::Event => self.add_code(&format!("{}",self.config.frame_event_variable_name)),
+            FrameEventPart::Message => self.add_code(&format!("{}.{}"
+                                            ,self.config.frame_event_variable_name
+                                            ,self.config.frame_event_message_attribute_name)),
+            // FrameEventPart::Param {param_tok} => self.add_code(&format!("{}._parameters[\"{}\"]"
+            //                                                             ,self.config.frame_event_variable_name
+            FrameEventPart::Param {param_tok} => self.add_code(&format!("{}.get_{}_{}()"
+                                                                        ,self.config.frame_event_variable_name
+                                                                        ,self.current_message
+                                                                        ,param_tok.lexeme)),
+            FrameEventPart::Return => self.add_code(&format!("{}.{}"
+                                                             ,self.config.frame_event_variable_name
+                                                             ,self.config.frame_event_message_attribute_name)),
         }
 
         AstVisitorReturnType::FrameEventExprType {}
@@ -2173,10 +2636,17 @@ impl AstVisitor for CsVisitor {
 
         // TODO: make this code generate from settings
         match frame_event_part {
-            FrameEventPart::Event => output.push_str("e"),
-            FrameEventPart::Message => output.push_str("e._message"),
-            FrameEventPart::Param {param_tok} => output.push_str(&format!("e._parameters[\"{}\"]",param_tok.lexeme)),
-            FrameEventPart::Return => output.push_str("e._return"),
+            FrameEventPart::Event => output.push_str(&format!("{}",self.config.frame_event_variable_name)),
+            FrameEventPart::Message => output.push_str(&format!("{}.{}"
+                                                                ,self.config.frame_event_variable_name
+                                                                ,self.config.frame_event_message_attribute_name)),
+            FrameEventPart::Param {param_tok} => output.push_str(&format!("{}.get_{}_{}()"
+                                                                          ,self.config.frame_event_variable_name
+                                                                          ,self.current_message
+                                                                          ,param_tok.lexeme)),
+            FrameEventPart::Return => output.push_str(&format!("{}.{}"
+                                                               ,self.config.frame_event_variable_name
+                                                               ,self.config.frame_event_message_attribute_name)),
         }
 
         AstVisitorReturnType::FrameEventExprType {}
@@ -2186,44 +2656,108 @@ impl AstVisitor for CsVisitor {
 
     fn visit_action_decl_node(&mut self, action_decl_node: &ActionNode) -> AstVisitorReturnType {
 
-        let mut subclass_code = String::new();
+//        let mut subclass_code = String::new();
 
         self.newline();
-        self.newline_to_string(&mut subclass_code);
+//        self.newline_to_string(&mut subclass_code);
 
-        let action_ret_type:String = match &action_decl_node.type_opt {
-            Some(ret_type) => ret_type.get_type_str(),
-            None => String::from("void"),
-        };
 
         let action_name = self.format_action_name(&action_decl_node.name);
-        self.add_code(&format!("protected virtual {} {}(",action_ret_type, action_name));
-        subclass_code.push_str(&format!("protected override {} {}(",action_ret_type, action_name));
+        self.add_code(&format!("fn {}(&mut self",action_name));
+//        subclass_code.push_str(&format!("fn {}(",action_name));
 
         match &action_decl_node.params {
             Some (params)
-                =>  self.format_actions_parameter_list(params,&mut subclass_code).clone(),
+                => {
+                    self.format_actions_parameter_list(params).clone();
+            },
             None => {},
         }
-        subclass_code.push_str(&format!(") {{}}"));
-        self.subclass_code.push(subclass_code);
+        // subclass_code.push_str(&format!(") {{}}"));
+        // self.subclass_code.push(subclass_code);
 
-        self.add_code(&format!(") {{ throw new NotImplementedException(); }}"));
+        self.add_code(")");
+        match &action_decl_node.type_opt {
+            Some(ret_type) => {
+                self.add_code(&format!(" -> {}", ret_type.get_type_str()));
+                ret_type.clone();
+            },
+            None => {}
+        };
+
+        self.add_code(";");
 
         AstVisitorReturnType::ActionDeclNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_impl_node(&mut self, action_decl_node: &ActionNode) -> AstVisitorReturnType {
-        panic!("visit_action_impl_node() not implemented.");
+    fn visit_action_impl_node(&mut self, action_node: &ActionNode) -> AstVisitorReturnType {
+
+//        let mut subclass_code = String::new();
+
+        self.newline();
+//        self.newline_to_string(&mut subclass_code);
+
+
+        let action_name = self.format_action_name(&action_node.name);
+        self.add_code(&format!("fn {}(&mut self",action_name));
+//        subclass_code.push_str(&format!("fn {}(",action_name));
+
+        match &action_node.params {
+            Some (params)
+            => {
+                self.format_actions_parameter_list(params).clone();
+            },
+            None => {},
+        }
+        // subclass_code.push_str(&format!(") {{}}"));
+        // self.subclass_code.push(subclass_code);
+
+        self.add_code(")");
+        match &action_node.type_opt {
+            Some(ret_type) => {
+                self.add_code(&format!(" -> {}", ret_type.get_type_str()));
+                ret_type.clone();
+            },
+            None => {}
+        };
+
+        self.add_code(" {");
+
+        match &action_node.code_opt {
+            Some(code) => {
+                self.indent();
+                self.newline();
+                self.add_code(&*code);
+                self.outdent();
+                self.newline();
+            },
+            None => {}
+        }
+        self.add_code("}");
+
+        AstVisitorReturnType::ActionDeclNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
     fn visit_domain_variable_decl_node(&mut self, variable_decl_node: &VariableDeclNode) -> AstVisitorReturnType {
 
-        self.visit_variable_decl_node(variable_decl_node);
+        let var_type = match &variable_decl_node.type_opt {
+            Some(x) => x.get_type_str(),
+            None => String::from("<?>"),
+        };
+        let var_name =  &variable_decl_node.name;
+        let var_init_expr = &variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
+        self.newline();
+        // let mut code = String::new();
+        // var_init_expr.accept_to_string(self, &mut code);
+        self.add_code( &format!("{}:{},",var_name,var_type));
+
+        // currently unused serialization code
+        // self.serialize.push(format!("\tbag.domain[\"{}\"] = {};",var_name,var_name));
+        // self.deserialize.push(format!("\t{} = bag.domain[\"{}\"];",var_name,var_name));
 
         AstVisitorReturnType::VariableDeclNode {}
     }
@@ -2241,10 +2775,11 @@ impl AstVisitor for CsVisitor {
         self.newline();
         let mut code = String::new();
         var_init_expr.accept_to_string(self, &mut code);
-        self.add_code( &format!("{} {} = {};",var_type,var_name, code));
+        self.add_code( &format!("let {}:{} = {};",var_name,var_type, code));
 
-        self.serialize.push(format!("\tbag.domain[\"{}\"] = {};",var_name,var_name));
-        self.deserialize.push(format!("\t{} = bag.domain[\"{}\"];",var_name,var_name));
+        // currently unused serialization code
+        // self.serialize.push(format!("\tbag.domain[\"{}\"] = {};",var_name,var_name));
+        // self.deserialize.push(format!("\t{} = bag.domain[\"{}\"];",var_name,var_name));
 
         AstVisitorReturnType::VariableDeclNode {}
     }

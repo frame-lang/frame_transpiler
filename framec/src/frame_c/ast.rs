@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 
 use super::scanner::{TokenType, Token};
-use super::symbol_table::{ActionDeclSymbol, VariableSymbol, SymbolType,EventSymbol};
+use super::symbol_table::{ActionDeclSymbol, SymbolType,EventSymbol};
 
 use downcast_rs::*;
 use downcast_rs::__std::cell::RefCell;
@@ -13,9 +13,29 @@ use crate::frame_c::ast::OperatorType::{Plus, Minus, Multiply, Divide, Greater, 
 
 pub trait NodeElement {
     fn accept(&self, ast_visitor:&mut dyn AstVisitor);
+    // for Rust actions
+    fn accept_rust_trait(&self,  ast_visitor:&mut dyn AstVisitor) {
+        // no_op
+    }
+    fn accept_rust_impl(&self,  ast_visitor:&mut dyn AstVisitor) {
+        // no_op
+    }
+    fn accept_rust_domain_var_decl(&self,  ast_visitor:&mut dyn AstVisitor) {
+        // no_op
+    }
+    fn accept_frame_messages_enum(&self,  ast_visitor:&mut dyn AstVisitor) {
+        // no_op
+    }
+    fn accept_frame_parameters(&self, ast_visitor: &mut dyn AstVisitor) {
+        // no_op
+    }
+    // fn accept_frame_message_enum(&self,  ast_visitor:&mut dyn AstVisitor) {
+    //     // no_op
+    // }
     fn accept_to_string(&self,  ast_visitor:&mut dyn AstVisitor, output:&mut String) {
         // no_op
     }
+
 }
 
 // TODO: is this a good name for Identifier and Call expressions?
@@ -43,6 +63,7 @@ pub enum CallChainLiteralNodeType {
 
 pub struct SystemNode {
     pub name: String,
+    pub header:String,
     pub interface_block_node_opt:Option<InterfaceBlockNode>,
     pub machine_block_node_opt:Option<MachineBlockNode>,
     pub actions_block_node_opt:Option<ActionsBlockNode>,
@@ -53,6 +74,7 @@ pub struct SystemNode {
 
 impl SystemNode {
     pub fn new( name:String,
+                header:String,
                 interface_block_node_opt:Option<InterfaceBlockNode>,
                 machine_block_node_opt:Option<MachineBlockNode>,
                 actions_block_node_opt:Option<ActionsBlockNode>,
@@ -60,6 +82,7 @@ impl SystemNode {
                 line:usize) -> SystemNode {
         SystemNode {
             name,
+            header,
             interface_block_node_opt,
             machine_block_node_opt,
             actions_block_node_opt,
@@ -102,6 +125,12 @@ impl NodeElement for InterfaceBlockNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         ast_visitor.visit_interface_block_node(self);
     }
+    fn accept_frame_messages_enum(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_frame_messages_enum(self);
+    }
+    fn accept_frame_parameters(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_interface_parameters(self);
+    }
 }
 
 //-----------------------------------------------------//
@@ -109,16 +138,16 @@ impl NodeElement for InterfaceBlockNode {
 pub struct InterfaceMethodNode {
     pub name:String,
     pub params:Option<Vec<ParameterNode>>,
-    pub return_type:Option<String>,
+    pub return_type_opt:Option<TypeNode>,
     pub alias:Option<MessageNode>,
 }
 
 impl InterfaceMethodNode {
-    pub fn new(name:String,params:Option<Vec<ParameterNode>>,return_type:Option<String>,alias:Option<MessageNode>) -> InterfaceMethodNode {
+    pub fn new(name:String,params:Option<Vec<ParameterNode>>,return_type:Option<TypeNode>,alias:Option<MessageNode>) -> InterfaceMethodNode {
         InterfaceMethodNode {
             name,
             params,
-            return_type,
+            return_type_opt: return_type,
             alias,
         }
     }
@@ -136,12 +165,12 @@ impl NodeElement for InterfaceMethodNode {
 #[derive(Clone)]
 pub struct ParameterNode {
     pub param_name:String,
-    pub param_type_opt:Option<String>,
+    pub param_type_opt:Option<TypeNode>,
     pub scope: IdentifierDeclScope,
 }
 
 impl ParameterNode {
-    pub fn new(param_name:String, param_type_opt:Option<String>, scope: IdentifierDeclScope) -> ParameterNode {
+    pub fn new(param_name:String, param_type_opt:Option<TypeNode>, scope: IdentifierDeclScope) -> ParameterNode {
         ParameterNode {
             param_name,
             param_type_opt,
@@ -160,26 +189,31 @@ impl NodeElement for ParameterNode {
 
 //-----------------------------------------------------//
 
-pub struct ActionDeclNode {
+pub struct ActionNode {
     pub name:String,
     pub params:Option<Vec<ParameterNode>>,
-    pub type_opt:Option<String>,
+    pub type_opt:Option<TypeNode>,
+    pub code_opt:Option<String>,
 }
 
-impl ActionDeclNode {
+impl ActionNode {
     pub fn new(name:String,params:Option<Vec<ParameterNode>>,
-               type_opt:Option<String>) -> ActionDeclNode {
-        ActionDeclNode {
+               type_opt:Option<TypeNode>,code_opt:Option<String>) -> ActionNode {
+        ActionNode {
             name,
             params,
             type_opt,
+            code_opt,
         }
     }
 }
 
-impl NodeElement for ActionDeclNode {
+impl NodeElement for ActionNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         ast_visitor.visit_action_decl_node(self);
+    }
+    fn accept_rust_impl(&self,  ast_visitor:&mut dyn AstVisitor) {
+        ast_visitor.visit_action_impl_node(self);
     }
 }
 
@@ -188,14 +222,14 @@ impl NodeElement for ActionDeclNode {
 
 pub struct VariableDeclNode {
     pub name:String,
-    pub type_opt:Option<String>,
+    pub type_opt:Option<TypeNode>,
     pub is_constant:bool,
     pub initializer_expr_t_opt:Option<ExprType>,
     pub identifier_decl_scope:IdentifierDeclScope,
 }
 
 impl VariableDeclNode {
-    pub fn new(name:String, type_opt:Option<String>, is_constant:bool, initializer_expr_t_opt:Option<ExprType>,identifier_decl_scope:IdentifierDeclScope) -> VariableDeclNode {
+    pub fn new(name:String, type_opt:Option<TypeNode>, is_constant:bool, initializer_expr_t_opt:Option<ExprType>,identifier_decl_scope:IdentifierDeclScope) -> VariableDeclNode {
         VariableDeclNode {
             name,
             type_opt,
@@ -209,6 +243,9 @@ impl VariableDeclNode {
 impl NodeElement for VariableDeclNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         ast_visitor.visit_variable_decl_node(self);
+    }
+    fn accept_rust_domain_var_decl(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_domain_variable_decl_node(self);
     }
 }
 
@@ -268,11 +305,11 @@ impl NodeElement for MachineBlockNode {
 //-----------------------------------------------------//
 
 pub struct ActionsBlockNode {
-    pub actions:Vec<Rc<RefCell<ActionDeclNode>>>,
+    pub actions:Vec<Rc<RefCell<ActionNode>>>,
 }
 
 impl ActionsBlockNode {
-    pub fn new(actions:Vec<Rc<RefCell<ActionDeclNode>>>) -> ActionsBlockNode {
+    pub fn new(actions:Vec<Rc<RefCell<ActionNode>>>) -> ActionsBlockNode {
         ActionsBlockNode {
             actions,
         }
@@ -282,6 +319,12 @@ impl ActionsBlockNode {
 impl NodeElement for ActionsBlockNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         ast_visitor.visit_actions_block_node(self);
+    }
+    fn accept_rust_trait(&self,  ast_visitor:&mut dyn AstVisitor) {
+        ast_visitor.visit_action_node_rust_trait(self);
+    }
+    fn accept_rust_impl(&self,  ast_visitor:&mut dyn AstVisitor) {
+        ast_visitor.visit_actions_node_rust_impl(self);
     }
 }
 
@@ -466,7 +509,7 @@ impl EventHandlerNode {
 
     pub fn get_event_ret_type(&self) -> String {
         match &self.event_symbol_rcref.borrow().ret_type_opt {
-            Some(c) => c.clone(),
+            Some(c) => c.type_str.clone(),
             None => String::new(),
         }
     }
@@ -1314,6 +1357,51 @@ impl NodeElement for LiteralExprNode {
         ast_visitor.visit_literal_expression_node_to_string(self, output);
     }
 }
+
+//-----------------------------------------------------//
+
+
+// &String | &str | Widget<int> | `& mut String` | &`mut String` | *x
+
+#[derive(Clone)]
+pub struct TypeNode {
+    is_superstring:bool,
+    is_reference:bool,
+    type_str:String,
+}
+
+impl TypeNode {
+    pub fn new(is_superstring:bool,is_reference:bool, type_str:String) -> TypeNode {
+        TypeNode {
+            is_superstring,
+            is_reference,
+            type_str,
+        }
+    }
+
+    pub fn get_type_str(&self) -> String {
+        let mut s = String::new();
+
+        if self.is_reference {
+            s.push('&');
+        }
+        s.push_str(&*self.type_str);
+
+        s
+    }
+}
+
+impl NodeElement for TypeNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        panic!("TODO?");
+        //ast_visitor.visit_type_node(self);
+    }
+    //
+    // fn accept_to_string(&self, ast_visitor:&mut dyn AstVisitor,output:&mut String, ) {
+    //     ast_visitor.visit_typedef_node(self, output);
+    // }
+}
+
 
 //-----------------------------------------------------//
 

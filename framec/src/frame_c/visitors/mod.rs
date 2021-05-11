@@ -5,10 +5,10 @@ pub mod plantuml_visitor;
 pub mod cs_visitor;
 pub mod python_visitor;
 pub mod gdscript_3_2_visitor;
-pub(crate) mod java_8_visitor;
+pub mod java_8_visitor;
+pub mod rust_visitor;
 
 use super::ast::*;
-use super::symbol_table::*;
 
 pub enum AstVisitorReturnType {
     SystemNode,
@@ -62,7 +62,7 @@ pub enum AstVisitorReturnType {
     BinaryExprNode,
     OperatorType,
     CallExprListNode,
-
+    TypeNode,
 }
 
 pub trait AstVisitor {
@@ -74,6 +74,8 @@ pub trait AstVisitor {
     fn visit_event_handler_node(&mut self, evt_handler_node:&EventHandlerNode) -> AstVisitorReturnType;
     fn visit_event_handler_terminator_node(&mut self, evt_handler_node:&TerminatorExpr) -> AstVisitorReturnType;
     fn visit_call_statement_node(&mut self, method_call_statement_node:&CallStmtNode) -> AstVisitorReturnType;
+    fn visit_frame_messages_enum(&mut self, interface_block_node:&InterfaceBlockNode) -> AstVisitorReturnType;
+    fn visit_interface_parameters(&mut self, interface_block_node:&InterfaceBlockNode) -> AstVisitorReturnType;
 
     // NOTE: the difference between call_expression and call_expr is that
     // the former is for the method itself and the latter is the
@@ -110,6 +112,8 @@ pub trait AstVisitor {
     fn visit_literal_expression_node_to_string(&mut self, literal_expression_node:&LiteralExprNode, output:&mut String) -> AstVisitorReturnType;
     fn visit_identifier_node(&mut self, identifier_node:&IdentifierNode) -> AstVisitorReturnType;
     fn visit_identifier_node_to_string(&mut self, identifier_node:&IdentifierNode, output:&mut String) -> AstVisitorReturnType;
+//    fn visit_type_node(&mut self, typedef_node:&TypeNode, output:&mut String) -> AstVisitorReturnType;
+
     fn visit_state_stack_operation_node(&mut self, state_stack_op_node:&StateStackOperationNode) -> AstVisitorReturnType;
     fn visit_state_stack_operation_node_to_string(&mut self, state_stack_op_node:&StateStackOperationNode, output:&mut String) -> AstVisitorReturnType;
     fn visit_state_stack_operation_statement_node(&mut self, state_stack_op_statement_node:&StateStackOperationStatementNode) -> AstVisitorReturnType;
@@ -118,11 +122,16 @@ pub trait AstVisitor {
     fn visit_frame_event_part(&mut self, frame_event_part:&FrameEventPart) -> AstVisitorReturnType;
     fn visit_frame_event_part_to_string(&mut self, frame_event_part:&FrameEventPart, output:&mut String) -> AstVisitorReturnType;
     fn visit_actions_block_node(&mut self, actions_block_node: &ActionsBlockNode) -> AstVisitorReturnType;
-    fn visit_action_decl_node(&mut self, action_decl_node: &ActionDeclNode) -> AstVisitorReturnType;
+    fn visit_action_node_rust_trait(&mut self, actions_block_node: &ActionsBlockNode) -> AstVisitorReturnType;
+    fn visit_actions_node_rust_impl(&mut self, actions_block_node: &ActionsBlockNode) -> AstVisitorReturnType;
+    fn visit_action_decl_node(&mut self, action_decl_node: &ActionNode) -> AstVisitorReturnType;
+    fn visit_action_impl_node(&mut self, action_decl_node: &ActionNode) -> AstVisitorReturnType;
+
     fn visit_action_call_expression_node(&mut self, action_call_expr_node: &ActionCallExprNode) -> AstVisitorReturnType;
     fn visit_action_call_expression_node_to_string(&mut self, action_call_expr_node: &ActionCallExprNode, output:&mut String) -> AstVisitorReturnType;
     fn visit_action_call_statement_node(&mut self, action_call_stmt_node: &ActionCallStmtNode) -> AstVisitorReturnType;
     fn visit_domain_block_node(&mut self, domain_block_node: &DomainBlockNode) -> AstVisitorReturnType;
+    fn visit_domain_variable_decl_node(&mut self, variable_decl_node: &VariableDeclNode) -> AstVisitorReturnType;
     fn visit_variable_decl_node(&mut self, member_variable_node: &VariableDeclNode) -> AstVisitorReturnType;
     fn visit_variable_expr_node(&mut self, variable_stmt_node: &VariableNode) -> AstVisitorReturnType;
     fn visit_variable_expr_node_to_string(&mut self, variable_stmt_node: &VariableNode, output:&mut String) -> AstVisitorReturnType;

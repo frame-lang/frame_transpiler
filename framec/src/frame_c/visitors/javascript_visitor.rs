@@ -322,7 +322,7 @@ impl JavaScriptVisitor {
                             for var_rcref in state_node.vars.as_ref().unwrap() {
                                 let var = var_rcref.borrow();
                                 let var_type = match &var.type_opt {
-                                    Some(var_type) => var_type.clone(),
+                                    Some(var_type) => var_type.get_type_str(),
                                     None => String::from("<?>"),
                                 };
                                 let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
@@ -545,7 +545,7 @@ impl JavaScriptVisitor {
                                 match param_symbols_it.next() {
                                     Some(p) => {
                                         let param_type = match &p.param_type {
-                                            Some(param_type) => param_type.clone(),
+                                            Some(param_type) => param_type.get_type_str(),
                                             None => String::from("<?>"),
                                         };
                                         let mut expr = String::new();
@@ -594,7 +594,7 @@ impl JavaScriptVisitor {
                             match param_symbols_it.next() {
                                 Some(p) => {
                                     let param_type = match &p.param_type {
-                                        Some(param_type) => param_type.clone(),
+                                        Some(param_type) => param_type.get_type_str(),
                                         None => String::from("<?>"),
                                     };
                                     let mut expr = String::new();
@@ -636,7 +636,7 @@ impl JavaScriptVisitor {
                                 Some(param_symbol_rcref) => {
                                     let param_symbol = param_symbol_rcref.borrow();
                                     let param_type = match &param_symbol.param_type {
-                                        Some(param_type) => param_type.clone(),
+                                        Some(param_type) => param_type.get_type_str(),
                                         None => String::from("<?>"),
                                     };
                                     let mut expr = String::new();
@@ -672,7 +672,7 @@ impl JavaScriptVisitor {
                         for var_rcref in state_node.vars.as_ref().unwrap() {
                             let var = var_rcref.borrow();
                             let var_type = match &var.type_opt {
-                                Some(var_type) => var_type.clone(),
+                                Some(var_type) => var_type.get_type_str(),
                                 None => String::from("<?>"),
                             };
                             let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
@@ -761,7 +761,7 @@ impl JavaScriptVisitor {
                                 match param_symbols_it.next() {
                                     Some(p) => {
                                         let param_type = match &p.param_type {
-                                            Some(param_type) => param_type.clone(),
+                                            Some(param_type) => param_type.get_type_str(),
                                             None => String::from("<?>"),
                                         };
                                         let mut expr = String::new();
@@ -903,6 +903,22 @@ impl AstVisitor for JavaScriptVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    fn visit_frame_messages_enum(&mut self, interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
+        panic!("Error - visit_frame_messages_enum() only used in Rust.");
+
+        // AstVisitorReturnType::InterfaceBlockNode {}
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_interface_parameters(&mut self, interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
+        panic!("visit_interface_parameters() not valid for target language.");
+
+        // AstVisitorReturnType::InterfaceBlockNode {}
+    }
+
+    //* --------------------------------------------------------------------- *//
+
     fn visit_interface_block_node(&mut self, interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
         self.newline();
         self.add_code("//===================== Interface Block ===================//");
@@ -961,7 +977,7 @@ impl AstVisitor for JavaScriptVisitor {
         self.newline();
         self.add_code(&format!("_state_(e);"));
 
-        match &interface_method_node.return_type {
+        match &interface_method_node.return_type_opt {
             Some(return_type) => {
                 self.newline();
                 self.add_code(&format!("return e._return;"));
@@ -1022,6 +1038,22 @@ impl AstVisitor for JavaScriptVisitor {
         }
 
         AstVisitorReturnType::ActionBlockNode {}
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_action_node_rust_trait(&mut self, _: &ActionsBlockNode) -> AstVisitorReturnType {
+        panic!("Error - visit_action_node_rust_trait() not implemented.");
+
+        // AstVisitorReturnType::ActionBlockNode {}
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_actions_node_rust_impl(&mut self, _: &ActionsBlockNode) -> AstVisitorReturnType {
+        panic!("Error - visit_actions_node_rust_impl() not implemented.");
+
+        // AstVisitorReturnType::ActionBlockNode {}
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2080,7 +2112,7 @@ impl AstVisitor for JavaScriptVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_decl_node(&mut self, action_decl_node: &ActionDeclNode) -> AstVisitorReturnType {
+    fn visit_action_decl_node(&mut self, action_decl_node: &ActionNode) -> AstVisitorReturnType {
 
         let mut subclass_code = String::new();
 
@@ -2106,6 +2138,22 @@ impl AstVisitor for JavaScriptVisitor {
         self.add_code(&format!(") {{ throw new Error('Action not implemented.'); }}"));
 
         AstVisitorReturnType::ActionDeclNode {}
+    }
+
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_action_impl_node(&mut self, action_decl_node: &ActionNode) -> AstVisitorReturnType {
+        panic!("visit_action_impl_node() not implemented.");
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_domain_variable_decl_node(&mut self, variable_decl_node: &VariableDeclNode) -> AstVisitorReturnType {
+
+        self.visit_variable_decl_node(variable_decl_node);
+
+        AstVisitorReturnType::VariableDeclNode {}
     }
 
     //* --------------------------------------------------------------------- *//
