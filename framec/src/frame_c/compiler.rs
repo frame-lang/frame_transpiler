@@ -10,7 +10,7 @@ use crate::frame_c::visitors::python_visitor::PythonVisitor;
 use crate::frame_c::visitors::gdscript_3_2_visitor::GdScript32Visitor;
 use crate::frame_c::visitors::java_8_visitor::Java8Visitor;
 use crate::frame_c::visitors::rust_visitor::RustVisitor;
-
+use crate::frame_c::visitors::xtate_visitor::XStateVisitor;
 
 /* --------------------------------------------------------------------- */
 
@@ -177,7 +177,7 @@ impl exe {
                                                 , comments);
             visitor.run(&system_node);
             visitor.code
-        } else if output_format == "Rust" {
+        } else if output_format == "rust" {
             let mut visitor = RustVisitor::new(semantic_parser.get_arcanum()
                                              , generate_exit_args
                                              , generate_state_context
@@ -186,6 +186,17 @@ impl exe {
                                              , generate_transition_state
                                              , FRAMEC_VERSION
                                              , comments);
+            visitor.run(&system_node);
+            return visitor.get_code();
+        } else if output_format == "xstate" {
+            let mut visitor = XStateVisitor::new(semantic_parser.get_arcanum()
+                                               , generate_exit_args
+                                               , generate_state_context
+                                               , generate_state_stack
+                                               , generate_change_state
+                                               , generate_transition_state
+                                               , FRAMEC_VERSION
+                                               , comments);
             visitor.run(&system_node);
             return visitor.get_code();
         } else {

@@ -26,10 +26,10 @@ impl Config {
     fn new() -> Config {
         Config {
             state_var_name:String::from("state"),
-            start_system_msg:String::from("Start"),
-            stop_system_msg:String::from("Stop"),
-            enter_msg:String::from("Enter"),
-            exit_msg:String::from("Exit"),
+            start_system_msg:String::from("start"),
+            stop_system_msg:String::from("stop"),
+            enter_msg:String::from("entry"),
+            exit_msg:String::from("exit"),
             frame_event:String::from("FrameEvent"),
             frame_message:String::from("FrameMessage"),
             frame_event_return:String::from("FrameEventReturn"),
@@ -42,13 +42,12 @@ impl Config {
     }
 }
 
-pub struct RustVisitor {
+pub struct XStateVisitor {
     config:Config,
     compiler_version:String,
-    code:String,
-    dent:usize,
-    current_state_name_opt:Option<String>,
-    current_event_ret_type:String,
+    pub code:String,
+    pub dent:usize,
+    pub current_state_name_opt:Option<String>,
     arcanium:Arcanum,
     symbol_config:SymbolConfig,
     comments:Vec<Token>,
@@ -58,7 +57,7 @@ pub struct RustVisitor {
     first_state_name:String,
     serialize:Vec<String>,
     deserialize:Vec<String>,
-//    subclass_code:Vec<String>,
+    subclass_code:Vec<String>,
     warnings:Vec<String>,
     has_states:bool,
     errors:Vec<String>,
@@ -68,29 +67,34 @@ pub struct RustVisitor {
     generate_state_stack:bool,
     generate_change_state:bool,
     generate_transition_state:bool,
-    current_message:String,
 }
 
-impl RustVisitor {
+impl XStateVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    pub fn new(   arcanium:Arcanum
-                  , generate_exit_args:bool
-                  , generate_state_context:bool
-                  , generate_state_stack:bool
-                  , generate_change_state:bool
-                  , generate_transition_state:bool
-                  , compiler_version:&str
-                  , comments:Vec<Token>) -> RustVisitor {
+    pub fn new(  arcanium:Arcanum
+                 , generate_exit_args:bool
+                 , generate_state_context:bool
+                 , generate_state_stack:bool
+                 , generate_change_state:bool
+                 , generate_transition_state:bool
+                 , compiler_version:&str
+                 , comments:Vec<Token>) -> XStateVisitor {
 
-        RustVisitor {
+        // These closures are needed to do the same actions as add_code() and newline()
+        // when inside a borrowed self reference as they modify self.
+        // let mut add_code_cl = |target:&mut String, s:&String| target.push_str(s);
+        // let mut newline_cl = |target:&mut String, s:&String, d:usize| {
+        //     target.push_str(&*format!("\n{}",(0..d).map(|_| "\t").collect::<String>()));
+        // };
+
+        XStateVisitor {
             config:Config::new(),
             compiler_version:compiler_version.to_string(),
             code:String::from(""),
             dent:0,
             current_state_name_opt:None,
-            current_event_ret_type:String::new(),
             arcanium,
             symbol_config:SymbolConfig::new(),
             comments,
@@ -101,18 +105,29 @@ impl RustVisitor {
             serialize:Vec::new(),
             deserialize:Vec::new(),
             has_states:false,
-            errors:Vec::new(),
- //           subclass_code:Vec::new(),
             warnings:Vec::new(),
             visiting_call_chain_literal_variable:false,
+            errors:Vec::new(),
+            subclass_code:Vec::new(),
             generate_exit_args,
             generate_state_context,
             generate_state_stack,
             generate_change_state,
             generate_transition_state,
-            current_message:String::new(),
         }
     }
+
+    //* --------------------------------------------------------------------- *//
+
+    pub fn is_enter_or_exit_event(&self, msg:&str) -> bool {
+        if msg == self.config.enter_msg {
+            return true;
+        } else if msg == self.config.exit_msg {
+            return true;
+        }
+        return false;
+    }
+
 
     //* --------------------------------------------------------------------- *//
 
@@ -122,7 +137,7 @@ impl RustVisitor {
             "<<" => self.config.stop_system_msg.clone(),
             ">" => self.config.enter_msg.clone(),
             "<" => self.config.exit_msg.clone(),
-            _ => RustVisitor::uppercase_first_letter(msg),
+            _ => msg.to_string(),
         }
     }
 
@@ -142,42 +157,39 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn get_variable_type(&mut self, symbol_type:&SymbolType) -> String {
+    fn get_variable_type(&self,symbol_type:&SymbolType) -> String {
         let var_type = match &*symbol_type {
             DomainVariableSymbolT { domain_variable_symbol_rcref } => {
                 match &domain_variable_symbol_rcref.borrow().var_type {
-                    Some(x) => x.get_type_str(),
-                    None => String::from("<?>"),
+                    Some(x) => String::from(""),
+                    None => String::from(""),
                 }
             },
             StateParamSymbolT { state_param_symbol_rcref } => {
                 match &state_param_symbol_rcref.borrow().param_type {
-                    Some(x) => x.get_type_str(),
-                    None => String::from("<?>"),
+                    Some(x) => String::from(""),
+                    None => String::from(""),
                 }
             },
             StateVariableSymbolT { state_variable_symbol_rcref } => {
                 match &state_variable_symbol_rcref.borrow().var_type {
-                    Some(x) => x.get_type_str(),
-                    None => String::from("<?>"),
+                    Some(x) => String::from(""),
+                    None => String::from(""),
                 }                    },
             EventHandlerParamSymbolT { event_handler_param_symbol_rcref } => {
                 match &event_handler_param_symbol_rcref.borrow().param_type {
-                    Some(x) => x.get_type_str(),
-                    None => String::from("<?>"),
+                    Some(x) => String::from(""),
+                    None => String::from(""),
                 }
             },
             EventHandlerVariableSymbolT { event_handler_variable_symbol_rcref } => {
                 match &event_handler_variable_symbol_rcref.borrow().var_type {
-                    Some(x) => x.get_type_str(),
-                    None => String::from("<?>"),
+                    Some(x) => String::from(""),
+                    None => String::from(""),
                 }
             },
 
-            _ => {
-                self.errors.push("Unknown scope.".to_string());
-                return "error".to_string(); // won't get emitted
-            },
+            _ => panic!("TODO"),
         };
 
         return var_type;
@@ -185,12 +197,12 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn format_variable_expr(&mut self, variable_node:&VariableNode) -> String {
+    fn format_variable_expr(&self, variable_node:&VariableNode) -> String {
         let mut code = String::new();
 
         match variable_node.scope {
             IdentifierDeclScope::DomainBlock => {
-                code.push_str(&format!("self.{}",variable_node.id_node.name.lexeme));
+                code.push_str(&format!("that.{}",variable_node.id_node.name.lexeme));
             },
             IdentifierDeclScope::StateParam => {
                 let var_node = variable_node;
@@ -202,8 +214,7 @@ impl RustVisitor {
                 if self.visiting_call_chain_literal_variable {
                     code.push_str("(");
                 }
-                code.push_str(&format!("({}) _stateContext_.getStateArg(\"{}\")"
-                                       ,var_type
+                code.push_str(&format!("_stateContext_.getStateArg(\"{}\")"
                                        ,variable_node.id_node.name.lexeme));
                 if self.visiting_call_chain_literal_variable {
                     code.push_str(")");
@@ -219,8 +230,7 @@ impl RustVisitor {
                 if self.visiting_call_chain_literal_variable {
                     code.push_str("(");
                 }
-                code.push_str(&format!("({}) _stateContext_.getStateVar(\"{}\")"
-                                       ,var_type
+                code.push_str(&format!(" _stateContext_.getStateVar(\"{}\")"
                                        ,variable_node.id_node.name.lexeme));
                 if self.visiting_call_chain_literal_variable {
                     code.push_str(")");
@@ -229,17 +239,14 @@ impl RustVisitor {
             IdentifierDeclScope::EventHandlerParam => {
                 let var_node = variable_node;
                 let var_symbol_rcref_opt = &var_node.symbol_type_rcref_opt;
-//                let var_symbol_rcref = var_symbol_rcref_opt.as_ref().unwrap();
-//                let var_symbol = var_symbol_rcref.borrow();
-//                let var_type = self.get_variable_type(&*var_symbol);
+                let var_symbol_rcref = var_symbol_rcref_opt.as_ref().unwrap();
+                let var_symbol = var_symbol_rcref.borrow();
+                let var_type = self.get_variable_type(&*var_symbol);
 
                 if self.visiting_call_chain_literal_variable {
                     code.push_str("(");
                 }
-                code.push_str(&format!("{}.{}.as_ref().unwrap().get_{}_{}()"
-                                        ,self.config.frame_event_variable_name
-                                        ,self.config.frame_event_parameters_attribute_name
-                                        ,self.current_message
+                code.push_str(&format!("e._parameters[\"{}\"]"
                                        ,variable_node.id_node.name.lexeme));
                 if self.visiting_call_chain_literal_variable {
                     code.push_str(")");
@@ -253,7 +260,7 @@ impl RustVisitor {
                 // TODO: Explore labeling Variables as "extern" scope
                 code.push_str(&format!("{}",variable_node.id_node.name.lexeme));
             },            // Actions?
-            _ => self.errors.push("Illegal scope.".to_string()),
+            _ => panic!("Illegal scope."),
         }
 
         code
@@ -262,46 +269,10 @@ impl RustVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn format_parameter_list(&mut self,params:&Vec<ParameterNode>) {
-        let mut separator = ",";
-        for param in params {
-            self.add_code(&format!("{}", separator));
-            let param_type: String = match &param.param_type_opt {
-                Some(ret_type) => ret_type.get_type_str(),
-                None => String::from("<?>"),
-            };
-            self.add_code(&format!("{}:{}", param.param_name, param_type));
-            separator = ",";
-        }
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn format_actions_parameter_list(&mut self, params:&Vec<ParameterNode>) {
-        let mut separator = ",";
-        for param in params {
-            self.add_code(&format!("{}", separator));
-//            subclass_actions.push_str(&format!("{}", separator));
-            let param_type: String = match &param.param_type_opt {
-                Some(ret_type) => ret_type.get_type_str(),
-                None => String::from("<?>"),
-            };
-            self.add_code(&format!("{}:{}", param.param_name, param_type));
- //           subclass_actions.push_str(&format!("{} {}", param_type, param.param_name));
-            separator = ",";
-        }
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn format_parameter_list_to_string(&mut self,params:&Vec<ParameterNode>,output:&mut String) {
         let mut separator = "";
         for param in params {
-            output.push_str(&format!("{}", separator));
-            let param_type: String = match &param.param_type_opt {
-                Some(ret_type) => ret_type.get_type_str(),
-                None => String::from("<?>"),
-            };
-            output.push_str(&format!("{} {}", param_type, param.param_name));
+            self.add_code(&format!("{}", separator));
+            self.add_code(&format!("{}", param.param_name));
             separator = ",";
         }
     }
@@ -309,23 +280,7 @@ impl RustVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn format_action_name(&mut self,action_name:&String) -> String {
-        return format!("{}",action_name)
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn uppercase_first_letter(s: &str) -> String {
-        let mut c = s.chars();
-        match c.next() {
-            None => String::new(),
-            Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
-        }
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn format_state_name(&self,state_name:&String) -> String {
-        return format!("{}_state",state_name.to_lowercase())
+        return format!("that.{}_do",action_name)
     }
 
     //* --------------------------------------------------------------------- *//
@@ -410,7 +365,7 @@ impl RustVisitor {
                         },
                         StatementType::NoStmt => {
                             // TODO
-                            self.errors.push("Unknown error.".to_string());
+                            panic!("todo");
                         }
                     }
                 }
@@ -428,51 +383,73 @@ impl RustVisitor {
         self.newline();
         if let Some(_) = system_node.get_first_state() {
             self.newline();
-            // self.add_code(&format!("private delegate void FrameState(FrameEvent e);"));
-            // self.newline();
-            // self.add_code(&format!("private FrameState _state_;"));
+            self.add_code(&format!("let _state_ = _s{}_;",self.first_state_name));
             if self.generate_state_context {
                 self.newline();
-                self.add_code(&format!("private StateContext _stateContext_;"));
+                self.add_code(&format!("let _stateContext_ = StateContext(_state_);"));
+                self.newline();
+                if self.has_states {
+                    if let Some(state_symbol_rcref) = self.arcanium.get_state(&self.first_state_name) {
+                        self.newline();
+                        let state_symbol = state_symbol_rcref.borrow();
+                        let state_node = &state_symbol.state_node.as_ref().unwrap().borrow();
+                        // generate local state variables
+                        if state_node.vars.is_some() {
+                            for var_rcref in state_node.vars.as_ref().unwrap() {
+                                let var = var_rcref.borrow();
+                                let var_type = match &var.type_opt {
+                                    Some(var_type) => var_type.get_type_str(),
+                                    None => String::from("<?>"),
+                                };
+                                let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
+                                let mut expr_code = String::new();
+                                expr_t.accept_to_string(self, &mut expr_code);
+                                self.newline();
+                                self.add_code(&format!("_stateContext_.addStateVar(\"{}\",{});", var.name, expr_code));
+                                self.newline();
+                            }
+                        }
+                    }
+                }
             }
             if self.generate_transition_state {
                 self.newline();
                 self.newline();
                 if self.generate_state_context {
                     if self.generate_exit_args {
-                        self.add_code(&format!("private void _transition_(FrameState newState,Dictionary<String,object> exitArgs, StateContext stateContext) {{"));
+                        self.add_code(&format!("let _transition_ = function(newState,exitArgs, stateContext) {{"));
                     } else {
-                        self.add_code(&format!("private void _transition_(FrameState newState, StateContext stateContext) {{"));
+                        self.add_code(&format!("let _transition_ = function(newState, stateContext) {{"));
                     }
                 } else {
                     if self.generate_exit_args {
-                        self.add_code(&format!("private void _transition_(FrameState newState,Dictionary<String,object> exitArgs) {{"));
+                        self.add_code(&format!("let _transition_ = function(newState,exitArgs) {{"));
                     } else {
-                        self.add_code(&format!("fn transition(&mut self, newState:FrameState) {{"));
+                        self.add_code(&format!("let _transition_ = function(newState) {{"));
                     }
                 }
                 self.indent();
                 self.newline();
                 if self.generate_exit_args {
-                    self.add_code(&format!("FrameEvent exitEvent = new FrameEvent(\"<\",exitArgs);"));
+                    self.add_code(&format!("let exitEvent = FrameEvent(\"<\",exitArgs);"));
                 } else {
-                    self.add_code(&format!("let mut exit_event = FrameEvent::new(FrameMessage::Exit,None);"));
+                    self.add_code(&format!("let exitEvent = FrameEvent(\"<\",null);"));
                 }
                 self.newline();
-                self.add_code(&format!("(self.{})(self,&mut exit_event);",&self.config.state_var_name));
+                self.add_code(&format!("_state_(exitEvent);"));
                 self.newline();
-                self.add_code(&format!("self.{} = newState;",&self.config.state_var_name));
+                self.add_code(&format!("_state_ = newState;"));
                 self.newline();
                 if self.generate_state_context {
                     self.add_code(&format!("_stateContext_ = stateContext;"));
                     self.newline();
-                    self.add_code(&format!("FrameEvent enterEvent = new FrameEvent(\">\",_stateContext_.getEnterArgs());"));
+                    self.add_code(&format!("let enterEvent = FrameEvent(\">\",_stateContext_.getEnterArgs());"));
                     self.newline();
                 } else {
-                    self.add_code(&format!("let mut enter_event = FrameEvent::new(FrameMessage::Enter,None);"));
+                    self.add_code(&format!("let enterEvent = FrameEvent(\">\",null);"));
                     self.newline();
                 }
-                self.add_code(&format!("(self.{})(self,&mut enter_event);",&self.config.state_var_name));
+                self.add_code(&format!("_state_(enterEvent);"));
                 self.outdent();
                 self.newline();
                 self.add_code(&format!("}}"));
@@ -480,42 +457,22 @@ impl RustVisitor {
             if self.generate_state_stack {
                 self.newline();
                 self.newline();
-                if self.generate_state_context {
-                    self.add_code(&format!("private Stack<StateContext> _stateStack_ = new Stack<StateContext>();"));
-                    self.newline();
-                    self.newline();
-                    self.add_code(&format!("private void _stateStack_push_(StateContext stateContext) {{"));
-                    self.indent();
-                    self.newline();
-                    self.add_code(&format!("_stateStack_.Push(stateContext);"));
-                    self.outdent();
-                    self.newline();
-                    self.add_code(&format!("}}"));
-                    self.newline();
-                    self.newline();
-                    self.add_code(&format!("private StateContext _stateStack_pop_() {{"));
-                    self.indent();
-                    self.newline();
-                    self.add_code(&format!("return _stateStack_.Pop();"));
-                } else {
-                    self.add_code(&format!("private Stack<FrameState> _stateStack_ = new Stack<FrameState>();"));
-                    self.newline();
-                    self.newline();
-                    self.add_code(&format!("private void _stateStack_push_(FrameState state) {{"));
-                    self.indent();
-                    self.newline();
-                    self.add_code(&format!("_stateStack_.Push(state);"));
-                    self.outdent();
-                    self.newline();
-                    self.add_code(&format!("}}"));
-                    self.newline();
-                    self.newline();
-                    self.add_code(&format!("private FrameState _stateStack_pop_() {{"));
-                    self.indent();
-                    self.newline();
-                    self.add_code(&format!("return _stateStack_.Pop();"));
-                }
-
+                self.add_code(&format!("let _stateStack_ = [];"));
+                self.newline();
+                self.newline();
+                self.add_code(&format!("let  _stateStack_push_ = function (stateData) {{"));
+                self.indent();
+                self.newline();
+                self.add_code(&format!("_stateStack_.push(stateData);"));
+                self.outdent();
+                self.newline();
+                self.add_code(&format!("}}"));
+                self.newline();
+                self.newline();
+                self.add_code(&format!("let _stateStack_pop_ = function() {{"));
+                self.indent();
+                self.newline();
+                self.add_code(&format!("return _stateStack_.pop();"));
                 self.outdent();
                 self.newline();
                 self.add_code(&format!("}}"));
@@ -523,17 +480,17 @@ impl RustVisitor {
             if self.generate_change_state {
                 self.newline();
                 self.newline();
-                self.add_code(&format!("private void _changeState_(FrameState newState) {{"));
+                self.add_code(&format!("let _changeState_ = function(newState) {{"));
                 self.indent();
                 self.newline();
-                self.add_code(&format!("{} = newState;",&self.config.state_var_name));
+                self.add_code(&format!("_state_ = newState;"));
                 self.outdent();
                 self.newline();
                 self.add_code(&format!("}}"));
             }
-            self.newline();
 
             if self.arcanium.is_serializable() {
+                self.newline();
                 for line in self.serialize.iter() {
                     self.code.push_str(&*format!("{}",line));
                     self.code.push_str(&*format!("\n{}",self.dent()));
@@ -549,16 +506,16 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    // fn generate_subclass(&mut self) {
-    //     for line in self.subclass_code.iter() {
-    //         self.code.push_str(&*format!("{}",line));
-    //         self.code.push_str(&*format!("\n{}",self.dent()));
-    //     }
-    // }
+    fn generate_subclass(&mut self) {
+        for line in self.subclass_code.iter() {
+            self.code.push_str(&*format!("{}",line));
+            self.code.push_str(&*format!("\n{}",self.dent()));
+        }
+    }
 
     //* --------------------------------------------------------------------- *//
 
-    fn generate_comment(&mut self,line:usize) {
+    fn generate_comment(&mut self,line:usize) -> bool {
 
         // can't use self.newline() or self.add_code() due to double borrow.
         let mut generated_comment = false;
@@ -567,7 +524,7 @@ impl RustVisitor {
             let comment = &self.comments[self.current_comment_idx];
             if comment.token_type == TokenType::SingleLineCommentTok {
                 self.code.push_str(&*format!("  // {}",&comment.lexeme[3..]));
-                self.code.push_str(&*format!("\n{}",(0..self.dent).map(|_| "    ").collect::<String>()));
+                self.code.push_str(&*format!("\n{}",(0..self.dent).map(|_| "\t").collect::<String>()));
 
             } else {
                 let len = &comment.lexeme.len() - 3;
@@ -582,20 +539,19 @@ impl RustVisitor {
         if generated_comment {
 //            self.code.push_str(&*format!("\n{}",(0..self.dent).map(|_| "\t").collect::<String>()));
         }
+
+        generated_comment
     }
 
     //* --------------------------------------------------------------------- *//
 
-    // TODO
+    // @TODO: see diff w/ c++
     fn generate_state_ref_change_state(&mut self, change_state_stmt_node: &ChangeStateStatementNode) {
 
         let target_state_name = match &change_state_stmt_node.state_context_t {
             StateContextType::StateRef {state_context_node}
             => &state_context_node.state_ref_node.name,
-            _ => {
-                self.errors.push("Change state target not found.".to_string());
-                "error"
-            },
+            _ => panic!("TODO"),
         };
 
         self.newline();
@@ -605,15 +561,8 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn generate_state_ref_code(&self, target_state_name:&str) -> String {
-        format!("{}",self.format_target_state_name(target_state_name))
-    }
-
-    //* --------------------------------------------------------------------- *//
-
     fn generate_state_ref_transition(&mut self, transition_statement: &TransitionStatementNode) {
 
-        self.newline();
         let target_state_name = match &transition_statement.target_state_context_t {
             StateContextType::StateRef {state_context_node} => {
                 &state_context_node.state_ref_node.name
@@ -623,6 +572,10 @@ impl RustVisitor {
                 ""
             },
         };
+
+        let state_ref_code = format!("{}",self.format_target_state_name(target_state_name));
+
+        self.newline();
         match &transition_statement.label_opt {
             Some(label) => {
                 self.add_code(&format!("// {}", label));
@@ -632,7 +585,7 @@ impl RustVisitor {
         }
 
         if self.generate_state_context {
-            self.add_code(&format!("stateContext = new StateContext({});", self.generate_state_ref_code(&target_state_name)));
+            self.add_code(&format!("stateContext = StateContext({});",state_ref_code));
             self.newline();
         }
 
@@ -657,31 +610,33 @@ impl RustVisitor {
                     match &event_sym.borrow().params_opt {
                         Some(event_params) => {
                             if exit_args.exprs_t.len() != event_params.len() {
-                                self.errors.push("Fatal error: misaligned parameters to arguments.".to_string());
+                                panic!("Fatal error: misaligned parameters to arguments.")
                             }
                             let mut param_symbols_it = event_params.iter();
-                            self.add_code("Dictionary<String,object> exitArgs = new Dictionary<String,object>();");
+                            self.add_code("let exitArgs = {};");
                             self.newline();
                             // Loop through the ARGUMENTS...
                             for expr_t in &exit_args.exprs_t {
                                 // ...and validate w/ the PARAMETERS
                                 match param_symbols_it.next() {
                                     Some(p) => {
+                                        let param_type = match &p.param_type {
+                                            Some(param_type) => param_type.get_type_str(),
+                                            None => String::from("<?>"),
+                                        };
                                         let mut expr = String::new();
                                         expr_t.accept_to_string(self, &mut expr);
                                         self.add_code(&format!("exitArgs[\"{}\"] = {};", p.name, expr));
                                         self.newline();
                                     },
-                                    None => self.errors.push(format!("Invalid number of arguments for \"{}\" event handler.", msg)),
-
+                                    None => panic!("Invalid number of arguments for \"{}\" event handler.", msg),
                                 }
                             }
                         },
-                        None => self.errors.push(format!("Fatal error: misaligned parameters to arguments.")),
+                        None => panic!("Fatal error: misaligned parameters to arguments."),
                     }
                 } else {
-                    let current_state_name = &self.current_state_name_opt.as_ref().unwrap();
-                    self.errors.push(format!("Missing exit event handler for transition from ${} to ${}.",current_state_name, &target_state_name));
+                    panic!("TODO");
                 }
             }
         }
@@ -708,22 +663,26 @@ impl RustVisitor {
                 match &event_sym.borrow().params_opt {
                     Some(event_params) => {
                         if enter_args.exprs_t.len() != event_params.len() {
-                            self.errors.push(format!("Fatal error: misaligned parameters to arguments."));
+                            panic!("Fatal error: misaligned parameters to arguments.")
                         }
                         let mut param_symbols_it =  event_params.iter();
                         for expr_t in &enter_args.exprs_t {
                             match param_symbols_it.next() {
                                 Some(p) => {
+                                    let param_type = match &p.param_type {
+                                        Some(param_type) => param_type.get_type_str(),
+                                        None => String::from("<?>"),
+                                    };
                                     let mut expr = String::new();
                                     expr_t.accept_to_string(self,&mut expr);
                                     self.add_code(&format!("stateContext.addEnterArg(\"{}\",{});", p.name, expr));
                                     self.newline();
                                 },
-                                None => self.errors.push(format!("Invalid number of arguments for \"{}\" event handler.",msg)),
+                                None => panic!("Invalid number of arguments for \"{}\" event handler.",msg),
                             }
                         }
                     },
-                    None => self.errors.push(format!("Invalid number of arguments for \"{}\" event handler.",msg)),
+                    None => panic!("Invalid number of arguments for \"{}\" event handler.",msg),
                 }
             } else {
                 self.warnings.push(format!("State {} does not have an enter event handler but is being passed parameters in a transition", target_state_name));
@@ -752,13 +711,16 @@ impl RustVisitor {
 
                                 Some(param_symbol_rcref) => {
                                     let param_symbol = param_symbol_rcref.borrow();
+                                    let param_type = match &param_symbol.param_type {
+                                        Some(param_type) => param_type.get_type_str(),
+                                        None => String::from("<?>"),
+                                    };
                                     let mut expr = String::new();
                                     expr_t.accept_to_string(self, &mut expr);
                                     self.add_code(&format!("stateContext.addStateArg(\"{}\",{});", param_symbol.name, expr));
                                     self.newline();
                                 },
-                                None => self.errors.push(format!("Invalid number of arguments for \"{}\" state parameters.", target_state_name)),
-
+                                None => panic!("Invalid number of arguments for \"{}\" state parameters.", target_state_name),
                             }
 //
                         }
@@ -766,7 +728,7 @@ impl RustVisitor {
                     None => {}
                 }
             } else {
-                self.errors.push(format!("TODO"));
+                panic!("TODO");
             }
         } // -- State Arguments --
 
@@ -785,10 +747,13 @@ impl RustVisitor {
 //                        let mut separator = "";
                         for var_rcref in state_node.vars.as_ref().unwrap() {
                             let var = var_rcref.borrow();
+                            let var_type = match &var.type_opt {
+                                Some(var_type) => var_type.get_type_str(),
+                                None => String::from("<?>"),
+                            };
                             let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self,&mut expr_code);
-                            self.newline();
                             self.add_code(&format!("stateContext.addStateVar(\"{}\",{});", var.name, expr_code));
                             self.newline();
                         }
@@ -806,25 +771,15 @@ impl RustVisitor {
         };
         if self.generate_state_context {
             if self.generate_exit_args {
-                self.add_code(&format!("self.transition({}::{},{},stateContext);"
-                                       ,self.system_name
-                                       ,self.format_target_state_name(target_state_name)
-                                       ,exit_args));
+                self.add_code(&format!("_transition_({},{},stateContext);",self.format_target_state_name(target_state_name),exit_args));
             } else {
-                self.add_code(&format!("self.transition({}::{},stateContext);",
-                                       self.system_name
-                                       ,self.format_target_state_name(target_state_name)));
+                self.add_code(&format!("_transition_({},stateContext);",self.format_target_state_name(target_state_name)));
             }
         } else {
             if self.generate_exit_args {
-                self.add_code(&format!("self.transition({}::{},{});"
-                                       ,self.system_name
-                                       ,self.format_target_state_name(target_state_name)
-                                       ,exit_args));
+                self.add_code(&format!("_transition_({},{});",self.format_target_state_name(target_state_name),exit_args));
             } else {
-                self.add_code(&format!("self.transition({}::{});"
-                                       ,self.system_name
-                                       ,self.format_target_state_name(target_state_name)));
+                self.add_code(&format!("_transition_({});",self.format_target_state_name(target_state_name)));
             }
         }
     }
@@ -832,15 +787,16 @@ impl RustVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn format_target_state_name(&self,state_name:&str) -> String {
-        format!("{}_state",state_name.to_lowercase())
+        format!("_s{}_",state_name)
     }
 
     //* --------------------------------------------------------------------- *//
 
-    // NOTE!!: it is *currently* disallowed to send state or event arguments to a state stack pop target
+    // NOTE!!: it is *currently* disallowed to send state or event arguments to a state stack pop target.
     // So currently this method just sets any exitArgs and pops the context from the state stack.
 
     fn generate_state_stack_pop_transition(&mut self, transition_statement: &TransitionStatementNode) {
+        let mut exit_args_val = String::from("null");
 
         self.newline();
         match &transition_statement.label_opt {
@@ -870,40 +826,40 @@ impl RustVisitor {
                     match &event_sym.borrow().params_opt {
                         Some(event_params) => {
                             if exit_args.exprs_t.len() != event_params.len() {
-                                self.errors.push(format!("Fatal error: misaligned parameters to arguments."));
+                                panic!("Fatal error: misaligned parameters to arguments.")
                             }
                             let mut param_symbols_it = event_params.iter();
-                            self.add_code("Dictionary<String,object> exitArgs = new Dictionary<String,object>();");
+                            self.add_code("FrameEventParams exitArgs = new FrameEventParams();");
                             self.newline();
                             // Loop through the ARGUMENTS...
                             for expr_t in &exit_args.exprs_t {
                                 // ...and validate w/ the PARAMETERS
                                 match param_symbols_it.next() {
                                     Some(p) => {
+                                        let param_type = match &p.param_type {
+                                            Some(param_type) => param_type.get_type_str(),
+                                            None => String::from("<?>"),
+                                        };
                                         let mut expr = String::new();
                                         expr_t.accept_to_string(self, &mut expr);
                                         self.add_code(&format!("exitArgs[\"{}\"] = {};", p.name, expr));
                                         self.newline();
                                     },
-                                    None => {
-                                        self.errors.push(format!("Invalid number of arguments for \"{}\" event handler.", msg))
-                                    },
+                                    None => panic!("Invalid number of arguments for \"{}\" event handler.", msg),
                                 }
                             }
                         },
-                        None =>
-                            self.errors.push(format!("Fatal error: misaligned parameters to arguments.")),
+                        None => panic!("Fatal error: misaligned parameters to arguments."),
                     }
                 } else {
-                    self.errors.push(format!("TODO"));
+                    panic!("TODO");
                 }
             }
         }
-
         if self.generate_state_context {
-            self.add_code(&format!("StateContext stateContext = _stateStack_pop_();"));
+            self.add_code(&format!("let stateContext = _stateStack_pop();"));
         } else {
-            self.add_code(&format!("FrameState state = _stateStack_pop_();"));
+            self.add_code(&format!("let state = _stateStack_pop_();"));
         }
         self.newline();
         if self.generate_exit_args {
@@ -924,7 +880,7 @@ impl RustVisitor {
 
 //* --------------------------------------------------------------------- *//
 
-impl AstVisitor for RustVisitor {
+impl AstVisitor for XStateVisitor {
 
     //* --------------------------------------------------------------------- *//
 
@@ -932,142 +888,15 @@ impl AstVisitor for RustVisitor {
         self.system_name = system_node.name.clone();
         self.add_code(&format!("// {}",self.compiler_version));
         self.newline();
-        self.add_code(&system_node.header);
-        // self.newline();
-        // self.add_code("// get include files at https://github.com/frame-lang/frame-ancillary-files");
-        // self.newline();
-
-        // self.newline();
-        // self.newline();
-        // self.add_code("use std::collections::HashMap;");
-        // self.newline();
-        // self.newline();
-
-        if let Some(interface_block_node) = &system_node.interface_block_node_opt {
-            interface_block_node.accept_frame_messages_enum(self);
-            interface_block_node.accept_frame_parameters(self);
-
-        }
-
+        self.add_code("// get include files at https://github.com/frame-lang/frame-ancillary-files");
         self.newline();
         self.newline();
-
-        self.add_code(&format!("type FrameState = fn(&mut {}, &mut FrameEvent);",&system_node.name));
-
-        self.newline();
-        self.newline();
-        self.add_code("enum FrameEventParameter {");
+        self.add_code(&format!("const {}Machine = Machine({{", system_node.name));
         self.indent();
         self.newline();
-        self.add_code("None,");
+        self.add_code(&format!("id: '{}',", system_node.name));
 
-        if let Some(interface_block_node) = &system_node.interface_block_node_opt {
-            for interface_method_node in &interface_block_node.interface_methods {
-                let if_name = interface_method_node.name.clone();
-                if let Some(params) = &interface_method_node.params {
-                    for param in params {
-                        let param_type = match &param.param_type_opt {
-                            Some(param_type) => param_type.get_type_str(),
-                            None => "<?>".to_string().clone(),
-                        };
-                        self.newline();
-                        self.add_code(&format!("{}{} {{param:{}}},",RustVisitor::uppercase_first_letter(&if_name)
-                                               ,RustVisitor::uppercase_first_letter(&param.param_name)
-                                               ,param_type
-                        ));
-                    }
-                }
-            }
-        }
 
-        self.outdent();
-        self.newline();
-        self.add_code("}");
-        self.newline();
-        self.newline();
-
-        self.add_code("enum FrameEventReturn {");
-        self.indent();
-        self.newline();
-        self.add_code("None,");
-
-        if let Some(interface_block_node) = &system_node.interface_block_node_opt {
-            for interface_method_node in &interface_block_node.interface_methods {
-                let if_name = interface_method_node.name.clone();
-                if let Some(return_type) = &interface_method_node.return_type_opt {
-                    self.newline();
-                    self.add_code(&format!("{} {{return_type:{}}},",RustVisitor::uppercase_first_letter(&if_name),return_type.get_type_str()));
-                }
-            }
-        }
-
-        self.outdent();
-        self.newline();
-        self.add_code("}");
-        self.newline();
-        self.newline();
-        self.add_code("struct FrameEvent {");
-        self.indent();
-        self.newline();
-        self.add_code("message: FrameMessage,");
-        self.newline();
-        self.add_code("parameters:Option<FrameParameters>,");
-        self.newline();
-        self.add_code("ret:FrameEventReturn,");
-        self.outdent();
-        self.newline();
-        self.add_code("}");
-        self.newline();
-        self.newline();
-        self.add_code("impl FrameEvent {");
-        self.indent();
-        self.newline();
-        self.add_code("fn new(message:FrameMessage, parameters:Option<FrameParameters>) -> FrameEvent {");
-        self.indent();
-        self.newline();
-        self.add_code("FrameEvent {");
-        self.indent();
-        self.newline();
-        self.add_code("message,");
-        self.newline();
-        self.add_code("parameters,");
-        self.newline();
-        self.add_code("ret:FrameEventReturn::None,");
-        self.outdent();
-        self.newline();
-        self.add_code("}");
-        self.outdent();
-        self.newline();
-        self.add_code("}");
-        self.outdent();
-        self.newline();
-        self.add_code("}");
-        self.newline();
-        if let Some(actions_block_node) = &system_node.actions_block_node_opt {
-            actions_block_node.accept_rust_trait(self);
-        }
-        self.newline();
-
-        self.add_code(&format!("pub struct {} {{", self.system_name));
-        self.indent();
-        self.newline();
-        self.add_code(&format!("{}:FrameState,",&self.config.state_var_name));
-
-        if let Some(domain_block_node) = &system_node.domain_block_node_opt {
-            domain_block_node.accept(self);
-        }
-
-        self.outdent();
-        self.newline();
-
-        self.add_code("}");
-
-        self.newline();
-        self.newline();
-
-        self.add_code(&format!("impl {} {{", system_node.name));
-        self.indent();
-        self.newline();
 
         // First state name needed for machinery.
         // Don't generate if there isn't at least one state.
@@ -1075,263 +904,79 @@ impl AstVisitor for RustVisitor {
             Some(x) => {
                 self.first_state_name = x.borrow().name.clone();
                 self.has_states = true;
+                self.newline();
+                self.add_code(&format!("initial: '{}',",self.first_state_name));
             },
             None => {},
         }
 
-        // generate constructor
-
-        if self.has_states {
-            self.add_code(&format!("fn new() -> {} {{",system_node.name));
-            self.indent();
-            self.newline();
-            self.newline();
-            self.add_code(&format!("{} {{", system_node.name));
-            self.indent();
-            self.newline();
-            self.add_code(&format!("{}:{}::{},",&self.config.state_var_name, system_node.name, self.format_state_name(&self.first_state_name)));
-
-            if let Some(domain_block_node) = &system_node.domain_block_node_opt {
-                for variable_decl_node_rcref in &domain_block_node.member_variables {
-                    let variable_decl_node = variable_decl_node_rcref.borrow();
-                 //   variable_decl_node.accept(self);
-
-                    let var_init_expr = &variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
-                    let mut code = String::new();
-                    var_init_expr.accept_to_string(self, &mut code);
-                    self.newline();
-                    self.add_code(&format!("{}:{},",variable_decl_node.name,code));
-                }
-            }
-
-            // if self.generate_state_context {
-            //     self.newline();
-            //     self.add_code(&format!("_stateContext_ = new StateContext(_s{}_);", self.first_state_name));
-            //     if let Some(state_symbol_rcref) = self.arcanium.get_state(&self.first_state_name) {
-            //         //   self.newline();
-            //         let state_symbol = state_symbol_rcref.borrow();
-            //         let state_node = &state_symbol.state_node.as_ref().unwrap().borrow();
-            //         // generate local state variables
-            //         if state_node.vars.is_some() {
-            //             for var_rcref in state_node.vars.as_ref().unwrap() {
-            //                 let var = var_rcref.borrow();
-            //                 let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
-            //                 let mut expr_code = String::new();
-            //                 expr_t.accept_to_string(self, &mut expr_code);
-            //                 self.newline();
-            //                 self.add_code(&format!("_stateContext_.addStateVar(\"{}\",{});", var.name, expr_code));
-            //             }
-            //         }
-            //
-            //     }
-            // }
-
-            self.outdent();
-            self.newline();
-            self.add_code(&format!("}}"));
-            self.outdent();
-            self.newline();
-            self.add_code(&format!("}}"));
-            self.newline();
-        }
-
-        // end of generate constructor
-
-        self.serialize.push("".to_string());
-        self.serialize.push("Bag _serialize__do() {".to_string());
-
-        self.deserialize.push("".to_string());
-
-        // @TODO: _do needs to be configurable.
-        self.deserialize.push("void _deserialize__do(Bag data) {".to_string());
 
 
-        // self.subclass_code.push("".to_string());
-        // self.subclass_code.push("/********************\n".to_string());
-        // self.subclass_code.push(format!("public partial class {}Controller : {} {{",system_node.name,system_node.name));
-
-        if let Some(interface_block_node) = &system_node.interface_block_node_opt {
-            interface_block_node.accept(self);
-        }
+        // if let Some(interface_block_node) = &system_node.interface_block_node_opt {
+        //     interface_block_node.accept(self);
+        // }
 
         if let Some(machine_block_node) = &system_node.machine_block_node_opt {
             machine_block_node.accept(self);
         }
 
-        // self.subclass_code.push(format!("}}"));
-        // self.subclass_code.push("\n********************/".to_string());
+        // if let Some(actions_block_node) = &system_node.actions_block_node_opt {
+        //     actions_block_node.accept(self);
+        // }
+        //
+        // if let Some(domain_block_node) = &system_node.domain_block_node_opt {
+        //     domain_block_node.accept(self);
+        // }
 
-        self.serialize.push("".to_string());
-        self.serialize.push("\treturn JSON.stringify(bag);".to_string());
-        self.serialize.push("}".to_string());
-        self.serialize.push("".to_string());
+        // self.subclass_code.push(format!("\treturn that;"));
+        // self.subclass_code.push(format!("}};"));
+        // self.subclass_code.push("********************/".to_string());
+        //
+        // self.serialize.push("".to_string());
+        // self.serialize.push("\treturn JSON.stringify(bag);".to_string());
+        // self.serialize.push("}".to_string());
+        // self.serialize.push("".to_string());
+        //
+        // self.deserialize.push("".to_string());
+        // self.deserialize.push("}".to_string());
 
-        self.deserialize.push("".to_string());
-        self.deserialize.push("}".to_string());
+        // if self.has_states {
+        //     self.generate_machinery(system_node);
+        // }
 
-        if self.has_states {
-            self.generate_machinery(system_node);
-        }
-
-        // TODO: add comments back
         // self.newline();
-        // self.generate_comment(system_node.line);
         // self.newline();
-        self.outdent();
+        // self.add_code("return that; ");
+        // if self.generate_comment(system_node.line) {
+        //     self.newline();
+        // }
+        // self.outdent();
+        // if self.generate_comment(system_node.line) {
+        //     self.newline();
+        // }
         self.newline();
-        self.add_code("}");
+        self.add_code("};");
         self.newline();
 
-        if let Some(actions_block_node) = &system_node.actions_block_node_opt {
-            actions_block_node.accept_rust_impl(self);
-        }
-
-        // self.generate_subclass();
+        self.generate_subclass();
 
         AstVisitorReturnType::SystemNode {}
     }
 
-
     //* --------------------------------------------------------------------- *//
 
     fn visit_frame_messages_enum(&mut self, interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
-        self.newline();
-        self.add_code("enum FrameMessage {");
-        self.indent();
-        self.newline();
-        self.add_code("Enter,");
-        self.newline();
-        self.add_code("Exit,");
-        self.newline();
+        panic!("Error - visit_frame_messages_enum() only used in Rust.");
 
-        for interface_method_node in &interface_block_node.interface_methods {
-            self.add_code(&format!("{},", RustVisitor::uppercase_first_letter(&interface_method_node.name)));
-            self.newline();
-        }
-
-        self.outdent();
-        self.newline();
-        self.add_code("}");
-
-        AstVisitorReturnType::InterfaceBlockNode {}
+        // AstVisitorReturnType::InterfaceBlockNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
     fn visit_interface_parameters(&mut self, interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
-        self.newline();
-        self.newline();
-        self.add_code("struct FrameParameters {");
-        self.indent();
-        self.newline();
-        self.add_code("parameters:HashMap<String, FrameEventParameter>");
-        self.outdent();
-        self.newline();
-        self.add_code("}");
-        self.newline();
-        self.newline();
-        self.add_code("impl FrameParameters {");
-        self.indent();
-        self.newline();
-        self.add_code("fn new() -> FrameParameters {");
-        self.indent();
-        self.newline();
-        self.add_code("FrameParameters {");
-        self.indent();
-        self.newline();
-        self.add_code("parameters:HashMap::new()");
-        self.outdent();
-        self.newline();
-        self.add_code("}");
-        self.outdent();
-        self.newline();
-        self.add_code("}");
+        panic!("visit_interface_parameters() not valid for target language.");
 
-
-        for interface_method_node in &interface_block_node.interface_methods {
-            let if_name = interface_method_node.name.clone();
-            if let Some(params) = &interface_method_node.params {
-                for param in params {
-                    let param_type = match &param.param_type_opt {
-                        Some(param_type) => param_type.get_type_str(),
-                        None => "<?>".to_string().clone(),
-                    };
-                    self.newline();
-                    self.newline();
-                    self.add_code(&format!("fn set_{}_{}(&mut self,{}:{}) {{",interface_method_node.name
-                                                                         ,param.param_name
-                            ,param.param_name
-                            ,param_type
-                    ));
-                    self.indent();
-                    self.newline();
-                    self.add_code(&format!("self.parameters.insert(String::from(\"{}_{}\"),FrameEventParameter::{}{} {{param:{}}} );"
-                                           ,interface_method_node.name
-                                           ,param.param_name
-                                           ,RustVisitor::uppercase_first_letter(&interface_method_node.name)
-                                           ,RustVisitor::uppercase_first_letter(&param.param_name)
-                                           ,param.param_name
-                    ));
-                    self.outdent();
-                    self.newline();
-                    self.add_code("}");
-                    self.newline();
-                    self.newline();
-                    self.add_code(&format!("fn get_{}_{}(&self) -> {} {{",interface_method_node.name
-                                           ,param.param_name
-                                           ,param_type
-                    ));
-                    self.indent();
-                    self.newline();
-                    self.add_code(&format!("match self.parameters.get(\"{}_{}\") {{"
-                                           ,interface_method_node.name
-                                           ,param.param_name));
-                    self.indent();
-                    self.newline();
-                    self.add_code("Some(parameter) => {");
-                    self.indent();
-                    self.newline();
-                    self.add_code("match parameter {");
-                    self.indent();
-                    self.newline();
-                    self.add_code(&format!("FrameEventParameter::{}{} {{param}} => {{"
-                                           ,RustVisitor::uppercase_first_letter(&if_name)
-                                           ,RustVisitor::uppercase_first_letter(&*param.param_name)));
-                    self.indent();
-                    self.newline();
-                    self.add_code("param.clone()");
-                    self.outdent();
-                    self.newline();
-                    self.add_code("},");
-                    self.newline();
-                    self.add_code("_ => panic!(\"Invalid parameter\"),");
-                    self.outdent();
-                    self.newline();
-                    self.add_code("}"); // match self.parameters.get
-                    self.outdent();
-                    self.newline();
-                    self.add_code("},"); // Some(parameter)
-                    self.newline();
-                    self.add_code("None => panic!(\"Invalid parameter\"),");
-                    self.outdent();
-                    self.newline();
-                    self.add_code("}"); // match
-                    self.outdent();
-                    self.newline();
-                    self.add_code("}");
-                }
-            }
-        }
-
-        self.outdent();
-        self.newline();
-        self.add_code("}");
-
-        // for interface_method_node in &interface_block_node.interface_methods {
-        //     interface_method_node.accept(self);
-        // }
-
-        AstVisitorReturnType::InterfaceBlockNode {}
+        // AstVisitorReturnType::InterfaceBlockNode {}
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1351,108 +996,58 @@ impl AstVisitor for RustVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_interface_method_node(&mut self, interface_method_node: &InterfaceMethodNode) -> AstVisitorReturnType {
+        let mut call_params = String::new();
+        let mut send_params = String::new();
 
-        self.newline();
-        // let return_type = match &interface_method_node.return_type {
-        //     Some(ret) => ret.clone(),
-        //     None => "void".to_string(),
-        // };
+        call_params.push_str(&format!("\n{}that.{} = function (", self.dent(), interface_method_node.name));
+
+        let has_params;
+        match &interface_method_node.params {
+            Some(params) => {
+                has_params = true;
+                let mut separator = "";
+                for param in params {
+                    let pname = &param.param_name;
+                    call_params.push_str(&format!("{}{}", separator, pname));
+                    send_params.push_str(&format!("{}\"{}\":{}", separator, pname, pname));
+                    separator = ",";
+                }
+            },
+            None => { has_params = false }
+        }
 
         // see if an alias exists.
-        // let method_name_or_alias: &String;
-        //
-        // match &interface_method_node.alias {
-        //     Some(alias_message_node) => {
-        //         // For Rust we map >> and << back to the method names as we aren't using strings
-        //         if self.config.start_system_msg == alias_message_node.name {
-        //             method_name_or_alias = &interface_method_node.name;
-        //         } else if self.config.stop_system_msg == alias_message_node.name {
-        //             method_name_or_alias = &interface_method_node.name;
-        //         } else {
-        //             method_name_or_alias = &alias_message_node.name;
-        //         }
-        //     },
-        //     None => {
-        //         method_name_or_alias = &interface_method_node.name;
-        //     }
-        // }
+        let method_name_or_alias: &String;
 
-        self.add_code(&format!("fn {} (&mut self", interface_method_node.name));
-
-        match &interface_method_node.params {
-            Some (params)
-                =>  self.format_parameter_list(params).clone(),
-            None => {},
-        }
-
-        self.add_code(")");
-        match &interface_method_node.return_type_opt {
-            Some(return_type) => {
-                self.add_code(&format!(" -> {}",return_type.get_type_str()));
+        match &interface_method_node.alias {
+            Some(alias_message_node) => {
+                method_name_or_alias = &alias_message_node.name;
             },
-            None => {}
-        }
-        self.add_code(" {");
-        self.indent();
-        let mut params_param_code= String::from("");
-        // let mut frame_parameters = FrameParameters::new();
-        // frame_parameters.set_toggle_msg(msg);
-
-        if interface_method_node.params.is_some() {
-            params_param_code = String::from("Some(frame_parameters)");
-            self.newline();
-            self.add_code("let mut frame_parameters = FrameParameters::new();");
-            match &interface_method_node.params {
-                Some(params) => {
-                    for param in params {
-                        let pname = &param.param_name;
-                        self.newline();
-                        self.add_code(&format!("frame_parameters.set_{}_{}({});",&interface_method_node.name,pname,pname));
-                    }
-                },
-                None => {}
+            None => {
+                method_name_or_alias = &interface_method_node.name;
             }
-        } else {
-            params_param_code = String::from("None");
         }
 
-        // self.indent();
+        self.add_code(&format!("{}) {{", call_params));
+        self.indent();
         self.newline();
-        self.add_code(&format!("let mut e = {}::new({}::{},{});"
-                                ,self.config.frame_event
-                                ,self.config.frame_message
-                                ,self.get_msg_enum(&interface_method_node.name)
-                                ,&params_param_code));
-        // self.indent();
-        // self.newline();
-        // self.add_code(&format!("message : String::from(\"{}\"),", method_name_or_alias));
-        // self.outdent();
-        // self.newline();
-        // self.add_code("};");
+        if has_params {
+            self.add_code(&format!("let e = FrameEvent(\"{}\",{{{}}});", method_name_or_alias, send_params));
+        } else {
+            self.add_code(&format!("let e = FrameEvent(\"{}\",null);", method_name_or_alias));
+        }
         self.newline();
-        self.add_code(&format!("(self.state)(self, &mut e);"));
+        self.add_code(&format!("_state_(e);"));
 
         match &interface_method_node.return_type_opt {
             Some(return_type) => {
                 self.newline();
-                self.add_code("match e.ret {");
-                self.indent();
-                self.newline();
-                self.add_code(&format!("{}::{} {{return_type}} => return_type.clone(),"
-                    ,self.config.frame_event_return
-                    ,RustVisitor::uppercase_first_letter(&interface_method_node.name)));
-                self.newline();
-                self.add_code("_ => panic!(\"Bad return type for toggle()\"),");
-                self.outdent();
-                self.newline();
-                self.add_code("}");
-         //       self.add_code(&format!("return ({}) e._return;",return_type));
+                self.add_code(&format!("return e._return;"));
             },
             None => {}
         }
 
-        self.outdent();
-        self.newline();
+        self.outdent(); self.newline();
         self.add_code(&format!("}}"));
         self.newline();
 
@@ -1463,103 +1058,70 @@ impl AstVisitor for RustVisitor {
 
     fn visit_machine_block_node(&mut self, machine_block_node: &MachineBlockNode) -> AstVisitorReturnType {
         self.newline();
+        self.add_code("states: {");
+        self.indent();
         self.newline();
-        self.add_code("//===================== Machine Block ===================//");
+        // self.add_code("//===================== Machine Block ===================//");
 
-        self.serialize.push("".to_string());
-        self.serialize.push("\tvar stateName = null;".to_string());
-
-        self.deserialize.push("".to_string());
-        self.deserialize.push("\tconst bag = JSON.parse(data);".to_string());
-        self.deserialize.push("".to_string());
-        self.deserialize.push("\tswitch (bag.state) {".to_string());
-
+        // self.serialize.push("".to_string());
+        // self.serialize.push("\tlet stateName = null".to_string());
+        //
+        // self.deserialize.push("".to_string());
+        // self.deserialize.push("\tconst bag = JSON.parse(data);".to_string());
+        // self.deserialize.push("".to_string());
+        // self.deserialize.push("\tswitch (bag.state) {".to_string());
 
         for state_node_rcref in &machine_block_node.states {
             state_node_rcref.borrow().accept(self);
         }
 
-        self.serialize.push("".to_string());
-        self.serialize.push("\tvar bag = {".to_string());
-        self.serialize.push("\t\tstate : stateName,".to_string());
-        self.serialize.push("\t\tdomain : {}".to_string());
-        self.serialize.push("\t};".to_string());
-        self.serialize.push("".to_string());
+        // self.serialize.push("".to_string());
+        // self.serialize.push("\tvar bag = {".to_string());
+        // self.serialize.push("\t\tstate : stateName,".to_string());
+        // self.serialize.push("\t\tdomain : {}".to_string());
+        // self.serialize.push("\t};".to_string());
+        // self.serialize.push("".to_string());
+        //
+        // self.deserialize.push("\t}".to_string());
+        // self.deserialize.push("".to_string());
 
-        self.deserialize.push("\t}".to_string());
-        self.deserialize.push("".to_string());
-
+        self.indent();
+        self.newline();
+        self.add_code("},");
 
         AstVisitorReturnType::MachineBlockNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_actions_block_node(&mut self, _: &ActionsBlockNode) -> AstVisitorReturnType {
-        panic!("Error - visit_actions_block_node() not called for Rust.");
-
-        // AstVisitorReturnType::ActionBlockNode {}
-    }
-
-    //* --------------------------------------------------------------------- *//
-    //
-    // fn visit_action_node_rust_trait(&mut self, actions_block_node: &ActionsBlockNode) -> AstVisitorReturnType {
-    //     self.newline();
-    //     self.add_code(&format!("trait {}_Actions {{ ",self.system_name));
-    //     self.indent();
-    //     self.newline();
-    //
-    //     for action_decl_node_rcref in &actions_block_node.actions {
-    //         let action_decl_node = action_decl_node_rcref.borrow();
-    //         action_decl_node.accept(self);
-    //     }
-    //
-    //     self.outdent();
-    //     self.newline();
-    //     self.add_code("}");
-    //     self.newline();
-    //
-    //     AstVisitorReturnType::ActionBlockNode {}
-    // }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_action_node_rust_trait(&mut self, actions_block_node: &ActionsBlockNode) -> AstVisitorReturnType {
+    fn visit_actions_block_node(&mut self, actions_block_node: &ActionsBlockNode) -> AstVisitorReturnType {
         self.newline();
-        self.add_code(&format!("trait {}Actions {{ ",self.system_name));
-        self.indent();
+        self.newline();
+        self.add_code("//===================== Actions Block ===================//");
+        self.newline();
 
         for action_decl_node_rcref in &actions_block_node.actions {
             let action_decl_node = action_decl_node_rcref.borrow();
             action_decl_node.accept(self);
         }
 
-        self.outdent();
-        self.newline();
-        self.add_code("}");
-        self.newline();
-
         AstVisitorReturnType::ActionBlockNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_actions_node_rust_impl(&mut self, actions_block_node: &ActionsBlockNode) -> AstVisitorReturnType {
-        self.newline();
+    fn visit_action_node_rust_trait(&mut self, _: &ActionsBlockNode) -> AstVisitorReturnType {
+        panic!("Error - visit_action_node_rust_trait() not implemented.");
 
-        self.add_code(&format!("impl {}Actions for {} {{ ",self.system_name,self.system_name));
-        self.indent();
-        self.newline();
+        // AstVisitorReturnType::ActionBlockNode {}
+    }
 
-        for action_decl_node_rcref in &actions_block_node.actions {
-            let action_decl_node = action_decl_node_rcref.borrow();
-            action_decl_node.accept_rust_impl(self);
-        }
-        self.outdent();
-        self.newline();
-        self.add_code("}");
+    //* --------------------------------------------------------------------- *//
 
-        AstVisitorReturnType::ActionBlockNode {}
+    fn visit_actions_node_rust_impl(&mut self, _: &ActionsBlockNode) -> AstVisitorReturnType {
+        panic!("Error - visit_actions_node_rust_impl() not implemented.");
+
+        // AstVisitorReturnType::ActionBlockNode {}
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1570,9 +1132,10 @@ impl AstVisitor for RustVisitor {
         self.add_code("//===================== Domain Block ===================//");
         self.newline();
 
+        let mut newline = false;
         for variable_decl_node_rcref in &domain_block_node.member_variables {
             let variable_decl_node = variable_decl_node_rcref.borrow();
-            variable_decl_node.accept_rust_domain_var_decl(self);
+            variable_decl_node.accept(self);
         }
 
         AstVisitorReturnType::DomainBlockNode {}
@@ -1585,30 +1148,26 @@ impl AstVisitor for RustVisitor {
         self.generate_comment(state_node.line);
         self.current_state_name_opt = Some(state_node.name.clone());
         self.newline();
-        self.newline();
-        self.add_code(&format!("fn {}(&mut self, e:&mut FrameEvent) {{", self.format_state_name(&state_node.name)));
+        self.add_code(&format!("{}: {{", state_node.name));
         self.indent();
 
-        // @TODO
         // self.serialize.push(format!("\tif (_state_ == _s{}_) stateName = \"{}\"",state_node.name,state_node.name));
         //
         // self.deserialize.push(format!("\t\tcase \"{}\": _state_ = _s{}_; break;",state_node.name,state_node.name));
 
-        // this allows for logging and other kinds of calls for each event in the state
-        if let Some(calls) = &state_node.calls {
-            for call in calls {
-                self.newline();
-                call.accept(self);
-                self.add_code(";");
-            }
-        }
+        // @TODO: remove if not needed
+        // let state_symbol = match self.arcanium.get_state(&state_node.name) {
+        //     Some(state_symbol) => state_symbol,
+        //     None => panic!("TODO"),
+        // };
 
-        self.newline();
-        self.add_code(&format!("match {}.{} {{"
-                                ,self.config.frame_event_variable_name
-                                ,self.config.frame_event_message_attribute_name));
-        self.indent();
-        self.newline();
+        // if let Some(calls) = &state_node.calls {
+        //     for call in calls {
+        //         self.newline();
+        //         call.accept(self);
+        //         self.add_code(";");
+        //     }
+        // }
 
         self.first_event_handler = true; // context for formatting
 
@@ -1617,19 +1176,14 @@ impl AstVisitor for RustVisitor {
                 evt_handler_node.as_ref().borrow().accept(self);
             }
         }
-        self.newline();
-        self.add_code("_ => {");
+
         match &state_node.dispatch_opt {
             Some(dispatch) => {
                 dispatch.accept(self);
             },
             None => {},
         }
-        self.add_code("}");
 
-        self.outdent();
-        self.newline();
-        self.add_code("}");
         self.outdent();
         self.newline();
         self.add_code("}");
@@ -1641,62 +1195,42 @@ impl AstVisitor for RustVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_event_handler_node(&mut self, evt_handler_node: &EventHandlerNode) -> AstVisitorReturnType {
-        self.current_event_ret_type = evt_handler_node.get_event_ret_type();
         self.newline();
         self.generate_comment(evt_handler_node.line);
 //        let mut generate_final_close_paren = true;
         if let MessageType::CustomMessage {message_node} = &evt_handler_node.msg_t {
-            self.current_message = message_node.name.clone();
-            self.add_code(&format!("FrameMessage::{} => {{", self.get_msg_enum(&message_node.name)));
-        } else { // AnyMessage ( ||* )
-            // This feature requires dynamic dispatch.
-            panic!("||* not supported for Rust.");
             // if self.first_event_handler {
-            //     // This logic is for when there is only the catch all event handler ||*
-            //     self.add_code(&format!("_ => {{"));
+            //     self.add_code(&format!("if (e._message == \"{}\") {{", message_node.name));
             // } else {
-            //     // other event handlers preceded ||*
-            //     self.add_code(&format!("else {{"));
+            self.add_code(&format!("{}:", self.get_msg_enum(&message_node.name)));
             // }
-        }
-        self.generate_comment(evt_handler_node.line);
 
-        self.indent();
-        if evt_handler_node.event_handler_has_transition && self.generate_state_context {
+            if self.is_enter_or_exit_event(&*self.get_msg_enum(&message_node.name)) {
+                self.add_code(&format!("["));
+            } else {
+                self.add_code(&format!("{{"));
+            }
+
+            self.indent();
             self.newline();
-            self.add_code(&format!("StateContext stateContext = null;"));
+            // Generate statements
+            self.visit_decl_stmts(&evt_handler_node.statements);
+
+            // let terminator_node = &evt_handler_node.terminator_node;
+            // terminator_node.accept(self);
+            self.outdent();
+            self.newline();
+            if self.is_enter_or_exit_event(&*self.get_msg_enum(&message_node.name)) {
+                self.add_code(&format!("],"));
+            } else {
+                self.add_code(&format!("}}"));
+            }
+
+            // this controls formatting here
+            self.first_event_handler = false;
+        } else {
+            panic!("AnyMessage (||*) not supported for XState.")
         }
-
-        match &evt_handler_node.msg_t {
-            MessageType::CustomMessage {..} => {
-                // Note: this is a bit convoluted as we cant use self.add_code() inside the
-                // if statements as it is a double borrow (sigh).
-
-                let params_code: Vec<String> = Vec::new();
-
-                // NOW add the code. Sheesh.
-                for param_code in params_code {
-                    self.newline();
-                    self.add_code(&param_code);
-                }
-            },
-            _ => {}
-        }
-
-
-        // Generate statements
-        self.visit_decl_stmts(&evt_handler_node.statements);
-
-        let terminator_node = &evt_handler_node.terminator_node;
-        terminator_node.accept(self);
-        self.outdent();
-        self.newline();
-        self.add_code(&format!("}},"));
-
-        // this controls formatting here
-        self.first_event_handler = false;
-        self.current_message = String::new();
-        self.current_event_ret_type = String::new();
 
         AstVisitorReturnType::EventHandlerNode {}
     }
@@ -1709,15 +1243,8 @@ impl AstVisitor for RustVisitor {
             TerminatorType::Return => {
                 match &evt_handler_terminator_node.return_expr_t_opt {
                     Some(expr_t) => {
-                        self.add_code(&format!("{}.{} = "
-                                                ,self.config.frame_event_variable_name
-                                                ,self.config.frame_event_return_attribute_name));
-                        self.add_code(&format!("{}::{} {{return_type:"
-                            ,self.config.frame_event_return
-                            ,RustVisitor::uppercase_first_letter(&self.current_message)));
+                        self.add_code(&format!("e._return = "));
                         expr_t.accept(self);
-
-                        self.add_code("};");
                         self.newline();
                         self.add_code("return;");
                         self.newline();
@@ -1830,9 +1357,11 @@ impl AstVisitor for RustVisitor {
     fn visit_action_call_expression_node(&mut self, action_call: &ActionCallExprNode) -> AstVisitorReturnType {
 
         let action_name = self.format_action_name(&action_call.identifier.name.lexeme);
-        self.add_code(&format!("self.{}", action_name));
+        self.add_code(&format!("{}", action_name));
 
         action_call.call_expr_list.accept(self);
+
+        self.add_code(&format!(""));
 
         AstVisitorReturnType::ActionCallExpressionNode {}
     }
@@ -1864,7 +1393,7 @@ impl AstVisitor for RustVisitor {
     fn visit_transition_statement_node(&mut self, transition_statement: &TransitionStatementNode) -> AstVisitorReturnType {
 
         match &transition_statement.target_state_context_t {
-            StateContextType::StateRef {..}
+            StateContextType::StateRef { state_context_node}
             => self.generate_state_ref_transition(transition_statement),
             StateContextType::StateStackPop {}
             => self.generate_state_stack_pop_transition(transition_statement),
@@ -1887,10 +1416,10 @@ impl AstVisitor for RustVisitor {
     fn visit_change_state_statement_node(&mut self, change_state_stmt_node:&ChangeStateStatementNode) -> AstVisitorReturnType {
 
         match &change_state_stmt_node.state_context_t {
-            StateContextType::StateRef {..}
+            StateContextType::StateRef { state_context_node}
             => self.generate_state_ref_change_state(change_state_stmt_node),
             StateContextType::StateStackPop {}
-            => self.errors.push(format!("Fatal error - change state stack pop not implemented."),)
+            => panic!("TODO - not implemented"),
         };
 
         AstVisitorReturnType::ChangeStateStmtNode {}
@@ -1899,7 +1428,7 @@ impl AstVisitor for RustVisitor {
     //* --------------------------------------------------------------------- *//
 
     // TODO: ??
-    fn visit_parameter_node(&mut self, _: &ParameterNode) -> AstVisitorReturnType {
+    fn visit_parameter_node(&mut self, parameter_node: &ParameterNode) -> AstVisitorReturnType {
 
         // self.add_code(&format!("{}",parameter_node.name));
 
@@ -1909,12 +1438,9 @@ impl AstVisitor for RustVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_dispatch_node(&mut self, dispatch_node: &DispatchNode) -> AstVisitorReturnType {
-        self.indent();
         self.newline();
-        self.add_code(&format!("({}::{})(self,e);",self.system_name
-                            , self.format_state_name(&dispatch_node.target_state_ref.name)));
+        self.add_code(&format!("_s{}_(e);", dispatch_node.target_state_ref.name));
         self.generate_comment(dispatch_node.line);
-        self.outdent();
         self.newline();
 
         AstVisitorReturnType::DispatchNode {}
@@ -2055,7 +1581,7 @@ impl AstVisitor for RustVisitor {
             Some(branch_terminator_expr) => {
                 self.newline();
                 match &branch_terminator_expr.terminator_type {
-                    _Return => {
+                    Return => {
                         match &branch_terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
                                 self.add_code(&format!("e._return = "));
@@ -2066,8 +1592,8 @@ impl AstVisitor for RustVisitor {
                             },
                             None => self.add_code("return;"),
                         }
-                    },
-                    _Continue => {
+                    }
+                    Continue => {
                         self.add_code("break;");
                     }
                 }
@@ -2092,7 +1618,7 @@ impl AstVisitor for RustVisitor {
             Some(branch_terminator_expr) => {
                 self.newline();
                 match &bool_test_else_branch_node {
-                    _Return => {
+                    Return => {
                         match &branch_terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
                                 self.add_code(&format!("e._return = ",));
@@ -2104,7 +1630,7 @@ impl AstVisitor for RustVisitor {
                             None => self.add_code("return;"),
                         }
                     }
-                    _Continue => {
+                    Continue => {
                         self.add_code("break;");
                     }
                 }
@@ -2138,18 +1664,8 @@ impl AstVisitor for RustVisitor {
                 => call_chain_expr_node.accept(self),
                 ExprType::VariableExprT { var_node: id_node }
                 => id_node.accept(self),
-                ExprType::ExprListT {expr_list_node} => {
-                    // must be only 1 expression in the list
-                    if expr_list_node.exprs_t.len() != 1 {
-                        // TODO: how to do this better.
-                        self.errors.push(format!("Error - expression list is not testable."));
-                    }
-                    let x = expr_list_node.exprs_t.first().unwrap();
-                    x.accept(self);
-                }
 
-
-                _ => self.errors.push(format!("TODO")),
+                _ => panic!("TODO"),
             }
 
             // TODO: use accept
@@ -2173,7 +1689,7 @@ impl AstVisitor for RustVisitor {
                         => call_chain_expr_node.accept(self),
                         ExprType::VariableExprT { var_node: id_node }
                         => id_node.accept(self),
-                        _ => self.errors.push(format!("TODO")),
+                        _ => panic!("TODO"),
                     }
                     self.add_code(&format!(" == \"{}\")",match_string));
                 }
@@ -2201,13 +1717,15 @@ impl AstVisitor for RustVisitor {
 
     fn visit_string_match_test_match_branch_node(&mut self, string_match_test_match_branch_node:&StringMatchTestMatchBranchNode) -> AstVisitorReturnType {
 
+//        self.indent();
         self.visit_decl_stmts(&string_match_test_match_branch_node.statements);
 
+        // TODO - factor this out to work w/ other terminator code.
         match &string_match_test_match_branch_node.branch_terminator_expr_opt {
             Some(branch_terminator_expr) => {
                 self.newline();
                 match &branch_terminator_expr.terminator_type {
-                    _Return => {
+                    Return => {
                         match &branch_terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
                                 self.add_code(&format!("e._return = "));
@@ -2219,7 +1737,7 @@ impl AstVisitor for RustVisitor {
                             None => self.add_code("return;"),
                         }
                     }
-                    _Continue => {
+                    Continue => {
                         self.add_code("break;");
 
                     }
@@ -2245,10 +1763,10 @@ impl AstVisitor for RustVisitor {
             Some(branch_terminator_expr) => {
                 self.newline();
                 match &string_match_test_else_branch_node {
-                    _Return => {
+                    Return => {
                         match &branch_terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
-                                self.add_code(&format!("e._return = "));
+                                self.add_code(&format!("e._return = ",));
                                 expr_t.accept(self);
                                 self.add_code(";");
                                 self.newline();
@@ -2257,7 +1775,7 @@ impl AstVisitor for RustVisitor {
                             None => self.add_code("return;"),
                         }
                     }
-                    _Continue => {
+                    Continue => {
                         self.add_code("break;");
 
                     }
@@ -2275,11 +1793,11 @@ impl AstVisitor for RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_string_match_test_pattern_node(&mut self, _string_match_test_else_branch_node:&StringMatchTestPatternNode) -> AstVisitorReturnType {
+    fn visit_string_match_test_pattern_node(&mut self, string_match_test_else_branch_node:&StringMatchTestPatternNode) -> AstVisitorReturnType {
 
         // TODO
-        self.errors.push(format!("Not implemented."));
-        AstVisitorReturnType::StringMatchTestPatternNode {}
+        panic!("todo");
+//        AstVisitorReturnType::StringMatchTestPatternNode {}
     }
 
     //-----------------------------------------------------//
@@ -2300,16 +1818,7 @@ impl AstVisitor for RustVisitor {
                 => call_chain_expr_node.accept(self),
                 ExprType::VariableExprT { var_node: id_node }
                 => id_node.accept(self),
-                ExprType::ExprListT {expr_list_node} => {
-                    // must be only 1 expression in the list
-                    if expr_list_node.exprs_t.len() != 1 {
-                        // TODO: how to do this better.
-                        self.errors.push(format!("Error - expression list is not testable."));
-                    }
-                    let x = expr_list_node.exprs_t.first().unwrap();
-                    x.accept(self);
-                }
-                _ => self.errors.push(format!("TODO.")),
+                _ => panic!("TODO"),
             }
 
             let mut first_match = true;
@@ -2328,7 +1837,7 @@ impl AstVisitor for RustVisitor {
                         => call_chain_expr_node.accept(self),
                         ExprType::VariableExprT { var_node: id_node }
                         => id_node.accept(self),
-                        _ => self.errors.push(format!("TODO.")),
+                        _ => panic!("TODO"),
                     }
                     self.add_code(&format!(" == {})",match_number.match_pattern_number));
                 }
@@ -2341,6 +1850,8 @@ impl AstVisitor for RustVisitor {
 
             self.outdent(); self.newline();
             self.add_code(&format!("}}"));
+
+            //           self.indent();
 
             if_or_else_if = " else if";
         }
@@ -2365,7 +1876,7 @@ impl AstVisitor for RustVisitor {
             Some(branch_terminator_expr) => {
                 self.newline();
                 match number_match_test_match_branch_node {
-                    _Return => {
+                    Return => {
                         match &branch_terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
                                 self.add_code(&format!("e._return = "));
@@ -2377,7 +1888,7 @@ impl AstVisitor for RustVisitor {
                             None => self.add_code("return;"),
                         }
                     }
-                    _Continue => {
+                    Continue => {
                         self.add_code("break;");
 
                     }
@@ -2403,7 +1914,7 @@ impl AstVisitor for RustVisitor {
             Some(branch_terminator_expr) => {
                 self.newline();
                 match number_match_test_else_branch_node {
-                    _Return => {
+                    Return => {
                         match &branch_terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
                                 self.add_code(&format!("e._return = "));
@@ -2415,7 +1926,7 @@ impl AstVisitor for RustVisitor {
                             None => self.add_code("return;"),
                         }
                     }
-                    _Continue => {
+                    Continue => {
                         self.add_code("break;");
 
                     }
@@ -2481,23 +1992,20 @@ impl AstVisitor for RustVisitor {
 
         match &literal_expression_node.token_t {
             TokenType::NumberTok
-                => self.add_code(&format!("{}", literal_expression_node.value)),
+            => self.add_code(&format!("{}", literal_expression_node.value)),
             TokenType::SuperStringTok
-                => self.add_code(&format!("{}", literal_expression_node.value)),
+            => self.add_code(&format!("{}", literal_expression_node.value)),
             TokenType::StringTok
-                => self.add_code(&format!("\"{}\"", literal_expression_node.value)),
+            => self.add_code(&format!("\"{}\"", literal_expression_node.value)),
             TokenType::TrueTok
-                => self.add_code("true"),
+            => self.add_code("true"),
             TokenType::FalseTok
-                => self.add_code("false"),
+            => self.add_code("false"),
             TokenType::NullTok
-                => self.add_code("null"),
+            => self.add_code("null"),
             TokenType::NilTok
-                => self.add_code("null"),
-            TokenType::SuperStringTok => {
-                self.add_code(&format!("{}", literal_expression_node.value));
-            },
-            _ => self.errors.push(format!("TODO: visit_literal_expression_node")),
+            => self.add_code("null"),
+            _ => panic!("TODO"),
         }
 
         AstVisitorReturnType::ParentheticalExpressionNode {}
@@ -2527,10 +2035,7 @@ impl AstVisitor for RustVisitor {
             TokenType::NullTok => {
                 output.push_str("null");
             },
-            TokenType::SuperStringTok => {
-                output.push_str(&format!("{}", literal_expression_node.value));
-            },
-            _ => self.errors.push(format!("TODO: visit_literal_expression_node_to_string")),
+            _ => panic!("TODO"),
         }
 
         AstVisitorReturnType::ParentheticalExpressionNode {}
@@ -2556,7 +2061,7 @@ impl AstVisitor for RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_state_stack_operation_node(&mut self, _state_stack_operation_node:&StateStackOperationNode) -> AstVisitorReturnType {
+    fn visit_state_stack_operation_node(&mut self, state_stack_operation_node:&StateStackOperationNode) -> AstVisitorReturnType {
 
 //        self.add_code(&format!("{}",identifier_node.name.lexeme));
 
@@ -2565,7 +2070,7 @@ impl AstVisitor for RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_state_stack_operation_node_to_string(&mut self, _state_stack_operation_node:&StateStackOperationNode, _output:&mut String) -> AstVisitorReturnType {
+    fn visit_state_stack_operation_node_to_string(&mut self, state_stack_operation_node:&StateStackOperationNode, output:&mut String) -> AstVisitorReturnType {
 
 //        self.add_code(&format!("{}",identifier_node.name.lexeme));
 
@@ -2573,21 +2078,25 @@ impl AstVisitor for RustVisitor {
     }
 
     //* --------------------------------------------------------------------- *//
-
+//
     fn visit_state_stack_operation_statement_node(&mut self, state_stack_op_statement_node:&StateStackOperationStatementNode) -> AstVisitorReturnType {
+
+//        self.add_code(&format!("{}",identifier_node.name.lexeme));
+
+        //       panic!("TODO: how is this used?");
 
         match state_stack_op_statement_node.state_stack_operation_node.operation_t {
             StateStackOperationType::Push => {
                 self.newline();
                 if self.generate_state_context {
-                    self.add_code(&format!("_stateStack_push_(_state_context_);"));
+                    self.add_code(&format!("_stateStack_push_(_stateContext_);"));
                 } else {
                     self.add_code(&format!("_stateStack_push_(_state_);"));
                 }
             },
             StateStackOperationType::Pop => {
                 if self.generate_state_context {
-                    self.add_code(&format!("StateContext stateContext = _stateStack_pop_()"));
+                    self.add_code(&format!("let stateContext = _stateStack_pop_()"));
                 } else {
                     self.add_code(&format!("FrameState state = _stateStack_pop_()"));
                 }
@@ -2597,7 +2106,7 @@ impl AstVisitor for RustVisitor {
     }
     //* --------------------------------------------------------------------- *//
 
-    fn visit_state_context_node(&mut self, _state_context_node:&StateContextNode) -> AstVisitorReturnType {
+    fn visit_state_context_node(&mut self, state_context_node:&StateContextNode) -> AstVisitorReturnType {
 
         // TODO
 //        self.add_code(&format!("{}",identifier_node.name.lexeme));
@@ -2611,19 +2120,10 @@ impl AstVisitor for RustVisitor {
 
         // TODO: make this code generate from settings
         match frame_event_part {
-            FrameEventPart::Event => self.add_code(&format!("{}",self.config.frame_event_variable_name)),
-            FrameEventPart::Message => self.add_code(&format!("{}.{}"
-                                            ,self.config.frame_event_variable_name
-                                            ,self.config.frame_event_message_attribute_name)),
-            // FrameEventPart::Param {param_tok} => self.add_code(&format!("{}._parameters[\"{}\"]"
-            //                                                             ,self.config.frame_event_variable_name
-            FrameEventPart::Param {param_tok} => self.add_code(&format!("{}.get_{}_{}()"
-                                                                        ,self.config.frame_event_variable_name
-                                                                        ,self.current_message
-                                                                        ,param_tok.lexeme)),
-            FrameEventPart::Return => self.add_code(&format!("{}.{}"
-                                                             ,self.config.frame_event_variable_name
-                                                             ,self.config.frame_event_message_attribute_name)),
+            FrameEventPart::Event => self.add_code(&format!("e")),
+            FrameEventPart::Message => self.add_code(&format!("e._message")),
+            FrameEventPart::Param {param_tok} => self.add_code(&format!("e._parameters[\"{}\"]",param_tok.lexeme)),
+            FrameEventPart::Return => self.add_code(&format!("e._return")),
         }
 
         AstVisitorReturnType::FrameEventExprType {}
@@ -2631,22 +2131,14 @@ impl AstVisitor for RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    // TODO: this is not the right framemessage codegen
     fn visit_frame_event_part_to_string(&mut self, frame_event_part:&FrameEventPart, output:&mut String) -> AstVisitorReturnType {
 
         // TODO: make this code generate from settings
         match frame_event_part {
-            FrameEventPart::Event => output.push_str(&format!("{}",self.config.frame_event_variable_name)),
-            FrameEventPart::Message => output.push_str(&format!("{}.{}"
-                                                                ,self.config.frame_event_variable_name
-                                                                ,self.config.frame_event_message_attribute_name)),
-            FrameEventPart::Param {param_tok} => output.push_str(&format!("{}.get_{}_{}()"
-                                                                          ,self.config.frame_event_variable_name
-                                                                          ,self.current_message
-                                                                          ,param_tok.lexeme)),
-            FrameEventPart::Return => output.push_str(&format!("{}.{}"
-                                                               ,self.config.frame_event_variable_name
-                                                               ,self.config.frame_event_message_attribute_name)),
+            FrameEventPart::Event => output.push_str("e"),
+            FrameEventPart::Message => output.push_str("e._message"),
+            FrameEventPart::Param {param_tok} => output.push_str(&format!("e._parameters[\"{}\"]",param_tok.lexeme)),
+            FrameEventPart::Return => output.push_str("e._return"),
         }
 
         AstVisitorReturnType::FrameEventExprType {}
@@ -2656,108 +2148,44 @@ impl AstVisitor for RustVisitor {
 
     fn visit_action_decl_node(&mut self, action_decl_node: &ActionNode) -> AstVisitorReturnType {
 
-//        let mut subclass_code = String::new();
+        let mut subclass_code = String::new();
 
         self.newline();
-//        self.newline_to_string(&mut subclass_code);
-
-
         let action_name = self.format_action_name(&action_decl_node.name);
-        self.add_code(&format!("fn {}(&mut self",action_name));
-//        subclass_code.push_str(&format!("fn {}(",action_name));
+        // self.add_code(&format!("let {} = function (",action_name));
+        self.add_code(&format!("{} = function (",action_name));
+        subclass_code.push_str(&format!("\t{} = function (",action_name));
+        let mut separator = "";
+        if let Some(params) = &action_decl_node.params {
 
-        match &action_decl_node.params {
-            Some (params)
-                => {
-                    self.format_actions_parameter_list(params).clone();
-            },
-            None => {},
+            for param in params {
+                self.add_code(&format!("{}",separator));
+                subclass_code.push_str(&format!("{}",separator));
+                separator = ",";
+                self.add_code(&format!("{}",param.param_name));
+                subclass_code.push_str(&format!("{}",param.param_name));
+            }
         }
-        // subclass_code.push_str(&format!(") {{}}"));
-        // self.subclass_code.push(subclass_code);
+        subclass_code.push_str(&format!(") {{}}"));
+        self.subclass_code.push(subclass_code);
 
-        self.add_code(")");
-        match &action_decl_node.type_opt {
-            Some(ret_type) => {
-                self.add_code(&format!(" -> {}", ret_type.get_type_str()));
-                ret_type.clone();
-            },
-            None => {}
-        };
-
-        self.add_code(";");
+        self.add_code(&format!(") {{ throw new Error('Action not implemented.'); }}"));
 
         AstVisitorReturnType::ActionDeclNode {}
     }
 
+
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_impl_node(&mut self, action_node: &ActionNode) -> AstVisitorReturnType {
-
-//        let mut subclass_code = String::new();
-
-        self.newline();
-//        self.newline_to_string(&mut subclass_code);
-
-
-        let action_name = self.format_action_name(&action_node.name);
-        self.add_code(&format!("fn {}(&mut self",action_name));
-//        subclass_code.push_str(&format!("fn {}(",action_name));
-
-        match &action_node.params {
-            Some (params)
-            => {
-                self.format_actions_parameter_list(params).clone();
-            },
-            None => {},
-        }
-        // subclass_code.push_str(&format!(") {{}}"));
-        // self.subclass_code.push(subclass_code);
-
-        self.add_code(")");
-        match &action_node.type_opt {
-            Some(ret_type) => {
-                self.add_code(&format!(" -> {}", ret_type.get_type_str()));
-                ret_type.clone();
-            },
-            None => {}
-        };
-
-        self.add_code(" {");
-
-        match &action_node.code_opt {
-            Some(code) => {
-                self.indent();
-                self.newline();
-                self.add_code(&*code);
-                self.outdent();
-                self.newline();
-            },
-            None => {}
-        }
-        self.add_code("}");
-
-        AstVisitorReturnType::ActionDeclNode {}
+    fn visit_action_impl_node(&mut self, action_decl_node: &ActionNode) -> AstVisitorReturnType {
+        panic!("visit_action_impl_node() not implemented.");
     }
 
     //* --------------------------------------------------------------------- *//
 
     fn visit_domain_variable_decl_node(&mut self, variable_decl_node: &VariableDeclNode) -> AstVisitorReturnType {
 
-        let var_type = match &variable_decl_node.type_opt {
-            Some(x) => x.get_type_str(),
-            None => String::from("<?>"),
-        };
-        let var_name =  &variable_decl_node.name;
-        let var_init_expr = &variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
-        self.newline();
-        // let mut code = String::new();
-        // var_init_expr.accept_to_string(self, &mut code);
-        self.add_code( &format!("{}:{},",var_name,var_type));
-
-        // currently unused serialization code
-        // self.serialize.push(format!("\tbag.domain[\"{}\"] = {};",var_name,var_name));
-        // self.deserialize.push(format!("\t{} = bag.domain[\"{}\"];",var_name,var_name));
+        self.visit_variable_decl_node(variable_decl_node);
 
         AstVisitorReturnType::VariableDeclNode {}
     }
@@ -2766,20 +2194,23 @@ impl AstVisitor for RustVisitor {
 
     fn visit_variable_decl_node(&mut self, variable_decl_node: &VariableDeclNode) -> AstVisitorReturnType {
 
-        let var_type = match &variable_decl_node.type_opt {
-            Some(x) => x.get_type_str(),
-            None => String::from("<?>"),
-        };
         let var_name =  &variable_decl_node.name;
         let var_init_expr = &variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
         self.newline();
         let mut code = String::new();
         var_init_expr.accept_to_string(self, &mut code);
-        self.add_code( &format!("let {}:{} = {};",var_name,var_type, code));
+        match &variable_decl_node.identifier_decl_scope {
+            IdentifierDeclScope::DomainBlock => {
+                self.add_code( &format!("that.{} = {};",var_name, code));
+            },
+            IdentifierDeclScope::EventHandlerVar => {
+                self.add_code( &format!("let {} = {};",var_name, code));
+            },
+            _ => panic!("Error - unexpected scope for variable declaration"),
+        }
 
-        // currently unused serialization code
-        // self.serialize.push(format!("\tbag.domain[\"{}\"] = {};",var_name,var_name));
-        // self.deserialize.push(format!("\t{} = bag.domain[\"{}\"];",var_name,var_name));
+        self.serialize.push(format!("\tbag.domain[\"{}\"] = {};",var_name,var_name));
+        self.deserialize.push(format!("\t{} = bag.domain[\"{}\"];",var_name,var_name));
 
         AstVisitorReturnType::VariableDeclNode {}
     }
@@ -2808,8 +2239,7 @@ impl AstVisitor for RustVisitor {
         // TODO: what is this line about?
         self.generate_comment(variable_stmt_node.get_line());
         self.newline();
-        let code = self.format_variable_expr(&variable_stmt_node.var_node);
-        self.add_code(&code);
+        self.add_code(&format!("{};",variable_stmt_node.var_node.id_node.name.lexeme));
 
         AstVisitorReturnType::AssignmentExprNode {}
     }
@@ -2853,6 +2283,7 @@ impl AstVisitor for RustVisitor {
         AstVisitorReturnType::AssignmentExprNode {}
     }
 
+
     //* --------------------------------------------------------------------- *//
 
     fn visit_unary_expr_node(&mut self, unary_expr_node: &UnaryExprNode) -> AstVisitorReturnType {
@@ -2883,7 +2314,6 @@ impl AstVisitor for RustVisitor {
 
         // TODO
         //       self.generate_comment(assignment_expr_node.line);
-
         if binary_expr_node.operator == OperatorType::LogicalXor {
             self.add_code("((");
             binary_expr_node.left_rcref.borrow().accept(self);

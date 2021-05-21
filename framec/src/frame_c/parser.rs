@@ -42,45 +42,45 @@ impl fmt::Display for ParseError {
     }
 }
 
-// @todo
-struct StateSemanticValidator {
-
-    // exitEventHandlerOpt:Option<Rc<RefCell<EventHandlerNode>>>,
-    // transtitions:Vec<Rc<RefCell<TransitionStatementNode>>>,
-}
-
-impl StateSemanticValidator {
-
-    pub fn new() -> StateSemanticValidator {
-        StateSemanticValidator {}
-    }
-
-    pub fn has_valid_exit_semantics(&self, state_node:&StateNode) -> bool {
-        // if any transition has exit args then
-        //  - there must be an exit handler for the state
-        //  - all exit args must be of same number and type for all transitions
-        //  - all transition exit args must match the exit handler parameter list
-
-        // for evt_handler in state_node.evt_handlers {
-        //
-        //     for statement in evt_handler.statements {
-        //         match statement {
-        //             DeclOrStmtType::StmtT {stmt_t} => {
-        //                 match stmt_t {
-        //                     StatementType::TransitionStmt{transition_statement}
-        //                         => {
-        //                         transition_statement.
-        //                     }
-        //                 }
-        //             },
-        //             _ => {},
-        //         }
-        //     }
-        // }
-
-        true
-    }
-}
+// // @todo
+// struct StateSemanticValidator {
+//
+//     // exitEventHandlerOpt:Option<Rc<RefCell<EventHandlerNode>>>,
+//     // transtitions:Vec<Rc<RefCell<TransitionStatementNode>>>,
+// }
+//
+// impl StateSemanticValidator {
+//
+//     pub fn new() -> StateSemanticValidator {
+//         StateSemanticValidator {}
+//     }
+//
+//     pub fn has_valid_exit_semantics(&self, _:&StateNode) -> bool {
+//         // if any transition has exit args then
+//         //  - there must be an exit handler for the state
+//         //  - all exit args must be of same number and type for all transitions
+//         //  - all transition exit args must match the exit handler parameter list
+//
+//         // for evt_handler in state_node.evt_handlers {
+//         //
+//         //     for statement in evt_handler.statements {
+//         //         match statement {
+//         //             DeclOrStmtType::StmtT {stmt_t} => {
+//         //                 match stmt_t {
+//         //                     StatementType::TransitionStmt{transition_statement}
+//         //                         => {
+//         //                         transition_statement.
+//         //                     }
+//         //                 }
+//         //             },
+//         //             _ => {},
+//         //         }
+//         //     }
+//         // }
+//
+//         true
+//     }
+// }
 
 pub struct Parser<'a> {
     tokens:&'a Vec<Token>,
@@ -363,7 +363,7 @@ impl<'a> Parser<'a> {
     }
 
     /* --------------------------------------------------------------------- */
-    
+
     fn system(&mut self) -> SystemNode {
         let mut header = String::new();
         let mut interface_block_node_opt = Option::None;
@@ -387,7 +387,7 @@ impl<'a> Parser<'a> {
                 let tok = self.previous();
                 header.push_str(&*tok.lexeme.clone());
             }
-            if let Err(parse_error) =  self.consume(TokenType::ThreeTicksTok, "Expected '```'.") {
+            if let Err(_) =  self.consume(TokenType::ThreeTicksTok, "Expected '```'.") {
                 self.error_at_current("Expected closing ```.");
                 let sync_tokens = &vec![SystemTok];
                 self.synchronize(sync_tokens);
@@ -1299,10 +1299,10 @@ impl<'a> Parser<'a> {
 
         // If this is the 2nd pass, set the reference to the AST state node.
         if !self.is_building_symbol_table {
-            let state_validator = StateSemanticValidator::new();
-            if !state_validator.has_valid_exit_semantics(&state_node_rcref.borrow()) {
-                return Err(ParseError::new("TODO"));
-            }
+            // let state_validator = StateSemanticValidator::new();
+            // if !state_validator.has_valid_exit_semantics(&state_node_rcref.borrow()) {
+            //     return Err(ParseError::new("TODO"));
+            // }
             state_symbol_rcref.borrow_mut().set_state_node(Rc::clone(&state_node_rcref));
         }
 
@@ -1586,7 +1586,7 @@ impl<'a> Parser<'a> {
     // event_handler_terminator -> '^' | '>'
 
     // TODO: - explore just returning the TerminatorType
-    fn event_handler_terminator(&mut self,event_symbol_rcfef:Rc<RefCell<EventSymbol>>) ->  Result<TerminatorExpr,ParseError> {
+    fn event_handler_terminator(&mut self,_:Rc<RefCell<EventSymbol>>) ->  Result<TerminatorExpr,ParseError> {
 
         // let x = event_symbol_rcfef.borrow();
         // let ret_type = match &x.ret_type_opt {
@@ -1687,11 +1687,10 @@ impl<'a> Parser<'a> {
         let mut expr_t_opt:Option<ExprType> = None;
         match self.expression() {
             Ok(et_opt) => expr_t_opt = et_opt,
-            Err(parse_error) => {
+            Err(_) => {
                 let sync_tokens = &vec![IdentifierTok, PipeTok, StateTok, ActionsBlockTok, DomainBlockTok, SystemEndTok];
                 self.synchronize(sync_tokens);
             },
-            Ok(None) => {}, // continue
         }
 
         match expr_t_opt {
@@ -1784,7 +1783,7 @@ impl<'a> Parser<'a> {
                         let expr_stmt_t:ExprStmtType = CallStmtT { call_stmt_node };
                         return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
                     },
-                    CallExprListT { call_expr_list_node } => {
+                    CallExprListT { .. } => {
                         // this should never happen as it is the () in a call like foo()
                         return Err(ParseError::new("TODO"));
                     },
@@ -1815,19 +1814,19 @@ impl<'a> Parser<'a> {
                         let expr_stmt_t:ExprStmtType = ExprStmtType::AssignmentStmtT {assignment_stmt_node};
                         return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
                     },
-                    LiteralExprT { literal_expr_node } => {
+                    LiteralExprT { .. } => {
                         self.error_at_previous("Literal statements not allowed.");
                         return Err(ParseError::new("TODO"));
                     },
-                    FrameEventExprT {frame_event_part} => {
+                    FrameEventExprT {..} => {
                         self.error_at_previous("Frame Event statements not allowed.");
                         return Err(ParseError::new("TODO"));
                     },
-                    UnaryExprT {unary_expr_node} => {
+                    UnaryExprT {..} => {
                         self.error_at_previous("Unary expression statements not allowed.");
                         return Err(ParseError::new("TODO"));
                     },
-                    BinaryExprT {binary_expr_node} => {
+                    BinaryExprT {..} => {
                         self.error_at_previous("Binary expression statements not allowed.");
                         return Err(ParseError::new("TODO"));
                     },
@@ -1838,7 +1837,7 @@ impl<'a> Parser<'a> {
                 if self.match_token(&vec![TransitionTok]) {
                     match self.transition(None) {
                         Ok(Some(transition)) => return Ok(Some(transition)),
-                        Ok(none) => return Err(ParseError::new("TODO")),
+                        Ok(_) => return Err(ParseError::new("TODO")),
                         Err(parse_error) => return Err(parse_error),
                     }
                 }
@@ -1866,13 +1865,13 @@ impl<'a> Parser<'a> {
 
     fn is_testable_expression(&self, expr_t:&ExprType) -> bool {
         match expr_t {
-            AssignmentExprT {assignment_expr_node} => {
+            AssignmentExprT {..} => {
                 false
             },
-            UnaryExprT {unary_expr_node} => {
+            UnaryExprT {..} => {
                 true
             },
-            BinaryExprT {binary_expr_node} => {
+            BinaryExprT {..} => {
                 true
             },
             ExprListT {expr_list_node} => {
@@ -2163,7 +2162,7 @@ impl<'a> Parser<'a> {
                 return Err(ParseError::new("TODO"));
             }
 
-            let token = self.previous();
+ //           let token = self.previous();
             let match_string_tok = self.previous();
             let match_pattern_string = match_string_tok.lexeme.clone();
             match_strings.push(match_pattern_string);
@@ -2269,7 +2268,7 @@ impl<'a> Parser<'a> {
 
         while self.match_token(&vec![TokenType::BangEqualTok,
                                                 TokenType::EqualEqualTok]) {
-            let line = self.previous().line;
+ //           let line = self.previous().line;
             let operator_token = self.previous();
             let op_type = OperatorType::get_operator_type(&operator_token.token_type);
             let r_value = match self.comparison() {
@@ -2298,7 +2297,6 @@ impl<'a> Parser<'a> {
                                                 TokenType::GreaterEqualTok,
                                                 TokenType::LTTok,
                                                 TokenType::LessEqualTok ]) {
-            let line = self.previous().line;
             let operator_token = self.previous();
             let op_type = OperatorType::get_operator_type(&operator_token.token_type);
             let r_value = match self.term() {
@@ -2325,7 +2323,6 @@ impl<'a> Parser<'a> {
 
         while self.match_token(&vec![TokenType::DashTok,
                                                 TokenType::PlusTok ]) {
-            let line = self.previous().line;
             let operator_token = self.previous();
             let op_type = OperatorType::get_operator_type(&operator_token.token_type);
             let r_value = match self.factor() {
@@ -2352,7 +2349,6 @@ impl<'a> Parser<'a> {
 
         while self.match_token(&vec![TokenType::ForwardSlashTok,
                                                 TokenType::StarTok ]) {
-            let line = self.previous().line;
             let operator_token = self.previous();
             let op_type = OperatorType::get_operator_type(&operator_token.token_type);
             let r_value = match self.logical_xor() {
@@ -2378,7 +2374,6 @@ impl<'a> Parser<'a> {
         };
 
         while self.match_token(&vec![TokenType::LogicalXorTok]) {
-            let line = self.previous().line;
             let operator_token = self.previous();
             let op_type = OperatorType::get_operator_type(&operator_token.token_type);
             let r_value = match self.logical_or() {
@@ -2404,7 +2399,6 @@ impl<'a> Parser<'a> {
         };
 
         while self.match_token(&vec![TokenType::PipePipeTok]) {
-            let line = self.previous().line;
             let operator_token = self.previous();
             let op_type = OperatorType::get_operator_type(&operator_token.token_type);
             let r_value = match self.logical_and() {
@@ -2430,7 +2424,6 @@ impl<'a> Parser<'a> {
         };
 
         while self.match_token(&vec![TokenType::LogicalAndTok]) {
-            let line = self.previous().line;
             let operator_token = self.previous();
             let op_type = OperatorType::get_operator_type(&operator_token.token_type);
             let r_value = match self.unary_expression() {
@@ -2466,7 +2459,6 @@ impl<'a> Parser<'a> {
                     let unary_expr_node = UnaryExprNode::new(operator_type,x);
                     return Ok(Some(UnaryExprT {unary_expr_node}));
                 },
-                Ok(Some(_)) => return Err(ParseError::new("TODO")), // TODO
                 Err(parse_error) => return Err(parse_error),
                 Ok(None) => {}, // continue
             }
@@ -2687,9 +2679,7 @@ impl<'a> Parser<'a> {
     // TODO: change the return type to be CallChainLiteralExprT as it doesn't return anything else.
     fn variable_or_call_expr(&mut self, explicit_scope: IdentifierDeclScope) -> Result<Option<ExprType>,ParseError> {
 
-        let id = self.previous().lexeme.clone();
-//        decl_scope = self.arcanum.lookup_symbol_identifier_decl_scope(&*id);
-        let mut scope:IdentifierDeclScope = IdentifierDeclScope::None;
+         let mut scope:IdentifierDeclScope = IdentifierDeclScope::None;
 
         let mut id_node = IdentifierNode::new(self.previous().clone(), None, explicit_scope.clone(),self.previous().line);
         let mut call_chain:std::collections::VecDeque<CallChainLiteralNodeType> = std::collections::VecDeque::new();
@@ -2905,7 +2895,7 @@ impl<'a> Parser<'a> {
 
     // state_context ->
 
-    fn change_state_context(&mut self, enter_args_opt:Option<ExprListNode>) -> Result<Option<StateContextType>,ParseError> {
+    fn change_state_context(&mut self, _:Option<ExprListNode>) -> Result<Option<StateContextType>,ParseError> {
 
 
         // parse state ref e.g. '$S1'

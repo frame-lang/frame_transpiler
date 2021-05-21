@@ -7,6 +7,7 @@ pub mod python_visitor;
 pub mod gdscript_3_2_visitor;
 pub mod java_8_visitor;
 pub mod rust_visitor;
+pub(crate) mod xtate_visitor;
 
 use super::ast::*;
 
