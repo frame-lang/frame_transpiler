@@ -10,23 +10,23 @@ use crate::frame_c::visitors::python_visitor::PythonVisitor;
 use crate::frame_c::visitors::gdscript_3_2_visitor::GdScript32Visitor;
 use crate::frame_c::visitors::java_8_visitor::Java8Visitor;
 use crate::frame_c::visitors::rust_visitor::RustVisitor;
-use crate::frame_c::visitors::xtate_visitor::XStateVisitor;
+//use crate::frame_c::visitors::xtate_visitor::XStateVisitor;
 
 /* --------------------------------------------------------------------- */
 
 static IS_DEBUG:bool = false;
 static FRAMEC_VERSION:&str = "emitted from framec_v0.4.00";
 
-pub struct exe {
+pub struct Exe {
 }
 
-impl exe {
+impl Exe {
 
     /* --------------------------------------------------------------------- */
 
 
-    pub fn new() -> exe {
-        exe {
+    pub fn new() -> Exe {
+        Exe {
         }
     }
 
@@ -50,7 +50,7 @@ impl exe {
         }
 
         for token in &tokens {
-            exe::debug_print(&format!("{:?}", token));
+            Exe::debug_print(&format!("{:?}", token));
         }
 
 
@@ -188,17 +188,17 @@ impl exe {
                                              , comments);
             visitor.run(&system_node);
             return visitor.get_code();
-        } else if output_format == "xstate" {
-            let mut visitor = XStateVisitor::new(semantic_parser.get_arcanum()
-                                               , generate_exit_args
-                                               , generate_state_context
-                                               , generate_state_stack
-                                               , generate_change_state
-                                               , generate_transition_state
-                                               , FRAMEC_VERSION
-                                               , comments);
-            visitor.run(&system_node);
-            return visitor.get_code();
+        // } else if output_format == "xstate" {
+        //     let mut visitor = XStateVisitor::new(semantic_parser.get_arcanum()
+        //                                        , generate_exit_args
+        //                                        , generate_state_context
+        //                                        , generate_state_stack
+        //                                        , generate_change_state
+        //                                        , generate_transition_state
+        //                                        , FRAMEC_VERSION
+        //                                        , comments);
+        //     visitor.run(&system_node);
+        //     return visitor.get_code();
         } else {
             format!("Error - unrecognized output format {}.",output_format)
         }

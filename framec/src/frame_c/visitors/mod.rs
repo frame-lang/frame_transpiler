@@ -7,7 +7,7 @@ pub mod python_visitor;
 pub mod gdscript_3_2_visitor;
 pub mod java_8_visitor;
 pub mod rust_visitor;
-pub(crate) mod xtate_visitor;
+//pub mod xtate_visitor;
 
 use super::ast::*;
 
@@ -29,13 +29,9 @@ pub enum AstVisitorReturnType {
     ActionCallStatementNode,
     TestStatementNode,
     StateRefNode,
-    ArgumentNode,
     ParameterNode,
     DispatchNode,
-    ExpressionNode,
     ParentheticalExpressionNode,
-    LiteralExpressionNode,
-    GetExprNode,
     IdentifierNode,
     BoolTestNode,
     BoolTestConditionalBranchNode,
@@ -54,16 +50,12 @@ pub enum AstVisitorReturnType {
     ChangeStateStmtNode,
     FrameEventExprType,
     ActionDeclNode,
-    MemberVariableNode,
     AssignmentExprNode,
-    AssignmentStmtNode,
     VariableDeclNode,
-    VariableStmtNode,
     UnaryExprNode,
     BinaryExprNode,
     OperatorType,
     CallExprListNode,
-    TypeNode,
 }
 
 pub trait AstVisitor {
@@ -113,8 +105,6 @@ pub trait AstVisitor {
     fn visit_literal_expression_node_to_string(&mut self, literal_expression_node:&LiteralExprNode, output:&mut String) -> AstVisitorReturnType;
     fn visit_identifier_node(&mut self, identifier_node:&IdentifierNode) -> AstVisitorReturnType;
     fn visit_identifier_node_to_string(&mut self, identifier_node:&IdentifierNode, output:&mut String) -> AstVisitorReturnType;
-//    fn visit_type_node(&mut self, typedef_node:&TypeNode, output:&mut String) -> AstVisitorReturnType;
-
     fn visit_state_stack_operation_node(&mut self, state_stack_op_node:&StateStackOperationNode) -> AstVisitorReturnType;
     fn visit_state_stack_operation_node_to_string(&mut self, state_stack_op_node:&StateStackOperationNode, output:&mut String) -> AstVisitorReturnType;
     fn visit_state_stack_operation_statement_node(&mut self, state_stack_op_statement_node:&StateStackOperationStatementNode) -> AstVisitorReturnType;

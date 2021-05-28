@@ -227,8 +227,8 @@ impl RustVisitor {
                 }
             }
             IdentifierDeclScope::EventHandlerParam => {
-                let var_node = variable_node;
-                let var_symbol_rcref_opt = &var_node.symbol_type_rcref_opt;
+                // let var_node = variable_node;
+                // let var_symbol_rcref_opt = &var_node.symbol_type_rcref_opt;
 //                let var_symbol_rcref = var_symbol_rcref_opt.as_ref().unwrap();
 //                let var_symbol = var_symbol_rcref.borrow();
 //                let var_type = self.get_variable_type(&*var_symbol);
@@ -291,20 +291,20 @@ impl RustVisitor {
         }
     }
 
-    //* --------------------------------------------------------------------- *//
-
-    fn format_parameter_list_to_string(&mut self,params:&Vec<ParameterNode>,output:&mut String) {
-        let mut separator = "";
-        for param in params {
-            output.push_str(&format!("{}", separator));
-            let param_type: String = match &param.param_type_opt {
-                Some(ret_type) => ret_type.get_type_str(),
-                None => String::from("<?>"),
-            };
-            output.push_str(&format!("{} {}", param_type, param.param_name));
-            separator = ",";
-        }
-    }
+    // //* --------------------------------------------------------------------- *//
+    //
+    // fn format_parameter_list_to_string(&mut self,params:&Vec<ParameterNode>,output:&mut String) {
+    //     let mut separator = "";
+    //     for param in params {
+    //         output.push_str(&format!("{}", separator));
+    //         let param_type: String = match &param.param_type_opt {
+    //             Some(ret_type) => ret_type.get_type_str(),
+    //             None => String::from("<?>"),
+    //         };
+    //         output.push_str(&format!("{} {}", param_type, param.param_name));
+    //         separator = ",";
+    //     }
+    // }
 
     //* --------------------------------------------------------------------- *//
 
@@ -1394,7 +1394,7 @@ impl AstVisitor for RustVisitor {
         }
         self.add_code(" {");
         self.indent();
-        let mut params_param_code= String::from("");
+        let params_param_code;
         // let mut frame_parameters = FrameParameters::new();
         // frame_parameters.set_toggle_msg(msg);
 
@@ -1433,7 +1433,7 @@ impl AstVisitor for RustVisitor {
         self.add_code(&format!("(self.state)(self, &mut e);"));
 
         match &interface_method_node.return_type_opt {
-            Some(return_type) => {
+            Some(_return_type) => {
                 self.newline();
                 self.add_code("match e.ret {");
                 self.indent();
@@ -2055,7 +2055,7 @@ impl AstVisitor for RustVisitor {
             Some(branch_terminator_expr) => {
                 self.newline();
                 match &branch_terminator_expr.terminator_type {
-                    _Return => {
+                    TerminatorType::Return => {
                         match &branch_terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
                                 self.add_code(&format!("e._return = "));
@@ -2067,7 +2067,7 @@ impl AstVisitor for RustVisitor {
                             None => self.add_code("return;"),
                         }
                     },
-                    _Continue => {
+                    TerminatorType::Continue => {
                         self.add_code("break;");
                     }
                 }
@@ -2091,8 +2091,8 @@ impl AstVisitor for RustVisitor {
         match &bool_test_else_branch_node.branch_terminator_expr_opt {
             Some(branch_terminator_expr) => {
                 self.newline();
-                match &bool_test_else_branch_node {
-                    _Return => {
+                match &branch_terminator_expr.terminator_type {
+                    TerminatorType::Return => {
                         match &branch_terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
                                 self.add_code(&format!("e._return = ",));
@@ -2104,7 +2104,7 @@ impl AstVisitor for RustVisitor {
                             None => self.add_code("return;"),
                         }
                     }
-                    _Continue => {
+                    TerminatorType::Continue => {
                         self.add_code("break;");
                     }
                 }
@@ -2207,7 +2207,7 @@ impl AstVisitor for RustVisitor {
             Some(branch_terminator_expr) => {
                 self.newline();
                 match &branch_terminator_expr.terminator_type {
-                    _Return => {
+                    TerminatorType::Return => {
                         match &branch_terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
                                 self.add_code(&format!("e._return = "));
@@ -2219,7 +2219,7 @@ impl AstVisitor for RustVisitor {
                             None => self.add_code("return;"),
                         }
                     }
-                    _Continue => {
+                    TerminatorType::Continue => {
                         self.add_code("break;");
 
                     }
@@ -2244,8 +2244,8 @@ impl AstVisitor for RustVisitor {
         match &string_match_test_else_branch_node.branch_terminator_expr_opt {
             Some(branch_terminator_expr) => {
                 self.newline();
-                match &string_match_test_else_branch_node {
-                    _Return => {
+                match &branch_terminator_expr.terminator_type {
+                    TerminatorType::Return => {
                         match &branch_terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
                                 self.add_code(&format!("e._return = "));
@@ -2257,7 +2257,7 @@ impl AstVisitor for RustVisitor {
                             None => self.add_code("return;"),
                         }
                     }
-                    _Continue => {
+                    TerminatorType::Continue => {
                         self.add_code("break;");
 
                     }
@@ -2364,8 +2364,8 @@ impl AstVisitor for RustVisitor {
         match &number_match_test_match_branch_node.branch_terminator_expr_opt {
             Some(branch_terminator_expr) => {
                 self.newline();
-                match number_match_test_match_branch_node {
-                    _Return => {
+                match &branch_terminator_expr.terminator_type {
+                    TerminatorType::Return => {
                         match &branch_terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
                                 self.add_code(&format!("e._return = "));
@@ -2377,7 +2377,7 @@ impl AstVisitor for RustVisitor {
                             None => self.add_code("return;"),
                         }
                     }
-                    _Continue => {
+                    TerminatorType::Continue => {
                         self.add_code("break;");
 
                     }
@@ -2402,8 +2402,8 @@ impl AstVisitor for RustVisitor {
         match &number_match_test_else_branch_node.branch_terminator_expr_opt {
             Some(branch_terminator_expr) => {
                 self.newline();
-                match number_match_test_else_branch_node {
-                    _Return => {
+                match &branch_terminator_expr.terminator_type {
+                    TerminatorType::Return => {
                         match &branch_terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
                                 self.add_code(&format!("e._return = "));
@@ -2415,7 +2415,7 @@ impl AstVisitor for RustVisitor {
                             None => self.add_code("return;"),
                         }
                     }
-                    _Continue => {
+                    TerminatorType::Continue => {
                         self.add_code("break;");
 
                     }
@@ -2494,9 +2494,9 @@ impl AstVisitor for RustVisitor {
                 => self.add_code("null"),
             TokenType::NilTok
                 => self.add_code("null"),
-            TokenType::SuperStringTok => {
-                self.add_code(&format!("{}", literal_expression_node.value));
-            },
+            // TokenType::SuperStringTok => {
+            //     self.add_code(&format!("{}", literal_expression_node.value));
+            // },
             _ => self.errors.push(format!("TODO: visit_literal_expression_node")),
         }
 
@@ -2669,7 +2669,7 @@ impl AstVisitor for RustVisitor {
         match &action_decl_node.params {
             Some (params)
                 => {
-                    self.format_actions_parameter_list(params).clone();
+                    self.format_actions_parameter_list(params);
             },
             None => {},
         }
@@ -2680,7 +2680,6 @@ impl AstVisitor for RustVisitor {
         match &action_decl_node.type_opt {
             Some(ret_type) => {
                 self.add_code(&format!(" -> {}", ret_type.get_type_str()));
-                ret_type.clone();
             },
             None => {}
         };
@@ -2707,7 +2706,7 @@ impl AstVisitor for RustVisitor {
         match &action_node.params {
             Some (params)
             => {
-                self.format_actions_parameter_list(params).clone();
+                self.format_actions_parameter_list(params);
             },
             None => {},
         }
@@ -2718,7 +2717,6 @@ impl AstVisitor for RustVisitor {
         match &action_node.type_opt {
             Some(ret_type) => {
                 self.add_code(&format!(" -> {}", ret_type.get_type_str()));
-                ret_type.clone();
             },
             None => {}
         };
@@ -2749,7 +2747,7 @@ impl AstVisitor for RustVisitor {
             None => String::from("<?>"),
         };
         let var_name =  &variable_decl_node.name;
-        let var_init_expr = &variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
+        // let var_init_expr = &variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
         self.newline();
         // let mut code = String::new();
         // var_init_expr.accept_to_string(self, &mut code);

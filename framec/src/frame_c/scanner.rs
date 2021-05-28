@@ -1,7 +1,7 @@
 use std::fmt;
 use std::fmt::Display;
 use std::collections::HashMap;
-use crate::compiler::exe;
+use crate::compiler::Exe;
 use crate::frame_c::scanner::TokenType::*;
 
 enum MatchType {
@@ -118,7 +118,7 @@ impl Scanner {
     }
 
     fn match_first_header_token(&mut self,) -> bool {
-        for i in 0..3 {
+        for _i in 0..3 {
             if !self.match_char('`') {
                 self.error(self.line, "Malformed header token.");
                 return false
@@ -130,7 +130,7 @@ impl Scanner {
     }
 
     fn match_last_header_token(&mut self,) -> bool {
-        for i in 0..3 {
+        for _i in 0..3 {
             if !self.match_char('`') {
                 return false
             }
@@ -177,10 +177,10 @@ impl Scanner {
 
             }
             '$' => {
-                enum StackType {Push,Pop,None};
+                enum StackType {Push,Pop};
 
-                let mut st = StackType::None;
                 if self.match_char('$') {
+                    let st;
                     if self.match_char('[') {
                         if self.match_char('+') {
                             st = StackType::Push;
@@ -197,7 +197,6 @@ impl Scanner {
                         match st {
                             StackType::Push => { self.add_token(StateStackOperationPushTok); return;},
                             StackType::Pop => { self.add_token(StateStackOperationPopTok); return} ,
-                            StackType::None => panic!("TODO"),
                         }
                     }
                 }
@@ -429,9 +428,10 @@ impl Scanner {
         // See if the identifier is a reserved word.
         let text = &self.source[self.start..self.current].to_owned();
 
-        let kw = self.keywords.get(text);
+        let kw = &self.keywords.get(text);
         if let Some(keyword) = kw {
-            self.add_token(*keyword);
+            let tok_type = (*keyword).clone();
+            self.add_token(tok_type);
         } else {
             self.add_token(IdentifierTok);
         }
@@ -525,7 +525,7 @@ impl Scanner {
         // ##
 
         let start_pos = self.current;
-        let mut block_name:&str;
+        // let mut block_name:&str;
 
         let block_sections= [
             ("interface-", InterfaceBlockTok),
@@ -570,7 +570,7 @@ impl Scanner {
     }
 
     fn add_token(&mut self, tok_type:TokenType) {
-        exe::debug_print(&format!("{:?}", tok_type));
+        Exe::debug_print(&format!("{:?}", tok_type));
         self.add_token_literal(tok_type, TokenLiteral::None);
     }
 
@@ -730,9 +730,9 @@ impl Display for TokenType {
 
 #[derive(Debug,Clone)]
 pub enum TokenLiteral {
-    Integer(i32),
+    //Integer(i32),
     Float(f32),
-    Double(f64),
+    // Double(f64),
     None,
 }
 

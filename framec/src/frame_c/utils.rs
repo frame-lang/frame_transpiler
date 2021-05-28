@@ -16,12 +16,12 @@ impl Node {
     }
 
     pub fn add_child(&mut self,child_name:&String)  {
-        let child_name_debug = child_name.clone();
+ //       let child_name_debug = child_name.clone();
         self.children.push(child_name.clone());
     }
 
     pub fn remove_child(&mut self,child_name:&String) {
-        let child_name_debug = child_name.clone();
+//        let child_name_debug = child_name.clone();
         let index = self.children.iter().position(|x| *x == *child_name).unwrap();
         self.children.remove(index);
     }
@@ -46,16 +46,12 @@ impl SystemHierarchy {
         }
     }
 
-    fn insert(&mut self, key:String, node:Node ) {
-        self.index.insert(key,node);
-    }
-
     pub fn add_node(&mut self, node_name:String, parent_node_name_original:String)  {
 
         let parent_node_name = parent_node_name_original.clone();
 
         match self.index.get_mut(&node_name) {
-            Some(index_node) => {
+            Some(_index_node) => {
                 //node = index_node;
             },
             None => {
@@ -66,7 +62,7 @@ impl SystemHierarchy {
 
         if parent_node_name != "" {
             match self.index.get_mut(&parent_node_name) {
-                Some(index_parent_node) => {
+                Some(_index_parent_node) => {
                     // found parent node in index
                     // parent_node = index_parent_node;
                 }
@@ -84,11 +80,12 @@ impl SystemHierarchy {
     }
 
     fn set_parent(&mut self, node_name: &String, new_parent_name:&String) {
-        let node_name_debug = node_name.clone();
-        let new_parent_name_debug = new_parent_name.clone();
+        // let node_name_debug = node_name.clone();
+        // let new_parent_name_debug = new_parent_name.clone();
 
         // all nodes must have a parent.
-        let mut current_parent_name= String::new();
+
+        let current_parent_name;
 
        // {
         match self.index.get_mut(node_name) {

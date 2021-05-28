@@ -27,9 +27,9 @@ pub struct CsVisitorForBob {
     visiting_call_chain_literal_variable:bool,
     generate_exit_args:bool,
     generate_state_context:bool,
-    generate_state_stack:bool,
-    generate_change_state:bool,
-    generate_transition_state:bool,
+    // generate_state_stack:bool,
+    // generate_change_state:bool,
+    // generate_transition_state:bool,
 }
 
 impl CsVisitorForBob {
@@ -39,9 +39,9 @@ impl CsVisitorForBob {
     pub fn new(   arcanium:Arcanum
                 , generate_exit_args:bool
                 , generate_state_context:bool
-                , generate_state_stack:bool
-                , generate_change_state:bool
-                , generate_transition_state:bool
+                , _generate_state_stack:bool
+                , _generate_change_state:bool
+                , _generate_transition_state:bool
                 , compiler_version:&str
                 , comments:Vec<Token>) -> CsVisitorForBob {
 
@@ -73,9 +73,9 @@ impl CsVisitorForBob {
             visiting_call_chain_literal_variable:false,
             generate_exit_args,
             generate_state_context,
-            generate_state_stack,
-            generate_change_state,
-            generate_transition_state,
+            // generate_state_stack,
+            // generate_change_state,
+            // generate_transition_state,
         }
     }
 
@@ -339,134 +339,134 @@ impl CsVisitorForBob {
         }
     }
 
-
-    //* --------------------------------------------------------------------- *//
-
-    fn generate_machinery(&mut self, system_node: &SystemNode) {
-        self.newline();
-        self.newline();
-        self.add_code("//=============== Machinery and Mechanisms ==============//");
-        self.newline();
-        if let Some(first_state) = system_node.get_first_state() {
-            self.newline();
-            self.add_code(&format!("private delegate void FrameState(FrameEvent e);"));
-            self.newline();
-            self.add_code(&format!("private FrameState _state_;"));
-            if self.generate_state_context {
-                self.newline();
-                self.add_code(&format!("private StateContext _stateContext_;"));
-            }
-            if self.generate_transition_state {
-                self.newline();
-                self.newline();
-                if self.generate_state_context {
-                    if self.generate_exit_args {
-                        self.add_code(&format!("private void _transition_(FrameState newState,FrameEventParams exitArgs, StateContext stateContext) {{"));
-                    } else {
-                        self.add_code(&format!("private void _transition_(FrameState newState, StateContext stateContext) {{"));
-                    }
-                } else {
-                    if self.generate_exit_args {
-                        self.add_code(&format!("private void _transition_(FrameState newState,FrameEventParams exitArgs) {{"));
-                    } else {
-                        self.add_code(&format!("private void _transition_(FrameState newState) {{"));
-                    }
-                }
-                self.indent();
-                self.newline();
-                if self.generate_exit_args {
-                    self.add_code(&format!("FrameEvent exitEvent = new FrameEvent(\"<\",exitArgs);"));
-                } else {
-                    self.add_code(&format!("FrameEvent exitEvent = new FrameEvent(\"<\",null);"));
-                }
-                self.newline();
-                self.add_code(&format!("_state_(exitEvent);"));
-                self.newline();
-                self.add_code(&format!("_state_ = newState;"));
-                self.newline();
-                if self.generate_state_context {
-                    self.add_code(&format!("_stateContext_ = stateContext;"));
-                    self.newline();
-                    self.add_code(&format!("FrameEvent enterEvent = new FrameEvent(\">\",_stateContext_.getEnterArgs());"));
-                    self.newline();
-                } else {
-                    self.add_code(&format!("FrameEvent enterEvent = new FrameEvent(\">\",null);"));
-                    self.newline();
-                }
-                self.add_code(&format!("_state_(enterEvent);"));
-                self.outdent();
-                self.newline();
-                self.add_code(&format!("}}"));
-            }
-            if self.generate_state_stack {
-                self.newline();
-                self.newline();
-                if self.generate_state_context {
-                    self.add_code(&format!("private Stack<StateContext> _stateStack_ = new Stack<StateContext>();"));
-                    self.newline();
-                    self.newline();
-                    self.add_code(&format!("private void _stateStack_push_(StateContext stateContext) {{"));
-                    self.indent();
-                    self.newline();
-                    self.add_code(&format!("_stateStack_.Push(stateContext);"));
-                    self.outdent();
-                    self.newline();
-                    self.add_code(&format!("}}"));
-                    self.newline();
-                    self.newline();
-                    self.add_code(&format!("private StateContext _stateStack_pop_() {{"));
-                    self.indent();
-                    self.newline();
-                    self.add_code(&format!("return _stateStack_.Pop();"));
-                } else {
-                    self.add_code(&format!("private Stack<FrameState> _stateStack_ = new Stack<FrameState>();"));
-                    self.newline();
-                    self.newline();
-                    self.add_code(&format!("private void _stateStack_push_(FrameState state) {{"));
-                    self.indent();
-                    self.newline();
-                    self.add_code(&format!("_stateStack_.Push(state);"));
-                    self.outdent();
-                    self.newline();
-                    self.add_code(&format!("}}"));
-                    self.newline();
-                    self.newline();
-                    self.add_code(&format!("private FrameState _stateStack_pop_() {{"));
-                    self.indent();
-                    self.newline();
-                    self.add_code(&format!("return _stateStack_.Pop();"));
-                }
-
-                self.outdent();
-                self.newline();
-                self.add_code(&format!("}}"));
-            }
-            if self.generate_change_state {
-                self.newline();
-                self.newline();
-                self.add_code(&format!("private void _changeState_(newState) {{"));
-                self.indent();
-                self.newline();
-                self.add_code(&format!("_state_ = newState;"));
-                self.outdent();
-                self.newline();
-                self.add_code(&format!("}}"));
-            }
-            self.newline();
-
-            if self.arcanium.is_serializable() {
-                for line in self.serialize.iter() {
-                    self.code.push_str(&*format!("{}",line));
-                    self.code.push_str(&*format!("\n{}",self.dent()));
-                }
-
-                for line in self.deserialize.iter() {
-                    self.code.push_str(&*format!("{}",line));
-                    self.code.push_str(&*format!("\n{}",self.dent()));
-                }
-            }
-        }
-    }
+    //
+    // //* --------------------------------------------------------------------- *//
+    //
+    // fn generate_machinery(&mut self, system_node: &SystemNode) {
+    //     self.newline();
+    //     self.newline();
+    //     self.add_code("//=============== Machinery and Mechanisms ==============//");
+    //     self.newline();
+    //     if let Some(first_state) = system_node.get_first_state() {
+    //         self.newline();
+    //         self.add_code(&format!("private delegate void FrameState(FrameEvent e);"));
+    //         self.newline();
+    //         self.add_code(&format!("private FrameState _state_;"));
+    //         if self.generate_state_context {
+    //             self.newline();
+    //             self.add_code(&format!("private StateContext _stateContext_;"));
+    //         }
+    //         if self.generate_transition_state {
+    //             self.newline();
+    //             self.newline();
+    //             if self.generate_state_context {
+    //                 if self.generate_exit_args {
+    //                     self.add_code(&format!("private void _transition_(FrameState newState,FrameEventParams exitArgs, StateContext stateContext) {{"));
+    //                 } else {
+    //                     self.add_code(&format!("private void _transition_(FrameState newState, StateContext stateContext) {{"));
+    //                 }
+    //             } else {
+    //                 if self.generate_exit_args {
+    //                     self.add_code(&format!("private void _transition_(FrameState newState,FrameEventParams exitArgs) {{"));
+    //                 } else {
+    //                     self.add_code(&format!("private void _transition_(FrameState newState) {{"));
+    //                 }
+    //             }
+    //             self.indent();
+    //             self.newline();
+    //             if self.generate_exit_args {
+    //                 self.add_code(&format!("FrameEvent exitEvent = new FrameEvent(\"<\",exitArgs);"));
+    //             } else {
+    //                 self.add_code(&format!("FrameEvent exitEvent = new FrameEvent(\"<\",null);"));
+    //             }
+    //             self.newline();
+    //             self.add_code(&format!("_state_(exitEvent);"));
+    //             self.newline();
+    //             self.add_code(&format!("_state_ = newState;"));
+    //             self.newline();
+    //             if self.generate_state_context {
+    //                 self.add_code(&format!("_stateContext_ = stateContext;"));
+    //                 self.newline();
+    //                 self.add_code(&format!("FrameEvent enterEvent = new FrameEvent(\">\",_stateContext_.getEnterArgs());"));
+    //                 self.newline();
+    //             } else {
+    //                 self.add_code(&format!("FrameEvent enterEvent = new FrameEvent(\">\",null);"));
+    //                 self.newline();
+    //             }
+    //             self.add_code(&format!("_state_(enterEvent);"));
+    //             self.outdent();
+    //             self.newline();
+    //             self.add_code(&format!("}}"));
+    //         }
+    //         if self.generate_state_stack {
+    //             self.newline();
+    //             self.newline();
+    //             if self.generate_state_context {
+    //                 self.add_code(&format!("private Stack<StateContext> _stateStack_ = new Stack<StateContext>();"));
+    //                 self.newline();
+    //                 self.newline();
+    //                 self.add_code(&format!("private void _stateStack_push_(StateContext stateContext) {{"));
+    //                 self.indent();
+    //                 self.newline();
+    //                 self.add_code(&format!("_stateStack_.Push(stateContext);"));
+    //                 self.outdent();
+    //                 self.newline();
+    //                 self.add_code(&format!("}}"));
+    //                 self.newline();
+    //                 self.newline();
+    //                 self.add_code(&format!("private StateContext _stateStack_pop_() {{"));
+    //                 self.indent();
+    //                 self.newline();
+    //                 self.add_code(&format!("return _stateStack_.Pop();"));
+    //             } else {
+    //                 self.add_code(&format!("private Stack<FrameState> _stateStack_ = new Stack<FrameState>();"));
+    //                 self.newline();
+    //                 self.newline();
+    //                 self.add_code(&format!("private void _stateStack_push_(FrameState state) {{"));
+    //                 self.indent();
+    //                 self.newline();
+    //                 self.add_code(&format!("_stateStack_.Push(state);"));
+    //                 self.outdent();
+    //                 self.newline();
+    //                 self.add_code(&format!("}}"));
+    //                 self.newline();
+    //                 self.newline();
+    //                 self.add_code(&format!("private FrameState _stateStack_pop_() {{"));
+    //                 self.indent();
+    //                 self.newline();
+    //                 self.add_code(&format!("return _stateStack_.Pop();"));
+    //             }
+    //
+    //             self.outdent();
+    //             self.newline();
+    //             self.add_code(&format!("}}"));
+    //         }
+    //         if self.generate_change_state {
+    //             self.newline();
+    //             self.newline();
+    //             self.add_code(&format!("private void _changeState_(newState) {{"));
+    //             self.indent();
+    //             self.newline();
+    //             self.add_code(&format!("_state_ = newState;"));
+    //             self.outdent();
+    //             self.newline();
+    //             self.add_code(&format!("}}"));
+    //         }
+    //         self.newline();
+    //
+    //         if self.arcanium.is_serializable() {
+    //             for line in self.serialize.iter() {
+    //                 self.code.push_str(&*format!("{}",line));
+    //                 self.code.push_str(&*format!("\n{}",self.dent()));
+    //             }
+    //
+    //             for line in self.deserialize.iter() {
+    //                 self.code.push_str(&*format!("{}",line));
+    //                 self.code.push_str(&*format!("\n{}",self.dent()));
+    //             }
+    //         }
+    //     }
+    // }
 
     //* --------------------------------------------------------------------- *//
 
@@ -580,7 +580,7 @@ impl CsVisitorForBob {
                                 // ...and validate w/ the PARAMETERS
                                 match param_symbols_it.next() {
                                     Some(p) => {
-                                        let param_type = match &p.param_type {
+                                        let _param_type = match &p.param_type {
                                             Some(param_type) => param_type.get_type_str(),
                                             None => String::from("<?>"),
                                         };
@@ -629,7 +629,7 @@ impl CsVisitorForBob {
                         for expr_t in &enter_args.exprs_t {
                             match param_symbols_it.next() {
                                 Some(p) => {
-                                    let param_type = match &p.param_type {
+                                    let _param_type = match &p.param_type {
                                         Some(param_type) => param_type.get_type_str(),
                                         None => String::from("<?>"),
                                     };
@@ -671,7 +671,7 @@ impl CsVisitorForBob {
 
                                 Some(param_symbol_rcref) => {
                                     let param_symbol = param_symbol_rcref.borrow();
-                                    let param_type = match &param_symbol.param_type {
+                                    let _param_type = match &param_symbol.param_type {
                                         Some(param_type) => param_type.get_type_str(),
                                         None => String::from("<?>"),
                                     };
@@ -707,7 +707,7 @@ impl CsVisitorForBob {
 //                        let mut separator = "";
                         for var_rcref in state_node.vars.as_ref().unwrap() {
                             let var = var_rcref.borrow();
-                            let var_type = match &var.type_opt {
+                            let _var_type = match &var.type_opt {
                                 Some(var_type) => var_type.get_type_str(),
                                 None => String::from("<?>"),
                             };
@@ -756,7 +756,7 @@ impl CsVisitorForBob {
     // So currently this method just sets any exitArgs and pops the context from the state stack.
 
     fn generate_state_stack_pop_transition(&mut self, transition_statement: &TransitionStatementNode) {
-        let mut exit_args_val = String::from("null");
+//        let mut exit_args_val = String::from("null");
 
         self.newline();
         match &transition_statement.label_opt {
@@ -796,7 +796,7 @@ impl CsVisitorForBob {
                                 // ...and validate w/ the PARAMETERS
                                 match param_symbols_it.next() {
                                     Some(p) => {
-                                        let param_type = match &p.param_type {
+                                        let _param_type = match &p.param_type {
                                             Some(param_type) => param_type.get_type_str(),
                                             None => String::from("<?>"),
                                         };
@@ -890,7 +890,7 @@ impl AstVisitor for CsVisitorForBob {
                     if state_node.vars.is_some() {
                         for var_rcref in state_node.vars.as_ref().unwrap() {
                             let var = var_rcref.borrow();
-                            let var_type = match &var.type_opt {
+                            let _var_type = match &var.type_opt {
                                 Some(var_type) => var_type.get_type_str(),
                                 None => String::from("<?>"),
                             };
@@ -982,7 +982,7 @@ impl AstVisitor for CsVisitorForBob {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_frame_messages_enum(&mut self, interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
+    fn visit_frame_messages_enum(&mut self, _interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
         panic!("Error - visit_frame_messages_enum() only used in Rust.");
 
         // AstVisitorReturnType::InterfaceBlockNode {}
@@ -990,7 +990,7 @@ impl AstVisitor for CsVisitorForBob {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_interface_parameters(&mut self, interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
+    fn visit_interface_parameters(&mut self, _interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
         panic!("visit_interface_parameters() not valid for target language.");
 
         // AstVisitorReturnType::InterfaceBlockNode {}
@@ -1042,7 +1042,7 @@ impl AstVisitor for CsVisitorForBob {
 
         self.add_code(") {");
         self.indent();
-        let mut params_param_code;
+        let params_param_code;
         if interface_method_node.params.is_some() {
             params_param_code = String::from("parameters");
             self.newline();
@@ -1448,7 +1448,7 @@ impl AstVisitor for CsVisitorForBob {
     fn visit_transition_statement_node(&mut self, transition_statement: &TransitionStatementNode) -> AstVisitorReturnType {
 
         match &transition_statement.target_state_context_t {
-            StateContextType::StateRef { state_context_node}
+            StateContextType::StateRef {..}
                 => self.generate_state_ref_transition(transition_statement),
             StateContextType::StateStackPop {}
                 => self.generate_state_stack_pop_transition(transition_statement),
@@ -1471,7 +1471,7 @@ impl AstVisitor for CsVisitorForBob {
     fn visit_change_state_statement_node(&mut self, change_state_stmt_node:&ChangeStateStatementNode) -> AstVisitorReturnType {
 
         match &change_state_stmt_node.state_context_t {
-            StateContextType::StateRef { state_context_node}
+            StateContextType::StateRef {..}
                 => self.generate_state_ref_change_state(change_state_stmt_node),
             StateContextType::StateStackPop {}
                 => panic!("TODO - not implemented"),
@@ -1483,7 +1483,7 @@ impl AstVisitor for CsVisitorForBob {
     //* --------------------------------------------------------------------- *//
 
     // TODO: ??
-    fn visit_parameter_node(&mut self, parameter_node: &ParameterNode) -> AstVisitorReturnType {
+    fn visit_parameter_node(&mut self, _parameter_node: &ParameterNode) -> AstVisitorReturnType {
 
         // self.add_code(&format!("{}",parameter_node.name));
 
@@ -1636,7 +1636,7 @@ impl AstVisitor for CsVisitorForBob {
             Some(branch_terminator_expr) => {
                 self.newline();
                 match &branch_terminator_expr.terminator_type {
-                    Return => {
+                    TerminatorType::Return => {
                         match &branch_terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
                                 self.add_code(&format!("e.Return = "));
@@ -1648,7 +1648,7 @@ impl AstVisitor for CsVisitorForBob {
                             None => self.add_code("return;"),
                         }
                     }
-                    Continue => {
+                    TerminatorType::Continue => {
                         self.add_code("break;");
                     }
                 }
@@ -1672,8 +1672,8 @@ impl AstVisitor for CsVisitorForBob {
         match &bool_test_else_branch_node.branch_terminator_expr_opt {
             Some(branch_terminator_expr) => {
                 self.newline();
-                match &bool_test_else_branch_node {
-                    Return => {
+                match &branch_terminator_expr.terminator_type {
+                    TerminatorType::Return => {
                         match &branch_terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
                                 self.add_code(&format!("e.Return = ",));
@@ -1685,7 +1685,7 @@ impl AstVisitor for CsVisitorForBob {
                             None => self.add_code("return;"),
                         }
                     }
-                    Continue => {
+                    TerminatorType::Continue => {
                         self.add_code("break;");
                     }
                 }
@@ -1778,7 +1778,7 @@ impl AstVisitor for CsVisitorForBob {
             Some(branch_terminator_expr) => {
                 self.newline();
                 match &branch_terminator_expr.terminator_type {
-                    Return => {
+                    TerminatorType::Return => {
                         match &branch_terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
                                 self.add_code(&format!("e.Return = "));
@@ -1790,7 +1790,7 @@ impl AstVisitor for CsVisitorForBob {
                             None => self.add_code("return;"),
                         }
                     }
-                    Continue => {
+                    TerminatorType::Continue => {
                         self.add_code("break;");
 
                     }
@@ -1815,8 +1815,8 @@ impl AstVisitor for CsVisitorForBob {
         match &string_match_test_else_branch_node.branch_terminator_expr_opt {
             Some(branch_terminator_expr) => {
                 self.newline();
-                match &string_match_test_else_branch_node {
-                    Return => {
+                match &branch_terminator_expr.terminator_type {
+                    TerminatorType::Return => {
                         match &branch_terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
                                 self.add_code(&format!("e.Return = ",));
@@ -1828,7 +1828,7 @@ impl AstVisitor for CsVisitorForBob {
                             None => self.add_code("return;"),
                         }
                     }
-                    Continue => {
+                    TerminatorType::Continue => {
                         self.add_code("break;");
 
                     }
@@ -1846,7 +1846,7 @@ impl AstVisitor for CsVisitorForBob {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_string_match_test_pattern_node(&mut self, string_match_test_else_branch_node:&StringMatchTestPatternNode) -> AstVisitorReturnType {
+    fn visit_string_match_test_pattern_node(&mut self, _string_match_test_else_branch_node:&StringMatchTestPatternNode) -> AstVisitorReturnType {
 
         // TODO
         panic!("todo");
@@ -1928,8 +1928,8 @@ impl AstVisitor for CsVisitorForBob {
         match &number_match_test_match_branch_node.branch_terminator_expr_opt {
             Some(branch_terminator_expr) => {
                 self.newline();
-                match number_match_test_match_branch_node {
-                    Return => {
+                match &branch_terminator_expr.terminator_type {
+                    TerminatorType::Return => {
                         match &branch_terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
                                 self.add_code(&format!("e.Return = "));
@@ -1941,7 +1941,7 @@ impl AstVisitor for CsVisitorForBob {
                             None => self.add_code("return;"),
                         }
                     }
-                    Continue => {
+                    TerminatorType::Continue => {
                         self.add_code("break;");
 
                     }
@@ -1966,8 +1966,8 @@ impl AstVisitor for CsVisitorForBob {
         match &number_match_test_else_branch_node.branch_terminator_expr_opt {
             Some(branch_terminator_expr) => {
                 self.newline();
-                match number_match_test_else_branch_node {
-                    Return => {
+                match &branch_terminator_expr.terminator_type {
+                    TerminatorType::Return => {
                         match &branch_terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
                                 self.add_code(&format!("e.Return = "));
@@ -1979,7 +1979,7 @@ impl AstVisitor for CsVisitorForBob {
                             None => self.add_code("return;"),
                         }
                     }
-                    Continue => {
+                    TerminatorType::Continue => {
                         self.add_code("break;");
 
                     }
@@ -2114,7 +2114,7 @@ impl AstVisitor for CsVisitorForBob {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_state_stack_operation_node(&mut self, state_stack_operation_node:&StateStackOperationNode) -> AstVisitorReturnType {
+    fn visit_state_stack_operation_node(&mut self, _state_stack_operation_node:&StateStackOperationNode) -> AstVisitorReturnType {
 
 //        self.add_code(&format!("{}",identifier_node.name.lexeme));
 
@@ -2123,7 +2123,7 @@ impl AstVisitor for CsVisitorForBob {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_state_stack_operation_node_to_string(&mut self, state_stack_operation_node:&StateStackOperationNode, output:&mut String) -> AstVisitorReturnType {
+    fn visit_state_stack_operation_node_to_string(&mut self, _state_stack_operation_node:&StateStackOperationNode, _output:&mut String) -> AstVisitorReturnType {
 
 //        self.add_code(&format!("{}",identifier_node.name.lexeme));
 
@@ -2159,7 +2159,7 @@ impl AstVisitor for CsVisitorForBob {
     }
     //* --------------------------------------------------------------------- *//
 
-    fn visit_state_context_node(&mut self, state_context_node:&StateContextNode) -> AstVisitorReturnType {
+    fn visit_state_context_node(&mut self, _state_context_node:&StateContextNode) -> AstVisitorReturnType {
 
         // TODO
 //        self.add_code(&format!("{}",identifier_node.name.lexeme));
@@ -2216,7 +2216,7 @@ impl AstVisitor for CsVisitorForBob {
         match &action_decl_node.params {
             Some (params)
                 =>  {
-                self.format_parameter_list(params).clone();
+                self.format_parameter_list(params);
                 let mut output = String::new();
                 self.format_parameter_list_to_string(params, &mut output);
                 action_code.push_str(&output);
@@ -2233,7 +2233,7 @@ impl AstVisitor for CsVisitorForBob {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_impl_node(&mut self, action_decl_node: &ActionNode) -> AstVisitorReturnType {
+    fn visit_action_impl_node(&mut self, _action_decl_node: &ActionNode) -> AstVisitorReturnType {
         panic!("visit_action_impl_node() not implemented.");
     }
 

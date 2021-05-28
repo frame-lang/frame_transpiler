@@ -170,14 +170,14 @@ impl PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn format_parameter_list_to_string(&mut self,params:&Vec<ParameterNode>,output:&mut String) {
-        let mut separator = "";
-        for param in params {
-            output.push_str(&format!("{}", separator));
-            output.push_str(&format!("{}", param.param_name));
-            separator = ",";
-        }
-    }
+    // fn format_parameter_list_to_string(&mut self,params:&Vec<ParameterNode>,output:&mut String) {
+    //     let mut separator = "";
+    //     for param in params {
+    //         output.push_str(&format!("{}", separator));
+    //         output.push_str(&format!("{}", param.param_name));
+    //         separator = ",";
+    //     }
+    // }
 
     //* --------------------------------------------------------------------- *//
 
@@ -889,7 +889,7 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_frame_messages_enum(&mut self, interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
+    fn visit_frame_messages_enum(&mut self, _interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
        panic!("Error - visit_frame_messages_enum() only used in Rust.");
 
         // AstVisitorReturnType::InterfaceBlockNode {}
@@ -897,7 +897,7 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_interface_parameters(&mut self, interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
+    fn visit_interface_parameters(&mut self, _interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
         panic!("visit_interface_parameters() not valid for target language.");
 
         // AstVisitorReturnType::InterfaceBlockNode {}
@@ -948,7 +948,7 @@ impl AstVisitor for PythonVisitor {
 
         self.add_code("):");
         self.indent();
-        let mut params_param_code;
+        let params_param_code;
         if interface_method_node.params.is_some() {
             params_param_code = String::from("parameters");
             self.newline();
@@ -1526,7 +1526,7 @@ impl AstVisitor for PythonVisitor {
             Some(branch_terminator_expr) => {
                 self.newline();
                 match &branch_terminator_expr.terminator_type {
-                    _Return => {
+                    TerminatorType::Return => {
                         match &branch_terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
                                 self.add_code(&format!("e._return = "));
@@ -1537,7 +1537,7 @@ impl AstVisitor for PythonVisitor {
                             None => self.add_code("return"),
                         }
                     },
-                    _Continue => {
+                    TerminatorType::Continue => {
                         self.add_code("break");
                     }
                 }
@@ -1561,8 +1561,8 @@ impl AstVisitor for PythonVisitor {
         match &bool_test_else_branch_node.branch_terminator_expr_opt {
             Some(branch_terminator_expr) => {
                 self.newline();
-                match &bool_test_else_branch_node {
-                    _Return => {
+                match &branch_terminator_expr.terminator_type {
+                    TerminatorType::Return => {
                         match &branch_terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
                                 self.add_code(&format!("e._return = ",));
@@ -1573,7 +1573,7 @@ impl AstVisitor for PythonVisitor {
                             None => self.add_code("return"),
                         }
                     }
-                    _Continue => {
+                    TerminatorType::Continue => {
                         self.add_code("break");
                     }
                 }
@@ -1674,7 +1674,7 @@ impl AstVisitor for PythonVisitor {
             Some(branch_terminator_expr) => {
                 self.newline();
                 match &branch_terminator_expr.terminator_type {
-                    _Return => {
+                    TerminatorType::Return => {
                         match &branch_terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
                                 self.add_code(&format!("e._return = "));
@@ -1685,7 +1685,7 @@ impl AstVisitor for PythonVisitor {
                             None => self.add_code("return"),
                         }
                     }
-                    _Continue => {
+                    TerminatorType::Continue => {
                         self.add_code("break");
 
                     }
@@ -1710,8 +1710,8 @@ impl AstVisitor for PythonVisitor {
         match &string_match_test_else_branch_node.branch_terminator_expr_opt {
             Some(branch_terminator_expr) => {
                 self.newline();
-                match &string_match_test_else_branch_node {
-                    _Return => {
+                match &branch_terminator_expr.terminator_type {
+                    TerminatorType::Return => {
                         match &branch_terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
                                 self.add_code(&format!("e._return = "));
@@ -1722,7 +1722,7 @@ impl AstVisitor for PythonVisitor {
                             None => self.add_code("return"),
                         }
                     }
-                    _Continue => {
+                    TerminatorType::Continue => {
                         self.add_code("break");
 
                     }
@@ -1827,8 +1827,8 @@ impl AstVisitor for PythonVisitor {
         match &number_match_test_match_branch_node.branch_terminator_expr_opt {
             Some(branch_terminator_expr) => {
                 self.newline();
-                match number_match_test_match_branch_node {
-                    _Return => {
+                match &branch_terminator_expr.terminator_type {
+                    TerminatorType::Return => {
                         match &branch_terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
                                 self.add_code(&format!("e._return = "));
@@ -1839,7 +1839,7 @@ impl AstVisitor for PythonVisitor {
                             None => self.add_code("return"),
                         }
                     }
-                    _Continue => {
+                    TerminatorType::Continue => {
                         self.add_code("break");
 
                     }
@@ -1864,8 +1864,8 @@ impl AstVisitor for PythonVisitor {
         match &number_match_test_else_branch_node.branch_terminator_expr_opt {
             Some(branch_terminator_expr) => {
                 self.newline();
-                match number_match_test_else_branch_node {
-                    _Return => {
+                match &branch_terminator_expr.terminator_type {
+                    TerminatorType::Return => {
                         match &branch_terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
                                 self.add_code(&format!("e._return = "));
@@ -1877,7 +1877,7 @@ impl AstVisitor for PythonVisitor {
                             None => self.add_code("return"),
                         }
                     }
-                    _Continue => {
+                    TerminatorType::Continue => {
                         self.add_code("break");
 
                     }
@@ -2109,7 +2109,7 @@ impl AstVisitor for PythonVisitor {
                 =>  {
                 self.add_code(",");
                 subclass_code.push_str(",");
-                self.format_actions_parameter_list(params,&mut subclass_code).clone();
+                self.format_actions_parameter_list(params,&mut subclass_code);
             },
             None => {},
         }
@@ -2130,7 +2130,7 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_impl_node(&mut self, action_decl_node: &ActionNode) -> AstVisitorReturnType {
+    fn visit_action_impl_node(&mut self, _action_decl_node: &ActionNode) -> AstVisitorReturnType {
         panic!("visit_action_impl_node() not implemented.");
     }
 

@@ -313,7 +313,7 @@ impl CppVisitor {
         self.newline();
         self.add_code(&format!("virtual ~{}() {{}};",system_node.name));
         self.newline();
-        if let Some(first_state) = system_node.get_first_state() {
+        if let Some(_first_state) = system_node.get_first_state() {
             self.newline();
             self.newline();
             self.add_code(&format!("private:"));
@@ -466,9 +466,9 @@ impl CppVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn generate_state_ref_code(&self, target_state_name:&str) -> String {
-        format!("{}",self.format_target_state_name(target_state_name))
-    }
+    // fn generate_state_ref_code(&self, target_state_name:&str) -> String {
+    //     format!("{}",self.format_target_state_name(target_state_name))
+    // }
 
     //* --------------------------------------------------------------------- *//
 
@@ -509,10 +509,10 @@ impl CppVisitor {
 
         // -- Exit Arguments --
 
-        let mut has_exit_args = false;
+//        let mut has_exit_args = false;
         if let Some(exit_args) = &transition_statement.exit_args_opt {
             if exit_args.exprs_t.len() > 0 {
-                has_exit_args = true;
+                //has_exit_args = true;
 
                 // Note - searching for event keyed with "State:<"
                 // e.g. "S1:<"
@@ -683,11 +683,11 @@ impl CppVisitor {
 //                code = target_state_vars.clone();
             },
         }
-        let exit_args = if has_exit_args {
-            "exitArgs"
-        } else {
-            "null"
-        };
+        // let exit_args = if has_exit_args {
+        //     "exitArgs"
+        // } else {
+        //     "null"
+        // };
         if self.generate_state_context {
             if self.generate_exit_args {
                 self.add_code(&format!("_transition_({},exitArgs,pStateContext);",self.format_target_state_name(&target_state_name)));
@@ -720,7 +720,6 @@ impl CppVisitor {
     // NOTE!!: it is *currently* disallowed to send state or event arguments to a state stack pop target
 
     fn generate_state_stack_pop_transition(&mut self, transition_statement: &TransitionStatementNode) {
-        let mut exit_args_val = String::from("null");
 
         self.newline();
         match &transition_statement.label_opt {
@@ -760,10 +759,10 @@ impl CppVisitor {
                                 // ...and validate w/ the PARAMETERS
                                 match param_symbols_it.next() {
                                     Some(p) => {
-                                        let param_type = match &p.param_type {
-                                            Some(param_type) => param_type.get_type_str(),
-                                            None => String::from("<?>"),
-                                        };
+                                        // let param_type = match &p.param_type {
+                                        //     Some(param_type) => param_type.get_type_str(),
+                                        //     None => String::from("<?>"),
+                                        // };
                                         let mut expr = String::new();
                                         expr_t.accept_to_string(self, &mut expr);
                                         self.add_code(&format!("exitArgs[\"{}\"] = {};", p.name, expr));
@@ -858,10 +857,10 @@ impl AstVisitor for CppVisitor {
                         if state_node.vars.is_some() {
                             for var_rcref in state_node.vars.as_ref().unwrap() {
                                 let var = var_rcref.borrow();
-                                let var_type = match &var.type_opt {
-                                    Some(var_type) => var_type.get_type_str(),
-                                    None => String::from("<?>"),
-                                };
+                                // let var_type = match &var.type_opt {
+                                //     Some(var_type) => var_type.get_type_str(),
+                                //     None => String::from("<?>"),
+                                // };
                                 let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
                                 let mut expr_code = String::new();
                                 expr_t.accept_to_string(self, &mut expr_code);
@@ -916,7 +915,7 @@ impl AstVisitor for CppVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_frame_messages_enum(&mut self, interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
+    fn visit_frame_messages_enum(&mut self, _interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
         panic!("Error - visit_frame_messages_enum() only used in Rust.");
 
         // AstVisitorReturnType::InterfaceBlockNode {}
@@ -924,7 +923,7 @@ impl AstVisitor for CppVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_interface_parameters(&mut self, interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
+    fn visit_interface_parameters(&mut self, _interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
         panic!("visit_interface_parameters() not valid for target language.");
 
         // AstVisitorReturnType::InterfaceBlockNode {}
@@ -976,19 +975,19 @@ impl AstVisitor for CppVisitor {
 
         self.add_code(") {");
         self.indent();
-        let mut params_param_code;
+        let params_param_code;
         if interface_method_node.params.is_some() {
             params_param_code = String::from("&params");
             self.newline();
             self.add_code("map<string,void *> params;");
             match &interface_method_node.params {
                 Some(params) => {
-                    let mut separator = "";
+               //     let mut separator = "";
                     for param in params {
                         let pname = &param.param_name;
                         self.newline();
                         self.add_code(&format!("params[\"{}\"] = (void*) &{};\n", pname, pname));
-                        separator = ",";
+               //         separator = ",";
                     }
                 },
                 None => {}
@@ -1103,10 +1102,10 @@ impl AstVisitor for CppVisitor {
         self.add_code(&format!("void _s{}_(FrameEvent& e) {{", state_node.name));
         self.indent();
 
-        let state_symbol = match self.arcanium.get_state(&state_node.name) {
-            Some(state_symbol) => state_symbol,
-            None => panic!("TODO"),
-        };
+        // let state_symbol = match self.arcanium.get_state(&state_node.name) {
+        //     Some(state_symbol) => state_symbol,
+        //     None => panic!("TODO"),
+        // };
 
         if let Some(calls) = &state_node.calls {
             for call in calls {
@@ -1378,7 +1377,7 @@ impl AstVisitor for CppVisitor {
     fn visit_transition_statement_node(&mut self, transition_statement: &TransitionStatementNode) -> AstVisitorReturnType {
 
         match &transition_statement.target_state_context_t {
-            StateContextType::StateRef { state_context_node}
+            StateContextType::StateRef {..}
                 => self.generate_state_ref_transition(transition_statement),
             StateContextType::StateStackPop {}
                 => self.generate_state_stack_pop_transition(transition_statement),
@@ -1401,7 +1400,7 @@ impl AstVisitor for CppVisitor {
     fn visit_change_state_statement_node(&mut self, change_state_stmt_node:&ChangeStateStatementNode) -> AstVisitorReturnType {
 
         match &change_state_stmt_node.state_context_t {
-            StateContextType::StateRef { state_context_node}
+            StateContextType::StateRef {..}
                 => self.generate_state_ref_change_state(change_state_stmt_node),
             StateContextType::StateStackPop {}
                 => panic!("TODO - not implemented"),
@@ -1413,7 +1412,7 @@ impl AstVisitor for CppVisitor {
     //* --------------------------------------------------------------------- *//
 
     // TODO: ??
-    fn visit_parameter_node(&mut self, parameter_node: &ParameterNode) -> AstVisitorReturnType {
+    fn visit_parameter_node(&mut self, _parameter_node: &ParameterNode) -> AstVisitorReturnType {
 
         // self.add_code(&format!("{}",parameter_node.name));
 
@@ -1566,7 +1565,7 @@ impl AstVisitor for CppVisitor {
             Some(branch_terminator_expr) => {
                 self.newline();
                 match &branch_terminator_expr.terminator_type {
-                    Return => {
+                    TerminatorType::Return => {
                         match &branch_terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
                                 self.add_code(&format!("e._return = (void*) new {}(",self.current_event_ret_type));
@@ -1578,7 +1577,7 @@ impl AstVisitor for CppVisitor {
                             None => self.add_code("return;"),
                         }
                     }
-                    Continue => {
+                    TerminatorType::Continue => {
                         self.add_code("break;");
                     }
                 }
@@ -1602,8 +1601,8 @@ impl AstVisitor for CppVisitor {
         match &bool_test_else_branch_node.branch_terminator_expr_opt {
             Some(branch_terminator_expr) => {
                 self.newline();
-                match bool_test_else_branch_node {
-                    Return => {
+                match &branch_terminator_expr.terminator_type {
+                    TerminatorType::Return => {
                         match &branch_terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
                                 self.add_code(&format!("e._return = (void*) new {}(",self.current_event_ret_type));
@@ -1615,7 +1614,7 @@ impl AstVisitor for CppVisitor {
                             None => self.add_code("return;"),
                         }
                     }
-                    Continue => {
+                    TerminatorType::Continue => {
                         self.add_code("break;");
                     }
                 }
@@ -1707,8 +1706,8 @@ impl AstVisitor for CppVisitor {
         match &string_match_test_match_branch_node.branch_terminator_expr_opt {
             Some(branch_terminator_expr) => {
                 self.newline();
-                match &string_match_test_match_branch_node {
-                    Return => {
+                match &branch_terminator_expr.terminator_type {
+                    TerminatorType::Return => {
                         match &branch_terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
                                 self.add_code(&format!("e._return = (void*) new {}(",self.current_event_ret_type));
@@ -1720,7 +1719,7 @@ impl AstVisitor for CppVisitor {
                             None => self.add_code("return;"),
                         }
                     }
-                    Continue => {
+                    TerminatorType::Continue => {
                         self.add_code("break;");
 
                     }
@@ -1745,8 +1744,8 @@ impl AstVisitor for CppVisitor {
         match &string_match_test_else_branch_node.branch_terminator_expr_opt {
             Some(branch_terminator_expr) => {
                 self.newline();
-                match string_match_test_else_branch_node {
-                    Return => {
+                match &branch_terminator_expr.terminator_type {
+                    TerminatorType::Return => {
                         match &branch_terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
                                 self.add_code(&format!("e._return = (void*) new {}(",self.current_event_ret_type));
@@ -1758,7 +1757,7 @@ impl AstVisitor for CppVisitor {
                             None => self.add_code("return;"),
                         }
                     }
-                    Continue => {
+                    TerminatorType::Continue => {
                         self.add_code("break;");
 
                     }
@@ -1776,7 +1775,7 @@ impl AstVisitor for CppVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_string_match_test_pattern_node(&mut self, string_match_test_else_branch_node:&StringMatchTestPatternNode) -> AstVisitorReturnType {
+    fn visit_string_match_test_pattern_node(&mut self, _string_match_test_else_branch_node:&StringMatchTestPatternNode) -> AstVisitorReturnType {
 
         // TODO
         panic!("todo");
@@ -1858,8 +1857,8 @@ impl AstVisitor for CppVisitor {
         match &number_match_test_match_branch_node.branch_terminator_expr_opt {
             Some(branch_terminator_expr) => {
                 self.newline();
-                match number_match_test_match_branch_node {
-                    Return => {
+                match &branch_terminator_expr.terminator_type {
+                    TerminatorType::Return => {
                         match &branch_terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
                                 self.add_code(&format!("e._return = (void*) new {}(",self.current_event_ret_type));
@@ -1871,7 +1870,7 @@ impl AstVisitor for CppVisitor {
                             None => self.add_code("return;"),
                         }
                     }
-                    Continue => {
+                    TerminatorType::Continue => {
                         self.add_code("break;");
 
                     }
@@ -1896,8 +1895,8 @@ impl AstVisitor for CppVisitor {
         match &number_match_test_else_branch_node.branch_terminator_expr_opt {
             Some(branch_terminator_expr) => {
                 self.newline();
-                match number_match_test_else_branch_node {
-                    Return => {
+                match &branch_terminator_expr.terminator_type {
+                    TerminatorType::Return => {
                         match &branch_terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
                                 self.add_code(&format!("e._return = (void*) new {}(",self.current_event_ret_type));
@@ -1909,7 +1908,7 @@ impl AstVisitor for CppVisitor {
                             None => self.add_code("return;"),
                         }
                     }
-                    Continue => {
+                    TerminatorType::Continue => {
                         self.add_code("break;");
 
                     }
@@ -2044,7 +2043,7 @@ impl AstVisitor for CppVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_state_stack_operation_node(&mut self, state_stack_operation_node:&StateStackOperationNode) -> AstVisitorReturnType {
+    fn visit_state_stack_operation_node(&mut self, _state_stack_operation_node:&StateStackOperationNode) -> AstVisitorReturnType {
 
 //        self.add_code(&format!("{}",identifier_node.name.lexeme));
 
@@ -2054,7 +2053,7 @@ impl AstVisitor for CppVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_state_stack_operation_node_to_string(&mut self, state_stack_operation_node:&StateStackOperationNode, output:&mut String) -> AstVisitorReturnType {
+    fn visit_state_stack_operation_node_to_string(&mut self, _state_stack_operation_node:&StateStackOperationNode, _output:&mut String) -> AstVisitorReturnType {
 
 //        self.add_code(&format!("{}",identifier_node.name.lexeme));
 
@@ -2090,7 +2089,7 @@ impl AstVisitor for CppVisitor {
     }
     //* --------------------------------------------------------------------- *//
 
-    fn visit_state_context_node(&mut self, state_context_node:&StateContextNode) -> AstVisitorReturnType {
+    fn visit_state_context_node(&mut self, _state_context_node:&StateContextNode) -> AstVisitorReturnType {
 
         // TODO
 //        self.add_code(&format!("{}",identifier_node.name.lexeme));
@@ -2156,7 +2155,7 @@ impl AstVisitor for CppVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_impl_node(&mut self, action_decl_node: &ActionNode) -> AstVisitorReturnType {
+    fn visit_action_impl_node(&mut self, _action_decl_node: &ActionNode) -> AstVisitorReturnType {
         panic!("visit_action_impl_node() not implemented.");
     }
 

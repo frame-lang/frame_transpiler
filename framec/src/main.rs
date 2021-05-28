@@ -1,8 +1,7 @@
 
 use std::{env,fs};
 use std::io::Error;
-use framec::frame_c::*;
-use framec::frame_c::compiler::exe;
+use framec::frame_c::compiler::Exe;
 
 fn main() {
 
@@ -25,8 +24,8 @@ fn main() {
 pub fn run_file(filename:&String,output_format:&String) -> Result<(), Error> {
 
     let contents = fs::read_to_string(filename)?;
-    exe::debug_print(&format!("{}", &contents));
-    let frame_c = exe::new();
+    Exe::debug_print(&format!("{}", &contents));
+    let frame_c = Exe::new();
     let output = frame_c.run(contents,output_format.clone());
     println!("{}", output);
 

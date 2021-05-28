@@ -152,12 +152,6 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    pub fn get_system_hierarchy(self) -> SystemHierarchy {
-        self.system_hierarchy_opt.unwrap()
-    }
-
-    /* --------------------------------------------------------------------- */
-
     pub fn get_all(self) -> (Arcanum, SystemHierarchy) {
         (self.arcanum, self.system_hierarchy_opt.unwrap())
     }
@@ -354,12 +348,6 @@ impl<'a> Parser<'a> {
         }
 
         false
-    }
-
-    /* --------------------------------------------------------------------- */
-
-    fn warning(&self,warning:&str) {
-        println!("{}",warning);
     }
 
     /* --------------------------------------------------------------------- */
@@ -597,7 +585,9 @@ impl<'a> Parser<'a> {
         let message_node;
 
         if self.peek().token_type == AtTok {
-            self.consume(AtTok, "Expected '@'.");
+            if let Err(parse_error) =  self.consume(AtTok, "Expected '@'.") {
+                return Err(parse_error);
+            }
         }
         if self.match_token(&vec![AnyMessageTok]) {
             let tok = self.previous();
@@ -1629,8 +1619,9 @@ impl<'a> Parser<'a> {
 
         let mut statements = Vec::new();
 
-        while let result = self.decl_or_stmt() {
-            match result {
+        loop   {
+            // let result = self.decl_or_stmt();
+            match self.decl_or_stmt() {
                 Ok(opt_smt) => {
                     match opt_smt {
                         Some(statement) => {
@@ -1644,11 +1635,12 @@ impl<'a> Parser<'a> {
                 Err(_err) => {
                     let sync_tokens = &vec![IdentifierTok, LParenTok, CaretTok, GTTok, SystemTok, StateTok, PipePipeTok, DotTok, ColonTok, PipeTok, ActionsBlockTok, DomainBlockTok, SystemEndTok];
                     self.synchronize(sync_tokens);
-                }
+                },
+
             }
         }
 
-        statements
+//        statements
     }
 
 
@@ -2073,7 +2065,6 @@ impl<'a> Parser<'a> {
             } else {
                 return Ok(Some(TerminatorExpr::new(Return, None, self.previous().line)));
             }
-            return Ok(Some(TerminatorExpr::new(Return, None, self.previous().line)));
         } else if self.match_token(&vec![TokenType::GTTok]) {
             return Ok(Some(TerminatorExpr::new(Continue, None,  self.previous().line)));
         } else {
@@ -2221,7 +2212,7 @@ impl<'a> Parser<'a> {
 
     fn assignment (&mut self) -> Result<Option<ExprType>,ParseError> {
 
-        let mut l_value = match self.equality() {
+        let l_value = match self.equality() {
             Ok(Some(expr_type)) => expr_type,
             Ok(None) => return Ok(None),
             Err(parse_error) => return Err(parse_error),
@@ -2679,7 +2670,7 @@ impl<'a> Parser<'a> {
     // TODO: change the return type to be CallChainLiteralExprT as it doesn't return anything else.
     fn variable_or_call_expr(&mut self, explicit_scope: IdentifierDeclScope) -> Result<Option<ExprType>,ParseError> {
 
-         let mut scope:IdentifierDeclScope = IdentifierDeclScope::None;
+        let mut scope:IdentifierDeclScope;
 
         let mut id_node = IdentifierNode::new(self.previous().clone(), None, explicit_scope.clone(),self.previous().line);
         let mut call_chain:std::collections::VecDeque<CallChainLiteralNodeType> = std::collections::VecDeque::new();
@@ -2731,7 +2722,7 @@ impl<'a> Parser<'a> {
                 } else {
                     // variables (or parmeters) must be
                     // the first (or only) node in the call chain
-                    let mut symbol_type_rcref_opt:Option<Rc<RefCell<SymbolType>>> = None;
+                    let symbol_type_rcref_opt:Option<Rc<RefCell<SymbolType>>>;
                     symbol_type_rcref_opt = self.arcanum.lookup(&id_node.name.lexeme,&explicit_scope).clone();
                     let var_node = VariableNode::new(id_node, scope, (&symbol_type_rcref_opt).clone());
                     CallChainLiteralNodeType::VariableNodeT {var_node}
@@ -2761,7 +2752,7 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     fn get_identifier_scope(&mut self,identifier_node:&IdentifierNode,explicit_scope:&IdentifierDeclScope) -> Result<IdentifierDeclScope,ParseError> {
-        let mut symbol_type_rcref_opt:Option<Rc<RefCell<SymbolType>>> = None;
+        let symbol_type_rcref_opt:Option<Rc<RefCell<SymbolType>>>;
         let mut scope:IdentifierDeclScope = IdentifierDeclScope::None;
         // find the variable in the arcanum
         symbol_type_rcref_opt = self.arcanum.lookup(&identifier_node.name.lexeme,&explicit_scope).clone();

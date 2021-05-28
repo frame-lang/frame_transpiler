@@ -375,134 +375,134 @@ impl XStateVisitor {
 
 
     //* --------------------------------------------------------------------- *//
-
-    fn generate_machinery(&mut self, system_node: &SystemNode) {
-        self.newline();
-        self.newline();
-        self.add_code("//=============== Machinery and Mechanisms ==============//");
-        self.newline();
-        if let Some(_) = system_node.get_first_state() {
-            self.newline();
-            self.add_code(&format!("let _state_ = _s{}_;",self.first_state_name));
-            if self.generate_state_context {
-                self.newline();
-                self.add_code(&format!("let _stateContext_ = StateContext(_state_);"));
-                self.newline();
-                if self.has_states {
-                    if let Some(state_symbol_rcref) = self.arcanium.get_state(&self.first_state_name) {
-                        self.newline();
-                        let state_symbol = state_symbol_rcref.borrow();
-                        let state_node = &state_symbol.state_node.as_ref().unwrap().borrow();
-                        // generate local state variables
-                        if state_node.vars.is_some() {
-                            for var_rcref in state_node.vars.as_ref().unwrap() {
-                                let var = var_rcref.borrow();
-                                let var_type = match &var.type_opt {
-                                    Some(var_type) => var_type.get_type_str(),
-                                    None => String::from("<?>"),
-                                };
-                                let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
-                                let mut expr_code = String::new();
-                                expr_t.accept_to_string(self, &mut expr_code);
-                                self.newline();
-                                self.add_code(&format!("_stateContext_.addStateVar(\"{}\",{});", var.name, expr_code));
-                                self.newline();
-                            }
-                        }
-                    }
-                }
-            }
-            if self.generate_transition_state {
-                self.newline();
-                self.newline();
-                if self.generate_state_context {
-                    if self.generate_exit_args {
-                        self.add_code(&format!("let _transition_ = function(newState,exitArgs, stateContext) {{"));
-                    } else {
-                        self.add_code(&format!("let _transition_ = function(newState, stateContext) {{"));
-                    }
-                } else {
-                    if self.generate_exit_args {
-                        self.add_code(&format!("let _transition_ = function(newState,exitArgs) {{"));
-                    } else {
-                        self.add_code(&format!("let _transition_ = function(newState) {{"));
-                    }
-                }
-                self.indent();
-                self.newline();
-                if self.generate_exit_args {
-                    self.add_code(&format!("let exitEvent = FrameEvent(\"<\",exitArgs);"));
-                } else {
-                    self.add_code(&format!("let exitEvent = FrameEvent(\"<\",null);"));
-                }
-                self.newline();
-                self.add_code(&format!("_state_(exitEvent);"));
-                self.newline();
-                self.add_code(&format!("_state_ = newState;"));
-                self.newline();
-                if self.generate_state_context {
-                    self.add_code(&format!("_stateContext_ = stateContext;"));
-                    self.newline();
-                    self.add_code(&format!("let enterEvent = FrameEvent(\">\",_stateContext_.getEnterArgs());"));
-                    self.newline();
-                } else {
-                    self.add_code(&format!("let enterEvent = FrameEvent(\">\",null);"));
-                    self.newline();
-                }
-                self.add_code(&format!("_state_(enterEvent);"));
-                self.outdent();
-                self.newline();
-                self.add_code(&format!("}}"));
-            }
-            if self.generate_state_stack {
-                self.newline();
-                self.newline();
-                self.add_code(&format!("let _stateStack_ = [];"));
-                self.newline();
-                self.newline();
-                self.add_code(&format!("let  _stateStack_push_ = function (stateData) {{"));
-                self.indent();
-                self.newline();
-                self.add_code(&format!("_stateStack_.push(stateData);"));
-                self.outdent();
-                self.newline();
-                self.add_code(&format!("}}"));
-                self.newline();
-                self.newline();
-                self.add_code(&format!("let _stateStack_pop_ = function() {{"));
-                self.indent();
-                self.newline();
-                self.add_code(&format!("return _stateStack_.pop();"));
-                self.outdent();
-                self.newline();
-                self.add_code(&format!("}}"));
-            }
-            if self.generate_change_state {
-                self.newline();
-                self.newline();
-                self.add_code(&format!("let _changeState_ = function(newState) {{"));
-                self.indent();
-                self.newline();
-                self.add_code(&format!("_state_ = newState;"));
-                self.outdent();
-                self.newline();
-                self.add_code(&format!("}}"));
-            }
-
-            if self.arcanium.is_serializable() {
-                self.newline();
-                for line in self.serialize.iter() {
-                    self.code.push_str(&*format!("{}",line));
-                    self.code.push_str(&*format!("\n{}",self.dent()));
-                }
-
-                for line in self.deserialize.iter() {
-                    self.code.push_str(&*format!("{}",line));
-                    self.code.push_str(&*format!("\n{}",self.dent()));
-                }
-            }
-        }
-    }
+    //
+    // fn generate_machinery(&mut self, system_node: &SystemNode) {
+    //     self.newline();
+    //     self.newline();
+    //     self.add_code("//=============== Machinery and Mechanisms ==============//");
+    //     self.newline();
+    //     if let Some(_) = system_node.get_first_state() {
+    //         self.newline();
+    //         self.add_code(&format!("let _state_ = _s{}_;",self.first_state_name));
+    //         if self.generate_state_context {
+    //             self.newline();
+    //             self.add_code(&format!("let _stateContext_ = StateContext(_state_);"));
+    //             self.newline();
+    //             if self.has_states {
+    //                 if let Some(state_symbol_rcref) = self.arcanium.get_state(&self.first_state_name) {
+    //                     self.newline();
+    //                     let state_symbol = state_symbol_rcref.borrow();
+    //                     let state_node = &state_symbol.state_node.as_ref().unwrap().borrow();
+    //                     // generate local state variables
+    //                     if state_node.vars.is_some() {
+    //                         for var_rcref in state_node.vars.as_ref().unwrap() {
+    //                             let var = var_rcref.borrow();
+    //                             let var_type = match &var.type_opt {
+    //                                 Some(var_type) => var_type.get_type_str(),
+    //                                 None => String::from("<?>"),
+    //                             };
+    //                             let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
+    //                             let mut expr_code = String::new();
+    //                             expr_t.accept_to_string(self, &mut expr_code);
+    //                             self.newline();
+    //                             self.add_code(&format!("_stateContext_.addStateVar(\"{}\",{});", var.name, expr_code));
+    //                             self.newline();
+    //                         }
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //         if self.generate_transition_state {
+    //             self.newline();
+    //             self.newline();
+    //             if self.generate_state_context {
+    //                 if self.generate_exit_args {
+    //                     self.add_code(&format!("let _transition_ = function(newState,exitArgs, stateContext) {{"));
+    //                 } else {
+    //                     self.add_code(&format!("let _transition_ = function(newState, stateContext) {{"));
+    //                 }
+    //             } else {
+    //                 if self.generate_exit_args {
+    //                     self.add_code(&format!("let _transition_ = function(newState,exitArgs) {{"));
+    //                 } else {
+    //                     self.add_code(&format!("let _transition_ = function(newState) {{"));
+    //                 }
+    //             }
+    //             self.indent();
+    //             self.newline();
+    //             if self.generate_exit_args {
+    //                 self.add_code(&format!("let exitEvent = FrameEvent(\"<\",exitArgs);"));
+    //             } else {
+    //                 self.add_code(&format!("let exitEvent = FrameEvent(\"<\",null);"));
+    //             }
+    //             self.newline();
+    //             self.add_code(&format!("_state_(exitEvent);"));
+    //             self.newline();
+    //             self.add_code(&format!("_state_ = newState;"));
+    //             self.newline();
+    //             if self.generate_state_context {
+    //                 self.add_code(&format!("_stateContext_ = stateContext;"));
+    //                 self.newline();
+    //                 self.add_code(&format!("let enterEvent = FrameEvent(\">\",_stateContext_.getEnterArgs());"));
+    //                 self.newline();
+    //             } else {
+    //                 self.add_code(&format!("let enterEvent = FrameEvent(\">\",null);"));
+    //                 self.newline();
+    //             }
+    //             self.add_code(&format!("_state_(enterEvent);"));
+    //             self.outdent();
+    //             self.newline();
+    //             self.add_code(&format!("}}"));
+    //         }
+    //         if self.generate_state_stack {
+    //             self.newline();
+    //             self.newline();
+    //             self.add_code(&format!("let _stateStack_ = [];"));
+    //             self.newline();
+    //             self.newline();
+    //             self.add_code(&format!("let  _stateStack_push_ = function (stateData) {{"));
+    //             self.indent();
+    //             self.newline();
+    //             self.add_code(&format!("_stateStack_.push(stateData);"));
+    //             self.outdent();
+    //             self.newline();
+    //             self.add_code(&format!("}}"));
+    //             self.newline();
+    //             self.newline();
+    //             self.add_code(&format!("let _stateStack_pop_ = function() {{"));
+    //             self.indent();
+    //             self.newline();
+    //             self.add_code(&format!("return _stateStack_.pop();"));
+    //             self.outdent();
+    //             self.newline();
+    //             self.add_code(&format!("}}"));
+    //         }
+    //         if self.generate_change_state {
+    //             self.newline();
+    //             self.newline();
+    //             self.add_code(&format!("let _changeState_ = function(newState) {{"));
+    //             self.indent();
+    //             self.newline();
+    //             self.add_code(&format!("_state_ = newState;"));
+    //             self.outdent();
+    //             self.newline();
+    //             self.add_code(&format!("}}"));
+    //         }
+    //
+    //         if self.arcanium.is_serializable() {
+    //             self.newline();
+    //             for line in self.serialize.iter() {
+    //                 self.code.push_str(&*format!("{}",line));
+    //                 self.code.push_str(&*format!("\n{}",self.dent()));
+    //             }
+    //
+    //             for line in self.deserialize.iter() {
+    //                 self.code.push_str(&*format!("{}",line));
+    //                 self.code.push_str(&*format!("\n{}",self.dent()));
+    //             }
+    //         }
+    //     }
+    // }
 
     //* --------------------------------------------------------------------- *//
 

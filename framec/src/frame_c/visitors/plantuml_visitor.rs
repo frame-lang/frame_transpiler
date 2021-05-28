@@ -2,7 +2,7 @@
 
 use super::super::ast::*;
 use super::super::symbol_table::*;
-use super::super::symbol_table::SymbolType::*;
+// use super::super::symbol_table::SymbolType::*;
 use super::super::visitors::*;
 use super::super::scanner::{Token,TokenType};
 use crate::frame_c::utils::{SystemHierarchy};
@@ -16,16 +16,15 @@ pub struct PlantUmlVisitor {
     current_event_ret_type:String,
     arcanium:Arcanum,
     symbol_config:SymbolConfig,
-    comments:Vec<Token>,
-    current_comment_idx:usize,
+    // current_comment_idx:usize,
     first_event_handler:bool,
     system_name:String,
     first_state_name:String,
     generate_exit_args:bool,
-    generate_state_context:bool,
-    generate_state_stack:bool,
-    generate_change_state:bool,
-    generate_transition_state:bool,
+    // generate_state_context:bool,
+    // generate_state_stack:bool,
+    //generate_change_state:bool,
+ //   generate_transition_state:bool,
     states:String,
     transitions:String,
     system_hierarchy:SystemHierarchy,
@@ -39,12 +38,12 @@ impl PlantUmlVisitor {
     pub fn new(   arcanium:Arcanum
                   , system_hierarchy:SystemHierarchy
                   , generate_exit_args:bool
-                  , generate_state_context:bool
-                  , generate_state_stack:bool
-                  , generate_change_state:bool
-                  , generate_transition_state:bool
+                  , _generate_state_context:bool
+                  , _generate_state_stack:bool
+                  , _generate_change_state:bool
+                  , _generate_transition_state:bool
                   , compiler_version:&str
-                  , comments:Vec<Token>) -> PlantUmlVisitor {
+                  , _comments:Vec<Token>) -> PlantUmlVisitor {
 
         // These closures are needed to do the same actions as add_code() and newline()
         // when inside a borrowed self reference as they modify self.
@@ -61,16 +60,15 @@ impl PlantUmlVisitor {
             current_event_ret_type:String::new(),
             arcanium,
             symbol_config:SymbolConfig::new(),
-            comments,
-            current_comment_idx:0,
+            // current_comment_idx:0,
             first_event_handler:true,
             system_name:String::new(),
             first_state_name:String::new(),
             generate_exit_args,
-            generate_state_context,
-            generate_state_stack,
-            generate_change_state,
-            generate_transition_state,
+            // generate_state_context,
+            // generate_state_stack,
+            // generate_change_state,
+            // generate_transition_state,
             states:String::new(),
             transitions:String::new(),
             system_hierarchy,
@@ -79,44 +77,44 @@ impl PlantUmlVisitor {
     }
 
     //* --------------------------------------------------------------------- *//
-
-    fn get_variable_type(&self,symbol_type:&SymbolType) -> String {
-        let var_type = match &*symbol_type {
-            DomainVariableSymbolT { domain_variable_symbol_rcref } => {
-                match &domain_variable_symbol_rcref.borrow().var_type {
-                    Some(x) => x.get_type_str(),
-                    None => String::from("<?>"),
-                }
-            },
-            StateParamSymbolT { state_param_symbol_rcref } => {
-                match &state_param_symbol_rcref.borrow().param_type {
-                    Some(x) => x.get_type_str(),
-                    None => String::from("<?>"),
-                }
-            },
-            StateVariableSymbolT { state_variable_symbol_rcref } => {
-                match &state_variable_symbol_rcref.borrow().var_type {
-                    Some(x) => x.get_type_str(),
-                    None => String::from("<?>"),
-                }                    },
-            EventHandlerParamSymbolT { event_handler_param_symbol_rcref } => {
-                match &event_handler_param_symbol_rcref.borrow().param_type {
-                    Some(x) => x.get_type_str(),
-                    None => String::from("<?>"),
-                }
-            },
-            EventHandlerVariableSymbolT { event_handler_variable_symbol_rcref } => {
-                match &event_handler_variable_symbol_rcref.borrow().var_type {
-                    Some(x) => x.get_type_str(),
-                    None => String::from("<?>"),
-                }
-            },
-
-            _ => panic!("TODO"),
-        };
-
-        return var_type;
-    }
+    //
+    // fn get_variable_type(&self,symbol_type:&SymbolType) -> String {
+    //     let var_type = match &*symbol_type {
+    //         DomainVariableSymbolT { domain_variable_symbol_rcref } => {
+    //             match &domain_variable_symbol_rcref.borrow().var_type {
+    //                 Some(x) => x.get_type_str(),
+    //                 None => String::from("<?>"),
+    //             }
+    //         },
+    //         StateParamSymbolT { state_param_symbol_rcref } => {
+    //             match &state_param_symbol_rcref.borrow().param_type {
+    //                 Some(x) => x.get_type_str(),
+    //                 None => String::from("<?>"),
+    //             }
+    //         },
+    //         StateVariableSymbolT { state_variable_symbol_rcref } => {
+    //             match &state_variable_symbol_rcref.borrow().var_type {
+    //                 Some(x) => x.get_type_str(),
+    //                 None => String::from("<?>"),
+    //             }                    },
+    //         EventHandlerParamSymbolT { event_handler_param_symbol_rcref } => {
+    //             match &event_handler_param_symbol_rcref.borrow().param_type {
+    //                 Some(x) => x.get_type_str(),
+    //                 None => String::from("<?>"),
+    //             }
+    //         },
+    //         EventHandlerVariableSymbolT { event_handler_variable_symbol_rcref } => {
+    //             match &event_handler_variable_symbol_rcref.borrow().var_type {
+    //                 Some(x) => x.get_type_str(),
+    //                 None => String::from("<?>"),
+    //             }
+    //         },
+    //
+    //         _ => panic!("TODO"),
+    //     };
+    //
+    //     return var_type;
+    // }
 
     //* --------------------------------------------------------------------- *//
 
@@ -152,7 +150,7 @@ impl PlantUmlVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn format_variable_expr(&self, variable_node:&VariableNode) -> String {
-        let mut code = String::new();
+        let code = String::new();
 
         match variable_node.scope {
             IdentifierDeclScope::DomainBlock => {
@@ -280,9 +278,9 @@ impl PlantUmlVisitor {
     fn visit_decl_stmts(&mut self, decl_stmt_types:&Vec<DeclOrStmtType>) {
         for decl_stmt_t in decl_stmt_types.iter() {
             match decl_stmt_t {
-                DeclOrStmtType::VarDeclT {var_decl_t_rc_ref}
+                DeclOrStmtType::VarDeclT {..}
                 => {
-                    let variable_decl_node = var_decl_t_rc_ref.borrow();
+          //          let variable_decl_node = var_decl_t_rc_ref.borrow();
           //          variable_decl_node.accept(self);
                 },
                 DeclOrStmtType::StmtT {stmt_t} => {
@@ -327,104 +325,104 @@ impl PlantUmlVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn generate_machinery(&mut self, system_node: &SystemNode) {
-        self.newline();
-        self.newline();
-        self.add_code(&format!("//=========== Machinery and Mechanisms ===========//"));
-        self.newline();
-        if let Some(first_state) = system_node.get_first_state() {
-            self.newline();
-            self.add_code(&format!("private delegate void FrameState(FrameEvent e);"));
-            self.newline();
-            self.add_code(&format!("private FrameState _state_;"));
-            self.newline();
-            if self.generate_state_context {
-                self.add_code(&format!("private StateContext _stateContext_;"));
-            }
-            self.newline();
-            self.newline();
-            if self.generate_transition_state {
-                if self.generate_state_context {
-                    if self.generate_exit_args {
-                        self.add_code(&format!("private void _transition_(FrameState newState,FrameEventParams exitArgs, StateContext stateContext) {{"));
-                    } else {
-                        self.add_code(&format!("private void _transition_(FrameState newState, StateContext stateContext) {{"));
-                    }
-                } else {
-                    if self.generate_exit_args {
-                        self.add_code(&format!("private void _transition_(FrameState newState,FrameEventParams exitArgs) {{"));
-                    } else {
-                        self.add_code(&format!("private void _transition_(FrameState newState) {{"));
-                    }
-                }
-                self.indent();
-                self.newline();
-                if self.generate_exit_args {
-                    self.add_code(&format!("FrameEvent exitEvent = new FrameEvent(\"<\",exitArgs);"));
-                } else {
-                    self.add_code(&format!("FrameEvent exitEvent = new FrameEvent(\"<\",null);"));
-                }
-                self.newline();
-                self.add_code(&format!("_state_(exitEvent);"));
-                self.newline();
-                self.add_code(&format!("_state_ = newState;"));
-                self.newline();
-                if self.generate_state_context {
-                    self.add_code(&format!("_stateContext_ = stateContext;"));
-                    self.newline();
-                    self.add_code(&format!("FrameEvent enterEvent = new FrameEvent(\">\",_stateContext_.getEnterArgs());"));
-                    self.newline();
-                } else {
-                    self.add_code(&format!("FrameEvent enterEvent = new FrameEvent(\">\",null);"));
-                    self.newline();
-                }
-                self.add_code(&format!("_state_(enterEvent);"));
-                self.outdent();
-                self.newline();
-                self.add_code(&format!("}}"));
-            }
-            if self.generate_state_stack {
-                self.newline();
-                self.newline();
-                self.add_code(&format!("private Stack<StateContext> _stateStack_ = new Stack<StateContext>();"));
-                self.newline();
-                self.newline();
-                self.add_code(&format!("private void _stateStack_push(StateContext stateContext) {{"));
-                self.indent();
-                self.newline();
-                self.add_code(&format!("_stateStack_.Push(stateContext);"));
-                self.outdent();
-                self.newline();
-                self.add_code(&format!("}}"));
-                self.newline();
-                self.newline();
-                self.add_code(&format!("private StateContext _stateStack_pop() {{"));
-                self.indent();
-                self.newline();
-                self.add_code(&format!("StateContext stateContext =  _stateStack_.back();"));
-                self.newline();
-                self.add_code(&format!("return _stateStack_.Pop();"));
-                self.outdent();
-                self.newline();
-                self.add_code(&format!("}}"));
-            }
-            if self.generate_change_state {
-                self.newline();
-                self.newline();
-                self.add_code(&format!("private void _changeState_(newState) {{"));
-                self.indent();
-                self.newline();
-                self.add_code(&format!("_state_ = newState;"));
-                self.outdent();
-                self.newline();
-                self.add_code(&format!("}}"));
-            }
-        }
-    }
+    // fn generate_machinery(&mut self, system_node: &SystemNode) {
+    //     self.newline();
+    //     self.newline();
+    //     self.add_code(&format!("//=========== Machinery and Mechanisms ===========//"));
+    //     self.newline();
+    //     if let Some(first_state) = system_node.get_first_state() {
+    //         self.newline();
+    //         self.add_code(&format!("private delegate void FrameState(FrameEvent e);"));
+    //         self.newline();
+    //         self.add_code(&format!("private FrameState _state_;"));
+    //         self.newline();
+    //         if self.generate_state_context {
+    //             self.add_code(&format!("private StateContext _stateContext_;"));
+    //         }
+    //         self.newline();
+    //         self.newline();
+    //         if self.generate_transition_state {
+    //             if self.generate_state_context {
+    //                 if self.generate_exit_args {
+    //                     self.add_code(&format!("private void _transition_(FrameState newState,FrameEventParams exitArgs, StateContext stateContext) {{"));
+    //                 } else {
+    //                     self.add_code(&format!("private void _transition_(FrameState newState, StateContext stateContext) {{"));
+    //                 }
+    //             } else {
+    //                 if self.generate_exit_args {
+    //                     self.add_code(&format!("private void _transition_(FrameState newState,FrameEventParams exitArgs) {{"));
+    //                 } else {
+    //                     self.add_code(&format!("private void _transition_(FrameState newState) {{"));
+    //                 }
+    //             }
+    //             self.indent();
+    //             self.newline();
+    //             if self.generate_exit_args {
+    //                 self.add_code(&format!("FrameEvent exitEvent = new FrameEvent(\"<\",exitArgs);"));
+    //             } else {
+    //                 self.add_code(&format!("FrameEvent exitEvent = new FrameEvent(\"<\",null);"));
+    //             }
+    //             self.newline();
+    //             self.add_code(&format!("_state_(exitEvent);"));
+    //             self.newline();
+    //             self.add_code(&format!("_state_ = newState;"));
+    //             self.newline();
+    //             if self.generate_state_context {
+    //                 self.add_code(&format!("_stateContext_ = stateContext;"));
+    //                 self.newline();
+    //                 self.add_code(&format!("FrameEvent enterEvent = new FrameEvent(\">\",_stateContext_.getEnterArgs());"));
+    //                 self.newline();
+    //             } else {
+    //                 self.add_code(&format!("FrameEvent enterEvent = new FrameEvent(\">\",null);"));
+    //                 self.newline();
+    //             }
+    //             self.add_code(&format!("_state_(enterEvent);"));
+    //             self.outdent();
+    //             self.newline();
+    //             self.add_code(&format!("}}"));
+    //         }
+    //         if self.generate_state_stack {
+    //             self.newline();
+    //             self.newline();
+    //             self.add_code(&format!("private Stack<StateContext> _stateStack_ = new Stack<StateContext>();"));
+    //             self.newline();
+    //             self.newline();
+    //             self.add_code(&format!("private void _stateStack_push(StateContext stateContext) {{"));
+    //             self.indent();
+    //             self.newline();
+    //             self.add_code(&format!("_stateStack_.Push(stateContext);"));
+    //             self.outdent();
+    //             self.newline();
+    //             self.add_code(&format!("}}"));
+    //             self.newline();
+    //             self.newline();
+    //             self.add_code(&format!("private StateContext _stateStack_pop() {{"));
+    //             self.indent();
+    //             self.newline();
+    //             self.add_code(&format!("StateContext stateContext =  _stateStack_.back();"));
+    //             self.newline();
+    //             self.add_code(&format!("return _stateStack_.Pop();"));
+    //             self.outdent();
+    //             self.newline();
+    //             self.add_code(&format!("}}"));
+    //         }
+    //         if self.generate_change_state {
+    //             self.newline();
+    //             self.newline();
+    //             self.add_code(&format!("private void _changeState_(newState) {{"));
+    //             self.indent();
+    //             self.newline();
+    //             self.add_code(&format!("_state_ = newState;"));
+    //             self.outdent();
+    //             self.newline();
+    //             self.add_code(&format!("}}"));
+    //         }
+    //     }
+    // }
 
     //* --------------------------------------------------------------------- *//
 
-    fn generate_comment(&mut self,line:usize) {
+    fn generate_comment(&mut self,_line:usize) {
 
         // can't use self.newline() or self.add_code() due to double borrow.
 //         let mut generated_comment = false;
@@ -499,11 +497,11 @@ impl PlantUmlVisitor {
             _ => panic!("TODO"),
         };
 
-        let state_ref_code = format!("{}",self.format_target_state_name(target_state_name));
+        let _state_ref_code = format!("{}",self.format_target_state_name(target_state_name));
 
         // self.newline();
         match &transition_statement.label_opt {
-            Some(label) => {
+            Some(_label) => {
                 // self.add_code(&format!("// {}", label));
                 // self.newline();
             },
@@ -738,11 +736,10 @@ impl PlantUmlVisitor {
     // So currently this method just sets any exitArgs and pops the context from the state stack.
 
     fn generate_state_stack_pop_transition(&mut self, transition_statement: &TransitionStatementNode) {
-        let mut exit_args_val = String::from("null");
 
         self.newline();
         match &transition_statement.label_opt {
-            Some(label) => {
+            Some(_label) => {
                 // self.add_code(&format!("// {}", label));
                 // self.newline();
             },
@@ -774,15 +771,15 @@ impl PlantUmlVisitor {
                             // self.add_code("FrameEventParams exitArgs = new FrameEventParams();");
                             // self.newline();
                             // Loop through the ARGUMENTS...
-                            for expr_t in &exit_args.exprs_t {
+                            for _expr_t in &exit_args.exprs_t {
                                 // ...and validate w/ the PARAMETERS
                                 match param_symbols_it.next() {
                                     Some(p) => {
-                                        let param_type = match &p.param_type {
+                                        let _param_type = match &p.param_type {
                                             Some(param_type) => param_type.get_type_str(),
                                             None => String::from("<?>"),
                                         };
-                                        let mut expr = String::new();
+                                        // let mut expr = String::new();
                                         // expr_t.accept_to_string(self, &mut expr);
                                         // self.add_code(&format!("exitArgs[\"{}\"] = {};", p.name, expr));
                                         // self.newline();
@@ -828,6 +825,7 @@ impl AstVisitor for PlantUmlVisitor {
 
     fn visit_system_node(&mut self, system_node: &SystemNode) -> AstVisitorReturnType {
         self.system_name = system_node.name.clone();
+        let _ = self.compiler_version.clone(); // hack to shut the compiler up
         // self.add_code(&format!("// {}",self.compiler_version));
         // self.newline();
         self.add_code(&format!("@startuml\n"));
@@ -928,7 +926,7 @@ impl AstVisitor for PlantUmlVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_frame_messages_enum(&mut self, interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
+    fn visit_frame_messages_enum(&mut self, _interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
         panic!("Error - visit_frame_messages_enum() only used in Rust.");
 
         // AstVisitorReturnType::InterfaceBlockNode {}
@@ -936,7 +934,7 @@ impl AstVisitor for PlantUmlVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_interface_parameters(&mut self, interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
+    fn visit_interface_parameters(&mut self, _interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
         panic!("visit_interface_parameters() not valid for target language.");
 
         // AstVisitorReturnType::InterfaceBlockNode {}
@@ -988,7 +986,7 @@ impl AstVisitor for PlantUmlVisitor {
 
         self.add_code(") {");
         self.indent();
-        let mut params_param_code;
+        let params_param_code;
         if interface_method_node.params.is_some() {
             params_param_code = String::from("parameters");
             self.newline();
@@ -1038,7 +1036,7 @@ impl AstVisitor for PlantUmlVisitor {
 
         let mut output = String::new();
         let sys_name = self.system_name.clone();
-        let system_node = self.system_hierarchy.get_system_node().unwrap();
+        let _system_node = self.system_hierarchy.get_system_node().unwrap();
         self.generate_states(&sys_name, true,0, &mut output);
         self.states = output;
 
@@ -1121,7 +1119,7 @@ impl AstVisitor for PlantUmlVisitor {
 
  //       println!("current state = {}", &state_node.name);
 
-        let state_symbol = match self.arcanium.get_state(&state_node.name) {
+        let _state_symbol = match self.arcanium.get_state(&state_node.name) {
             Some(state_symbol) => state_symbol,
             None => panic!("TODO"),
         };
@@ -1135,7 +1133,7 @@ impl AstVisitor for PlantUmlVisitor {
         }
 
         match &state_node.dispatch_opt {
-            Some(dispatch) => {
+            Some(_dispatch) => {
         //        dispatch.accept(self);
             },
             None => {},
@@ -1180,7 +1178,7 @@ impl AstVisitor for PlantUmlVisitor {
 //         self.indent();
         if let MessageType::CustomMessage {message_node} = &evt_handler_node.msg_t {
 
-            let (msg,_,_) = EventSymbol::get_event_msg(&self.symbol_config, &Some(evt_handler_node.state_name.clone()), &message_node.name);
+            let (_msg,_,_) = EventSymbol::get_event_msg(&self.symbol_config, &Some(evt_handler_node.state_name.clone()), &message_node.name);
 
             // Note: this is a bit convoluted as we cant use self.add_code() inside the
             // if statements as it is a double borrow (sigh).
@@ -1214,7 +1212,7 @@ impl AstVisitor for PlantUmlVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_event_handler_terminator_node(&mut self, evt_handler_terminator_node: &TerminatorExpr) -> AstVisitorReturnType {
+    fn visit_event_handler_terminator_node(&mut self, _evt_handler_terminator_node: &TerminatorExpr) -> AstVisitorReturnType {
         // self.newline();
         // match &evt_handler_terminator_node.terminator_type {
         //     TerminatorType::Return => {
@@ -1291,7 +1289,7 @@ impl AstVisitor for PlantUmlVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_call_expression_node(&mut self, action_call: &ActionCallExprNode) -> AstVisitorReturnType {
+    fn visit_action_call_expression_node(&mut self, _action_call: &ActionCallExprNode) -> AstVisitorReturnType {
 
      //   let action_name = self.format_action_name(&action_call.identifier.name.lexeme);
         // self.add_code(&format!("{}(", action_name));
@@ -1370,7 +1368,7 @@ impl AstVisitor for PlantUmlVisitor {
     fn visit_transition_statement_node(&mut self, transition_statement: &TransitionStatementNode) -> AstVisitorReturnType {
 
         match &transition_statement.target_state_context_t {
-            StateContextType::StateRef { state_context_node}
+            StateContextType::StateRef {..}
             => self.generate_state_ref_transition(transition_statement),
             StateContextType::StateStackPop {}
             => self.generate_state_stack_pop_transition(transition_statement),
@@ -1393,7 +1391,7 @@ impl AstVisitor for PlantUmlVisitor {
     fn visit_change_state_statement_node(&mut self, change_state_stmt_node:&ChangeStateStatementNode) -> AstVisitorReturnType {
 
         match &change_state_stmt_node.state_context_t {
-            StateContextType::StateRef { state_context_node}
+            StateContextType::StateRef { ..}
             => self.generate_state_ref_change_state(change_state_stmt_node),
             StateContextType::StateStackPop {}
             => panic!("TODO - not implemented"),
@@ -1405,7 +1403,7 @@ impl AstVisitor for PlantUmlVisitor {
     //* --------------------------------------------------------------------- *//
 
     // TODO: ??
-    fn visit_parameter_node(&mut self, parameter_node: &ParameterNode) -> AstVisitorReturnType {
+    fn visit_parameter_node(&mut self, _parameter_node: &ParameterNode) -> AstVisitorReturnType {
 
         // self.add_code(&format!("{}",parameter_node.name));
 
@@ -1445,8 +1443,6 @@ impl AstVisitor for PlantUmlVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_bool_test_node(&mut self, bool_test_node:&BoolTestNode) -> AstVisitorReturnType {
-
-        let mut if_or_else_if = "if ";
 
         // self.newline();
         for branch_node in &bool_test_node.conditional_branch_nodes {
@@ -1492,7 +1488,7 @@ impl AstVisitor for PlantUmlVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_chain_literal_expr_node(&mut self, method_call_chain_expression_node: &CallChainLiteralExprNode) -> AstVisitorReturnType {
+    fn visit_call_chain_literal_expr_node(&mut self, _method_call_chain_expression_node: &CallChainLiteralExprNode) -> AstVisitorReturnType {
         // TODO: maybe put this in an AST node
 
         // let mut separator = "";
@@ -1515,7 +1511,7 @@ impl AstVisitor for PlantUmlVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_chain_literal_expr_node_to_string(&mut self, method_call_chain_expression_node:&CallChainLiteralExprNode, output:&mut String) -> AstVisitorReturnType {
+    fn visit_call_chain_literal_expr_node_to_string(&mut self, _method_call_chain_expression_node:&CallChainLiteralExprNode, _output:&mut String) -> AstVisitorReturnType {
         panic!("TODO");
         // AstVisitorReturnType::CallChainLiteralExprNode {}
     }
@@ -1527,31 +1523,31 @@ impl AstVisitor for PlantUmlVisitor {
 
         self.visit_decl_stmts(&bool_test_true_branch_node.statements);
 
-        match &bool_test_true_branch_node.branch_terminator_expr_opt {
-            Some(branch_terminator_expr) => {
-                // self.newline();
-                match &branch_terminator_expr.terminator_type {
-                    Return => {
-                        match &branch_terminator_expr.return_expr_t_opt {
-                            Some(expr_t) => {
-                                // self.add_code(&format!("e.Return = "));
-                                expr_t.accept(self);
-                                // self.add_code(";");
-                                // self.newline();
-                                // self.add_code("return;");
-                            },
-                            None => {
-                                // self.add_code("return;")
-                            },
-                        }
-                    }
-                    Continue => {
-                        // self.add_code("break;");
-                    }
-                }
-            }
-            None => {}
-        }
+        // match &bool_test_true_branch_node.branch_terminator_expr_opt {
+        //     Some(branch_terminator_expr) => {
+        //         // self.newline();
+        //         match &branch_terminator_expr.terminator_type {
+        //             _Return => {
+        //                 match &branch_terminator_expr.return_expr_t_opt {
+        //                     Some(expr_t) => {
+        //                         // self.add_code(&format!("e.Return = "));
+        //                         expr_t.accept(self);
+        //                         // self.add_code(";");
+        //                         // self.newline();
+        //                         // self.add_code("return;");
+        //                     },
+        //                     None => {
+        //                         // self.add_code("return;")
+        //                     },
+        //                 }
+        //             }
+        //             _Continue => {
+        //                 // self.add_code("break;");
+        //             }
+        //         }
+        //     }
+        //     None => {}
+        // }
 
         AstVisitorReturnType::BoolTestConditionalBranchNode {}
     }
@@ -1566,30 +1562,30 @@ impl AstVisitor for PlantUmlVisitor {
         self.visit_decl_stmts(&bool_test_else_branch_node.statements);
 
         // TODO - factor this out to work w/ other terminator code.
-        match &bool_test_else_branch_node.branch_terminator_expr_opt {
-            Some(branch_terminator_expr) => {
-                // self.newline();
-                match &bool_test_else_branch_node {
-                    Return => {
-                        match &branch_terminator_expr.return_expr_t_opt {
-                            Some(expr_t) => {
-                                // self.add_code(&format!("e.Return = ",));
-                                expr_t.accept(self);
-                                // self.add_code(";");
-                                // self.newline();
-                                // self.add_code("return;");
-                            },
-                            None => {}
-                            // self.add_code("return;"),
-                        }
-                    }
-                    Continue => {
-                        // self.add_code("break;");
-                    }
-                }
-            }
-            None => {}
-        }
+        // match &bool_test_else_branch_node.branch_terminator_expr_opt {
+        //     Some(branch_terminator_expr) => {
+        //         // self.newline();
+        //         match &bool_test_else_branch_node {
+        //             Return => {
+        //                 match &branch_terminator_expr.return_expr_t_opt {
+        //                     Some(expr_t) => {
+        //                         // self.add_code(&format!("e.Return = ",));
+        //                         expr_t.accept(self);
+        //                         // self.add_code(";");
+        //                         // self.newline();
+        //                         // self.add_code("return;");
+        //                     },
+        //                     None => {}
+        //                     // self.add_code("return;"),
+        //                 }
+        //             }
+        //             Continue => {
+        //                 // self.add_code("break;");
+        //             }
+        //         }
+        //     }
+        //     None => {}
+        // }
 
         // self.outdent();
         // self.newline();
@@ -1626,27 +1622,27 @@ impl AstVisitor for PlantUmlVisitor {
             // match_branch_node.string_match_pattern_node.accept(self);
             // self.add_code(&format!("\") {{"));
 
-            let mut first_match = true;
-            for match_string in &match_branch_node.string_match_pattern_node.match_pattern_strings {
-                if first_match {
-                    // self.add_code(&format!(" == \"{}\")",match_string));
-                    first_match = false;
-                } else {
-                    // self.add_code(&format!(" || ("));
-                    match &string_match_test_node.expr_t {
-                        ExprType::CallExprT { call_expr_node: method_call_expr_node }
-                        => method_call_expr_node.accept(self),
-                        ExprType::ActionCallExprT { action_call_expr_node }
-                        => action_call_expr_node.accept(self),
-                        ExprType::CallChainLiteralExprT { call_chain_expr_node }
-                        => call_chain_expr_node.accept(self),
-                        ExprType::VariableExprT { var_node: id_node }
-                        => id_node.accept(self),
-                        _ => panic!("TODO"),
-                    }
-                    // self.add_code(&format!(" == \"{}\")",match_string));
-                }
-            }
+            // let mut first_match = true;
+            // for match_string in &match_branch_node.string_match_pattern_node.match_pattern_strings {
+            //     if first_match {
+            //         // self.add_code(&format!(" == \"{}\")",match_string));
+            //         first_match = false;
+            //     } else {
+            //         // self.add_code(&format!(" || ("));
+            //         match &string_match_test_node.expr_t {
+            //             ExprType::CallExprT { call_expr_node: method_call_expr_node }
+            //             => method_call_expr_node.accept(self),
+            //             ExprType::ActionCallExprT { action_call_expr_node }
+            //             => action_call_expr_node.accept(self),
+            //             ExprType::CallChainLiteralExprT { call_chain_expr_node }
+            //             => call_chain_expr_node.accept(self),
+            //             ExprType::VariableExprT { var_node: id_node }
+            //             => id_node.accept(self),
+            //             _ => panic!("TODO"),
+            //         }
+            //         // self.add_code(&format!(" == \"{}\")",match_string));
+            //     }
+            // }
             // self.add_code(&format!(" {{"));
             // self.indent();
 
@@ -1672,33 +1668,33 @@ impl AstVisitor for PlantUmlVisitor {
 
         self.visit_decl_stmts(&string_match_test_match_branch_node.statements);
 
-        match &string_match_test_match_branch_node.branch_terminator_expr_opt {
-            Some(branch_terminator_expr) => {
-                // self.newline();
-                match &branch_terminator_expr.terminator_type {
-                    Return => {
-                        match &branch_terminator_expr.return_expr_t_opt {
-                            Some(expr_t) => {
-                                // self.add_code(&format!("e.Return = "));
-                                expr_t.accept(self);
-                                // self.add_code(";");
-                                // self.newline();
-                                // self.add_code("return;");
-                            },
-                            None => {
-
-                            }
-                                // self.add_code("return;"),
-                        }
-                    }
-                    Continue => {
-                        // self.add_code("break;");
-
-                    }
-                }
-            }
-            None => {}
-        }
+        // match &string_match_test_match_branch_node.branch_terminator_expr_opt {
+        //     Some(branch_terminator_expr) => {
+        //         // self.newline();
+        //         match &branch_terminator_expr.terminator_type {
+        //             Return => {
+        //                 match &branch_terminator_expr.return_expr_t_opt {
+        //                     Some(expr_t) => {
+        //                         // self.add_code(&format!("e.Return = "));
+        //                         expr_t.accept(self);
+        //                         // self.add_code(";");
+        //                         // self.newline();
+        //                         // self.add_code("return;");
+        //                     },
+        //                     None => {
+        //
+        //                     }
+        //                         // self.add_code("return;"),
+        //                 }
+        //             }
+        //             Continue => {
+        //                 // self.add_code("break;");
+        //
+        //             }
+        //         }
+        //     }
+        //     None => {}
+        // }
 
         AstVisitorReturnType::StringMatchTestMatchBranchNode {}
     }
@@ -1713,32 +1709,32 @@ impl AstVisitor for PlantUmlVisitor {
         self.visit_decl_stmts(&string_match_test_else_branch_node.statements);
 
         // TODO - factor this out to work w/ other terminator code.
-        match &string_match_test_else_branch_node.branch_terminator_expr_opt {
-            Some(branch_terminator_expr) => {
-                // self.newline();
-                match &string_match_test_else_branch_node {
-                    Return => {
-                        match &branch_terminator_expr.return_expr_t_opt {
-                            Some(expr_t) => {
-                                // self.add_code(&format!("e.Return = ",));
-                                expr_t.accept(self);
-                                // self.add_code(";");
-                                // self.newline();
-                                // self.add_code("return;");
-                            },
-                            None => {
-                                // self.add_code("return;")
-                            },
-                        }
-                    }
-                    Continue => {
-                        // self.add_code("break;");
-
-                    }
-                }
-            }
-            None => {}
-        }
+        // match &string_match_test_else_branch_node.branch_terminator_expr_opt {
+        //     Some(branch_terminator_expr) => {
+        //         // self.newline();
+        //         match &string_match_test_else_branch_node {
+        //             Return => {
+        //                 match &branch_terminator_expr.return_expr_t_opt {
+        //                     Some(expr_t) => {
+        //                         // self.add_code(&format!("e.Return = ",));
+        //                         expr_t.accept(self);
+        //                         // self.add_code(";");
+        //                         // self.newline();
+        //                         // self.add_code("return;");
+        //                     },
+        //                     None => {
+        //                         // self.add_code("return;")
+        //                     },
+        //                 }
+        //             }
+        //             Continue => {
+        //                 // self.add_code("break;");
+        //
+        //             }
+        //         }
+        //     }
+        //     None => {}
+        // }
 
         // self.outdent();
         // self.newline();
@@ -1749,7 +1745,7 @@ impl AstVisitor for PlantUmlVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_string_match_test_pattern_node(&mut self, string_match_test_else_branch_node:&StringMatchTestPatternNode) -> AstVisitorReturnType {
+    fn visit_string_match_test_pattern_node(&mut self, _string_match_test_else_branch_node:&StringMatchTestPatternNode) -> AstVisitorReturnType {
 
         // TODO
         panic!("todo");
@@ -1828,32 +1824,32 @@ impl AstVisitor for PlantUmlVisitor {
         self.visit_decl_stmts(&number_match_test_match_branch_node.statements);
 
         // TODO - factor this out to work w/ other terminator code.
-        match &number_match_test_match_branch_node.branch_terminator_expr_opt {
-            Some(branch_terminator_expr) => {
-                self.newline();
-                match number_match_test_match_branch_node {
-                    Return => {
-                        match &branch_terminator_expr.return_expr_t_opt {
-                            Some(expr_t) => {
-                                // self.add_code(&format!("e.Return = "));
-                                expr_t.accept(self);
-                                // self.add_code(";");
-                                // self.newline();
-                                self.add_code("return;");
-                            },
-                            None => {
-                                // self.add_code("return;")
-                            },
-                        }
-                    }
-                    Continue => {
-                        // self.add_code("break;");
-
-                    }
-                }
-            }
-            None => {}
-        }
+        // match &number_match_test_match_branch_node.branch_terminator_expr_opt {
+        //     Some(branch_terminator_expr) => {
+        //         self.newline();
+        //         match number_match_test_match_branch_node {
+        //             Return => {
+        //                 match &branch_terminator_expr.return_expr_t_opt {
+        //                     Some(expr_t) => {
+        //                         // self.add_code(&format!("e.Return = "));
+        //                         expr_t.accept(self);
+        //                         // self.add_code(";");
+        //                         // self.newline();
+        //                         self.add_code("return;");
+        //                     },
+        //                     None => {
+        //                         // self.add_code("return;")
+        //                     },
+        //                 }
+        //             }
+        //             Continue => {
+        //                 // self.add_code("break;");
+        //
+        //             }
+        //         }
+        //     }
+        //     None => {}
+        // }
 
         AstVisitorReturnType::NumberMatchTestMatchBranchNode {}
     }
@@ -1868,32 +1864,32 @@ impl AstVisitor for PlantUmlVisitor {
         self.visit_decl_stmts(&number_match_test_else_branch_node.statements);
 
         // TODO - factor this out to work w/ other terminator code.
-        match &number_match_test_else_branch_node.branch_terminator_expr_opt {
-            Some(branch_terminator_expr) => {
-                self.newline();
-                match number_match_test_else_branch_node {
-                    Return => {
-                        match &branch_terminator_expr.return_expr_t_opt {
-                            Some(expr_t) => {
-                                // self.add_code(&format!("e.Return = "));
-                                expr_t.accept(self);
-                                // self.add_code(";");
-                                // self.newline();
-                                // self.add_code("return;");
-                            },
-                            None => {
-                                // self.add_code("return;")
-                            },
-                        }
-                    }
-                    Continue => {
-                        // self.add_code("break;");
-
-                    }
-                }
-            }
-            None => {}
-        }
+    //     match &number_match_test_else_branch_node.branch_terminator_expr_opt {
+    //         Some(branch_terminator_expr) => {
+    //             self.newline();
+    //             match number_match_test_else_branch_node {
+    //                 Return => {
+    //                     match &branch_terminator_expr.return_expr_t_opt {
+    //                         Some(expr_t) => {
+    //                             // self.add_code(&format!("e.Return = "));
+    //                             expr_t.accept(self);
+    //                             // self.add_code(";");
+    //                             // self.newline();
+    //                             // self.add_code("return;");
+    //                         },
+    //                         None => {
+    //                             // self.add_code("return;")
+    //                         },
+    //                     }
+    //                 }
+    //                 Continue => {
+    //                     // self.add_code("break;");
+    //
+    //                 }
+    //             }
+    //         }
+    //         None => {}
+    //     }
 
         self.outdent();
         self.newline();
@@ -1914,7 +1910,6 @@ impl AstVisitor for PlantUmlVisitor {
 
     fn visit_expression_list_node(&mut self, expr_list: &ExprListNode) -> AstVisitorReturnType {
 
-        let mut separator = "";
         for expr in &expr_list.exprs_t {
 
             // self.add_code(&format!("{}",separator));
@@ -1999,7 +1994,7 @@ impl AstVisitor for PlantUmlVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_identifier_node(&mut self, identifier_node: &IdentifierNode) -> AstVisitorReturnType {
+    fn visit_identifier_node(&mut self, _identifier_node: &IdentifierNode) -> AstVisitorReturnType {
 
         panic!("Unexpected use of identifier.");
 
@@ -2008,7 +2003,7 @@ impl AstVisitor for PlantUmlVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_identifier_node_to_string(&mut self, identifier_node: &IdentifierNode, output:&mut String) -> AstVisitorReturnType {
+    fn visit_identifier_node_to_string(&mut self, _identifier_node: &IdentifierNode, _output:&mut String) -> AstVisitorReturnType {
 
         panic!("Unexpected use of identifier.");
         // AstVisitorReturnType::IdentifierNode {}
@@ -2016,7 +2011,7 @@ impl AstVisitor for PlantUmlVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_state_stack_operation_node(&mut self, state_stack_operation_node:&StateStackOperationNode) -> AstVisitorReturnType {
+    fn visit_state_stack_operation_node(&mut self, _state_stack_operation_node:&StateStackOperationNode) -> AstVisitorReturnType {
 
 //        self.add_code(&format!("{}",identifier_node.name.lexeme));
 
@@ -2025,7 +2020,7 @@ impl AstVisitor for PlantUmlVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_state_stack_operation_node_to_string(&mut self, state_stack_operation_node:&StateStackOperationNode, output:&mut String) -> AstVisitorReturnType {
+    fn visit_state_stack_operation_node_to_string(&mut self, _state_stack_operation_node:&StateStackOperationNode, _output:&mut String) -> AstVisitorReturnType {
 
 //        self.add_code(&format!("{}",identifier_node.name.lexeme));
 
@@ -2053,7 +2048,7 @@ impl AstVisitor for PlantUmlVisitor {
     }
     //* --------------------------------------------------------------------- *//
 
-    fn visit_state_context_node(&mut self, state_context_node:&StateContextNode) -> AstVisitorReturnType {
+    fn visit_state_context_node(&mut self, _state_context_node:&StateContextNode) -> AstVisitorReturnType {
 
         // TODO
 //        self.add_code(&format!("{}",identifier_node.name.lexeme));
@@ -2118,7 +2113,7 @@ impl AstVisitor for PlantUmlVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_impl_node(&mut self, action_decl_node: &ActionNode) -> AstVisitorReturnType {
+    fn visit_action_impl_node(&mut self, _action_decl_node: &ActionNode) -> AstVisitorReturnType {
         panic!("visit_action_impl_node() not implemented.");
     }
 
@@ -2222,21 +2217,21 @@ impl AstVisitor for PlantUmlVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_unary_expr_node(&mut self, unary_expr_node: &UnaryExprNode) -> AstVisitorReturnType {
+    fn visit_unary_expr_node(&mut self, _unary_expr_node: &UnaryExprNode) -> AstVisitorReturnType {
 
         AstVisitorReturnType::UnaryExprNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_unary_expr_node_to_string(&mut self, unary_expr_node: &UnaryExprNode, output:&mut String) -> AstVisitorReturnType {
+    fn visit_unary_expr_node_to_string(&mut self, _unary_expr_node: &UnaryExprNode, _output:&mut String) -> AstVisitorReturnType {
 
         AstVisitorReturnType::UnaryExprNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_binary_expr_node(&mut self, binary_expr_node: &BinaryExprNode) -> AstVisitorReturnType {
+    fn visit_binary_expr_node(&mut self, _binary_expr_node: &BinaryExprNode) -> AstVisitorReturnType {
 
 
         AstVisitorReturnType::BinaryExprNode {}
@@ -2244,7 +2239,7 @@ impl AstVisitor for PlantUmlVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_binary_expr_node_to_string(&mut self, binary_expr_node: &BinaryExprNode, output:&mut String) -> AstVisitorReturnType {
+    fn visit_binary_expr_node_to_string(&mut self, _binary_expr_node: &BinaryExprNode, _output:&mut String) -> AstVisitorReturnType {
 
 
         AstVisitorReturnType::BinaryExprNode {}
@@ -2253,7 +2248,7 @@ impl AstVisitor for PlantUmlVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_operator_type(&mut self, operator_type: &OperatorType) -> AstVisitorReturnType {
+    fn visit_operator_type(&mut self, _operator_type: &OperatorType) -> AstVisitorReturnType {
 
 
         AstVisitorReturnType::BinaryExprNode {}
@@ -2261,7 +2256,7 @@ impl AstVisitor for PlantUmlVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_operator_type_to_string(&mut self, operator_type: &OperatorType, output:&mut String) -> AstVisitorReturnType {
+    fn visit_operator_type_to_string(&mut self, _operator_type: &OperatorType, _output:&mut String) -> AstVisitorReturnType {
 
 
         AstVisitorReturnType::BinaryExprNode {}

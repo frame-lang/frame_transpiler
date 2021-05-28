@@ -14,25 +14,25 @@ use crate::frame_c::ast::OperatorType::{Plus, Minus, Multiply, Divide, Greater, 
 pub trait NodeElement {
     fn accept(&self, ast_visitor:&mut dyn AstVisitor);
     // for Rust actions
-    fn accept_rust_trait(&self,  ast_visitor:&mut dyn AstVisitor) {
+    fn accept_rust_trait(&self,  _ast_visitor:&mut dyn AstVisitor) {
         // no_op
     }
-    fn accept_rust_impl(&self,  ast_visitor:&mut dyn AstVisitor) {
+    fn accept_rust_impl(&self,  _ast_visitor:&mut dyn AstVisitor) {
         // no_op
     }
-    fn accept_rust_domain_var_decl(&self,  ast_visitor:&mut dyn AstVisitor) {
+    fn accept_rust_domain_var_decl(&self,  _ast_visitor:&mut dyn AstVisitor) {
         // no_op
     }
-    fn accept_frame_messages_enum(&self,  ast_visitor:&mut dyn AstVisitor) {
+    fn accept_frame_messages_enum(&self,  _ast_visitor:&mut dyn AstVisitor) {
         // no_op
     }
-    fn accept_frame_parameters(&self, ast_visitor: &mut dyn AstVisitor) {
+    fn accept_frame_parameters(&self, _ast_visitor: &mut dyn AstVisitor) {
         // no_op
     }
     // fn accept_frame_message_enum(&self,  ast_visitor:&mut dyn AstVisitor) {
     //     // no_op
     // }
-    fn accept_to_string(&self,  ast_visitor:&mut dyn AstVisitor, output:&mut String) {
+    fn accept_to_string(&self,  _ast_visitor:&mut dyn AstVisitor, _output:&mut String) {
         // no_op
     }
 
@@ -43,7 +43,7 @@ pub trait NodeElement {
 pub trait CallableExpr: Downcast {
     fn set_call_chain(&mut self, call_chain:Vec<Box<dyn CallableExpr>>);
     fn callable_accept(&self, ast_visitor: &mut dyn AstVisitor);
-    fn callable_accept_to_string(&self,  ast_visitor:&mut dyn AstVisitor, output:&mut String) {
+    fn callable_accept_to_string(&self,  _ast_visitor:&mut dyn AstVisitor, _output:&mut String) {
         // no_op
     }
 }
@@ -52,7 +52,7 @@ impl_downcast!(CallableExpr);
 
 // TODO: note - exploring if this enum can replace the Callable : Downcast approach
 pub enum CallChainLiteralNodeType {
-    // TODO: should be differentiated parmeter or variable? no funcitonal difference at this point though
+    // TODO: should be differentiated parameter or variable? no funcitonal difference at this point though
     VariableNodeT {var_node:VariableNode},
     IdentifierNodeT {id_node:IdentifierNode}, // TODO: change IdentifierNode to VariableNode
     CallT {call: CallExprNode },
@@ -379,7 +379,7 @@ impl StateNode {
             params,
             vars,
             calls,
-            evt_handlers_rcref: evt_handlers_rcref,
+            evt_handlers_rcref,
             enter_event_handler_opt,
             exit_event_handler_opt,
             // transitions:Vec::new(),
@@ -547,7 +547,7 @@ impl MessageNode {
 
 //-----------------------------------------------------//
 
-pub struct AnyMessageNode;
+//pub struct AnyMessageNode;
 
 //-----------------------------------------------------//
 
@@ -582,6 +582,7 @@ impl NodeElement for TerminatorExpr {
     }
 }
 
+#[allow(dead_code)] // is used, don't know why I need this
 pub enum StateCallType {
     ActionCallExprT {
         action_call_expr_node: ActionCallExprNode,
@@ -598,15 +599,18 @@ pub enum ExprType {
     AssignmentExprT {
         assignment_expr_node: AssignmentExprNode,
     },
+    #[allow(dead_code)] // is used, don't know why I need this
     ActionCallExprT {
         action_call_expr_node: ActionCallExprNode,
     },
     CallChainLiteralExprT {
         call_chain_expr_node: CallChainLiteralExprNode,
     },
+    #[allow(dead_code)] // is used, don't know why I need this
     CallExprT {
         call_expr_node: CallExprNode,
     },
+    #[allow(dead_code)] // is used, don't know why I need this
     CallExprListT {
         call_expr_list_node: CallExprListNode
     },
@@ -730,9 +734,6 @@ impl NodeElement for ExprType {
             ExprType::UnaryExprT {unary_expr_node} => {
                 ast_visitor.visit_unary_expr_node_to_string(unary_expr_node,output);
             },
-            ExprType::BinaryExprT {binary_expr_node} => {
-                ast_visitor.visit_binary_expr_node_to_string(binary_expr_node,output);
-            },
         }
     }
 
@@ -775,7 +776,7 @@ pub enum StatementType {
     StateStackStmt {
         state_stack_operation_statement_node:StateStackOperationStatementNode,
     },
-
+    #[allow(dead_code)] // is used, don't know why I need this
     NoStmt,
 }
 
@@ -930,16 +931,16 @@ pub struct TransitionStatementNode {
 }
 
 impl TransitionStatementNode {
-    pub fn new(target_state_context_t:StateContextType,
-               exit_args_opt:Option<ExprListNode>,
-               label_opt:Option<String>) -> TransitionStatementNode {
-        TransitionStatementNode {
-            target_state_context_t,
-            exit_args_opt,
-            label_opt,
-
-        }
-    }
+    // pub fn new(target_state_context_t:StateContextType,
+    //            exit_args_opt:Option<ExprListNode>,
+    //            label_opt:Option<String>) -> TransitionStatementNode {
+    //     TransitionStatementNode {
+    //         target_state_context_t,
+    //         exit_args_opt,
+    //         label_opt,
+    //
+    //     }
+    // }
 }
 
 impl NodeElement for TransitionStatementNode {
@@ -956,14 +957,14 @@ pub struct ChangeStateStatementNode {
 }
 
 impl ChangeStateStatementNode {
-    pub fn new( state_context_t:StateContextType,
-                label_opt:Option<String>) -> ChangeStateStatementNode {
-        ChangeStateStatementNode {
-            state_context_t,
-            label_opt,
-
-        }
-    }
+    // pub fn new( state_context_t:StateContextType,
+    //             label_opt:Option<String>) -> ChangeStateStatementNode {
+    //     ChangeStateStatementNode {
+    //         state_context_t,
+    //         label_opt,
+    //
+    //     }
+    // }
 }
 
 impl NodeElement for ChangeStateStatementNode {
@@ -1300,8 +1301,6 @@ pub struct IdentifierNode {
 
 impl IdentifierNode {
     pub fn new(name:Token, call_chain:Option<Vec<Box<dyn CallableExpr>>>, scope: IdentifierDeclScope,line:usize) -> IdentifierNode {
-        let n = &name;
-        let s = n.lexeme.clone();
         IdentifierNode {
             name,
             call_chain,
@@ -1392,7 +1391,7 @@ impl TypeNode {
 }
 
 impl NodeElement for TypeNode {
-    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+    fn accept(&self, _ast_visitor: &mut dyn AstVisitor) {
         panic!("TODO?");
         //ast_visitor.visit_type_node(self);
     }
