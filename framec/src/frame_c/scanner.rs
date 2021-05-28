@@ -265,7 +265,7 @@ impl Scanner {
             '\r' => return,
             '\t' => return,
             '\n' => {
-                self.line += 1;
+            //    self.line += 1;
                 return;
             },
             '-' => {
@@ -382,6 +382,9 @@ impl Scanner {
         self.current += 1;
         self.token_str = String::from(&self.source[self.start..self.current]);
         let c:char = self.source.as_bytes()[self.current - 1] as char;
+        if c == '\n' {
+            self.line += 1;
+        }
         c
     }
 
@@ -601,7 +604,7 @@ impl Scanner {
                     break;
                 }
             } else if c == '\n' {
-                self.line += 1;
+                // self.line += 1;
             } else if c == '"' {
                 break;
             }
@@ -627,7 +630,7 @@ impl Scanner {
                     break;
                 }
             } else if c == '\n' {
-                self.line += 1;
+                // self.line += 1;
             } else if c == '`' {
                 break;
             }
