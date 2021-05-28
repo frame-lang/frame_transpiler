@@ -1643,7 +1643,6 @@ impl<'a> Parser<'a> {
 //        statements
     }
 
-
     /* --------------------------------------------------------------------- */
 
     fn decl_or_stmt(&mut self) -> Result<Option<DeclOrStmtType>,ParseError> {
