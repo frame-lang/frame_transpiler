@@ -116,6 +116,14 @@ impl PlantUmlVisitor {
     //     return var_type;
     // }
 
+
+    //* --------------------------------------------------------------------- *//
+
+    pub fn get_code(&self) -> String {
+        self.code.clone()
+    }
+
+
     //* --------------------------------------------------------------------- *//
 
     fn generate_states(&self, node_name:&String, is_system_node:bool, indent:usize, output:&mut String) {

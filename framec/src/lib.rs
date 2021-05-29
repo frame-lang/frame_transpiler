@@ -1,5 +1,4 @@
 pub mod frame_c;
-mod utils;
 use crate::frame_c::*;
 use crate::compiler::Exe;
 use wasm_bindgen::prelude::*;
@@ -7,5 +6,12 @@ use wasm_bindgen::prelude::*;
 #[wasm_bindgen]
 pub fn run(frame_code: &str, format:&str) -> String {
     let exe = Exe::new();
-    exe.run(frame_code.to_string(),format.to_string())
+    let result = exe.run(frame_code.to_string(),format.to_string());
+    match result {
+        Ok(code) => code,
+        Err(run_error) => {
+            // TODO: See about returning error code as well
+            run_error.error
+        }
+    }
 }

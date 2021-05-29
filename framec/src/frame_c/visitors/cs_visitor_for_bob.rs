@@ -24,6 +24,7 @@ pub struct CsVisitorForBob {
     subclass_code:Vec<String>,
     warnings:Vec<String>,
     has_states:bool,
+    errors:Vec<String>,
     visiting_call_chain_literal_variable:bool,
     generate_exit_args:bool,
     generate_state_context:bool,
@@ -68,6 +69,7 @@ impl CsVisitorForBob {
             serialize:Vec::new(),
             deserialize:Vec::new(),
             has_states:false,
+            errors:Vec::new(),
             subclass_code:Vec::new(),
             warnings:Vec::new(),
             visiting_call_chain_literal_variable:false,
@@ -81,7 +83,21 @@ impl CsVisitorForBob {
 
     //* --------------------------------------------------------------------- *//
 
-    fn get_variable_type(&self,symbol_type:&SymbolType) -> String {
+    pub fn get_code(&self) -> String {
+        if self.errors.len() > 0 {
+            let mut error_list = String::new();
+            for error in &self.errors {
+                error_list.push_str(&error.clone());
+            }
+            error_list
+        } else  {
+            self.code.clone()
+        }
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn get_variable_type(&mut self,symbol_type:&SymbolType) -> String {
         let var_type = match &*symbol_type {
             DomainVariableSymbolT { domain_variable_symbol_rcref } => {
                 match &domain_variable_symbol_rcref.borrow().var_type {
@@ -113,7 +129,10 @@ impl CsVisitorForBob {
                 }
             },
 
-            _ => panic!("TODO"),
+            _ => {
+                &self.errors.push("Unknown scope.".to_string());
+                return "error".to_string(); // won't get emitted
+            },
         };
 
         return var_type;
@@ -121,7 +140,7 @@ impl CsVisitorForBob {
 
     //* --------------------------------------------------------------------- *//
 
-    fn format_variable_expr(&self, variable_node:&VariableNode) -> String {
+    fn format_variable_expr(&mut self, variable_node:&VariableNode) -> String {
         let mut code = String::new();
 
         match variable_node.scope {
@@ -187,7 +206,7 @@ impl CsVisitorForBob {
                 // TODO: Explore labeling Variables as "extern" scope
                 code.push_str(&format!("{}",variable_node.id_node.name.lexeme));
             },            // Actions?
-            _ => panic!("Illegal scope."),
+            _ => self.errors.push("Illegal scope.".to_string()),
         }
 
         code
@@ -331,7 +350,7 @@ impl CsVisitorForBob {
                         },
                         StatementType::NoStmt => {
                             // TODO
-                            panic!("todo");
+                            self.errors.push("Unknown error.".to_string());
                         }
                     }
                 }
@@ -513,7 +532,10 @@ impl CsVisitorForBob {
         let target_state_name = match &change_state_stmt_node.state_context_t {
             StateContextType::StateRef {state_context_node}
             => &state_context_node.state_ref_node.name,
-            _ => panic!("TODO"),
+            _ => {
+                self.errors.push("Change state target not found.".to_string());
+                "error"
+            },
         };
 
         self.newline();
@@ -530,7 +552,10 @@ impl CsVisitorForBob {
             StateContextType::StateRef {state_context_node} => {
                 &state_context_node.state_ref_node.name
             },
-            _ => panic!("TODO"),
+            _ => {
+                self.errors.push("Unknown error.".to_string());
+                ""
+            },
         };
 
         let state_ref_code = format!("{}",self.format_target_state_name(target_state_name));
@@ -570,7 +595,7 @@ impl CsVisitorForBob {
                     match &event_sym.borrow().params_opt {
                         Some(event_params) => {
                             if exit_args.exprs_t.len() != event_params.len() {
-                                panic!("Fatal error: misaligned parameters to arguments.")
+                                self.errors.push("Fatal error: misaligned parameters to arguments.".to_string());
                             }
                             let mut param_symbols_it = event_params.iter();
                             self.add_code("FrameEventParams exitArgs = new FrameEventParams();");
@@ -589,14 +614,16 @@ impl CsVisitorForBob {
                                         self.add_code(&format!("exitArgs[\"{}\"] = {};", p.name, expr));
                                         self.newline();
                                     },
-                                    None => panic!("Invalid number of arguments for \"{}\" event handler.", msg),
+                                    None => self.errors.push(format!("Invalid number of arguments for \"{}\" event handler.", msg)),
+
                                 }
                             }
                         },
-                        None => panic!("Fatal error: misaligned parameters to arguments."),
+                        None => self.errors.push(format!("Fatal error: misaligned parameters to arguments.")),
                     }
                 } else {
-                    panic!("TODO");
+                    let current_state_name = &self.current_state_name_opt.as_ref().unwrap();
+                    self.errors.push(format!("Missing exit event handler for transition from ${} to ${}.",current_state_name, &target_state_name));
                 }
             }
         }
@@ -623,7 +650,7 @@ impl CsVisitorForBob {
                 match &event_sym.borrow().params_opt {
                     Some(event_params) => {
                         if enter_args.exprs_t.len() != event_params.len() {
-                            panic!("Fatal error: misaligned parameters to arguments.")
+                            self.errors.push(format!("Fatal error: misaligned parameters to arguments."));
                         }
                         let mut param_symbols_it =  event_params.iter();
                         for expr_t in &enter_args.exprs_t {
@@ -638,11 +665,11 @@ impl CsVisitorForBob {
                                     self.add_code(&format!("stateContext.addEnterArg(\"{}\",{});", p.name, expr));
                                     self.newline();
                                 },
-                                None => panic!("Invalid number of arguments for \"{}\" event handler.",msg),
+                                None => self.errors.push(format!("Invalid number of arguments for \"{}\" event handler.",msg)),
                             }
                         }
                     },
-                    None => panic!("Invalid number of arguments for \"{}\" event handler.",msg),
+                    None => self.errors.push(format!("Invalid number of arguments for \"{}\" event handler.",msg)),
                 }
             } else {
                 self.warnings.push(format!("State {} does not have an enter event handler but is being passed parameters in a transition", target_state_name));
@@ -680,7 +707,8 @@ impl CsVisitorForBob {
                                     self.add_code(&format!("stateContext.addStateArg(\"{}\",{});", param_symbol.name, expr));
                                     self.newline();
                                 },
-                                None => panic!("Invalid number of arguments for \"{}\" state parameters.", target_state_name),
+                                None => self.errors.push(format!("Invalid number of arguments for \"{}\" state parameters.", target_state_name)),
+
                             }
 //
                         }
@@ -688,7 +716,7 @@ impl CsVisitorForBob {
                     None => {}
                 }
             } else {
-                panic!("TODO");
+                self.errors.push(format!("TODO"));
             }
         } // -- State Arguments --
 
@@ -786,7 +814,7 @@ impl CsVisitorForBob {
                     match &event_sym.borrow().params_opt {
                         Some(event_params) => {
                             if exit_args.exprs_t.len() != event_params.len() {
-                                panic!("Fatal error: misaligned parameters to arguments.")
+                                self.errors.push(format!("Fatal error: misaligned parameters to arguments."));
                             }
                             let mut param_symbols_it = event_params.iter();
                             self.add_code("FrameEventParams exitArgs = new FrameEventParams();");
@@ -805,14 +833,17 @@ impl CsVisitorForBob {
                                         self.add_code(&format!("exitArgs[\"{}\"] = {};", p.name, expr));
                                         self.newline();
                                     },
-                                    None => panic!("Invalid number of arguments for \"{}\" event handler.", msg),
+                                    None => {
+                                        self.errors.push(format!("Invalid number of arguments for \"{}\" event handler.", msg))
+                                    },
                                 }
                             }
                         },
-                        None => panic!("Fatal error: misaligned parameters to arguments."),
+                        None =>
+                            self.errors.push(format!("Fatal error: misaligned parameters to arguments.")),
                     }
                 } else {
-                    panic!("TODO");
+                    self.errors.push(format!("TODO"));
                 }
             }
         }
@@ -1474,7 +1505,7 @@ impl AstVisitor for CsVisitorForBob {
             StateContextType::StateRef {..}
                 => self.generate_state_ref_change_state(change_state_stmt_node),
             StateContextType::StateStackPop {}
-                => panic!("TODO - not implemented"),
+                => self.errors.push(format!("Fatal error - change state stack pop not implemented."),)
         };
 
         AstVisitorReturnType::ChangeStateStmtNode {}
@@ -1719,8 +1750,18 @@ impl AstVisitor for CsVisitorForBob {
                     => call_chain_expr_node.accept(self),
                 ExprType::VariableExprT { var_node: id_node }
                     => id_node.accept(self),
+                ExprType::ExprListT {expr_list_node} => {
+                    // must be only 1 expression in the list
+                    if expr_list_node.exprs_t.len() != 1 {
+                        // TODO: how to do this better.
+                        self.errors.push(format!("Error - expression list is not testable."));
+                    }
+                    let x = expr_list_node.exprs_t.first().unwrap();
+                    x.accept(self);
+                }
 
-                _ => panic!("TODO"),
+
+                _ => self.errors.push(format!("TODO")),
             }
 
             // TODO: use accept
@@ -1744,7 +1785,7 @@ impl AstVisitor for CsVisitorForBob {
                             => call_chain_expr_node.accept(self),
                         ExprType::VariableExprT { var_node: id_node }
                             => id_node.accept(self),
-                        _ => panic!("TODO"),
+                        _ => self.errors.push(format!("TODO")),
                     }
                     self.add_code(&format!(" == \"{}\")",match_string));
                 }
@@ -1849,8 +1890,8 @@ impl AstVisitor for CsVisitorForBob {
     fn visit_string_match_test_pattern_node(&mut self, _string_match_test_else_branch_node:&StringMatchTestPatternNode) -> AstVisitorReturnType {
 
         // TODO
-        panic!("todo");
-//        AstVisitorReturnType::StringMatchTestPatternNode {}
+        self.errors.push(format!("Not implemented."));
+        AstVisitorReturnType::StringMatchTestPatternNode {}
     }
 
     //-----------------------------------------------------//
@@ -1871,7 +1912,16 @@ impl AstVisitor for CsVisitorForBob {
                     => call_chain_expr_node.accept(self),
                 ExprType::VariableExprT { var_node: id_node }
                     => id_node.accept(self),
-                _ => panic!("TODO"),
+                ExprType::ExprListT {expr_list_node} => {
+                    // must be only 1 expression in the list
+                    if expr_list_node.exprs_t.len() != 1 {
+                        // TODO: how to do this better.
+                        self.errors.push(format!("Error - expression list is not testable."));
+                    }
+                    let x = expr_list_node.exprs_t.first().unwrap();
+                    x.accept(self);
+                }
+                _ => self.errors.push(format!("TODO.")),
             }
 
             let mut first_match = true;

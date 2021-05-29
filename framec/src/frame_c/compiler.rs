@@ -10,12 +10,17 @@ use crate::frame_c::visitors::python_visitor::PythonVisitor;
 use crate::frame_c::visitors::gdscript_3_2_visitor::GdScript32Visitor;
 use crate::frame_c::visitors::java_8_visitor::Java8Visitor;
 use crate::frame_c::visitors::rust_visitor::RustVisitor;
+use crate::frame_c::utils::{RunError, frame_exitcode};
+use exitcode::USAGE;
 //use crate::frame_c::visitors::xtate_visitor::XStateVisitor;
 
 /* --------------------------------------------------------------------- */
 
 static IS_DEBUG:bool = false;
-static FRAMEC_VERSION:&str = "emitted from framec_v0.4.00";
+static FRAMEC_VERSION:&str = "emitted from framec_v0.4.0";
+
+
+/* --------------------------------------------------------------------- */
 
 pub struct Exe {
 }
@@ -41,12 +46,13 @@ impl Exe {
 
     /* --------------------------------------------------------------------- */
 
-    pub fn run(&self, contents:String,output_format:String) -> String {
+    pub fn run(&self, contents:String,output_format:String) -> Result<String,RunError> {
 
         let scanner = Scanner::new(contents);
         let (has_errors,errors,tokens) = scanner.scan_tokens();
         if has_errors {
-            return errors;
+            let run_error = RunError::new(frame_exitcode::PARSE_ERR, &*errors.clone());
+            return Err(run_error);
         }
 
         for token in &tokens {
@@ -63,7 +69,8 @@ impl Exe {
             if syntactic_parser.had_error() {
                 let mut errors =  "Terminating with errors.\n".to_string();
                 errors.push_str(&syntactic_parser.get_errors());
-                return errors
+                let run_error = RunError::new(frame_exitcode::PARSE_ERR, &*errors.clone());
+                return Err(run_error);
             }
             arcanum = syntactic_parser.get_arcanum();
         }
@@ -74,7 +81,8 @@ impl Exe {
         if semantic_parser.had_error() {
             let mut errors =  "Terminating with errors.\n".to_string();
             errors.push_str(&semantic_parser.get_errors());
-            return errors
+            let run_error = RunError::new(frame_exitcode::PARSE_ERR, &*errors.clone());
+            return Err(run_error);
         }
 
         let generate_exit_args = semantic_parser.generate_exit_args;
@@ -83,6 +91,7 @@ impl Exe {
         let generate_change_state = semantic_parser.generate_change_state;
         let generate_transition_state = semantic_parser.generate_transition_state;
 
+        let output;
         if output_format == "JavaScript" {
             let mut visitor = JavaScriptVisitor::new(semantic_parser.get_arcanum()
                                                                                 , generate_exit_args
@@ -93,7 +102,7 @@ impl Exe {
                                                                                 ,  FRAMEC_VERSION
                                                                                 , comments);
             visitor.run(&system_node);
-            visitor.code
+            output = visitor.get_code();
         } else if output_format == "C++" {
             let mut visitor = CppVisitor::new(semantic_parser.get_arcanum()
                                                   , generate_exit_args
@@ -104,7 +113,7 @@ impl Exe {
                                                   ,  FRAMEC_VERSION
                                                   , comments);
             visitor.run(&system_node);
-            visitor.code
+            output = visitor.get_code();
         } else if output_format == "C#_Bob" {
             let mut visitor = CsVisitorForBob::new(semantic_parser.get_arcanum()
                                                    , generate_exit_args
@@ -115,7 +124,7 @@ impl Exe {
                                                    , FRAMEC_VERSION
                                                    , comments);
             visitor.run(&system_node);
-            visitor.code
+            output = visitor.get_code();
         } else if output_format == "C#" {
             let mut visitor = CsVisitor::new(semantic_parser.get_arcanum()
                                              , generate_exit_args
@@ -126,7 +135,7 @@ impl Exe {
                                              , FRAMEC_VERSION
                                              , comments);
             visitor.run(&system_node);
-            return visitor.get_code();
+            output = visitor.get_code();
         } else if output_format == "GDScript32" {
             let mut visitor = GdScript32Visitor::new(semantic_parser.get_arcanum()
                                                      , generate_exit_args
@@ -137,7 +146,7 @@ impl Exe {
                                                      ,FRAMEC_VERSION
                                                      , comments);
             visitor.run(&system_node);
-            return visitor.get_code();
+            output = visitor.get_code();
         } else if output_format == "Java_8" {
             let mut visitor = Java8Visitor::new(semantic_parser.get_arcanum()
                                                    , generate_exit_args
@@ -148,7 +157,7 @@ impl Exe {
                                                    ,FRAMEC_VERSION
                                                    , comments);
             visitor.run(&system_node);
-            return visitor.get_code();
+            output = visitor.get_code();
         } else if output_format == "Python" {
             let mut visitor = PythonVisitor::new(semantic_parser.get_arcanum()
                                                    , generate_exit_args
@@ -159,7 +168,7 @@ impl Exe {
                                                    ,FRAMEC_VERSION
                                                    , comments);
             visitor.run(&system_node);
-            return visitor.get_code();
+            output = visitor.get_code();
         } else if output_format == "PlantUml" {
             // let x = (&semantic_parser).get_arcanum();
             // semantic_parser = semantic_parser.into_inner();
@@ -176,7 +185,7 @@ impl Exe {
                                                 ,FRAMEC_VERSION
                                                 , comments);
             visitor.run(&system_node);
-            visitor.code
+            output = visitor.get_code();
         } else if output_format == "rust" {
             let mut visitor = RustVisitor::new(semantic_parser.get_arcanum()
                                              , generate_exit_args
@@ -187,7 +196,7 @@ impl Exe {
                                              , FRAMEC_VERSION
                                              , comments);
             visitor.run(&system_node);
-            return visitor.get_code();
+            output = visitor.get_code();
         // } else if output_format == "xstate" {
         //     let mut visitor = XStateVisitor::new(semantic_parser.get_arcanum()
         //                                        , generate_exit_args
@@ -200,9 +209,12 @@ impl Exe {
         //     visitor.run(&system_node);
         //     return visitor.get_code();
         } else {
-            format!("Error - unrecognized output format {}.",output_format)
+            let error_msg = &format!("Error - unrecognized output format {}.",output_format);
+            let run_error = RunError::new(USAGE, error_msg);
+            return Err(run_error);
         }
 
+        Ok(output)
 
         // let mut graphviz_visitor = GraphVizVisitor::new(semantic_parser.get_arcanum(), comments);
         // graphviz_visitor.run(&system_node);

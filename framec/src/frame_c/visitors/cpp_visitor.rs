@@ -78,6 +78,20 @@ impl CppVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    pub fn get_code(&self) -> String {
+        if self.errors.len() > 0 {
+            let mut error_list = String::new();
+            for error in &self.errors {
+                error_list.push_str(&error.clone());
+            }
+            error_list
+        } else  {
+            self.code.clone()
+        }
+    }
+
+    //* --------------------------------------------------------------------- *//
+
     fn get_variable_type(&self,symbol_type:&SymbolType) -> String {
         let var_type = match &*symbol_type {
             DomainVariableSymbolT { domain_variable_symbol_rcref } => {

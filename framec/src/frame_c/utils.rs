@@ -1,3 +1,4 @@
+extern crate exitcode;
 use std::collections::HashMap;
 
 pub struct Node {
@@ -136,4 +137,27 @@ impl SystemHierarchy {
         self.index.get(&self.system_name)
     }
 
+}
+
+pub(crate) mod frame_exitcode {
+    pub type FrameExitCode = i32;
+
+    /// Framepiler parse error exit
+    pub const PARSE_ERR: FrameExitCode = 1;
+}
+
+pub struct RunError {
+
+    pub code:frame_exitcode::FrameExitCode,
+    pub error:String,
+}
+
+impl RunError {
+    pub fn new(code:frame_exitcode::FrameExitCode, msg:&str) -> RunError {
+
+        RunError {
+            code,
+            error:String::from(msg),
+        }
+    }
 }
