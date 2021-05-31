@@ -15,6 +15,7 @@ use std::rc::Rc;
 use super::symbol_table::SymbolType::*;
 use super::ast::AssignmentExprNode;
 use crate::frame_c::utils::{SystemHierarchy};
+use std::collections::HashMap;
 
 pub struct ParseError {
     // TODO:
@@ -367,9 +368,11 @@ impl<'a> Parser<'a> {
                                    None,
                                    None,
                                    None,
+                                   None,
                                    0)
         }
 
+        // Parse free-form header ```whatever```
         if self.match_token(&vec![ThreeTicksTok]) {
             while self.match_token(&vec![SuperStringTok]) {
                 let tok = self.previous();
@@ -381,6 +384,14 @@ impl<'a> Parser<'a> {
                 self.synchronize(sync_tokens);
             }
         }
+
+        let attributes_opt = match self.attributes() {
+            Ok(attributes_opt) => attributes_opt,
+            Err(_parse_error) => {
+                None
+            },
+        };
+
         // TODO: Error handling
         if !self.match_token(&vec![SystemTok]) {
             self.error_at_current("Expected #.");
@@ -439,11 +450,78 @@ impl<'a> Parser<'a> {
 
         SystemNode::new(system_name,
                         header,
+                        attributes_opt,
                         interface_block_node_opt,
                         machine_block_node_opt,
                         actions_block_node_opt,
                         domain_block_node_opt,
                         line)
+    }
+
+    /* --------------------------------------------------------------------- */
+
+
+    fn attributes(&mut self) -> Result<Option<HashMap<String,AttributeNode>>,ParseError> {
+        let mut attributes:HashMap<String,AttributeNode> = HashMap::new();
+
+        loop {
+            if self.match_token(&vec![InnerAttributeTok]) {
+                // not supported yet
+                let parse_error = ParseError::new("Found '#![' token - inner attribute syntax not currently supported.");
+                return Err(parse_error);
+            } else if self.match_token(&vec![OuterAttributeTok]) {
+                let attribute_node = match self.attribute() {
+                    Ok(attribute_node) => {
+                        attribute_node
+                    },
+                    Err(err) => {
+                        return Err(err);
+                    },
+                };
+                attributes.insert(attribute_node.name.clone(),attribute_node);
+                if let Err(parse_error) =  self.consume(RBracketTok, "Expected ']'.") {
+                    return Err(parse_error);
+                }
+            } else {
+                break;
+            }
+        }
+
+        if attributes.len() == 0 {
+            Ok(None)
+        } else {
+            Ok(Some(attributes))
+        }
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn attribute(&mut self) -> Result<AttributeNode,ParseError> {
+        let name ;
+        let value;
+
+        if self.match_token(&vec![IdentifierTok]) {
+           name = self.previous().lexeme.clone();
+        } else {
+            self.error_at_current("Expected attribute name.");
+            let parse_error = ParseError::new("TODO");
+            return Err(parse_error);
+
+        }
+        if let Err(_) = self.consume(TokenType::EqualsTok, "Expected '('") {
+            self.error_at_current("Expected '='.");
+            let parse_error = ParseError::new("TODO");
+            return Err(parse_error);
+        }
+        if self.match_token(&vec![StringTok]) {
+            value = self.previous().lexeme.clone();
+        } else {
+            self.error_at_current("Expected attribute value.");
+            let parse_error = ParseError::new("TODO");
+            return Err(parse_error);
+
+        }
+        return Ok(AttributeNode::new(name,value));
     }
 
     /* --------------------------------------------------------------------- */

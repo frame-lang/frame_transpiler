@@ -9,6 +9,7 @@ use std::rc::Rc;
 use std::collections::VecDeque;
 use crate::frame_c::visitors::*;
 use crate::frame_c::ast::OperatorType::{Plus, Minus, Multiply, Divide, Greater, GreaterEqual, LessEqual};
+use wasm_bindgen::__rt::std::collections::HashMap;
 
 
 pub trait NodeElement {
@@ -59,30 +60,49 @@ pub enum CallChainLiteralNodeType {
     ActionCallT {action_call_expr_node:ActionCallExprNode},
 }
 
+
+//-----------------------------------------------------//
+
+pub struct AttributeNode {
+    pub name:String,
+    pub value:String,
+}
+
+impl AttributeNode {
+    pub fn new( name:String, value:String) -> AttributeNode {
+        AttributeNode {
+            name,
+            value,
+        }
+    }
+}
+
 //-----------------------------------------------------//
 
 pub struct SystemNode {
     pub name: String,
     pub header:String,
+    pub attributes_opt:Option<HashMap<String,AttributeNode>>,
     pub interface_block_node_opt:Option<InterfaceBlockNode>,
     pub machine_block_node_opt:Option<MachineBlockNode>,
     pub actions_block_node_opt:Option<ActionsBlockNode>,
     pub domain_block_node_opt:Option<DomainBlockNode>,
     pub line:usize,
-
 }
 
 impl SystemNode {
-    pub fn new( name:String,
-                header:String,
-                interface_block_node_opt:Option<InterfaceBlockNode>,
-                machine_block_node_opt:Option<MachineBlockNode>,
-                actions_block_node_opt:Option<ActionsBlockNode>,
-                domain_block_node_opt:Option<DomainBlockNode>,
-                line:usize) -> SystemNode {
+    pub fn new(name:String,
+               header:String,
+               attributes_opt:Option<HashMap<String,AttributeNode>>,
+               interface_block_node_opt:Option<InterfaceBlockNode>,
+               machine_block_node_opt:Option<MachineBlockNode>,
+               actions_block_node_opt:Option<ActionsBlockNode>,
+               domain_block_node_opt:Option<DomainBlockNode>,
+               line:usize) -> SystemNode {
         SystemNode {
             name,
             header,
+            attributes_opt,
             interface_block_node_opt,
             machine_block_node_opt,
             actions_block_node_opt,

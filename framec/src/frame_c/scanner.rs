@@ -323,6 +323,14 @@ impl Scanner {
             '#' => {
                 if self.match_char('#') {
                     self.add_token(SystemEndTok);
+                } else if self.match_char('[') {
+                    self.add_token(OuterAttributeTok)   // #[
+                } else if self.match_char('!') {
+                    if self.match_char('[') {           // #![
+                        self.add_token(InnerAttributeTok);
+                    } else {
+                        self.add_token(ErrorTok);       // #!
+                    }
                 } else {
                     self.add_token(SystemTok);
                 }
@@ -346,7 +354,6 @@ impl Scanner {
                 } else {
                     self.add_token_sync_start(ForwardSlashTok);
                     self.scan_match();
-
                 }
             },
             '.' => {
@@ -655,18 +662,18 @@ pub enum TokenType {
     EofTok,
     IdentifierTok,
     StateTok,
-    GTTok,                         // >
-    GTx2Tok,                       // >>
-    GTx3Tok,                       // >>
+    GTTok,                  // >
+    GTx2Tok,                // >>
+    GTx3Tok,                // >>
     PlusTok,                // +
     DashTok,                // -
     DashDashTok,            // --
     StarTok,                // *
-    EqualEqualTok,         // ==
+    EqualEqualTok,          // ==
     BangTok,                // !
     BangEqualTok,           // !=
-    GreaterEqualTok,          // >=
-    LessEqualTok,          // <=
+    GreaterEqualTok,        // >=
+    LessEqualTok,           // <=
     LTTok,                  // <
     LTx2Tok,                // <<
     LTx3Tok,                // <<<
@@ -675,12 +682,14 @@ pub enum TokenType {
     CaretTok,               // ^
     LogicalAndTok,          // &&
     LogicalXorTok,          // &|
-    SystemTok,
-    SystemEndTok,
-    InterfaceBlockTok,
-    MachineBlockTok,
-    ActionsBlockTok,
-    DomainBlockTok,
+    SystemTok,              // #
+    SystemEndTok,           // ##
+    OuterAttributeTok,      // #[
+    InnerAttributeTok,      // #![
+    InterfaceBlockTok,      // -interface-
+    MachineBlockTok,        // -machine-
+    ActionsBlockTok,        // -actions-
+    DomainBlockTok,         // -domain-
     LParenTok,
     RParenTok,
     LBracketTok,

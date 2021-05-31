@@ -46,7 +46,8 @@ impl Exe {
 
     /* --------------------------------------------------------------------- */
 
-    pub fn run(&self, contents:String,output_format:String) -> Result<String,RunError> {
+    pub fn run(&self, contents:String, mut output_format:String) -> Result<String,RunError> {
+        let output;
 
         let scanner = Scanner::new(contents);
         let (has_errors,errors,tokens) = scanner.scan_tokens();
@@ -91,8 +92,16 @@ impl Exe {
         let generate_change_state = semantic_parser.generate_change_state;
         let generate_transition_state = semantic_parser.generate_transition_state;
 
-        let output;
-        if output_format == "JavaScript" {
+
+        match &system_node.attributes_opt {
+            Some(attributes) => {
+                if let Some(language) = attributes.get("language"){
+                    output_format = language.value.clone();
+                }
+            },
+            None => {},
+        }
+        if output_format == "javascript" {
             let mut visitor = JavaScriptVisitor::new(semantic_parser.get_arcanum()
                                                                                 , generate_exit_args
                                                                                 , generate_state_context
@@ -103,7 +112,7 @@ impl Exe {
                                                                                 , comments);
             visitor.run(&system_node);
             output = visitor.get_code();
-        } else if output_format == "C++" {
+        } else if output_format == "cpp" {
             let mut visitor = CppVisitor::new(semantic_parser.get_arcanum()
                                                   , generate_exit_args
                                                   , generate_state_context
@@ -114,7 +123,7 @@ impl Exe {
                                                   , comments);
             visitor.run(&system_node);
             output = visitor.get_code();
-        } else if output_format == "C#_Bob" {
+        } else if output_format == "c_sharp_bob" {
             let mut visitor = CsVisitorForBob::new(semantic_parser.get_arcanum()
                                                    , generate_exit_args
                                                    , generate_state_context
@@ -125,7 +134,7 @@ impl Exe {
                                                    , comments);
             visitor.run(&system_node);
             output = visitor.get_code();
-        } else if output_format == "C#" {
+        } else if output_format == "c_sharp" {
             let mut visitor = CsVisitor::new(semantic_parser.get_arcanum()
                                              , generate_exit_args
                                              , generate_state_context
@@ -136,7 +145,7 @@ impl Exe {
                                              , comments);
             visitor.run(&system_node);
             output = visitor.get_code();
-        } else if output_format == "GDScript32" {
+        } else if output_format == "gdscript" {
             let mut visitor = GdScript32Visitor::new(semantic_parser.get_arcanum()
                                                      , generate_exit_args
                                                      , generate_state_context
@@ -147,7 +156,7 @@ impl Exe {
                                                      , comments);
             visitor.run(&system_node);
             output = visitor.get_code();
-        } else if output_format == "Java_8" {
+        } else if output_format == "java_8" {
             let mut visitor = Java8Visitor::new(semantic_parser.get_arcanum()
                                                    , generate_exit_args
                                                    , generate_state_context
@@ -158,7 +167,7 @@ impl Exe {
                                                    , comments);
             visitor.run(&system_node);
             output = visitor.get_code();
-        } else if output_format == "Python" {
+        } else if output_format == "python_3" {
             let mut visitor = PythonVisitor::new(semantic_parser.get_arcanum()
                                                    , generate_exit_args
                                                    , generate_state_context
@@ -169,7 +178,7 @@ impl Exe {
                                                    , comments);
             visitor.run(&system_node);
             output = visitor.get_code();
-        } else if output_format == "PlantUml" {
+        } else if output_format == "plantuml" {
             // let x = (&semantic_parser).get_arcanum();
             // semantic_parser = semantic_parser.into_inner();
             // let y = (&semantic_parser).get_system_hierarchy();
