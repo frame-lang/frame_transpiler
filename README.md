@@ -2,7 +2,7 @@
 
 Hi! So very glad you are interested in Frame.
 
-These new features in Frame for v0.4.0 include:
+I have added a number of new language featuresThe new features in Frame for v0.4.0 include:
 
 1. Triple ``` token for demarcating an unparsed header string above the Frame system spec.
 
@@ -61,13 +61,14 @@ These instructions will get you a copy of the project up and running on your loc
 	5.a Type `cargo build --release`
 	5.b Type `./target/release/framec ../examples/HelloWorld.frm c_sharp`
 6. You now have working debug and release Framepilers. Congratulations!
-7. You can try 5 other languages + Plant UML. Replace the `c_sharp` above with any of these:
+7. You can try 6 other languages + Plant UML. Replace the `c_sharp` above with any of these:
 	7.a `javascript`
 	7.b `cpp`
 	7.c `gdscript`
 	7.d `java_8`
 	7.e `plantuml` (try output at [PlantUml site](http://www.plantuml.com/))
 	7.f `python_3`
+	7.g `rust` (experimental - only partially implemented)
 
 #### Linux
 
