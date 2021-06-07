@@ -1082,7 +1082,7 @@ impl AstVisitor for RustVisitor {
         // generate constructor
 
         if self.has_states {
-            self.add_code(&format!("fn new() -> {} {{",system_node.name));
+            self.add_code(&format!("pub fn new() -> {} {{",system_node.name));
             self.indent();
             self.newline();
             self.newline();
@@ -1377,7 +1377,7 @@ impl AstVisitor for RustVisitor {
         //     }
         // }
 
-        self.add_code(&format!("fn {} (&mut self", interface_method_node.name));
+        self.add_code(&format!("pub fn {} (&mut self", interface_method_node.name));
 
         match &interface_method_node.params {
             Some (params)
