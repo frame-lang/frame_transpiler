@@ -1,12 +1,8 @@
-# Frame Language Transpiler v0.4.00
+# Frame Language Transpiler v0.4.0
 
 Hi! So very glad you are interested in Frame.
 
-## v0.4.00 Development Branch
-
-**This is a development branch that includes language changes as well as code generation for Rust and is unstable.**
-
-These new features include:
+I have added a number of new language featuresThe new features in Frame for v0.4.0 include:
 
 1. Triple ``` token for demarcating an unparsed header string above the Frame system spec.
 
@@ -59,19 +55,20 @@ These instructions will get you a copy of the project up and running on your loc
 2. Navigate to the framepiler/framec directory.
 3. Type `cargo build`.
 	3.a You will see a bunch of warnings. Apologies but this is pre-alpha code.
-4. Type `./target/debug/framec ../examples/HelloWorld.frm C#`.
+4. Type `./target/debug/framec ../examples/HelloWorld.frm c_sharp`.
 	4.a You should see a base class for a Frame controller generated to stdout.
 5. If you want to generate a release build:
 	5.a Type `cargo build --release`
-	5.b Type `./target/release/framec ../examples/HelloWorld.frm C#`
+	5.b Type `./target/release/framec ../examples/HelloWorld.frm c_sharp`
 6. You now have working debug and release Framepilers. Congratulations!
-7. You can try 5 other languages + Plant UML. Replace the `C#` above with any of these:
-	7.a `JavaScript`
-	7.b `C++`
-	7.c `GDScript32`
-	7.d `Java_8`
-	7.e `PlantUml` (try output at [PlantUml site](http://www.plantuml.com/))
-	7.f `Python`
+7. You can try 6 other languages + Plant UML. Replace the `c_sharp` above with any of these:
+	7.a `javascript`
+	7.b `cpp`
+	7.c `gdscript`
+	7.d `java_8`
+	7.e `plantuml` (try output at [PlantUml site](http://www.plantuml.com/))
+	7.f `python_3`
+	7.g `rust` (experimental - only partially implemented)
 
 #### Linux
 
