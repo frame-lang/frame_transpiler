@@ -634,9 +634,9 @@ impl PythonVisitor {
                     let state_symbol = state_symbol_rcref.borrow();
                     let state_node = &state_symbol.state_node.as_ref().unwrap().borrow();
                     // generate local state variables
-                    if state_node.vars.is_some() {
+                    if state_node.vars_opt.is_some() {
 //                        let mut separator = "";
-                        for var_rcref in state_node.vars.as_ref().unwrap() {
+                        for var_rcref in state_node.vars_opt.as_ref().unwrap() {
                             let var = var_rcref.borrow();
                             let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
                             let mut expr_code = String::new();
@@ -807,8 +807,8 @@ impl AstVisitor for PythonVisitor {
                     let state_symbol = state_symbol_rcref.borrow();
                     let state_node = &state_symbol.state_node.as_ref().unwrap().borrow();
                     // generate local state variables
-                    if state_node.vars.is_some() {
-                        for var_rcref in state_node.vars.as_ref().unwrap() {
+                    if state_node.vars_opt.is_some() {
+                        for var_rcref in state_node.vars_opt.as_ref().unwrap() {
                             let var = var_rcref.borrow();
                             let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
                             let mut expr_code = String::new();
@@ -1086,7 +1086,7 @@ impl AstVisitor for PythonVisitor {
 
         let mut generate_pass = true;
 
-        if let Some(calls) = &state_node.calls {
+        if let Some(calls) = &state_node.calls_opt {
             generate_pass = false;
             for call in calls {
                 self.newline();

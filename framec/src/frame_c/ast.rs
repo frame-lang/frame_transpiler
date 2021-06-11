@@ -373,9 +373,9 @@ impl NodeElement for DomainBlockNode {
 
 pub struct StateNode {
     pub name:String,
-    pub params:Option<Vec<ParameterNode>>,
-    pub vars:Option<Vec<Rc<RefCell<VariableDeclNode>>>>,
-    pub calls:Option<Vec<CallChainLiteralExprNode>>,
+    pub params_opt:Option<Vec<ParameterNode>>,
+    pub vars_opt:Option<Vec<Rc<RefCell<VariableDeclNode>>>>,
+    pub calls_opt:Option<Vec<CallChainLiteralExprNode>>,
     pub evt_handlers_rcref:Vec<Rc<RefCell<EventHandlerNode>>>,
     pub enter_event_handler_opt:Option<Rc<RefCell<EventHandlerNode>>>,
     pub exit_event_handler_opt:Option<Rc<RefCell<EventHandlerNode>>>,
@@ -396,9 +396,9 @@ impl StateNode {
                line:usize,) -> StateNode {
         StateNode {
             name,
-            params,
-            vars,
-            calls,
+            params_opt: params,
+            vars_opt: vars,
+            calls_opt: calls,
             evt_handlers_rcref,
             enter_event_handler_opt,
             exit_event_handler_opt,

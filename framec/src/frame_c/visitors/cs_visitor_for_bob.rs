@@ -106,7 +106,7 @@ impl CsVisitorForBob {
                 }
             },
             StateParamSymbolT { state_param_symbol_rcref } => {
-                match &state_param_symbol_rcref.borrow().param_type {
+                match &state_param_symbol_rcref.borrow().param_type_opt {
                     Some(x) => x.get_type_str(),
                     None => String::from("<?>"),
                 }
@@ -117,7 +117,7 @@ impl CsVisitorForBob {
                     None => String::from("<?>"),
                 }                    },
             EventHandlerParamSymbolT { event_handler_param_symbol_rcref } => {
-                match &event_handler_param_symbol_rcref.borrow().param_type {
+                match &event_handler_param_symbol_rcref.borrow().param_type_opt {
                     Some(x) => x.get_type_str(),
                     None => String::from("<?>"),
                 }
@@ -605,7 +605,7 @@ impl CsVisitorForBob {
                                 // ...and validate w/ the PARAMETERS
                                 match param_symbols_it.next() {
                                     Some(p) => {
-                                        let _param_type = match &p.param_type {
+                                        let _param_type = match &p.param_type_opt {
                                             Some(param_type) => param_type.get_type_str(),
                                             None => String::from("<?>"),
                                         };
@@ -656,7 +656,7 @@ impl CsVisitorForBob {
                         for expr_t in &enter_args.exprs_t {
                             match param_symbols_it.next() {
                                 Some(p) => {
-                                    let _param_type = match &p.param_type {
+                                    let _param_type = match &p.param_type_opt {
                                         Some(param_type) => param_type.get_type_str(),
                                         None => String::from("<?>"),
                                     };
@@ -698,7 +698,7 @@ impl CsVisitorForBob {
 
                                 Some(param_symbol_rcref) => {
                                     let param_symbol = param_symbol_rcref.borrow();
-                                    let _param_type = match &param_symbol.param_type {
+                                    let _param_type = match &param_symbol.param_type_opt {
                                         Some(param_type) => param_type.get_type_str(),
                                         None => String::from("<?>"),
                                     };
@@ -731,9 +731,9 @@ impl CsVisitorForBob {
                     let state_symbol = state_symbol_rcref.borrow();
                     let state_node = &state_symbol.state_node.as_ref().unwrap().borrow();
                     // generate local state variables
-                    if state_node.vars.is_some() {
+                    if state_node.vars_opt.is_some() {
 //                        let mut separator = "";
-                        for var_rcref in state_node.vars.as_ref().unwrap() {
+                        for var_rcref in state_node.vars_opt.as_ref().unwrap() {
                             let var = var_rcref.borrow();
                             let _var_type = match &var.type_opt {
                                 Some(var_type) => var_type.get_type_str(),
@@ -824,7 +824,7 @@ impl CsVisitorForBob {
                                 // ...and validate w/ the PARAMETERS
                                 match param_symbols_it.next() {
                                     Some(p) => {
-                                        let _param_type = match &p.param_type {
+                                        let _param_type = match &p.param_type_opt {
                                             Some(param_type) => param_type.get_type_str(),
                                             None => String::from("<?>"),
                                         };
@@ -918,8 +918,8 @@ impl AstVisitor for CsVisitorForBob {
                     let state_symbol = state_symbol_rcref.borrow();
                     let state_node = &state_symbol.state_node.as_ref().unwrap().borrow();
                     // generate local state variables
-                    if state_node.vars.is_some() {
-                        for var_rcref in state_node.vars.as_ref().unwrap() {
+                    if state_node.vars_opt.is_some() {
+                        for var_rcref in state_node.vars_opt.as_ref().unwrap() {
                             let var = var_rcref.borrow();
                             let _var_type = match &var.type_opt {
                                 Some(var_type) => var_type.get_type_str(),
@@ -1213,7 +1213,7 @@ impl AstVisitor for CsVisitorForBob {
 
         self.deserialize.push(format!("\t\tcase \"{}\": _state_ = _s{}_; break;",state_node.name,state_node.name));
 
-        if let Some(calls) = &state_node.calls {
+        if let Some(calls) = &state_node.calls_opt {
             for call in calls {
                 self.newline();
                 call.accept(self);

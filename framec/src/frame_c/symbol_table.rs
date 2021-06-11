@@ -750,6 +750,18 @@ impl Arcanum {
         b.events.insert(msg,Rc::clone(&event_symbol_rcref));
     }
 
+    pub fn get_event_names(&self) -> Vec<String> {
+        let system_symbol_rcref = self.system_symbol_opt.as_ref().unwrap();
+        let system_symbol = system_symbol_rcref.borrow();
+//        let ret = system_symbol.events.iter().map(f).collect();
+        let mut ret = Vec::new();
+        for (k,_v) in system_symbol.events.iter() {
+            ret.push(k.clone());
+        }
+        ret
+
+    }
+
     pub fn get_event(&mut self, msg:&str, state_name_opt:&Option<String>) -> Option<Rc<RefCell<EventSymbol>>> {
         let cannonical_msg; // need to init as there is some weird bug that hangs the debugger
         if state_name_opt.is_some() && (self.symbol_config.enter_msg_symbol == msg || self.symbol_config.exit_msg_symbol == msg) {
@@ -1173,7 +1185,7 @@ impl StateSymbol {
 
 pub struct ParameterSymbol {
     pub name:String,
-    pub param_type:Option<TypeNode>,
+    pub param_type_opt:Option<TypeNode>,
     pub scope: IdentifierDeclScope,
 }
 
@@ -1181,7 +1193,7 @@ impl ParameterSymbol {
     pub fn new(name: String, param_type: Option<TypeNode>, scope: IdentifierDeclScope) -> ParameterSymbol {
         ParameterSymbol {
             name: name,
-            param_type,
+            param_type_opt: param_type,
             scope,
         }
     }
@@ -1190,7 +1202,7 @@ impl ParameterSymbol {
         if self.name != other.param_name {
             return false;
         }
-        match &self.param_type {
+        match &self.param_type_opt {
             Some(param_type) => {
                 match &other.param_type_opt {
                     Some(other_param_type) => {

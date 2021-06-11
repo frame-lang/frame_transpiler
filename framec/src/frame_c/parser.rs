@@ -1115,7 +1115,7 @@ impl<'a> Parser<'a> {
         // parse state parameters e.g. $S1[x]
      //   let params:Option<Vec<ParameterNode>>
         let mut pop_state_params_scope = false;
-
+        let mut params_opt = None;
         if self.match_token(&vec![TokenType::LBracketTok]) {
             // generate StateContext mechanism for state parameter support
             self.generate_state_context = true;
@@ -1142,6 +1142,7 @@ impl<'a> Parser<'a> {
                     } else {
                         self.arcanum.set_parse_scope(StateParamsScopeSymbol::scope_name());
                     }
+                    params_opt = Some(parameters);
                 },
                 Err(parse_error) => return Err(parse_error),
                 Ok(None) => {},
@@ -1355,7 +1356,7 @@ impl<'a> Parser<'a> {
         self.arcanum.exit_parse_scope(); // state block scope (StateBlockScopeSymbol)
 
         let state_node = StateNode::new(state_name.clone(),
-                                        None,
+                                        params_opt,
                                         vars_opt,
                                         calls_opt,
                                         evt_handlers,

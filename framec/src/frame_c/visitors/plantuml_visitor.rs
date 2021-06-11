@@ -783,7 +783,7 @@ impl PlantUmlVisitor {
                                 // ...and validate w/ the PARAMETERS
                                 match param_symbols_it.next() {
                                     Some(p) => {
-                                        let _param_type = match &p.param_type {
+                                        let _param_type = match &p.param_type_opt {
                                             Some(param_type) => param_type.get_type_str(),
                                             None => String::from("<?>"),
                                         };

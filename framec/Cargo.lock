@@ -79,7 +79,7 @@ checksum = "fe56556a8c9f9f556150eb6b390bc1a8b3715fd2ddbb4585f36b6a5672c6a833"
 
 [[package]]
 name = "framec"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "downcast-rs",
  "exitcode",
