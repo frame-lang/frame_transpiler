@@ -1242,7 +1242,7 @@ impl<'a> Parser<'a> {
         let mut calls = Vec::new();
 
         while self.match_token(&vec![IdentifierTok]) {
-            match self.variable_or_call_expr(IdentifierDeclScope::None) {
+            match self.variable_or_call_expr(IdentifierDeclScope::None, false) {
                 // Ok(Some(VariableExprT { var_node: id_node }))
                 //     => {
                 //     // TODO: better error handling
@@ -2557,7 +2557,7 @@ impl<'a> Parser<'a> {
             if self.match_token(&vec![LBracketTok]) {
                 return if self.match_token(&vec![IdentifierTok]) {
 //                    let id = self.previous().lexeme.clone();
-                    let id_node = IdentifierNode::new(self.previous().clone(), None, IdentifierDeclScope::StateParam,self.previous().line);
+                    let id_node = IdentifierNode::new(self.previous().clone(), None, IdentifierDeclScope::StateParam, false,self.previous().line);
                     let var_scope = id_node.scope.clone();
                     let symbol_type_rcref_opt = self.arcanum.lookup(&id_node.name.lexeme,&var_scope).clone();
 
@@ -2572,7 +2572,7 @@ impl<'a> Parser<'a> {
                 }
             } else if self.match_token(&vec![DotTok]) {
                 return if self.match_token(&vec![IdentifierTok]) {
-                    let id_node = IdentifierNode::new(self.previous().clone(), None, IdentifierDeclScope::StateVar, self.previous().line);
+                    let id_node = IdentifierNode::new(self.previous().clone(), None, IdentifierDeclScope::StateVar, false, self.previous().line);
                     let var_scope = id_node.scope.clone();
                     let symbol_type_rcref_opt = self.arcanum.lookup(&id_node.name.lexeme,&var_scope).clone();
                     let var_node = VariableNode::new(id_node,var_scope,symbol_type_rcref_opt);
@@ -2590,7 +2590,7 @@ impl<'a> Parser<'a> {
                 let id_node;
                 let var_node;
                 if self.match_token(&vec![IdentifierTok]) {
-                    id_node = IdentifierNode::new(self.previous().clone(), None, IdentifierDeclScope::EventHandlerParam,self.previous().line);
+                    id_node = IdentifierNode::new(self.previous().clone(), None, IdentifierDeclScope::EventHandlerParam, false,self.previous().line);
                     let var_scope = id_node.scope.clone();
                     let symbol_type_rcref_opt = self.arcanum.lookup(&id_node.name.lexeme,&var_scope).clone();
                     var_node = VariableNode::new(id_node, var_scope, symbol_type_rcref_opt);
@@ -2604,7 +2604,7 @@ impl<'a> Parser<'a> {
                 return Ok(Some(VariableExprT { var_node }));
             } else if self.match_token(&vec![DotTok]) {
                 if self.match_token(&vec![IdentifierTok]) {
-                    let id_node = IdentifierNode::new(self.previous().clone(), None, IdentifierDeclScope::EventHandlerVar, self.previous().line);
+                    let id_node = IdentifierNode::new(self.previous().clone(), None, IdentifierDeclScope::EventHandlerVar, false, self.previous().line);
                     let var_scope = id_node.scope.clone();
                     let symbol_type_rcref_opt = self.arcanum.lookup(&id_node.name.lexeme,&var_scope).clone();
                     let var_node = VariableNode::new(id_node,var_scope,symbol_type_rcref_opt);
@@ -2616,9 +2616,14 @@ impl<'a> Parser<'a> {
             }
         }
 
+        let mut is_reference = false;
+        if self.match_token(&vec![AndTok]) {
+            is_reference = true;
+        }
+
         // TODO: I think only identifier is allowed?
         if self.match_token(&vec![IdentifierTok]) {
-            match self.variable_or_call_expr(scope) {
+            match self.variable_or_call_expr(scope, is_reference) {
                 Ok(Some(VariableExprT { var_node: id_node }))
                     => return Ok(Some(VariableExprT { var_node: id_node })),
                 Ok(Some(CallExprT { call_expr_node: method_call_expr_node }))
@@ -2746,11 +2751,11 @@ impl<'a> Parser<'a> {
 
     // TODO: create a new return type that is narrowed to just the types this method returns.
     // TODO: change the return type to be CallChainLiteralExprT as it doesn't return anything else.
-    fn variable_or_call_expr(&mut self, explicit_scope: IdentifierDeclScope) -> Result<Option<ExprType>,ParseError> {
+    fn variable_or_call_expr(&mut self, explicit_scope: IdentifierDeclScope,is_reference:bool) -> Result<Option<ExprType>,ParseError> {
 
         let mut scope:IdentifierDeclScope;
 
-        let mut id_node = IdentifierNode::new(self.previous().clone(), None, explicit_scope.clone(),self.previous().line);
+        let mut id_node = IdentifierNode::new(self.previous().clone(), None, explicit_scope.clone(),is_reference,self.previous().line);
         let mut call_chain:std::collections::VecDeque<CallChainLiteralNodeType> = std::collections::VecDeque::new();
 
         // Loop over the tokens looking for "callable" tokens (methods and identifiers)
@@ -2814,7 +2819,7 @@ impl<'a> Parser<'a> {
             }
 
             if self.match_token(&vec![IdentifierTok]) {
-                id_node = IdentifierNode::new(self.previous().clone(), None, IdentifierDeclScope::None,self.previous().line);
+                id_node = IdentifierNode::new(self.previous().clone(), None, IdentifierDeclScope::None, false,self.previous().line);
             } else {
                 return Err(ParseError::new("TODO"));
             }

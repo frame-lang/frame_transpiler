@@ -2,7 +2,6 @@
 
 use super::super::ast::*;
 use super::super::symbol_table::*;
-use super::super::symbol_table::SymbolType::*;
 use super::super::visitors::*;
 use super::super::scanner::{Token,TokenType};
 
@@ -10,7 +9,6 @@ struct Config {
     state_var_name:String,
     state_context_var_name:String,
     this_state_context_var_name:String,
-    next_state_context_var_name:String,
     state_context_var_name_suffix:String,
     state_context_struct_name:String,
     start_system_msg:String,
@@ -18,7 +16,6 @@ struct Config {
     enter_msg:String,
     enter_token:String,
     enter_args_member_name:String,
-    enter_arg_prefix:String,
     exit_msg:String,
     exit_token:String,
     frame_state_type_name:String,
@@ -27,15 +24,11 @@ struct Config {
     frame_event_return:String,
     frame_event_variable_name:String,
     frame_event_message_attribute_name:String,
-    frame_event_parameters_attribute_name:String,
     frame_event_return_attribute_name:String,
     state_context_name:String,
     state_context_suffix:String,
-    state_param_prefix:String,
     state_args_var:String,
-    state_var_prefix:String,
     state_vars_var:String,
-    enter_param_prefix:String,
 
 }
 
@@ -45,7 +38,6 @@ impl Config {
             state_var_name:String::from("state"),
             state_context_var_name:String::from("state_context"),
             this_state_context_var_name:String::from("this_state_context"),
-            next_state_context_var_name:String::from("next_state_context"),
             state_context_var_name_suffix:String::from("_state_context"),
             state_context_struct_name:String::from("StateContext"),
             start_system_msg:String::from("Start"),
@@ -53,7 +45,6 @@ impl Config {
             enter_msg:String::from("Enter"),
             enter_token:String::from(">"),
             enter_args_member_name:String::from("enter_args"),
-            enter_arg_prefix:String::from("enter_arg_"),
             exit_msg:String::from("Exit"),
             exit_token:String::from("<"),
             frame_state_type_name:String::from("FrameState"),
@@ -62,15 +53,11 @@ impl Config {
             frame_event_return:String::from("FrameEventReturn"),
             frame_event_variable_name:String::from("e"),
             frame_event_message_attribute_name:String::from("message"),
-            frame_event_parameters_attribute_name:String::from("parameters"),
             frame_event_return_attribute_name:String::from("ret"),
             state_context_name:String::from("StateContext"),
             state_context_suffix:String::from("StateContext"),
-            state_param_prefix:String::from("state_param_"),
             state_args_var:String::from("state_args"),
-            state_var_prefix:String::from("state_var_"),
             state_vars_var:String::from("state_vars"),
-            enter_param_prefix:String::from("enter_param_"),
         }
     }
 }
@@ -179,22 +166,22 @@ impl RustVisitor {
     // @TODO - this is a bit of a hack to glue the state back to the message if
     // it is an enter/exit message.
 
-    fn qualified_message_name(&self, state_name_opt:&Option<String>,msg_name:&str) -> String {
-
-        if msg_name.eq(&self.config.enter_token) || msg_name.eq(&self.config.exit_token) {
-            match state_name_opt {
-                Some(state_name) => {
-                    format!("{}:{}",state_name,msg_name)
-                },
-                None => {
-                    msg_name.to_string()
-                }
-            }
-        } else {
-            msg_name.to_string()
-        }
-
-    }
+    // fn qualified_message_name(&self, state_name_opt:&Option<String>,msg_name:&str) -> String {
+    //
+    //     if msg_name.eq(&self.config.enter_token) || msg_name.eq(&self.config.exit_token) {
+    //         match state_name_opt {
+    //             Some(state_name) => {
+    //                 format!("{}:{}",state_name,msg_name)
+    //             },
+    //             None => {
+    //                 msg_name.to_string()
+    //             }
+    //         }
+    //     } else {
+    //         msg_name.to_string()
+    //     }
+    //
+    // }
 
     //* --------------------------------------------------------------------- *//
 
@@ -249,12 +236,12 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn output_string_vec(&mut self, vec:&Vec<String>) {
-        for line in vec {
-            self.newline();
-            self.add_code(line);
-        }
-    }
+    // fn output_string_vec(&mut self, vec:&Vec<String>) {
+    //     for line in vec {
+    //         self.newline();
+    //         self.add_code(line);
+    //     }
+    // }
 
     //* --------------------------------------------------------------------- *//
 
@@ -283,46 +270,46 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn get_variable_type(&mut self, symbol_type:&SymbolType) -> String {
-        let var_type = match &*symbol_type {
-            DomainVariableSymbolT { domain_variable_symbol_rcref } => {
-                match &domain_variable_symbol_rcref.borrow().var_type {
-                    Some(x) => x.get_type_str(),
-                    None => String::from("<?>"),
-                }
-            },
-            StateParamSymbolT { state_param_symbol_rcref } => {
-                match &state_param_symbol_rcref.borrow().param_type_opt {
-                    Some(x) => x.get_type_str(),
-                    None => String::from("<?>"),
-                }
-            },
-            StateVariableSymbolT { state_variable_symbol_rcref } => {
-                match &state_variable_symbol_rcref.borrow().var_type {
-                    Some(x) => x.get_type_str(),
-                    None => String::from("<?>"),
-                }                    },
-            EventHandlerParamSymbolT { event_handler_param_symbol_rcref } => {
-                match &event_handler_param_symbol_rcref.borrow().param_type_opt {
-                    Some(x) => x.get_type_str(),
-                    None => String::from("<?>"),
-                }
-            },
-            EventHandlerVariableSymbolT { event_handler_variable_symbol_rcref } => {
-                match &event_handler_variable_symbol_rcref.borrow().var_type {
-                    Some(x) => x.get_type_str(),
-                    None => String::from("<?>"),
-                }
-            },
-
-            _ => {
-                self.errors.push("Unknown scope.".to_string());
-                return "error".to_string(); // won't get emitted
-            },
-        };
-
-        return var_type;
-    }
+    // fn get_variable_type(&mut self, symbol_type:&SymbolType) -> String {
+    //     let var_type = match &*symbol_type {
+    //         DomainVariableSymbolT { domain_variable_symbol_rcref } => {
+    //             match &domain_variable_symbol_rcref.borrow().var_type {
+    //                 Some(x) => x.get_type_str(),
+    //                 None => String::from("<?>"),
+    //             }
+    //         },
+    //         StateParamSymbolT { state_param_symbol_rcref } => {
+    //             match &state_param_symbol_rcref.borrow().param_type_opt {
+    //                 Some(x) => x.get_type_str(),
+    //                 None => String::from("<?>"),
+    //             }
+    //         },
+    //         StateVariableSymbolT { state_variable_symbol_rcref } => {
+    //             match &state_variable_symbol_rcref.borrow().var_type {
+    //                 Some(x) => x.get_type_str(),
+    //                 None => String::from("<?>"),
+    //             }                    },
+    //         EventHandlerParamSymbolT { event_handler_param_symbol_rcref } => {
+    //             match &event_handler_param_symbol_rcref.borrow().param_type_opt {
+    //                 Some(x) => x.get_type_str(),
+    //                 None => String::from("<?>"),
+    //             }
+    //         },
+    //         EventHandlerVariableSymbolT { event_handler_variable_symbol_rcref } => {
+    //             match &event_handler_variable_symbol_rcref.borrow().var_type {
+    //                 Some(x) => x.get_type_str(),
+    //                 None => String::from("<?>"),
+    //             }
+    //         },
+    //
+    //         _ => {
+    //             self.errors.push("Unknown scope.".to_string());
+    //             return "error".to_string(); // won't get emitted
+    //         },
+    //     };
+    //
+    //     return var_type;
+    // }
 
 
     // //* --------------------------------------------------------------------- *//
@@ -345,8 +332,8 @@ impl RustVisitor {
                 let var_node = variable_node;
                 let var_symbol_rcref_opt = &var_node.symbol_type_rcref_opt;
                 let var_symbol_rcref = var_symbol_rcref_opt.as_ref().unwrap();
-                let var_symbol = var_symbol_rcref.borrow();
-                let var_type = self.get_variable_type(&*var_symbol);
+                let _var_symbol = var_symbol_rcref.borrow();
+ //               let var_type = self.get_variable_type(&*var_symbol);
 
                 if self.visiting_call_chain_literal_variable {
                     code.push_str("(");
@@ -366,8 +353,8 @@ impl RustVisitor {
                 let var_node = variable_node;
                 let var_symbol_rcref_opt = &var_node.symbol_type_rcref_opt;
                 let var_symbol_rcref = var_symbol_rcref_opt.as_ref().unwrap();
-                let var_symbol = var_symbol_rcref.borrow();
-                let var_type = self.get_variable_type(&*var_symbol);
+                let _var_symbol = var_symbol_rcref.borrow();
+//                let var_type = self.get_variable_type(&*var_symbol);
 
                 if self.visiting_call_chain_literal_variable {
                     code.push_str("(");
@@ -387,7 +374,7 @@ impl RustVisitor {
                 if self.visiting_call_chain_literal_variable {
                     code.push_str("(");
                 }
-                let unparsed_event_name = self.qualified_message_name(&self.current_state_name_opt,&self.current_message);
+ //               let unparsed_event_name = self.qualified_message_name(&self.current_state_name_opt,&self.current_message);
 //                let parameter_enum_name = self.format_frame_event_parameter_name(&*unparsed_event_name, &variable_node.id_node.name.lexeme);
 
                           //   enter_arg_x:i32,
@@ -763,9 +750,9 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn generate_state_ref_code(&self, target_state_name:&str) -> String {
-        format!("{}",self.format_target_state_name(target_state_name))
-    }
+    // fn generate_state_ref_code(&self, target_state_name:&str) -> String {
+    //     format!("{}",self.format_target_state_name(target_state_name))
+    // }
 
     //* --------------------------------------------------------------------- *//
 
@@ -989,55 +976,57 @@ impl RustVisitor {
             },
         }
 
+        if self.generate_state_context {
 
-        // generate state context enum
-        // let s0_stateContext = S0StateContext {
-        //     x:1
-        // };
-        // let state_context:StateContext = StateContext::S0 {
-        //     S0:s0_stateContext
-        // };
+            // generate state context enum
+            // let s0_stateContext = S0StateContext {
+            //     x:1
+            // };
+            // let state_context:StateContext = StateContext::S0 {
+            //     S0:s0_stateContext
+            // };
 
-        self.add_code(&format!("let {} = {} {{"
-                               ,self.format_state_context_variable_name(target_state_name)
-                               ,self.format_state_context_struct_name(target_state_name)
-        ));
-        self.indent();
-        self.newline();
-        self.add_code(&format!("state:{}::{},",&self.system_name,self.format_state_name(target_state_name)));
-//        self.output_string_vec(&enter_arguments);
-        self.newline();
+            self.add_code(&format!("let {} = {} {{"
+                                   , self.format_state_context_variable_name(target_state_name)
+                                   , self.format_state_context_struct_name(target_state_name)
+            ));
+            self.indent();
+            self.newline();
+            self.add_code(&format!("state:{}::{},", &self.system_name, self.format_state_name(target_state_name)));
+            //        self.output_string_vec(&enter_arguments);
+            self.newline();
 
-        if has_state_args {
-            self.add_code(&format!("state_args:{},", formatted_state_args));
+            if has_state_args {
+                self.add_code(&format!("state_args:{},", formatted_state_args));
+                self.newline();
+            }
+            if has_state_vars {
+                self.add_code(&format!("state_vars:{},", formatted_state_vars));
+                self.newline();
+            }
+            if has_enter_event_params {
+                self.add_code(&format!("enter_args:{},", formatted_enter_args));
+                self.newline();
+            }
+            self.outdent();
+            self.newline();
+            self.add_code("};");
+            self.newline();
+            self.newline();
+            self.add_code(&format!("let next_state_context:StateContext = StateContext::{} {{"
+                                   , target_state_name));
+            self.indent();
+            self.newline();
+            self.add_code(&format!("{}:{}"
+                                   , &target_state_name
+                                   , self.format_state_context_variable_name(target_state_name)));
+            self.outdent();
+            self.newline();
+
+            self.add_code("};");
+            self.newline();
             self.newline();
         }
-        if has_state_vars {
-            self.add_code(&format!("state_vars:{},", formatted_state_vars));
-            self.newline();
-        }
-        if has_enter_event_params {
-            self.add_code(&format!("enter_args:{},", formatted_enter_args));
-            self.newline();
-        }
-        self.outdent();
-        self.newline();
-        self.add_code("};");
-        self.newline();
-        self.newline();
-        self.add_code(&format!("let next_state_context:StateContext = StateContext::{} {{"
-                                , target_state_name));
-        self.indent();
-        self.newline();
-        self.add_code(&format!("{}:{}"
-                               ,&target_state_name
-                               ,self.format_state_context_variable_name(target_state_name)));
-        self.outdent();
-        self.newline();
-
-        self.add_code("};");
-        self.newline();
-        self.newline();
         let exit_args = if has_exit_args {
             "exit_args"
         } else {
@@ -1205,7 +1194,7 @@ impl AstVisitor for RustVisitor {
         for unparsed_event_name in vec {
             match self.arcanium.get_event(&unparsed_event_name, &self.current_state_name_opt) {
                 Some(event_sym) => {
-                    let (state_name_opt,event_name) = self.parse_event_name(&event_sym.borrow().msg);
+                    let (_state_name_opt,event_name) = self.parse_event_name(&event_sym.borrow().msg);
 
                     // enter messages handled in state context struct
                     if !(event_name.eq(&self.config.enter_token)) {
@@ -1753,7 +1742,7 @@ impl AstVisitor for RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_interface_parameters(&mut self, interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
+    fn visit_interface_parameters(&mut self, _interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
         self.newline();
         self.newline();
         self.add_code("struct FrameParameters {");
@@ -1786,7 +1775,7 @@ impl AstVisitor for RustVisitor {
         for unparsed_event_name in vec {
             match self.arcanium.get_event(&unparsed_event_name, &self.current_state_name_opt) {
                 Some(event_sym) => {
-                    let (state_name_opt,event_name) = self.parse_event_name(&event_sym.borrow().msg);
+                    let (_state_name_opt,event_name) = self.parse_event_name(&event_sym.borrow().msg);
                     if !(event_name.eq(&self.config.enter_token)) {
                         match &event_sym.borrow().params_opt {
                             Some(params) => {
@@ -2292,17 +2281,19 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.newline();
         let state_name = &self.current_state_name_opt.as_ref().unwrap().clone();
-        self.add_code(&format!("let mut {} = match &self.state_context {{",self.config.this_state_context_var_name));
-        self.indent();
-        self.newline();
-        self.add_code(&format!("StateContext::{} {{ {} }} => {},",&state_name,&state_name,&state_name));
-        self.newline();
-        self.add_code(&format!("_ => panic!(\"Invalid StateContext for {}\"),",&state_name));
-        self.outdent();
-        self.newline();
-        self.add_code("};");
-        self.newline();
-        self.newline();
+        if self.generate_state_context {
+            self.add_code(&format!("let mut {} = match &self.state_context {{", self.config.this_state_context_var_name));
+            self.indent();
+            self.newline();
+            self.add_code(&format!("StateContext::{} {{ {} }} => {},", &state_name, &state_name, &state_name));
+            self.newline();
+            self.add_code(&format!("_ => panic!(\"Invalid StateContext for {}\"),", &state_name));
+            self.outdent();
+            self.newline();
+            self.add_code("};");
+            self.newline();
+            self.newline();
+        }
 
         // @TODO
         // self.serialize.push(format!("\tif (_state_ == _s{}_) stateName = \"{}\"",state_node.name,state_node.name));

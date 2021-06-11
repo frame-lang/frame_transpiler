@@ -1316,15 +1316,17 @@ pub struct IdentifierNode {
     pub name:Token,
     pub call_chain:Option<Vec<Box<dyn CallableExpr>>>,
     pub scope: IdentifierDeclScope,
+    pub is_reference:bool,
     pub line:usize,
 }
 
 impl IdentifierNode {
-    pub fn new(name:Token, call_chain:Option<Vec<Box<dyn CallableExpr>>>, scope: IdentifierDeclScope,line:usize) -> IdentifierNode {
+    pub fn new(name:Token, call_chain:Option<Vec<Box<dyn CallableExpr>>>, scope: IdentifierDeclScope,is_reference:bool,line:usize) -> IdentifierNode {
         IdentifierNode {
             name,
             call_chain,
             scope,
+            is_reference,
             line,
         }
     }
