@@ -28,7 +28,7 @@ struct Config {
     state_context_name:String,
     state_context_suffix:String,
     state_args_var:String,
-    state_vars_var:String,
+    state_vars_var_name:String,
 
 }
 
@@ -57,7 +57,7 @@ impl Config {
             state_context_name:String::from("StateContext"),
             state_context_suffix:String::from("StateContext"),
             state_args_var:String::from("state_args"),
-            state_vars_var:String::from("state_vars"),
+            state_vars_var_name:String::from("state_vars"),
         }
     }
 }
@@ -326,6 +326,9 @@ impl RustVisitor {
 
         match variable_node.scope {
             IdentifierDeclScope::DomainBlock => {
+                if variable_node.id_node.is_reference {
+                    code.push_str("&");
+                }
                 code.push_str(&format!("self.{}",variable_node.id_node.name.lexeme));
             },
             IdentifierDeclScope::StateParam => {
@@ -338,9 +341,11 @@ impl RustVisitor {
                 if self.visiting_call_chain_literal_variable {
                     code.push_str("(");
                 }
-                // code.push_str(&format!("({}) _stateContext_.getStateArg(\"{}\")"
-                //                        ,var_type
-                //                        ,variable_node.id_node.name.lexeme));
+
+                if var_node.id_node.is_reference {
+                    code.push_str("&");
+                }
+
                 code.push_str(&format!("{}.{}.{}"
                                        ,self.config.this_state_context_var_name
                                        ,self.config.state_args_var
@@ -359,12 +364,14 @@ impl RustVisitor {
                 if self.visiting_call_chain_literal_variable {
                     code.push_str("(");
                 }
-                // code.push_str(&format!("({}) _stateContext_.getStateVar(\"{}\")"
-                //                        ,var_type
-                //                        ,variable_node.id_node.name.lexeme));
+
+                if var_node.id_node.is_reference {
+                    code.push_str("&");
+                }
+
                 code.push_str(&format!("{}.{}.{}"
                                        ,self.config.this_state_context_var_name
-                                       ,self.config.state_var_name
+                                       ,self.config.state_vars_var_name
                                        ,&variable_node.id_node.name.lexeme));
                 if self.visiting_call_chain_literal_variable {
                     code.push_str(")");
@@ -374,11 +381,11 @@ impl RustVisitor {
                 if self.visiting_call_chain_literal_variable {
                     code.push_str("(");
                 }
- //               let unparsed_event_name = self.qualified_message_name(&self.current_state_name_opt,&self.current_message);
-//                let parameter_enum_name = self.format_frame_event_parameter_name(&*unparsed_event_name, &variable_node.id_node.name.lexeme);
 
-                          //   enter_arg_x:i32,
- //               self.add_code("here1");
+                if variable_node.id_node.is_reference {
+                    code.push_str("&");
+                }
+
                 code.push_str(&format!("{}.{}.{}"
                                         ,self.config.this_state_context_var_name
                                         ,self.config.enter_args_member_name
@@ -389,10 +396,16 @@ impl RustVisitor {
 
             },
             IdentifierDeclScope::EventHandlerVar => {
+                if variable_node.id_node.is_reference {
+                    code.push_str("&");
+                }
                 code.push_str(&format!("{}",variable_node.id_node.name.lexeme));
             }
             IdentifierDeclScope::None => {
                 // TODO: Explore labeling Variables as "extern" scope
+                if variable_node.id_node.is_reference {
+                    code.push_str("&");
+                }
                 code.push_str(&format!("{}",variable_node.id_node.name.lexeme));
             },            // Actions?
             _ => self.errors.push("Illegal scope.".to_string()),
@@ -998,15 +1011,14 @@ impl RustVisitor {
 
             if has_state_args {
                 self.add_code(&format!("state_args:{},", formatted_state_args));
-                self.newline();
             }
             if has_state_vars {
-                self.add_code(&format!("state_vars:{},", formatted_state_vars));
                 self.newline();
+                self.add_code(&format!("state_vars:{},", formatted_state_vars));
             }
             if has_enter_event_params {
-                self.add_code(&format!("enter_args:{},", formatted_enter_args));
                 self.newline();
+                self.add_code(&format!("enter_args:{},", formatted_enter_args));
             }
             self.outdent();
             self.newline();
@@ -1160,9 +1172,10 @@ impl AstVisitor for RustVisitor {
         self.system_name = system_node.name.clone();
         self.add_code(&format!("// {}", self.compiler_version));
         self.newline();
+        self.add_code(&system_node.header);
+        self.newline();
         self.add_code("use std::collections::HashMap;");
         self.newline();
-        self.add_code(&system_node.header);
         // self.newline();
         // self.add_code("// get include files at https://github.com/frame-lang/frame-ancillary-files");
         // self.newline();
@@ -1433,7 +1446,7 @@ impl AstVisitor for RustVisitor {
                     }
 
                     if has_state_vars {
-                        self.add_code(&format!("{}:{}StateVars,", self.config.state_vars_var, state_node.name));
+                        self.add_code(&format!("{}:{}StateVars,", self.config.state_vars_var_name, state_node.name));
                         self.newline();
                     }
 
@@ -2517,7 +2530,7 @@ impl AstVisitor for RustVisitor {
     fn visit_call_expr_list_node(&mut self, call_expr_list: &CallExprListNode) -> AstVisitorReturnType {
 
         let mut separator = "";
-        self.add_code(&format!("("));
+//        self.add_code(&format!("("));
 
         for expr in &call_expr_list.exprs_t {
 
@@ -2526,7 +2539,7 @@ impl AstVisitor for RustVisitor {
             separator = ",";
         }
 
-        self.add_code(&format!(")"));
+//        self.add_code(&format!(")"));
 
         AstVisitorReturnType::CallExprListNode {}
     }
@@ -2536,7 +2549,7 @@ impl AstVisitor for RustVisitor {
     fn visit_call_expr_list_node_to_string(&mut self, call_expr_list: &CallExprListNode, output:&mut String) -> AstVisitorReturnType {
 
         let mut separator = "";
-        output.push_str(&format!("("));
+//        output.push_str(&format!("("));
 
         for expr in &call_expr_list.exprs_t {
 
@@ -2545,7 +2558,7 @@ impl AstVisitor for RustVisitor {
             separator = ",";
         }
 
-        output.push_str(&format!(")"));
+//        output.push_str(&format!(")"));
 
         AstVisitorReturnType::CallExprListNode {}
     }
@@ -3210,7 +3223,7 @@ impl AstVisitor for RustVisitor {
             TokenType::SuperStringTok
                 => self.add_code(&format!("{}", literal_expression_node.value)),
             TokenType::StringTok
-                => self.add_code(&format!("\"{}\"", literal_expression_node.value)),
+                => self.add_code(&format!("String::from(\"{}\")", literal_expression_node.value)),
             TokenType::TrueTok
                 => self.add_code("true"),
             TokenType::FalseTok
@@ -3238,7 +3251,7 @@ impl AstVisitor for RustVisitor {
                 output.push_str(&format!("{}", literal_expression_node.value))
             },
             TokenType::StringTok => {
-                output.push_str(&format!("\"{}\"", literal_expression_node.value));
+                output.push_str(&format!("String::from(\"{}\")", literal_expression_node.value));
             },
             TokenType::TrueTok => {
                 output.push_str("true");
@@ -3388,7 +3401,7 @@ impl AstVisitor for RustVisitor {
 
 
         let action_name = self.format_action_name(&action_decl_node.name);
-        self.add_code(&format!("fn {}(&mut self",action_name));
+        self.add_code(&format!("fn {}(&self",action_name));
 //        subclass_code.push_str(&format!("fn {}(",action_name));
 
         match &action_decl_node.params {
@@ -3425,7 +3438,7 @@ impl AstVisitor for RustVisitor {
 
 
         let action_name = self.format_action_name(&action_node.name);
-        self.add_code(&format!("fn {}(&mut self",action_name));
+        self.add_code(&format!("fn {}(&self",action_name));
 //        subclass_code.push_str(&format!("fn {}(",action_name));
 
         match &action_node.params {

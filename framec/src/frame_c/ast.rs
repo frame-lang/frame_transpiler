@@ -1406,8 +1406,8 @@ impl TypeNode {
         if self.is_reference {
             s.push('&');
         }
-        s.push_str(&*self.type_str);
 
+        s.push_str(&*self.type_str);
         s
     }
 }
