@@ -19,7 +19,7 @@ struct Config {
     exit_msg:String,
     exit_token:String,
     frame_state_type_name:String,
-    frame_event:String,
+    frame_event_type_name:String,
     frame_message:String,
     frame_event_return:String,
     frame_event_variable_name:String,
@@ -29,6 +29,7 @@ struct Config {
     state_context_suffix:String,
     state_args_var:String,
     state_vars_var_name:String,
+    state_stack_var_name:String,
 
 }
 
@@ -48,7 +49,7 @@ impl Config {
             exit_msg:String::from("Exit"),
             exit_token:String::from("<"),
             frame_state_type_name:String::from("FrameState"),
-            frame_event:String::from("FrameEvent"),
+            frame_event_type_name:String::from("FrameEvent"),
             frame_message:String::from("FrameMessage"),
             frame_event_return:String::from("FrameEventReturn"),
             frame_event_variable_name:String::from("e"),
@@ -58,6 +59,7 @@ impl Config {
             state_context_suffix:String::from("StateContext"),
             state_args_var:String::from("state_args"),
             state_vars_var_name:String::from("state_vars"),
+            state_stack_var_name:String::from("state_stack"),
         }
     }
 }
@@ -653,27 +655,36 @@ impl RustVisitor {
                     self.newline();
                     self.add_code(&format!("return _stateStack_.Pop();"));
                 } else {
-                    self.add_code(&format!("private Stack<FrameState> _stateStack_ = new Stack<FrameState>();"));
                     self.newline();
-                    self.newline();
-                    self.add_code(&format!("private void _stateStack_push_(FrameState state) {{"));
+                    self.add_code(&format!("fn state_stack_push(&mut self,state:FrameState) {{"));
                     self.indent();
                     self.newline();
-                    self.add_code(&format!("_stateStack_.Push(state);"));
+                    self.add_code(&format!("self.state_stack.push(state);"));
                     self.outdent();
                     self.newline();
                     self.add_code(&format!("}}"));
                     self.newline();
                     self.newline();
-                    self.add_code(&format!("private FrameState _stateStack_pop_() {{"));
+
+                    self.add_code(&format!("fn state_stack_pop(&mut self) -> FrameState {{"));
                     self.indent();
                     self.newline();
-                    self.add_code(&format!("return _stateStack_.Pop();"));
+                    self.add_code(&format!("let state_opt = self.state_stack.pop();"));
+                    self.newline();
+                    self.add_code(&format!(" match state_opt {{"));
+                    self.indent();
+                    self.newline();
+                    self.add_code(&format!("Some(state) => state,"));
+                    self.newline();
+                    self.add_code(&format!("None => panic!(\"Error - attempt to pop history when history stack is empty.\")"));
+                    self.outdent();
+                    self.newline();
+                    self.add_code("}");
                 }
 
                 self.outdent();
                 self.newline();
-                self.add_code(&format!("}}"));
+                self.add_code("}");
             }
             if self.generate_change_state {
                 self.newline();
@@ -1141,22 +1152,22 @@ impl RustVisitor {
         }
 
         if self.generate_state_context {
-            self.add_code(&format!("StateContext state_context = _stateStack_pop_();"));
+            self.add_code(&format!("let state_context = self.state_stack_pop();"));
         } else {
-            self.add_code(&format!("FrameState state = _stateStack_pop_();"));
+            self.add_code(&format!("let state = self.state_stack_pop();"));
         }
         self.newline();
         if self.generate_exit_args {
             if self.generate_state_context {
-                self.add_code(&format!("_transition_(state_context.state,exit_args,state_context);"));
+                self.add_code(&format!("self.transition(state,exit_args,state_context);"));
             } else {
-                self.add_code(&format!("_transition_(state,exit_args);"));
+                self.add_code(&format!("self.transition(state,exit_args);"));
             }
         } else {
             if self.generate_state_context {
-                self.add_code(&format!("_transition_(state_context.state,state_context);"));
+                self.add_code(&format!("self.transition(state_context.state,state_context);"));
             } else {
-                self.add_code(&format!("_transition_(state);"));
+                self.add_code(&format!("self.transition(state);"));
             }
         }
     }
@@ -1289,7 +1300,7 @@ impl AstVisitor for RustVisitor {
         self.add_code("}");
         self.newline();
         self.newline();
-        self.add_code("struct FrameEvent {");
+        self.add_code(&format!("struct {} {{",self.config.frame_event_type_name));
         self.indent();
         self.newline();
         self.add_code("message: FrameMessage,");
@@ -1302,13 +1313,13 @@ impl AstVisitor for RustVisitor {
         self.add_code("}");
         self.newline();
         self.newline();
-        self.add_code("impl FrameEvent {");
+        self.add_code(&format!("impl {} {{",self.config.frame_event_type_name));
         self.indent();
         self.newline();
         self.add_code("fn new(message:FrameMessage, parameters:Option<Box<FrameParameters>>) -> FrameEvent {");
         self.indent();
         self.newline();
-        self.add_code("FrameEvent {");
+        self.add_code(&format!("{} {{",self.config.frame_event_type_name));
         self.indent();
         self.newline();
         self.add_code("message,");
@@ -1545,18 +1556,30 @@ impl AstVisitor for RustVisitor {
         }
         self.newline();
 
+        self.add_code("// System Controller ");
+        self.newline();
+        self.newline();
         self.add_code(&format!("pub struct {} {{", self.system_name));
         self.indent();
         self.newline();
 
         // generate state variable
-        self.add_code(&format!("{}:FrameState,",&self.config.state_var_name));
+        self.add_code(&format!("{}:{},",&self.config.state_var_name, self.config.frame_state_type_name));
 
         // generate state context variable
 
         if self.generate_state_context {
             self.newline();
             self.add_code(&format!("{}:{},",self.config.state_context_var_name, self.config.state_context_struct_name));
+            if self.generate_state_stack {
+                self.newline();
+                self.add_code(&format!("{}:Vec<{}>,",self.config.state_stack_var_name,self.config.state_context_name));
+            }
+        } else {
+            if self.generate_state_stack {
+                self.newline();
+                self.add_code(&format!("{}:Vec<{}>,",self.config.state_stack_var_name,self.config.frame_state_type_name));
+            }
         }
 
         if let Some(domain_block_node) = &system_node.domain_block_node_opt {
@@ -1600,6 +1623,7 @@ impl AstVisitor for RustVisitor {
                 self.newline();
                 self.add_code(&format!("state:{}::{},",&self.system_name,self.format_state_name(&self.first_state_name)));
                 //              self.output_string_vec(&enter_arguments);
+
                 self.outdent();
                 self.newline();
                 self.add_code("};");
@@ -1619,11 +1643,18 @@ impl AstVisitor for RustVisitor {
                 self.newline();
                 self.newline();
             }
+
             self.newline();
             self.add_code(&format!("{} {{", system_node.name));
             self.indent();
             self.newline();
             self.add_code(&format!("{}:{}::{},",&self.config.state_var_name, system_node.name, self.format_state_name(&self.first_state_name)));
+
+            // generate history mechanism
+            if self.generate_state_stack {
+                self.newline();
+                self.add_code(&format!("{}:Vec::new(),",self.config.state_stack_var_name));
+            }
 
             if let Some(domain_block_node) = &system_node.domain_block_node_opt {
                 for variable_decl_node_rcref in &domain_block_node.member_variables {
@@ -1716,7 +1747,7 @@ impl AstVisitor for RustVisitor {
         // self.newline();
         self.outdent();
         self.newline();
-        self.add_code("}");
+        self.add_code("} // end system controller");
         self.newline();
 
         if let Some(actions_block_node) = &system_node.actions_block_node_opt {
@@ -2122,7 +2153,7 @@ impl AstVisitor for RustVisitor {
         // self.indent();
         self.newline();
         self.add_code(&format!("let mut e = {}::new({}::{},{});"
-                                ,self.config.frame_event
+                                ,self.config.frame_event_type_name
                                 ,self.config.frame_message
                                 ,self.get_msg_enum(&interface_method_node.name)
                                 ,&params_param_code));
@@ -2530,7 +2561,7 @@ impl AstVisitor for RustVisitor {
     fn visit_call_expr_list_node(&mut self, call_expr_list: &CallExprListNode) -> AstVisitorReturnType {
 
         let mut separator = "";
-//        self.add_code(&format!("("));
+       self.add_code(&format!("("));
 
         for expr in &call_expr_list.exprs_t {
 
@@ -2539,7 +2570,7 @@ impl AstVisitor for RustVisitor {
             separator = ",";
         }
 
-//        self.add_code(&format!(")"));
+       self.add_code(&format!(")"));
 
         AstVisitorReturnType::CallExprListNode {}
     }
@@ -3222,8 +3253,15 @@ impl AstVisitor for RustVisitor {
                 => self.add_code(&format!("{}", literal_expression_node.value)),
             TokenType::SuperStringTok
                 => self.add_code(&format!("{}", literal_expression_node.value)),
-            TokenType::StringTok
-                => self.add_code(&format!("String::from(\"{}\")", literal_expression_node.value)),
+            TokenType::StringTok => {
+                // if literal_expression_node. {
+                //     code.push_str("&");
+                // }
+                if literal_expression_node.is_reference {
+                    self.add_code("&");
+                }
+                self.add_code(&format!("String::from(\"{}\")", literal_expression_node.value));
+            },
             TokenType::TrueTok
                 => self.add_code("true"),
             TokenType::FalseTok
@@ -3318,16 +3356,16 @@ impl AstVisitor for RustVisitor {
             StateStackOperationType::Push => {
                 self.newline();
                 if self.generate_state_context {
-                    self.add_code(&format!("_stateStack_push_(_state_context_);"));
+                    self.add_code(&format!("self.state_stack_push(self.state_context);"));
                 } else {
-                    self.add_code(&format!("_stateStack_push_(_state_);"));
+                    self.add_code(&format!("self.state_stack_push(self.state);"));
                 }
             },
             StateStackOperationType::Pop => {
                 if self.generate_state_context {
-                    self.add_code(&format!("StateContext state_context = _stateStack_pop_()"));
+                    self.add_code(&format!("let state_context = self.state_stack_pop();"));
                 } else {
-                    self.add_code(&format!("FrameState state = _stateStack_pop_()"));
+                    self.add_code(&format!("let state = self.state_stack_pop();"));
                 }
             }
         }

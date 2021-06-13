@@ -1241,8 +1241,9 @@ impl<'a> Parser<'a> {
         let mut calls_opt = None;
         let mut calls = Vec::new();
 
+        // @TODO - add reference syntax
         while self.match_token(&vec![IdentifierTok]) {
-            match self.variable_or_call_expr(IdentifierDeclScope::None, false) {
+            match self.variable_or_call_expr(IdentifierDeclScope::None) {
                 // Ok(Some(VariableExprT { var_node: id_node }))
                 //     => {
                 //     // TODO: better error handling
@@ -2616,6 +2617,9 @@ impl<'a> Parser<'a> {
             }
         }
 
+        // @TODO need to determine if this is the best way to
+        // deal w/ references. We can basically put & in front
+        // of a wide range of syntax it doesn't apply to.
         let mut is_reference = false;
         if self.match_token(&vec![AndTok]) {
             is_reference = true;
@@ -2623,9 +2627,11 @@ impl<'a> Parser<'a> {
 
         // TODO: I think only identifier is allowed?
         if self.match_token(&vec![IdentifierTok]) {
-            match self.variable_or_call_expr(scope, is_reference) {
-                Ok(Some(VariableExprT { var_node: id_node }))
-                    => return Ok(Some(VariableExprT { var_node: id_node })),
+            match self.variable_or_call_expr(scope) {
+                Ok(Some(VariableExprT { mut var_node })) => {
+                    var_node.id_node.is_reference = is_reference;
+                    return Ok(Some(VariableExprT { var_node }))
+                },
                 Ok(Some(CallExprT { call_expr_node: method_call_expr_node }))
                     => return Ok(Some(CallExprT { call_expr_node: method_call_expr_node })),
                 Ok(Some(ActionCallExprT { action_call_expr_node}))
@@ -2640,7 +2646,10 @@ impl<'a> Parser<'a> {
 
         // number | string | bool | null | nil
         match self.literal_expr() {
-            Ok(Some(literal_expr_node)) => return Ok(Some(LiteralExprT { literal_expr_node })),
+            Ok(Some(mut literal_expr_node)) => {
+                literal_expr_node.is_reference = is_reference;
+                return Ok(Some(LiteralExprT { literal_expr_node }));
+            },
             Err(parse_error) => return Err(parse_error),
             Ok(None) => {}, // continue
         }
@@ -2751,11 +2760,11 @@ impl<'a> Parser<'a> {
 
     // TODO: create a new return type that is narrowed to just the types this method returns.
     // TODO: change the return type to be CallChainLiteralExprT as it doesn't return anything else.
-    fn variable_or_call_expr(&mut self, explicit_scope: IdentifierDeclScope,is_reference:bool) -> Result<Option<ExprType>,ParseError> {
+    fn variable_or_call_expr(&mut self, explicit_scope: IdentifierDeclScope) -> Result<Option<ExprType>,ParseError> {
 
         let mut scope:IdentifierDeclScope;
 
-        let mut id_node = IdentifierNode::new(self.previous().clone(), None, explicit_scope.clone(),is_reference,self.previous().line);
+        let mut id_node = IdentifierNode::new(self.previous().clone(), None, explicit_scope.clone(),false,self.previous().line);
         let mut call_chain:std::collections::VecDeque<CallChainLiteralNodeType> = std::collections::VecDeque::new();
 
         // Loop over the tokens looking for "callable" tokens (methods and identifiers)

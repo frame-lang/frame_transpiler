@@ -1358,6 +1358,7 @@ impl CallableExpr for IdentifierNode {
 pub struct LiteralExprNode {
     pub token_t:TokenType,
     pub value:String,
+    pub is_reference:bool,
 }
 
 impl LiteralExprNode {
@@ -1365,6 +1366,7 @@ impl LiteralExprNode {
         LiteralExprNode {
             token_t,
             value,
+            is_reference:false
         }
     }
 }
