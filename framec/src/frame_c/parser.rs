@@ -2636,8 +2636,15 @@ impl<'a> Parser<'a> {
                     => return Ok(Some(CallExprT { call_expr_node: method_call_expr_node })),
                 Ok(Some(ActionCallExprT { action_call_expr_node}))
                     => return Ok(Some(ActionCallExprT { action_call_expr_node })),
-                Ok(Some(CallChainLiteralExprT { call_chain_expr_node }))
-                    => return Ok(Some(CallChainLiteralExprT { call_chain_expr_node })),
+                Ok(Some(CallChainLiteralExprT { mut call_chain_expr_node })) => {
+                    // set the is_reference on first variable in the call chain
+                    let call_chain_first_node_opt =  call_chain_expr_node.call_chain.get_mut(0);
+                    if let Some(call_chain_first_node) = call_chain_first_node_opt {
+                        call_chain_first_node.setIsReference(is_reference);
+                    }
+
+                    return Ok(Some(CallChainLiteralExprT { call_chain_expr_node }))
+                },
                 Ok(Some(_)) => return Err(ParseError::new("TODO")),
                 Err(parse_error) => return Err(parse_error),
                 Ok(None) => {}, // continue

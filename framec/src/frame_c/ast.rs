@@ -55,9 +55,36 @@ impl_downcast!(CallableExpr);
 pub enum CallChainLiteralNodeType {
     // TODO: should be differentiated parameter or variable? no funcitonal difference at this point though
     VariableNodeT {var_node:VariableNode},
+
     IdentifierNodeT {id_node:IdentifierNode}, // TODO: change IdentifierNode to VariableNode
     CallT {call: CallExprNode },
     ActionCallT {action_call_expr_node:ActionCallExprNode},
+}
+
+impl CallChainLiteralNodeType {
+    pub fn getIsReference(&self) -> bool {
+        match self {
+            CallChainLiteralNodeType::VariableNodeT{var_node} => {
+                var_node.id_node.is_reference
+            },
+            CallChainLiteralNodeType::IdentifierNodeT{id_node} => {
+                id_node.is_reference
+            },
+            _ =>  false,
+        }
+    }
+
+    pub fn setIsReference(&mut self, is_reference:bool) {
+        match self {
+            CallChainLiteralNodeType::VariableNodeT{ var_node } => {
+                var_node.id_node.is_reference = is_reference;
+            },
+            CallChainLiteralNodeType::IdentifierNodeT{id_node} => {
+                id_node.is_reference = is_reference;
+            },
+            _ => { }
+        }
+    }
 }
 
 
