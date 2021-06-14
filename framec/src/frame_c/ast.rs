@@ -62,17 +62,17 @@ pub enum CallChainLiteralNodeType {
 }
 
 impl CallChainLiteralNodeType {
-    pub fn getIsReference(&self) -> bool {
-        match self {
-            CallChainLiteralNodeType::VariableNodeT{var_node} => {
-                var_node.id_node.is_reference
-            },
-            CallChainLiteralNodeType::IdentifierNodeT{id_node} => {
-                id_node.is_reference
-            },
-            _ =>  false,
-        }
-    }
+    // pub fn getIsReference(&self) -> bool {
+    //     match self {
+    //         CallChainLiteralNodeType::VariableNodeT{var_node} => {
+    //             var_node.id_node.is_reference
+    //         },
+    //         CallChainLiteralNodeType::IdentifierNodeT{id_node} => {
+    //             id_node.is_reference
+    //         },
+    //         _ =>  false,
+    //     }
+    // }
 
     pub fn setIsReference(&mut self, is_reference:bool) {
         match self {

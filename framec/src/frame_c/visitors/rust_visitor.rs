@@ -23,6 +23,7 @@ struct Config {
     frame_message:String,
     frame_event_return:String,
     frame_event_variable_name:String,
+    frame_event_parameters_attribute_name:String,
     frame_event_message_attribute_name:String,
     frame_event_return_attribute_name:String,
     state_context_name:String,
@@ -53,6 +54,7 @@ impl Config {
             frame_message:String::from("FrameMessage"),
             frame_event_return:String::from("FrameEventReturn"),
             frame_event_variable_name:String::from("e"),
+            frame_event_parameters_attribute_name:String::from("parameters"),
             frame_event_message_attribute_name:String::from("message"),
             frame_event_return_attribute_name:String::from("ret"),
             state_context_name:String::from("StateContext"),
@@ -196,18 +198,18 @@ impl RustVisitor {
         match &state_name_opt {
             Some(state_name) => {
                 format!("{}_{}_{}",state_name
-                                       , RustVisitor::uppercase_first_letter(&*self.canonical_event_name(&event_name))
-                                       , RustVisitor::uppercase_first_letter(param_name)
+                                       , &*self.canonical_event_name(&event_name)
+                                       , param_name
                 )
             },
             None => {
                  format!("{}_{}"
-                                        , RustVisitor::uppercase_first_letter(&*self.canonical_event_name(&event_name))
-                                        , RustVisitor::uppercase_first_letter(param_name)
+                                        , &*self.canonical_event_name(&event_name)
+                                        , param_name
                 )
             }
         }
-        // match &state_name_opt {
+        //       match &state_name_opt {
         //     Some(state_name) => {
         //         format!("{}_{}_{}",state_name
         //                                , RustVisitor::uppercase_first_letter(&*self.canonical_event_name(&event_name))
@@ -221,6 +223,7 @@ impl RustVisitor {
         //         )
         //     }
         // }
+        //
     }
 
     //* --------------------------------------------------------------------- *//
@@ -388,10 +391,19 @@ impl RustVisitor {
                     code.push_str("&");
                 }
 
-                code.push_str(&format!("{}.{}.{}"
-                                        ,self.config.this_state_context_var_name
-                                        ,self.config.enter_args_member_name
-                                        ,&variable_node.id_node.name.lexeme));
+                if self.generate_state_context {
+                    code.push_str(&format!("{}.{}.{}"
+                                           ,self.config.this_state_context_var_name
+                                           ,self.config.enter_args_member_name
+                                           ,&variable_node.id_node.name.lexeme));
+                } else {
+                    code.push_str(&format!("{}.{}.as_ref().unwrap().get_{}_{}()"
+                                           ,self.config.frame_event_variable_name
+                                           ,self.config.frame_event_parameters_attribute_name
+                                           ,self.current_message
+                                           ,variable_node.id_node.name.lexeme));
+                }
+
                 if self.visiting_call_chain_literal_variable {
                     code.push_str(")");
                 }
@@ -2529,6 +2541,7 @@ impl AstVisitor for RustVisitor {
             TerminatorType::Return => {
                 match &evt_handler_terminator_node.return_expr_t_opt {
                     Some(expr_t) => {
+ //                       return_type should be renamed return_value
                         self.add_code(&format!("{}.{} = "
                                                 ,self.config.frame_event_variable_name
                                                 ,self.config.frame_event_return_attribute_name));
@@ -3450,7 +3463,7 @@ impl AstVisitor for RustVisitor {
                                                                         ,param_tok.lexeme)),
             FrameEventPart::Return => self.add_code(&format!("{}.{}"
                                                              ,self.config.frame_event_variable_name
-                                                             ,self.config.frame_event_message_attribute_name)),
+                                                             ,self.config.frame_event_return_attribute_name)),
         }
 
         AstVisitorReturnType::FrameEventExprType {}
@@ -3645,10 +3658,29 @@ impl AstVisitor for RustVisitor {
 
         self.generate_comment(assignment_expr_node.line);
         self.newline();
-        assignment_expr_node.l_value_box.accept(self);
-        self.add_code(" = ");
-        assignment_expr_node.r_value_box.accept(self);
-        self.add_code(";");
+        match &*assignment_expr_node.l_value_box {
+            ExprType::FrameEventExprT {frame_event_part} => {
+                let mut code = String::new();
+                assignment_expr_node.r_value_box.accept_to_string(self, &mut code);
+                self.add_code(&format!("{}.{} = "
+                                       ,self.config.frame_event_variable_name
+                                       ,self.config.frame_event_return_attribute_name));
+
+                self.add_code(&format!("{}::{} {{return_type:{}}};"
+                                        ,self.config.frame_event_return
+                                       ,RustVisitor::uppercase_first_letter(&self.current_message)
+                                       ,code));
+
+
+            },
+            _ => {
+                assignment_expr_node.l_value_box.accept(self);
+                self.add_code(" = ");
+                assignment_expr_node.r_value_box.accept(self);
+                self.add_code(";");
+            }
+        }
+
 
         AstVisitorReturnType::AssignmentExprNode {}
     }
