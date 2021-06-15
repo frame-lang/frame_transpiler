@@ -391,7 +391,8 @@ impl RustVisitor {
                     code.push_str("&");
                 }
 
-                if self.generate_state_context {
+                // if generating state context and is the enter event...
+                if self.generate_state_context && self.config.enter_token == self.current_message {
                     code.push_str(&format!("{}.{}.{}"
                                            ,self.config.this_state_context_var_name
                                            ,self.config.enter_args_member_name
