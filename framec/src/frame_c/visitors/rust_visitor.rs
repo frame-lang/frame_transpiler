@@ -710,7 +710,7 @@ impl RustVisitor {
             if self.generate_change_state {
                 self.newline();
                 self.newline();
-                self.add_code(&format!("fn changeState(&mut self, new_state:FrameState {{"));
+                self.add_code(&format!("fn changeState(&mut self, new_state:FrameState) {{"));
                 self.indent();
                 self.newline();
                 self.add_code(&format!("self.{} = new_state;",&self.config.state_var_name));
