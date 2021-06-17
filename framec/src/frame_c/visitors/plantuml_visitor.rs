@@ -1433,17 +1433,17 @@ impl AstVisitor for PlantUmlVisitor {
 
     fn visit_test_statement_node(&mut self, test_stmt_node: &TestStatementNode) -> AstVisitorReturnType {
 
-        // match &test_stmt_node.test_t {
-        //     TestType::BoolTest {bool_test_node}  => {
-        //         bool_test_node.accept(self);
-        //     },
-        //     TestType::StringMatchTest {string_match_test_node} => {
-        //         string_match_test_node.accept(self);
-        //     },
-        //     TestType::NumberMatchTest {number_match_test_node} => {
-        //         number_match_test_node.accept(self);
-        //     },
-        // }
+        match &test_stmt_node.test_t {
+            TestType::BoolTest {bool_test_node}  => {
+                bool_test_node.accept(self);
+            },
+            TestType::StringMatchTest {string_match_test_node} => {
+                string_match_test_node.accept(self);
+            },
+            TestType::NumberMatchTest {number_match_test_node} => {
+                number_match_test_node.accept(self);
+            },
+        }
 
         AstVisitorReturnType::TestStatementNode {}
     }
@@ -1768,7 +1768,7 @@ impl AstVisitor for PlantUmlVisitor {
 
         self.newline();
         for match_branch_node in &number_match_test_node.match_branch_nodes {
-            self.add_code(&format!("{} (", if_or_else_if));
+            // self.add_code(&format!("{} (", if_or_else_if));
             match &number_match_test_node.expr_t {
                 ExprType::CallExprT { call_expr_node: method_call_expr_node }
                 => method_call_expr_node.accept(self),
@@ -1784,10 +1784,10 @@ impl AstVisitor for PlantUmlVisitor {
             let mut first_match = true;
             for match_number in &match_branch_node.number_match_pattern_nodes {
                 if first_match {
-                    self.add_code(&format!(" == {})",match_number.match_pattern_number));
+            //        self.add_code(&format!(" == {})",match_number.match_pattern_number));
                     first_match = false;
                 } else {
-                    self.add_code(&format!(" || ("));
+                    // self.add_code(&format!(" || ("));
                     match &number_match_test_node.expr_t {
                         ExprType::CallExprT { call_expr_node: method_call_expr_node }
                         => method_call_expr_node.accept(self),
@@ -1799,17 +1799,17 @@ impl AstVisitor for PlantUmlVisitor {
                         => id_node.accept(self),
                         _ => panic!("TODO"),
                     }
-                    self.add_code(&format!(" == {})",match_number.match_pattern_number));
+            //        self.add_code(&format!(" == {})",match_number.match_pattern_number));
                 }
             }
 
-            self.add_code(&format!(") {{"));
-            self.indent();
+            // self.add_code(&format!(") {{"));
+            // self.indent();
 
             match_branch_node.accept(self);
 
-            self.outdent(); self.newline();
-            self.add_code(&format!("}}"));
+            // self.outdent(); self.newline();
+            // self.add_code(&format!("}}"));
 
             //           self.indent();
 
@@ -1866,8 +1866,8 @@ impl AstVisitor for PlantUmlVisitor {
 
     fn visit_number_match_test_else_branch_node(&mut self, number_match_test_else_branch_node:&NumberMatchTestElseBranchNode) -> AstVisitorReturnType {
 
-        self.add_code(&format!(" else {{"));
-        self.indent();
+        // self.add_code(&format!(" else {{"));
+        // self.indent();
 
         self.visit_decl_stmts(&number_match_test_else_branch_node.statements);
 
@@ -1899,9 +1899,9 @@ impl AstVisitor for PlantUmlVisitor {
     //         None => {}
     //     }
 
-        self.outdent();
-        self.newline();
-        self.add_code(&format!("}}"));
+        // self.outdent();
+        // self.newline();
+        // self.add_code(&format!("}}"));
 
         AstVisitorReturnType::NumberMatchElseBranchNode {}
     }
