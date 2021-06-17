@@ -615,15 +615,48 @@ impl<'a> Parser<'a> {
             None => {},
         }
 
-        let event_symbol = EventSymbol::new(&self.arcanum.symbol_config
-                                                        ,&name
-                                                        ,param_symbols_opt
-                                                        ,return_type_opt.clone()
-                                                        ,None);
-        let event_symbol_rcref = Rc::new(RefCell::new(event_symbol));
-        self.arcanum.declare_event(Rc::clone(&event_symbol_rcref));
+        // if the alias exists, that is the name of the event message.
+        // if not, the interface method name becomes the event message name.
 
-        Ok(InterfaceMethodNode::new(name, params_opt, return_type_opt, alias_opt))
+        let msg = match &alias_opt {
+            Some(alias) => alias.name.clone(),
+            None => name.clone(),
+        };
+
+        // get or create the event symbol for the message we found
+        let event_symbol_rcref ;
+        match self.arcanum.get_event(&*msg,&self.state_name_opt) {
+            Some(existing_event_symbol_rc_ref) => {
+                // found message
+                event_symbol_rcref = existing_event_symbol_rc_ref.clone();
+            },
+            None => {
+                let event_symbol = EventSymbol::new(&self.arcanum.symbol_config
+                                                    ,&msg
+                                                    ,Some(name.clone())
+                                                    ,param_symbols_opt
+                                                    ,return_type_opt.clone()
+                                                    ,self.state_name_opt.clone());
+                event_symbol_rcref = Rc::new(RefCell::new(event_symbol));
+                self.arcanum.declare_event(Rc::clone(&event_symbol_rcref));
+
+                // This is the first time we are seeing this event.
+                // Set flag so parameters and return type are added to event symbol
+                // during this parse.
+ //               is_declaring_event = true;
+            }
+        }
+
+        // let event_symbol = EventSymbol::new(&self.arcanum.symbol_config
+        //                                                 ,&name
+        //                                                 ,Some(name.clone()),
+        //                                                 ,param_symbols_opt
+        //                                                 ,return_type_opt.clone()
+        //                                                 ,None);
+
+        let interface_method_node = InterfaceMethodNode::new(name, params_opt, return_type_opt, alias_opt);
+
+        Ok(interface_method_node)
     }
 
 
@@ -1431,6 +1464,7 @@ impl<'a> Parser<'a> {
                 None => {
                     let event_symbol = EventSymbol::new(&self.arcanum.symbol_config
                                                         ,&msg
+                                                        ,None
                                                         ,None
                                                         ,None
                                                         ,self.state_name_opt.clone());

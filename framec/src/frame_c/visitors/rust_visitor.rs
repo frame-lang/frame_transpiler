@@ -140,13 +140,23 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    // Enter/exit messages are formatted "stateName:>" or "stateName:<"
+
+    pub fn isEnterOrExitMessage(&self, msg:&str) -> bool {
+        let split = msg.split(":");
+        let vec:Vec<&str> = split.collect();
+        vec.len() == 2
+    }
+
+    //* --------------------------------------------------------------------- *//
+
     pub fn get_msg_enum(&self, msg:&str) -> String {
         match msg {
-            ">>" => self.config.start_system_msg.clone(),
-            "<<" => self.config.stop_system_msg.clone(),
+            // ">>" => self.config.start_system_msg.clone(),
+            // "<<" => self.config.stop_system_msg.clone(),
             ">" => self.config.enter_msg.clone(),
             "<" => self.config.exit_msg.clone(),
-            _ => RustVisitor::uppercase_first_letter(msg),
+            _ => self.arcanium.get_interface_or_msg_from_msg(msg).unwrap(),
         }
     }
 
@@ -203,10 +213,20 @@ impl RustVisitor {
                 )
             },
             None => {
-                 format!("{}_{}"
-                                        , &*self.canonical_event_name(&event_name)
-                                        , param_name
-                )
+                    let message_opt = self.arcanium.get_interface_or_msg_from_msg(&event_name);
+                    match &message_opt {
+                        Some(canonical_message_name) => {
+                            format!("{}_{}", canonical_message_name, param_name)
+                        },
+                        None => {
+                                format!("<Error - unknown message {}>,", &unparsed_event_name)
+
+                        }
+                    }
+                    // format!("{}_{}"
+                    //                     , &*self.canonical_event_name(&event_name)
+                    //                     , param_name
+                    //  )
             }
         }
         //       match &state_name_opt {
@@ -398,10 +418,19 @@ impl RustVisitor {
                                            ,self.config.enter_args_member_name
                                            ,&variable_node.id_node.name.lexeme));
                 } else {
+                    let msg = match &self.arcanium.get_interface_or_msg_from_msg(&self.current_message) {
+                        Some(canonical_message_name) => {
+                            format!("{}", canonical_message_name)
+                        },
+                        None => {
+                            self.errors.push(format!("<Error - unknown message {}>,", &self.current_message));
+                            format!("<Error - unknown message {}>", &self.current_message)
+                        }
+                    };
                     code.push_str(&format!("{}.{}.as_ref().unwrap().get_{}_{}()"
                                            ,self.config.frame_event_variable_name
                                            ,self.config.frame_event_parameters_attribute_name
-                                           ,self.current_message
+                                           ,msg
                                            ,variable_node.id_node.name.lexeme));
                 }
 
@@ -485,11 +514,13 @@ impl RustVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn uppercase_first_letter(s: &str) -> String {
-        let mut c = s.chars();
-        match c.next() {
-            None => String::new(),
-            Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
-        }
+        // @TODO - not sure if this is a good idea or not
+        // let mut c = s.chars();
+        // match c.next() {
+        //     None => String::new(),
+        //     Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+        // }
+        s.to_string()
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1834,11 +1865,34 @@ impl AstVisitor for RustVisitor {
         self.add_code("Enter,");
         self.newline();
         self.add_code("Exit,");
-        self.newline();
 
-        for interface_method_node in &interface_block_node.interface_methods {
-            self.add_code(&format!("{},", RustVisitor::uppercase_first_letter(&interface_method_node.name)));
-            self.newline();
+        // for interface_method_node in &interface_block_node.interface_methods {
+        //     self.add_code(&format!("{},", RustVisitor::uppercase_first_letter(&interface_method_node.name)));
+        //     self.newline();
+        // }
+
+        // let x = &self.arcanium.system_symbol_opt.as_ref().unwrap();
+        // let system_symbol = x.borrow();
+
+        let events = self.arcanium.get_event_names();
+        for event in events {
+        //    ret.push(k.clone());
+            if self.isEnterOrExitMessage(&event) {
+                continue;
+            }
+            let message_opt = self.arcanium.get_interface_or_msg_from_msg(&event);
+            match message_opt {
+                Some(cannonical_message_name) => {
+                    self.newline();
+                    self.add_code(&format!("{},", cannonical_message_name));
+                },
+                None => {
+                    self.newline();
+                    self.add_code(&format!("<Error - unknown message {}>,", &event));
+
+                }
+            }
+
         }
 
         self.outdent();
@@ -2199,8 +2253,10 @@ impl AstVisitor for RustVisitor {
             match &interface_method_node.params {
                 Some(params) => {
                     for param in params {
+                        let msg = self.arcanium.get_msg_from_interface_name(&interface_method_node.name);
+
                         let pname = &param.param_name;
-                        let parameter_enum_name = self.format_frame_event_parameter_name(&interface_method_node.name
+                        let parameter_enum_name = self.format_frame_event_parameter_name(&msg
                                                                                                  ,&param.param_name);
                         self.newline();
                         self.add_code(&format!("(*frame_parameters).set_{}({});"
@@ -2219,7 +2275,7 @@ impl AstVisitor for RustVisitor {
         self.add_code(&format!("let mut e = {}::new({}::{},{});"
                                 ,self.config.frame_event_type_name
                                 ,self.config.frame_message
-                                ,self.get_msg_enum(&interface_method_node.name)
+                                ,&interface_method_node.name
                                 ,&params_param_code));
         // self.indent();
         // self.newline();
@@ -2782,17 +2838,17 @@ impl AstVisitor for RustVisitor {
         self.newline();
         for branch_node in &bool_test_node.conditional_branch_nodes {
             if branch_node.is_negated {
-                self.add_code(&format!("{}(!(",if_or_else_if));
+                self.add_code(&format!("{}!",if_or_else_if));
             } else {
-                self.add_code(&format!("{}(",if_or_else_if));
+                self.add_code(&format!("{}",if_or_else_if));
             }
 
             branch_node.expr_t.accept(self);
 
             if branch_node.is_negated {
-                self.add_code(&format!(")"));
+                self.add_code(&format!(""));
             }
-            self.add_code(&format!(") {{"));
+            self.add_code(&format!(" {{"));
             self.indent();
 
             branch_node.accept(self);
@@ -2961,7 +3017,7 @@ impl AstVisitor for RustVisitor {
 
         self.newline();
         for match_branch_node in &string_match_test_node.match_branch_nodes {
-            self.add_code(&format!("{} (", if_or_else_if));
+            self.add_code(&format!("{} ", if_or_else_if));
             // TODO: use string_match_test_node.expr_t.accept(self) ?
             match &string_match_test_node.expr_t {
                 ExprType::CallExprT { call_expr_node: method_call_expr_node }
@@ -2994,10 +3050,10 @@ impl AstVisitor for RustVisitor {
             let mut first_match = true;
             for match_string in &match_branch_node.string_match_pattern_node.match_pattern_strings {
                 if first_match {
-                    self.add_code(&format!(" == \"{}\")",match_string));
+                    self.add_code(&format!(".eq(\"{}\")",match_string));
                     first_match = false;
                 } else {
-                    self.add_code(&format!(" || ("));
+                    self.add_code(&format!(" || "));
                     match &string_match_test_node.expr_t {
                         ExprType::CallExprT { call_expr_node: method_call_expr_node }
                         => method_call_expr_node.accept(self),
@@ -3009,7 +3065,7 @@ impl AstVisitor for RustVisitor {
                         => id_node.accept(self),
                         _ => self.errors.push(format!("TODO")),
                     }
-                    self.add_code(&format!(" == \"{}\")",match_string));
+                    self.add_code(&format!(".eq(\"{}\")",match_string));
                 }
             }
             self.add_code(&format!(" {{"));
@@ -3124,7 +3180,7 @@ impl AstVisitor for RustVisitor {
 
         self.newline();
         for match_branch_node in &number_match_test_node.match_branch_nodes {
-            self.add_code(&format!("{} (", if_or_else_if));
+            self.add_code(&format!("{} ", if_or_else_if));
             match &number_match_test_node.expr_t {
                 ExprType::CallExprT { call_expr_node: method_call_expr_node }
                 => method_call_expr_node.accept(self),
@@ -3149,10 +3205,10 @@ impl AstVisitor for RustVisitor {
             let mut first_match = true;
             for match_number in &match_branch_node.number_match_pattern_nodes {
                 if first_match {
-                    self.add_code(&format!(" == {})",match_number.match_pattern_number));
+                    self.add_code(&format!(" == {}",match_number.match_pattern_number));
                     first_match = false;
                 } else {
-                    self.add_code(&format!(" || ("));
+                    self.add_code(&format!(" || "));
                     match &number_match_test_node.expr_t {
                         ExprType::CallExprT { call_expr_node: method_call_expr_node }
                         => method_call_expr_node.accept(self),
@@ -3164,11 +3220,11 @@ impl AstVisitor for RustVisitor {
                         => id_node.accept(self),
                         _ => self.errors.push(format!("TODO.")),
                     }
-                    self.add_code(&format!(" == {})",match_number.match_pattern_number));
+                    self.add_code(&format!(" == {}",match_number.match_pattern_number));
                 }
             }
 
-            self.add_code(&format!(") {{"));
+            self.add_code(&format!(" {{"));
             self.indent();
 
             match_branch_node.accept(self);

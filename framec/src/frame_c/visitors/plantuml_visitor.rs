@@ -1433,17 +1433,17 @@ impl AstVisitor for PlantUmlVisitor {
 
     fn visit_test_statement_node(&mut self, test_stmt_node: &TestStatementNode) -> AstVisitorReturnType {
 
-        match &test_stmt_node.test_t {
-            TestType::BoolTest {bool_test_node}  => {
-                bool_test_node.accept(self);
-            },
-            TestType::StringMatchTest {string_match_test_node} => {
-                string_match_test_node.accept(self);
-            },
-            TestType::NumberMatchTest {number_match_test_node} => {
-                number_match_test_node.accept(self);
-            },
-        }
+        // match &test_stmt_node.test_t {
+        //     TestType::BoolTest {bool_test_node}  => {
+        //         bool_test_node.accept(self);
+        //     },
+        //     TestType::StringMatchTest {string_match_test_node} => {
+        //         string_match_test_node.accept(self);
+        //     },
+        //     TestType::NumberMatchTest {number_match_test_node} => {
+        //         number_match_test_node.accept(self);
+        //     },
+        // }
 
         AstVisitorReturnType::TestStatementNode {}
     }

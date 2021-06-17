@@ -737,6 +737,7 @@ impl Arcanum {
         }
     }
 
+
      /* --------------------------------------------------------------------- */
 
     pub fn declare_event(&mut self, event_symbol_rcref:Rc<RefCell<EventSymbol>>) {
@@ -750,6 +751,8 @@ impl Arcanum {
         b.events.insert(msg,Rc::clone(&event_symbol_rcref));
     }
 
+    /* --------------------------------------------------------------------- */
+
     pub fn get_event_names(&self) -> Vec<String> {
         let system_symbol_rcref = self.system_symbol_opt.as_ref().unwrap();
         let system_symbol = system_symbol_rcref.borrow();
@@ -761,6 +764,62 @@ impl Arcanum {
         ret
 
     }
+
+    /* --------------------------------------------------------------------- */
+
+    // This method preferentially gets the interface name for a message if it
+    // exists or returns the message name itself.
+
+    pub fn get_interface_or_msg_from_msg(&self,msg:&str) -> Option<String> {
+        let system_symbol_rcref = self.system_symbol_opt.as_ref().unwrap();
+        let system_symbol = system_symbol_rcref.borrow();
+        match system_symbol.events.get(&msg.to_string()) {
+            Some(event_symbol_rcref) => {
+                let event_symbol = event_symbol_rcref.borrow();
+                match &event_symbol.interface_name_opt {
+                    Some(interface_name) => Some(interface_name.clone()),
+                    None => Some(event_symbol.msg.clone()),
+                }
+            },
+            None => None,
+        }
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    // This method preferentially gets the interface name for a message if it
+    // exists or returns the message name itself.
+
+    pub fn get_msg_from_interface_name(&self,interface_name:&String) -> String {
+        let system_symbol_rcref = self.system_symbol_opt.as_ref().unwrap();
+        let system_symbol = system_symbol_rcref.borrow();
+        for (k,v) in system_symbol.events.iter() {
+            let event_symbol = v.borrow();
+            let event_symbol_interface_name_opt = &event_symbol.interface_name_opt;
+            match event_symbol_interface_name_opt {
+                Some(event_symbol_interface_name) => {
+                    if interface_name.eq(event_symbol_interface_name) {
+                        return event_symbol.msg.clone()
+                    }
+                },
+                None => return interface_name.to_string()
+            }
+
+        }
+
+        // message didn't match any
+        interface_name.to_string()
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    // This is for Rust which can't/won't deal with arbitrary message names.
+    //
+    // pub fn get_event_names_by_interface(&self) -> Vec<String> {
+    //
+    // }
+    //
+    /* --------------------------------------------------------------------- */
 
     pub fn get_event(&mut self, msg:&str, state_name_opt:&Option<String>) -> Option<Rc<RefCell<EventSymbol>>> {
         let cannonical_msg; // need to init as there is some weird bug that hangs the debugger
@@ -788,14 +847,20 @@ impl Arcanum {
     //
     // }
 
+    /* --------------------------------------------------------------------- */
+
     pub fn is_serializable(&self) -> bool {
         self.serializable
     }
+
+    /* --------------------------------------------------------------------- */
 
     pub fn insert_symbol(&mut self, symbol_t:SymbolType) {
         let symbol_table = self.get_symbol_table_for_type(&symbol_t);
         symbol_table.borrow_mut().insert_symbol(&symbol_t);
     }
+
+    /* --------------------------------------------------------------------- */
 
     // This method locates the proper symbol table for the system to insert the type into.
     // Typically this will be in the current symtab, but actions and domain objects
@@ -937,6 +1002,7 @@ impl ScopeSymbol for InterfaceMethodSymbol {
 
 pub struct EventSymbol {
     pub msg:String,
+    pub interface_name_opt:Option<String>,
     pub params_opt:Option<Vec<ParameterSymbol>>,
     pub ret_type_opt:Option<TypeNode>,
     pub is_enter_msg:bool,
@@ -945,12 +1011,13 @@ pub struct EventSymbol {
 
 impl EventSymbol {
 
-    pub fn new(symbol_config:&SymbolConfig,msg:&String,params_opt:Option<Vec<ParameterSymbol>>,ret_type_opt:Option<TypeNode>,state_name_opt:Option<String>) -> EventSymbol {
+    pub fn new(symbol_config:&SymbolConfig,msg:&String,interface_name_opt:Option<String>,params_opt:Option<Vec<ParameterSymbol>>,ret_type_opt:Option<TypeNode>,state_name_opt:Option<String>) -> EventSymbol {
 
         let (msg_name,is_enter_msg,is_exit_msg) = EventSymbol::get_event_msg(symbol_config,&state_name_opt,msg);
 
         EventSymbol {
             msg:msg_name,
+            interface_name_opt,
             params_opt,
             ret_type_opt,
             is_enter_msg,
