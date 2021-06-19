@@ -1764,7 +1764,7 @@ impl AstVisitor for PlantUmlVisitor {
 
     fn visit_number_match_test_node(&mut self, number_match_test_node:&NumberMatchTestNode) -> AstVisitorReturnType {
 
-        let mut if_or_else_if = "if";
+        // let mut if_or_else_if = "if";
 
         self.newline();
         for match_branch_node in &number_match_test_node.match_branch_nodes {
@@ -1782,7 +1782,7 @@ impl AstVisitor for PlantUmlVisitor {
             }
 
             let mut first_match = true;
-            for match_number in &match_branch_node.number_match_pattern_nodes {
+            for _match_number in &match_branch_node.number_match_pattern_nodes {
                 if first_match {
             //        self.add_code(&format!(" == {})",match_number.match_pattern_number));
                     first_match = false;
@@ -1813,7 +1813,7 @@ impl AstVisitor for PlantUmlVisitor {
 
             //           self.indent();
 
-            if_or_else_if = " else if";
+            // if_or_else_if = " else if";
         }
 
         // (':' number_test_else_branch)?

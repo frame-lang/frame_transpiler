@@ -11,8 +11,8 @@ struct Config {
     this_state_context_var_name:String,
     state_context_var_name_suffix:String,
     state_context_struct_name:String,
-    start_system_msg:String,
-    stop_system_msg:String,
+    // start_system_msg:String,
+    // stop_system_msg:String,
     enter_msg:String,
     enter_token:String,
     enter_args_member_name:String,
@@ -42,8 +42,8 @@ impl Config {
             this_state_context_var_name:String::from("this_state_context"),
             state_context_var_name_suffix:String::from("_state_context"),
             state_context_struct_name:String::from("StateContext"),
-            start_system_msg:String::from("Start"),
-            stop_system_msg:String::from("Stop"),
+            // start_system_msg:String::from("Start"),
+            // stop_system_msg:String::from("Stop"),
             enter_msg:String::from("Enter"),
             enter_token:String::from(">"),
             enter_args_member_name:String::from("enter_args"),
@@ -641,9 +641,9 @@ impl RustVisitor {
                 self.newline();
                 if self.generate_state_context {
                     if self.generate_exit_args {
-                        self.add_code(&format!("fn transition(&mut self, new_state:FrameState,exit_args:Box<FrameParameters>, state_context_rc:Rc<StateContext>) {{"));
+                        self.add_code(&format!("fn transition(&mut self, new_state:FrameState,exit_args:Box<FrameParameters>, state_context_rc:Rc<RefCell<StateContext>>) {{"));
                     } else {
-                        self.add_code(&format!("fn transition(&mut self, new_state:FrameState, state_context_rc:Rc<StateContext>) {{"));
+                        self.add_code(&format!("fn transition(&mut self, new_state:FrameState, state_context_rc:Rc<RefCell<StateContext>>) {{"));
                     }
                 } else {
                     if self.generate_exit_args {
@@ -683,7 +683,7 @@ impl RustVisitor {
                 self.newline();
                 if self.generate_state_context {
                     self.newline();
-                    self.add_code(&format!("fn state_stack_push(&mut self,state_context_rc:Rc<StateContext>) {{"));
+                    self.add_code(&format!("fn state_stack_push(&mut self,state_context_rc:Rc<RefCell<StateContext>>) {{"));
                     self.indent();
                     self.newline();
                     self.add_code(&format!("self.state_stack.push(state_context_rc);"));
@@ -692,7 +692,7 @@ impl RustVisitor {
                     self.add_code(&format!("}}"));
                     self.newline();
                     self.newline();
-                    self.add_code(&format!("fn state_stack_pop(&mut self) -> Rc<StateContext> {{"));
+                    self.add_code(&format!("fn state_stack_pop(&mut self) -> Rc<RefCell<StateContext>> {{"));
                     self.indent();
                     self.newline();
                     self.add_code(&format!("let state_context_opt = self.state_stack.pop();"));
@@ -711,7 +711,7 @@ impl RustVisitor {
                     self.add_code(&format!("fn state_stack_push(&mut self,state:FrameState) {{"));
                     self.indent();
                     self.newline();
-                    self.add_code(&format!("self.state_stack.push(state);"));
+                    self.add_code(&format!("self.state_stack.push(Rc::new(RefCell::new(state)));"));
                     self.outdent();
                     self.newline();
                     self.add_code(&format!("}}"));
@@ -726,7 +726,7 @@ impl RustVisitor {
                     self.add_code(&format!(" match state_opt {{"));
                     self.indent();
                     self.newline();
-                    self.add_code(&format!("Some(state) => state,"));
+                    self.add_code(&format!("Some(state) => *state.borrow(),"));
                     self.newline();
                     self.add_code(&format!("None => panic!(\"Error - attempt to pop history when history stack is empty.\")"));
                     self.outdent();
@@ -1109,12 +1109,12 @@ impl RustVisitor {
         };
         if self.generate_state_context {
             if self.generate_exit_args {
-                self.add_code(&format!("self.transition({}::{},{},Rc::new(next_state_context));"
+                self.add_code(&format!("self.transition({}::{},{},Rc::new(RefCell::new(next_state_context)));"
                                        ,self.system_name
                                        ,self.format_target_state_name(target_state_name)
                                        ,exit_args ));
             } else {
-                self.add_code(&format!("self.transition({}::{},Rc::new(next_state_context));",
+                self.add_code(&format!("self.transition({}::{},Rc::new(RefCell::new(next_state_context)));",
                                        self.system_name
                                        ,self.format_target_state_name(target_state_name)));
             }
@@ -1205,19 +1205,20 @@ impl RustVisitor {
 
         if self.generate_state_context {
             self.add_code(&format!("let state_context_rc = self.state_stack_pop();"));
+            self.add_code(&format!("let state = state_context_rc.borrow().getState();"));
         } else {
             self.add_code(&format!("let state = self.state_stack_pop();"));
         }
         self.newline();
         if self.generate_exit_args {
             if self.generate_state_context {
-                self.add_code(&format!("self.transition(state_context_rc.getState(),exit_args,state_context_rc);"));
+                self.add_code(&format!("self.transition(state,exit_args,state_context_rc);"));
             } else {
                 self.add_code(&format!("self.transition(state,exit_args);"));
             }
         } else {
             if self.generate_state_context {
-                self.add_code(&format!("self.transition(state_context_rc.getState(),state_context_rc);"));
+                self.add_code(&format!("self.transition(state,state_context_rc);"));
             } else {
                 self.add_code(&format!("self.transition(state);"));
             }
@@ -1241,7 +1242,7 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.add_code("use std::rc::Rc;");
         self.newline();
-        self.add_code("use std::borrow::Borrow;");
+        self.add_code("use std::cell::RefCell;");
         self.newline();
 
         // self.newline();
@@ -1572,17 +1573,6 @@ impl AstVisitor for RustVisitor {
                 self.add_code("}");
                 self.newline();
 
-
-                // impl StateContext {
-                //     fn getState(&self) -> FrameState {
-                //         match self {
-                //             StateContext::Start {Start}  =>  Start.state,
-                //             StateContext::S0 {S0}  =>  S0.state,
-                //             StateContext::S1 {S1}  =>  S1.state,
-                //             StateContext::DeadEnd {DeadEnd}  =>  DeadEnd.state,
-                //         }
-                //     }
-                // }
                 self.newline();
                 self.add_code(&format!("impl {} {{",self.config.state_context_name));
                 self.indent();
@@ -1664,15 +1654,15 @@ impl AstVisitor for RustVisitor {
 
         if self.generate_state_context {
             self.newline();
-            self.add_code(&format!("{}:Rc<{}>,",self.config.state_context_var_name, self.config.state_context_struct_name));
+            self.add_code(&format!("{}:Rc<RefCell<{}>>,",self.config.state_context_var_name, self.config.state_context_struct_name));
             if self.generate_state_stack {
                 self.newline();
-                self.add_code(&format!("{}:Vec<Rc<{}>>,",self.config.state_stack_var_name,self.config.state_context_name));
+                self.add_code(&format!("{}:Vec<Rc<RefCell<{}>>>,",self.config.state_stack_var_name,self.config.state_context_name));
             }
         } else {
             if self.generate_state_stack {
                 self.newline();
-                self.add_code(&format!("{}:Vec<Rc<{}>>,",self.config.state_stack_var_name,self.config.frame_state_type_name));
+                self.add_code(&format!("{}:Vec<Rc<RefCell<{}>>>,",self.config.state_stack_var_name,self.config.frame_state_type_name));
             }
         }
 
@@ -1766,7 +1756,7 @@ impl AstVisitor for RustVisitor {
             if self.generate_state_context {
                 self.newline();
 
-                self.add_code(&format!("state_context_rc:Rc::new(state_context),"
+                self.add_code(&format!("state_context_rc:Rc::new(RefCell::new(state_context)),"
                                     //   , self.config.state_context_var_name
                                      //  , self.config.state_context_var_name
                                        ));
@@ -1857,7 +1847,7 @@ impl AstVisitor for RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_frame_messages_enum(&mut self, interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
+    fn visit_frame_messages_enum(&mut self, _interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
         self.newline();
         self.add_code("enum FrameMessage {");
         self.indent();
@@ -2296,7 +2286,7 @@ impl AstVisitor for RustVisitor {
                     ,self.config.frame_event_return
                     ,RustVisitor::uppercase_first_letter(&interface_method_node.name)));
                 self.newline();
-                self.add_code("_ => panic!(\"Bad return type for toggle()\"),");
+                self.add_code(&format!("_ => panic!(\"Bad return type for {}\"),",&interface_method_node.name));
                 self.outdent();
                 self.newline();
                 self.add_code("}");
@@ -2446,7 +2436,11 @@ impl AstVisitor for RustVisitor {
         self.newline();
         let state_name = &self.current_state_name_opt.as_ref().unwrap().clone();
         if self.generate_state_context {
-            self.add_code(&format!("let mut {} = match &self.state_context_rc.borrow() {{", self.config.this_state_context_var_name));
+            self.add_code(&format!("let state_context_rc_clone = self.state_context_rc.clone();"));
+            self.newline();
+            self.add_code(&format!("let state_context_ref = state_context_rc_clone.borrow();"));
+            self.newline();
+            self.add_code(&format!("let mut {} = match &*state_context_ref {{", self.config.this_state_context_var_name));
             self.indent();
             self.newline();
             self.add_code(&format!("StateContext::{} {{ {} }} => {},", &state_name, &state_name, &state_name));
@@ -3485,6 +3479,7 @@ impl AstVisitor for RustVisitor {
             StateStackOperationType::Pop => {
                 if self.generate_state_context {
                     self.add_code(&format!("let state_context_rc = self.state_stack_pop();"));
+                    self.add_code(&format!("let state = state_context_rc.borrow().getState();"));
                 } else {
                     self.add_code(&format!("let state = self.state_stack_pop();"));
                 }

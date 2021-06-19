@@ -793,7 +793,7 @@ impl Arcanum {
     pub fn get_msg_from_interface_name(&self,interface_name:&String) -> String {
         let system_symbol_rcref = self.system_symbol_opt.as_ref().unwrap();
         let system_symbol = system_symbol_rcref.borrow();
-        for (k,v) in system_symbol.events.iter() {
+        for (_k,v) in system_symbol.events.iter() {
             let event_symbol = v.borrow();
             let event_symbol_interface_name_opt = &event_symbol.interface_name_opt;
             match event_symbol_interface_name_opt {

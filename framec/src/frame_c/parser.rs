@@ -626,9 +626,9 @@ impl<'a> Parser<'a> {
         // get or create the event symbol for the message we found
         let event_symbol_rcref ;
         match self.arcanum.get_event(&*msg,&self.state_name_opt) {
-            Some(existing_event_symbol_rc_ref) => {
+            Some(_existing_event_symbol_rc_ref) => {
                 // found message
-                event_symbol_rcref = existing_event_symbol_rc_ref.clone();
+                // event_symbol_rcref = existing_event_symbol_rc_ref.clone();
             },
             None => {
                 let event_symbol = EventSymbol::new(&self.arcanum.symbol_config
