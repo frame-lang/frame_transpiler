@@ -639,6 +639,23 @@ pub enum StateCallType {
     },
 }
 
+
+//-----------------------------------------------------//
+
+pub enum FrameEventPart {
+    Event {is_reference:bool},
+    Message {is_reference:bool},
+    Param {param_tok:Token,is_reference:bool},
+    Return {is_reference:bool},
+}
+
+
+impl NodeElement for FrameEventPart {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_frame_event_part(self);
+    }
+}
+
 //-----------------------------------------------------//
 //                  -Expressions-
 
@@ -684,21 +701,6 @@ pub enum ExprType {
     },
 }
 
-//-----------------------------------------------------//
-
-pub enum FrameEventPart {
-    Event,
-    Message,
-    Param {param_tok:Token},
-    Return,
-}
-
-
-impl NodeElement for FrameEventPart {
-    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
-        ast_visitor.visit_frame_event_part(self);
-    }
-}
 
 impl NodeElement for ExprType {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {

@@ -1300,41 +1300,11 @@ impl AstVisitor for RustVisitor {
                 },
                 None => {},
             }
-            // self.newline();
-            // self.add_code(&format!("{},",x));
         }
 
         self.outdent();
         self.newline();
         self.add_code("}");
-
-        // self.add_code("}");        self.add_code("enum FrameEventParameter {");
-        // self.indent();
-        // self.newline();
-        // self.add_code("None,");
-        //
-        // if let Some(interface_block_node) = &system_node.interface_block_node_opt {
-        //     for interface_method_node in &interface_block_node.interface_methods {
-        //         let if_name = interface_method_node.name.clone();
-        //         if let Some(params) = &interface_method_node.params {
-        //             for param in params {
-        //                 let param_type = match &param.param_type_opt {
-        //                     Some(param_type) => param_type.get_type_str(),
-        //                     None => "<?>".to_string().clone(),
-        //                 };
-        //                 self.newline();
-        //                 self.add_code(&format!("{}{} {{param:{}}},",RustVisitor::uppercase_first_letter(&if_name)
-        //                                        ,RustVisitor::uppercase_first_letter(&param.param_name)
-        //                                        ,param_type
-        //                 ));
-        //             }
-        //         }
-        //     }
-        // }
-        //
-        // self.outdent();
-        // self.newline();
-        // self.add_code("}");
         self.newline();
         self.newline();
 
@@ -1352,10 +1322,43 @@ impl AstVisitor for RustVisitor {
                 }
             }
         }
-
         self.outdent();
         self.newline();
         self.add_code("}");
+        self.newline();
+        self.newline();
+
+        self.add_code("impl FrameEventReturn {");
+        self.indent();
+        self.newline();
+        if let Some(interface_block_node) = &system_node.interface_block_node_opt {
+            for interface_method_node in &interface_block_node.interface_methods {
+                let if_name = interface_method_node.name.clone();
+                if let Some(return_type) = &interface_method_node.return_type_opt {
+                    self.newline();
+                    self.newline();
+                    self.add_code(&format!("fn get_e1_ret(&self) -> bool {{"));
+                    self.indent();
+                    self.newline();
+                    self.add_code(&format!("match self {{"));
+                    self.indent();
+                    self.newline();
+                    self.add_code(&format!("FrameEventReturn::e1 {{return_type}} => return_type.clone(),"));
+                    self.newline();
+                    self.add_code(&format!("_=> panic!(\"Invalid return type\"),"));
+                    self.outdent();
+                    self.newline();
+                    self.add_code("}");
+                    self.outdent();
+                    self.newline();
+                    self.add_code("}");
+                }
+            }
+        }
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+
         self.newline();
         self.newline();
         self.add_code(&format!("struct {} {{",self.config.frame_event_type_name));
@@ -3503,19 +3506,32 @@ impl AstVisitor for RustVisitor {
 
         // TODO: make this code generate from settings
         match frame_event_part {
-            FrameEventPart::Event => self.add_code(&format!("{}",self.config.frame_event_variable_name)),
-            FrameEventPart::Message => self.add_code(&format!("{}.{}"
+            FrameEventPart::Event {is_reference}  => {
+                self.add_code(&format!("{}{}"
+                                       ,if *is_reference {"&"} else {""}
+                                        ,self.config.frame_event_variable_name))
+            },
+            FrameEventPart::Message  {is_reference} => self.add_code(&format!("{}{}.{}"
+                                            ,if *is_reference {"&"} else {""}
                                             ,self.config.frame_event_variable_name
                                             ,self.config.frame_event_message_attribute_name)),
             // FrameEventPart::Param {param_tok} => self.add_code(&format!("{}._parameters[\"{}\"]"
             //                                                             ,self.config.frame_event_variable_name
-            FrameEventPart::Param {param_tok} => self.add_code(&format!("{}.get_{}_{}()"
+            FrameEventPart::Param {param_tok,is_reference} => self.add_code(&format!("{}{}.get_{}_{}()"
+                                                                        ,if *is_reference {"&"} else {""}
                                                                         ,self.config.frame_event_variable_name
                                                                         ,self.current_message
                                                                         ,param_tok.lexeme)),
-            FrameEventPart::Return => self.add_code(&format!("{}.{}"
-                                                             ,self.config.frame_event_variable_name
-                                                             ,self.config.frame_event_return_attribute_name)),
+            FrameEventPart::Return {is_reference} => {
+                self.add_code(&format!("{}{}.{}.get_e1_ret()"
+                                       ,if *is_reference {"&"} else {""}
+                                       ,self.config.frame_event_variable_name
+                                       ,self.config.frame_event_return_attribute_name))
+                // self.add_code(&format!("{}{}.{}"
+                //                         ,if *is_reference {"&"} else {""}
+                //                        ,self.config.frame_event_variable_name
+                //                        ,self.config.frame_event_return_attribute_name))
+            },
         }
 
         AstVisitorReturnType::FrameEventExprType {}
@@ -3528,17 +3544,17 @@ impl AstVisitor for RustVisitor {
 
         // TODO: make this code generate from settings
         match frame_event_part {
-            FrameEventPart::Event => output.push_str(&format!("{}",self.config.frame_event_variable_name)),
-            FrameEventPart::Message => output.push_str(&format!("{}.{}"
+            FrameEventPart::Event {is_reference} => output.push_str(&format!("{}",self.config.frame_event_variable_name)),
+            FrameEventPart::Message {is_reference} => output.push_str(&format!("{}.{}"
                                                                 ,self.config.frame_event_variable_name
                                                                 ,self.config.frame_event_message_attribute_name)),
-            FrameEventPart::Param {param_tok} => output.push_str(&format!("{}.get_{}_{}()"
+            FrameEventPart::Param {param_tok,is_reference} => output.push_str(&format!("{}.get_{}_{}()"
                                                                           ,self.config.frame_event_variable_name
                                                                           ,self.current_message
                                                                           ,param_tok.lexeme)),
-            FrameEventPart::Return => output.push_str(&format!("{}.{}"
+            FrameEventPart::Return {is_reference} => output.push_str(&format!("{}.{}"
                                                                ,self.config.frame_event_variable_name
-                                                               ,self.config.frame_event_message_attribute_name)),
+                                                               ,self.config.frame_event_return)),
         }
 
         AstVisitorReturnType::FrameEventExprType {}

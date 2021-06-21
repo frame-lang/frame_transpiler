@@ -2164,10 +2164,10 @@ impl AstVisitor for Java8Visitor {
 
         // TODO: make this code generate from settings
         match frame_event_part {
-            FrameEventPart::Event => self.add_code(&format!("e")),
-            FrameEventPart::Message => self.add_code(&format!("e._message")),
-            FrameEventPart::Param {param_tok} => self.add_code(&format!("e._parameters.get(\"{}\")",param_tok.lexeme)),
-            FrameEventPart::Return => self.add_code(&format!("e._return")),
+            FrameEventPart::Event { is_reference: _is_reference } => self.add_code(&format!("e")),
+            FrameEventPart::Message { is_reference: _is_reference } => self.add_code(&format!("e._message")),
+            FrameEventPart::Param {param_tok,is_reference:_is_reference} => self.add_code(&format!("e._parameters.get(\"{}\")",param_tok.lexeme)),
+            FrameEventPart::Return { is_reference: _is_reference } => self.add_code(&format!("e._return")),
         }
 
         AstVisitorReturnType::FrameEventExprType {}
@@ -2180,10 +2180,10 @@ impl AstVisitor for Java8Visitor {
 
         // TODO: make this code generate from settings
         match frame_event_part {
-            FrameEventPart::Event => output.push_str("e"),
-            FrameEventPart::Message => output.push_str("e._message"),
-            FrameEventPart::Param {param_tok} => output.push_str(&format!("e._parameters.get(\"{}\")",param_tok.lexeme)),
-            FrameEventPart::Return => output.push_str("e._return"),
+            FrameEventPart::Event  { is_reference: _is_reference } => output.push_str("e"),
+            FrameEventPart::Message  { is_reference: _is_reference } => output.push_str("e._message"),
+            FrameEventPart::Param {param_tok,is_reference: _is_reference} => output.push_str(&format!("e._parameters.get(\"{}\")",param_tok.lexeme)),
+            FrameEventPart::Return { is_reference: _is_reference } => output.push_str("e._return"),
         }
 
         AstVisitorReturnType::FrameEventExprType {}

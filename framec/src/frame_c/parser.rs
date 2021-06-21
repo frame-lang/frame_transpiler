@@ -1037,6 +1037,8 @@ impl<'a> Parser<'a> {
                     => initializer_expr_t_opt = Some(UnaryExprT {unary_expr_node}),
                 Ok(Some(BinaryExprT { binary_expr_node }))
                     => initializer_expr_t_opt = Some(BinaryExprT {binary_expr_node}),
+                Ok(Some(FrameEventExprT { frame_event_part }))
+                    => initializer_expr_t_opt = Some(FrameEventExprT {frame_event_part}),
                 _ => {
                     self.error_at_current("Unexpected assignment expression value.");
                     return Err(ParseError::new("TODO"))
@@ -2703,7 +2705,7 @@ impl<'a> Parser<'a> {
         }
 
         // @ | @|| | @[x] | @^
-        match self.frame_event_part() {
+        match self.frame_event_part(is_reference) {
             Ok(Some(frame_event_part)) => return Ok(Some(FrameEventExprT {frame_event_part})),
             Err(parse_error) => return Err(parse_error),
             Ok(None) => {}, // continue
@@ -2739,7 +2741,7 @@ impl<'a> Parser<'a> {
     // @[p] - Event parameter
     // @^   - Event return object/value
 
-    fn frame_event_part(&mut self) -> Result<Option<FrameEventPart>,ParseError> {
+    fn frame_event_part(&mut self,is_reference:bool) -> Result<Option<FrameEventPart>,ParseError> {
 
         if !self.match_token(&vec![AtTok]) {
             return Ok(None);
@@ -2747,7 +2749,7 @@ impl<'a> Parser<'a> {
 
         // '@' '||'
         if self.match_token(&vec![PipePipeTok]) {
-            return Ok(Some(FrameEventPart::Message));
+            return Ok(Some(FrameEventPart::Message {is_reference}));
         }
 
         // '@' '[' identifier ']'
@@ -2758,7 +2760,7 @@ impl<'a> Parser<'a> {
                 if let Err(parse_error) =  self.consume(RBracketTok, "Expected ']'.") {
                     return Err(parse_error);
                 }
-                return Ok(Some(FrameEventPart::Param{param_tok:id_tok}));
+                return Ok(Some(FrameEventPart::Param{param_tok:id_tok,is_reference}));
             } else {
                 self.error_at_current("Expected identifier.");
                 return Err(ParseError::new("TODO"));
@@ -2767,11 +2769,11 @@ impl<'a> Parser<'a> {
 
         // '@' '^'
         if self.match_token(&vec![CaretTok]) {
-            return Ok(Some(FrameEventPart::Return));
+            return Ok(Some(FrameEventPart::Return {is_reference}));
         }
 
         // @
-        Ok(Some(FrameEventPart::Event))
+        Ok(Some(FrameEventPart::Event {is_reference}))
     }
 
     /* --------------------------------------------------------------------- */

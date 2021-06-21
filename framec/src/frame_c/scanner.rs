@@ -697,27 +697,27 @@ pub enum TokenType {
     TransitionTok,
     ChangeStateTok,
     StringTok,
-    ThreeTicksTok,          // ```
-    SuperStringTok,         // `stuff + "stuff"`
-    NumberTok,
-    VarTok,                 // let
-    ConstTok,               // const
-    SingleLineCommentTok,   // --- comment
-    MultiLineCommentTok,    // {-- comments --}
-    OpenBraceTok,           // {
-    CloseBraceTok,          // }
-    TrueTok,                // true
-    FalseTok,               // false
-    NullTok,                // null
-    NilTok,                 // nil
-    ColonTok,               // :
-    SemicolonTok,           // ;
-    DispatchTok,            // =>
-    EqualsTok,              // =
-    BoolTestTrueTok,        // ?
-    BoolTestFalseTok,       // ?!
-    StringTestTok,          // ?~
-    NumberTestTok,          // ?#
+    ThreeTicksTok,                  // ```
+    SuperStringTok,                 // `stuff + "stuff"`
+    NumberTok,                      // 1, 1.01
+    VarTok,                         // let
+    ConstTok,                       // const
+    SingleLineCommentTok,           // --- comment
+    MultiLineCommentTok,            // {-- comments --}
+    OpenBraceTok,                   // {
+    CloseBraceTok,                  // }
+    TrueTok,                        // true
+    FalseTok,                       // false
+    NullTok,                        // null
+    NilTok,                         // nil
+    ColonTok,                       // :
+    SemicolonTok,                   // ;
+    DispatchTok,                    // =>
+    EqualsTok,                      // =
+    BoolTestTrueTok,                // ?
+    BoolTestFalseTok,               // ?!
+    StringTestTok,                  // ?~
+    NumberTestTok,                  // ?#
     ElseContinueTok,                // :>
     TestTerminatorTok,              // ::
     ForwardSlashTok,                // /
@@ -728,7 +728,8 @@ pub enum TokenType {
     StateStackOperationPopTok,      // $[-]
     DotTok,                         // .
     AtTok,                          // @
-    PipePipeTok,                     // ||
+    ThisEventTok,                   // @@
+    PipePipeTok,                    // ||
     AnyMessageTok,                  // ||*
     ErrorTok,
 
