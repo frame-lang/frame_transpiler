@@ -1337,13 +1337,13 @@ impl AstVisitor for RustVisitor {
                 if let Some(return_type) = &interface_method_node.return_type_opt {
                     self.newline();
                     self.newline();
-                    self.add_code(&format!("fn get_e1_ret(&self) -> bool {{"));
+                    self.add_code(&format!("fn get_{}_ret(&self) -> {} {{",interface_method_node.name,return_type.get_type_str()));
                     self.indent();
                     self.newline();
                     self.add_code(&format!("match self {{"));
                     self.indent();
                     self.newline();
-                    self.add_code(&format!("FrameEventReturn::e1 {{return_type}} => return_type.clone(),"));
+                    self.add_code(&format!("FrameEventReturn::{} {{return_type}} => return_type.clone(),",interface_method_node.name));
                     self.newline();
                     self.add_code(&format!("_=> panic!(\"Invalid return type\"),"));
                     self.outdent();
@@ -1859,16 +1859,8 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.add_code("Exit,");
 
-        // for interface_method_node in &interface_block_node.interface_methods {
-        //     self.add_code(&format!("{},", RustVisitor::uppercase_first_letter(&interface_method_node.name)));
-        //     self.newline();
-        // }
-
-        // let x = &self.arcanium.system_symbol_opt.as_ref().unwrap();
-        // let system_symbol = x.borrow();
-
         let events = self.arcanium.get_event_names();
-        for event in events {
+        for event in &events {
         //    ret.push(k.clone());
             if self.isEnterOrExitMessage(&event) {
                 continue;
@@ -1888,6 +1880,49 @@ impl AstVisitor for RustVisitor {
 
         }
 
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+
+        self.newline();
+        self.newline();
+        self.add_code("impl FrameMessage {");
+        self.indent();
+        self.newline();
+        self.add_code("fn to_string(&self) -> String {");
+        self.indent();
+        self.newline();
+        self.add_code("match self {");
+        self.indent();
+        self.newline();
+        self.add_code("FrameMessage::Enter => String::from(\"Enter\"),");
+        self.newline();
+        self.add_code("FrameMessage::Exit => String::from(\"Exit\"),");
+        for event in &events {
+            //    ret.push(k.clone());
+            if self.isEnterOrExitMessage(&event) {
+                continue;
+            }
+            let message_opt = self.arcanium.get_interface_or_msg_from_msg(&event);
+            match message_opt {
+                Some(cannonical_message_name) => {
+                    self.newline();
+                    self.add_code(&format!("FrameMessage::{} => String::from(\"{}\"),", cannonical_message_name,cannonical_message_name));
+                },
+                None => {
+                    self.newline();
+                    self.add_code(&format!("<Error - unknown message {}>,", &event));
+
+                }
+            }
+
+        }
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
         self.outdent();
         self.newline();
         self.add_code("}");
@@ -3511,7 +3546,7 @@ impl AstVisitor for RustVisitor {
                                        ,if *is_reference {"&"} else {""}
                                         ,self.config.frame_event_variable_name))
             },
-            FrameEventPart::Message  {is_reference} => self.add_code(&format!("{}{}.{}"
+            FrameEventPart::Message  {is_reference} => self.add_code(&format!("{}{}.{}.to_string()"
                                             ,if *is_reference {"&"} else {""}
                                             ,self.config.frame_event_variable_name
                                             ,self.config.frame_event_message_attribute_name)),
@@ -3545,7 +3580,7 @@ impl AstVisitor for RustVisitor {
         // TODO: make this code generate from settings
         match frame_event_part {
             FrameEventPart::Event {is_reference} => output.push_str(&format!("{}",self.config.frame_event_variable_name)),
-            FrameEventPart::Message {is_reference} => output.push_str(&format!("{}.{}"
+            FrameEventPart::Message {is_reference} => output.push_str(&format!("{}.{}.to_string()"
                                                                 ,self.config.frame_event_variable_name
                                                                 ,self.config.frame_event_message_attribute_name)),
             FrameEventPart::Param {param_tok,is_reference} => output.push_str(&format!("{}.get_{}_{}()"
