@@ -1333,7 +1333,7 @@ impl AstVisitor for RustVisitor {
         self.newline();
         if let Some(interface_block_node) = &system_node.interface_block_node_opt {
             for interface_method_node in &interface_block_node.interface_methods {
-                let if_name = interface_method_node.name.clone();
+                //let if_name = interface_method_node.name.clone();
                 if let Some(return_type) = &interface_method_node.return_type_opt {
                     self.newline();
                     self.newline();
@@ -3552,16 +3552,25 @@ impl AstVisitor for RustVisitor {
                                             ,self.config.frame_event_message_attribute_name)),
             // FrameEventPart::Param {param_tok} => self.add_code(&format!("{}._parameters[\"{}\"]"
             //                                                             ,self.config.frame_event_variable_name
-            FrameEventPart::Param {param_tok,is_reference} => self.add_code(&format!("{}{}.get_{}_{}()"
-                                                                        ,if *is_reference {"&"} else {""}
-                                                                        ,self.config.frame_event_variable_name
-                                                                        ,self.current_message
-                                                                        ,param_tok.lexeme)),
+            FrameEventPart::Param {param_tok,is_reference} => {
+                self.add_code(&format!("{}{}.{}.as_ref().unwrap().get_{}_{}()"
+                                         ,if *is_reference {"&"} else {""}
+                                         ,self.config.frame_event_variable_name
+                                         ,self.config.frame_event_parameters_attribute_name
+                                         ,self.current_message
+                                         ,param_tok.lexeme));
+                // self.add_code(&format!("{}{}.get_{}_{}()"
+                //                        ,if *is_reference {"&"} else {""}
+                //                        ,self.config.frame_event_variable_name
+                //                        ,self.current_message
+                //                        ,param_tok.lexeme))
+            },
             FrameEventPart::Return {is_reference} => {
-                self.add_code(&format!("{}{}.{}.get_e1_ret()"
+                self.add_code(&format!("{}{}.{}.get_{}_ret()"
                                        ,if *is_reference {"&"} else {""}
                                        ,self.config.frame_event_variable_name
-                                       ,self.config.frame_event_return_attribute_name))
+                                       ,self.config.frame_event_return_attribute_name
+                                       ,self.current_message));
                 // self.add_code(&format!("{}{}.{}"
                 //                         ,if *is_reference {"&"} else {""}
                 //                        ,self.config.frame_event_variable_name
@@ -3579,17 +3588,30 @@ impl AstVisitor for RustVisitor {
 
         // TODO: make this code generate from settings
         match frame_event_part {
-            FrameEventPart::Event {is_reference} => output.push_str(&format!("{}",self.config.frame_event_variable_name)),
-            FrameEventPart::Message {is_reference} => output.push_str(&format!("{}.{}.to_string()"
+            FrameEventPart::Event {is_reference} => {
+                output.push_str(&format!("{}{}"
+                                         ,if *is_reference {"&"} else {""}
+                                         ,self.config.frame_event_variable_name))
+            },
+            FrameEventPart::Message {is_reference} => output.push_str(&format!("{}{}.{}.to_string()"
+                                                               ,if *is_reference {"&"} else {""}
                                                                 ,self.config.frame_event_variable_name
                                                                 ,self.config.frame_event_message_attribute_name)),
-            FrameEventPart::Param {param_tok,is_reference} => output.push_str(&format!("{}.get_{}_{}()"
-                                                                          ,self.config.frame_event_variable_name
-                                                                          ,self.current_message
-                                                                          ,param_tok.lexeme)),
-            FrameEventPart::Return {is_reference} => output.push_str(&format!("{}.{}"
-                                                               ,self.config.frame_event_variable_name
-                                                               ,self.config.frame_event_return)),
+            FrameEventPart::Param {param_tok,is_reference} => {
+                output.push_str(&format!("{}{}.{}.as_ref().unwrap().get_{}_{}()"
+                                         ,if *is_reference {"&"} else {""}
+                                       ,self.config.frame_event_variable_name
+                                       ,self.config.frame_event_parameters_attribute_name
+                                       ,self.current_message
+                                       ,param_tok.lexeme));
+            },
+            FrameEventPart::Return {is_reference} => {
+                output.push_str(&format!("{}{}.{}.get_{}_ret()"
+                                         ,if *is_reference {"&"} else {""}
+                                         ,self.config.frame_event_variable_name
+                                         ,self.config.frame_event_return_attribute_name
+                                         ,self.current_message))
+            },
         }
 
         AstVisitorReturnType::FrameEventExprType {}
@@ -3762,7 +3784,7 @@ impl AstVisitor for RustVisitor {
         self.generate_comment(assignment_expr_node.line);
         self.newline();
         match &*assignment_expr_node.l_value_box {
-            ExprType::FrameEventExprT {frame_event_part} => {
+            ExprType::FrameEventExprT {..} => {
                 let mut code = String::new();
                 assignment_expr_node.r_value_box.accept_to_string(self, &mut code);
                 self.add_code(&format!("{}.{} = "

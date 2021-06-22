@@ -728,7 +728,6 @@ pub enum TokenType {
     StateStackOperationPopTok,      // $[-]
     DotTok,                         // .
     AtTok,                          // @
-    ThisEventTok,                   // @@
     PipePipeTok,                    // ||
     AnyMessageTok,                  // ||*
     ErrorTok,
