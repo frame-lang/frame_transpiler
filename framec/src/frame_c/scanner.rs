@@ -159,6 +159,10 @@ impl Scanner {
                 if self.match_char('|') {
                     if self.match_char('*') {
                         self.add_token(AnyMessageTok);
+                    } else if self.match_char('.') {
+                        self.add_token(PipePipeDotTok);
+                    } else if self.match_char('[') {
+                        self.add_token(PipePipeLBracketTok);
                     } else {
                         self.add_token(PipePipeTok);
                     }
@@ -729,6 +733,8 @@ pub enum TokenType {
     DotTok,                         // .
     AtTok,                          // @
     PipePipeTok,                    // ||
+    PipePipeDotTok,                 // ||.
+    PipePipeLBracketTok,            // ||[
     AnyMessageTok,                  // ||*
     ErrorTok,
 

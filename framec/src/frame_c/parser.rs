@@ -2622,36 +2622,43 @@ impl<'a> Parser<'a> {
                 self.error_at_current("Unexpected token.");
                 return Err(ParseError::new("TODO"));
             }
-        } else if self.match_token(&vec![PipePipeTok]) {
-            if self.match_token(&vec![LBracketTok]) {
-                let id_node;
-                let var_node;
-                if self.match_token(&vec![IdentifierTok]) {
-                    id_node = IdentifierNode::new(self.previous().clone(), None, IdentifierDeclScope::EventHandlerParam, false,self.previous().line);
-                    let var_scope = id_node.scope.clone();
-                    let symbol_type_rcref_opt = self.arcanum.lookup(&id_node.name.lexeme,&var_scope).clone();
-                    var_node = VariableNode::new(id_node, var_scope, symbol_type_rcref_opt);
-                } else {
-                    self.error_at_current("Expected identifier.");
-                    return Err(ParseError::new("TODO"));
-                }
-                if let Err(parse_error) =  self.consume(RBracketTok, "Expected ']'.") {
-                    return Err(parse_error);
-                }
-                return Ok(Some(VariableExprT { var_node }));
-            } else if self.match_token(&vec![DotTok]) {
-                if self.match_token(&vec![IdentifierTok]) {
-                    let id_node = IdentifierNode::new(self.previous().clone(), None, IdentifierDeclScope::EventHandlerVar, false, self.previous().line);
-                    let var_scope = id_node.scope.clone();
-                    let symbol_type_rcref_opt = self.arcanum.lookup(&id_node.name.lexeme,&var_scope).clone();
-                    let var_node = VariableNode::new(id_node,var_scope,symbol_type_rcref_opt);
-                    return Ok(Some(VariableExprT { var_node }));
-                } else {
-                    self.error_at_current("Expected identifier.");
-                    return Err(ParseError::new("TODO"));
-                }
+        } else if self.match_token(&vec![PipePipeLBracketTok]) {
+ //           if self.match_token(&vec![LBracketTok]) {
+            let id_node;
+            let var_node;
+            if self.match_token(&vec![IdentifierTok]) {
+                id_node = IdentifierNode::new(self.previous().clone(), None, IdentifierDeclScope::EventHandlerParam, false,self.previous().line);
+                let var_scope = id_node.scope.clone();
+                let symbol_type_rcref_opt = self.arcanum.lookup(&id_node.name.lexeme,&var_scope).clone();
+                var_node = VariableNode::new(id_node, var_scope, symbol_type_rcref_opt);
+            } else {
+                self.error_at_current("Expected identifier.");
+                return Err(ParseError::new("TODO"));
             }
+            if let Err(parse_error) =  self.consume(RBracketTok, "Expected ']'.") {
+                return Err(parse_error);
+            }
+            return Ok(Some(VariableExprT { var_node }));
+        } else if self.match_token(&vec![PipePipeDotTok]) {
+                let id_node;
+                if self.match_token(&vec![IdentifierTok]) {
+                    let id_tok = self.previous().clone();
+                    id_node = IdentifierNode::new(id_tok, None, IdentifierDeclScope::EventHandlerVar, false, self.previous().line);
+                } else {
+                    self.error_at_current("Expected identifier.");
+                    return Err(ParseError::new("TODO"));
+                }
+
+                let var_scope = id_node.scope.clone();
+                let symbol_type_rcref_opt = self.arcanum.lookup(&id_node.name.lexeme,&var_scope).clone();
+                let var_node = VariableNode::new(id_node,var_scope,symbol_type_rcref_opt);
+                return Ok(Some(VariableExprT { var_node }));
+        } else {
+            // self.error_at_current("Expected identifier.");
+            // return Err(ParseError::new("TODO"));
         }
+        //     }
+        // }
 
         // @TODO need to determine if this is the best way to
         // deal w/ references. We can basically put & in front
