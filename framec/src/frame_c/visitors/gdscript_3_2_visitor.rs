@@ -815,11 +815,11 @@ impl AstVisitor for GdScript32Visitor {
                 self.newline();
                 self.add_code(&format!("self._stateStack_ = []"));
             }
-        }
 
-        self.outdent();
-        self.newline();
-        // end of generate constructor
+            self.outdent();
+            self.newline();
+            // end of generate constructor
+        }
 
         self.serialize.push("".to_string());
         self.serialize.push("Bag _serialize__do() {".to_string());

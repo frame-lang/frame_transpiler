@@ -1631,8 +1631,9 @@ impl AstVisitor for JavaScriptVisitor {
         let mut if_or_else_if = "if";
 
         self.newline();
+
         for match_branch_node in &string_match_test_node.match_branch_nodes {
-            self.add_code(&format!("{} (", if_or_else_if));
+            self.add_code(&format!("{} ((", if_or_else_if));
             // TODO: use string_match_test_node.expr_t.accept(self) ?
             match &string_match_test_node.expr_t {
                 ExprType::CallExprT { call_expr_node: method_call_expr_node }
@@ -1673,7 +1674,7 @@ impl AstVisitor for JavaScriptVisitor {
                     self.add_code(&format!(" == \"{}\")",match_string));
                 }
             }
-            self.add_code(&format!(" {{"));
+            self.add_code(&format!(") {{"));
             self.indent();
 
             match_branch_node.accept(self);
@@ -1683,6 +1684,7 @@ impl AstVisitor for JavaScriptVisitor {
 
             if_or_else_if = " else if";
         }
+
 
         // (':' string_test_else_branch)?
         if let Some(string_match_else_branch_node) = &string_match_test_node.else_branch_node_opt {
@@ -1787,7 +1789,7 @@ impl AstVisitor for JavaScriptVisitor {
 
         self.newline();
         for match_branch_node in &number_match_test_node.match_branch_nodes {
-            self.add_code(&format!("{} (", if_or_else_if));
+            self.add_code(&format!("{} ((", if_or_else_if));
             match &number_match_test_node.expr_t {
                 ExprType::CallExprT { call_expr_node: method_call_expr_node }
                     => method_call_expr_node.accept(self),
