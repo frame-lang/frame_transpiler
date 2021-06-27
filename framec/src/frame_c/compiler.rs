@@ -12,6 +12,8 @@ use crate::frame_c::visitors::java_8_visitor::Java8Visitor;
 use crate::frame_c::visitors::rust_visitor::RustVisitor;
 use crate::frame_c::utils::{RunError, frame_exitcode};
 use exitcode::USAGE;
+extern crate yaml_rust;
+use yaml_rust::{YamlLoader};
 //use crate::frame_c::visitors::xtate_visitor::XStateVisitor;
 
 /* --------------------------------------------------------------------- */
@@ -48,7 +50,20 @@ impl Exe {
 
     pub fn run(&self, contents:String, mut output_format:String) -> Result<String,RunError> {
         let output;
+        let config_yaml_vec;
 
+        let config_yaml = include_str!("default_config.yaml");
+        let config_result = YamlLoader::load_from_str(config_yaml);
+        match config_result {
+            Ok(config) => {
+                config_yaml_vec = config;
+            },
+            Err(scan_error) => {
+                let error_msg = format!("Error parsing default_config.yaml: {}",scan_error.to_string());
+                let run_error = RunError::new(frame_exitcode::DEFAULT_CONFIG_ERR, &*error_msg);
+                return Err(run_error);
+            }
+        }
         let scanner = Scanner::new(contents);
         let (has_errors,errors,tokens) = scanner.scan_tokens();
         if has_errors {

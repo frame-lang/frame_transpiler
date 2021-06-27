@@ -144,6 +144,7 @@ pub(crate) mod frame_exitcode {
 
     /// Framepiler parse error exit
     pub const PARSE_ERR: FrameExitCode = 1;
+    pub const DEFAULT_CONFIG_ERR: FrameExitCode = 2;
 }
 
 pub struct RunError {
