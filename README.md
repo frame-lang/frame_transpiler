@@ -1,25 +1,7 @@
-# Frame Language Transpiler v0.4.0
+# Frame Language Transpiler v0.4.1
 
-Hi! So very glad you are interested in Frame.
+Hi! So very glad you are interested in Frame. Frame system design markdown language for software architects and engineers. It is an easy to learn textual language for defining system specifications that can generate both UML documentation as well as code in 7 langauges. 
 
-I have added a number of new language featuresThe new features in Frame for v0.4.0 include:
-
-1. Triple ``` token for demarcating an unparsed header string above the Frame system spec.
-
-```
-Header
-```
-
-2. Single `code` token for indicating unparsed strings in the Frame system spec.
-3. Action native code definitions indicated by using braces with backtics: {`native code`}  
-
--actions-
-
-someAction {`
-	println!("{}", msg);
-`}
-
-There is also a sample Rust file called RustMachine.frm in the ./examples directory.
 
 ## Purpose
 
