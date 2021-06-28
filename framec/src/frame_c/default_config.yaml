@@ -1,2 +1,7 @@
-- codegen
-  - rust
+codegen:
+  rust:
+    state_var_name: state
+    state_context_var_name: state_context_rc
+              
+
+            
