@@ -19,7 +19,7 @@ use yaml_rust::{YamlLoader};
 /* --------------------------------------------------------------------- */
 
 static IS_DEBUG:bool = false;
-static FRAMEC_VERSION:&str = "emitted from framec_v0.4.1";
+static FRAMEC_VERSION:&str = "emitted from framec_v0.5.1";
 
 
 /* --------------------------------------------------------------------- */
@@ -49,7 +49,7 @@ impl Exe {
     /* --------------------------------------------------------------------- */
 
     pub fn run(&self, contents:String, mut output_format:String) -> Result<String,RunError> {
-        let output;
+        let mut output= String::new();
         let config_yaml_vec;
 
         let config_yaml = include_str!("default_config.yaml");
@@ -63,6 +63,20 @@ impl Exe {
                 let run_error = RunError::new(frame_exitcode::DEFAULT_CONFIG_ERR, &*error_msg);
                 return Err(run_error);
             }
+        }
+
+        // Multi document support, doc is a yaml::Yaml
+        let doc = &config_yaml_vec[0];
+        println!("{:?}", doc);
+        let codegen = &doc["codegen"];
+        let rust_config = &codegen["rust"];
+        println!("{:?}", rust_config);
+        let mut state_var_name= String::new();
+        match codegen.as_str() {
+            Some(svn) => {
+                state_var_name = svn.to_string();
+            },
+            None => {}
         }
         let scanner = Scanner::new(contents);
         let (has_errors,errors,tokens) = scanner.scan_tokens();
