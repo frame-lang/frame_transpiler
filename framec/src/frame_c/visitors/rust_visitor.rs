@@ -4,6 +4,7 @@ use super::super::ast::*;
 use super::super::symbol_table::*;
 use super::super::visitors::*;
 use super::super::scanner::{Token,TokenType};
+use yaml_rust::{YamlLoader, Yaml};
 
 struct Config {
     state_var_name:String,

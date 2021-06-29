@@ -15,7 +15,7 @@ fn main() {
     let args = Cli::from_args();
 
     if let Err(run_error) = run_file(&args.path, &args.language) {
-        eprintln!("Error reading file: {}", run_error.error);
+        eprintln!("Error reading file:\n{}", run_error.error);
         std::process::exit(run_error.code)
     };
     // let args: Vec<String> = env::args().collect();

@@ -66,18 +66,8 @@ impl Exe {
         }
 
         // Multi document support, doc is a yaml::Yaml
-        let doc = &config_yaml_vec[0];
-        println!("{:?}", doc);
-        let codegen = &doc["codegen"];
-        let rust_config = &codegen["rust"];
-        println!("{:?}", rust_config);
-        let mut state_var_name= String::new();
-        match codegen.as_str() {
-            Some(svn) => {
-                state_var_name = svn.to_string();
-            },
-            None => {}
-        }
+        let config_yaml = &config_yaml_vec[0];
+        println!("{:?}", config_yaml);
         let scanner = Scanner::new(contents);
         let (has_errors,errors,tokens) = scanner.scan_tokens();
         if has_errors {
@@ -143,6 +133,7 @@ impl Exe {
             output = visitor.get_code();
         } else if output_format == "cpp" {
             let mut visitor = CppVisitor::new(semantic_parser.get_arcanum()
+                                                  , &config_yaml
                                                   , generate_exit_args
                                                   , generate_state_context
                                                   , generate_state_stack
