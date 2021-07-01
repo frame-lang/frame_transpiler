@@ -2,6 +2,28 @@ codegen:
   rust:
     state_var_name: state
     state_context_var_name: state_context_rc
+    this_state_context_var_name: this_state_context
+    state_context_var_name_suffix: _state_context
+    state_context_struct_name: StateContext
+    enter_msg: Enter
+    enter_token: >
+    enter_args_member_name: enter_args
+    exit_msg: Exit
+    exit_token: <
+    frame_state_type_name: FrameState
+    frame_event_type_name: FrameEvent
+    frame_message: FrameMessage
+    frame_event_return: FrameEventReturn
+    frame_event_variable_name: e
+    frame_event_parameters_attribute_name: parameters
+    frame_event_message_attribute_name: message
+    frame_event_return_attribute_name: ret
+    state_context_name: StateContext
+    state_context_suffix: StateContext
+    state_args_var: state_args
+    state_vars_var_name: state_vars
+    state_stack_var_name: state_stack
+    
               
 
             

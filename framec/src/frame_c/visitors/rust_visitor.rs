@@ -12,8 +12,6 @@ struct Config {
     this_state_context_var_name:String,
     state_context_var_name_suffix:String,
     state_context_struct_name:String,
-    // start_system_msg:String,
-    // stop_system_msg:String,
     enter_msg:String,
     enter_token:String,
     enter_args_member_name:String,
@@ -36,33 +34,53 @@ struct Config {
 }
 
 impl Config {
-    fn new() -> Config {
+    fn new(    state_var_name:String,
+               state_context_var_name:String,
+               this_state_context_var_name:String,
+               state_context_var_name_suffix:String,
+               state_context_struct_name:String,
+               enter_msg:String,
+               enter_token:String,
+               enter_args_member_name:String,
+               exit_msg:String,
+               exit_token:String,
+               frame_state_type_name:String,
+               frame_event_type_name:String,
+               frame_message:String,
+               frame_event_return:String,
+               frame_event_variable_name:String,
+               frame_event_parameters_attribute_name:String,
+               frame_event_message_attribute_name:String,
+               frame_event_return_attribute_name:String,
+               state_context_name:String,
+               state_context_suffix:String,
+               state_args_var:String,
+               state_vars_var_name:String,
+               state_stack_var_name:String) -> Config {
         Config {
-            state_var_name:String::from("state"),
-            state_context_var_name:String::from("state_context_rc"),
-            this_state_context_var_name:String::from("this_state_context"),
-            state_context_var_name_suffix:String::from("_state_context"),
-            state_context_struct_name:String::from("StateContext"),
-            // start_system_msg:String::from("Start"),
-            // stop_system_msg:String::from("Stop"),
-            enter_msg:String::from("Enter"),
-            enter_token:String::from(">"),
-            enter_args_member_name:String::from("enter_args"),
-            exit_msg:String::from("Exit"),
-            exit_token:String::from("<"),
-            frame_state_type_name:String::from("FrameState"),
-            frame_event_type_name:String::from("FrameEvent"),
-            frame_message:String::from("FrameMessage"),
-            frame_event_return:String::from("FrameEventReturn"),
-            frame_event_variable_name:String::from("e"),
-            frame_event_parameters_attribute_name:String::from("parameters"),
-            frame_event_message_attribute_name:String::from("message"),
-            frame_event_return_attribute_name:String::from("ret"),
-            state_context_name:String::from("StateContext"),
-            state_context_suffix:String::from("StateContext"),
-            state_args_var:String::from("state_args"),
-            state_vars_var_name:String::from("state_vars"),
-            state_stack_var_name:String::from("state_stack"),
+            state_var_name,
+            state_context_var_name,
+            this_state_context_var_name,
+            state_context_var_name_suffix,
+            state_context_struct_name,
+            enter_msg,
+            enter_token,
+            enter_args_member_name,
+            exit_msg,
+            exit_token,
+            frame_state_type_name,
+            frame_event_type_name,
+            frame_message,
+            frame_event_return,
+            frame_event_variable_name,
+            frame_event_parameters_attribute_name,
+            frame_event_message_attribute_name,
+            frame_event_return_attribute_name,
+            state_context_name,
+            state_context_suffix,
+            state_args_var,
+            state_vars_var_name,
+            state_stack_var_name,
         }
     }
 }
@@ -101,6 +119,7 @@ impl RustVisitor {
     //* --------------------------------------------------------------------- *//
 
     pub fn new(   arcanium:Arcanum
+                  , config_yaml:&Yaml
                   , generate_exit_args:bool
                   , generate_state_context:bool
                   , generate_state_stack:bool
@@ -109,8 +128,10 @@ impl RustVisitor {
                   , compiler_version:&str
                   , comments:Vec<Token>) -> RustVisitor {
 
+        let config = RustVisitor::loadConfig(config_yaml);
+
         RustVisitor {
-            config:Config::new(),
+            config,
             compiler_version:compiler_version.to_string(),
             code:String::from(""),
             dent:0,
@@ -138,6 +159,51 @@ impl RustVisitor {
             current_message:String::new(),
         }
     }
+
+    //* --------------------------------------------------------------------- *//
+
+    // Enter/exit messages are formatted "stateName:>" or "stateName:<"
+
+    fn loadConfig(config_yaml:&Yaml) -> Config {
+
+        let codegen_yaml = &config_yaml["codegen"];
+        let rust_yaml = &codegen_yaml["rust"];
+        let mut config = Config::new(
+    (&rust_yaml["state_var_name"]).as_str().unwrap().to_string(),
+    (&rust_yaml["state_context_var_name"]).as_str().unwrap().to_string(),
+    (&rust_yaml["this_state_context_var_name"]).as_str().unwrap().to_string(),
+    (&rust_yaml["state_context_var_name_suffix"]).as_str().unwrap().to_string(),
+    (&rust_yaml["state_context_struct_name"]).as_str().unwrap().to_string(),
+    (&rust_yaml["enter_msg"]).as_str().unwrap().to_string(),
+    (&rust_yaml["enter_token"]).as_str().unwrap().to_string(),
+    (&rust_yaml["enter_args_member_name"]).as_str().unwrap().to_string(),
+    (&rust_yaml["exit_msg"]).as_str().unwrap().to_string(),
+    (&rust_yaml["exit_token"]).as_str().unwrap().to_string(),
+    (&rust_yaml["frame_state_type_name"]).as_str().unwrap().to_string(),
+    (&rust_yaml["frame_event_type_name"]).as_str().unwrap().to_string(),
+    (&rust_yaml["frame_message"]).as_str().unwrap().to_string(),
+    (&rust_yaml["frame_event_return"]).as_str().unwrap().to_string(),
+    (&rust_yaml["frame_event_variable_name"]).as_str().unwrap().to_string(),
+    (&rust_yaml["frame_event_parameters_attribute_name"]).as_str().unwrap().to_string(),
+    (&rust_yaml["frame_event_message_attribute_name"]).as_str().unwrap().to_string(),
+    (&rust_yaml["frame_event_return_attribute_name"]).as_str().unwrap().to_string(),
+    (&rust_yaml["state_context_name"]).as_str().unwrap().to_string(),
+    (&rust_yaml["state_context_suffix"]).as_str().unwrap().to_string(),
+    (&rust_yaml["state_args_var"]).as_str().unwrap().to_string(),
+    (&rust_yaml["state_vars_var_name"]).as_str().unwrap().to_string(),
+    (&rust_yaml["state_stack_var_name"]).as_str().unwrap().to_string(),
+        );
+
+        config
+       // let state_var_name = config_yaml[]
+    }
+
+
+    // pub fn loadConfig(&self, msg:&str) -> bool {
+    //     let split = msg.split(":");
+    //     let vec:Vec<&str> = split.collect();
+    //     vec.len() == 2
+    // }
 
     //* --------------------------------------------------------------------- *//
 

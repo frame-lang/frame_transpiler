@@ -79,7 +79,6 @@ impl Exe {
             Exe::debug_print(&format!("{:?}", token));
         }
 
-
         let mut arcanum = Arcanum::new();
         let mut comments = Vec::new();
         // NOTE: This block is to remove references to symbol_table and comments
@@ -217,6 +216,7 @@ impl Exe {
             output = visitor.get_code();
         } else if output_format == "rust" {
             let mut visitor = RustVisitor::new(semantic_parser.get_arcanum()
+                                             , config_yaml
                                              , generate_exit_args
                                              , generate_state_context
                                              , generate_state_stack
