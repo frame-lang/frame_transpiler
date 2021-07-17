@@ -728,8 +728,8 @@ pub enum TokenType {
     MatchStringTok,                 // /<string>/ - contains <string>
     MatchNullStringTok,             // //!
     MatchEmptyStringTok,            // //
-    StateStackOperationPushTok,     // $[+]
-    StateStackOperationPopTok,      // $[-]
+    StateStackOperationPushTok,     // $$[+]
+    StateStackOperationPopTok,      // $$[-]
     DotTok,                         // .
     AtTok,                          // @
     PipePipeTok,                    // ||

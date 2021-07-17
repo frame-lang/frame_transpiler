@@ -67,7 +67,7 @@ impl Exe {
 
         // Multi document support, doc is a yaml::Yaml
         let config_yaml = &config_yaml_vec[0];
-        println!("{:?}", config_yaml);
+//        println!("{:?}", config_yaml);
         let scanner = Scanner::new(contents);
         let (has_errors,errors,tokens) = scanner.scan_tokens();
         if has_errors {
