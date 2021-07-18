@@ -1105,7 +1105,9 @@ impl RustVisitor {
                                 self.errors.push(format!("Fatal error: misaligned parameters to arguments."));
                             }
                             let mut param_symbols_it = event_params.iter();
-                            self.add_code("Dictionary<String,object> exit_args = new Dictionary<String,object>();");
+                            self.add_code(&format!("let mut {} = Box::new({}::new());"
+                                                   ,self.config.exit_args_member_name
+                                                   ,self.config.frame_event_parameters_type_name));
                             self.newline();
                             // Loop through the ARGUMENTS...
                             for expr_t in &exit_args.exprs_t {
@@ -1114,7 +1116,13 @@ impl RustVisitor {
                                     Some(p) => {
                                         let mut expr = String::new();
                                         expr_t.accept_to_string(self, &mut expr);
-                                        self.add_code(&format!("exit_args[\"{}\"] = {};", p.name, expr));
+                                        let parameter_enum_name = self.format_frame_event_parameter_name(&msg
+                                                                                                         ,&p.name);
+
+                                        self.add_code(&format!("(*{}).set_{}({});"
+                                                               ,self.config.exit_args_member_name
+                                                               , parameter_enum_name
+                                                               , expr));
                                         self.newline();
                                     },
                                     None => {
