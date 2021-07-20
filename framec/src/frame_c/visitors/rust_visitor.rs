@@ -7,7 +7,7 @@ use super::super::scanner::{Token,TokenType};
 use yaml_rust::{Yaml};
 
 struct ConfigFeatures {
-    generate_shadow_state:bool
+    introspection:bool
 }
 
 struct Config {
@@ -38,6 +38,7 @@ struct Config {
     frame_event_return_attribute_name:String,
     frame_state_type_name:String,
     state_var_name:String,
+    state_var_name_suffix:String,
     state_enum_suffix:String,
     transition_method_name:String,
     change_state_method_name:String,
@@ -51,7 +52,7 @@ impl Config {
         println!("{:?}", rust_yaml);
         let features_yaml = &rust_yaml["features"];
         let config_features = ConfigFeatures {
-            generate_shadow_state: (&features_yaml["generate_shadow_state"]).as_bool().unwrap().to_string().parse().unwrap()
+            introspection: (&features_yaml["introspection"]).as_bool().unwrap().to_string().parse().unwrap()
         };
         let code_yaml = &rust_yaml["code"];
         
@@ -64,6 +65,7 @@ impl Config {
             enter_args_member_name:(&code_yaml["enter_args_member_name"]).as_str().unwrap().to_string(),
             exit_args_member_name:(&code_yaml["exit_args_member_name"]).as_str().unwrap().to_string(),
             state_var_name:(&code_yaml["state_var_name"]).as_str().unwrap().to_string(),
+            state_var_name_suffix:(&code_yaml["state_var_name_suffix"]).as_str().unwrap().to_string(),
             state_enum_suffix:(&code_yaml["state_enum_suffix"]).as_str().unwrap().to_string(),
             state_context_var_name:(&code_yaml["state_context_var_name"]).as_str().unwrap().to_string(),
             this_state_context_var_name:(&code_yaml["this_state_context_var_name"]).as_str().unwrap().to_string(),
@@ -455,7 +457,10 @@ impl RustVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn format_state_name(&self,state_name:&str) -> String {
-        return format!("{}_state",state_name.to_lowercase())
+        // return format!("{}_state",state_name.to_lowercase())
+        return format!("{}{}"
+                       ,state_name
+                       ,self.config.state_var_name_suffix)
     }
 
     //* --------------------------------------------------------------------- *//
@@ -556,11 +561,12 @@ impl RustVisitor {
         self.newline();
         self.add_code("//=============== Machinery and Mechanisms ==============//");
         self.newline();
-        if self.config.config_features.generate_shadow_state {
+        if self.config.config_features.introspection {
             self.newline();
-            self.add_code(&format!("pub fn get_{}_name() -> {}State {{"
+            self.add_code(&format!("pub fn get_{}_enum(&self) -> {}{} {{"
                                    ,self.config.state_var_name
                                    ,self.system_name
+                                    ,self.config.state_enum_suffix
             ));
 
             self.indent();
@@ -569,13 +575,16 @@ impl RustVisitor {
             if let Some(machine_block_node) = &system_node.machine_block_node_opt {
                 let mut if_else_if = String::from("if");
                 for state in &machine_block_node.states {
-                    self.add_code(&format!("{} self.state as *const FrameState == {}::{} as *const FrameState {{ {}{}::{} }}"
+                    self.add_code(&format!("{} self.state as *const {} == {}::{}{} as *const {} {{ {}{}::{} }}"
                                             ,if_else_if
+                                            ,self.config.frame_event_type_name
                                             ,self.system_name
                                             ,state.borrow().name
+                                            ,self.config.state_var_name_suffix
+                                            ,self.config.frame_event_type_name
                                             ,self.system_name
                                             ,self.config.state_enum_suffix
-                                           ,state.borrow().name
+                                            ,state.borrow().name
                     ));
                     self.newline();
                     if_else_if = "else if".to_string();
@@ -1247,8 +1256,8 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.newline();
 
-        if self.config.config_features.generate_shadow_state {
-            self.add_code(&format!("enum {}{} {{"
+        if self.config.config_features.introspection {
+            self.add_code(&format!("pub enum {}{} {{"
                 ,self.system_name
                 ,self.config.state_enum_suffix
             ));
@@ -1635,9 +1644,6 @@ impl AstVisitor for RustVisitor {
         // generate state variable
         self.add_code(&format!("{}:{},",&self.config.state_var_name, self.config.frame_state_type_name));
 
-        if self.config.config_features.generate_shadow_state {
-            self.add_code(&format!("{}_name:String,",&self.config.state_var_name));
-        }
         // generate state context variable
 
         if self.generate_state_context {
@@ -1725,12 +1731,7 @@ impl AstVisitor for RustVisitor {
             self.indent();
             self.newline();
             self.add_code(&format!("{}:{}::{},",&self.config.state_var_name, system_node.name, self.format_state_name(&self.first_state_name)));
-            if self.config.config_features.generate_shadow_state {
-                self.newline();
-                self.add_code(&format!("{}_name:String::from(\"{}\"),"
-                                       ,self.config.state_var_name
-                                       ,self.format_state_name(&self.first_state_name)));
-            }
+
             // generate history mechanism
             if self.generate_state_stack {
                 self.newline();

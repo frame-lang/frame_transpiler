@@ -1,7 +1,7 @@
 codegen:
   rust:
     features:
-      generate_shadow_state: true
+      introspection: true
     code:
       enter_msg: Enter
       exit_msg: Exit
@@ -26,6 +26,7 @@ codegen:
       frame_event_return_attribute_name: ret
       frame_state_type_name: FrameState
       state_var_name: state
+      state_var_name_suffix: _state
       state_enum_suffix: State
       transition_method_name: transition
       change_state_method_name: change_state
