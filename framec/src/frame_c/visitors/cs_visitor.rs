@@ -5,7 +5,7 @@ use super::super::symbol_table::*;
 use super::super::symbol_table::SymbolType::*;
 use super::super::visitors::*;
 use super::super::scanner::{Token,TokenType};
-use yaml_rust::{YamlLoader, Yaml};
+// use yaml_rust::{YamlLoader, Yaml};
 
 pub struct CsVisitor {
     compiler_version:String,

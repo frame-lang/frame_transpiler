@@ -5,7 +5,7 @@ use super::super::symbol_table::*;
 use super::super::symbol_table::SymbolType::*;
 use super::super::visitors::*;
 use super::super::scanner::{Token,TokenType};
-use yaml_rust::{YamlLoader, Yaml};
+use yaml_rust::{Yaml};
 
 pub struct CppVisitor {
     compiler_version:String,
@@ -36,7 +36,7 @@ impl CppVisitor {
     //* --------------------------------------------------------------------- *//
 
     pub fn new(  arcanium:Arcanum
-               , config_yaml:&Yaml
+               , _config_yaml:&Yaml
                , generate_exit_args:bool
                , generate_state_context:bool
                , generate_state_stack:bool

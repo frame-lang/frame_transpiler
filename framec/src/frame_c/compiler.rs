@@ -49,10 +49,22 @@ impl Exe {
     /* --------------------------------------------------------------------- */
 
     pub fn run(&self, contents:String, mut output_format:String) -> Result<String,RunError> {
-        let mut output= String::new();
-        let config_yaml_vec;
+
 
         let config_yaml = include_str!("default_config.yaml");
+
+        // NOTE!!! There is a bug w/ the CLion debuger when a variable (maybe just String type)
+        // isn't initialized under some circumstances. Basically the debugger
+        // stops debugging or doesn't step and it looks like it hangs. To avoid
+        // this you have to initialize the variable, but the compiler then complains
+        // about the unused assignment. This can be squelched with `#[allow(unused_assignments)]`
+        // but I've reported it to JetBrains and want it fixed. So when you are
+        // debugging here, just uncomment the next line and then comment it back
+        // when checking in.
+        // let mut output= String::new();
+        let output;
+        let config_yaml_vec;
+
         let config_result = YamlLoader::load_from_str(config_yaml);
         match config_result {
             Ok(config) => {

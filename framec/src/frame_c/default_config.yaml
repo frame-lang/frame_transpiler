@@ -1,32 +1,36 @@
 codegen:
   rust:
-    enter_msg: Enter
-    exit_msg: Exit
-    enter_args_member_name: enter_args
-    exit_args_member_name: exit_args
-    state_args_var: state_args
-    state_vars_var_name: state_vars
-    state_context_name: StateContext
-    state_context_suffix: StateContext
-    state_context_var_name: state_context_rc
-    state_context_var_name_suffix: _state_context
-    state_context_struct_name: StateContext
-    this_state_context_var_name: this_state_context
-    frame_message: FrameMessage
-    frame_event_type_name: FrameEvent
-    frame_event_parameter_type_name: FrameEventParameter
-    frame_event_parameters_type_name: FrameParameters
-    frame_event_return: FrameEventReturn
-    frame_event_variable_name: e
-    frame_event_parameters_attribute_name: parameters
-    frame_event_message_attribute_name: message
-    frame_event_return_attribute_name: ret
-    frame_state_type_name: FrameState
-    state_var_name: state
-    transition_method_name: transition
-    change_state_method_name: change_state
-    state_stack_var_name: state_stack
-    state_stack_push_method_name: state_stack_push
-    state_stack_pop_method_name: state_stack_pop
+    features:
+      generate_shadow_state: true
+    code:
+      enter_msg: Enter
+      exit_msg: Exit
+      enter_args_member_name: enter_args
+      exit_args_member_name: exit_args
+      state_args_var: state_args
+      state_vars_var_name: state_vars
+      state_context_name: StateContext
+      state_context_suffix: StateContext
+      state_context_var_name: state_context_rc
+      state_context_var_name_suffix: _state_context
+      state_context_struct_name: StateContext
+      this_state_context_var_name: this_state_context
+      frame_message: FrameMessage
+      frame_event_type_name: FrameEvent
+      frame_event_parameter_type_name: FrameEventParameter
+      frame_event_parameters_type_name: FrameParameters
+      frame_event_return: FrameEventReturn
+      frame_event_variable_name: e
+      frame_event_parameters_attribute_name: parameters
+      frame_event_message_attribute_name: message
+      frame_event_return_attribute_name: ret
+      frame_state_type_name: FrameState
+      state_var_name: state
+      state_enum_suffix: State
+      transition_method_name: transition
+      change_state_method_name: change_state
+      state_stack_var_name: state_stack
+      state_stack_push_method_name: state_stack_push
+      state_stack_pop_method_name: state_stack_pop
 
             

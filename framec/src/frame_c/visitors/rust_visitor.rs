@@ -4,9 +4,14 @@ use super::super::ast::*;
 use super::super::symbol_table::*;
 use super::super::visitors::*;
 use super::super::scanner::{Token,TokenType};
-use yaml_rust::{YamlLoader, Yaml};
+use yaml_rust::{Yaml};
+
+struct ConfigFeatures {
+    generate_shadow_state:bool
+}
 
 struct Config {
+    config_features:ConfigFeatures,
     enter_token:String,
     exit_token:String,
     enter_msg:String,
@@ -33,6 +38,7 @@ struct Config {
     frame_event_return_attribute_name:String,
     frame_state_type_name:String,
     state_var_name:String,
+    state_enum_suffix:String,
     transition_method_name:String,
     change_state_method_name:String,
     state_stack_push_method_name:String,
@@ -40,38 +46,48 @@ struct Config {
 }
 
 impl Config {
+
     fn new(rust_yaml:&Yaml) -> Config {
+        println!("{:?}", rust_yaml);
+        let features_yaml = &rust_yaml["features"];
+        let config_features = ConfigFeatures {
+            generate_shadow_state: (&features_yaml["generate_shadow_state"]).as_bool().unwrap().to_string().parse().unwrap()
+        };
+        let code_yaml = &rust_yaml["code"];
+        
         Config {
+            config_features,
             enter_token:String::from(">"),
             exit_token:String::from("<"),
-            enter_msg:(&rust_yaml["enter_msg"]).as_str().unwrap().to_string(),
-            exit_msg:(&rust_yaml["exit_msg"]).as_str().unwrap().to_string(),
-            enter_args_member_name:(&rust_yaml["enter_args_member_name"]).as_str().unwrap().to_string(),
-            exit_args_member_name:(&rust_yaml["exit_args_member_name"]).as_str().unwrap().to_string(),
-            state_var_name:(&rust_yaml["state_var_name"]).as_str().unwrap().to_string(),
-            state_context_var_name:(&rust_yaml["state_context_var_name"]).as_str().unwrap().to_string(),
-            this_state_context_var_name:(&rust_yaml["this_state_context_var_name"]).as_str().unwrap().to_string(),
-            state_context_var_name_suffix:(&rust_yaml["state_context_var_name_suffix"]).as_str().unwrap().to_string(),
-            state_context_struct_name:(&rust_yaml["state_context_struct_name"]).as_str().unwrap().to_string(),
-            frame_state_type_name:(&rust_yaml["frame_state_type_name"]).as_str().unwrap().to_string(),
-            frame_event_type_name:(&rust_yaml["frame_event_type_name"]).as_str().unwrap().to_string(),
-            frame_event_parameter_type_name:(&rust_yaml["frame_event_parameter_type_name"]).as_str().unwrap().to_string(),
-            frame_event_parameters_type_name:(&rust_yaml["frame_event_parameters_type_name"]).as_str().unwrap().to_string(),
-            frame_message:(&rust_yaml["frame_message"]).as_str().unwrap().to_string(),
-            frame_event_return:(&rust_yaml["frame_event_return"]).as_str().unwrap().to_string(),
-            frame_event_variable_name:(&rust_yaml["frame_event_variable_name"]).as_str().unwrap().to_string(),
-            frame_event_parameters_attribute_name:(&rust_yaml["frame_event_parameters_attribute_name"]).as_str().unwrap().to_string(),
-            frame_event_message_attribute_name:(&rust_yaml["frame_event_message_attribute_name"]).as_str().unwrap().to_string(),
-            frame_event_return_attribute_name:(&rust_yaml["frame_event_return_attribute_name"]).as_str().unwrap().to_string(),
-            state_context_name:(&rust_yaml["state_context_name"]).as_str().unwrap().to_string(),
-            state_context_suffix:(&rust_yaml["state_context_suffix"]).as_str().unwrap().to_string(),
-            state_args_var:(&rust_yaml["state_args_var"]).as_str().unwrap().to_string(),
-            state_vars_var_name:(&rust_yaml["state_vars_var_name"]).as_str().unwrap().to_string(),
-            state_stack_var_name:(&rust_yaml["state_stack_var_name"]).as_str().unwrap().to_string(),
-            transition_method_name:(&rust_yaml["transition_method_name"]).as_str().unwrap().to_string(),
-            change_state_method_name:(&rust_yaml["change_state_method_name"]).as_str().unwrap().to_string(),
-            state_stack_push_method_name:(&rust_yaml["state_stack_push_method_name"]).as_str().unwrap().to_string(),
-            state_stack_pop_method_name:(&rust_yaml["state_stack_pop_method_name"]).as_str().unwrap().to_string(),
+            enter_msg:(&code_yaml["enter_msg"]).as_str().unwrap().to_string(),
+            exit_msg:(&code_yaml["exit_msg"]).as_str().unwrap().to_string(),
+            enter_args_member_name:(&code_yaml["enter_args_member_name"]).as_str().unwrap().to_string(),
+            exit_args_member_name:(&code_yaml["exit_args_member_name"]).as_str().unwrap().to_string(),
+            state_var_name:(&code_yaml["state_var_name"]).as_str().unwrap().to_string(),
+            state_enum_suffix:(&code_yaml["state_enum_suffix"]).as_str().unwrap().to_string(),
+            state_context_var_name:(&code_yaml["state_context_var_name"]).as_str().unwrap().to_string(),
+            this_state_context_var_name:(&code_yaml["this_state_context_var_name"]).as_str().unwrap().to_string(),
+            state_context_var_name_suffix:(&code_yaml["state_context_var_name_suffix"]).as_str().unwrap().to_string(),
+            state_context_struct_name:(&code_yaml["state_context_struct_name"]).as_str().unwrap().to_string(),
+            frame_state_type_name:(&code_yaml["frame_state_type_name"]).as_str().unwrap().to_string(),
+            frame_event_type_name:(&code_yaml["frame_event_type_name"]).as_str().unwrap().to_string(),
+            frame_event_parameter_type_name:(&code_yaml["frame_event_parameter_type_name"]).as_str().unwrap().to_string(),
+            frame_event_parameters_type_name:(&code_yaml["frame_event_parameters_type_name"]).as_str().unwrap().to_string(),
+            frame_message:(&code_yaml["frame_message"]).as_str().unwrap().to_string(),
+            frame_event_return:(&code_yaml["frame_event_return"]).as_str().unwrap().to_string(),
+            frame_event_variable_name:(&code_yaml["frame_event_variable_name"]).as_str().unwrap().to_string(),
+            frame_event_parameters_attribute_name:(&code_yaml["frame_event_parameters_attribute_name"]).as_str().unwrap().to_string(),
+            frame_event_message_attribute_name:(&code_yaml["frame_event_message_attribute_name"]).as_str().unwrap().to_string(),
+            frame_event_return_attribute_name:(&code_yaml["frame_event_return_attribute_name"]).as_str().unwrap().to_string(),
+            state_context_name:(&code_yaml["state_context_name"]).as_str().unwrap().to_string(),
+            state_context_suffix:(&code_yaml["state_context_suffix"]).as_str().unwrap().to_string(),
+            state_args_var:(&code_yaml["state_args_var"]).as_str().unwrap().to_string(),
+            state_vars_var_name:(&code_yaml["state_vars_var_name"]).as_str().unwrap().to_string(),
+            state_stack_var_name:(&code_yaml["state_stack_var_name"]).as_str().unwrap().to_string(),
+            transition_method_name:(&code_yaml["transition_method_name"]).as_str().unwrap().to_string(),
+            change_state_method_name:(&code_yaml["change_state_method_name"]).as_str().unwrap().to_string(),
+            state_stack_push_method_name:(&code_yaml["state_stack_push_method_name"]).as_str().unwrap().to_string(),
+            state_stack_pop_method_name:(&code_yaml["state_stack_pop_method_name"]).as_str().unwrap().to_string(),
         }
     }
 }
@@ -157,7 +173,7 @@ impl RustVisitor {
 
         let codegen_yaml = &config_yaml["codegen"];
         let rust_yaml = &codegen_yaml["rust"];
-        let mut config = Config::new(&rust_yaml);
+        let config = Config::new(&rust_yaml);
 
         config
     }
@@ -540,11 +556,41 @@ impl RustVisitor {
         self.newline();
         self.add_code("//=============== Machinery and Mechanisms ==============//");
         self.newline();
+        if self.config.config_features.generate_shadow_state {
+            self.newline();
+            self.add_code(&format!("pub fn get_{}_name() -> {}State {{"
+                                   ,self.config.state_var_name
+                                   ,self.system_name
+            ));
+
+            self.indent();
+            self.newline();
+
+            if let Some(machine_block_node) = &system_node.machine_block_node_opt {
+                let mut if_else_if = String::from("if");
+                for state in &machine_block_node.states {
+                    self.add_code(&format!("{} self.state as *const FrameState == {}::{} as *const FrameState {{ {}{}::{} }}"
+                                            ,if_else_if
+                                            ,self.system_name
+                                            ,state.borrow().name
+                                            ,self.system_name
+                                            ,self.config.state_enum_suffix
+                                           ,state.borrow().name
+                    ));
+                    self.newline();
+                    if_else_if = "else if".to_string();
+                }
+            }
+            self.add_code("else { panic!(\"Machine in invalid state\"); }");
+
+            self.outdent();
+            self.newline();
+            self.add_code("}");
+        }
+        self.newline();
         if let Some(_) = system_node.get_first_state() {
             self.newline();
             if self.generate_transition_state {
-                self.newline();
-                self.newline();
                 if self.generate_state_context {
                     if self.generate_exit_args {
                         self.add_code(&format!("fn {}(&mut self, new_state:{},{}:Box<{}>, {}:Rc<RefCell<{}>>) {{"
@@ -1193,16 +1239,6 @@ impl AstVisitor for RustVisitor {
         self.add_code("use std::cell::RefCell;");
         self.newline();
 
-        // self.newline();
-        // self.add_code("// get include files at https://github.com/frame-lang/frame-ancillary-files");
-        // self.newline();
-
-        // self.newline();
-        // self.newline();
-        // self.add_code("use std::collections::HashMap;");
-        // self.newline();
-        // self.newline();
-
         if let Some(interface_block_node) = &system_node.interface_block_node_opt {
             interface_block_node.accept_frame_messages_enum(self);
             interface_block_node.accept_frame_parameters(self);
@@ -1211,6 +1247,29 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.newline();
 
+        if self.config.config_features.generate_shadow_state {
+            self.add_code(&format!("enum {}{} {{"
+                ,self.system_name
+                ,self.config.state_enum_suffix
+            ));
+
+            self.indent();
+            if let Some(machine_block_node) = &system_node.machine_block_node_opt {
+                for state in &machine_block_node.states {
+                    self.newline();
+                    self.add_code(&format!("{},"
+                                           ,state.borrow().name
+                    ));
+
+                }
+            }
+            self.outdent();
+            self.newline();
+
+            self.add_code("}");
+            self.newline();
+            self.newline();
+        }
         self.add_code(&format!("type {} = fn(&mut {}, &mut {});"
                                ,self.config.frame_state_type_name
                                , &system_node.name
@@ -1576,6 +1635,9 @@ impl AstVisitor for RustVisitor {
         // generate state variable
         self.add_code(&format!("{}:{},",&self.config.state_var_name, self.config.frame_state_type_name));
 
+        if self.config.config_features.generate_shadow_state {
+            self.add_code(&format!("{}_name:String,",&self.config.state_var_name));
+        }
         // generate state context variable
 
         if self.generate_state_context {
@@ -1631,8 +1693,10 @@ impl AstVisitor for RustVisitor {
                 ));
                 self.indent();
                 self.newline();
-                self.add_code(&format!("state:{}::{},",&self.system_name,self.format_state_name(&self.first_state_name)));
-                //              self.output_string_vec(&enter_arguments);
+                self.add_code(&format!("{}:{}::{},"
+                                        ,self.config.state_var_name
+                                       ,&self.system_name
+                                       ,self.format_state_name(&self.first_state_name)));
 
                 self.outdent();
                 self.newline();
@@ -1661,7 +1725,12 @@ impl AstVisitor for RustVisitor {
             self.indent();
             self.newline();
             self.add_code(&format!("{}:{}::{},",&self.config.state_var_name, system_node.name, self.format_state_name(&self.first_state_name)));
-
+            if self.config.config_features.generate_shadow_state {
+                self.newline();
+                self.add_code(&format!("{}_name:String::from(\"{}\"),"
+                                       ,self.config.state_var_name
+                                       ,self.format_state_name(&self.first_state_name)));
+            }
             // generate history mechanism
             if self.generate_state_stack {
                 self.newline();
@@ -2144,27 +2213,6 @@ impl AstVisitor for RustVisitor {
 
         // AstVisitorReturnType::ActionBlockNode {}
     }
-
-    //* --------------------------------------------------------------------- *//
-    //
-    // fn visit_action_node_rust_trait(&mut self, actions_block_node: &ActionsBlockNode) -> AstVisitorReturnType {
-    //     self.newline();
-    //     self.add_code(&format!("trait {}_Actions {{ ",self.system_name));
-    //     self.indent();
-    //     self.newline();
-    //
-    //     for action_decl_node_rcref in &actions_block_node.actions {
-    //         let action_decl_node = action_decl_node_rcref.borrow();
-    //         action_decl_node.accept(self);
-    //     }
-    //
-    //     self.outdent();
-    //     self.newline();
-    //     self.add_code("}");
-    //     self.newline();
-    //
-    //     AstVisitorReturnType::ActionBlockNode {}
-    // }
 
     //* --------------------------------------------------------------------- *//
 

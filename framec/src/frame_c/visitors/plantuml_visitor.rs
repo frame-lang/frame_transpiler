@@ -6,7 +6,7 @@ use super::super::symbol_table::*;
 use super::super::visitors::*;
 use super::super::scanner::{Token,TokenType};
 use crate::frame_c::utils::{SystemHierarchy};
-use yaml_rust::{YamlLoader, Yaml};
+// use yaml_rust::{YamlLoader, Yaml};
 
 pub struct PlantUmlVisitor {
     compiler_version:String,
