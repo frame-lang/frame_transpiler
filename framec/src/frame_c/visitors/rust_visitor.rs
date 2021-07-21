@@ -49,7 +49,7 @@ struct Config {
 impl Config {
 
     fn new(rust_yaml:&Yaml) -> Config {
-        println!("{:?}", rust_yaml);
+        // println!("{:?}", rust_yaml);
         let features_yaml = &rust_yaml["features"];
         let config_features = ConfigFeatures {
             introspection: (&features_yaml["introspection"]).as_bool().unwrap().to_string().parse().unwrap()
