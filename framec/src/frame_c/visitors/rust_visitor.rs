@@ -7,7 +7,8 @@ use super::super::scanner::{Token,TokenType};
 use yaml_rust::{Yaml};
 
 struct ConfigFeatures {
-    introspection:bool
+    lower_case_states:bool,
+    introspection:bool,
 }
 
 struct Config {
@@ -52,7 +53,8 @@ impl Config {
         // println!("{:?}", rust_yaml);
         let features_yaml = &rust_yaml["features"];
         let config_features = ConfigFeatures {
-            introspection: (&features_yaml["introspection"]).as_bool().unwrap().to_string().parse().unwrap()
+            lower_case_states: (&features_yaml["lower_case_states"]).as_bool().unwrap().to_string().parse().unwrap(),
+            introspection: (&features_yaml["introspection"]).as_bool().unwrap().to_string().parse().unwrap(),
         };
         let code_yaml = &rust_yaml["code"];
         
@@ -457,10 +459,16 @@ impl RustVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn format_state_name(&self,state_name:&str) -> String {
-        // return format!("{}_state",state_name.to_lowercase())
-        return format!("{}{}"
-                       ,state_name
-                       ,self.config.state_var_name_suffix)
+        if self.config.config_features.lower_case_states {
+            return format!("{}{}"
+                           ,state_name.to_lowercase()
+                           ,self.config.state_var_name_suffix)
+        } else {
+            return format!("{}{}"
+                           ,state_name
+                           ,self.config.state_var_name_suffix);
+        }
+
     }
 
     //* --------------------------------------------------------------------- *//
@@ -575,12 +583,11 @@ impl RustVisitor {
             if let Some(machine_block_node) = &system_node.machine_block_node_opt {
                 let mut if_else_if = String::from("if");
                 for state in &machine_block_node.states {
-                    self.add_code(&format!("{} self.state as *const {} == {}::{}{} as *const {} {{ {}{}::{} }}"
+                    self.add_code(&format!("{} self.state as *const {} == {}::{} as *const {} {{ {}{}::{} }}"
                                             ,if_else_if
                                             ,self.config.frame_event_type_name
                                             ,self.system_name
-                                            ,state.borrow().name
-                                            ,self.config.state_var_name_suffix
+                                            ,self.format_state_name(state.borrow().name.as_str())
                                             ,self.config.frame_event_type_name
                                             ,self.system_name
                                             ,self.config.state_enum_suffix
@@ -809,7 +816,7 @@ impl RustVisitor {
         self.add_code(&format!("self.{}({}::{});"
                                ,self.config.change_state_method_name
                                ,self.system_name
-                               ,self.format_target_state_name(target_state_name)));
+                               ,self.format_state_name(target_state_name)));
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1092,35 +1099,35 @@ impl RustVisitor {
                 self.add_code(&format!("self.{}({}::{},{},Rc::new(RefCell::new(next_state_context)));"
                                        ,self.config.transition_method_name
                                        ,self.system_name
-                                       ,self.format_target_state_name(target_state_name)
+                                       ,self.format_state_name(target_state_name)
                                        ,exit_args ));
             } else {
                 self.add_code(&format!("self.{}({}::{},Rc::new(RefCell::new(next_state_context)));"
                                        ,self.config.transition_method_name
                                        ,self.system_name
-                                       ,self.format_target_state_name(target_state_name)));
+                                       ,self.format_state_name(target_state_name)));
             }
         } else {
             if self.generate_exit_args {
                 self.add_code(&format!("self.{}({}::{},{});"
                                        ,self.config.transition_method_name
                                        ,self.system_name
-                                       ,self.format_target_state_name(target_state_name)
+                                       ,self.format_state_name(target_state_name)
                                        ,exit_args));
             } else {
                 self.add_code(&format!("self.{}({}::{});"
                                        ,self.config.transition_method_name
                                        ,self.system_name
-                                       ,self.format_target_state_name(target_state_name)));
+                                       ,self.format_state_name(target_state_name)));
             }
         }
     }
 
-    //* --------------------------------------------------------------------- *//
-
-    fn format_target_state_name(&self,state_name:&str) -> String {
-        format!("{}_state",state_name.to_lowercase())
-    }
+    // //* --------------------------------------------------------------------- *//
+    //
+    // fn format_target_state_name(&self,state_name:&str) -> String {
+    //     format!("{}_state",state_name.to_lowercase())
+    // }
 
     //* --------------------------------------------------------------------- *//
 
@@ -1197,9 +1204,10 @@ impl RustVisitor {
 
         if self.generate_state_context {
             self.add_code(&format!("let {} = self.{}();"
-                                   ,self.config.state_stack_pop_method_name
                                    ,self.config.state_context_var_name
+                                   ,self.config.state_stack_pop_method_name
             ));
+            self.newline();
             self.add_code(&format!("let state = {}.borrow().getState();",self.config.state_context_var_name));
         } else {
             self.add_code(&format!("let state = self.{}();",self.config.state_stack_pop_method_name));
@@ -1207,7 +1215,7 @@ impl RustVisitor {
         self.newline();
         if self.generate_exit_args {
             if self.generate_state_context {
-                self.add_code(&format!("self.{}(state,{},{});"
+                self.add_code(&format!("self.{}(state,{},self.{});"
                                        ,self.config.transition_method_name
                                         ,self.config.exit_args_member_name
                                        ,self.config.state_context_var_name));
@@ -1864,46 +1872,49 @@ impl AstVisitor for RustVisitor {
 
         self.newline();
         self.newline();
-        self.add_code(&format!("impl {} {{",self.config.frame_message));
-        self.indent();
-        self.newline();
-        self.add_code("fn to_string(&self) -> String {");
-        self.indent();
-        self.newline();
-        self.add_code("match self {");
-        self.indent();
-        self.newline();
-        self.add_code(&format!("{}::{} => String::from(\"{}\"),",self.config.frame_message,self.config.enter_msg,self.config.enter_msg));
-        self.newline();
-        self.add_code(&format!("{}::{} => String::from(\"{}\"),",self.config.frame_message,self.config.exit_msg,self.config.exit_msg));
-        for event in &events {
-            //    ret.push(k.clone());
-            if self.isEnterOrExitMessage(&event) {
-                continue;
-            }
-            let message_opt = self.arcanium.get_interface_or_msg_from_msg(&event);
-            match message_opt {
-                Some(cannonical_message_name) => {
-                    self.newline();
-                    self.add_code(&format!("{}::{} => String::from(\"{}\"),",self.config.frame_message, cannonical_message_name,cannonical_message_name));
-                },
-                None => {
-                    self.newline();
-                    self.add_code(&format!("<Error - unknown message {}>,", &event));
+        if self.config.config_features.introspection {
 
+            self.add_code(&format!("impl {} {{",self.config.frame_message));
+            self.indent();
+            self.newline();
+            self.add_code("fn to_string(&self) -> String {");
+            self.indent();
+            self.newline();
+            self.add_code("match self {");
+            self.indent();
+            self.newline();
+            self.add_code(&format!("{}::{} => String::from(\"{}\"),",self.config.frame_message,self.config.enter_msg,self.config.enter_msg));
+            self.newline();
+            self.add_code(&format!("{}::{} => String::from(\"{}\"),",self.config.frame_message,self.config.exit_msg,self.config.exit_msg));
+            for event in &events {
+                //    ret.push(k.clone());
+                if self.isEnterOrExitMessage(&event) {
+                    continue;
                 }
-            }
+                let message_opt = self.arcanium.get_interface_or_msg_from_msg(&event);
+                match message_opt {
+                    Some(cannonical_message_name) => {
+                        self.newline();
+                        self.add_code(&format!("{}::{} => String::from(\"{}\"),",self.config.frame_message, cannonical_message_name,cannonical_message_name));
+                    },
+                    None => {
+                        self.newline();
+                        self.add_code(&format!("<Error - unknown message {}>,", &event));
 
+                    }
+                }
+
+            }
+            self.outdent();
+            self.newline();
+            self.add_code("}");
+            self.outdent();
+            self.newline();
+            self.add_code("}");
+            self.outdent();
+            self.newline();
+            self.add_code("}");
         }
-        self.outdent();
-        self.newline();
-        self.add_code("}");
-        self.outdent();
-        self.newline();
-        self.add_code("}");
-        self.outdent();
-        self.newline();
-        self.add_code("}");
 
         AstVisitorReturnType::InterfaceBlockNode {}
     }

@@ -1,6 +1,7 @@
 codegen:
   rust:
     features:
+      lower_case_states: false
       introspection: true
     code:
       enter_msg: Enter
