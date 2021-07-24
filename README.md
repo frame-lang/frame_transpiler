@@ -1,4 +1,6 @@
+
 # Frame Language Transpiler v0.5.1
+
 
 Hi! So very glad you are interested in Frame. Frame system design markdown language for software architects and engineers. It is an easy to learn textual language for defining system specifications that can generate both UML documentation as well as code in 7 langauges. 
 
@@ -9,14 +11,16 @@ This project contains the code for building the Frame Language Transpiler - the 
 
 ## Resources
 
-The Frame project is just getting started but there are some resources and communities to help.
+The Frame project is just getting started but there are some resources and communities to help. You can now download [VSCode](https://marketplace.visualstudio.com/items?itemName=frame-lang-org.frame-machine-maker) and [Atom](https://atom.io/packages/frame-machine-maker) extensions to work with Frame in these popular free development applications.
 
-An [online version of the Framepiler](https://framepiler.frame-lang.org) is available and provides examples and links to other resources. You can learn more about the Frame language at [frame-lang.org](https://frame-lang.org) as well as find general resources about programming with automata at Reddit ![re](https://www.google.com/s2/favicons?domain_url=https://reddit.com) on the [r/statemachines](https://www.reddit.com/r/statemachines/) subreddit.
+An [online version of the Framepiler](https://framepiler.frame-lang.org) is also available and provides examples and links to other resources. You can learn more about the Frame language at [frame-lang.org](https://frame-lang.org) as well as find general resources about programming with automata at Reddit ![re](https://www.google.com/s2/favicons?domain_url=https://reddit.com) on the [r/statemachines](https://www.reddit.com/r/statemachines/) subreddit.
 
 Communities exist at [Gitter](https://gitter.im/frame-language/community) and [Discord](https://discord.com/invite/CfbU4QCbSD).
 
 ### Frame Examples
 The [Framepiler](https://framepiler.frame-lang.org/example/aHR0cHM6Ly9naXN0LmdpdGh1Yi5jb20vZnJhbWUtbGFuZy8wZGFmMDMzOGU0YTkyYjc1NWViMTQ2NGM3YzVjMTM3Zg==) itself has a number of examples baked into it but I also have started a [Gitter Frame Examples](https://gitter.im/frame-language/frame-examples) channel for contributions. The Framepiler supports links to Gists so please create and share!
+
+The [Frame Solution Depot](https://github.com/frame-lang/frame_solution_depot) is a Github repo and growing body of examples and test specifications. This is useful in conjunction with the [VSCode](https://marketplace.visualstudio.com/items?itemName=frame-lang-org.frame-machine-maker) and [Atom](https://atom.io/packages/frame-machine-maker) extensions.
 
 ## Bugs and Problems
 
@@ -25,8 +29,6 @@ For now please report issues to the [Gitter Bug Channel](https://gitter.im/frame
 ## Getting Started
 
 These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
-
-
 
 
 ### Installing

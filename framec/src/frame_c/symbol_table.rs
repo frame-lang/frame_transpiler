@@ -928,7 +928,7 @@ impl ScopeSymbol for SystemSymbol {
             let e = d.get_symbol_table_for_symbol(symbol_name);
             return Rc::clone(&e);
         } else {
-            panic!(format!("Fatal error - could not find symbol {} in system scope.", symbol_name));
+            panic!("Fatal error - could not find symbol {} in system scope.", symbol_name);
         }
     }
 }
@@ -957,7 +957,7 @@ impl ScopeSymbol for InterfaceBlockSymbol {
             let e = d.get_symbol_table_for_symbol(symbol_name);
             return Rc::clone(&e);
         } else {
-            panic!(format!("Fatal error - could not find symbol {} in interface block scope.", symbol_name));
+            panic!("Fatal error - could not find symbol {} in interface block scope.", symbol_name);
 
         }
     }
@@ -995,7 +995,7 @@ impl ScopeSymbol for InterfaceMethodSymbol {
             let e = d.get_symbol_table_for_symbol(symbol_name);
             return Rc::clone(&e);
         } else {
-            panic!(format!("Fatal error - could not find symbol {} in interface method scope.", symbol_name));
+            panic!("Fatal error - could not find symbol {} in interface method scope.", symbol_name);
         }
     }
 }
@@ -1097,7 +1097,7 @@ impl ScopeSymbol for MachineBlockScopeSymbol {
             let e = d.get_symbol_table_for_symbol(symbol_name);
             return Rc::clone(&e);
         } else {
-            panic!(format!("Fatal error - could not find symbol {} in machine block scope.", symbol_name));
+            panic!("Fatal error - could not find symbol {} in machine block scope.", symbol_name);
         }
     }
 }
@@ -1245,7 +1245,7 @@ impl StateSymbol {
             let e = d.get_symbol_table_for_symbol(symbol_name);
             return Rc::clone(&e);
         } else {
-            panic!(format!("Fatal error - could not find symbol {} in state scope.", symbol_name));
+            panic!("Fatal error - could not find symbol {} in state scope.", symbol_name);
         }
     }
 }
@@ -1349,7 +1349,7 @@ impl ScopeSymbol for StateParamsScopeSymbol {
             let e = d.get_symbol_table_for_symbol(symbol_name);
             return Rc::clone(&e);
         } else {
-            panic!(format!("Fatal error - could not find symbol {} in state parameters scope.", symbol_name));
+            panic!("Fatal error - could not find symbol {} in state parameters scope.", symbol_name);
         }
     }
 }
@@ -1406,7 +1406,7 @@ impl ScopeSymbol for StateLocalScopeSymbol {
             let e = d.get_symbol_table_for_symbol(symbol_name);
             return Rc::clone(&e);
         } else {
-            panic!(format!("Fatal error - could not find symbol {} in state local scope.", symbol_name));
+            panic!("Fatal error - could not find symbol {} in state local scope.", symbol_name);
         }
     }
 }
@@ -1456,7 +1456,7 @@ impl ScopeSymbol for EventHandlerScopeSymbol {
             let e = d.get_symbol_table_for_symbol(symbol_name);
             return Rc::clone(&e);
         } else {
-            panic!(format!("Fatal error - could not find symbol {} in event handler scope.", symbol_name));
+            panic!("Fatal error - could not find symbol {} in event handler scope.", symbol_name);
         }
     }
 }
@@ -1532,7 +1532,7 @@ impl ScopeSymbol for EventHandlerParamsScopeSymbol {
             let e = d.get_symbol_table_for_symbol(symbol_name);
             return Rc::clone(&e);
         } else {
-            panic!(format!("Fatal error - could not find symbol {} in event handler params scope.", symbol_name));
+            panic!("Fatal error - could not find symbol {} in event handler params scope.", symbol_name);
         }
     }
 }
@@ -1590,7 +1590,7 @@ impl ScopeSymbol for EventHandlerLocalScopeSymbol {
             let e = d.get_symbol_table_for_symbol(symbol_name);
             return Rc::clone(&e);
         } else {
-            panic!(format!("Fatal error - could not find symbol {} in event handler local scope.", symbol_name));
+            panic!("Fatal error - could not find symbol {} in event handler local scope.", symbol_name);
         }
     }
 }
@@ -1641,7 +1641,7 @@ impl ScopeSymbol for ActionsBlockScopeSymbol {
             let e = d.get_symbol_table_for_symbol(symbol_name);
             return Rc::clone(&e);
         } else {
-            panic!(format!("Fatal error - could not find symbol {} in actions block scope.", symbol_name));
+            panic!("Fatal error - could not find symbol {} in actions block scope.", symbol_name);
         }
     }
 }
@@ -1698,7 +1698,7 @@ impl ScopeSymbol for DomainBlockScopeSymbol {
             let e = d.get_symbol_table_for_symbol(symbol_name);
             return Rc::clone(&e);
         } else {
-            panic!(format!("Fatal error - could not find symbol {} in domain block scope.", symbol_name));
+            panic!("Fatal error - could not find symbol {} in domain block scope.", symbol_name);
         }
     }
 }

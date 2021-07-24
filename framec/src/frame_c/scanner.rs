@@ -181,7 +181,7 @@ impl Scanner {
 
             }
             '$' => {
-                enum StackType {Push,Pop};
+                enum StackType {Push,Pop}
 
                 if self.match_char('$') {
                     let st;
