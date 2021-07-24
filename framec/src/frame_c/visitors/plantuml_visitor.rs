@@ -6,7 +6,7 @@ use super::super::symbol_table::*;
 use super::super::visitors::*;
 use super::super::scanner::{Token,TokenType};
 use crate::frame_c::utils::{SystemHierarchy};
-
+// use yaml_rust::{YamlLoader, Yaml};
 
 pub struct PlantUmlVisitor {
     compiler_version:String,
@@ -843,15 +843,13 @@ impl AstVisitor for PlantUmlVisitor {
 //         self.newline();
 //         self.newline();
 
-        let mut has_states = false;
-
         // First state name needed for machinery.
         // Don't generate if there isn't at least one state.
         match (&system_node).get_first_state() {
             Some(x) => {
                 self.first_state_name = x.borrow().name.clone();
                 self.transitions.push_str(&format!("[*] --> {}\n",self.first_state_name));
-                has_states = true;
+ //               self.has_states = true;
             },
             None => {},
         }
@@ -911,9 +909,9 @@ impl AstVisitor for PlantUmlVisitor {
         //     domain_block_node.accept(self);
         // }
 
-        if has_states {
-//            self.generate_machinery(system_node);
-        }
+//         if has_states {
+// //            self.generate_machinery(system_node);
+//         }
 
         // TODO: formatting
         // self.newline();

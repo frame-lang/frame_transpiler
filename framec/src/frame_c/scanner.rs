@@ -369,7 +369,7 @@ impl Scanner {
                 } else if self.is_alpha(c) {
                     self.identifier();
                 } else {
-                    self.error(self.line,"Unexpected character.");
+                    self.error(self.line,&format!("Found unexpected character '{}'.",c));
                     self.add_token(ErrorTok);
                 }
             }
@@ -601,7 +601,7 @@ impl Scanner {
     }
 
     fn error(&mut self, line:usize,error_msg:&str) {
-        let error = &format!("Line {} : Error: {}", line, error_msg);
+        let error = &format!("Line {} : Error: {}\n", line, error_msg);
         self.has_errors = true;
         self.errors.push_str(error);
     }
@@ -728,8 +728,8 @@ pub enum TokenType {
     MatchStringTok,                 // /<string>/ - contains <string>
     MatchNullStringTok,             // //!
     MatchEmptyStringTok,            // //
-    StateStackOperationPushTok,     // $[+]
-    StateStackOperationPopTok,      // $[-]
+    StateStackOperationPushTok,     // $$[+]
+    StateStackOperationPopTok,      // $$[-]
     DotTok,                         // .
     AtTok,                          // @
     PipePipeTok,                    // ||

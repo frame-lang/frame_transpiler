@@ -5,7 +5,7 @@ use super::super::symbol_table::*;
 use super::super::symbol_table::SymbolType::*;
 use super::super::visitors::*;
 use super::super::scanner::{Token,TokenType};
-
+use yaml_rust::{Yaml};
 
 pub struct CppVisitor {
     compiler_version:String,
@@ -36,6 +36,7 @@ impl CppVisitor {
     //* --------------------------------------------------------------------- *//
 
     pub fn new(  arcanium:Arcanum
+               , _config_yaml:&Yaml
                , generate_exit_args:bool
                , generate_state_context:bool
                , generate_state_stack:bool
@@ -841,14 +842,12 @@ impl AstVisitor for CppVisitor {
         self.newline();
         self.newline();
 
-        let mut has_states = false;
-
         // First state name needed for machinery.
         // Don't generate if there isn't at least one state.
         match (&system_node).get_first_state() {
             Some(x) => {
                 self.first_state_name = x.borrow().name.clone();
-                has_states = true;
+                self.has_states = true;
             },
             None => {},
         }
@@ -862,7 +861,7 @@ impl AstVisitor for CppVisitor {
             if self.generate_state_context {
                 self.newline();
                 self.add_code(&format!("_pStateContext_ = new StateContext(_state_);"));
-                if has_states {
+                if self.has_states {
                     if let Some(state_symbol_rcref) = self.arcanium.get_state(&self.first_state_name) {
                         self.newline();
                         let state_symbol = state_symbol_rcref.borrow();

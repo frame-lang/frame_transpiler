@@ -12,12 +12,14 @@ use crate::frame_c::visitors::java_8_visitor::Java8Visitor;
 use crate::frame_c::visitors::rust_visitor::RustVisitor;
 use crate::frame_c::utils::{RunError, frame_exitcode};
 use exitcode::USAGE;
+extern crate yaml_rust;
+use yaml_rust::{YamlLoader};
 //use crate::frame_c::visitors::xtate_visitor::XStateVisitor;
 
 /* --------------------------------------------------------------------- */
 
 static IS_DEBUG:bool = false;
-static FRAMEC_VERSION:&str = "emitted from framec_v0.4.1";
+static FRAMEC_VERSION:&str = "emitted from framec_v0.5.1";
 
 
 /* --------------------------------------------------------------------- */
@@ -47,8 +49,37 @@ impl Exe {
     /* --------------------------------------------------------------------- */
 
     pub fn run(&self, contents:String, mut output_format:String) -> Result<String,RunError> {
-        let output;
 
+
+        let config_yaml = include_str!("default_config.yaml");
+
+        // NOTE!!! There is a bug w/ the CLion debuger when a variable (maybe just String type)
+        // isn't initialized under some circumstances. Basically the debugger
+        // stops debugging or doesn't step and it looks like it hangs. To avoid
+        // this you have to initialize the variable, but the compiler then complains
+        // about the unused assignment. This can be squelched with `#[allow(unused_assignments)]`
+        // but I've reported it to JetBrains and want it fixed. So when you are
+        // debugging here, just uncomment the next line and then comment it back
+        // when checking in.
+        // let mut output= String::new();
+        let output;
+        let config_yaml_vec;
+
+        let config_result = YamlLoader::load_from_str(config_yaml);
+        match config_result {
+            Ok(config) => {
+                config_yaml_vec = config;
+            },
+            Err(scan_error) => {
+                let error_msg = format!("Error parsing default_config.yaml: {}",scan_error.to_string());
+                let run_error = RunError::new(frame_exitcode::DEFAULT_CONFIG_ERR, &*error_msg);
+                return Err(run_error);
+            }
+        }
+
+        // Multi document support, doc is a yaml::Yaml
+        let config_yaml = &config_yaml_vec[0];
+//        println!("{:?}", config_yaml);
         let scanner = Scanner::new(contents);
         let (has_errors,errors,tokens) = scanner.scan_tokens();
         if has_errors {
@@ -59,7 +90,6 @@ impl Exe {
         for token in &tokens {
             Exe::debug_print(&format!("{:?}", token));
         }
-
 
         let mut arcanum = Arcanum::new();
         let mut comments = Vec::new();
@@ -114,6 +144,7 @@ impl Exe {
             output = visitor.get_code();
         } else if output_format == "cpp" {
             let mut visitor = CppVisitor::new(semantic_parser.get_arcanum()
+                                                  , &config_yaml
                                                   , generate_exit_args
                                                   , generate_state_context
                                                   , generate_state_stack
@@ -197,6 +228,7 @@ impl Exe {
             output = visitor.get_code();
         } else if output_format == "rust" {
             let mut visitor = RustVisitor::new(semantic_parser.get_arcanum()
+                                             , config_yaml
                                              , generate_exit_args
                                              , generate_state_context
                                              , generate_state_stack
