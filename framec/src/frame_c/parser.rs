@@ -2827,14 +2827,14 @@ impl<'a> Parser<'a> {
             if self.match_token(&vec![LParenTok]) {
                 let r = self.method_call(id_node);
                 match r {
-                    Ok(method_call_expr_node) => {
+                    Ok(mut method_call_expr_node) => {
 
                         if !self.is_building_symbol_table {
 
                             let s = method_call_expr_node.identifier.name.lexeme.clone();
                             let action_decl_symbol_opt = self.arcanum.lookup_action(&s);
 
-                            // test if idetifer is in arcanum. If so, its an action. If not, its an
+                            // test if identifer is in arcanum. If so, its an action. If not, its an
                             // external call.
 
                             match action_decl_symbol_opt {
@@ -2846,6 +2846,10 @@ impl<'a> Parser<'a> {
                                 },
                                 None => {
                                     // external call
+                                    if method_call_expr_node.identifier.scope == IdentifierDeclScope::DomainBlock {
+                                        // change to interface block as it is a method call #.iface()
+                                        method_call_expr_node.identifier.scope = IdentifierDeclScope::InterfaceBlock;
+                                    }
                                     let call_t = CallChainLiteralNodeType::CallT {call:method_call_expr_node};
                                     call_chain.push_back(call_t);
                                 },

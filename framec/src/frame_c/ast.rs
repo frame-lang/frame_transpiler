@@ -1331,6 +1331,7 @@ impl NodeElement for ExprListNode {
 #[derive(Clone,PartialEq)]
 pub enum IdentifierDeclScope {
     //     Global,  TODO!
+    InterfaceBlock,
     DomainBlock,
     ActionsBlock,
     StateParam,

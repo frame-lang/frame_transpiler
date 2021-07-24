@@ -2474,6 +2474,9 @@ impl AstVisitor for RustVisitor {
 
     fn visit_call_expression_node(&mut self, method_call: &CallExprNode) -> AstVisitorReturnType {
 
+        if method_call.identifier.scope == IdentifierDeclScope::InterfaceBlock {
+            self.add_code("self.");
+        }
         if let Some(call_chain) = &method_call.call_chain {
 
             for callable in call_chain {
