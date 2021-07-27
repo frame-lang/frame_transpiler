@@ -11,6 +11,7 @@ use crate::frame_c::visitors::javascript_visitor::JavaScriptVisitor;
 use crate::frame_c::visitors::plantuml_visitor::PlantUmlVisitor;
 use crate::frame_c::visitors::python_visitor::PythonVisitor;
 use crate::frame_c::visitors::rust_visitor::RustVisitor;
+use crate::frame_c::visitors::smcat_visitor::SmcatVisitor;
 use exitcode::USAGE;
 extern crate yaml_rust;
 use self::yaml_rust::Yaml;
@@ -276,6 +277,11 @@ impl Exe {
                 FRAMEC_VERSION,
                 comments,
             );
+            visitor.run(&system_node);
+            output = visitor.get_code();
+        } else if output_format == "smcat" {
+            let (x, y) = semantic_parser.get_all();
+            let mut visitor = SmcatVisitor::new(x, y, FRAMEC_VERSION, comments);
             visitor.run(&system_node);
             output = visitor.get_code();
         // } else if output_format == "xstate" {
