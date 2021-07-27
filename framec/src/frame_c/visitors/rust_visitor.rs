@@ -570,20 +570,19 @@ impl RustVisitor {
         self.add_code("//=============== Machinery and Mechanisms ==============//");
         self.newline();
         if self.config.config_features.introspection {
+            
             self.newline();
-            self.add_code(&format!("pub fn get_{}_enum(&self) -> {}{} {{"
+            self.add_code(&format!("pub fn get_{}_enum(&self, state: &{}) -> Option<{}{}> {{"
                                    ,self.config.state_var_name
+                                   ,self.config.frame_state_type_name
                                    ,self.system_name
-                                    ,self.config.state_enum_suffix
-            ));
-
+                                   ,self.config.state_enum_suffix));
             self.indent();
             self.newline();
-
             if let Some(machine_block_node) = &system_node.machine_block_node_opt {
                 let mut if_else_if = String::from("if");
                 for state in &machine_block_node.states {
-                    self.add_code(&format!("{} self.state as *const {} == {}::{} as *const {} {{ {}{}::{} }}"
+                    self.add_code(&format!("{} state as *const {} == {}::{} as *const {} {{ Some({}{}::{}) }}"
                                             ,if_else_if
                                             ,self.config.frame_state_type_name
                                             ,self.system_name
@@ -597,8 +596,21 @@ impl RustVisitor {
                     if_else_if = "else if".to_string();
                 }
             }
-            self.add_code("else { panic!(\"Machine in invalid state\"); }");
-
+            self.add_code("else { None }");
+            self.outdent();
+            self.newline();
+            self.add_code("}");
+            
+            self.newline();
+            self.newline();
+            self.add_code(&format!("pub fn get_current_{}_enum(&self) -> {}{} {{"
+                                   ,self.config.state_var_name
+                                   ,self.system_name
+                                   ,self.config.state_enum_suffix));
+            self.indent();
+            self.newline();
+            self.add_code(&format!("self.get_{}_enum(&self.state).expect(\"Machine in invalid state\")"
+                                   ,self.config.state_var_name));
             self.outdent();
             self.newline();
             self.add_code("}");
@@ -1390,7 +1402,7 @@ impl AstVisitor for RustVisitor {
 
         self.newline();
         self.newline();
-        self.add_code(&format!("struct {} {{",self.config.frame_event_type_name));
+        self.add_code(&format!("pub struct {} {{",self.config.frame_event_type_name));
         self.indent();
         self.newline();
         self.add_code(&format!("message: {},",self.config.frame_message));
