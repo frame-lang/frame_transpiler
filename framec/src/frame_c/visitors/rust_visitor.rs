@@ -46,6 +46,10 @@ struct Config {
     state_enum_traits: String,
     transition_method_name: String,
     change_state_method_name: String,
+    pre_transition_hook_method_name: String,
+    post_transition_hook_method_name: String,
+    pre_change_state_hook_method_name: String,
+    post_change_state_hook_method_name: String,
     state_stack_push_method_name: String,
     state_stack_pop_method_name: String,
 }
@@ -181,6 +185,22 @@ impl Config {
                 .unwrap_or_default()
                 .to_string(),
             change_state_method_name: (&code_yaml["change_state_method_name"])
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
+            pre_transition_hook_method_name: (&code_yaml["pre_transition_hook_method_name"])
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
+            post_transition_hook_method_name: (&code_yaml["post_transition_hook_method_name"])
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
+            pre_change_state_hook_method_name: (&code_yaml["pre_change_state_hook_method_name"])
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
+            post_change_state_hook_method_name: (&code_yaml["post_change_state_hook_method_name"])
                 .as_str()
                 .unwrap_or_default()
                 .to_string(),
