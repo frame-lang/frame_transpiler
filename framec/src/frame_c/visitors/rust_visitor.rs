@@ -585,10 +585,10 @@ impl RustVisitor {
                 for state in &machine_block_node.states {
                     self.add_code(&format!("{} self.state as *const {} == {}::{} as *const {} {{ {}{}::{} }}"
                                             ,if_else_if
-                                            ,self.config.frame_event_type_name
+                                            ,self.config.frame_state_type_name
                                             ,self.system_name
                                             ,self.format_state_name(state.borrow().name.as_str())
-                                            ,self.config.frame_event_type_name
+                                            ,self.config.frame_state_type_name
                                             ,self.system_name
                                             ,self.config.state_enum_suffix
                                             ,state.borrow().name
