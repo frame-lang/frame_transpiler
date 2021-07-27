@@ -10,6 +10,7 @@ use std::collections::VecDeque;
 use crate::frame_c::visitors::*;
 use crate::frame_c::ast::OperatorType::{Plus, Minus, Multiply, Divide, Greater, GreaterEqual, LessEqual};
 use wasm_bindgen::__rt::std::collections::HashMap;
+use crate::frame_c::symbol_table::InterfaceMethodSymbol;
 
 
 pub trait NodeElement {
@@ -55,24 +56,13 @@ impl_downcast!(CallableExpr);
 pub enum CallChainLiteralNodeType {
     // TODO: should be differentiated parameter or variable? no funcitonal difference at this point though
     VariableNodeT {var_node:VariableNode},
-
     IdentifierNodeT {id_node:IdentifierNode}, // TODO: change IdentifierNode to VariableNode
     CallT {call: CallExprNode },
+    InterfaceMethodCallT { interface_method_call_expr_node: InterfaceMethodCallExprNode },
     ActionCallT {action_call_expr_node:ActionCallExprNode},
 }
 
 impl CallChainLiteralNodeType {
-    // pub fn getIsReference(&self) -> bool {
-    //     match self {
-    //         CallChainLiteralNodeType::VariableNodeT{var_node} => {
-    //             var_node.id_node.is_reference
-    //         },
-    //         CallChainLiteralNodeType::IdentifierNodeT{id_node} => {
-    //             id_node.is_reference
-    //         },
-    //         _ =>  false,
-    //     }
-    // }
 
     pub fn setIsReference(&mut self, is_reference:bool) {
         match self {
@@ -157,11 +147,12 @@ impl NodeElement for SystemNode {
 //-----------------------------------------------------//
 
 pub struct InterfaceBlockNode {
-    pub interface_methods:Vec<InterfaceMethodNode>,
+    // pub interface_methods:Vec<InterfaceMethodNode>,
+    pub interface_methods:Vec<Rc<RefCell<InterfaceMethodNode>>>,
 }
 
 impl InterfaceBlockNode {
-    pub fn new(interface_methods:Vec<InterfaceMethodNode>) -> InterfaceBlockNode {
+    pub fn new(interface_methods:Vec<Rc<RefCell<InterfaceMethodNode>>>) -> InterfaceBlockNode {
         InterfaceBlockNode {
             interface_methods,
         }
@@ -1062,6 +1053,42 @@ impl NodeElement for StateStackOperationStatementNode {
     }
 }
 
+
+//-----------------------------------------------------//
+
+pub struct InterfaceMethodCallExprNode {
+    pub identifier:IdentifierNode,
+    pub call_expr_list: CallExprListNode,
+    pub interface_symbol_rcref_opt:Option<Rc<RefCell<InterfaceMethodSymbol>>>,
+}
+
+impl InterfaceMethodCallExprNode {
+
+    // Harvest the id and arguments from the CallExpressionNode.
+    // It will be discarded.
+
+    pub fn new(call_expr_node: CallExprNode) -> InterfaceMethodCallExprNode {
+        InterfaceMethodCallExprNode {
+            identifier: call_expr_node.identifier,
+            call_expr_list: call_expr_node.call_expr_list,
+            interface_symbol_rcref_opt:None,
+        }
+    }
+
+    pub fn set_interface_symbol(&mut self, interface_method_symbol:&Rc<RefCell<InterfaceMethodSymbol>>) {
+        self.interface_symbol_rcref_opt = Some(Rc::clone(interface_method_symbol));
+    }
+}
+
+impl NodeElement for InterfaceMethodCallExprNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_interface_method_call_expression_node(self);
+    }
+
+    fn accept_to_string(&self, ast_visitor:&mut dyn AstVisitor,output:&mut String ) {
+        ast_visitor.visit_interface_method_call_expression_node_to_string(self, output);
+    }
+}
 
 //-----------------------------------------------------//
 

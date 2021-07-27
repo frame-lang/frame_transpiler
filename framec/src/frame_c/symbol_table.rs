@@ -41,7 +41,8 @@ pub trait ScopeSymbol {
 
 pub enum ParseScopeType {
     SystemScope {system_symbol:Rc<RefCell<SystemSymbol>>},
-    //InterfaceBlockScope,
+    InterfaceBlockScope { interface_block_scope_symbol_rcref:Rc<RefCell<InterfaceBlockScopeSymbol>>},
+    // TODO:
     // InterfaceMethodDeclScope,
     MachineBlockScope { machine_scope_symbol_rcref:Rc<RefCell<MachineBlockScopeSymbol>>},
     ActionsBlockScope { actions_block_scope_symbol_rcref:Rc<RefCell<ActionsBlockScopeSymbol>>},
@@ -58,7 +59,9 @@ pub enum ParseScopeType {
 pub enum SymbolType {
     SystemSymbolT { system_symbol_ref:Rc<RefCell<SystemSymbol>>},
     #[allow(dead_code)] // not dead. weird
-    InterfaceBlockSymbolT {interface_block_symbol_rcref:Rc<RefCell<InterfaceBlockSymbol>>},
+    InterfaceBlockSymbolT {interface_block_symbol_rcref:Rc<RefCell<InterfaceBlockScopeSymbol>>},
+    // TODO: Add InterfaceMethod
+    InterfaceMethodSymbolT {interface_method_symbol_rcref:Rc<RefCell<InterfaceMethodSymbol>>},
     MachineBlockScopeSymbolT { machine_block_symbol_rcref:Rc<RefCell<MachineBlockScopeSymbol>>},
     ActionsBlockScopeSymbolT { actions_block_symbol_rcref:Rc<RefCell<ActionsBlockScopeSymbol>>},
     ActionDeclSymbolT { action_decl_symbol_rcref:Rc<RefCell<ActionDeclSymbol>>},
@@ -85,6 +88,8 @@ impl Symbol for SymbolType {
                 => system_symbol_ref.borrow().get_name(),
             SymbolType::InterfaceBlockSymbolT {interface_block_symbol_rcref}
                 => interface_block_symbol_rcref.borrow().get_name(),
+            SymbolType::InterfaceMethodSymbolT {interface_method_symbol_rcref}
+                => interface_method_symbol_rcref.borrow().get_name(),
             SymbolType::MachineBlockScopeSymbolT { machine_block_symbol_rcref }
                 => machine_block_symbol_rcref.borrow().get_name(),
             SymbolType::ActionsBlockScopeSymbolT {actions_block_symbol_rcref}
@@ -208,6 +213,12 @@ impl SymbolTable {
                 self.symbols.insert(name, st_ref);
                 ()
             },
+            ParseScopeType::InterfaceBlockScope { interface_block_scope_symbol_rcref} => {
+                let name = interface_block_scope_symbol_rcref.borrow().name.clone();
+                let st_ref = Rc::new(RefCell::new(SymbolType::InterfaceBlockSymbolT { interface_block_symbol_rcref:interface_block_scope_symbol_rcref}));
+                self.symbols.insert(name, st_ref);
+                ()
+            },
             ParseScopeType::MachineBlockScope { machine_scope_symbol_rcref: machine_symbol } => {
                 let name = machine_symbol.borrow().name.clone();
                 let st_ref = Rc::new(RefCell::new(SymbolType::MachineBlockScopeSymbolT { machine_block_symbol_rcref: machine_symbol }));
@@ -317,11 +328,17 @@ impl SymbolTable {
                 self.symbols.insert(name, symbol_type_rcref);
                 ()
             },
+            SymbolType::InterfaceMethodSymbolT { interface_method_symbol_rcref }  => {
+                let name = interface_method_symbol_rcref.borrow().name.clone();
+                let symbol_type_rcref = Rc::new(RefCell::new(SymbolType::InterfaceMethodSymbolT { interface_method_symbol_rcref: Rc::clone(interface_method_symbol_rcref) }));
+                self.symbols.insert(name, symbol_type_rcref);
+                ()
+            },
             _ => panic!("Fatal error - missing symbol type"),
         }
     }
 
-    pub fn lookup(&self, name:&str,search_scope:&IdentifierDeclScope) -> Option<Rc<RefCell<SymbolType>>> {
+    pub fn lookup(&self, name:&str, search_scope:&IdentifierDeclScope) -> Option<Rc<RefCell<SymbolType>>> {
 
         // if this is the symbol table for the system, then look in the domain symbol table to resolve the symbol.
         if self.is_system_symtab {
@@ -357,7 +374,7 @@ impl SymbolTable {
         match &self.parent_symtab_rcref_opt {
             Some(b) => {
                 let c = b.borrow();
-                let d = c.lookup(name,search_scope);
+                let d = c.lookup(name, search_scope);
                 return match d {
                     Some(e) => Some(Rc::clone(&e)),
                     None => None,
@@ -367,16 +384,15 @@ impl SymbolTable {
         }
     }
 
-
-        pub fn lookup_local(&self, name:&str) -> Option<Rc<RefCell<SymbolType>>> {
-            let a = (self.symbols).get(name);
-            match a {
-                Some(aa) => return Some(aa.clone()),
-                None => None,
-            }
+    pub fn lookup_local(&self, name:&str) -> Option<Rc<RefCell<SymbolType>>> {
+        let a = (self.symbols).get(name);
+        match a {
+            Some(aa) => return Some(aa.clone()),
+            None => None,
         }
+    }
 
-        pub fn get_parent_symtab(&self) -> Option<Rc<RefCell<SymbolTable>>> {
+    pub fn get_parent_symtab(&self) -> Option<Rc<RefCell<SymbolTable>>> {
         //     let x = self.parent_symtab_opt_ref;
         let x = self.parent_symtab_rcref_opt.as_ref()?;
         let y = Rc::clone(&x);
@@ -449,7 +465,33 @@ impl Arcanum {
     }
 
     pub fn lookup(&self, name:&str,search_scope:&IdentifierDeclScope) -> Option<Rc<RefCell<SymbolType>>> {
-        self.current_symtab.borrow().lookup(name,search_scope)
+        self.current_symtab.borrow().lookup(name, search_scope)
+    }
+
+    // Actions are only declared in the -actions- block.
+    // Get -actions-block- symtab from the system symbol and lookup.
+    pub fn lookup_interface_method(&self, name:&str) -> Option<Rc<RefCell<InterfaceMethodSymbol>>> {
+        let system_symbol_rcref = &self.system_symbol_opt.as_ref().unwrap();
+        match &system_symbol_rcref.borrow().interface_block_symbol_opt {
+            Some(interface_block_symbol_rcref) => {
+                let interface_block_symbol = interface_block_symbol_rcref.borrow();
+                let symbol_table = &interface_block_symbol.symtab_rcref.borrow();
+                self.debug_print_current_symbols(interface_block_symbol.symtab_rcref.clone());
+                match symbol_table.lookup(name, &IdentifierDeclScope::InterfaceBlock) {
+                    Some(c) => {
+                        let d = c.borrow();
+                        return match &*d {
+                            SymbolType::InterfaceMethodSymbolT { interface_method_symbol_rcref } => {
+                                Some(Rc::clone(&interface_method_symbol_rcref))
+                            },
+                            _ => None,
+                        }
+                    },
+                    None => None,
+                }
+            }
+            None => return None,
+        }
     }
 
     // Actions are only declared in the -actions- block.
@@ -460,7 +502,7 @@ impl Arcanum {
             Some(actions_block_scope_symbol) => {
                 let b = actions_block_scope_symbol.borrow();
                 let x = &b.symtab_rcref.borrow();
-                match x.lookup(name,&IdentifierDeclScope::ActionsBlock) {
+                match x.lookup(name, &IdentifierDeclScope::ActionsBlock) {
                     Some(c) => {
                         let d = c.borrow();
                         return match &*d {
@@ -501,6 +543,27 @@ impl Arcanum {
                 // clone the Rc for the symbol table
                 self.current_symtab = Rc::clone(&system_symbol_symtab_rcref);
 
+            },
+            ParseScopeType::InterfaceBlockScope { interface_block_scope_symbol_rcref} => {
+
+                // Attach MachineSymbol to SystemSymbol
+                // TODO - figure out why borrow can't go in the Some()
+                {
+                    let x = self.system_symbol_opt.as_ref().unwrap().as_ref();
+                    let mut system_symbol = x.borrow_mut();
+                    system_symbol.interface_block_symbol_opt = Some(Rc::clone(interface_block_scope_symbol_rcref));
+                }
+                // current symtab should be the SystemSymbol
+                let current_symbtab_rcref = Rc::clone(&self.current_symtab);
+                interface_block_scope_symbol_rcref.borrow_mut().set_parent_symtab(&current_symbtab_rcref);
+
+                let interface_scope_symbol_rcref_clone = Rc::clone(interface_block_scope_symbol_rcref);
+                let interface_scope_symbol_symtab_rcref = Rc::clone(&interface_scope_symbol_rcref_clone.borrow().symtab_rcref);
+
+                // add new scope symbol to previous symbol table
+                self.current_symtab.borrow_mut().insert_parse_scope(scope_t);
+                // clone the Rc for the symbol table
+                self.current_symtab = Rc::clone(&interface_scope_symbol_symtab_rcref);
             },
             ParseScopeType::MachineBlockScope { machine_scope_symbol_rcref:machine_symbol_rcref} => {
 
@@ -718,7 +781,7 @@ impl Arcanum {
                 }
 
                 let x = states_symtab_rcref.borrow();
-                let state_symbol_t = x.lookup(state_name,&IdentifierDeclScope::None);
+                let state_symbol_t = x.lookup(state_name, &IdentifierDeclScope::None);
                 match state_symbol_t {
                     Some(symbol_t_ref) => {
                         let x = symbol_t_ref.borrow();
@@ -883,7 +946,7 @@ pub struct SystemSymbol {
     pub name:String,
     pub symtab_rcref:Rc<RefCell<SymbolTable>>,
     pub events:HashMap<String,Rc<RefCell<EventSymbol>>>,
-    pub interface_block_symbol_opt:Option<Rc<RefCell<InterfaceBlockSymbol>>>,
+    pub interface_block_symbol_opt:Option<Rc<RefCell<InterfaceBlockScopeSymbol>>>,
     pub machine_block_symbol_opt:Option<Rc<RefCell<MachineBlockScopeSymbol>>>,
     pub actions_block_symbol_opt:Option<Rc<RefCell<ActionsBlockScopeSymbol>>>,
     pub domain_block_symbol_opt:Option<Rc<RefCell<DomainBlockScopeSymbol>>>,
@@ -933,29 +996,55 @@ impl ScopeSymbol for SystemSymbol {
     }
 }
 
-pub struct InterfaceBlockSymbol {
+//-----------------------------------------------------//
+
+const INTERFACE_SCOPE_NAME:&str = "-interface-block-";
+
+pub struct InterfaceBlockScopeSymbol {
+    pub name:String,
     pub symtab_rcref:Rc<RefCell<SymbolTable>>,
 }
 
-impl Symbol for InterfaceBlockSymbol {
+
+impl InterfaceBlockScopeSymbol {
+
+    pub fn new() -> InterfaceBlockScopeSymbol {
+        let name = InterfaceBlockScopeSymbol::scope_name();
+        InterfaceBlockScopeSymbol {
+            name:name.to_string(),
+            symtab_rcref:Rc::new(RefCell::new(SymbolTable::new(name.to_string(), None, IdentifierDeclScope::InterfaceBlock, false))),
+        }
+    }
+
+    pub fn scope_name() -> &'static str {
+        INTERFACE_SCOPE_NAME
+    }
+
+    pub fn set_parent_symtab(&mut self, parent_symtab:&Rc<RefCell<SymbolTable>>) {
+        self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt = Some(Rc::clone(&parent_symtab));
+    }
+}
+
+impl Symbol for InterfaceBlockScopeSymbol {
+
     fn get_name(&self) -> String {
         String::from("-interface-")
     }
 }
 
-impl ScopeSymbol for InterfaceBlockSymbol {
+impl ScopeSymbol for InterfaceBlockScopeSymbol {
 
     fn get_symbol_table(&self) -> Rc<RefCell<SymbolTable>> {
         Rc::clone(&self.symtab_rcref)
     }
 
     fn get_symbol_table_for_symbol(&self,symbol_name:&str) -> Rc<RefCell<SymbolTable>> {
-        let a = self.symtab_rcref.borrow();
-        let b = a.symbols.get(symbol_name);
-        if let Some(c) = b {
-            let d = c.borrow();
-            let e = d.get_symbol_table_for_symbol(symbol_name);
-            return Rc::clone(&e);
+        let symbol_table = self.symtab_rcref.borrow();
+        let symbol_type_rcref_opt = symbol_table.symbols.get(symbol_name);
+        if let Some(symbol_type_rcref) = symbol_type_rcref_opt {
+            let symbol_type = symbol_type_rcref.borrow();
+            let symbol_table_for_symbol = symbol_type.get_symbol_table_for_symbol(symbol_name);
+            return Rc::clone(&symbol_table_for_symbol);
         } else {
             panic!("Fatal error - could not find symbol {} in interface block scope.", symbol_name);
 
@@ -965,14 +1054,21 @@ impl ScopeSymbol for InterfaceBlockSymbol {
 
 pub struct InterfaceMethodSymbol {
     pub name:String,
-    pub params:Vec<ParameterSymbol>,
-    pub ret_type_opt:Option<String>,
-    pub alias_opt:Option<String>,
-    pub symtab_rcref:Rc<RefCell<SymbolTable>>,
+    pub ast_node:Option<Rc<RefCell<InterfaceMethodNode>>>,
 
 }
 
 impl InterfaceMethodSymbol {
+    pub fn new(name:String) -> InterfaceMethodSymbol {
+        InterfaceMethodSymbol {
+            name,
+            ast_node: None,
+        }
+    }
+
+    pub fn set_ast_node(&mut self, ast_node:Rc<RefCell<InterfaceMethodNode>>) {
+        self.ast_node = Some(Rc::clone(&ast_node));
+    }
 }
 
 impl Symbol for InterfaceMethodSymbol {
@@ -981,24 +1077,27 @@ impl Symbol for InterfaceMethodSymbol {
     }
 }
 
-impl ScopeSymbol for InterfaceMethodSymbol {
+// TODO: make iface a scope? currently the event object has all of the types
+// impl ScopeSymbol for InterfaceMethodSymbol {
+//
+//     fn get_symbol_table(&self) -> Rc<RefCell<SymbolTable>> {
+//         Rc::clone(&self.symtab_rcref)
+//     }
+//
+//     fn get_symbol_table_for_symbol(&self,symbol_name:&str) -> Rc<RefCell<SymbolTable>> {
+//         let a = self.symtab_rcref.borrow();
+//         let b = a.symbols.get(symbol_name);
+//         if let Some(c) = b {
+//             let d = c.borrow();
+//             let e = d.get_symbol_table_for_symbol(symbol_name);
+//             return Rc::clone(&e);
+//         } else {
+//             panic!("Fatal error - could not find symbol {} in interface method scope.", symbol_name);
+//         }
+//     }
+// }
 
-    fn get_symbol_table(&self) -> Rc<RefCell<SymbolTable>> {
-        Rc::clone(&self.symtab_rcref)
-    }
-
-    fn get_symbol_table_for_symbol(&self,symbol_name:&str) -> Rc<RefCell<SymbolTable>> {
-        let a = self.symtab_rcref.borrow();
-        let b = a.symbols.get(symbol_name);
-        if let Some(c) = b {
-            let d = c.borrow();
-            let e = d.get_symbol_table_for_symbol(symbol_name);
-            return Rc::clone(&e);
-        } else {
-            panic!("Fatal error - could not find symbol {} in interface method scope.", symbol_name);
-        }
-    }
-}
+//-----------------------------------------------------//
 
 pub struct EventSymbol {
     pub msg:String,
@@ -1051,6 +1150,10 @@ impl EventSymbol {
     }
 }
 
+
+
+//-----------------------------------------------------//
+
 const MACHINE_SCOPE_NAME:&str = "-machine-block-";
 
 pub struct MachineBlockScopeSymbol {
@@ -1064,6 +1167,8 @@ impl MachineBlockScopeSymbol {
         let name = MachineBlockScopeSymbol::scope_name();
         MachineBlockScopeSymbol {
             name:name.to_string(),
+
+            // TODO: Check if the IdentifierDeclScope should be set. It has been working but...
             symtab_rcref:Rc::new(RefCell::new(SymbolTable::new(name.to_string(), None, IdentifierDeclScope::None, false))),
         }
     }
@@ -1101,6 +1206,9 @@ impl ScopeSymbol for MachineBlockScopeSymbol {
         }
     }
 }
+
+
+//-----------------------------------------------------//
 
 pub struct StateSymbol {
     pub name:String,

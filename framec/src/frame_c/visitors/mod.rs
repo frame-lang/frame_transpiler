@@ -15,6 +15,7 @@ pub enum AstVisitorReturnType {
     SystemNode,
     InterfaceBlockNode,
     InterfaceMethodNode,
+    InterfaceMethodCallExpressionNode,
     MachineBlockNode,
     ActionBlockNode,
     DomainBlockNode,
@@ -69,6 +70,8 @@ pub trait AstVisitor {
     fn visit_call_statement_node(&mut self, method_call_statement_node:&CallStmtNode) -> AstVisitorReturnType;
     fn visit_frame_messages_enum(&mut self, interface_block_node:&InterfaceBlockNode) -> AstVisitorReturnType;
     fn visit_interface_parameters(&mut self, interface_block_node:&InterfaceBlockNode) -> AstVisitorReturnType;
+    fn visit_interface_method_call_expression_node(&mut self, interface_method_call_expr_node:&InterfaceMethodCallExprNode) -> AstVisitorReturnType;
+    fn visit_interface_method_call_expression_node_to_string(&mut self, interface_method_call_expr_node:&InterfaceMethodCallExprNode, output:&mut String) -> AstVisitorReturnType;
 
     // NOTE: the difference between call_expression and call_expr is that
     // the former is for the method itself and the latter is the

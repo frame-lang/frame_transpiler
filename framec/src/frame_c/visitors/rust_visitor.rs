@@ -1342,8 +1342,8 @@ impl AstVisitor for RustVisitor {
 
         if let Some(interface_block_node) = &system_node.interface_block_node_opt {
             for interface_method_node in &interface_block_node.interface_methods {
-                let if_name = interface_method_node.name.clone();
-                if let Some(return_type) = &interface_method_node.return_type_opt {
+                let if_name = interface_method_node.borrow().name.clone();
+                if let Some(return_type) = &interface_method_node.borrow().return_type_opt {
                     self.newline();
                     self.add_code(&format!("{} {{return_type:{}}},", RustVisitor::uppercase_first_letter(&if_name), return_type.get_type_str()));
                 }
@@ -1361,10 +1361,10 @@ impl AstVisitor for RustVisitor {
         if let Some(interface_block_node) = &system_node.interface_block_node_opt {
             for interface_method_node in &interface_block_node.interface_methods {
                 //let if_name = interface_method_node.name.clone();
-                if let Some(return_type) = &interface_method_node.return_type_opt {
+                if let Some(return_type) = &interface_method_node.borrow().return_type_opt {
                     self.newline();
                     self.newline();
-                    self.add_code(&format!("fn get_{}_ret(&self) -> {} {{",interface_method_node.name,return_type.get_type_str()));
+                    self.add_code(&format!("fn get_{}_ret(&self) -> {} {{",interface_method_node.borrow().name,return_type.get_type_str()));
                     self.indent();
                     self.newline();
                     self.add_code(&format!("match self {{"));
@@ -1372,7 +1372,7 @@ impl AstVisitor for RustVisitor {
                     self.newline();
                     self.add_code(&format!("{}::{} {{return_type}} => return_type.clone(),"
                                            ,self.config.frame_event_return
-                                           ,interface_method_node.name));
+                                           ,interface_method_node.borrow().name));
                     self.newline();
                     self.add_code(&format!("_=> panic!(\"Invalid return type\"),"));
                     self.outdent();
@@ -2056,15 +2056,38 @@ impl AstVisitor for RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    fn visit_interface_method_call_expression_node(&mut self, interface_method_call_expr_node:&InterfaceMethodCallExprNode) -> AstVisitorReturnType {
+
+        self.add_code(&format!("self.{}", interface_method_call_expr_node.identifier.name.lexeme));
+        interface_method_call_expr_node.call_expr_list.accept(self);
+//        self.add_code(&format!(""));
+        // TODO: review this return as I think it is a nop.
+        AstVisitorReturnType::InterfaceMethodCallExpressionNode {}
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_interface_method_call_expression_node_to_string(&mut self, interface_method_call_expr_node:&InterfaceMethodCallExprNode, output:&mut String) -> AstVisitorReturnType {
+
+        output.push_str(&format!("self.{}", interface_method_call_expr_node.identifier.name.lexeme));
+        interface_method_call_expr_node.call_expr_list.accept_to_string(self,output);
+//        self.add_code(&format!(""));
+
+        // TODO: review this return as I think it is a nop.
+        AstVisitorReturnType::InterfaceMethodCallExpressionNode {}
+    }
+
+    //* --------------------------------------------------------------------- *//
+
     fn visit_interface_block_node(&mut self, interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
         self.newline();
         self.add_code("//===================== Interface Block ===================//");
         self.newline();
 
-        for interface_method_node in &interface_block_node.interface_methods {
+        for interface_method_node_rcref in &interface_block_node.interface_methods {
+            let interface_method_node = interface_method_node_rcref.borrow();
             interface_method_node.accept(self);
         }
-
         AstVisitorReturnType::InterfaceBlockNode {}
     }
 
@@ -2474,9 +2497,7 @@ impl AstVisitor for RustVisitor {
 
     fn visit_call_expression_node(&mut self, method_call: &CallExprNode) -> AstVisitorReturnType {
 
-        if method_call.identifier.scope == IdentifierDeclScope::InterfaceBlock {
-            self.add_code("self.");
-        }
+
         if let Some(call_chain) = &method_call.call_chain {
 
             for callable in call_chain {
@@ -2540,7 +2561,7 @@ impl AstVisitor for RustVisitor {
     fn visit_call_expr_list_node_to_string(&mut self, call_expr_list: &CallExprListNode, output:&mut String) -> AstVisitorReturnType {
 
         let mut separator = "";
-//        output.push_str(&format!("("));
+        output.push_str(&format!("("));
 
         for expr in &call_expr_list.exprs_t {
 
@@ -2549,7 +2570,7 @@ impl AstVisitor for RustVisitor {
             separator = ",";
         }
 
-//        output.push_str(&format!(")"));
+        output.push_str(&format!(")"));
 
         AstVisitorReturnType::CallExprListNode {}
     }
@@ -2571,7 +2592,7 @@ impl AstVisitor for RustVisitor {
     fn visit_action_call_expression_node_to_string(&mut self, action_call: &ActionCallExprNode, output:&mut String) -> AstVisitorReturnType {
 
         let action_name = self.format_action_name(&action_call.identifier.name.lexeme);
-        output.push_str(&format!("{}",action_name));
+        output.push_str(&format!("self.{}",action_name));
 
         action_call.call_expr_list.accept_to_string(self, output);
 
@@ -2732,6 +2753,9 @@ impl AstVisitor for RustVisitor {
                 CallChainLiteralNodeType::CallT {call}=> {
                     call.accept(self);
                 },
+                CallChainLiteralNodeType::InterfaceMethodCallT {interface_method_call_expr_node}=> {
+                    interface_method_call_expr_node.accept(self);
+                },
                 CallChainLiteralNodeType::ActionCallT {action_call_expr_node}=> {
                     action_call_expr_node.accept(self);
                 },
@@ -2760,6 +2784,9 @@ impl AstVisitor for RustVisitor {
                 },
                 CallChainLiteralNodeType::CallT {call}=> {
                     call.accept_to_string(self, output);
+                },
+                CallChainLiteralNodeType::InterfaceMethodCallT {interface_method_call_expr_node}=> {
+                    interface_method_call_expr_node.accept_to_string(self, output);
                 },
                 CallChainLiteralNodeType::ActionCallT {action_call_expr_node}=> {
                     action_call_expr_node.accept_to_string(self, output);

@@ -1030,15 +1030,33 @@ impl AstVisitor for CsVisitorForBob {
 
     //* --------------------------------------------------------------------- *//
 
+    fn visit_interface_method_call_expression_node(&mut self, interface_method_call_expr_node:&InterfaceMethodCallExprNode) -> AstVisitorReturnType {
+
+
+        // TODO: review this return as I think it is a nop.
+        AstVisitorReturnType::InterfaceMethodCallExpressionNode {}
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_interface_method_call_expression_node_to_string(&mut self, interface_method_call_expr_node:&InterfaceMethodCallExprNode, output:&mut String) -> AstVisitorReturnType {
+
+
+        // TODO: review this return as I think it is a nop.
+        AstVisitorReturnType::InterfaceMethodCallExpressionNode {}
+    }
+
+    //* --------------------------------------------------------------------- *//
+
     fn visit_interface_block_node(&mut self, interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
         self.newline();
         self.add_code("//===================== Interface Block ===================//");
         self.newline();
 
-        for interface_method_node in &interface_block_node.interface_methods {
+        for interface_method_node_rcref in &interface_block_node.interface_methods {
+            let interface_method_node = interface_method_node_rcref.borrow();
             interface_method_node.accept(self);
         }
-
         AstVisitorReturnType::InterfaceBlockNode {}
     }
 
@@ -1616,6 +1634,9 @@ impl AstVisitor for CsVisitorForBob {
                 CallChainLiteralNodeType::CallT {call}=> {
                     call.accept(self);
                 },
+                CallChainLiteralNodeType::InterfaceMethodCallT {interface_method_call_expr_node}=> {
+                    interface_method_call_expr_node.accept(self);
+                },
                 CallChainLiteralNodeType::ActionCallT {action_call_expr_node}=> {
                     action_call_expr_node.accept(self);
                 },
@@ -1644,6 +1665,9 @@ impl AstVisitor for CsVisitorForBob {
                 },
                 CallChainLiteralNodeType::CallT {call}=> {
                     call.accept_to_string(self, output);
+                },
+                CallChainLiteralNodeType::InterfaceMethodCallT {interface_method_call_expr_node}=> {
+                    interface_method_call_expr_node.accept_to_string(self, output);
                 },
                 CallChainLiteralNodeType::ActionCallT {action_call_expr_node}=> {
                     action_call_expr_node.accept_to_string(self, output);

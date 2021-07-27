@@ -420,8 +420,10 @@ impl<'a> Parser<'a> {
         }
 
         if self.match_token(&vec![InterfaceBlockTok]) {
+            self.arcanum.debug_print_current_symbols(self.arcanum.get_current_symtab());
             let x = self.interface_block();
             interface_block_node_opt = Option::Some(x);
+            self.arcanum.debug_print_current_symbols(self.arcanum.get_current_symtab());
         }
 
         if self.match_token(&vec![MachineBlockTok]) {
@@ -528,6 +530,16 @@ impl<'a> Parser<'a> {
 
     fn interface_block(&mut self) -> InterfaceBlockNode {
 
+        if self.is_building_symbol_table {
+            let interface_symbol = Rc::new(RefCell::new(InterfaceBlockScopeSymbol::new()));
+            self.arcanum.enter_scope(ParseScopeType::InterfaceBlockScope { interface_block_scope_symbol_rcref: interface_symbol });
+        } else {
+            self.arcanum.set_parse_scope(InterfaceBlockScopeSymbol::scope_name());
+        }
+
+        let x = &self.arcanum.current_symtab;
+        self.arcanum.debug_print_current_symbols(x.clone());
+
         let mut interface_methods = Vec::new();
 
         // NOTE: this loop peeks() ahead and then interface_method() consumes
@@ -545,6 +557,10 @@ impl<'a> Parser<'a> {
             }
         }
 
+        let y = &self.arcanum.current_symtab;
+        self.arcanum.debug_print_current_symbols(y.clone());
+
+        self.arcanum.exit_parse_scope();
 
         InterfaceBlockNode::new(interface_methods)
     }
@@ -553,7 +569,7 @@ impl<'a> Parser<'a> {
 
     // interface_method -> identifier ('[' parameters ']')? (':' return_type)?
 
-    fn interface_method(&mut self) -> Result<InterfaceMethodNode,ParseError> {
+    fn interface_method(&mut self) -> Result<Rc<RefCell<InterfaceMethodNode>>,ParseError> {
 
         let name = self.previous().lexeme.clone();
 
@@ -647,16 +663,25 @@ impl<'a> Parser<'a> {
             }
         }
 
-        // let event_symbol = EventSymbol::new(&self.arcanum.symbol_config
-        //                                                 ,&name
-        //                                                 ,Some(name.clone()),
-        //                                                 ,param_symbols_opt
-        //                                                 ,return_type_opt.clone()
-        //                                                 ,None);
+        let interface_method_node = InterfaceMethodNode::new(name.clone(), params_opt, return_type_opt, alias_opt);
+        let interface_method_rcref = Rc::new(RefCell::new(interface_method_node));
 
-        let interface_method_node = InterfaceMethodNode::new(name, params_opt, return_type_opt, alias_opt);
+        if self.is_building_symbol_table {
+            let s = &name.clone();
+            let mut interface_method_symbol = InterfaceMethodSymbol::new(name.clone());
+            // TODO: note what is being done. We are linking to the AST node generated in the syntax pass.
+            // This AST tree is otherwise disposed of. This may be fine but feels wrong. Alternatively
+            // we could copy this information out of the node and into the symbol.
+            interface_method_symbol.set_ast_node(Rc::clone(&interface_method_rcref));
+            let interface_method_symbol_rcref = Rc::new(RefCell::new(interface_method_symbol));
+            let interface_method_symbol_t = InterfaceMethodSymbolT { interface_method_symbol_rcref:interface_method_symbol_rcref.clone() };
+            // TODO: just insert into arcanum directly
+            self.arcanum.current_symtab.borrow_mut().insert_symbol(&interface_method_symbol_t);
+        } else {
+            // link action symbol to action declaration node
+        }
 
-        Ok(interface_method_node)
+        Ok(interface_method_rcref)
     }
 
 
@@ -898,15 +923,6 @@ impl<'a> Parser<'a> {
         let mut type_opt:Option<TypeNode> = None;
 
         if self.match_token(&vec![ColonTok]) {
-            // if !self.match_token(&vec![TokenType::IdentifierTok]) {
-            //     self.error_at_previous("Expected parameter type.");
-            //     return Err(ParseError::new("TODO"));
-            // }
-            //
-            // let id = self.previous();
-            // let type_name = id.lexeme.clone();
-            //
-            // type_opt = Some(type_name);
 
             match self.type_decl() {
                 Ok(type_node) => type_opt = Some(type_node),
@@ -940,7 +956,7 @@ impl<'a> Parser<'a> {
             action_decl_symbol.set_ast_node(Rc::clone(&action_decl_rcref));
             let action_decl_symbol_rcref = Rc::new(RefCell::new(action_decl_symbol));
             let action_decl_symbol_t = ActionDeclSymbolT { action_decl_symbol_rcref };
-            // TOOD: just insert into arcanum directly
+            // TODO: just insert into arcanum directly
             self.arcanum.current_symtab.borrow_mut().insert_symbol(&action_decl_symbol_t);
         } else {
             // link action symbol to action declaration node
@@ -1028,7 +1044,8 @@ impl<'a> Parser<'a> {
                 Ok(Some(VariableExprT { var_node: id_node }))
                     => initializer_expr_t_opt = Some(VariableExprT { var_node: id_node }),
                 Ok(Some(ActionCallExprT {action_call_expr_node}))
-                    => initializer_expr_t_opt = Some(ActionCallExprT {action_call_expr_node}),
+                // TODO this may be dead code. CallChainLiteralExprT may do it all
+                => initializer_expr_t_opt = Some(ActionCallExprT {action_call_expr_node}),
                 Ok(Some(ExprListT {expr_list_node}))
                     => initializer_expr_t_opt = Some(ExprListT {expr_list_node}),
                 Ok(Some(CallChainLiteralExprT { call_chain_expr_node }))
@@ -2834,7 +2851,7 @@ impl<'a> Parser<'a> {
                             let s = method_call_expr_node.identifier.name.lexeme.clone();
                             let action_decl_symbol_opt = self.arcanum.lookup_action(&s);
 
-                            // test if identifer is in arcanum. If so, its an action. If not, its an
+                            // test if identifier is in the arcanum. If so, its an action. If not, its an
                             // external call.
 
                             match action_decl_symbol_opt {
@@ -2845,13 +2862,26 @@ impl<'a> Parser<'a> {
                                     call_chain.push_back(CallChainLiteralNodeType::ActionCallT { action_call_expr_node });
                                 },
                                 None => {
-                                    // external call
-                                    if method_call_expr_node.identifier.scope == IdentifierDeclScope::DomainBlock {
-                                        // change to interface block as it is a method call #.iface()
-                                        method_call_expr_node.identifier.scope = IdentifierDeclScope::InterfaceBlock;
+                                    let interface_method_symbol_opt = self.arcanum.lookup_interface_method(&s);
+
+                                    match interface_method_symbol_opt {
+                                        Some(interface_method_symbol) => {
+                                            let mut interface_method_call_expr_node = InterfaceMethodCallExprNode::new(method_call_expr_node);
+                                            interface_method_call_expr_node.set_interface_symbol(&Rc::clone(&interface_method_symbol));
+                                            call_chain.push_back(CallChainLiteralNodeType::InterfaceMethodCallT { interface_method_call_expr_node });
+
+                                        },
+                                        None => {
+                                            // external call
+                                            // if method_call_expr_node.identifier.scope == IdentifierDeclScope::DomainBlock {
+                                            //     // change to interface block as it is a method call #.iface()
+                                            //     method_call_expr_node.identifier.scope = IdentifierDeclScope::InterfaceBlock;
+                                            // }
+                                            let call_t = CallChainLiteralNodeType::CallT {call:method_call_expr_node};
+                                            call_chain.push_back(call_t);
+                                        }
                                     }
-                                    let call_t = CallChainLiteralNodeType::CallT {call:method_call_expr_node};
-                                    call_chain.push_back(call_t);
+
                                 },
                             }
                         }
@@ -2866,7 +2896,7 @@ impl<'a> Parser<'a> {
                 let node = if scope == IdentifierDeclScope::None || !is_first_node {
                     CallChainLiteralNodeType::IdentifierNodeT {id_node}
                 } else {
-                    // variables (or parmeters) must be
+                    // variables (or parameters) must be
                     // the first (or only) node in the call chain
                     let symbol_type_rcref_opt:Option<Rc<RefCell<SymbolType>>>;
                     symbol_type_rcref_opt = self.arcanum.lookup(&id_node.name.lexeme,&explicit_scope).clone();
