@@ -817,7 +817,7 @@ impl RustVisitor {
                 self.indent();
                 self.newline();
                 if self.generate_pre_transition_hook {
-                    self.add_code(&format!("{}();", self.config.pre_transition_hook_method_name.as_ref().unwrap()));
+                    self.add_code(&format!("self.{}();", self.config.pre_transition_hook_method_name.as_ref().unwrap()));
                     self.newline();
                 }
                 if self.generate_exit_args {
@@ -876,7 +876,7 @@ impl RustVisitor {
                 if self.generate_post_transition_hook {
                     self.newline();
                     self.add_code(&format!(
-                        "{}();",
+                        "self.{}();",
                         self.config.post_transition_hook_method_name.as_ref().unwrap()
                     ));
                 }
@@ -977,7 +977,7 @@ impl RustVisitor {
                 self.newline();
                 if self.generate_pre_change_state_hook {
                     self.add_code(&format!(
-                        "{}();",
+                        "self.{}();",
                         self.config.pre_change_state_hook_method_name.as_ref().unwrap()
                     ));
                     self.newline();
@@ -994,7 +994,7 @@ impl RustVisitor {
                 ));
                 if self.generate_post_change_state_hook {
                     self.add_code(&format!(
-                        "{}();",
+                        "self.{}();",
                         self.config.post_change_state_hook_method_name.as_ref().unwrap()
                     ));
                     self.newline();
