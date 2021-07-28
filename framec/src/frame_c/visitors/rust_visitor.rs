@@ -2581,7 +2581,6 @@ impl AstVisitor for RustVisitor {
 
         let action_name = self.format_action_name(&action_call.identifier.name.lexeme);
         self.add_code(&format!("self.{}", action_name));
-
         action_call.call_expr_list.accept(self);
 
         AstVisitorReturnType::ActionCallExpressionNode {}
@@ -2593,7 +2592,6 @@ impl AstVisitor for RustVisitor {
 
         let action_name = self.format_action_name(&action_call.identifier.name.lexeme);
         output.push_str(&format!("self.{}",action_name));
-
         action_call.call_expr_list.accept_to_string(self, output);
 
         AstVisitorReturnType::ActionCallExpressionNode {}

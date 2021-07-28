@@ -936,6 +936,8 @@ impl AstVisitor for JavaScriptVisitor {
 
     fn visit_interface_method_call_expression_node(&mut self, interface_method_call_expr_node:&InterfaceMethodCallExprNode) -> AstVisitorReturnType {
 
+        self.add_code(&format!("that.{}",interface_method_call_expr_node.identifier.name.lexeme));
+        interface_method_call_expr_node.call_expr_list.accept(self);
 
         // TODO: review this return as I think it is a nop.
         AstVisitorReturnType::InterfaceMethodCallExpressionNode {}
@@ -945,6 +947,8 @@ impl AstVisitor for JavaScriptVisitor {
 
     fn visit_interface_method_call_expression_node_to_string(&mut self, interface_method_call_expr_node:&InterfaceMethodCallExprNode, output:&mut String) -> AstVisitorReturnType {
 
+        output.push_str(&format!("that.{}",interface_method_call_expr_node.identifier.name.lexeme));
+        interface_method_call_expr_node.call_expr_list.accept_to_string(self, output);
 
         // TODO: review this return as I think it is a nop.
         AstVisitorReturnType::InterfaceMethodCallExpressionNode {}
@@ -1356,7 +1360,6 @@ impl AstVisitor for JavaScriptVisitor {
 
         let action_name = self.format_action_name(&action_call.identifier.name.lexeme);
         self.add_code(&format!("{}", action_name));
-
         action_call.call_expr_list.accept(self);
 
         self.add_code(&format!(""));
@@ -1370,7 +1373,6 @@ impl AstVisitor for JavaScriptVisitor {
 
         let action_name = self.format_action_name(&action_call.identifier.name.lexeme);
         output.push_str(&format!("{}",action_name));
-
         action_call.call_expr_list.accept_to_string(self, output);
 
         AstVisitorReturnType::ActionCallExpressionNode {}

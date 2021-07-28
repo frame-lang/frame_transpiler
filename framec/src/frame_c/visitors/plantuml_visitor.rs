@@ -948,7 +948,7 @@ impl AstVisitor for PlantUmlVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_interface_method_call_expression_node(&mut self, interface_method_call_expr_node:&InterfaceMethodCallExprNode) -> AstVisitorReturnType {
+    fn visit_interface_method_call_expression_node(&mut self, _interface_method_call_expr_node:&InterfaceMethodCallExprNode) -> AstVisitorReturnType {
 
 
         // TODO: review this return as I think it is a nop.
@@ -957,7 +957,7 @@ impl AstVisitor for PlantUmlVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_interface_method_call_expression_node_to_string(&mut self, interface_method_call_expr_node:&InterfaceMethodCallExprNode, output:&mut String) -> AstVisitorReturnType {
+    fn visit_interface_method_call_expression_node_to_string(&mut self, _interface_method_call_expr_node:&InterfaceMethodCallExprNode, _output:&mut String) -> AstVisitorReturnType {
 
 
         // TODO: review this return as I think it is a nop.

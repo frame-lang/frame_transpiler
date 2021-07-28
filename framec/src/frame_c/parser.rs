@@ -667,7 +667,6 @@ impl<'a> Parser<'a> {
         let interface_method_rcref = Rc::new(RefCell::new(interface_method_node));
 
         if self.is_building_symbol_table {
-            let s = &name.clone();
             let mut interface_method_symbol = InterfaceMethodSymbol::new(name.clone());
             // TODO: note what is being done. We are linking to the AST node generated in the syntax pass.
             // This AST tree is otherwise disposed of. This may be fine but feels wrong. Alternatively
@@ -2844,7 +2843,7 @@ impl<'a> Parser<'a> {
             if self.match_token(&vec![LParenTok]) {
                 let r = self.method_call(id_node);
                 match r {
-                    Ok(mut method_call_expr_node) => {
+                    Ok(method_call_expr_node) => {
 
                         if !self.is_building_symbol_table {
 
