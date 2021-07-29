@@ -287,14 +287,11 @@ impl<'a> Parser<'a> {
 
         let mut error_msg = format!("[line {}] Error",token.line);
 
-         if token.token_type == TokenType::EofTok {
-            error_msg.push_str(&format!(" at end"));
-        } else if token.token_type == ErrorTok {
-            // TODO
-             error_msg.push_str(&format!(" at '{}'",token.lexeme));
-        } else {
-            error_msg.push_str(&format!(" at '{}'",token.lexeme));
-        }
+         match token.token_type {
+             TokenType::EofTok => error_msg.push_str(&format!(" at end")),
+             TokenType::ErrorTok => error_msg.push_str(&format!(" at '{}'",token.lexeme)),
+             _ => error_msg.push_str(&format!(" at '{}'",token.lexeme))
+         }
 
         self.errors.push_str( &format!("{} : {}\n", error_msg, message));
 

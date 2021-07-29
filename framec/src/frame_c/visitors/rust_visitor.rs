@@ -215,7 +215,7 @@ impl RustVisitor {
         } else {
             let state_name = vec.get(0).unwrap();
             let event_name = vec.get(1).unwrap();
-            (Some(state_name.to_string()), event_name.clone().parse().unwrap())
+            (Some(state_name.to_string()), event_name.to_string())
         }
     }
 

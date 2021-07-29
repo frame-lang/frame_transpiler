@@ -806,11 +806,7 @@ impl PlantUmlVisitor {
 
         // self.add_code(&format!("StateContext stateContext = _stateStack_pop();"));
         // self.newline();
-        if self.generate_exit_args {
-            // self.add_code(&format!("_transition_(stateContext.state,exitArgs,stateContext);"));
-        } else {
-            // self.add_code(&format!("_transition_(stateContext.state,stateContext);"));
-        }
+        
         let label = match &transition_statement.label_opt {
             Some(label) => {
                 let cleaned = str::replace(label, "|", "&#124;");
@@ -1179,23 +1175,9 @@ impl AstVisitor for PlantUmlVisitor {
 //         self.generate_comment(evt_handler_node.line);
 // //        let mut generate_final_close_paren = true;
         if let MessageType::CustomMessage {message_node} = &evt_handler_node.msg_t {
-            if self.first_event_handler {
-                self.event_handler_msg = format!("&#124;{}&#124;",message_node.name).to_string();
-   //             self.add_code(&format!("if (e.Msg.EqualsEx(\"{}\")) {{", message_node.name));
-            } else {
-                self.event_handler_msg = format!("&#124;{}&#124;",message_node.name).to_string();
-   //             self.add_code(&format!("else if (e.Msg.EqualsEx(\"{}\")) {{", message_node.name));
-            }
+            self.event_handler_msg = format!("&#124;{}&#124;",message_node.name).to_string();
         } else { // AnyMessage ( ||* )
-            if self.first_event_handler {
-                self.event_handler_msg = "&#124;&#124;*".to_string();
-                // This logic is for when there is only the catch all event handler ||*
-  //              self.add_code(&format!("if (true) {{"));
-            } else {
-                self.event_handler_msg = "&#124;&#124;*".to_string();
-                // other event handlers preceded ||*
-  //              self.add_code(&format!("else {{"));
-            }
+            self.event_handler_msg = "&#124;&#124;*".to_string();
         }
 //         self.generate_comment(evt_handler_node.line);
 //

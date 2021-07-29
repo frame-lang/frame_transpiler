@@ -453,7 +453,7 @@ impl Scanner {
 
     // TODO: handle EOF w/ error
     fn single_line_comment(&mut self) {
-        while !self.is_at_end() {
+        if !self.is_at_end() {
             while self.peek() != '\n' {
                 self.advance();
             }
