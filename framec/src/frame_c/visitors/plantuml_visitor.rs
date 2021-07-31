@@ -20,7 +20,7 @@ pub struct PlantUmlVisitor {
     first_event_handler:bool,
     system_name:String,
     first_state_name:String,
-    generate_exit_args:bool,
+//    generate_exit_args:bool,
     // generate_state_context:bool,
     // generate_state_stack:bool,
     //generate_change_state:bool,
@@ -37,7 +37,7 @@ impl PlantUmlVisitor {
 
     pub fn new(   arcanium:Arcanum
                   , system_hierarchy:SystemHierarchy
-                  , generate_exit_args:bool
+               //   , generate_exit_args:bool
                   , _generate_state_context:bool
                   , _generate_state_stack:bool
                   , _generate_change_state:bool
@@ -64,7 +64,7 @@ impl PlantUmlVisitor {
             first_event_handler:true,
             system_name:String::new(),
             first_state_name:String::new(),
-            generate_exit_args,
+ //           generate_exit_args,
             // generate_state_context,
             // generate_state_stack,
             // generate_change_state,

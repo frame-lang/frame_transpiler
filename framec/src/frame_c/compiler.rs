@@ -14,6 +14,8 @@ use crate::frame_c::utils::{RunError, frame_exitcode};
 use exitcode::USAGE;
 extern crate yaml_rust;
 use yaml_rust::{YamlLoader};
+use self::yaml_rust::Yaml;
+use std::fs;
 //use crate::frame_c::visitors::xtate_visitor::XStateVisitor;
 
 /* --------------------------------------------------------------------- */
@@ -48,12 +50,55 @@ impl Exe {
 
     /* --------------------------------------------------------------------- */
 
+    // Detect if config.yaml file is present in transpiler folder
+    // and load it if so. Otherwise create it from internal
+    // default_config.yaml file.
+
+    fn load_or_create_config_file(&self) -> Result<Yaml,RunError> {
+
+        // try to read the external config.yaml file
+        let config_yaml = match fs::read_to_string("config.yaml") {
+            Ok(value) => value,
+            Err(_err) => {
+                // doesn't exist. load internal default config
+                let default_config_yaml = include_str!("default_config.yaml");
+                // now write to disk to create the default external config file
+                match fs::write("config.yaml", default_config_yaml) {
+                    // success - just return the contents of the default
+                    Ok(_) => default_config_yaml.to_string(),
+                    Err(err) => {
+                        // error - couldn't write file
+                        let error_msg = format!("Error writing config.yaml: {}",err);
+                        let run_error = RunError::new(frame_exitcode::DEFAULT_CONFIG_ERR, &*error_msg);
+                        return Err(run_error);
+                    }
+                }
+            }
+        };
+
+        // parse config yaml
+        let config_result = YamlLoader::load_from_str(config_yaml.as_str());
+        match config_result {
+            Ok(config_yaml_vec) => Ok(config_yaml_vec[0].clone()),
+            Err(scan_error) => {
+                let error_msg = format!("Error parsing default_config.yaml: {}",scan_error.to_string());
+                let run_error = RunError::new(frame_exitcode::DEFAULT_CONFIG_ERR, &*error_msg);
+                return Err(run_error);
+            }
+        }
+    }
+
+    /* --------------------------------------------------------------------- */
+
     pub fn run(&self, contents:String, mut output_format:String) -> Result<String,RunError> {
 
 
-        let config_yaml = include_str!("default_config.yaml");
+        let config_yaml = match self.load_or_create_config_file() {
+            Ok(config_yaml) => config_yaml,
+            Err(err) => return Err(err),
+        };
 
-        // NOTE!!! There is a bug w/ the CLion debuger when a variable (maybe just String type)
+        // NOTE!!! There is a bug w/ the CLion debugger when a variable (maybe just String type)
         // isn't initialized under some circumstances. Basically the debugger
         // stops debugging or doesn't step and it looks like it hangs. To avoid
         // this you have to initialize the variable, but the compiler then complains
@@ -62,25 +107,11 @@ impl Exe {
         // debugging here, just uncomment the next line and then comment it back
         // when checking in.
         // let mut output= String::new();
+
         let output;
-        let config_yaml_vec;
-
-        let config_result = YamlLoader::load_from_str(config_yaml);
-        match config_result {
-            Ok(config) => {
-                config_yaml_vec = config;
-            },
-            Err(scan_error) => {
-                let error_msg = format!("Error parsing default_config.yaml: {}",scan_error.to_string());
-                let run_error = RunError::new(frame_exitcode::DEFAULT_CONFIG_ERR, &*error_msg);
-                return Err(run_error);
-            }
-        }
-
-        // Multi document support, doc is a yaml::Yaml
-        let config_yaml = &config_yaml_vec[0];
-//        println!("{:?}", config_yaml);
         let scanner = Scanner::new(contents);
+
+
         let (has_errors,errors,tokens) = scanner.scan_tokens();
         if has_errors {
             let run_error = RunError::new(frame_exitcode::PARSE_ERR, &*errors.clone());
@@ -217,7 +248,7 @@ impl Exe {
             let mut visitor = PlantUmlVisitor::new(
                                                   x
                                                 , y
-                                                , generate_exit_args
+                                         //       , _generate_exit_args
                                                 , generate_state_context
                                                 , generate_state_stack
                                                 , generate_change_state
@@ -228,7 +259,7 @@ impl Exe {
             output = visitor.get_code();
         } else if output_format == "rust" {
             let mut visitor = RustVisitor::new(semantic_parser.get_arcanum()
-                                             , config_yaml
+                                             , &config_yaml
                                              , generate_exit_args
                                              , generate_state_context
                                              , generate_state_stack
