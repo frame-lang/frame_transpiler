@@ -4,6 +4,7 @@ codegen:
       lower_case_states: false
       introspection: true
     code:
+      actions_suffix: Actions
       enter_msg: Enter
       exit_msg: Exit
       enter_args_member_name: enter_args
@@ -16,10 +17,10 @@ codegen:
       state_context_var_name_suffix: _state_context
       state_context_struct_name: StateContext
       this_state_context_var_name: this_state_context
-      frame_message: FrameMessage
+      frame_event_message_type_name: FrameMessage
       frame_event_type_name: FrameEvent
       frame_event_parameter_type_name: FrameEventParameter
-      frame_event_parameters_type_name: FrameParameters
+      frame_event_parameters_type_name: FrameEventParameters
       frame_event_return: FrameEventReturn
       frame_event_variable_name: e
       frame_event_parameters_attribute_name: parameters
