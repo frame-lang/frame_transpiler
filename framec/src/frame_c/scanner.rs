@@ -1,39 +1,37 @@
-use std::fmt;
-use std::fmt::Display;
-use std::collections::HashMap;
 use crate::compiler::Exe;
 use crate::frame_c::scanner::TokenType::*;
+use std::collections::HashMap;
+use std::fmt;
+use std::fmt::Display;
 
 enum MatchType {
     BoolTok,
     StringTok,
     NumberTok,
-//    None,
+    //    None,
 }
 
 pub(crate) struct Scanner {
-    source:String,
-    tokens:Vec<Token>,
-    start:usize,
-    current:usize,
-    token_str:String,
-    pub has_errors:bool,
-    pub errors:String,
+    source: String,
+    tokens: Vec<Token>,
+    start: usize,
+    current: usize,
+    token_str: String,
+    pub has_errors: bool,
+    pub errors: String,
     // The test_t_stack stack is to parse nested tests.  It is necessary
     // because the tokenizer should change how is scans the matches based
     // on the test type. Therefore we have to remember that
     // what the current test type was in order to change the scanner
     // and pop it off when done with the test.
-    test_t_stack:Vec<MatchType>,
-    line:usize,
-    keywords:HashMap<String,TokenType>,
-//    match_type:MatchType,
+    test_t_stack: Vec<MatchType>,
+    line: usize,
+    keywords: HashMap<String, TokenType>,
+    //    match_type:MatchType,
 }
 
 impl Scanner {
-
-
-    pub(crate) fn new(source:String) -> Scanner {
+    pub(crate) fn new(source: String) -> Scanner {
         let keywords: HashMap<String, TokenType> = [
             ("null".to_string(), TokenType::NullTok),
             ("nil".to_string(), TokenType::NilTok),
@@ -45,29 +43,30 @@ impl Scanner {
             ("-machine-".to_string(), TokenType::MachineBlockTok),
             ("-actions-".to_string(), TokenType::ActionsBlockTok),
             ("-domain-".to_string(), TokenType::DomainBlockTok),
-        ].iter().cloned().collect();
+        ]
+        .iter()
+        .cloned()
+        .collect();
 
         Scanner {
             source,
             tokens: Vec::new(),
-            start:0,
-            current:0,
-            token_str:String::new(),
-            has_errors:false,
-            errors:String::new(),
-            test_t_stack:Vec::new(),
-            line:1,
+            start: 0,
+            current: 0,
+            token_str: String::new(),
+            has_errors: false,
+            errors: String::new(),
+            test_t_stack: Vec::new(),
+            line: 1,
             keywords,
-       //     match_type:MatchType::None,
+            //     match_type:MatchType::None,
         }
     }
-
 
     // NOTE! The self param is NOT &self. That is how
     // the member variable token can move ownership to the
     // caller.
-    pub fn scan_tokens(mut self) -> (bool,String,Vec<Token>) {
-
+    pub fn scan_tokens(mut self) -> (bool, String, Vec<Token>) {
         // Scan header
         while self.is_whitespace() {
             self.advance();
@@ -75,7 +74,7 @@ impl Scanner {
         if self.peek() == '`' {
             self.sync_start();
             if !self.match_first_header_token() {
-                return (self.has_errors,self.errors.clone(),self.tokens);
+                return (self.has_errors, self.errors.clone(), self.tokens);
             }
             self.sync_start();
             while !self.is_at_end() {
@@ -97,31 +96,29 @@ impl Scanner {
 
         // todo: the literal needs to be an optional type of generic object
         let len = self.current - self.start;
-        self.tokens.push(
-            Token::new(EofTok
-                       , "".to_string()
-                       , TokenLiteral::None
-                       , self.line
-                       , self.start
-                       , len));
-        return (self.has_errors,self.errors.clone(),self.tokens);
+        self.tokens.push(Token::new(
+            EofTok,
+            "".to_string(),
+            TokenLiteral::None,
+            self.line,
+            self.start,
+            len,
+        ));
+        return (self.has_errors, self.errors.clone(), self.tokens);
     }
 
     fn is_whitespace(&self) -> bool {
-        if self.peek() == ' '
-            || self.peek() == '\n'
-            || self.peek() == '\r'
-            || self.peek() == '\t'  {
+        if self.peek() == ' ' || self.peek() == '\n' || self.peek() == '\r' || self.peek() == '\t' {
             return true;
         }
         return false;
     }
 
-    fn match_first_header_token(&mut self,) -> bool {
+    fn match_first_header_token(&mut self) -> bool {
         for _i in 0..3 {
             if !self.match_char('`') {
                 self.error(self.line, "Malformed header token.");
-                return false
+                return false;
             }
         }
         self.add_string_token_literal(ThreeTicksTok, TokenLiteral::None);
@@ -129,10 +126,10 @@ impl Scanner {
         true
     }
 
-    fn match_last_header_token(&mut self,) -> bool {
+    fn match_last_header_token(&mut self) -> bool {
         for _i in 0..3 {
             if !self.match_char('`') {
-                return false
+                return false;
             }
         }
         self.add_string_token_literal(ThreeTicksTok, TokenLiteral::None);
@@ -149,7 +146,7 @@ impl Scanner {
     }
 
     fn scan_token(&mut self) {
-        let c:char = self.advance();
+        let c: char = self.advance();
         match c {
             '(' => self.add_token(LParenTok),
             ')' => self.add_token(RParenTok),
@@ -169,7 +166,7 @@ impl Scanner {
                 } else {
                     self.add_token(PipeTok)
                 }
-            },
+            }
             '*' => self.add_token(StarTok),
             '+' => self.add_token(PlusTok),
             '!' => {
@@ -178,10 +175,12 @@ impl Scanner {
                 } else {
                     self.add_token(BangTok);
                 }
-
             }
             '$' => {
-                enum StackType {Push,Pop}
+                enum StackType {
+                    Push,
+                    Pop,
+                }
 
                 if self.match_char('$') {
                     let st;
@@ -199,14 +198,20 @@ impl Scanner {
                             return;
                         }
                         match st {
-                            StackType::Push => { self.add_token(StateStackOperationPushTok); return;},
-                            StackType::Pop => { self.add_token(StateStackOperationPopTok); return} ,
+                            StackType::Push => {
+                                self.add_token(StateStackOperationPushTok);
+                                return;
+                            }
+                            StackType::Pop => {
+                                self.add_token(StateStackOperationPopTok);
+                                return;
+                            }
                         }
                     }
                 }
 
                 self.add_token(StateTok)
-            },
+            }
             '^' => self.add_token(CaretTok),
             '>' => {
                 if self.match_char('>') {
@@ -220,8 +225,7 @@ impl Scanner {
                 } else {
                     self.add_token(GTTok);
                 }
-
-            },
+            }
             '<' => {
                 if self.match_char('<') {
                     if self.match_char('<') {
@@ -234,8 +238,7 @@ impl Scanner {
                 } else {
                     self.add_token(LTTok);
                 }
-
-            },
+            }
             '&' => {
                 if self.match_char('&') {
                     self.add_token(LogicalAndTok)
@@ -244,7 +247,7 @@ impl Scanner {
                 } else {
                     self.add_token(AndTok)
                 }
-            },
+            }
             '?' => {
                 if self.match_char('!') {
                     self.add_token(BoolTestFalseTok);
@@ -263,15 +266,15 @@ impl Scanner {
                     // Store the context for the parse
                     self.test_t_stack.push(MatchType::BoolTok);
                 }
-            },
+            }
             '@' => self.add_token(AtTok),
             ' ' => return,
             '\r' => return,
             '\t' => return,
             '\n' => {
-            //    self.line += 1;
+                //    self.line += 1;
                 return;
-            },
+            }
             '-' => {
                 if !self.block_keyword() {
                     if self.match_char('>') {
@@ -296,7 +299,7 @@ impl Scanner {
                         self.add_token(DashTok);
                     }
                 }
-            },
+            }
             '{' => {
                 if self.match_char('-') {
                     if self.match_char('-') {
@@ -307,7 +310,7 @@ impl Scanner {
                 } else {
                     self.add_token(OpenBraceTok);
                 }
-            },
+            }
             '}' => {
                 self.add_token(CloseBraceTok);
             }
@@ -320,7 +323,7 @@ impl Scanner {
                 } else {
                     self.add_token(ColonTok);
                 }
-            },
+            }
             ';' => self.add_token(SemicolonTok),
             '"' => self.string(),
             '`' => self.super_string(),
@@ -328,17 +331,18 @@ impl Scanner {
                 if self.match_char('#') {
                     self.add_token(SystemEndTok);
                 } else if self.match_char('[') {
-                    self.add_token(OuterAttributeTok)   // #[
+                    self.add_token(OuterAttributeTok) // #[
                 } else if self.match_char('!') {
-                    if self.match_char('[') {           // #![
+                    if self.match_char('[') {
+                        // #![
                         self.add_token(InnerAttributeTok);
                     } else {
-                        self.add_token(ErrorTok);       // #!
+                        self.add_token(ErrorTok); // #!
                     }
                 } else {
                     self.add_token(SystemTok);
                 }
-            },
+            }
             '=' => {
                 if self.match_char('>') {
                     self.add_token(DispatchTok);
@@ -347,7 +351,7 @@ impl Scanner {
                 } else {
                     self.add_token(EqualsTok);
                 }
-            },
+            }
             '/' => {
                 if self.match_char('/') {
                     if self.match_char('!') {
@@ -359,25 +363,27 @@ impl Scanner {
                     self.add_token_sync_start(ForwardSlashTok);
                     self.scan_match();
                 }
-            },
+            }
             '.' => {
                 self.add_token(DotTok);
-            },
+            }
             _ => {
                 if self.is_digit(c) {
                     self.number();
                 } else if self.is_alpha(c) {
                     self.identifier();
                 } else {
-                    self.error(self.line,&format!("Found unexpected character '{}'.",c));
+                    self.error(self.line, &format!("Found unexpected character '{}'.", c));
                     self.add_token(ErrorTok);
                 }
             }
         }
     }
 
-    fn match_char(&mut self,expected:char) -> bool {
-        if self.is_at_end() { return false; }
+    fn match_char(&mut self, expected: char) -> bool {
+        if self.is_at_end() {
+            return false;
+        }
         let c = self.source.as_bytes()[self.current] as char;
         if c != expected {
             return false;
@@ -392,7 +398,7 @@ impl Scanner {
     fn advance(&mut self) -> char {
         self.current += 1;
         self.token_str = String::from(&self.source[self.start..self.current]);
-        let c:char = self.source.as_bytes()[self.current - 1] as char;
+        let c: char = self.source.as_bytes()[self.current - 1] as char;
         if c == '\n' {
             self.line += 1;
         }
@@ -404,7 +410,7 @@ impl Scanner {
             return '\0';
         }
 
-        let c:char = self.source.as_bytes()[self.current] as char;
+        let c: char = self.source.as_bytes()[self.current] as char;
         c
     }
 
@@ -415,7 +421,7 @@ impl Scanner {
         return self.source.as_bytes()[self.current + 1] as char;
     }
 
-    fn is_digit(&self, c:char) -> bool {
+    fn is_digit(&self, c: char) -> bool {
         c >= '0' && c <= '9'
     }
 
@@ -487,8 +493,8 @@ impl Scanner {
         match self.test_t_stack.last() {
             Some(MatchType::StringTok) => self.scan_string_match(),
             Some(MatchType::NumberTok) => self.scan_number_match(),
-            Some(_) => {},
-            None => {},
+            Some(_) => {}
+            None => {}
         }
     }
 
@@ -532,7 +538,6 @@ impl Scanner {
     }
 
     fn block_keyword(&mut self) -> bool {
-
         // TODO: handle this:
         // #M1
         //     -in-
@@ -541,7 +546,7 @@ impl Scanner {
         let start_pos = self.current;
         // let mut block_name:&str;
 
-        let block_sections= [
+        let block_sections = [
             ("interface-", InterfaceBlockTok),
             ("machine-", MachineBlockTok),
             ("actions-", ActionsBlockTok),
@@ -550,8 +555,8 @@ impl Scanner {
 
         // TODO: this is **horribly** ineffcient.
 
-        for (block_name,token_type) in block_sections.iter() {
-            for (i,c) in block_name.chars().enumerate() {
+        for (block_name, token_type) in block_sections.iter() {
+            for (i, c) in block_name.chars().enumerate() {
                 if !self.match_char(c) {
                     break;
                 }
@@ -568,39 +573,41 @@ impl Scanner {
         false
     }
 
-    fn is_alpha(&self, c:char) -> bool {
-        (c >= 'a' && c <= 'z') ||
-            (c >= 'A' && c <= 'Z') ||
-            c == '_'
+    fn is_alpha(&self, c: char) -> bool {
+        (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_'
     }
 
-    fn is_alpha_numeric(&self, c:char) -> bool {
+    fn is_alpha_numeric(&self, c: char) -> bool {
         self.is_alpha(c) || self.is_digit(c)
     }
 
-    fn add_token_sync_start(&mut self, tok_type:TokenType) {
+    fn add_token_sync_start(&mut self, tok_type: TokenType) {
         self.add_token_literal(tok_type, TokenLiteral::None);
         self.sync_start();
     }
 
-    fn add_token(&mut self, tok_type:TokenType) {
+    fn add_token(&mut self, tok_type: TokenType) {
         Exe::debug_print(&format!("{:?}", tok_type));
         self.add_token_literal(tok_type, TokenLiteral::None);
     }
 
-    fn add_token_literal(&mut self, tok_type:TokenType, literal:TokenLiteral) {
+    fn add_token_literal(&mut self, tok_type: TokenType, literal: TokenLiteral) {
         let lex = self.source[self.start..self.current].to_owned();
         let len = self.current - self.start;
-        self.tokens.push(Token::new(tok_type, lex, literal, self.line, self.start,len));
+        self.tokens.push(Token::new(
+            tok_type, lex, literal, self.line, self.start, len,
+        ));
     }
 
-    fn add_string_token_literal(&mut self, tok_type:TokenType, literal:TokenLiteral) {
-        let lex = self.source[self.start+1..self.current-1].to_owned();
+    fn add_string_token_literal(&mut self, tok_type: TokenType, literal: TokenLiteral) {
+        let lex = self.source[self.start + 1..self.current - 1].to_owned();
         let len = self.current - self.start;
-        self.tokens.push(Token::new(tok_type, lex, literal, self.line,self.start,len));
+        self.tokens.push(Token::new(
+            tok_type, lex, literal, self.line, self.start, len,
+        ));
     }
 
-    fn error(&mut self, line:usize,error_msg:&str) {
+    fn error(&mut self, line: usize, error_msg: &str) {
         let error = &format!("Line {} : Error: {}\n", line, error_msg);
         self.has_errors = true;
         self.errors.push_str(error);
@@ -624,11 +631,11 @@ impl Scanner {
 
         // Unterminated string.
         if self.is_at_end() {
-            self.error(self.line,"Unterminated string.");
+            self.error(self.line, "Unterminated string.");
         }
 
         self.advance();
-        self. add_string_token_literal(StringTok, TokenLiteral::None);
+        self.add_string_token_literal(StringTok, TokenLiteral::None);
     }
 
     fn super_string(&mut self) {
@@ -650,7 +657,7 @@ impl Scanner {
 
         // Unterminated string.
         if self.is_at_end() {
-            self.error(start_line,"Unterminated super string.");
+            self.error(start_line, "Unterminated super string.");
             return;
         }
 
@@ -659,41 +666,39 @@ impl Scanner {
     }
 }
 
-
-#[derive(Copy, Clone)]
-#[derive(Debug,PartialOrd, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialOrd, PartialEq)]
 pub enum TokenType {
     EofTok,
     IdentifierTok,
     StateTok,
-    GTTok,                  // >
-    GTx2Tok,                // >>
-    GTx3Tok,                // >>
-    PlusTok,                // +
-    DashTok,                // -
-    DashDashTok,            // --
-    StarTok,                // *
-    EqualEqualTok,          // ==
-    BangTok,                // !
-    BangEqualTok,           // !=
-    GreaterEqualTok,        // >=
-    LessEqualTok,           // <=
-    LTTok,                  // <
-    LTx2Tok,                // <<
-    LTx3Tok,                // <<<
-    AndTok,                 // &
-    PipeTok,                // |
-    CaretTok,               // ^
-    LogicalAndTok,          // &&
-    LogicalXorTok,          // &|
-    SystemTok,              // #
-    SystemEndTok,           // ##
-    OuterAttributeTok,      // #[
-    InnerAttributeTok,      // #![
-    InterfaceBlockTok,      // -interface-
-    MachineBlockTok,        // -machine-
-    ActionsBlockTok,        // -actions-
-    DomainBlockTok,         // -domain-
+    GTTok,             // >
+    GTx2Tok,           // >>
+    GTx3Tok,           // >>
+    PlusTok,           // +
+    DashTok,           // -
+    DashDashTok,       // --
+    StarTok,           // *
+    EqualEqualTok,     // ==
+    BangTok,           // !
+    BangEqualTok,      // !=
+    GreaterEqualTok,   // >=
+    LessEqualTok,      // <=
+    LTTok,             // <
+    LTx2Tok,           // <<
+    LTx3Tok,           // <<<
+    AndTok,            // &
+    PipeTok,           // |
+    CaretTok,          // ^
+    LogicalAndTok,     // &&
+    LogicalXorTok,     // &|
+    SystemTok,         // #
+    SystemEndTok,      // ##
+    OuterAttributeTok, // #[
+    InnerAttributeTok, // #![
+    InterfaceBlockTok, // -interface-
+    MachineBlockTok,   // -machine-
+    ActionsBlockTok,   // -actions-
+    DomainBlockTok,    // -domain-
     LParenTok,
     RParenTok,
     LBracketTok,
@@ -701,52 +706,51 @@ pub enum TokenType {
     TransitionTok,
     ChangeStateTok,
     StringTok,
-    ThreeTicksTok,                  // ```
-    SuperStringTok,                 // `stuff + "stuff"`
-    NumberTok,                      // 1, 1.01
-    VarTok,                         // let
-    ConstTok,                       // const
-    SingleLineCommentTok,           // --- comment
-    MultiLineCommentTok,            // {-- comments --}
-    OpenBraceTok,                   // {
-    CloseBraceTok,                  // }
-    TrueTok,                        // true
-    FalseTok,                       // false
-    NullTok,                        // null
-    NilTok,                         // nil
-    ColonTok,                       // :
-    SemicolonTok,                   // ;
-    DispatchTok,                    // =>
-    EqualsTok,                      // =
-    BoolTestTrueTok,                // ?
-    BoolTestFalseTok,               // ?!
-    StringTestTok,                  // ?~
-    NumberTestTok,                  // ?#
-    ElseContinueTok,                // :>
-    TestTerminatorTok,              // ::
-    ForwardSlashTok,                // /
-    MatchStringTok,                 // /<string>/ - contains <string>
-    MatchNullStringTok,             // //!
-    MatchEmptyStringTok,            // //
-    StateStackOperationPushTok,     // $$[+]
-    StateStackOperationPopTok,      // $$[-]
-    DotTok,                         // .
-    AtTok,                          // @
-    PipePipeTok,                    // ||
-    PipePipeDotTok,                 // ||.
-    PipePipeLBracketTok,            // ||[
-    AnyMessageTok,                  // ||*
+    ThreeTicksTok,              // ```
+    SuperStringTok,             // `stuff + "stuff"`
+    NumberTok,                  // 1, 1.01
+    VarTok,                     // let
+    ConstTok,                   // const
+    SingleLineCommentTok,       // --- comment
+    MultiLineCommentTok,        // {-- comments --}
+    OpenBraceTok,               // {
+    CloseBraceTok,              // }
+    TrueTok,                    // true
+    FalseTok,                   // false
+    NullTok,                    // null
+    NilTok,                     // nil
+    ColonTok,                   // :
+    SemicolonTok,               // ;
+    DispatchTok,                // =>
+    EqualsTok,                  // =
+    BoolTestTrueTok,            // ?
+    BoolTestFalseTok,           // ?!
+    StringTestTok,              // ?~
+    NumberTestTok,              // ?#
+    ElseContinueTok,            // :>
+    TestTerminatorTok,          // ::
+    ForwardSlashTok,            // /
+    MatchStringTok,             // /<string>/ - contains <string>
+    MatchNullStringTok,         // //!
+    MatchEmptyStringTok,        // //
+    StateStackOperationPushTok, // $$[+]
+    StateStackOperationPopTok,  // $$[-]
+    DotTok,                     // .
+    AtTok,                      // @
+    PipePipeTok,                // ||
+    PipePipeDotTok,             // ||.
+    PipePipeLBracketTok,        // ||[
+    AnyMessageTok,              // ||*
     ErrorTok,
-
 }
 
 impl Display for TokenType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f,"{}",self)
+        write!(f, "{}", self)
     }
 }
 
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub enum TokenLiteral {
     //Integer(i32),
     Float(f32),
@@ -756,23 +760,29 @@ pub enum TokenLiteral {
 
 impl Display for TokenLiteral {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f,"{}",self)
+        write!(f, "{}", self)
     }
 }
 
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub struct Token {
-    pub token_type:TokenType,
-    pub lexeme:String,
-    literal:TokenLiteral,
-    pub line:usize,
-    pub start:usize,
-    pub length:usize,
+    pub token_type: TokenType,
+    pub lexeme: String,
+    literal: TokenLiteral,
+    pub line: usize,
+    pub start: usize,
+    pub length: usize,
 }
 
 impl Token {
-
-    pub fn new(token_type:TokenType,lexeme:String,literal:TokenLiteral,line:usize,start:usize,length:usize) -> Token {
+    pub fn new(
+        token_type: TokenType,
+        lexeme: String,
+        literal: TokenLiteral,
+        line: usize,
+        start: usize,
+        length: usize,
+    ) -> Token {
         Token {
             token_type,
             lexeme,
@@ -786,7 +796,6 @@ impl Token {
 
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f,"{} {} {}",self.token_type,self.lexeme,self.literal)
+        write!(f, "{} {} {}", self.token_type, self.lexeme, self.literal)
     }
 }
-

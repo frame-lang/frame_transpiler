@@ -1,10 +1,7 @@
-pub mod compiler;
 mod ast;
-mod symbol_table;
-mod scanner;
-mod visitors;
+pub mod compiler;
 mod parser;
+mod scanner;
+mod symbol_table;
 pub mod utils;
-
-
-
+mod visitors;
