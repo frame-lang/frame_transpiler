@@ -413,15 +413,13 @@ impl RustVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn format_parameter_list(&mut self,params:&Vec<ParameterNode>) {
-        let mut separator = ",";
         for param in params {
-            self.add_code(&format!("{}", separator));
+            self.add_code(&format!(", "));
             let param_type: String = match &param.param_type_opt {
                 Some(ret_type) => ret_type.get_type_str(),
                 None => String::from("<?>"),
             };
-            self.add_code(&format!("{}: {}", param.param_name, param_type));
-            separator = ",";
+            self.add_code(&format!("{}:{}", param.param_name, param_type));
         }
     }
 
@@ -2000,14 +1998,23 @@ impl AstVisitor for RustVisitor {
                                     ));
                                     self.indent();
                                     self.newline();
-
-                                    self.add_code(&format!("self.{}.insert(String::from(\"{}\"), {}::{} {{param: {}}} );"
+                                    self.add_code(&format!("self.{}.insert("
                                                            ,self.config.frame_event_parameters_attribute_name
+                                    ));
+                                    self.indent();
+                                    self.newline();
+                                    self.add_code(&format!("String::from(\"{}\"),"
                                                            ,parameter_enum_name
+                                    ));
+                                    self.newline();
+                                    self.add_code(&format!("{}::{} {{ param: {} }},"
                                                            ,self.config.frame_event_parameter_type_name
                                                            ,parameter_enum_name
                                                            ,param.name
                                     ));
+                                    self.outdent();
+                                    self.newline();
+                                    self.add_code(&format!(");"));
                                     self.outdent();
                                     self.newline();
                                     self.add_code("}");
@@ -2024,37 +2031,31 @@ impl AstVisitor for RustVisitor {
                                                            ,parameter_enum_name));
                                     self.indent();
                                     self.newline();
-                                    self.add_code("Some(parameter) => {");
+                                    self.add_code("Some(parameter) => match parameter {");
                                     self.indent();
                                     self.newline();
-                                    self.add_code("match parameter {");
-                                    self.indent();
-                                    self.newline();
+
                                     // let parameter_enum_name = self.format_frame_event_parameter_name(&parameter_enum_name
                                     //                                                                  ,&param.name);
 
-                                    self.add_code(&format!("{}::{} {{param}} => {{"
+                                    self.add_code(&format!("{}::{} {{ param }} => param.clone(),"
                                                             ,self.config.frame_event_parameter_type_name
                                                            ,parameter_enum_name));
-                                    self.indent();
-                                    self.newline();
-                                    self.add_code("param.clone()");
-                                    self.outdent();
-                                    self.newline();
-                                    self.add_code("},");
                                     self.newline();
                                     self.add_code("_ => panic!(\"Invalid parameter\"),");
-                                    self.outdent();
-                                    self.newline();
-                                    self.add_code("}"); // match self.parameters.get
+                                    // self.outdent();
+                                    // self.newline();
+                                    // self.add_code("}"); // match self.parameters.get
                                     self.outdent();
                                     self.newline();
                                     self.add_code("},"); // Some(parameter)
                                     self.newline();
                                     self.add_code("None => panic!(\"Invalid parameter\"),");
+                                    // self.outdent();
+                                    // self.newline();
                                     self.outdent();
                                     self.newline();
-                                    self.add_code("}"); // match
+                                    self.add_code("}");
                                     self.outdent();
                                     self.newline();
                                     self.add_code("}");
