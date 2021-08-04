@@ -34,10 +34,8 @@ codegen:
       state_enum_traits: Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord
       transition_method_name: transition
       change_state_method_name: change_state
-      pre_transition_hook_method_name: pre_transition_hook
-      post_transition_hook_method_name: post_transition_hook
-      pre_change_state_hook_method_name: pre_change_state_hook
-      post_change_state_hook_method_name: post_change_state_hook
+      transition_hook_method_name: transition_hook
+      change_state_hook_method_name: change_state_hook
       state_stack_var_name: state_stack
       state_stack_push_method_name: state_stack_push
       state_stack_pop_method_name: state_stack_pop

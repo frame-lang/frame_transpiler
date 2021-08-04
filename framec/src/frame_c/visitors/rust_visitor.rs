@@ -46,10 +46,8 @@ struct Config {
     state_enum_traits: String,
     transition_method_name: String,
     change_state_method_name: String,
-    pre_transition_hook_method_name: Option<String>,
-    post_transition_hook_method_name: Option<String>,
-    pre_change_state_hook_method_name: Option<String>,
-    post_change_state_hook_method_name: Option<String>,
+    transition_hook_method_name: Option<String>,
+    change_state_hook_method_name: Option<String>,
     state_stack_push_method_name: String,
     state_stack_pop_method_name: String,
 }
@@ -188,16 +186,10 @@ impl Config {
                 .as_str()
                 .unwrap_or_default()
                 .to_string(),
-            pre_transition_hook_method_name: (&code_yaml["pre_transition_hook_method_name"])
+            transition_hook_method_name: (&code_yaml["transition_hook_method_name"])
                 .as_str()
                 .map(|s| s.to_string()),
-            post_transition_hook_method_name: (&code_yaml["post_transition_hook_method_name"])
-                .as_str()
-                .map(|s| s.to_string()),
-            pre_change_state_hook_method_name: (&code_yaml["pre_change_state_hook_method_name"])
-                .as_str()
-                .map(|s| s.to_string()),
-            post_change_state_hook_method_name: (&code_yaml["post_change_state_hook_method_name"])
+            change_state_hook_method_name: (&code_yaml["change_state_hook_method_name"])
                 .as_str()
                 .map(|s| s.to_string()),
             state_stack_push_method_name: (&code_yaml["state_stack_push_method_name"])
@@ -237,10 +229,8 @@ pub struct RustVisitor {
     generate_state_stack: bool,
     generate_change_state: bool,
     generate_transition_state: bool,
-    generate_pre_transition_hook: bool,
-    generate_post_transition_hook: bool,
-    generate_pre_change_state_hook: bool,
-    generate_post_change_state_hook: bool,
+    generate_transition_hook: bool,
+    generate_change_state_hook: bool,
     current_message: String,
 }
 
@@ -284,10 +274,8 @@ impl RustVisitor {
             generate_state_stack,
             generate_change_state,
             generate_transition_state,
-            generate_pre_transition_hook: config.pre_transition_hook_method_name.is_some(),
-            generate_post_transition_hook: config.post_transition_hook_method_name.is_some(),
-            generate_pre_change_state_hook: config.pre_change_state_hook_method_name.is_some(),
-            generate_post_change_state_hook: config.post_change_state_hook_method_name.is_some(),
+            generate_transition_hook: config.transition_hook_method_name.is_some(),
+            generate_change_state_hook: config.change_state_hook_method_name.is_some(),
             current_message: String::new(),
             config,
         }
@@ -816,8 +804,11 @@ impl RustVisitor {
                 }
                 self.indent();
                 self.newline();
-                if self.generate_pre_transition_hook {
-                    self.add_code(&format!("self.{}();", self.config.pre_transition_hook_method_name.as_ref().unwrap()));
+                if self.generate_transition_hook {
+                    self.add_code(&format!(
+                        "self.{}();",
+                        self.config.transition_hook_method_name.as_ref().unwrap()
+                    ));
                     self.newline();
                 }
                 if self.generate_exit_args {
@@ -873,13 +864,6 @@ impl RustVisitor {
                     "(self.{})(self, &mut enter_event);",
                     &self.config.state_var_name
                 ));
-                if self.generate_post_transition_hook {
-                    self.newline();
-                    self.add_code(&format!(
-                        "self.{}();",
-                        self.config.post_transition_hook_method_name.as_ref().unwrap()
-                    ));
-                }
                 self.outdent();
                 self.newline();
                 self.add_code(&format!("}}"));
@@ -975,10 +959,10 @@ impl RustVisitor {
             if self.generate_change_state {
                 self.newline();
                 self.newline();
-                if self.generate_pre_change_state_hook {
+                if self.generate_change_state_hook {
                     self.add_code(&format!(
                         "self.{}();",
-                        self.config.pre_change_state_hook_method_name.as_ref().unwrap()
+                        self.config.change_state_hook_method_name.as_ref().unwrap()
                     ));
                     self.newline();
                 }
@@ -992,13 +976,6 @@ impl RustVisitor {
                     "self.{} = new_state;",
                     &self.config.state_var_name
                 ));
-                if self.generate_post_change_state_hook {
-                    self.add_code(&format!(
-                        "self.{}();",
-                        self.config.post_change_state_hook_method_name.as_ref().unwrap()
-                    ));
-                    self.newline();
-                }
 
                 self.outdent();
                 self.newline();
