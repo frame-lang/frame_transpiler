@@ -40,6 +40,7 @@ struct Config {
     frame_event_return_attribute_name: String,
     frame_state_type_name: String,
     state_var_name: String,
+    state_var_name_prefix: String,
     state_var_name_suffix: String,
     state_enum_suffix: String,
     transition_method_name: String,
@@ -70,117 +71,121 @@ impl Config {
 
         Config {
             config_features,
-            actions_suffix: (&code_yaml["actions_suffix"]).as_str().unwrap().to_string(),
+            actions_suffix: (&code_yaml["actions_suffix"]).as_str().unwrap_or_default().to_string(),
             enter_token: String::from(">"),
             exit_token: String::from("<"),
-            enter_msg: (&code_yaml["enter_msg"]).as_str().unwrap().to_string(),
-            exit_msg: (&code_yaml["exit_msg"]).as_str().unwrap().to_string(),
+            enter_msg: (&code_yaml["enter_msg"]).as_str().unwrap_or_default().to_string(),
+            exit_msg: (&code_yaml["exit_msg"]).as_str().unwrap_or_default().to_string(),
             enter_args_member_name: (&code_yaml["enter_args_member_name"])
                 .as_str()
-                .unwrap()
+                .unwrap_or_default()
                 .to_string(),
             exit_args_member_name: (&code_yaml["exit_args_member_name"])
                 .as_str()
-                .unwrap()
+                .unwrap_or_default()
                 .to_string(),
-            state_var_name: (&code_yaml["state_var_name"]).as_str().unwrap().to_string(),
+            state_var_name: (&code_yaml["state_var_name"]).as_str().unwrap_or_default().to_string(),
+            state_var_name_prefix: (&code_yaml["state_var_name_prefix"])
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
             state_var_name_suffix: (&code_yaml["state_var_name_suffix"])
                 .as_str()
-                .unwrap()
+                .unwrap_or_default()
                 .to_string(),
             state_enum_suffix: (&code_yaml["state_enum_suffix"])
                 .as_str()
-                .unwrap()
+                .unwrap_or_default()
                 .to_string(),
             state_context_var_name: (&code_yaml["state_context_var_name"])
                 .as_str()
-                .unwrap()
+                .unwrap_or_default()
                 .to_string(),
             this_state_context_var_name: (&code_yaml["this_state_context_var_name"])
                 .as_str()
-                .unwrap()
+                .unwrap_or_default()
                 .to_string(),
             state_context_var_name_suffix: (&code_yaml["state_context_var_name_suffix"])
                 .as_str()
-                .unwrap()
+                .unwrap_or_default()
                 .to_string(),
             state_context_struct_name: (&code_yaml["state_context_struct_name"])
                 .as_str()
-                .unwrap()
+                .unwrap_or_default()
                 .to_string(),
             frame_state_type_name: (&code_yaml["frame_state_type_name"])
                 .as_str()
-                .unwrap()
+                .unwrap_or_default()
                 .to_string(),
             frame_event_type_name: (&code_yaml["frame_event_type_name"])
                 .as_str()
-                .unwrap()
+                .unwrap_or_default()
                 .to_string(),
             frame_event_parameter_type_name: (&code_yaml["frame_event_parameter_type_name"])
                 .as_str()
-                .unwrap()
+                .unwrap_or_default()
                 .to_string(),
             frame_event_parameters_type_name: (&code_yaml["frame_event_parameters_type_name"])
                 .as_str()
-                .unwrap()
+                .unwrap_or_default()
                 .to_string(),
             frame_event_message_type_name: (&code_yaml["frame_event_message_type_name"])
                 .as_str()
-                .unwrap()
+                .unwrap_or_default()
                 .to_string(),
             frame_event_return: (&code_yaml["frame_event_return"])
                 .as_str()
-                .unwrap()
+                .unwrap_or_default()
                 .to_string(),
             frame_event_variable_name: (&code_yaml["frame_event_variable_name"])
                 .as_str()
-                .unwrap()
+                .unwrap_or_default()
                 .to_string(),
             frame_event_parameters_attribute_name: (&code_yaml
                 ["frame_event_parameters_attribute_name"])
                 .as_str()
-                .unwrap()
+                .unwrap_or_default()
                 .to_string(),
             frame_event_message_attribute_name: (&code_yaml["frame_event_message_attribute_name"])
                 .as_str()
-                .unwrap()
+                .unwrap_or_default()
                 .to_string(),
             frame_event_return_attribute_name: (&code_yaml["frame_event_return_attribute_name"])
                 .as_str()
-                .unwrap()
+                .unwrap_or_default()
                 .to_string(),
             state_context_name: (&code_yaml["state_context_name"])
                 .as_str()
-                .unwrap()
+                .unwrap_or_default()
                 .to_string(),
             state_context_suffix: (&code_yaml["state_context_suffix"])
                 .as_str()
-                .unwrap()
+                .unwrap_or_default()
                 .to_string(),
-            state_args_var: (&code_yaml["state_args_var"]).as_str().unwrap().to_string(),
+            state_args_var: (&code_yaml["state_args_var"]).as_str().unwrap_or_default().to_string(),
             state_vars_var_name: (&code_yaml["state_vars_var_name"])
                 .as_str()
-                .unwrap()
+                .unwrap_or_default()
                 .to_string(),
             state_stack_var_name: (&code_yaml["state_stack_var_name"])
                 .as_str()
-                .unwrap()
+                .unwrap_or_default()
                 .to_string(),
             transition_method_name: (&code_yaml["transition_method_name"])
                 .as_str()
-                .unwrap()
+                .unwrap_or_default()
                 .to_string(),
             change_state_method_name: (&code_yaml["change_state_method_name"])
                 .as_str()
-                .unwrap()
+                .unwrap_or_default()
                 .to_string(),
             state_stack_push_method_name: (&code_yaml["state_stack_push_method_name"])
                 .as_str()
-                .unwrap()
+                .unwrap_or_default()
                 .to_string(),
             state_stack_pop_method_name: (&code_yaml["state_stack_pop_method_name"])
                 .as_str()
-                .unwrap()
+                .unwrap_or_default()
                 .to_string(),
         }
     }
@@ -519,7 +524,7 @@ impl RustVisitor {
                 Some(ret_type) => ret_type.get_type_str(),
                 None => String::from("<?>"),
             };
-            self.add_code(&format!("{}:{}", param.param_name, param_type));
+            self.add_code(&format!("{}: {}", param.param_name, param_type));
         }
     }
 
@@ -561,12 +566,13 @@ impl RustVisitor {
     fn format_state_name(&self, state_name: &str) -> String {
         if self.config.config_features.lower_case_states {
             return format!(
-                "{}{}",
+                "{}{}{}",
+                self.config.state_var_name_prefix,
                 state_name.to_lowercase(),
                 self.config.state_var_name_suffix
             );
         } else {
-            return format!("{}{}", state_name, self.config.state_var_name_suffix);
+            return format!("{}{}{}", self.config.state_var_name_prefix,state_name, self.config.state_var_name_suffix);
         }
     }
 
@@ -1587,7 +1593,7 @@ impl AstVisitor for RustVisitor {
                                             &param.name,
                                         );
                                     self.add_code(&format!(
-                                        "{} {{param: {}}},",
+                                        "{} {{ param: {} }},",
                                         parameter_enum_name, param_type
                                     ));
                                 }
@@ -2513,30 +2519,6 @@ impl AstVisitor for RustVisitor {
         interface_method_node: &InterfaceMethodNode,
     ) -> AstVisitorReturnType {
         self.newline();
-        // let return_type = match &interface_method_node.return_type {
-        //     Some(ret) => ret.clone(),
-        //     None => "void".to_string(),
-        // };
-
-        // see if an alias exists.
-        // let method_name_or_alias: &String;
-        //
-        // match &interface_method_node.alias {
-        //     Some(alias_message_node) => {
-        //         // For Rust we map >> and << back to the method names as we aren't using strings
-        //         if self.config.start_system_msg == alias_message_node.name {
-        //             method_name_or_alias = &interface_method_node.name;
-        //         } else if self.config.stop_system_msg == alias_message_node.name {
-        //             method_name_or_alias = &interface_method_node.name;
-        //         } else {
-        //             method_name_or_alias = &alias_message_node.name;
-        //         }
-        //     },
-        //     None => {
-        //         method_name_or_alias = &interface_method_node.name;
-        //     }
-        // }
-
         self.add_code(&format!("pub fn {}(&mut self", interface_method_node.name));
 
         match &interface_method_node.params {
@@ -2872,13 +2854,6 @@ impl AstVisitor for RustVisitor {
             // AnyMessage ( ||* )
             // This feature requires dynamic dispatch.
             panic!("||* not supported for Rust.");
-            // if self.first_event_handler {
-            //     // This logic is for when there is only the catch all event handler ||*
-            //     self.add_code(&format!("_ => {{"));
-            // } else {
-            //     // other event handlers preceded ||*
-            //     self.add_code(&format!("else {{"));
-            // }
         }
         self.generate_comment(evt_handler_node.line);
 
@@ -3979,11 +3954,6 @@ impl AstVisitor for RustVisitor {
                     self.current_message,
                     param_tok.lexeme
                 ));
-                // self.add_code(&format!("{}{}.get_{}_{}()"
-                //                        ,if *is_reference {"&"} else {""}
-                //                        ,self.config.frame_event_variable_name
-                //                        ,self.current_message
-                //                        ,param_tok.lexeme))
             }
             FrameEventPart::Return { is_reference } => {
                 self.add_code(&format!(
@@ -4138,10 +4108,7 @@ impl AstVisitor for RustVisitor {
             None => String::from("<?>"),
         };
         let var_name = &variable_decl_node.name;
-        // let var_init_expr = &variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
         self.newline();
-        // let mut code = String::new();
-        // var_init_expr.accept_to_string(self, &mut code);
         self.add_code(&format!("{}: {},", var_name, var_type));
 
         // currently unused serialization code
