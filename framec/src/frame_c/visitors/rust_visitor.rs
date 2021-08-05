@@ -804,10 +804,16 @@ impl RustVisitor {
                 self.indent();
                 self.newline();
                 if self.generate_transition_hook {
-                    self.add_code("let old_state_enum = self.get_current_state_enum();");
+                    self.add_code(&format!(
+                        "let old_state_enum = self.get_current_{}_enum();",
+                        self.config.state_var_name
+                    ));
                     self.newline();
-                    self.add_code("let new_state_enum = self.get_state_enum(new_state)\
-                                  .expect(\"Internal Frame error: new_state is invalid\");");
+                    self.add_code(&format!(
+                        "let new_state_enum = self.get_{}_enum(new_state)\
+                            .expect(\"Internal Frame error: transition to invalid new_state\");",
+                        self.config.state_var_name
+                    ));
                     self.newline();
                     self.add_code(&format!(
                         "self.{}(old_state_enum, new_state_enum);",
@@ -964,10 +970,16 @@ impl RustVisitor {
                 self.newline();
                 self.newline();
                 if self.generate_change_state_hook {
-                    self.add_code("let old_state_enum = self.get_current_state_enum();");
+                    self.add_code(&format!(
+                        "let old_state_enum = self.get_current_{}_enum();",
+                        self.config.state_var_name
+                    ));
                     self.newline();
-                    self.add_code("let new_state_enum = self.get_state_enum(new_state)\
-                                  .expect(\"Internal Frame error: new_state is invalid\");");
+                    self.add_code(&format!(
+                        "let new_state_enum = self.get_{}_enum(new_state)\
+                            .expect(\"Internal Frame error: change_state to invalid new_state\");",
+                        self.config.state_var_name
+                    ));
                     self.newline();
                     self.add_code(&format!(
                         "self.{}(old_state_enum, new_state_enum);",
