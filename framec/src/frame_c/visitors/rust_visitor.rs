@@ -805,8 +805,13 @@ impl RustVisitor {
                 self.indent();
                 self.newline();
                 if self.generate_transition_hook {
+                    self.add_code("let old_state_enum = self.get_current_state_enum();");
+                    self.newline();
+                    self.add_code("let new_state_enum = self.get_state_enum(&new_state)\
+                                  .expect(\"Internal Frame error: new_state is invalid\");");
+                    self.newline();
                     self.add_code(&format!(
-                        "self.{}();",
+                        "self.{}(old_state_enum, new_state_enum);",
                         self.config.transition_hook_method_name.as_ref().unwrap()
                     ));
                     self.newline();
@@ -960,8 +965,13 @@ impl RustVisitor {
                 self.newline();
                 self.newline();
                 if self.generate_change_state_hook {
+                    self.add_code("let old_state_enum = self.get_current_state_enum();");
+                    self.newline();
+                    self.add_code("let new_state_enum = self.get_state_enum(&new_state)\
+                                  .expect(\"Internal Frame error: new_state is invalid\");");
+                    self.newline();
                     self.add_code(&format!(
-                        "self.{}();",
+                        "self.{}(old_state_enum, new_state_enum);",
                         self.config.change_state_hook_method_name.as_ref().unwrap()
                     ));
                     self.newline();
