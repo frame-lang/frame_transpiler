@@ -274,8 +274,10 @@ impl RustVisitor {
             generate_state_stack,
             generate_change_state,
             generate_transition_state,
-            generate_transition_hook: config.transition_hook_method_name.is_some(),
-            generate_change_state_hook: config.change_state_hook_method_name.is_some(),
+            generate_transition_hook: config.config_features.introspection
+                && config.transition_hook_method_name.is_some(),
+            generate_change_state_hook: config.config_features.introspection
+                && config.change_state_hook_method_name.is_some(),
             current_message: String::new(),
             config,
         }
