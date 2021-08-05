@@ -72,11 +72,20 @@ impl Config {
 
         Config {
             config_features,
-            actions_suffix: (&code_yaml["actions_suffix"]).as_str().unwrap_or_default().to_string(),
+            actions_suffix: (&code_yaml["actions_suffix"])
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
             enter_token: String::from(">"),
             exit_token: String::from("<"),
-            enter_msg: (&code_yaml["enter_msg"]).as_str().unwrap_or_default().to_string(),
-            exit_msg: (&code_yaml["exit_msg"]).as_str().unwrap_or_default().to_string(),
+            enter_msg: (&code_yaml["enter_msg"])
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
+            exit_msg: (&code_yaml["exit_msg"])
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
             enter_args_member_name: (&code_yaml["enter_args_member_name"])
                 .as_str()
                 .unwrap_or_default()
@@ -85,7 +94,10 @@ impl Config {
                 .as_str()
                 .unwrap_or_default()
                 .to_string(),
-            state_var_name: (&code_yaml["state_var_name"]).as_str().unwrap_or_default().to_string(),
+            state_var_name: (&code_yaml["state_var_name"])
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
             state_var_name_prefix: (&code_yaml["state_var_name_prefix"])
                 .as_str()
                 .unwrap_or_default()
@@ -167,7 +179,10 @@ impl Config {
                 .as_str()
                 .unwrap_or_default()
                 .to_string(),
-            state_args_var: (&code_yaml["state_args_var"]).as_str().unwrap_or_default().to_string(),
+            state_args_var: (&code_yaml["state_args_var"])
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
             state_vars_var_name: (&code_yaml["state_vars_var_name"])
                 .as_str()
                 .unwrap_or_default()
@@ -577,7 +592,10 @@ impl RustVisitor {
                 self.config.state_var_name_suffix
             );
         } else {
-            return format!("{}{}{}", self.config.state_var_name_prefix,state_name, self.config.state_var_name_suffix);
+            return format!(
+                "{}{}{}",
+                self.config.state_var_name_prefix, state_name, self.config.state_var_name_suffix
+            );
         }
     }
 
@@ -1538,7 +1556,6 @@ impl AstVisitor for RustVisitor {
         self.newline();
 
         if self.config.config_features.introspection {
-
             // add derived traits
             let mut traits = self.config.state_enum_traits.clone();
             match &system_node.attributes_opt {
@@ -1553,8 +1570,8 @@ impl AstVisitor for RustVisitor {
                             traits = format!("{}, {}", traits, new_traits.value);
                         }
                     }
-                },
-                None => {},
+                }
+                None => {}
             }
             if !traits.is_empty() {
                 self.add_code(&format!("#[derive({})]", traits));
