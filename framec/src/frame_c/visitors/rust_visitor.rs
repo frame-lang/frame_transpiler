@@ -43,6 +43,7 @@ struct Config {
     state_var_name_prefix: String,
     state_var_name_suffix: String,
     state_enum_suffix: String,
+    state_enum_traits: String,
     transition_method_name: String,
     change_state_method_name: String,
     state_stack_push_method_name: String,
@@ -94,6 +95,10 @@ impl Config {
                 .unwrap_or_default()
                 .to_string(),
             state_enum_suffix: (&code_yaml["state_enum_suffix"])
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
+            state_enum_traits: (&code_yaml["state_enum_traits"])
                 .as_str()
                 .unwrap_or_default()
                 .to_string(),
@@ -1479,7 +1484,7 @@ impl RustVisitor {
         if self.generate_exit_args {
             if self.generate_state_context {
                 self.add_code(&format!(
-                    "self.{}(state, {},self.{});",
+                    "self.{}(state, {}, self.{});",
                     self.config.transition_method_name,
                     self.config.exit_args_member_name,
                     self.config.state_context_var_name
@@ -1533,6 +1538,30 @@ impl AstVisitor for RustVisitor {
         self.newline();
 
         if self.config.config_features.introspection {
+
+            // add derived traits
+            let mut traits = self.config.state_enum_traits.clone();
+            match &system_node.attributes_opt {
+                Some(attributes) => {
+                    if let Some(new_traits) = attributes.get("override_state_enum_traits") {
+                        traits = new_traits.value.clone();
+                    }
+                    if let Some(new_traits) = attributes.get("extend_state_enum_traits") {
+                        if traits.is_empty() {
+                            traits = new_traits.value.clone();
+                        } else {
+                            traits = format!("{}, {}", traits, new_traits.value);
+                        }
+                    }
+                },
+                None => {},
+            }
+            if !traits.is_empty() {
+                self.add_code(&format!("#[derive({})]", traits));
+                self.newline();
+            }
+
+            // add the state enum type
             self.add_code(&format!(
                 "pub enum {}{} {{",
                 self.system_name, self.config.state_enum_suffix
@@ -1552,6 +1581,8 @@ impl AstVisitor for RustVisitor {
             self.newline();
             self.newline();
         }
+
+        // add state type alias
         self.add_code(&format!(
             "type {} = fn(&mut {}, &mut {});",
             self.config.frame_state_type_name, &system_node.name, self.config.frame_event_type_name

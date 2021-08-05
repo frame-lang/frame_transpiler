@@ -31,10 +31,9 @@ codegen:
       state_var_name_prefix:
       state_var_name_suffix: _state
       state_enum_suffix: State
+      state_enum_traits: Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord
       transition_method_name: transition
       change_state_method_name: change_state
       state_stack_var_name: state_stack
       state_stack_push_method_name: state_stack_push
       state_stack_pop_method_name: state_stack_pop
-
-            
