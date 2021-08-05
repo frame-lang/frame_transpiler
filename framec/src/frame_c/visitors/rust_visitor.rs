@@ -701,7 +701,7 @@ impl RustVisitor {
         if self.config.config_features.introspection {
             self.newline();
             self.add_code(&format!(
-                "pub fn get_{}_enum(&self, state: &{}) -> Option<{}{}> {{",
+                "pub fn get_{}_enum(&self, state: {}) -> Option<{}{}> {{",
                 self.config.state_var_name,
                 self.config.frame_state_type_name,
                 self.system_name,
@@ -753,11 +753,10 @@ impl RustVisitor {
             self.indent();
             self.newline();
             self.add_code(&format!(
-                "self.get_{}_enum(&self.state)",
+                "self.get_{}_enum(self.state)",
                 self.config.state_var_name
             ));
-            self.newline();
-            self.add_code(&format!("    .expect(\"Machine in invalid state.\")"));
+            self.add_code(&format!(".expect(\"Machine in invalid state.\")"));
             self.outdent();
             self.newline();
             self.add_code("}");
@@ -807,7 +806,7 @@ impl RustVisitor {
                 if self.generate_transition_hook {
                     self.add_code("let old_state_enum = self.get_current_state_enum();");
                     self.newline();
-                    self.add_code("let new_state_enum = self.get_state_enum(&new_state)\
+                    self.add_code("let new_state_enum = self.get_state_enum(new_state)\
                                   .expect(\"Internal Frame error: new_state is invalid\");");
                     self.newline();
                     self.add_code(&format!(
@@ -967,7 +966,7 @@ impl RustVisitor {
                 if self.generate_change_state_hook {
                     self.add_code("let old_state_enum = self.get_current_state_enum();");
                     self.newline();
-                    self.add_code("let new_state_enum = self.get_state_enum(&new_state)\
+                    self.add_code("let new_state_enum = self.get_state_enum(new_state)\
                                   .expect(\"Internal Frame error: new_state is invalid\");");
                     self.newline();
                     self.add_code(&format!(
