@@ -3,6 +3,7 @@ codegen:
     features:
       lower_case_states: false
       introspection: true
+      generate_action_impl: false
     code:
       actions_suffix: Actions
       enter_msg: Enter
