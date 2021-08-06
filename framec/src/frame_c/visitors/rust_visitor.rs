@@ -46,6 +46,8 @@ struct Config {
     state_enum_traits: String,
     transition_method_name: String,
     change_state_method_name: String,
+    transition_hook_method_name: Option<String>,
+    change_state_hook_method_name: Option<String>,
     state_stack_push_method_name: String,
     state_stack_pop_method_name: String,
 }
@@ -199,6 +201,12 @@ impl Config {
                 .as_str()
                 .unwrap_or_default()
                 .to_string(),
+            transition_hook_method_name: (&code_yaml["transition_hook_method_name"])
+                .as_str()
+                .map(|s| s.to_string()),
+            change_state_hook_method_name: (&code_yaml["change_state_hook_method_name"])
+                .as_str()
+                .map(|s| s.to_string()),
             state_stack_push_method_name: (&code_yaml["state_stack_push_method_name"])
                 .as_str()
                 .unwrap_or_default()
@@ -236,6 +244,8 @@ pub struct RustVisitor {
     generate_state_stack: bool,
     generate_change_state: bool,
     generate_transition_state: bool,
+    generate_transition_hook: bool,
+    generate_change_state_hook: bool,
     current_message: String,
 }
 
@@ -256,7 +266,6 @@ impl RustVisitor {
         let config = RustVisitor::loadConfig(config_yaml);
 
         RustVisitor {
-            config,
             compiler_version: compiler_version.to_string(),
             code: String::from(""),
             dent: 0,
@@ -280,7 +289,12 @@ impl RustVisitor {
             generate_state_stack,
             generate_change_state,
             generate_transition_state,
+            generate_transition_hook: config.config_features.introspection
+                && config.transition_hook_method_name.is_some(),
+            generate_change_state_hook: config.config_features.introspection
+                && config.change_state_hook_method_name.is_some(),
             current_message: String::new(),
+            config,
         }
     }
 
@@ -707,7 +721,7 @@ impl RustVisitor {
         if self.config.config_features.introspection {
             self.newline();
             self.add_code(&format!(
-                "pub fn get_{}_enum(&self, state: &{}) -> Option<{}{}> {{",
+                "pub fn get_{}_enum(&self, state: {}) -> Option<{}{}> {{",
                 self.config.state_var_name,
                 self.config.frame_state_type_name,
                 self.system_name,
@@ -759,11 +773,10 @@ impl RustVisitor {
             self.indent();
             self.newline();
             self.add_code(&format!(
-                "self.get_{}_enum(&self.state)",
+                "self.get_{}_enum(self.state)",
                 self.config.state_var_name
             ));
-            self.newline();
-            self.add_code(&format!("    .expect(\"Machine in invalid state.\")"));
+            self.add_code(&format!(".expect(\"Machine in invalid state.\")"));
             self.outdent();
             self.newline();
             self.add_code("}");
@@ -810,6 +823,24 @@ impl RustVisitor {
                 }
                 self.indent();
                 self.newline();
+                if self.generate_transition_hook {
+                    self.add_code(&format!(
+                        "let old_state_enum = self.get_current_{}_enum();",
+                        self.config.state_var_name
+                    ));
+                    self.newline();
+                    self.add_code(&format!(
+                        "let new_state_enum = self.get_{}_enum(new_state)\
+                            .expect(\"Internal Frame error: transition to invalid new_state\");",
+                        self.config.state_var_name
+                    ));
+                    self.newline();
+                    self.add_code(&format!(
+                        "self.{}(old_state_enum, new_state_enum);",
+                        self.config.transition_hook_method_name.as_ref().unwrap()
+                    ));
+                    self.newline();
+                }
                 if self.generate_exit_args {
                     self.add_code(&format!(
                         "let mut exit_event = {}::new({}::{}, Some({}));",
@@ -958,6 +989,24 @@ impl RustVisitor {
             if self.generate_change_state {
                 self.newline();
                 self.newline();
+                if self.generate_change_state_hook {
+                    self.add_code(&format!(
+                        "let old_state_enum = self.get_current_{}_enum();",
+                        self.config.state_var_name
+                    ));
+                    self.newline();
+                    self.add_code(&format!(
+                        "let new_state_enum = self.get_{}_enum(new_state)\
+                            .expect(\"Internal Frame error: change_state to invalid new_state\");",
+                        self.config.state_var_name
+                    ));
+                    self.newline();
+                    self.add_code(&format!(
+                        "self.{}(old_state_enum, new_state_enum);",
+                        self.config.change_state_hook_method_name.as_ref().unwrap()
+                    ));
+                    self.newline();
+                }
                 self.add_code(&format!(
                     "fn {}(&mut self, new_state: {}) {{",
                     self.config.change_state_method_name, self.config.frame_state_type_name
