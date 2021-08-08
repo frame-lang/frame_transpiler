@@ -9,6 +9,7 @@ use yaml_rust::Yaml;
 struct ConfigFeatures {
     lower_case_states: bool,
     introspection: bool,
+    generate_action_impl: bool,
 }
 
 struct Config {
@@ -59,13 +60,19 @@ impl Config {
         let config_features = ConfigFeatures {
             lower_case_states: (&features_yaml["lower_case_states"])
                 .as_bool()
-                .unwrap()
+                .unwrap_or(false)
                 .to_string()
                 .parse()
                 .unwrap(),
             introspection: (&features_yaml["introspection"])
                 .as_bool()
-                .unwrap()
+                .unwrap_or(false)
+                .to_string()
+                .parse()
+                .unwrap(),
+            generate_action_impl: (&features_yaml["generate_action_impl"])
+                .as_bool()
+                .unwrap_or(true)
                 .to_string()
                 .parse()
                 .unwrap(),
@@ -2769,22 +2776,24 @@ impl AstVisitor for RustVisitor {
         &mut self,
         actions_block_node: &ActionsBlockNode,
     ) -> AstVisitorReturnType {
-        self.newline();
-        self.add_code(&format!(
-            "trait {}{} {{ ",
-            self.system_name, self.config.actions_suffix
-        ));
-        self.indent();
+        if self.config.config_features.generate_action_impl {
+            self.newline();
+            self.add_code(&format!(
+                "trait {}{} {{ ",
+                self.system_name, self.config.actions_suffix
+            ));
+            self.indent();
 
-        for action_decl_node_rcref in &actions_block_node.actions {
-            let action_decl_node = action_decl_node_rcref.borrow();
-            action_decl_node.accept(self);
+            for action_decl_node_rcref in &actions_block_node.actions {
+                let action_decl_node = action_decl_node_rcref.borrow();
+                action_decl_node.accept(self);
+            }
+
+            self.outdent();
+            self.newline();
+            self.add_code("}");
+            self.newline();
         }
-
-        self.outdent();
-        self.newline();
-        self.add_code("}");
-        self.newline();
 
         AstVisitorReturnType::ActionBlockNode {}
     }
@@ -2795,20 +2804,22 @@ impl AstVisitor for RustVisitor {
         &mut self,
         actions_block_node: &ActionsBlockNode,
     ) -> AstVisitorReturnType {
-        self.newline();
-        self.add_code(&format!(
-            "impl {}{} for {} {{ ",
-            self.system_name, self.config.actions_suffix, self.system_name
-        ));
-        self.indent();
+        if self.config.config_features.generate_action_impl {
+            self.newline();
+            self.add_code(&format!(
+                "impl {}{} for {} {{ ",
+                self.system_name, self.config.actions_suffix, self.system_name
+            ));
+            self.indent();
 
-        for action_decl_node_rcref in &actions_block_node.actions {
-            let action_decl_node = action_decl_node_rcref.borrow();
-            action_decl_node.accept_rust_impl(self);
+            for action_decl_node_rcref in &actions_block_node.actions {
+                let action_decl_node = action_decl_node_rcref.borrow();
+                action_decl_node.accept_rust_impl(self);
+            }
+            self.outdent();
+            self.newline();
+            self.add_code("}");
         }
-        self.outdent();
-        self.newline();
-        self.add_code("}");
 
         AstVisitorReturnType::ActionBlockNode {}
     }
