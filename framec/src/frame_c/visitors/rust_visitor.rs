@@ -1614,9 +1614,13 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.add_code(&system_node.header);
         self.newline();
+        self.add_code("#[allow(unused_imports)]");
+        self.newline();
         self.add_code("use std::cell::RefCell;");
         self.newline();
         self.add_code("use std::collections::HashMap;");
+        self.newline();
+        self.add_code("#[allow(unused_imports)]");
         self.newline();
         self.add_code("use std::rc::Rc;");
         self.newline();
@@ -1680,6 +1684,9 @@ impl AstVisitor for RustVisitor {
         ));
 
         self.newline();
+        self.newline();
+
+        self.add_code("#[allow(dead_code)]");
         self.newline();
         self.add_code(&format!(
             "enum {} {{",
@@ -1797,6 +1804,8 @@ impl AstVisitor for RustVisitor {
         self.add_code("}");
 
         self.newline();
+        self.newline();
+        self.add_code("#[allow(dead_code)]");
         self.newline();
         self.add_code(&format!(
             "pub struct {} {{",
@@ -2134,6 +2143,10 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.newline();
 
+        self.add_code("#[allow(non_snake_case)]");
+        self.newline();
+        self.add_code("#[allow(dead_code)]");
+        self.newline();
         self.add_code(&format!("impl {} {{", system_node.name));
         self.indent();
         self.newline();
@@ -2346,6 +2359,9 @@ impl AstVisitor for RustVisitor {
 
         self.newline();
         self.newline();
+        self.newline();
+        self.add_code("#[allow(dead_code)]");
+        self.newline();
         if self.config.config_features.introspection {
             self.add_code(&format!(
                 "impl {} {{",
@@ -2416,6 +2432,8 @@ impl AstVisitor for RustVisitor {
     ) -> AstVisitorReturnType {
         self.newline();
         self.newline();
+        self.add_code("#[allow(dead_code)]");
+        self.newline();
         self.add_code(&format!(
             "struct {} {{",
             self.config.frame_event_parameters_type_name
@@ -2430,6 +2448,8 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.add_code("}");
         self.newline();
+        self.newline();
+        self.add_code("#[allow(dead_code)]");
         self.newline();
         self.add_code(&format!(
             "impl {} {{",
