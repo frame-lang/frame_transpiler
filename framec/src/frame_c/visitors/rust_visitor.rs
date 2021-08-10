@@ -1692,6 +1692,8 @@ impl AstVisitor for RustVisitor {
 
         self.add_code("#[allow(dead_code)]");
         self.newline();
+        self.add_code("#[allow(non_camel_case_types)]");
+        self.newline();
         self.add_code(&format!(
             "enum {} {{",
             self.config.frame_event_parameter_type_name
@@ -2457,6 +2459,8 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.add_code("#[allow(dead_code)]");
         self.newline();
+        self.add_code("#[allow(non_snake_case)]");
+        self.newline();
         self.add_code(&format!(
             "impl {} {{",
             self.config.frame_event_parameters_type_name
@@ -2899,6 +2903,8 @@ impl AstVisitor for RustVisitor {
         self.newline();
 
         self.add_code("#[allow(clippy::needless_return)]");
+        self.newline();
+        self.add_code("#[allow(unused_parens)]");
         self.newline();
         self.add_code(&format!(
             "fn {}(&mut self, {}: &mut {}) {{",
