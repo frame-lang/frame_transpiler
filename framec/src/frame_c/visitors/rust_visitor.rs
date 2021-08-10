@@ -1651,6 +1651,10 @@ impl AstVisitor for RustVisitor {
                 }
                 None => {}
             }
+
+            self.add_code("#[allow(clippy::upper_case_acronyms)]");
+            self.newline();
+
             if !traits.is_empty() {
                 self.add_code(&format!("#[derive({})]", traits));
                 self.newline();
@@ -2095,6 +2099,8 @@ impl AstVisitor for RustVisitor {
 
         self.add_code("// System Controller ");
         self.newline();
+        self.newline();
+        self.add_code("#[allow(clippy::upper_case_acronyms)]");
         self.newline();
         self.add_code(&format!("pub struct {} {{", self.system_name));
         self.indent();
@@ -2890,6 +2896,9 @@ impl AstVisitor for RustVisitor {
         self.generate_comment(state_node.line);
         self.current_state_name_opt = Some(state_node.name.clone());
         self.newline();
+        self.newline();
+
+        self.add_code("#[allow(clippy::needless_return)]");
         self.newline();
         self.add_code(&format!(
             "fn {}(&mut self, {}: &mut {}) {{",
