@@ -2370,26 +2370,26 @@ impl AstVisitor for RustVisitor {
         self.newline();
         if self.config.config_features.introspection {
             self.add_code(&format!(
-                "impl {} {{",
+                "impl std::fmt::Display for {} {{",
                 self.config.frame_event_message_type_name
             ));
             self.indent();
             self.newline();
-            self.add_code("fn to_string(&self) -> String {");
+            self.add_code("fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {");
             self.indent();
             self.newline();
             self.add_code("match self {");
             self.indent();
             self.newline();
             self.add_code(&format!(
-                "{}::{} => String::from(\"{}\"),",
+                "{}::{} => write!(f, \"{}\"),",
                 self.config.frame_event_message_type_name,
                 self.config.enter_msg,
                 self.config.enter_msg
             ));
             self.newline();
             self.add_code(&format!(
-                "{}::{} => String::from(\"{}\"),",
+                "{}::{} => write!(f, \"{}\"),",
                 self.config.frame_event_message_type_name,
                 self.config.exit_msg,
                 self.config.exit_msg
@@ -2404,7 +2404,7 @@ impl AstVisitor for RustVisitor {
                     Some(cannonical_message_name) => {
                         self.newline();
                         self.add_code(&format!(
-                            "{}::{} => String::from(\"{}\"),",
+                            "{}::{} => write!(f, \"{}\"),",
                             self.config.frame_event_message_type_name,
                             cannonical_message_name,
                             cannonical_message_name
