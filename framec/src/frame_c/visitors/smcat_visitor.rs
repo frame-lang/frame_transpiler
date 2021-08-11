@@ -891,7 +891,7 @@ impl AstVisitor for SmcatVisitor {
     }
 
     //* --------------------------------------------------------------------- *//
-    
+
     fn visit_state_stack_operation_statement_node(
         &mut self,
         _state_stack_op_statement_node: &StateStackOperationStatementNode,
