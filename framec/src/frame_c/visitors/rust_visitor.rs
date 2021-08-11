@@ -13,7 +13,10 @@ struct ConfigFeatures {
 
 struct Config {
     config_features: ConfigFeatures,
+    actions_prefix: String,
     actions_suffix: String,
+    action_prefix: String,
+    action_suffix: String,
     enter_token: String,
     exit_token: String,
     enter_msg: String,
@@ -74,7 +77,19 @@ impl Config {
 
         Config {
             config_features,
+            actions_prefix: (&code_yaml["actions_prefix"])
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
             actions_suffix: (&code_yaml["actions_suffix"])
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
+            action_prefix: (&code_yaml["action_prefix"])
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
+            action_suffix: (&code_yaml["action_suffix"])
                 .as_str()
                 .unwrap_or_default()
                 .to_string(),
@@ -580,7 +595,11 @@ impl RustVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn format_action_name(&mut self, action_name: &String) -> String {
-        return format!("{}", action_name);
+        return format!("{}{}{}"
+                        , self.config.action_prefix
+                        , action_name
+                        , self.config.action_suffix
+        );
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2771,8 +2790,10 @@ impl AstVisitor for RustVisitor {
     ) -> AstVisitorReturnType {
         self.newline();
         self.add_code(&format!(
-            "trait {}{} {{ ",
-            self.system_name, self.config.actions_suffix
+            "trait {}{}{} {{ "
+                , self.config.actions_prefix
+                , self.system_name
+                , self.config.actions_suffix
         ));
         self.indent();
 
@@ -2797,8 +2818,11 @@ impl AstVisitor for RustVisitor {
     ) -> AstVisitorReturnType {
         self.newline();
         self.add_code(&format!(
-            "impl {}{} for {} {{ ",
-            self.system_name, self.config.actions_suffix, self.system_name
+            "impl {}{}{} for {} {{ "
+                , self.config.actions_prefix
+                , self.system_name
+                , self.config.actions_suffix
+                , self.system_name
         ));
         self.indent();
 

@@ -1,10 +1,17 @@
 codegen:
+  common:
+    features:
+    code:
+
   rust:
     features:
       lower_case_states: false
       introspection: true
     code:
+      actions_prefix:
       actions_suffix: Actions
+      action_prefix:
+      action_suffix:
       enter_msg: Enter
       exit_msg: Exit
       enter_args_member_name: enter_args
