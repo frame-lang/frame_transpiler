@@ -7,7 +7,7 @@ codegen:
     features:
       lower_case_states: false
       introspection: true
-      generate_action_impl: false
+      generate_action_impl: true
     code:
       actions_prefix:
       actions_suffix: Actions
