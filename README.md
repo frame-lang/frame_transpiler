@@ -9,6 +9,18 @@ Hi! So very glad you are interested in Frame. Frame system design markdown langu
 
 This project contains the code for building the Frame Language Transpiler - the Framepiler.  The Framepiler is written in Rust and transpiles Frame specification documents into 6 programming languages (more to come) and UML documentation.
 
+## New in this release
+
+This release brings a slew of features focused on Rust, Frame's newest language. All of these new capabilites are only implemented in Rust, but will be rolled out to other languages as they gain users and build a community.
+
+1. Configurable code generation 
+2. Rust formatting improvements 
+3. Code conforms more closely to rustfmt guidelines.
+4. Added introspection - codegen to discover the current state
+5. Added interface call syntax iface() - call the interface from event handlers.
+6. Rust Transition hook - inject a call to al trait function to log transition data.
+
+
 ## Resources
 
 The Frame project is just getting started but there are some resources and communities to help. You can now download [VSCode](https://marketplace.visualstudio.com/items?itemName=frame-lang-org.frame-machine-maker) and [Atom](https://atom.io/packages/frame-machine-maker) extensions to work with Frame in these popular free development applications.
