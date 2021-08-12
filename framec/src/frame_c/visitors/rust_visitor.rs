@@ -602,10 +602,9 @@ impl RustVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn format_action_name(&mut self, action_name: &String) -> String {
-        return format!("{}{}{}"
-                        , self.config.action_prefix
-                        , action_name
-                        , self.config.action_suffix
+        return format!(
+            "{}{}{}",
+            self.config.action_prefix, action_name, self.config.action_suffix
         );
     }
 
@@ -2798,10 +2797,8 @@ impl AstVisitor for RustVisitor {
         if self.config.config_features.generate_action_impl {
             self.newline();
             self.add_code(&format!(
-                "trait {}{}{} {{ "
-                , self.config.actions_prefix
-                , self.system_name
-                , self.config.actions_suffix
+                "trait {}{}{} {{ ",
+                self.config.actions_prefix, self.system_name, self.config.actions_suffix
             ));
             self.indent();
 
@@ -2828,11 +2825,11 @@ impl AstVisitor for RustVisitor {
         if self.config.config_features.generate_action_impl {
             self.newline();
             self.add_code(&format!(
-                "impl {}{}{} for {} {{ "
-                , self.config.actions_prefix
-                , self.system_name
-                , self.config.actions_suffix
-                , self.system_name
+                "impl {}{}{} for {} {{ ",
+                self.config.actions_prefix,
+                self.system_name,
+                self.config.actions_suffix,
+                self.system_name
             ));
             self.indent();
 
