@@ -1,0 +1,13 @@
+[package]
+name = "framec_tests"
+version = "0.1.0"
+authors = ["Fernando De la Garza <fernando.delagarza@savant.com>"]
+edition = "2018"
+
+[dependencies]
+
+[build-dependencies]
+anyhow = "1.0"
+framec = { path = "../framec" }
+walkdir = "2.3"
+

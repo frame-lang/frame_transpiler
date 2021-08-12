@@ -602,10 +602,9 @@ impl RustVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn format_action_name(&mut self, action_name: &String) -> String {
-        return format!("{}{}{}"
-                        , self.config.action_prefix
-                        , action_name
-                        , self.config.action_suffix
+        return format!(
+            "{}{}{}",
+            self.config.action_prefix, action_name, self.config.action_suffix
         );
     }
 
@@ -1615,9 +1614,13 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.add_code(&system_node.header);
         self.newline();
+        self.add_code("#[allow(unused_imports)]");
+        self.newline();
         self.add_code("use std::cell::RefCell;");
         self.newline();
         self.add_code("use std::collections::HashMap;");
+        self.newline();
+        self.add_code("#[allow(unused_imports)]");
         self.newline();
         self.add_code("use std::rc::Rc;");
         self.newline();
@@ -1648,6 +1651,10 @@ impl AstVisitor for RustVisitor {
                 }
                 None => {}
             }
+
+            self.add_code("#[allow(clippy::upper_case_acronyms)]");
+            self.newline();
+
             if !traits.is_empty() {
                 self.add_code(&format!("#[derive({})]", traits));
                 self.newline();
@@ -1681,6 +1688,11 @@ impl AstVisitor for RustVisitor {
         ));
 
         self.newline();
+        self.newline();
+
+        self.add_code("#[allow(dead_code)]");
+        self.newline();
+        self.add_code("#[allow(non_camel_case_types)]");
         self.newline();
         self.add_code(&format!(
             "enum {} {{",
@@ -1798,6 +1810,8 @@ impl AstVisitor for RustVisitor {
         self.add_code("}");
 
         self.newline();
+        self.newline();
+        self.add_code("#[allow(dead_code)]");
         self.newline();
         self.add_code(&format!(
             "pub struct {} {{",
@@ -2088,6 +2102,8 @@ impl AstVisitor for RustVisitor {
         self.add_code("// System Controller ");
         self.newline();
         self.newline();
+        self.add_code("#[allow(clippy::upper_case_acronyms)]");
+        self.newline();
         self.add_code(&format!("pub struct {} {{", self.system_name));
         self.indent();
         self.newline();
@@ -2135,6 +2151,10 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.newline();
 
+        self.add_code("#[allow(non_snake_case)]");
+        self.newline();
+        self.add_code("#[allow(dead_code)]");
+        self.newline();
         self.add_code(&format!("impl {} {{", system_node.name));
         self.indent();
         self.newline();
@@ -2347,28 +2367,31 @@ impl AstVisitor for RustVisitor {
 
         self.newline();
         self.newline();
+        self.newline();
+        self.add_code("#[allow(dead_code)]");
+        self.newline();
         if self.config.config_features.introspection {
             self.add_code(&format!(
-                "impl {} {{",
+                "impl std::fmt::Display for {} {{",
                 self.config.frame_event_message_type_name
             ));
             self.indent();
             self.newline();
-            self.add_code("fn to_string(&self) -> String {");
+            self.add_code("fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {");
             self.indent();
             self.newline();
             self.add_code("match self {");
             self.indent();
             self.newline();
             self.add_code(&format!(
-                "{}::{} => String::from(\"{}\"),",
+                "{}::{} => write!(f, \"{}\"),",
                 self.config.frame_event_message_type_name,
                 self.config.enter_msg,
                 self.config.enter_msg
             ));
             self.newline();
             self.add_code(&format!(
-                "{}::{} => String::from(\"{}\"),",
+                "{}::{} => write!(f, \"{}\"),",
                 self.config.frame_event_message_type_name,
                 self.config.exit_msg,
                 self.config.exit_msg
@@ -2383,7 +2406,7 @@ impl AstVisitor for RustVisitor {
                     Some(cannonical_message_name) => {
                         self.newline();
                         self.add_code(&format!(
-                            "{}::{} => String::from(\"{}\"),",
+                            "{}::{} => write!(f, \"{}\"),",
                             self.config.frame_event_message_type_name,
                             cannonical_message_name,
                             cannonical_message_name
@@ -2417,6 +2440,8 @@ impl AstVisitor for RustVisitor {
     ) -> AstVisitorReturnType {
         self.newline();
         self.newline();
+        self.add_code("#[allow(dead_code)]");
+        self.newline();
         self.add_code(&format!(
             "struct {} {{",
             self.config.frame_event_parameters_type_name
@@ -2431,6 +2456,10 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.add_code("}");
         self.newline();
+        self.newline();
+        self.add_code("#[allow(dead_code)]");
+        self.newline();
+        self.add_code("#[allow(non_snake_case)]");
         self.newline();
         self.add_code(&format!(
             "impl {} {{",
@@ -2798,10 +2827,8 @@ impl AstVisitor for RustVisitor {
         if self.config.config_features.generate_action_impl {
             self.newline();
             self.add_code(&format!(
-                "trait {}{}{} {{ "
-                , self.config.actions_prefix
-                , self.system_name
-                , self.config.actions_suffix
+                "trait {}{}{} {{ ",
+                self.config.actions_prefix, self.system_name, self.config.actions_suffix
             ));
             self.indent();
 
@@ -2828,11 +2855,11 @@ impl AstVisitor for RustVisitor {
         if self.config.config_features.generate_action_impl {
             self.newline();
             self.add_code(&format!(
-                "impl {}{}{} for {} {{ "
-                , self.config.actions_prefix
-                , self.system_name
-                , self.config.actions_suffix
-                , self.system_name
+                "impl {}{}{} for {} {{ ",
+                self.config.actions_prefix,
+                self.system_name,
+                self.config.actions_suffix,
+                self.system_name
             ));
             self.indent();
 
@@ -2873,6 +2900,11 @@ impl AstVisitor for RustVisitor {
         self.generate_comment(state_node.line);
         self.current_state_name_opt = Some(state_node.name.clone());
         self.newline();
+        self.newline();
+
+        self.add_code("#[allow(clippy::needless_return)]");
+        self.newline();
+        self.add_code("#[allow(unused_parens)]");
         self.newline();
         self.add_code(&format!(
             "fn {}(&mut self, {}: &mut {}) {{",

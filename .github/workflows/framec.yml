@@ -2,6 +2,9 @@ name: Frame Transpiler
 
 on: push
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   check:
     name: Check
@@ -21,7 +24,6 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --manifest-path framec/Cargo.toml
 
   test:
     name: Test Suite
@@ -41,7 +43,6 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --manifest-path framec/Cargo.toml
 
   fmt:
     name: Rustfmt
@@ -62,5 +63,5 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args:  --manifest-path framec/Cargo.toml --all -- --check
+          args: --all -- --check
 
