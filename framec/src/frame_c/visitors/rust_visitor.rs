@@ -2167,7 +2167,6 @@ impl AstVisitor for RustVisitor {
         }
 
         if self.has_states {
-
             // generate constructor
 
             self.newline();
@@ -2278,7 +2277,7 @@ impl AstVisitor for RustVisitor {
             self.newline();
             self.add_code("}");
             self.newline();
-        
+
             // end of generate constructor
 
             // generate initialize method
