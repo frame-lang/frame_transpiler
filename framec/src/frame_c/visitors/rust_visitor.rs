@@ -48,6 +48,7 @@ struct Config {
     state_var_name_suffix: String,
     state_enum_suffix: String,
     state_enum_traits: String,
+    initialize_method_name: String,
     transition_method_name: String,
     change_state_method_name: String,
     transition_hook_method_name: Option<String>,
@@ -212,6 +213,10 @@ impl Config {
                 .unwrap_or_default()
                 .to_string(),
             state_stack_var_name: (&code_yaml["state_stack_var_name"])
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
+            initialize_method_name: (&code_yaml["initialize_method_name"])
                 .as_str()
                 .unwrap_or_default()
                 .to_string(),
@@ -2161,9 +2166,11 @@ impl AstVisitor for RustVisitor {
             None => {}
         }
 
-        // generate constructor
-
         if self.has_states {
+
+            // generate constructor
+
+            self.newline();
             self.add_code(&format!("pub fn new() -> {} {{", system_node.name));
             self.indent();
 
@@ -2255,20 +2262,12 @@ impl AstVisitor for RustVisitor {
             self.outdent();
             self.newline();
             self.add_code("};");
-            self.newline();
-            
-            // send enter event for initial state
-            self.add_code(&format!(
-                "let mut enter_event = {}::new({}::{}, None);",
-                self.config.frame_event_type_name,
-                self.config.frame_event_message_type_name,
-                self.config.enter_msg
-            ));
+
+            // run the initialize method on the new machine
             self.newline();
             self.add_code(&format!(
-                "{}::{}(&mut machine, &mut enter_event);",
-                system_node.name,
-                self.format_state_name(&self.first_state_name)
+                "machine.{}();",
+                self.config.initialize_method_name
             ));
             self.newline();
 
@@ -2279,9 +2278,33 @@ impl AstVisitor for RustVisitor {
             self.newline();
             self.add_code("}");
             self.newline();
-        }
+        
+            // end of generate constructor
 
-        // end of generate constructor
+            // generate initialize method
+            self.newline();
+            self.add_code(&format!(
+                "pub fn {}(&mut self) {{",
+                self.config.initialize_method_name
+            ));
+            self.indent();
+            self.newline();
+            self.add_code(&format!(
+                "let mut e = {}::new({}::{}, None);",
+                self.config.frame_event_type_name,
+                self.config.frame_event_message_type_name,
+                self.config.enter_msg
+            ));
+            self.newline();
+            self.add_code(&format!(
+                "(self.{})(self, &mut e);",
+                &self.config.state_var_name
+            ));
+            self.outdent();
+            self.newline();
+            self.add_code("}");
+            self.newline();
+        }
 
         self.serialize.push("".to_string());
         self.serialize.push("Bag _serialize__do() {".to_string());
