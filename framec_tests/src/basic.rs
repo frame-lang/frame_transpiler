@@ -18,10 +18,9 @@ mod tests {
     // Revisit: currently generated code doesn't send entry event to state machine's initial
     // state on creation
     #[test]
-    #[ignore]
     fn intial_state_entry_call() {
         let sm = Basic::new();
-        assert_eq!(sm.entry_log, vec!["S1"]);
+        assert_eq!(sm.entry_log, vec!["S0"]);
     }
 
     #[test]

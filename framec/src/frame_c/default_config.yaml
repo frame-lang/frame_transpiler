@@ -40,6 +40,7 @@ codegen:
       state_var_name_suffix: _state
       state_enum_suffix: State
       state_enum_traits: Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord
+      initialize_method_name: initialize
       transition_method_name: transition
       change_state_method_name: change_state
       transition_hook_method_name: transition_hook
