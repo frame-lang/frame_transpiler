@@ -899,22 +899,14 @@ impl RustVisitor {
                         &self.config.state_context_var_name, &self.config.state_context_var_name
                     ));
                     self.newline();
-                    self.add_code(&format!(
-                        "let mut enter_event = {}::new({}::{}, None);",
-                        self.config.frame_event_type_name,
-                        self.config.frame_event_message_type_name,
-                        self.config.enter_msg
-                    ));
-                    self.newline();
-                } else {
-                    self.add_code(&format!(
-                        "let mut enter_event = {}::new({}::{}, None);",
-                        self.config.frame_event_type_name,
-                        self.config.frame_event_message_type_name,
-                        self.config.enter_msg
-                    ));
-                    self.newline();
                 }
+                self.add_code(&format!(
+                    "let mut enter_event = {}::new({}::{}, None);",
+                    self.config.frame_event_type_name,
+                    self.config.frame_event_message_type_name,
+                    self.config.enter_msg
+                ));
+                self.newline();
                 self.add_code(&format!(
                     "(self.{})(self, &mut enter_event);",
                     &self.config.state_var_name
@@ -2217,7 +2209,7 @@ impl AstVisitor for RustVisitor {
             }
 
             self.newline();
-            self.add_code(&format!("{} {{", system_node.name));
+            self.add_code(&format!("let mut machine = {} {{", system_node.name));
             self.indent();
             self.newline();
             self.add_code(&format!(
@@ -2262,10 +2254,30 @@ impl AstVisitor for RustVisitor {
 
             self.outdent();
             self.newline();
-            self.add_code(&format!("}}"));
+            self.add_code("};");
+            self.newline();
+            
+            // send enter event for initial state
+            self.add_code(&format!(
+                "let mut enter_event = {}::new({}::{}, None);",
+                self.config.frame_event_type_name,
+                self.config.frame_event_message_type_name,
+                self.config.enter_msg
+            ));
+            self.newline();
+            self.add_code(&format!(
+                "{}::{}(&mut machine, &mut enter_event);",
+                system_node.name,
+                self.format_state_name(&self.first_state_name)
+            ));
+            self.newline();
+
+            // return the new machine
+            self.add_code("machine");
+
             self.outdent();
             self.newline();
-            self.add_code(&format!("}}"));
+            self.add_code("}");
             self.newline();
         }
 
