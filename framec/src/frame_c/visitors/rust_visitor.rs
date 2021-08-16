@@ -1199,17 +1199,18 @@ impl RustVisitor {
         self.add_code(&format!("match self.{} {{", self.config.state_var_name));
         if let Some(machine_block_node) = &system_node.machine_block_node_opt {
             self.indent();
-            self.newline();
             for state in &machine_block_node.states {
+                self.newline();
                 self.add_code(&format!(
                     "{}::{} => self.{}(e),", // TODO need to deal with states w/ arguments
                     self.state_enum_type_name(),
                     &state.borrow().name,
                     self.format_state_handler_name(&state.borrow().name)
                 ));
-                self.newline();
             }
         }
+        self.outdent();
+        self.newline();
         self.add_code("}");
         self.outdent();
         self.newline();
