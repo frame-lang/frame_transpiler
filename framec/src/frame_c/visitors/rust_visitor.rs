@@ -1,15 +1,16 @@
 #![allow(non_snake_case)]
 
+use convert_case::{Case, Casing};
+use yaml_rust::Yaml;
+
 use super::super::ast::*;
 use super::super::scanner::{Token, TokenType};
 use super::super::symbol_table::*;
 use super::super::visitors::*;
-use yaml_rust::Yaml;
 
 struct ConfigFeatures {
-    lower_case_states: bool,
-    introspection: bool,
     generate_action_impl: bool,
+    lower_case_methods: bool,
 }
 
 struct Config {
@@ -42,13 +43,13 @@ struct Config {
     frame_event_parameters_attribute_name: String,
     frame_event_message_attribute_name: String,
     frame_event_return_attribute_name: String,
-    frame_state_type_name: String,
     state_var_name: String,
-    state_var_name_prefix: String,
-    state_var_name_suffix: String,
+    state_handler_name_prefix: String,
+    state_handler_name_suffix: String,
     state_enum_suffix: String,
     state_enum_traits: String,
     initialize_method_name: String,
+    handle_event_method_name: String,
     transition_method_name: String,
     change_state_method_name: String,
     transition_hook_method_name: Option<String>,
@@ -62,21 +63,15 @@ impl Config {
         // println!("{:?}", rust_yaml);
         let features_yaml = &rust_yaml["features"];
         let config_features = ConfigFeatures {
-            lower_case_states: (&features_yaml["lower_case_states"])
-                .as_bool()
-                .unwrap_or(false)
-                .to_string()
-                .parse()
-                .unwrap(),
-            introspection: (&features_yaml["introspection"])
-                .as_bool()
-                .unwrap_or(false)
-                .to_string()
-                .parse()
-                .unwrap(),
             generate_action_impl: (&features_yaml["generate_action_impl"])
                 .as_bool()
                 .unwrap_or(true)
+                .to_string()
+                .parse()
+                .unwrap(),
+            lower_case_methods: (&features_yaml["lower_case_methods"])
+                .as_bool()
+                .unwrap_or(false)
                 .to_string()
                 .parse()
                 .unwrap(),
@@ -123,11 +118,11 @@ impl Config {
                 .as_str()
                 .unwrap_or_default()
                 .to_string(),
-            state_var_name_prefix: (&code_yaml["state_var_name_prefix"])
+            state_handler_name_prefix: (&code_yaml["state_handler_name_prefix"])
                 .as_str()
                 .unwrap_or_default()
                 .to_string(),
-            state_var_name_suffix: (&code_yaml["state_var_name_suffix"])
+            state_handler_name_suffix: (&code_yaml["state_handler_name_suffix"])
                 .as_str()
                 .unwrap_or_default()
                 .to_string(),
@@ -152,10 +147,6 @@ impl Config {
                 .unwrap_or_default()
                 .to_string(),
             state_context_struct_name: (&code_yaml["state_context_struct_name"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            frame_state_type_name: (&code_yaml["frame_state_type_name"])
                 .as_str()
                 .unwrap_or_default()
                 .to_string(),
@@ -217,6 +208,10 @@ impl Config {
                 .unwrap_or_default()
                 .to_string(),
             initialize_method_name: (&code_yaml["initialize_method_name"])
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
+            handle_event_method_name: (&code_yaml["handle_event_method_name"])
                 .as_str()
                 .unwrap_or_default()
                 .to_string(),
@@ -316,10 +311,8 @@ impl RustVisitor {
             generate_state_stack,
             generate_change_state,
             generate_transition_state,
-            generate_transition_hook: config.config_features.introspection
-                && config.transition_hook_method_name.is_some(),
-            generate_change_state_hook: config.config_features.introspection
-                && config.change_state_hook_method_name.is_some(),
+            generate_transition_hook: config.transition_hook_method_name.is_some(),
+            generate_change_state_hook: config.change_state_hook_method_name.is_some(),
             current_message: String::new(),
             config,
         }
@@ -627,20 +620,29 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn format_state_name(&self, state_name: &str) -> String {
-        if self.config.config_features.lower_case_states {
-            return format!(
-                "{}{}{}",
-                self.config.state_var_name_prefix,
-                state_name.to_lowercase(),
-                self.config.state_var_name_suffix
-            );
-        } else {
-            return format!(
-                "{}{}{}",
-                self.config.state_var_name_prefix, state_name, self.config.state_var_name_suffix
-            );
+    fn state_enum_type_name(&self) -> String {
+        format!("{}{}", self.system_name, self.config.state_enum_suffix)
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn format_method_name(&self, name: &String) -> String {
+        let mut formatted = name.clone();
+        if self.config.config_features.lower_case_methods {
+            formatted = formatted.to_case(Case::Snake);
         }
+        formatted
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn format_state_handler_name(&self, state_name: &str) -> String {
+        format!(
+            "{}{}{}",
+            self.config.state_handler_name_prefix,
+            self.format_method_name(&state_name.to_string()),
+            self.config.state_handler_name_suffix
+        )
     }
 
     //* --------------------------------------------------------------------- *//
@@ -743,321 +745,476 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    fn generate_state_enum(&mut self, system_node: &SystemNode) {
+        // add derived traits
+        let mut traits = self.config.state_enum_traits.clone();
+        match &system_node.attributes_opt {
+            Some(attributes) => {
+                if let Some(new_traits) = attributes.get("override_state_enum_traits") {
+                    traits = new_traits.value.clone();
+                }
+                if let Some(new_traits) = attributes.get("extend_state_enum_traits") {
+                    if traits.is_empty() {
+                        traits = new_traits.value.clone();
+                    } else {
+                        traits = format!("{}, {}", traits, new_traits.value);
+                    }
+                }
+            }
+            None => {}
+        }
+        self.add_code("#[allow(clippy::upper_case_acronyms)]");
+        self.newline();
+        if !traits.is_empty() {
+            self.add_code(&format!("#[derive({})]", traits));
+            self.newline();
+        }
+
+        // add the state enum type
+        self.add_code(&format!("pub enum {} {{", self.state_enum_type_name()));
+        self.indent();
+        if let Some(machine_block_node) = &system_node.machine_block_node_opt {
+            for state in &machine_block_node.states {
+                self.newline();
+                self.add_code(&format!("{},", state.borrow().name));
+            }
+        }
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn generate_constructor(&mut self, system_node: &SystemNode) {
+        self.add_code(&format!("pub fn new() -> {} {{", system_node.name));
+        self.indent();
+
+        if self.generate_state_context {
+            self.add_code(&format!(
+                "let {} = {} {{",
+                self.format_state_context_variable_name(&self.first_state_name),
+                self.format_state_context_struct_name(&self.first_state_name)
+            ));
+            self.indent();
+            self.newline();
+            self.add_code(&format!(
+                "{}: {}::{},",
+                self.config.state_var_name,
+                &self.system_name,
+                self.format_state_handler_name(&self.first_state_name)
+            ));
+            self.outdent();
+            self.newline();
+            self.add_code("};");
+            self.newline();
+            self.newline();
+            self.add_code(&format!(
+                "let state_context: {} = {}::{} {{",
+                self.config.state_context_name,
+                self.config.state_context_name,
+                &self.first_state_name
+            ));
+            self.indent();
+            self.newline();
+            self.add_code(&format!(
+                "{}: {}",
+                &self.first_state_name,
+                self.format_state_context_variable_name(&self.first_state_name)
+            ));
+            self.outdent();
+            self.newline();
+
+            self.add_code("};");
+            self.newline();
+            self.newline();
+        }
+        self.newline();
+        self.add_code(&format!("let mut machine = {} {{", system_node.name));
+        self.indent();
+        self.newline();
+        self.add_code(&format!(
+            "{}: {}::{},",
+            &self.config.state_var_name,
+            self.state_enum_type_name(),
+            &self.first_state_name
+        ));
+
+        // generate history mechanism
+        if self.generate_state_stack {
+            self.newline();
+            self.add_code(&format!(
+                "{}: Vec::new(),",
+                self.config.state_stack_var_name
+            ));
+        }
+
+        if let Some(domain_block_node) = &system_node.domain_block_node_opt {
+            for variable_decl_node_rcref in &domain_block_node.member_variables {
+                let variable_decl_node = variable_decl_node_rcref.borrow();
+                // variable_decl_node.accept(self);
+                let var_init_expr = &variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
+                let mut code = String::new();
+                var_init_expr.accept_to_string(self, &mut code);
+                self.newline();
+                self.add_code(&format!("{}: {},", variable_decl_node.name, code));
+            }
+        }
+
+        if self.generate_state_context {
+            self.newline();
+            self.add_code(&format!(
+                "{}:Rc::new(RefCell::new(state_context)),",
+                self.config.state_context_var_name // , self.config.state_context_var_name
+                                                   // , self.config.state_context_var_name
+            ));
+        }
+
+        self.outdent();
+        self.newline();
+        self.add_code("};");
+
+        // run the initialize method on the new machine
+        self.newline();
+        self.add_code(&format!(
+            "machine.{}();",
+            self.config.initialize_method_name
+        ));
+        self.newline();
+
+        // return the new machine
+        self.add_code("machine");
+
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn generate_initialize(&mut self) {
+        self.add_code(&format!(
+            "pub fn {}(&mut self) {{",
+            self.config.initialize_method_name
+        ));
+        self.indent();
+        self.newline();
+        self.add_code(&format!(
+            "let mut e = {}::new({}::{}, None);",
+            self.config.frame_event_type_name,
+            self.config.frame_event_message_type_name,
+            self.config.enter_msg
+        ));
+        self.newline();
+        self.add_code(&format!(
+            "self.{}(&mut e);",
+            self.config.handle_event_method_name
+        ));
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+    }
+
+    //* --------------------------------------------------------------------- *//
+
     fn generate_machinery(&mut self, system_node: &SystemNode) {
         self.newline();
         self.newline();
         self.add_code("//=============== Machinery and Mechanisms ==============//");
         self.newline();
-        if self.config.config_features.introspection {
-            self.newline();
-            self.add_code(&format!(
-                "pub fn get_{}_enum(&self, state: {}) -> Option<{}{}> {{",
-                self.config.state_var_name,
-                self.config.frame_state_type_name,
-                self.system_name,
-                self.config.state_enum_suffix
-            ));
-            self.indent();
-            self.newline();
-            if let Some(machine_block_node) = &system_node.machine_block_node_opt {
-                let mut if_else_if = String::from("if");
-                for state in &machine_block_node.states {
-                    self.add_code(&format!(
-                        "{} state as *const {} == {}::{} as *const {} {{",
-                        if_else_if,
-                        self.config.frame_state_type_name,
-                        self.system_name,
-                        self.format_state_name(state.borrow().name.as_str()),
-                        self.config.frame_state_type_name
-                    ));
-                    self.indent();
-                    self.newline();
-                    self.add_code(&format!(
-                        "Some({}{}::{})",
-                        self.system_name,
-                        self.config.state_enum_suffix,
-                        state.borrow().name
-                    ));
-                    self.outdent();
-                    self.newline();
-                    self.add_code("}");
-                    if_else_if = " else if".to_string();
-                }
-            }
-            self.add_code(" else {");
-            self.indent();
-            self.newline();
-            self.add_code("None");
-            self.outdent();
-            self.newline();
-            self.add_code("}");
-            self.outdent();
-            self.newline();
-            self.add_code("}");
-            self.newline();
-            self.newline();
-            self.add_code(&format!(
-                "pub fn get_current_{}_enum(&self) -> {}{} {{",
-                self.config.state_var_name, self.system_name, self.config.state_enum_suffix
-            ));
-            self.indent();
-            self.newline();
-            self.add_code(&format!(
-                "self.get_{}_enum(self.state)",
-                self.config.state_var_name
-            ));
-            self.add_code(&format!(".expect(\"Machine in invalid state.\")"));
-            self.outdent();
-            self.newline();
-            self.add_code("}");
-            self.newline();
-        }
         self.newline();
         if let Some(_) = system_node.get_first_state() {
+            self.generate_handle_event(&system_node);
+            self.newline();
             if self.generate_transition_state {
-                if self.generate_state_context {
-                    if self.generate_exit_args {
-                        self.add_code(&format!(
-                            "fn {}(&mut self, new_state: {}, {}:Box<{}>, {}:Rc<RefCell<{}>>) {{",
-                            self.config.transition_method_name,
-                            self.config.frame_state_type_name,
-                            self.config.exit_args_member_name,
-                            self.config.frame_event_parameters_type_name,
-                            self.config.state_context_var_name,
-                            self.config.state_context_name
-                        ));
-                    } else {
-                        self.add_code(&format!(
-                            "fn {}(&mut self, new_state:{}, {}:Rc<RefCell<{}>>) {{",
-                            self.config.transition_method_name,
-                            self.config.frame_state_type_name,
-                            self.config.state_context_var_name,
-                            self.config.state_context_name
-                        ));
-                    }
-                } else {
-                    if self.generate_exit_args {
-                        self.add_code(&format!(
-                            "fn {}(&mut self, new_state: {}, {}:Box<{}>) {{",
-                            self.config.transition_method_name,
-                            self.config.frame_state_type_name,
-                            self.config.exit_args_member_name,
-                            self.config.frame_event_parameters_type_name
-                        ));
-                    } else {
-                        self.add_code(&format!(
-                            "fn {}(&mut self, new_state: {}) {{",
-                            self.config.transition_method_name, self.config.frame_state_type_name
-                        ));
-                    }
-                }
-                self.indent();
+                self.generate_transition();
                 self.newline();
-                if self.generate_transition_hook {
-                    self.add_code(&format!(
-                        "let old_state_enum = self.get_current_{}_enum();",
-                        self.config.state_var_name
-                    ));
-                    self.newline();
-                    self.add_code(&format!(
-                        "let new_state_enum = self.get_{}_enum(new_state)\
-                            .expect(\"Internal Frame error: transition to invalid new_state\");",
-                        self.config.state_var_name
-                    ));
-                    self.newline();
-                    self.add_code(&format!(
-                        "self.{}(old_state_enum, new_state_enum);",
-                        self.config.transition_hook_method_name.as_ref().unwrap()
-                    ));
-                    self.newline();
-                }
-                if self.generate_exit_args {
-                    self.add_code(&format!(
-                        "let mut exit_event = {}::new({}::{}, Some({}));",
-                        self.config.frame_event_type_name,
-                        self.config.frame_event_message_type_name,
-                        self.config.exit_msg,
-                        self.config.exit_args_member_name
-                    ));
-                } else {
-                    self.add_code(&format!(
-                        "let mut exit_event = {}::new({}::{}, None);",
-                        self.config.frame_event_type_name,
-                        self.config.frame_event_message_type_name,
-                        self.config.exit_msg
-                    ));
-                }
-                self.newline();
-                self.add_code(&format!(
-                    "(self.{})(self, &mut exit_event);",
-                    &self.config.state_var_name
-                ));
-                self.newline();
-                self.add_code(&format!(
-                    "self.{} = new_state;",
-                    &self.config.state_var_name
-                ));
-                self.newline();
-                if self.generate_state_context {
-                    self.add_code(&format!(
-                        "self.{} = {}.clone();",
-                        &self.config.state_context_var_name, &self.config.state_context_var_name
-                    ));
-                    self.newline();
-                }
-                self.add_code(&format!(
-                    "let mut enter_event = {}::new({}::{}, None);",
-                    self.config.frame_event_type_name,
-                    self.config.frame_event_message_type_name,
-                    self.config.enter_msg
-                ));
-                self.newline();
-                self.add_code(&format!(
-                    "(self.{})(self, &mut enter_event);",
-                    &self.config.state_var_name
-                ));
-                self.outdent();
-                self.newline();
-                self.add_code(&format!("}}"));
             }
             if self.generate_state_stack {
+                self.generate_state_stack();
                 self.newline();
-                if self.generate_state_context {
-                    self.newline();
-                    self.add_code(&format!(
-                        "fn {}(&mut self, {}:Rc<RefCell<{}>>) {{",
-                        self.config.state_stack_push_method_name,
-                        self.config.state_context_var_name,
-                        self.config.state_context_name
-                    ));
-                    self.indent();
-                    self.newline();
-                    self.add_code(&format!(
-                        "self.{}.push({});",
-                        self.config.state_stack_var_name, self.config.state_context_var_name
-                    ));
-                    self.outdent();
-                    self.newline();
-                    self.add_code(&format!("}}"));
-                    self.newline();
-                    self.newline();
-                    self.add_code(&format!(
-                        "fn {}(&mut self) -> Rc<RefCell<{}>> {{",
-                        self.config.state_stack_pop_method_name, self.config.state_context_name
-                    ));
-                    self.indent();
-                    self.newline();
-                    self.add_code(&format!(
-                        "let state_context_opt = self.{}.pop();",
-                        self.config.state_stack_var_name
-                    ));
-                    self.newline();
-                    self.add_code(&format!(" match state_context_opt {{"));
-                    self.indent();
-                    self.newline();
-                    self.add_code(&format!(
-                        "Some({}) => {},",
-                        self.config.state_context_var_name, self.config.state_context_var_name
-                    ));
-                    self.newline();
-                    self.add_code(&format!("None => panic!(\"Error - attempt to pop history when history stack is empty.\"),"));
-                    self.outdent();
-                    self.newline();
-                    self.add_code("}");
-                } else {
-                    self.newline();
-                    self.add_code(&format!(
-                        "fn {}(&mut self, state: {}) {{",
-                        self.config.state_stack_push_method_name, self.config.frame_state_type_name
-                    ));
-                    self.indent();
-                    self.newline();
-                    self.add_code(&format!(
-                        "self.{}.push(Rc::new(RefCell::new(state)));",
-                        self.config.state_stack_var_name
-                    ));
-                    self.outdent();
-                    self.newline();
-                    self.add_code(&format!("}}"));
-                    self.newline();
-                    self.newline();
-
-                    self.add_code(&format!(
-                        "fn {}(&mut self) -> {} {{",
-                        self.config.state_stack_pop_method_name, self.config.frame_state_type_name
-                    ));
-                    self.indent();
-                    self.newline();
-                    self.add_code(&format!(
-                        "let state_opt = self.{}.pop();",
-                        self.config.state_stack_var_name
-                    ));
-                    self.newline();
-                    self.add_code(&format!(" match state_opt {{"));
-                    self.indent();
-                    self.newline();
-                    self.add_code(&format!("Some(state) => *state.borrow(),"));
-                    self.newline();
-                    self.add_code(&format!("None => panic!(\"Error - attempt to pop history when history stack is empty.\"),"));
-                    self.outdent();
-                    self.newline();
-                    self.add_code("}");
-                }
-
-                self.outdent();
-                self.newline();
-                self.add_code("}");
             }
             if self.generate_change_state {
+                self.generate_change_state();
                 self.newline();
-                self.newline();
-                if self.generate_change_state_hook {
-                    self.add_code(&format!(
-                        "let old_state_enum = self.get_current_{}_enum();",
-                        self.config.state_var_name
-                    ));
-                    self.newline();
-                    self.add_code(&format!(
-                        "let new_state_enum = self.get_{}_enum(new_state)\
-                            .expect(\"Internal Frame error: change_state to invalid new_state\");",
-                        self.config.state_var_name
-                    ));
-                    self.newline();
-                    self.add_code(&format!(
-                        "self.{}(old_state_enum, new_state_enum);",
-                        self.config.change_state_hook_method_name.as_ref().unwrap()
-                    ));
-                    self.newline();
-                }
-                self.add_code(&format!(
-                    "fn {}(&mut self, new_state: {}) {{",
-                    self.config.change_state_method_name, self.config.frame_state_type_name
-                ));
-                self.indent();
-                self.newline();
-                self.add_code(&format!(
-                    "self.{} = new_state;",
-                    &self.config.state_var_name
-                ));
-
-                self.outdent();
-                self.newline();
-                self.add_code(&format!("}}"));
             }
-            //self.newline();
-
             if self.arcanium.is_serializable() {
                 for line in self.serialize.iter() {
                     self.code.push_str(&*format!("{}", line));
                     self.code.push_str(&*format!("\n{}", self.dent()));
                 }
-
                 for line in self.deserialize.iter() {
                     self.code.push_str(&*format!("{}", line));
                     self.code.push_str(&*format!("\n{}", self.dent()));
                 }
             }
         }
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    /// Generate the change_state method.
+    fn generate_change_state(&mut self) {
+        self.add_code(&format!(
+            "fn {}(&mut self, new_state: {}) {{",
+            self.config.change_state_method_name,
+            self.state_enum_type_name()
+        ));
+        self.indent();
+        self.newline();
+        if self.generate_change_state_hook {
+            self.add_code(&format!(
+                "let old_state = self.{};",
+                self.config.state_var_name
+            ));
+            self.newline();
+            self.add_code(&format!(
+                "self.{}(old_state, new_state);",
+                self.config.change_state_hook_method_name.as_ref().unwrap()
+            ));
+            self.newline();
+        }
+        self.add_code(&format!(
+            "self.{} = new_state;",
+            &self.config.state_var_name
+        ));
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.newline();
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    /// Generate the transition method.
+    fn generate_transition(&mut self) {
+        // generate method signature
+        if self.generate_state_context {
+            if self.generate_exit_args {
+                self.add_code(&format!(
+                    "fn {}(&mut self, new_state: {}, {}:Box<{}>, {}:Rc<RefCell<{}>>) {{",
+                    self.config.transition_method_name,
+                    self.state_enum_type_name(),
+                    self.config.exit_args_member_name,
+                    self.config.frame_event_parameters_type_name,
+                    self.config.state_context_var_name,
+                    self.config.state_context_name
+                ));
+            } else {
+                self.add_code(&format!(
+                    "fn {}(&mut self, new_state:{}, {}:Rc<RefCell<{}>>) {{",
+                    self.config.transition_method_name,
+                    self.state_enum_type_name(),
+                    self.config.state_context_var_name,
+                    self.config.state_context_name
+                ));
+            }
+        } else {
+            if self.generate_exit_args {
+                self.add_code(&format!(
+                    "fn {}(&mut self, new_state: {}, {}:Box<{}>) {{",
+                    self.config.transition_method_name,
+                    self.state_enum_type_name(),
+                    self.config.exit_args_member_name,
+                    self.config.frame_event_parameters_type_name
+                ));
+            } else {
+                self.add_code(&format!(
+                    "fn {}(&mut self, new_state: {}) {{",
+                    self.config.transition_method_name,
+                    self.state_enum_type_name()
+                ));
+            }
+        }
+        // generate method body
+        self.indent();
+        self.newline();
+        if self.generate_transition_hook {
+            self.add_code(&format!(
+                "let old_state = self.{};",
+                self.config.state_var_name
+            ));
+            self.newline();
+            self.add_code(&format!(
+                "self.{}(old_state, new_state);",
+                self.config.transition_hook_method_name.as_ref().unwrap()
+            ));
+            self.newline();
+        }
+        if self.generate_exit_args {
+            self.add_code(&format!(
+                "let mut exit_event = {}::new({}::{}, Some({}));",
+                self.config.frame_event_type_name,
+                self.config.frame_event_message_type_name,
+                self.config.exit_msg,
+                self.config.exit_args_member_name
+            ));
+        } else {
+            self.add_code(&format!(
+                "let mut exit_event = {}::new({}::{}, None);",
+                self.config.frame_event_type_name,
+                self.config.frame_event_message_type_name,
+                self.config.exit_msg
+            ));
+        }
+        self.newline();
+        self.add_code(&format!(
+            "self.{}(&mut exit_event);",
+            &self.config.handle_event_method_name
+        ));
+        self.newline();
+        self.add_code(&format!(
+            "self.{} = new_state;",
+            &self.config.state_var_name
+        ));
+        self.newline();
+        if self.generate_state_context {
+            self.add_code(&format!(
+                "self.{} = {}.clone();",
+                &self.config.state_context_var_name, &self.config.state_context_var_name
+            ));
+            self.newline();
+        }
+        self.add_code(&format!(
+            "let mut enter_event = {}::new({}::{}, None);",
+            self.config.frame_event_type_name,
+            self.config.frame_event_message_type_name,
+            self.config.enter_msg
+        ));
+        self.newline();
+        self.add_code(&format!(
+            "self.{}(&mut enter_event);",
+            &self.config.handle_event_method_name
+        ));
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.newline();
+    }
+
+    /// Generate state stack methods.
+    fn generate_state_stack(&mut self) {
+        if self.generate_state_context {
+            self.newline();
+            self.add_code(&format!(
+                "fn {}(&mut self, {}:Rc<RefCell<{}>>) {{",
+                self.config.state_stack_push_method_name,
+                self.config.state_context_var_name,
+                self.config.state_context_name
+            ));
+            self.indent();
+            self.newline();
+            self.add_code(&format!(
+                "self.{}.push({});",
+                self.config.state_stack_var_name, self.config.state_context_var_name
+            ));
+            self.outdent();
+            self.newline();
+            self.add_code(&format!("}}"));
+            self.newline();
+            self.newline();
+            self.add_code(&format!(
+                "fn {}(&mut self) -> Rc<RefCell<{}>> {{",
+                self.config.state_stack_pop_method_name, self.config.state_context_name
+            ));
+            self.indent();
+            self.newline();
+            self.add_code(&format!(
+                "let state_context_opt = self.{}.pop();",
+                self.config.state_stack_var_name
+            ));
+            self.newline();
+            self.add_code(&format!(" match state_context_opt {{"));
+            self.indent();
+            self.newline();
+            self.add_code(&format!(
+                "Some({}) => {},",
+                self.config.state_context_var_name, self.config.state_context_var_name
+            ));
+            self.newline();
+            self.add_code(&format!(
+                "None => panic!(\"Error - attempt to pop history when history stack is empty.\"),"
+            ));
+            self.outdent();
+            self.newline();
+            self.add_code("}");
+        } else {
+            self.newline();
+            self.add_code(&format!(
+                "fn {}(&mut self, state: {}) {{",
+                self.config.state_stack_push_method_name,
+                self.state_enum_type_name()
+            ));
+            self.indent();
+            self.newline();
+            self.add_code(&format!(
+                "self.{}.push(Rc::new(RefCell::new(state)));",
+                self.config.state_stack_var_name
+            ));
+            self.outdent();
+            self.newline();
+            self.add_code(&format!("}}"));
+            self.newline();
+            self.newline();
+
+            self.add_code(&format!(
+                "fn {}(&mut self) -> {} {{",
+                self.config.state_stack_pop_method_name,
+                self.state_enum_type_name()
+            ));
+            self.indent();
+            self.newline();
+            self.add_code(&format!(
+                "let state_opt = self.{}.pop();",
+                self.config.state_stack_var_name
+            ));
+            self.newline();
+            self.add_code(&format!(" match state_opt {{"));
+            self.indent();
+            self.newline();
+            self.add_code(&format!("Some(state) => *state.borrow(),"));
+            self.newline();
+            self.add_code(&format!(
+                "None => panic!(\"Error - attempt to pop history when history stack is empty.\"),"
+            ));
+            self.outdent();
+            self.newline();
+            self.add_code("}");
+        }
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.newline();
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn generate_handle_event(&mut self, system_node: &SystemNode) {
+        self.add_code(&format!(
+            "fn {}(&mut self, e: &mut {}) {{",
+            self.config.handle_event_method_name, self.config.frame_event_type_name
+        ));
+        self.indent();
+        self.newline();
+        self.add_code(&format!("match self.{} {{", self.config.state_var_name));
+        if let Some(machine_block_node) = &system_node.machine_block_node_opt {
+            self.indent();
+            self.newline();
+            for state in &machine_block_node.states {
+                self.add_code(&format!(
+                    "{}::{} => self.{}(e),", // TODO need to deal with states w/ arguments
+                    self.state_enum_type_name(),
+                    &state.borrow().name,
+                    self.format_state_handler_name(&state.borrow().name)
+                ));
+                self.newline();
+            }
+        }
+        self.add_code("}");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.newline();
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1114,7 +1271,7 @@ impl RustVisitor {
             "self.{}({}::{});",
             self.config.change_state_method_name,
             self.system_name,
-            self.format_state_name(target_state_name)
+            self.format_state_handler_name(target_state_name)
         ));
     }
 
@@ -1374,7 +1531,7 @@ impl RustVisitor {
             self.add_code(&format!(
                 "state: {}::{},",
                 &self.system_name,
-                self.format_state_name(target_state_name)
+                self.format_state_handler_name(target_state_name)
             ));
             //        self.output_string_vec(&enter_arguments);
             self.newline();
@@ -1432,16 +1589,16 @@ impl RustVisitor {
                 self.add_code(&format!(
                     "self.{}({}::{}, {},Rc::new(RefCell::new(next_state_context)));",
                     self.config.transition_method_name,
-                    self.system_name,
-                    self.format_state_name(target_state_name),
+                    self.state_enum_type_name(),
+                    target_state_name,
                     exit_args
                 ));
             } else {
                 self.add_code(&format!(
                     "self.{}({}::{},Rc::new(RefCell::new(next_state_context)));",
                     self.config.transition_method_name,
-                    self.system_name,
-                    self.format_state_name(target_state_name)
+                    self.state_enum_type_name(),
+                    target_state_name
                 ));
             }
         } else {
@@ -1449,16 +1606,16 @@ impl RustVisitor {
                 self.add_code(&format!(
                     "self.{}({}::{}, {});",
                     self.config.transition_method_name,
-                    self.system_name,
-                    self.format_state_name(target_state_name),
+                    self.state_enum_type_name(),
+                    target_state_name,
                     exit_args
                 ));
             } else {
                 self.add_code(&format!(
                     "self.{}({}::{});",
                     self.config.transition_method_name,
-                    self.system_name,
-                    self.format_state_name(target_state_name)
+                    self.state_enum_type_name(),
+                    target_state_name
                 ));
             }
         }
@@ -1629,61 +1786,7 @@ impl AstVisitor for RustVisitor {
 
         self.newline();
         self.newline();
-
-        if self.config.config_features.introspection {
-            // add derived traits
-            let mut traits = self.config.state_enum_traits.clone();
-            match &system_node.attributes_opt {
-                Some(attributes) => {
-                    if let Some(new_traits) = attributes.get("override_state_enum_traits") {
-                        traits = new_traits.value.clone();
-                    }
-                    if let Some(new_traits) = attributes.get("extend_state_enum_traits") {
-                        if traits.is_empty() {
-                            traits = new_traits.value.clone();
-                        } else {
-                            traits = format!("{}, {}", traits, new_traits.value);
-                        }
-                    }
-                }
-                None => {}
-            }
-
-            self.add_code("#[allow(clippy::upper_case_acronyms)]");
-            self.newline();
-
-            if !traits.is_empty() {
-                self.add_code(&format!("#[derive({})]", traits));
-                self.newline();
-            }
-
-            // add the state enum type
-            self.add_code(&format!(
-                "pub enum {}{} {{",
-                self.system_name, self.config.state_enum_suffix
-            ));
-
-            self.indent();
-            if let Some(machine_block_node) = &system_node.machine_block_node_opt {
-                for state in &machine_block_node.states {
-                    self.newline();
-                    self.add_code(&format!("{},", state.borrow().name));
-                }
-            }
-            self.outdent();
-            self.newline();
-
-            self.add_code("}");
-            self.newline();
-            self.newline();
-        }
-
-        // add state type alias
-        self.add_code(&format!(
-            "type {} = fn(&mut {}, &mut {});",
-            self.config.frame_state_type_name, &system_node.name, self.config.frame_event_type_name
-        ));
-
+        self.generate_state_enum(&system_node);
         self.newline();
         self.newline();
 
@@ -1972,7 +2075,7 @@ impl AstVisitor for RustVisitor {
                     ));
                     self.indent();
                     self.newline();
-                    self.add_code(&format!("state: {},", self.config.frame_state_type_name));
+                    self.add_code(&format!("state: {},", self.state_enum_type_name()));
                     self.newline();
 
                     if has_state_args {
@@ -2058,10 +2161,11 @@ impl AstVisitor for RustVisitor {
                 self.add_code(&format!("impl {} {{", self.config.state_context_name));
                 self.indent();
                 self.newline();
-                self.add_code(&format!(
-                    "fn getState(&self) -> {} {{",
-                    self.config.frame_state_type_name
-                ));
+                // TODO state refactor
+                // self.add_code(&format!(
+                //     "fn getState(&self) -> {} {{",
+                //     self.config.frame_state_type_name
+                // ));
                 self.indent();
                 self.newline();
                 self.add_code("match self {");
@@ -2108,7 +2212,8 @@ impl AstVisitor for RustVisitor {
         // generate state variable
         self.add_code(&format!(
             "{}: {},",
-            &self.config.state_var_name, self.config.frame_state_type_name
+            &self.config.state_var_name,
+            self.state_enum_type_name()
         ));
 
         // generate state context variable
@@ -2129,10 +2234,11 @@ impl AstVisitor for RustVisitor {
         } else {
             if self.generate_state_stack {
                 self.newline();
-                self.add_code(&format!(
-                    "{}: Vec<Rc<RefCell<{}>>>,",
-                    self.config.state_stack_var_name, self.config.frame_state_type_name
-                ));
+                // TODO state refactor
+                // self.add_code(&format!(
+                //     "{}: Vec<Rc<RefCell<{}>>>,",
+                //     self.config.state_stack_var_name, self.config.frame_state_type_name
+                // ));
             }
         }
 
@@ -2167,141 +2273,11 @@ impl AstVisitor for RustVisitor {
         }
 
         if self.has_states {
-            // generate constructor
-
             self.newline();
-            self.add_code(&format!("pub fn new() -> {} {{", system_node.name));
-            self.indent();
-
-            if self.generate_state_context {
-                self.add_code(&format!(
-                    "let {} = {} {{",
-                    self.format_state_context_variable_name(&self.first_state_name),
-                    self.format_state_context_struct_name(&self.first_state_name)
-                ));
-                self.indent();
-                self.newline();
-                self.add_code(&format!(
-                    "{}: {}::{},",
-                    self.config.state_var_name,
-                    &self.system_name,
-                    self.format_state_name(&self.first_state_name)
-                ));
-
-                self.outdent();
-                self.newline();
-                self.add_code("};");
-                self.newline();
-                self.newline();
-                self.add_code(&format!(
-                    "let state_context: {} = {}::{} {{",
-                    self.config.state_context_name,
-                    self.config.state_context_name,
-                    &self.first_state_name
-                ));
-                self.indent();
-                self.newline();
-                self.add_code(&format!(
-                    "{}: {}",
-                    &self.first_state_name,
-                    self.format_state_context_variable_name(&self.first_state_name)
-                ));
-                self.outdent();
-                self.newline();
-
-                self.add_code("};");
-                self.newline();
-                self.newline();
-            }
-
+            self.generate_constructor(&system_node);
             self.newline();
-            self.add_code(&format!("let mut machine = {} {{", system_node.name));
-            self.indent();
             self.newline();
-            self.add_code(&format!(
-                "{}: {}::{},",
-                &self.config.state_var_name,
-                system_node.name,
-                self.format_state_name(&self.first_state_name)
-            ));
-
-            // generate history mechanism
-            if self.generate_state_stack {
-                self.newline();
-                self.add_code(&format!(
-                    "{}: Vec::new(),",
-                    self.config.state_stack_var_name
-                ));
-            }
-
-            if let Some(domain_block_node) = &system_node.domain_block_node_opt {
-                for variable_decl_node_rcref in &domain_block_node.member_variables {
-                    let variable_decl_node = variable_decl_node_rcref.borrow();
-                    //   variable_decl_node.accept(self);
-
-                    let var_init_expr =
-                        &variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
-                    let mut code = String::new();
-                    var_init_expr.accept_to_string(self, &mut code);
-                    self.newline();
-                    self.add_code(&format!("{}: {},", variable_decl_node.name, code));
-                }
-            }
-
-            if self.generate_state_context {
-                self.newline();
-
-                self.add_code(&format!(
-                    "{}:Rc::new(RefCell::new(state_context)),",
-                    self.config.state_context_var_name //   , self.config.state_context_var_name
-                                                       //  , self.config.state_context_var_name
-                ));
-            }
-
-            self.outdent();
-            self.newline();
-            self.add_code("};");
-
-            // run the initialize method on the new machine
-            self.newline();
-            self.add_code(&format!(
-                "machine.{}();",
-                self.config.initialize_method_name
-            ));
-            self.newline();
-
-            // return the new machine
-            self.add_code("machine");
-
-            self.outdent();
-            self.newline();
-            self.add_code("}");
-            self.newline();
-
-            // end of generate constructor
-
-            // generate initialize method
-            self.newline();
-            self.add_code(&format!(
-                "pub fn {}(&mut self) {{",
-                self.config.initialize_method_name
-            ));
-            self.indent();
-            self.newline();
-            self.add_code(&format!(
-                "let mut e = {}::new({}::{}, None);",
-                self.config.frame_event_type_name,
-                self.config.frame_event_message_type_name,
-                self.config.enter_msg
-            ));
-            self.newline();
-            self.add_code(&format!(
-                "(self.{})(self, &mut e);",
-                &self.config.state_var_name
-            ));
-            self.outdent();
-            self.newline();
-            self.add_code("}");
+            self.generate_initialize();
             self.newline();
         }
 
@@ -2401,67 +2377,60 @@ impl AstVisitor for RustVisitor {
 
         self.newline();
         self.newline();
-        self.newline();
         self.add_code("#[allow(dead_code)]");
         self.newline();
-        if self.config.config_features.introspection {
-            self.add_code(&format!(
-                "impl std::fmt::Display for {} {{",
-                self.config.frame_event_message_type_name
-            ));
-            self.indent();
-            self.newline();
-            self.add_code("fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {");
-            self.indent();
-            self.newline();
-            self.add_code("match self {");
-            self.indent();
-            self.newline();
-            self.add_code(&format!(
-                "{}::{} => write!(f, \"{}\"),",
-                self.config.frame_event_message_type_name,
-                self.config.enter_msg,
-                self.config.enter_msg
-            ));
-            self.newline();
-            self.add_code(&format!(
-                "{}::{} => write!(f, \"{}\"),",
-                self.config.frame_event_message_type_name,
-                self.config.exit_msg,
-                self.config.exit_msg
-            ));
-            for event in &events {
-                //    ret.push(k.clone());
-                if self.isEnterOrExitMessage(&event) {
-                    continue;
+        self.add_code(&format!(
+            "impl std::fmt::Display for {} {{",
+            self.config.frame_event_message_type_name
+        ));
+        self.indent();
+        self.newline();
+        self.add_code("fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {");
+        self.indent();
+        self.newline();
+        self.add_code("match self {");
+        self.indent();
+        self.newline();
+        self.add_code(&format!(
+            "{}::{} => write!(f, \"{}\"),",
+            self.config.frame_event_message_type_name, self.config.enter_msg, self.config.enter_msg
+        ));
+        self.newline();
+        self.add_code(&format!(
+            "{}::{} => write!(f, \"{}\"),",
+            self.config.frame_event_message_type_name, self.config.exit_msg, self.config.exit_msg
+        ));
+        for event in &events {
+            //    ret.push(k.clone());
+            if self.isEnterOrExitMessage(&event) {
+                continue;
+            }
+            let message_opt = self.arcanium.get_interface_or_msg_from_msg(&event);
+            match message_opt {
+                Some(cannonical_message_name) => {
+                    self.newline();
+                    self.add_code(&format!(
+                        "{}::{} => write!(f, \"{}\"),",
+                        self.config.frame_event_message_type_name,
+                        cannonical_message_name,
+                        cannonical_message_name
+                    ));
                 }
-                let message_opt = self.arcanium.get_interface_or_msg_from_msg(&event);
-                match message_opt {
-                    Some(cannonical_message_name) => {
-                        self.newline();
-                        self.add_code(&format!(
-                            "{}::{} => write!(f, \"{}\"),",
-                            self.config.frame_event_message_type_name,
-                            cannonical_message_name,
-                            cannonical_message_name
-                        ));
-                    }
-                    None => {
-                        self.newline();
-                        self.add_code(&format!("<Error - unknown message {}>,", &event));
-                    }
+                None => {
+                    self.newline();
+                    self.add_code(&format!("<Error - unknown message {}>,", &event));
                 }
             }
-            self.outdent();
-            self.newline();
-            self.add_code("}");
-            self.outdent();
-            self.newline();
-            self.add_code("}");
-            self.outdent();
-            self.newline();
-            self.add_code("}");
         }
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
 
         AstVisitorReturnType::InterfaceBlockNode {}
     }
@@ -2705,7 +2674,10 @@ impl AstVisitor for RustVisitor {
         interface_method_node: &InterfaceMethodNode,
     ) -> AstVisitorReturnType {
         self.newline();
-        self.add_code(&format!("pub fn {}(&mut self", interface_method_node.name));
+        self.add_code(&format!(
+            "pub fn {}(&mut self",
+            self.format_method_name(&interface_method_node.name)
+        ));
 
         match &interface_method_node.params {
             Some(params) => self.format_parameter_list(params).clone(),
@@ -2770,8 +2742,8 @@ impl AstVisitor for RustVisitor {
         // self.add_code("};");
         self.newline();
         self.add_code(&format!(
-            "(self.{})(self, &mut e);",
-            self.config.state_var_name
+            "self.{}(&mut e);",
+            self.config.handle_event_method_name
         ));
 
         match &interface_method_node.return_type_opt {
@@ -2942,7 +2914,7 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.add_code(&format!(
             "fn {}(&mut self, {}: &mut {}) {{",
-            self.format_state_name(&state_node.name),
+            self.format_state_handler_name(&state_node.name),
             self.config.frame_event_variable_name,
             self.config.frame_event_type_name
         ));
@@ -3328,9 +3300,8 @@ impl AstVisitor for RustVisitor {
         self.indent();
         self.newline();
         self.add_code(&format!(
-            "({}::{})(self,e);",
-            self.system_name,
-            self.format_state_name(&dispatch_node.target_state_ref.name)
+            "self.{}(e);",
+            self.format_state_handler_name(&dispatch_node.target_state_ref.name)
         ));
         self.generate_comment(dispatch_node.line);
         self.outdent();

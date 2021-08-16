@@ -5,9 +5,8 @@ codegen:
 
   rust:
     features:
-      lower_case_states: false
-      introspection: true
       generate_action_impl: true
+      lower_case_methods: true
     code:
       actions_prefix:
       actions_suffix: Actions
@@ -34,13 +33,13 @@ codegen:
       frame_event_parameters_attribute_name: parameters
       frame_event_message_attribute_name: message
       frame_event_return_attribute_name: ret
-      frame_state_type_name: FrameState
       state_var_name: state
-      state_var_name_prefix:
-      state_var_name_suffix: _state
+      state_handler_name_prefix:
+      state_handler_name_suffix: _handler
       state_enum_suffix: State
       state_enum_traits: Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord
       initialize_method_name: initialize
+      handle_event_method_name: handle_event
       transition_method_name: transition
       change_state_method_name: change_state
       transition_hook_method_name: transition_hook
