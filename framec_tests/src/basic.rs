@@ -15,8 +15,6 @@ impl Basic {
 mod tests {
     use super::*;
 
-    // Revisit: currently generated code doesn't send entry event to state machine's initial
-    // state on creation
     #[test]
     fn intial_state_entry_call() {
         let sm = Basic::new();
