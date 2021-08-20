@@ -272,7 +272,6 @@ pub struct RustVisitor {
 }
 
 impl RustVisitor {
-    //* --------------------------------------------------------------------- *//
 
     pub fn new(
         arcanium: Arcanum,
@@ -320,20 +319,16 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    // Enter/exit messages are formatted "stateName:>" or "stateName:<"
-
     fn loadConfig(config_yaml: &Yaml) -> Config {
         let codegen_yaml = &config_yaml["codegen"];
         let rust_yaml = &codegen_yaml["rust"];
         let config = Config::new(&rust_yaml);
-
         config
     }
 
     //* --------------------------------------------------------------------- *//
 
-    // Enter/exit messages are formatted "stateName:>" or "stateName:<"
-
+    /// Enter/exit messages are formatted "stateName:>" or "stateName:<".
     pub fn isEnterOrExitMessage(&self, msg: &str) -> bool {
         let split = msg.split(":");
         let vec: Vec<&str> = split.collect();
@@ -786,6 +781,235 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    /// Generate the struct, enum, and supporting function definitions
+    /// related to state contexts. State contexts include state parameters,
+    /// state variables, and enter event parameters. Note that exit event
+    /// parameters are handed by a separate mechanism.
+    fn generate_state_context_defs(&mut self, system_node: &SystemNode) {
+        if let Some(machine_block_node) = &system_node.machine_block_node_opt {
+            for state in &machine_block_node.states {
+                let state_node = state.borrow();
+
+                // struct S0EnterArgs {
+                //     x:i32,
+                //     y:String,
+                // }
+
+                // generate state parameter declarations
+                let mut has_state_args = false;
+                match &state_node.params_opt {
+                    Some(params) => {
+                        has_state_args = true;
+                        self.indent();
+                        self.add_code(&format!("struct {}StateArgs {{", state_node.name));
+
+                        for param in params {
+                            let param_type = match &param.param_type_opt {
+                                Some(param_type) => param_type.get_type_str(),
+                                None => String::from("<?>"),
+                            };
+
+                            self.newline();
+                            self.add_code(&format!("{}: {},", param.param_name, param_type));
+                        }
+                        self.outdent();
+                        self.newline();
+                        self.add_code("}");
+                        self.newline();
+                        self.newline();
+                    }
+                    None => {}
+                }
+
+                // self.add_code(&format!("struct {}StateVars {{",state_node.name));
+                // self.add_code("}");
+                let mut has_state_vars = false;
+                match &state_node.vars_opt {
+                    Some(var_decl_nodes) => {
+                        has_state_vars = true;
+                        self.add_code(&format!("struct {}StateVars {{", state_node.name));
+                        self.indent();
+                        // self.add_code(&format!("{}: (",self.config.enter_arg_prefix));
+                        for var_decl_node in var_decl_nodes {
+                            let var_type = match &var_decl_node.borrow().type_opt {
+                                Some(var_type) => var_type.get_type_str(),
+                                None => "<?>".to_string(),
+                            };
+                            self.newline();
+                            self.add_code(&format!(
+                                "{}: {},",
+                                var_decl_node.borrow().name,
+                                &var_type
+                            ));
+                        }
+                        self.outdent();
+                        self.newline();
+                        self.add_code("}");
+                        self.newline();
+                        self.newline();
+                    }
+                    None => {}
+                }
+
+                let mut has_enter_event_params = false;
+                match &state_node.enter_event_handler_opt {
+                    Some(enter_event_handler) => {
+                        let eeh_ref = &enter_event_handler.borrow();
+                        let event_symbol = eeh_ref.event_symbol_rcref.borrow();
+                        match &event_symbol.params_opt {
+                            Some(params) => {
+                                has_enter_event_params = true;
+                                self.add_code(&format!(
+                                    "struct {}EnterArgs {{",
+                                    state_node.name
+                                ));
+                                self.indent();
+                                // self.add_code(&format!("{}: (",self.config.enter_arg_prefix));
+                                for param in params {
+                                    let param_type = match &param.param_type_opt {
+                                        Some(param_type) => param_type.get_type_str(),
+                                        None => "<?>".to_string(),
+                                    };
+                                    self.newline();
+                                    self.add_code(&format!("{}: {},", param.name, &param_type));
+                                }
+                                self.outdent();
+                                self.newline();
+                                self.add_code("}");
+                                self.newline();
+                                self.newline();
+                            }
+                            None => {}
+                        }
+                    }
+                    None => {}
+                }
+
+                // Generate state context struct per state
+                self.add_code(&format!(
+                    "struct {}{} {{",
+                    state_node.name, self.config.state_context_struct_name
+                ));
+                self.indent();
+                self.newline();
+                self.add_code(&format!("state: {},", self.state_enum_type_name()));
+
+                if has_state_args {
+                    self.newline();
+                    self.add_code(&format!(
+                        "{}: {}StateArgs,",
+                        self.config.state_args_var, state_node.name
+                    ));
+                }
+
+                if has_state_vars {
+                    self.newline();
+                    self.add_code(&format!(
+                        "{}: {}StateVars,",
+                        self.config.state_vars_var_name, state_node.name
+                    ));
+                }
+
+                // generate enter event parameters
+                if has_enter_event_params {
+                    self.newline();
+                    self.add_code(&format!(
+                        "{}: {}EnterArgs,",
+                        self.config.enter_args_member_name, state_node.name
+                    ));
+                }
+                // match &state_node.enter_event_handler_opt {
+                //     Some(enter_event_handler) => {
+                //         let eeh_ref = &enter_event_handler.borrow();
+                //         let event_symbol = eeh_ref.event_symbol_rcref.borrow();
+                //         match &event_symbol.params_opt {
+                //             Some(params) => {
+                //                 // for param in params {
+                //                 //     let param_type = match &param.param_type_opt {
+                //                 //         Some(param_type) => param_type.get_type_str(),
+                //                 //         None => "<?>".to_string(),
+                //                 //     };
+                //                 //     self.add_code(&format!("{},",&param_type));
+                //                 //     self.newline();
+                //                 // }
+                //                 // self.add_code("),");
+                //                 // for param in params {
+                //                 //          let param_type = match &param.param_type_opt {
+                //                 //              Some(param_type) => param_type.get_type_str(),
+                //                 //              None => "<?>".to_string(),
+                //                 //          };
+                //                 //          self.add_code(&format!("{}{}: {},",self.config.enter_arg_prefix,&param.name,&param_type));
+                //                 //          self.newline();
+                //                 //      }
+                //             },
+                //             None => {}
+                //         }
+                //     },
+                //     None => {}
+                // }
+                //}
+                self.outdent();
+                self.newline();
+                self.add_code("}");
+                self.newline();
+                self.newline();
+            }
+
+            self.add_code(&format!("enum {} {{", self.config.state_context_name));
+            self.indent();
+            for state in &machine_block_node.states {
+                self.newline();
+                let state_node = state.borrow();
+                self.add_code(&format!(
+                    "{} {{{}: {}{}}},",
+                    state_node.name,
+                    state_node.name,
+                    state_node.name,
+                    self.config.state_context_name
+                ))
+            }
+            self.outdent();
+            self.newline();
+            self.add_code("}");
+            self.newline();
+
+            self.newline();
+            self.add_code(&format!("impl {} {{", self.config.state_context_name));
+            self.indent();
+            self.newline();
+            self.add_code(&format!(
+                "fn get_state(&self) -> {} {{",
+                self.state_enum_type_name()
+            ));
+            self.indent();
+            self.newline();
+            self.add_code("match self {");
+            self.indent();
+            for state in &machine_block_node.states {
+                self.newline();
+                let state_node = state.borrow();
+                self.add_code(&format!(
+                    "{}::{} {{{}}} => {}.state,",
+                    self.config.state_context_name,
+                    state_node.name,
+                    state_node.name,
+                    state_node.name
+                ))
+            }
+            self.outdent();
+            self.newline();
+            self.add_code("}");
+
+            self.outdent();
+            self.newline();
+            self.add_code("}");
+            self.outdent();
+            self.newline();
+            self.add_code("}");
+            self.newline();
+        }
+    }
+
     fn generate_constructor(&mut self, system_node: &SystemNode) {
         self.add_code(&format!("pub fn new() -> {} {{", system_node.name));
         self.indent();
@@ -889,6 +1113,7 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    /// Generate the initialize method.
     fn generate_initialize(&mut self) {
         self.add_code(&format!(
             "pub fn {}(&mut self) {{",
@@ -914,6 +1139,7 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    /// Generate the event handling and state transition machinery.
     fn generate_machinery(&mut self, system_node: &SystemNode) {
         self.newline();
         self.newline();
@@ -1775,12 +2001,6 @@ impl AstVisitor for RustVisitor {
             interface_block_node.accept_frame_parameters(self);
         }
 
-        self.newline();
-        self.newline();
-        self.generate_state_enum(&system_node);
-        self.newline();
-        self.newline();
-
         self.add_code("#[allow(dead_code)]");
         self.newline();
         self.add_code("#[allow(non_camel_case_types)]");
@@ -1956,230 +2176,15 @@ impl AstVisitor for RustVisitor {
         self.add_code("}");
         self.newline();
         self.newline();
+        
+        self.newline();
+        self.newline();
+        self.generate_state_enum(&system_node);
+        self.newline();
+        self.newline();
 
         if self.generate_state_context {
-            if let Some(machine_block_node) = &system_node.machine_block_node_opt {
-                for state in &machine_block_node.states {
-                    let state_node = state.borrow();
-
-                    // struct S0EnterArgs {
-                    //     x:i32,
-                    //     y:String,
-                    // }
-
-                    // generate state parameter declarations
-                    let mut has_state_args = false;
-                    match &state_node.params_opt {
-                        Some(params) => {
-                            has_state_args = true;
-                            self.indent();
-                            self.add_code(&format!("struct {}StateArgs {{", state_node.name));
-
-                            for param in params {
-                                let param_type = match &param.param_type_opt {
-                                    Some(param_type) => param_type.get_type_str(),
-                                    None => String::from("<?>"),
-                                };
-
-                                self.newline();
-                                self.add_code(&format!("{}: {},", param.param_name, param_type));
-                            }
-                            self.outdent();
-                            self.newline();
-                            self.add_code("}");
-                            self.newline();
-                            self.newline();
-                        }
-                        None => {}
-                    }
-
-                    // self.add_code(&format!("struct {}StateVars {{",state_node.name));
-                    // self.add_code("}");
-                    let mut has_state_vars = false;
-                    match &state_node.vars_opt {
-                        Some(var_decl_nodes) => {
-                            has_state_vars = true;
-                            self.add_code(&format!("struct {}StateVars {{", state_node.name));
-                            self.indent();
-                            // self.add_code(&format!("{}: (",self.config.enter_arg_prefix));
-                            for var_decl_node in var_decl_nodes {
-                                let var_type = match &var_decl_node.borrow().type_opt {
-                                    Some(var_type) => var_type.get_type_str(),
-                                    None => "<?>".to_string(),
-                                };
-                                self.newline();
-                                self.add_code(&format!(
-                                    "{}: {},",
-                                    var_decl_node.borrow().name,
-                                    &var_type
-                                ));
-                            }
-                            self.outdent();
-                            self.newline();
-                            self.add_code("}");
-                            self.newline();
-                            self.newline();
-                        }
-                        None => {}
-                    }
-
-                    let mut has_enter_event_params = false;
-                    match &state_node.enter_event_handler_opt {
-                        Some(enter_event_handler) => {
-                            let eeh_ref = &enter_event_handler.borrow();
-                            let event_symbol = eeh_ref.event_symbol_rcref.borrow();
-                            match &event_symbol.params_opt {
-                                Some(params) => {
-                                    has_enter_event_params = true;
-                                    self.add_code(&format!(
-                                        "struct {}EnterArgs {{",
-                                        state_node.name
-                                    ));
-                                    self.indent();
-                                    // self.add_code(&format!("{}: (",self.config.enter_arg_prefix));
-                                    for param in params {
-                                        let param_type = match &param.param_type_opt {
-                                            Some(param_type) => param_type.get_type_str(),
-                                            None => "<?>".to_string(),
-                                        };
-                                        self.newline();
-                                        self.add_code(&format!("{}: {},", param.name, &param_type));
-                                    }
-                                    self.outdent();
-                                    self.newline();
-                                    self.add_code("}");
-                                    self.newline();
-                                    self.newline();
-                                }
-                                None => {}
-                            }
-                        }
-                        None => {}
-                    }
-
-                    // Generate state context struct per state
-                    self.add_code(&format!(
-                        "struct {}{} {{",
-                        state_node.name, self.config.state_context_struct_name
-                    ));
-                    self.indent();
-                    self.newline();
-                    self.add_code(&format!("state: {},", self.state_enum_type_name()));
-
-                    if has_state_args {
-                        self.newline();
-                        self.add_code(&format!(
-                            "{}: {}StateArgs,",
-                            self.config.state_args_var, state_node.name
-                        ));
-                    }
-
-                    if has_state_vars {
-                        self.newline();
-                        self.add_code(&format!(
-                            "{}: {}StateVars,",
-                            self.config.state_vars_var_name, state_node.name
-                        ));
-                    }
-
-                    // generate enter event parameters
-                    if has_enter_event_params {
-                        self.newline();
-                        self.add_code(&format!(
-                            "{}: {}EnterArgs,",
-                            self.config.enter_args_member_name, state_node.name
-                        ));
-                    }
-                    // match &state_node.enter_event_handler_opt {
-                    //     Some(enter_event_handler) => {
-                    //         let eeh_ref = &enter_event_handler.borrow();
-                    //         let event_symbol = eeh_ref.event_symbol_rcref.borrow();
-                    //         match &event_symbol.params_opt {
-                    //             Some(params) => {
-                    //                 // for param in params {
-                    //                 //     let param_type = match &param.param_type_opt {
-                    //                 //         Some(param_type) => param_type.get_type_str(),
-                    //                 //         None => "<?>".to_string(),
-                    //                 //     };
-                    //                 //     self.add_code(&format!("{},",&param_type));
-                    //                 //     self.newline();
-                    //                 // }
-                    //                 // self.add_code("),");
-                    //                 // for param in params {
-                    //                 //          let param_type = match &param.param_type_opt {
-                    //                 //              Some(param_type) => param_type.get_type_str(),
-                    //                 //              None => "<?>".to_string(),
-                    //                 //          };
-                    //                 //          self.add_code(&format!("{}{}: {},",self.config.enter_arg_prefix,&param.name,&param_type));
-                    //                 //          self.newline();
-                    //                 //      }
-                    //             },
-                    //             None => {}
-                    //         }
-                    //     },
-                    //     None => {}
-                    // }
-                    //}
-                    self.outdent();
-                    self.newline();
-                    self.add_code("}");
-                    self.newline();
-                    self.newline();
-                }
-
-                self.add_code(&format!("enum {} {{", self.config.state_context_name));
-                self.indent();
-                for state in &machine_block_node.states {
-                    self.newline();
-                    let state_node = state.borrow();
-                    self.add_code(&format!(
-                        "{} {{{}: {}{}}},",
-                        state_node.name,
-                        state_node.name,
-                        state_node.name,
-                        self.config.state_context_name
-                    ))
-                }
-                self.outdent();
-                self.newline();
-                self.add_code("}");
-                self.newline();
-
-                self.newline();
-                self.add_code(&format!("impl {} {{", self.config.state_context_name));
-                self.indent();
-                self.newline();
-                self.add_code(&format!(
-                    "fn get_state(&self) -> {} {{",
-                    self.state_enum_type_name()
-                ));
-                self.indent();
-                self.newline();
-                self.add_code("match self {");
-                self.indent();
-                for state in &machine_block_node.states {
-                    self.newline();
-                    let state_node = state.borrow();
-                    self.add_code(&format!(
-                        "{}::{} {{{}}} => {}.state,",
-                        self.config.state_context_name,
-                        state_node.name,
-                        state_node.name,
-                        state_node.name
-                    ))
-                }
-                self.outdent();
-                self.newline();
-                self.add_code("}");
-
-                self.outdent();
-                self.newline();
-                self.add_code("}");
-                self.outdent();
-                self.newline();
-                self.add_code("}");
-                self.newline();
-            }
+            self.generate_state_context_defs(&system_node);
         }
 
         if let Some(actions_block_node) = &system_node.actions_block_node_opt {
