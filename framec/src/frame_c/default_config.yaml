@@ -6,7 +6,7 @@ codegen:
   rust:
     features:
       generate_action_impl: true
-      lower_case_methods: true
+      follow_rust_naming: true
     code:
       actions_prefix:
       actions_suffix: Actions

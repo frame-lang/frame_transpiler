@@ -10,7 +10,7 @@ use super::super::visitors::*;
 
 struct ConfigFeatures {
     generate_action_impl: bool,
-    lower_case_methods: bool,
+    follow_rust_naming: bool,
 }
 
 struct Config {
@@ -31,7 +31,7 @@ struct Config {
     state_context_name: String,
     state_context_suffix: String,
     state_context_var_name: String,
-    state_context_var_name_suffix: String,
+    state_context_method_suffix: String,
     state_context_struct_name: String,
     this_state_context_var_name: String,
     frame_event_message_type_name: String,
@@ -69,7 +69,7 @@ impl Config {
                 .to_string()
                 .parse()
                 .unwrap(),
-            lower_case_methods: (&features_yaml["lower_case_methods"])
+            follow_rust_naming: (&features_yaml["follow_rust_naming"])
                 .as_bool()
                 .unwrap_or(false)
                 .to_string()
@@ -142,7 +142,7 @@ impl Config {
                 .as_str()
                 .unwrap_or_default()
                 .to_string(),
-            state_context_var_name_suffix: (&code_yaml["state_context_var_name_suffix"])
+            state_context_method_suffix: (&code_yaml["state_context_method_suffix"])
                 .as_str()
                 .unwrap_or_default()
                 .to_string(),
@@ -392,10 +392,11 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn format_state_context_variable_name(&self, state_name: &str) -> String {
+    fn format_state_context_method_name(&self, state_name: &str) -> String {
         format!(
             "{}{}",
-            state_name, self.config.state_context_var_name_suffix
+            self.format_value_name(&state_name.to_string()),
+            self.config.state_context_method_suffix
         )
     }
 
@@ -621,9 +622,21 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn format_method_name(&self, name: &String) -> String {
+    /// Format a "type-level" name, e.g. a type, trait, or enum variant.
+    /// If Rust naming conventions are followed, these are in CamelCase.
+    fn format_type_name(&self, name: &String) -> String {
         let mut formatted = name.clone();
-        if self.config.config_features.lower_case_methods {
+        if self.config.config_features.follow_rust_naming {
+            formatted = formatted.to_case(Case::Camel);
+        }
+        formatted
+    }
+    
+    /// Format a "value-level" name, e.g. a function, method, variable.
+    /// If Rust naming conventions are followed, these are  in snake_case.
+    fn format_value_name(&self, name: &String) -> String {
+        let mut formatted = name.clone();
+        if self.config.config_features.follow_rust_naming {
             formatted = formatted.to_case(Case::Snake);
         }
         formatted
@@ -635,7 +648,7 @@ impl RustVisitor {
         format!(
             "{}{}{}",
             self.config.state_handler_name_prefix,
-            self.format_method_name(&state_name.to_string()),
+            self.format_value_name(&state_name.to_string()),
             self.config.state_handler_name_suffix
         )
     }
@@ -887,8 +900,8 @@ impl RustVisitor {
 
                 // Generate state context struct per state
                 self.add_code(&format!(
-                    "struct {}{} {{",
-                    state_node.name, self.config.state_context_struct_name
+                    "struct {} {{",
+                    self.format_state_context_struct_name(&state_node.name)
                 ));
                 self.indent();
                 self.newline();
@@ -2668,7 +2681,7 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.add_code(&format!(
             "pub fn {}(&mut self",
-            self.format_method_name(&interface_method_node.name)
+            self.format_value_name(&interface_method_node.name)
         ));
 
         match &interface_method_node.params {
