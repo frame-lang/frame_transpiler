@@ -1,4 +1,4 @@
-#EventParams
+#TransitParams
     -interface-
     Next
     
