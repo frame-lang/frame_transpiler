@@ -22,7 +22,6 @@ codegen:
       state_context_suffix: StateContext
       state_context_var_name: state_context_rc
       state_context_var_name_suffix: _state_context
-      state_context_struct_name: StateContext
       this_state_context_var_name: this_state_context
       frame_event_message_type_name: FrameMessage
       frame_event_type_name: FrameEvent

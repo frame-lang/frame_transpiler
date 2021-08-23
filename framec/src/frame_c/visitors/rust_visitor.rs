@@ -32,7 +32,6 @@ struct Config {
     state_context_suffix: String,
     state_context_var_name: String,
     state_context_method_suffix: String,
-    state_context_struct_name: String,
     this_state_context_var_name: String,
     frame_event_message_type_name: String,
     frame_event_type_name: String,
@@ -143,10 +142,6 @@ impl Config {
                 .unwrap_or_default()
                 .to_string(),
             state_context_method_suffix: (&code_yaml["state_context_method_suffix"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            state_context_struct_name: (&code_yaml["state_context_struct_name"])
                 .as_str()
                 .unwrap_or_default()
                 .to_string(),
@@ -2227,7 +2222,7 @@ impl AstVisitor for RustVisitor {
             self.newline();
             self.add_code(&format!(
                 "{}: Rc<RefCell<{}>>,",
-                self.config.state_context_var_name, self.config.state_context_struct_name
+                self.config.state_context_var_name, self.config.state_context_name
             ));
             if self.generate_state_stack {
                 self.newline();
