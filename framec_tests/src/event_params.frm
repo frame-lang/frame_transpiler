@@ -1,33 +1,25 @@
 #EventParams
     -interface-
-    Hello
-    Goodbye
-    Both
+    Next
     
     -machine-
+    $Init
+        |>|
+            -> ("hi A" 1) $A ^
+
     $A
         |>| [msg:String val:i16]
-            entered(msg val) ^
-        |<| [val:bool msg:String]
-            exited(val msg) ^
-        |Hello|
-            -> ("hello B" 42) $B ^
-        |Goodbye|
-            (true "goodbye A") -> $B ^
-        |Both|
-            (false "bye A") -> ("hi B" -42) $B ^
+            entered(msg.clone() val) ^
+        |Next|
+            -> ("hi B" 2) $B ^
 
     $B
         |>| [msg:String val:i16]
-            entered(msg val) ^
+            entered(msg.clone() val) ^
         |<| [val:bool msg:String]
-            exited(val msg) ^
-        |Hello|
-            -> ("howdy A" 0) $A ^
-        |Goodbye|
-            (false "tootles B") -> $B ^
-        |Both|
-            (true "ciao B") -> ("sup A" 101) $B ^
+            exited(val msg.clone()) ^
+        |Next|
+            (true "bye B") -> ("hi again A" 3) $A ^
 
     -actions-
     entered [msg:String val:i16]

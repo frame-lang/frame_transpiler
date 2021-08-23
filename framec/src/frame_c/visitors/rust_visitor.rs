@@ -267,7 +267,6 @@ pub struct RustVisitor {
 }
 
 impl RustVisitor {
-
     pub fn new(
         arcanium: Arcanum,
         config_yaml: &Yaml,
@@ -360,13 +359,14 @@ impl RustVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn format_frame_event_parameter_name(
-        &self, //                ,state_name_opt:&Option<String>
+        &self,
         unparsed_event_name: &str,
         param_name: &str,
     ) -> String {
         let (state_name_opt, event_name) = self.parse_event_name(&unparsed_event_name);
 
         match &state_name_opt {
+            // TODO: format this as a value-level name
             Some(state_name) => format!(
                 "{}_{}_{}",
                 state_name,
@@ -377,28 +377,13 @@ impl RustVisitor {
                 let message_opt = self.arcanium.get_interface_or_msg_from_msg(&event_name);
                 match &message_opt {
                     Some(canonical_message_name) => {
+                        // TODO: format this as a value-level name
                         format!("{}_{}", canonical_message_name, param_name)
                     }
                     None => format!("<Error - unknown message {}>,", &unparsed_event_name),
                 }
             }
         }
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn format_state_context_method_name(&self, state_name: &str) -> String {
-        format!(
-            "{}{}",
-            self.format_value_name(&state_name.to_string()),
-            self.config.state_context_method_suffix
-        )
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn format_state_context_struct_name(&self, state_name: &str) -> String {
-        format!("{}{}", state_name, self.config.state_context_suffix)
     }
 
     //* --------------------------------------------------------------------- *//
@@ -590,15 +575,6 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn format_action_name(&mut self, action_name: &String) -> String {
-        return format!(
-            "{}{}{}",
-            self.config.action_prefix, action_name, self.config.action_suffix
-        );
-    }
-
-    //* --------------------------------------------------------------------- *//
-
     fn uppercase_first_letter(s: &str) -> String {
         // @TODO - not sure if this is a good idea or not
         // let mut c = s.chars();
@@ -611,8 +587,19 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    fn new_state_var_name(&self) -> String {
+        format!("new_{}", self.config.state_var_name)
+    }
+
+    fn new_state_context_var_name(&self) -> String {
+        format!("new_{}", self.config.state_context_var_name)
+    }
+
     fn state_enum_type_name(&self) -> String {
-        format!("{}{}", self.system_name, self.config.state_enum_suffix)
+        self.format_type_name(&format!(
+            "{}{}",
+            self.system_name, self.config.state_enum_suffix
+        ))
     }
 
     //* --------------------------------------------------------------------- *//
@@ -622,11 +609,11 @@ impl RustVisitor {
     fn format_type_name(&self, name: &String) -> String {
         let mut formatted = name.clone();
         if self.config.config_features.follow_rust_naming {
-            formatted = formatted.to_case(Case::Camel);
+            formatted = formatted.to_case(Case::UpperCamel);
         }
         formatted
     }
-    
+
     /// Format a "value-level" name, e.g. a function, method, variable.
     /// If Rust naming conventions are followed, these are  in snake_case.
     fn format_value_name(&self, name: &String) -> String {
@@ -637,7 +624,30 @@ impl RustVisitor {
         formatted
     }
 
-    //* --------------------------------------------------------------------- *//
+    fn format_action_name(&mut self, action_name: &String) -> String {
+        format!(
+            "{}{}{}",
+            self.config.action_prefix,
+            self.format_value_name(action_name),
+            self.config.action_suffix
+        )
+    }
+
+    fn format_state_context_method_name(&self, state_name: &str) -> String {
+        format!(
+            "{}{}",
+            self.format_value_name(&state_name.to_string()),
+            self.config.state_context_method_suffix
+        )
+    }
+
+    fn format_state_context_struct_name(&self, state_name: &str) -> String {
+        format!(
+            "{}{}",
+            self.format_type_name(&state_name.to_string()),
+            self.config.state_context_suffix
+        )
+    }
 
     fn format_state_handler_name(&self, state_name: &str) -> String {
         format!(
@@ -768,6 +778,8 @@ impl RustVisitor {
         }
         self.add_code("#[allow(clippy::upper_case_acronyms)]");
         self.newline();
+        self.add_code("#[allow(dead_code)]");
+        self.newline();
         if !traits.is_empty() {
             self.add_code(&format!("#[derive({})]", traits));
             self.newline();
@@ -798,25 +810,18 @@ impl RustVisitor {
             for state in &machine_block_node.states {
                 let state_node = state.borrow();
 
-                // struct S0EnterArgs {
-                //     x:i32,
-                //     y:String,
-                // }
-
-                // generate state parameter declarations
+                // generate state parameter declarations for this state
                 let mut has_state_args = false;
                 match &state_node.params_opt {
                     Some(params) => {
                         has_state_args = true;
                         self.indent();
                         self.add_code(&format!("struct {}StateArgs {{", state_node.name));
-
                         for param in params {
                             let param_type = match &param.param_type_opt {
                                 Some(param_type) => param_type.get_type_str(),
                                 None => String::from("<?>"),
                             };
-
                             self.newline();
                             self.add_code(&format!("{}: {},", param.param_name, param_type));
                         }
@@ -829,8 +834,7 @@ impl RustVisitor {
                     None => {}
                 }
 
-                // self.add_code(&format!("struct {}StateVars {{",state_node.name));
-                // self.add_code("}");
+                // generate state variable declarations for this state
                 let mut has_state_vars = false;
                 match &state_node.vars_opt {
                     Some(var_decl_nodes) => {
@@ -859,6 +863,7 @@ impl RustVisitor {
                     None => {}
                 }
 
+                // generate enter event parameters for this state
                 let mut has_enter_event_params = false;
                 match &state_node.enter_event_handler_opt {
                     Some(enter_event_handler) => {
@@ -867,12 +872,8 @@ impl RustVisitor {
                         match &event_symbol.params_opt {
                             Some(params) => {
                                 has_enter_event_params = true;
-                                self.add_code(&format!(
-                                    "struct {}EnterArgs {{",
-                                    state_node.name
-                                ));
+                                self.add_code(&format!("struct {}EnterArgs {{", state_node.name));
                                 self.indent();
-                                // self.add_code(&format!("{}: (",self.config.enter_arg_prefix));
                                 for param in params {
                                     let param_type = match &param.param_type_opt {
                                         Some(param_type) => param_type.get_type_str(),
@@ -893,14 +894,12 @@ impl RustVisitor {
                     None => {}
                 }
 
-                // Generate state context struct per state
+                // generate state context struct for this state
                 self.add_code(&format!(
                     "struct {} {{",
                     self.format_state_context_struct_name(&state_node.name)
                 ));
                 self.indent();
-                self.newline();
-                self.add_code(&format!("state: {},", self.state_enum_type_name()));
 
                 if has_state_args {
                     self.newline();
@@ -918,7 +917,6 @@ impl RustVisitor {
                     ));
                 }
 
-                // generate enter event parameters
                 if has_enter_event_params {
                     self.newline();
                     self.add_code(&format!(
@@ -926,36 +924,6 @@ impl RustVisitor {
                         self.config.enter_args_member_name, state_node.name
                     ));
                 }
-                // match &state_node.enter_event_handler_opt {
-                //     Some(enter_event_handler) => {
-                //         let eeh_ref = &enter_event_handler.borrow();
-                //         let event_symbol = eeh_ref.event_symbol_rcref.borrow();
-                //         match &event_symbol.params_opt {
-                //             Some(params) => {
-                //                 // for param in params {
-                //                 //     let param_type = match &param.param_type_opt {
-                //                 //         Some(param_type) => param_type.get_type_str(),
-                //                 //         None => "<?>".to_string(),
-                //                 //     };
-                //                 //     self.add_code(&format!("{},",&param_type));
-                //                 //     self.newline();
-                //                 // }
-                //                 // self.add_code("),");
-                //                 // for param in params {
-                //                 //          let param_type = match &param.param_type_opt {
-                //                 //              Some(param_type) => param_type.get_type_str(),
-                //                 //              None => "<?>".to_string(),
-                //                 //          };
-                //                 //          self.add_code(&format!("{}{}: {},",self.config.enter_arg_prefix,&param.name,&param_type));
-                //                 //          self.newline();
-                //                 //      }
-                //             },
-                //             None => {}
-                //         }
-                //     },
-                //     None => {}
-                // }
-                //}
                 self.outdent();
                 self.newline();
                 self.add_code("}");
@@ -963,113 +931,100 @@ impl RustVisitor {
                 self.newline();
             }
 
+            // generate the enum type that unions all the state context types
             self.add_code(&format!("enum {} {{", self.config.state_context_name));
             self.indent();
             for state in &machine_block_node.states {
                 self.newline();
                 let state_node = state.borrow();
                 self.add_code(&format!(
-                    "{} {{{}: {}{}}},",
+                    "{}(RefCell<{}>),",
                     state_node.name,
-                    state_node.name,
-                    state_node.name,
-                    self.config.state_context_name
-                ))
+                    self.format_state_context_struct_name(&state_node.name)
+                ));
             }
             self.outdent();
             self.newline();
             self.add_code("}");
             self.newline();
-
             self.newline();
+
+            // generate methods to conveniently get specific state contexts
+            // from a value of the enum type
             self.add_code(&format!("impl {} {{", self.config.state_context_name));
             self.indent();
-            self.newline();
-            self.add_code(&format!(
-                "fn get_state(&self) -> {} {{",
-                self.state_enum_type_name()
-            ));
-            self.indent();
-            self.newline();
-            self.add_code("match self {");
-            self.indent();
             for state in &machine_block_node.states {
-                self.newline();
                 let state_node = state.borrow();
+                self.newline();
+                self.newline();
                 self.add_code(&format!(
-                    "{}::{} {{{}}} => {}.state,",
-                    self.config.state_context_name,
-                    state_node.name,
-                    state_node.name,
-                    state_node.name
-                ))
+                    "fn {}(&self) -> &RefCell<{}> {{",
+                    self.format_state_context_method_name(&state_node.name),
+                    self.format_state_context_struct_name(&state_node.name)
+                ));
+                self.indent();
+                self.newline();
+                self.add_code("match self {");
+                self.indent();
+                self.newline();
+                self.add_code(&format!(
+                    "{}::{}(context) => context,",
+                    self.config.state_context_name, state_node.name
+                ));
+                self.newline();
+                self.add_code(&format!(
+                    "_ => panic!(\"Failed conversion to {}\"),",
+                    self.format_state_context_struct_name(&state_node.name)
+                ));
+                self.outdent();
+                self.newline();
+                self.add_code("}");
+                self.outdent();
+                self.newline();
+                self.add_code("}");
             }
             self.outdent();
             self.newline();
-            self.add_code("}");
-
-            self.outdent();
             self.newline();
             self.add_code("}");
-            self.outdent();
-            self.newline();
-            self.add_code("}");
-            self.newline();
         }
     }
 
+    //* --------------------------------------------------------------------- *//
+
+    /// Generate the constructor function.
     fn generate_constructor(&mut self, system_node: &SystemNode) {
         self.add_code(&format!("pub fn new() -> {} {{", system_node.name));
         self.indent();
         self.newline();
 
+        // create initial state context
         if self.generate_state_context {
             self.add_code(&format!(
-                "let {} = {} {{",
-                self.format_state_context_variable_name(&self.first_state_name),
+                "let init_context = {} {{}};",
                 self.format_state_context_struct_name(&self.first_state_name)
             ));
-            self.indent();
             self.newline();
             self.add_code(&format!(
-                "state: {}::{},",
-                self.state_enum_type_name(),
-                self.first_state_name
-            ));
-            self.outdent();
-            self.newline();
-            self.add_code("};");
-            self.newline();
-            self.add_code(&format!(
-                "let state_context: {} = {}::{} {{",
+                "let context = {}::{}(RefCell::new(init_context));",
                 self.config.state_context_name,
-                self.config.state_context_name,
-                &self.first_state_name
+                self.format_type_name(&self.first_state_name)
             ));
-            self.indent();
-            self.newline();
-            self.add_code(&format!(
-                "{}: {}",
-                &self.first_state_name,
-                self.format_state_context_variable_name(&self.first_state_name)
-            ));
-            self.outdent();
-            self.newline();
-            self.add_code("};");
             self.newline();
         }
 
+        // begin create state machine
         self.add_code(&format!("let mut machine = {} {{", system_node.name));
         self.indent();
         self.newline();
         self.add_code(&format!(
             "{}: {}::{},",
-            &self.config.state_var_name,
+            self.config.state_var_name,
             self.state_enum_type_name(),
-            &self.first_state_name
+            self.format_type_name(&self.first_state_name)
         ));
 
-        // generate history mechanism
+        // initialize the state stack
         if self.generate_state_stack {
             self.newline();
             self.add_code(&format!(
@@ -1078,6 +1033,7 @@ impl RustVisitor {
             ));
         }
 
+        // initialize domain variables
         if let Some(domain_block_node) = &system_node.domain_block_node_opt {
             for variable_decl_node_rcref in &domain_block_node.member_variables {
                 let variable_decl_node = variable_decl_node_rcref.borrow();
@@ -1093,15 +1049,15 @@ impl RustVisitor {
         if self.generate_state_context {
             self.newline();
             self.add_code(&format!(
-                "{}: Rc::new(RefCell::new(state_context)),",
-                self.config.state_context_var_name // , self.config.state_context_var_name
-                                                   // , self.config.state_context_var_name
+                "{}: Rc::new(context),",
+                self.config.state_context_var_name
             ));
         }
 
         self.outdent();
         self.newline();
         self.add_code("};");
+        // end of create state machine
 
         // run the initialize method on the new machine
         self.newline();
@@ -1187,8 +1143,9 @@ impl RustVisitor {
     /// Generate the change_state method.
     fn generate_change_state(&mut self) {
         self.add_code(&format!(
-            "fn {}(&mut self, new_state: {}) {{",
+            "fn {}(&mut self, {}: {}) {{",
             self.config.change_state_method_name,
+            self.new_state_var_name(),
             self.state_enum_type_name()
         ));
         self.indent();
@@ -1200,14 +1157,16 @@ impl RustVisitor {
             ));
             self.newline();
             self.add_code(&format!(
-                "self.{}(old_state, new_state);",
-                self.config.change_state_hook_method_name.as_ref().unwrap()
+                "self.{}(old_state, {});",
+                self.config.change_state_hook_method_name.as_ref().unwrap(),
+                self.new_state_var_name(),
             ));
             self.newline();
         }
         self.add_code(&format!(
-            "self.{} = new_state;",
-            &self.config.state_var_name
+            "self.{} = {};",
+            self.config.state_var_name,
+            self.new_state_var_name(),
         ));
         self.outdent();
         self.newline();
@@ -1223,36 +1182,40 @@ impl RustVisitor {
         if self.generate_state_context {
             if self.generate_exit_args {
                 self.add_code(&format!(
-                    "fn {}(&mut self, new_state: {}, {}:Box<{}>, {}:Rc<RefCell<{}>>) {{",
+                    "fn {}(&mut self, {}: Option<Box<{}>>, {}: {}, {}: {}) {{",
                     self.config.transition_method_name,
-                    self.state_enum_type_name(),
                     self.config.exit_args_member_name,
                     self.config.frame_event_parameters_type_name,
-                    self.config.state_context_var_name,
+                    self.new_state_var_name(),
+                    self.state_enum_type_name(),
+                    self.new_state_context_var_name(),
                     self.config.state_context_name
                 ));
             } else {
                 self.add_code(&format!(
-                    "fn {}(&mut self, new_state:{}, {}:Rc<RefCell<{}>>) {{",
+                    "fn {}(&mut self, {}: {}, {}: {}) {{",
                     self.config.transition_method_name,
+                    self.new_state_var_name(),
                     self.state_enum_type_name(),
-                    self.config.state_context_var_name,
+                    self.new_state_context_var_name(),
                     self.config.state_context_name
                 ));
             }
         } else {
             if self.generate_exit_args {
                 self.add_code(&format!(
-                    "fn {}(&mut self, new_state: {}, {}:Box<{}>) {{",
+                    "fn {}(&mut self, {}: Option<Box<{}>>, {}: {}) {{",
                     self.config.transition_method_name,
-                    self.state_enum_type_name(),
                     self.config.exit_args_member_name,
-                    self.config.frame_event_parameters_type_name
+                    self.config.frame_event_parameters_type_name,
+                    self.new_state_var_name(),
+                    self.state_enum_type_name()
                 ));
             } else {
                 self.add_code(&format!(
-                    "fn {}(&mut self, new_state: {}) {{",
+                    "fn {}(&mut self, {}: {}) {{",
                     self.config.transition_method_name,
+                    self.new_state_var_name(),
                     self.state_enum_type_name()
                 ));
             }
@@ -1267,14 +1230,15 @@ impl RustVisitor {
             ));
             self.newline();
             self.add_code(&format!(
-                "self.{}(old_state, new_state);",
-                self.config.transition_hook_method_name.as_ref().unwrap()
+                "self.{}(old_state, {});",
+                self.config.transition_hook_method_name.as_ref().unwrap(),
+                self.new_state_var_name()
             ));
             self.newline();
         }
         if self.generate_exit_args {
             self.add_code(&format!(
-                "let mut exit_event = {}::new({}::{}, Some({}));",
+                "let mut exit_event = {}::new({}::{}, {});",
                 self.config.frame_event_type_name,
                 self.config.frame_event_message_type_name,
                 self.config.exit_msg,
@@ -1291,18 +1255,20 @@ impl RustVisitor {
         self.newline();
         self.add_code(&format!(
             "self.{}(&mut exit_event);",
-            &self.config.handle_event_method_name
+            self.config.handle_event_method_name
         ));
         self.newline();
         self.add_code(&format!(
-            "self.{} = new_state;",
-            &self.config.state_var_name
+            "self.{} = {};",
+            self.config.state_var_name,
+            self.new_state_var_name()
         ));
         self.newline();
         if self.generate_state_context {
             self.add_code(&format!(
-                "self.{} = {}.clone();",
-                &self.config.state_context_var_name, &self.config.state_context_var_name
+                "self.{} = Rc::new({});",
+                self.config.state_context_var_name,
+                self.new_state_context_var_name()
             ));
             self.newline();
         }
@@ -1328,7 +1294,7 @@ impl RustVisitor {
         if self.generate_state_context {
             self.newline();
             self.add_code(&format!(
-                "fn {}(&mut self, {}:Rc<RefCell<{}>>) {{",
+                "fn {}(&mut self, {}: Rc<{}>) {{",
                 self.config.state_stack_push_method_name,
                 self.config.state_context_var_name,
                 self.config.state_context_name
@@ -1345,7 +1311,7 @@ impl RustVisitor {
             self.newline();
             self.newline();
             self.add_code(&format!(
-                "fn {}(&mut self) -> Rc<RefCell<{}>> {{",
+                "fn {}(&mut self) -> Rc<{}> {{",
                 self.config.state_stack_pop_method_name, self.config.state_context_name
             ));
             self.indent();
@@ -1433,7 +1399,7 @@ impl RustVisitor {
             for state in &machine_block_node.states {
                 self.newline();
                 self.add_code(&format!(
-                    "{}::{} => self.{}(e),", // TODO need to deal with states w/ arguments
+                    "{}::{} => self.{}(e),",
                     self.state_enum_type_name(),
                     &state.borrow().name,
                     self.format_state_handler_name(&state.borrow().name)
@@ -1579,7 +1545,6 @@ impl RustVisitor {
                                             parameter_enum_name,
                                             expr
                                         ));
-                                        self.newline();
                                         self.newline();
                                     }
                                     None => self.errors.push(format!(
@@ -1750,18 +1715,10 @@ impl RustVisitor {
 
         if self.generate_state_context {
             self.add_code(&format!(
-                "let {} = {} {{",
-                self.format_state_context_variable_name(target_state_name),
+                "let context = {} {{",
                 self.format_state_context_struct_name(target_state_name)
             ));
             self.indent();
-            self.newline();
-            self.add_code(&format!(
-                "state: {}::{},",
-                self.state_enum_type_name(),
-                target_state_name
-            ));
-            //        self.output_string_vec(&enter_arguments);
             if has_state_args {
                 self.newline();
                 self.add_code(&format!(
@@ -1788,59 +1745,54 @@ impl RustVisitor {
             self.add_code("};");
             self.newline();
             self.add_code(&format!(
-                "let next_state_context: {} = {}::{} {{",
-                self.config.state_context_name, self.config.state_context_name, target_state_name
+                "let next_state_context = {}::{}(RefCell::new(context));",
+                self.config.state_context_name,
+                self.format_type_name(&target_state_name.to_string())
             ));
-            self.indent();
             self.newline();
             self.add_code(&format!(
-                "{}: {}",
-                &target_state_name,
-                self.format_state_context_variable_name(target_state_name)
+                "drop({});",
+                self.config.this_state_context_var_name
             ));
-            self.outdent();
-            self.newline();
-
-            self.add_code("};");
             self.newline();
         }
         let exit_args = if has_exit_args {
-            self.config.exit_args_member_name.clone()
+            format!("Some({})", self.config.exit_args_member_name)
         } else {
-            "null".to_string()
+            "None".to_string()
         };
         if self.generate_state_context {
             if self.generate_exit_args {
                 self.add_code(&format!(
-                    "self.{}({}::{}, {}, Rc::new(RefCell::new(next_state_context)));",
+                    "self.{}({}, {}::{}, next_state_context);",
                     self.config.transition_method_name,
+                    exit_args,
                     self.state_enum_type_name(),
-                    target_state_name,
-                    exit_args
+                    self.format_type_name(&target_state_name.to_string())
                 ));
             } else {
                 self.add_code(&format!(
-                    "self.{}({}::{}, Rc::new(RefCell::new(next_state_context)));",
+                    "self.{}({}::{}, next_state_context);",
                     self.config.transition_method_name,
                     self.state_enum_type_name(),
-                    target_state_name
+                    self.format_type_name(&target_state_name.to_string())
                 ));
             }
         } else {
             if self.generate_exit_args {
                 self.add_code(&format!(
-                    "self.{}({}::{}, {});",
+                    "self.{}({}, {}::{});",
                     self.config.transition_method_name,
+                    exit_args,
                     self.state_enum_type_name(),
-                    target_state_name,
-                    exit_args
+                    self.format_type_name(&target_state_name.to_string())
                 ));
             } else {
                 self.add_code(&format!(
                     "self.{}({}::{});",
                     self.config.transition_method_name,
                     self.state_enum_type_name(),
-                    target_state_name
+                    self.format_type_name(&target_state_name.to_string())
                 ));
             }
         }
@@ -2009,6 +1961,8 @@ impl AstVisitor for RustVisitor {
             interface_block_node.accept_frame_parameters(self);
         }
 
+        self.newline();
+        self.newline();
         self.add_code("#[allow(dead_code)]");
         self.newline();
         self.add_code("#[allow(non_camel_case_types)]");
@@ -2063,9 +2017,11 @@ impl AstVisitor for RustVisitor {
         self.outdent();
         self.newline();
         self.add_code("}");
-        self.newline();
-        self.newline();
 
+        self.newline();
+        self.newline();
+        self.add_code("#[allow(dead_code)]");
+        self.newline();
         self.add_code(&format!("enum {} {{", self.config.frame_event_return));
         self.indent();
         self.newline();
@@ -2154,6 +2110,8 @@ impl AstVisitor for RustVisitor {
         self.add_code("}");
         self.newline();
         self.newline();
+        self.add_code("#[allow(dead_code)]");
+        self.newline();
         self.add_code(&format!("impl {} {{", self.config.frame_event_type_name));
         self.indent();
         self.newline();
@@ -2184,7 +2142,7 @@ impl AstVisitor for RustVisitor {
         self.add_code("}");
         self.newline();
         self.newline();
-        
+
         self.newline();
         self.newline();
         self.generate_state_enum(&system_node);
@@ -2205,6 +2163,8 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.add_code("#[allow(clippy::upper_case_acronyms)]");
         self.newline();
+        self.add_code("#[allow(dead_code)]");
+        self.newline();
         self.add_code(&format!("pub struct {} {{", self.system_name));
         self.indent();
         self.newline();
@@ -2221,13 +2181,13 @@ impl AstVisitor for RustVisitor {
         if self.generate_state_context {
             self.newline();
             self.add_code(&format!(
-                "{}: Rc<RefCell<{}>>,",
+                "{}: Rc<{}>,",
                 self.config.state_context_var_name, self.config.state_context_name
             ));
             if self.generate_state_stack {
                 self.newline();
                 self.add_code(&format!(
-                    "{}: Vec<Rc<RefCell<{}>>>,",
+                    "{}: Vec<Rc<{}>>,",
                     self.config.state_stack_var_name, self.config.state_context_name
                 ));
             }
@@ -2236,7 +2196,7 @@ impl AstVisitor for RustVisitor {
                 self.newline();
                 // TODO state refactor
                 // self.add_code(&format!(
-                //     "{}: Vec<Rc<RefCell<{}>>>,",
+                //     "{}: Vec<Rc<{}>>,",
                 //     self.config.state_stack_var_name, self.config.frame_state_type_name
                 // ));
             }
@@ -2341,6 +2301,8 @@ impl AstVisitor for RustVisitor {
         &mut self,
         _interface_block_node: &InterfaceBlockNode,
     ) -> AstVisitorReturnType {
+        self.newline();
+        self.add_code("#[allow(dead_code)]");
         self.newline();
         self.add_code(&format!(
             "enum {} {{",
@@ -2910,6 +2872,10 @@ impl AstVisitor for RustVisitor {
 
         self.add_code("#[allow(clippy::needless_return)]");
         self.newline();
+        self.add_code("#[allow(unreachable_patterns)]");
+        self.newline();
+        self.add_code("#[allow(unused_mut)]");
+        self.newline();
         self.add_code("#[allow(unused_parens)]");
         self.newline();
         self.add_code(&format!(
@@ -2923,35 +2889,16 @@ impl AstVisitor for RustVisitor {
         if self.generate_state_context {
             self.newline();
             self.add_code(&format!(
-                "let {}_clone = self.{}.clone();",
-                self.config.state_context_var_name, self.config.state_context_var_name
-            ));
-            self.newline();
-            self.add_code(&format!(
-                "let state_context_ref = {}_clone.borrow();",
+                "let {0}_clone = self.{0}.clone();",
                 self.config.state_context_var_name
             ));
             self.newline();
             self.add_code(&format!(
-                "let mut {} = match &*state_context_ref {{",
-                self.config.this_state_context_var_name
+                "let mut {} = {}_clone.{}().borrow_mut();",
+                self.config.this_state_context_var_name,
+                self.config.state_context_var_name,
+                self.format_state_context_method_name(&state_name)
             ));
-            self.indent();
-            self.newline();
-            self.add_code(&format!(
-                "{}::{} {{ {} }} => {},",
-                self.config.state_context_name, &state_name, &state_name, &state_name
-            ));
-            self.newline();
-            self.add_code(&format!(
-                "_ => panic!(\"Invalid {} for {}\"),",
-                self.config.state_context_name, &state_name
-            ));
-            self.outdent();
-            self.newline();
-            self.add_code("};");
-            self.newline();
-            self.newline();
         }
 
         // @TODO

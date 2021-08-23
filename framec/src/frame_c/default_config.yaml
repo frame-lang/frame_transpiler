@@ -20,8 +20,8 @@ codegen:
       state_vars_var_name: state_vars
       state_context_name: StateContext
       state_context_suffix: StateContext
-      state_context_var_name: state_context_rc
-      state_context_var_name_suffix: _state_context
+      state_context_var_name: state_context
+      state_context_method_suffix: _context
       this_state_context_var_name: this_state_context
       frame_event_message_type_name: FrameMessage
       frame_event_type_name: FrameEvent

@@ -18,32 +18,17 @@ mod tests {
     #[test]
     fn enter() {
         let mut sm = EventParams::new();
-        sm.hello();
-        sm.hello();
-        assert_eq!(sm.enter_log, vec!["hello B 42", "howdy A 0"]);
+        sm.next();
+        assert_eq!(sm.enter_log, vec!["hi A 1", "hi B 2"]);
         assert_eq!(sm.exit_log, Log::new());
     }
 
     #[test]
-    fn exit() {
+    fn enter_and_exit() {
         let mut sm = EventParams::new();
-        sm.goodbye();
-        sm.goodbye();
-        assert_eq!(sm.enter_log, Log::new());
-        assert_eq!(sm.exit_log, vec!["true goodbye A", "false tootles B"]);
-    }
-
-    #[test]
-    fn both() {
-        let mut sm = EventParams::new();
-        sm.hello();
-        sm.both();
-        sm.both();
-        sm.goodbye();
-        assert_eq!(sm.enter_log, vec!["hello B 42", "sup A 101", "hi B -42"]);
-        assert_eq!(
-            sm.exit_log,
-            vec!["true ciao B", "false bye A", "false tootles B"]
-        );
+        sm.next();
+        sm.next();
+        assert_eq!(sm.enter_log, vec!["hi A 1", "hi B 2", "hi again A 3"]);
+        assert_eq!(sm.exit_log, vec!["true bye B"]);
     }
 }
