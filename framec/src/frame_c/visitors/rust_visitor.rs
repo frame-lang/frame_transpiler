@@ -2043,9 +2043,13 @@ impl AstVisitor for RustVisitor {
         self.outdent();
         self.newline();
         self.add_code("}");
-        self.newline();
-        self.newline();
 
+        self.newline();
+        self.newline();
+        self.add_code("#[allow(dead_code)]");
+        self.newline();
+        self.add_code("#[allow(non_snake_case)]");
+        self.newline();
         self.add_code(&format!("impl {} {{", self.config.frame_event_return));
         if let Some(interface_block_node) = &system_node.interface_block_node_opt {
             for interface_method_node in &interface_block_node.interface_methods {
@@ -2140,8 +2144,6 @@ impl AstVisitor for RustVisitor {
         self.outdent();
         self.newline();
         self.add_code("}");
-        self.newline();
-        self.newline();
 
         self.newline();
         self.newline();
@@ -2214,9 +2216,9 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.newline();
 
-        self.add_code("#[allow(non_snake_case)]");
-        self.newline();
         self.add_code("#[allow(dead_code)]");
+        self.newline();
+        self.add_code("#[allow(non_snake_case)]");
         self.newline();
         self.add_code(&format!("impl {} {{", system_node.name));
         self.indent();
@@ -4237,15 +4239,15 @@ impl AstVisitor for RustVisitor {
         variable_decl_node: &VariableDeclNode,
     ) -> AstVisitorReturnType {
         let var_type = match &variable_decl_node.type_opt {
-            Some(x) => x.get_type_str(),
-            None => String::from("<?>"),
+            Some(x) => format!(": {}", x.get_type_str()),
+            None => String::new(),
         };
         let var_name = &variable_decl_node.name;
         let var_init_expr = &variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
         self.newline();
         let mut code = String::new();
         var_init_expr.accept_to_string(self, &mut code);
-        self.add_code(&format!("let {}: {} = {};", var_name, var_type, code));
+        self.add_code(&format!("let {}{} = {};", var_name, var_type, code));
 
         // currently unused serialization code
         // self.serialize.push(format!("\tbag.domain[\"{}\"] = {};",var_name,var_name));

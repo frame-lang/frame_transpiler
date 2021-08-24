@@ -1,3 +1,6 @@
+//! Test transition parameters, i.e. arguments passed to the enter/exit
+//! handlers during a transition.
+
 type Log = Vec<String>;
 include!(concat!(env!("OUT_DIR"), "/", "transition_params.rs"));
 
