@@ -1,5 +1,3 @@
-#![allow(non_snake_case)]
-
 use convert_case::{Case, Casing};
 use yaml_rust::Yaml;
 
@@ -278,7 +276,7 @@ impl RustVisitor {
         compiler_version: &str,
         comments: Vec<Token>,
     ) -> RustVisitor {
-        let config = RustVisitor::loadConfig(config_yaml);
+        let config = RustVisitor::load_config(config_yaml);
 
         RustVisitor {
             compiler_version: compiler_version.to_string(),
@@ -313,7 +311,7 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn loadConfig(config_yaml: &Yaml) -> Config {
+    fn load_config(config_yaml: &Yaml) -> Config {
         let codegen_yaml = &config_yaml["codegen"];
         let rust_yaml = &codegen_yaml["rust"];
         let config = Config::new(&rust_yaml);
@@ -323,7 +321,7 @@ impl RustVisitor {
     //* --------------------------------------------------------------------- *//
 
     /// Enter/exit messages are formatted "stateName:>" or "stateName:<".
-    pub fn isEnterOrExitMessage(&self, msg: &str) -> bool {
+    pub fn is_enter_or_exit_message(&self, msg: &str) -> bool {
         let split = msg.split(":");
         let vec: Vec<&str> = split.collect();
         vec.len() == 2
@@ -332,13 +330,15 @@ impl RustVisitor {
     //* --------------------------------------------------------------------- *//
 
     pub fn get_msg_enum(&self, msg: &str) -> String {
-        match msg {
-            // ">>" => self.config.start_system_msg.clone(),
-            // "<<" => self.config.stop_system_msg.clone(),
-            ">" => self.config.enter_msg.clone(),
-            "<" => self.config.exit_msg.clone(),
-            _ => self.arcanium.get_interface_or_msg_from_msg(msg).unwrap(),
-        }
+        let unformatted =
+            match msg {
+                // ">>" => self.config.start_system_msg.clone(),
+                // "<<" => self.config.stop_system_msg.clone(),
+                ">" => self.config.enter_msg.clone(),
+                "<" => self.config.exit_msg.clone(),
+                _ => self.arcanium.get_interface_or_msg_from_msg(msg).unwrap(),
+            };
+        self.format_type_name(&unformatted)
     }
 
     //* --------------------------------------------------------------------- *//
@@ -364,26 +364,25 @@ impl RustVisitor {
         param_name: &str,
     ) -> String {
         let (state_name_opt, event_name) = self.parse_event_name(&unparsed_event_name);
-
-        match &state_name_opt {
-            // TODO: format this as a value-level name
-            Some(state_name) => format!(
-                "{}_{}_{}",
-                state_name,
-                &*self.canonical_event_name(&event_name),
-                param_name
-            ),
-            None => {
-                let message_opt = self.arcanium.get_interface_or_msg_from_msg(&event_name);
-                match &message_opt {
-                    Some(canonical_message_name) => {
-                        // TODO: format this as a value-level name
-                        format!("{}_{}", canonical_message_name, param_name)
+        let unformatted_name =
+            match &state_name_opt {
+                Some(state_name) => format!(
+                    "{}_{}_{}",
+                    state_name,
+                    &*self.canonical_event_name(&event_name),
+                    param_name
+                ),
+                None => {
+                    let message_opt = self.arcanium.get_interface_or_msg_from_msg(&event_name);
+                    match &message_opt {
+                        Some(canonical_message_name) => {
+                            format!("{}_{}", canonical_message_name, param_name)
+                        }
+                        None => format!("<Error - unknown message {}>,", &unparsed_event_name),
                     }
-                    None => format!("<Error - unknown message {}>,", &unparsed_event_name),
                 }
-            }
-        }
+            };
+        self.format_value_name(&unformatted_name)
     }
 
     //* --------------------------------------------------------------------- *//
@@ -492,12 +491,14 @@ impl RustVisitor {
                     ));
                 } else if self.config.exit_token == self.current_message {
                     code.push_str(&format!(
-                        "{}.{}.as_ref().unwrap().get_{}_{}_{}()",
+                        "{}.{}.as_ref().unwrap().{}()",
                         self.config.frame_event_variable_name,
                         self.config.frame_event_parameters_attribute_name,
-                        self.current_state_name_opt.as_ref().unwrap(),
-                        self.config.exit_msg,
-                        variable_node.id_node.name.lexeme
+                        self.format_exit_param_getter(
+                            self.current_state_name_opt.as_ref().unwrap(),
+                            &self.config.exit_msg,
+                            &variable_node.id_node.name.lexeme
+                        )
                     ));
                 } else {
                     let msg = match &self
@@ -514,11 +515,10 @@ impl RustVisitor {
                         }
                     };
                     code.push_str(&format!(
-                        "{}.{}.as_ref().unwrap().get_{}_{}()",
+                        "{}.{}.as_ref().unwrap().{}()",
                         self.config.frame_event_variable_name,
                         self.config.frame_event_parameters_attribute_name,
-                        msg,
-                        variable_node.id_node.name.lexeme
+                        self.format_event_param_getter(&msg, &variable_node.id_node.name.lexeme)
                     ));
                 }
 
@@ -575,18 +575,6 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn uppercase_first_letter(s: &str) -> String {
-        // @TODO - not sure if this is a good idea or not
-        // let mut c = s.chars();
-        // match c.next() {
-        //     None => String::new(),
-        //     Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
-        // }
-        s.to_string()
-    }
-
-    //* --------------------------------------------------------------------- *//
-
     fn new_state_var_name(&self) -> String {
         format!("new_{}", self.config.state_var_name)
     }
@@ -631,6 +619,25 @@ impl RustVisitor {
             self.format_value_name(action_name),
             self.config.action_suffix
         )
+    }
+
+    fn format_getter_name(&self, member_name: &str) -> String {
+        format!("get_{}", self.format_value_name(&member_name.to_string()))
+    }
+    
+    fn format_setter_name(&self, member_name: &str) -> String {
+        format!("set_{}", self.format_value_name(&member_name.to_string()))
+    }
+
+    fn format_event_param_getter(&self, message_name: &str, param_name: &str) -> String {
+        self.format_getter_name(&format!("{}_{}", message_name, param_name))
+    }
+    
+    fn format_exit_param_getter(&self, state_name: &str, message_name: &str, param_name: &str) -> String {
+        self.format_getter_name(&format!(
+            "{}_{}_{}",
+            state_name, message_name, param_name
+        ))
     }
 
     fn format_state_context_method_name(&self, state_name: &str) -> String {
@@ -791,7 +798,7 @@ impl RustVisitor {
         if let Some(machine_block_node) = &system_node.machine_block_node_opt {
             for state in &machine_block_node.states {
                 self.newline();
-                self.add_code(&format!("{},", state.borrow().name));
+                self.add_code(&format!("{},", self.format_type_name(&state.borrow().name)));
             }
         }
         self.outdent();
@@ -823,7 +830,10 @@ impl RustVisitor {
                                 None => String::from("<?>"),
                             };
                             self.newline();
-                            self.add_code(&format!("{}: {},", param.param_name, param_type));
+                            self.add_code(&format!(
+                                "{}: {},",
+                                self.format_value_name(&param.param_name), param_type
+                            ));
                         }
                         self.outdent();
                         self.newline();
@@ -850,7 +860,7 @@ impl RustVisitor {
                             self.newline();
                             self.add_code(&format!(
                                 "{}: {},",
-                                var_decl_node.borrow().name,
+                                self.format_value_name(&var_decl_node.borrow().name),
                                 &var_type
                             ));
                         }
@@ -880,7 +890,10 @@ impl RustVisitor {
                                         None => "<?>".to_string(),
                                     };
                                     self.newline();
-                                    self.add_code(&format!("{}: {},", param.name, &param_type));
+                                    self.add_code(&format!(
+                                        "{}: {},",
+                                        self.format_value_name(&param.name), &param_type
+                                    ));
                                 }
                                 self.outdent();
                                 self.newline();
@@ -939,7 +952,7 @@ impl RustVisitor {
                 let state_node = state.borrow();
                 self.add_code(&format!(
                     "{}(RefCell<{}>),",
-                    state_node.name,
+                    self.format_type_name(&state_node.name),
                     self.format_state_context_struct_name(&state_node.name)
                 ));
             }
@@ -969,7 +982,7 @@ impl RustVisitor {
                 self.newline();
                 self.add_code(&format!(
                     "{}::{}(context) => context,",
-                    self.config.state_context_name, state_node.name
+                    self.config.state_context_name, self.format_type_name(&state_node.name)
                 ));
                 self.newline();
                 self.add_code(&format!(
@@ -1543,9 +1556,9 @@ impl RustVisitor {
                                             self.format_frame_event_parameter_name(&msg, &p.name);
 
                                         self.add_code(&format!(
-                                            "(*{}).set_{}({});",
+                                            "(*{}).{}({});",
                                             self.config.exit_args_member_name,
-                                            parameter_enum_name,
+                                            self.format_setter_name(&parameter_enum_name),
                                             expr
                                         ));
                                         self.newline();
@@ -1844,9 +1857,9 @@ impl RustVisitor {
                     match &event_sym.borrow().params_opt {
                         Some(event_params) => {
                             if exit_args.exprs_t.len() != event_params.len() {
-                                self.errors.push(format!(
-                                    "Fatal error: misaligned parameters to arguments."
-                                ));
+                                self.errors.push(
+                                    "Fatal error: misaligned parameters to arguments.".to_string()
+                                );
                             }
                             let mut param_symbols_it = event_params.iter();
                             self.add_code(&format!(
@@ -1866,9 +1879,9 @@ impl RustVisitor {
                                             self.format_frame_event_parameter_name(&msg, &p.name);
 
                                         self.add_code(&format!(
-                                            "(*{}).set_{}({});",
+                                            "(*{}).{}({});",
                                             self.config.exit_args_member_name,
-                                            parameter_enum_name,
+                                            self.format_setter_name(&parameter_enum_name),
                                             expr
                                         ));
                                         self.newline();
@@ -1998,14 +2011,14 @@ impl AstVisitor for RustVisitor {
                                         None => "<?>".to_string().clone(),
                                     };
                                     self.newline();
-                                    let parameter_enum_name = self
-                                        .format_frame_event_parameter_name(
+                                    let parameter_enum_name =
+                                        self.format_frame_event_parameter_name(
                                             &event_sym.borrow().msg,
                                             &param.name,
                                         );
                                     self.add_code(&format!(
                                         "{} {{ param: {} }},",
-                                        parameter_enum_name, param_type
+                                        self.format_type_name(&parameter_enum_name), param_type
                                     ));
                                 }
                             }
@@ -2036,8 +2049,8 @@ impl AstVisitor for RustVisitor {
                 if let Some(return_type) = &interface_method_node.borrow().return_type_opt {
                     self.newline();
                     self.add_code(&format!(
-                        "{} {{ return_type: {} }},",
-                        RustVisitor::uppercase_first_letter(&if_name),
+                        "{} {{ return_value: {} }},",
+                        self.format_type_name(&if_name),
                         return_type.get_type_str()
                     ));
                 }
@@ -2061,8 +2074,8 @@ impl AstVisitor for RustVisitor {
                     self.indent();
                     self.newline();
                     self.add_code(&format!(
-                        "fn get_{}_ret(&self) -> {} {{",
-                        interface_method_node.borrow().name,
+                        "fn {}(&self) -> {} {{",
+                        self.format_event_param_getter(&interface_method_node.borrow().name, "ret"),
                         return_type.get_type_str()
                     ));
                     self.indent();
@@ -2071,12 +2084,12 @@ impl AstVisitor for RustVisitor {
                     self.indent();
                     self.newline();
                     self.add_code(&format!(
-                        "{}::{} {{ return_type }} => return_type.clone(),",
+                        "{}::{} {{ return_value }} => return_value.clone(),",
                         self.config.frame_event_return,
-                        interface_method_node.borrow().name
+                        self.format_type_name(&interface_method_node.borrow().name)
                     ));
                     self.newline();
-                    self.add_code(&format!("_ => panic!(\"Invalid return type\"),"));
+                    self.add_code(&format!("_ => panic!(\"Invalid return value\"),"));
                     self.outdent();
                     self.newline();
                     self.add_code("}");
@@ -2322,14 +2335,14 @@ impl AstVisitor for RustVisitor {
         let events = self.arcanium.get_event_names();
         for event in &events {
             //    ret.push(k.clone());
-            if self.isEnterOrExitMessage(&event) {
+            if self.is_enter_or_exit_message(&event) {
                 continue;
             }
             let message_opt = self.arcanium.get_interface_or_msg_from_msg(&event);
             match message_opt {
-                Some(cannonical_message_name) => {
+                Some(canonical_message_name) => {
                     self.newline();
-                    self.add_code(&format!("{},", cannonical_message_name));
+                    self.add_code(&format!("{},", self.format_type_name(&canonical_message_name)));
                 }
                 None => {
                     self.newline();
@@ -2369,18 +2382,19 @@ impl AstVisitor for RustVisitor {
         ));
         for event in &events {
             //    ret.push(k.clone());
-            if self.isEnterOrExitMessage(&event) {
+            if self.is_enter_or_exit_message(&event) {
                 continue;
             }
             let message_opt = self.arcanium.get_interface_or_msg_from_msg(&event);
             match message_opt {
-                Some(cannonical_message_name) => {
+                Some(canonical_message_name) => {
+                    let formatted_message_name = self.format_type_name(&canonical_message_name);
                     self.newline();
                     self.add_code(&format!(
                         "{}::{} => write!(f, \"{}\"),",
                         self.config.frame_event_message_type_name,
-                        cannonical_message_name,
-                        cannonical_message_name
+                        formatted_message_name,
+                        formatted_message_name
                     ));
                 }
                 None => {
@@ -2485,8 +2499,9 @@ impl AstVisitor for RustVisitor {
                                             &param.name,
                                         );
                                     self.add_code(&format!(
-                                        "fn set_{}(&mut self, {}: {}) {{",
-                                        parameter_enum_name, param.name, param_type
+                                        "fn {}(&mut self, {}: {}) {{",
+                                        self.format_setter_name(&parameter_enum_name),
+                                        param.name, param_type
                                     ));
                                     self.indent();
                                     self.newline();
@@ -2504,7 +2519,7 @@ impl AstVisitor for RustVisitor {
                                     self.add_code(&format!(
                                         "{}::{} {{ param: {} }},",
                                         self.config.frame_event_parameter_type_name,
-                                        parameter_enum_name,
+                                        self.format_type_name(&parameter_enum_name),
                                         param.name
                                     ));
                                     self.outdent();
@@ -2516,8 +2531,9 @@ impl AstVisitor for RustVisitor {
                                     self.newline();
                                     self.newline();
                                     self.add_code(&format!(
-                                        "fn get_{}(&self) -> {} {{",
-                                        parameter_enum_name, param_type
+                                        "fn {}(&self) -> {} {{",
+                                        self.format_getter_name(&parameter_enum_name),
+                                        param_type
                                     ));
                                     self.indent();
                                     self.newline();
@@ -2538,7 +2554,7 @@ impl AstVisitor for RustVisitor {
                                     self.add_code(&format!(
                                         "{}::{} {{ param }} => param.clone(),",
                                         self.config.frame_event_parameter_type_name,
-                                        parameter_enum_name
+                                        self.format_type_name(&parameter_enum_name)
                                     ));
                                     self.newline();
                                     self.add_code("_ => panic!(\"Invalid parameter\"),");
@@ -2681,8 +2697,8 @@ impl AstVisitor for RustVisitor {
                             self.format_frame_event_parameter_name(&msg, &param.param_name);
                         self.newline();
                         self.add_code(&format!(
-                            "(*frame_parameters).set_{}({});",
-                            parameter_enum_name, pname
+                            "(*frame_parameters).{}({});",
+                            self.format_setter_name(&parameter_enum_name), pname
                         ));
                     }
                 }
@@ -2699,7 +2715,7 @@ impl AstVisitor for RustVisitor {
             self.config.frame_event_variable_name,
             self.config.frame_event_type_name,
             self.config.frame_event_message_type_name,
-            &interface_method_node.name,
+            self.format_type_name(&interface_method_node.name),
             &params_param_code
         ));
         // self.indent();
@@ -2726,13 +2742,13 @@ impl AstVisitor for RustVisitor {
                 self.indent();
                 self.newline();
                 self.add_code(&format!(
-                    "{}::{} {{ return_type }} => return_type.clone(),",
+                    "{}::{} {{ return_value }} => return_value.clone(),",
                     self.config.frame_event_return,
-                    RustVisitor::uppercase_first_letter(&interface_method_node.name)
+                    self.format_type_name(&interface_method_node.name)
                 ));
                 self.newline();
                 self.add_code(&format!(
-                    "_ => panic!(\"Bad return type for {}\"),",
+                    "_ => panic!(\"Bad return value for {}\"),",
                     &interface_method_node.name
                 ));
                 self.outdent();
@@ -3033,9 +3049,9 @@ impl AstVisitor for RustVisitor {
                             self.config.frame_event_return_attribute_name
                         ));
                         self.add_code(&format!(
-                            "{}::{} {{return_type:",
+                            "{}::{} {{ return_value: ",
                             self.config.frame_event_return,
-                            RustVisitor::uppercase_first_letter(&self.current_message)
+                            self.format_type_name(&self.current_message)
                         ));
                         expr_t.accept(self);
 
@@ -4067,21 +4083,20 @@ impl AstVisitor for RustVisitor {
                 is_reference,
             } => {
                 self.add_code(&format!(
-                    "{}{}.{}.as_ref().unwrap().get_{}_{}()",
+                    "{}{}.{}.as_ref().unwrap().{}()",
                     if *is_reference { "&" } else { "" },
                     self.config.frame_event_variable_name,
                     self.config.frame_event_parameters_attribute_name,
-                    self.current_message,
-                    param_tok.lexeme
+                    self.format_event_param_getter(&self.current_message, &param_tok.lexeme)
                 ));
             }
             FrameEventPart::Return { is_reference } => {
                 self.add_code(&format!(
-                    "{}{}.{}.get_{}_ret()",
+                    "{}{}.{}.{}()",
                     if *is_reference { "&" } else { "" },
                     self.config.frame_event_variable_name,
                     self.config.frame_event_return_attribute_name,
-                    self.current_message
+                    self.format_event_param_getter(&self.current_message, "ret")
                 ));
                 // self.add_code(&format!("{}{}.{}"
                 //                         ,if *is_reference {"&"} else {""}
@@ -4119,20 +4134,19 @@ impl AstVisitor for RustVisitor {
                 is_reference,
             } => {
                 output.push_str(&format!(
-                    "{}{}.{}.as_ref().unwrap().get_{}_{}()",
+                    "{}{}.{}.as_ref().unwrap().{}()",
                     if *is_reference { "&" } else { "" },
                     self.config.frame_event_variable_name,
                     self.config.frame_event_parameters_attribute_name,
-                    self.current_message,
-                    param_tok.lexeme
+                    self.format_event_param_getter(&self.current_message, &param_tok.lexeme)
                 ));
             }
             FrameEventPart::Return { is_reference } => output.push_str(&format!(
-                "{}{}.{}.get_{}_ret()",
+                "{}{}.{}.{}()",
                 if *is_reference { "&" } else { "" },
                 self.config.frame_event_variable_name,
                 self.config.frame_event_return_attribute_name,
-                self.current_message
+                self.format_event_param_getter(&self.current_message, "ret")
             )),
         }
 
@@ -4320,9 +4334,9 @@ impl AstVisitor for RustVisitor {
                 ));
 
                 self.add_code(&format!(
-                    "{}::{} {{ return_type: {}}};",
+                    "{}::{} {{ return_value: {}}};",
                     self.config.frame_event_return,
-                    RustVisitor::uppercase_first_letter(&self.current_message),
+                    self.format_type_name(&self.current_message),
                     code
                 ));
             }
