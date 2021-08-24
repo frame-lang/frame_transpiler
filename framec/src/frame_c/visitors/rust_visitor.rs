@@ -1388,8 +1388,10 @@ impl RustVisitor {
 
     fn generate_handle_event(&mut self, system_node: &SystemNode) {
         self.add_code(&format!(
-            "fn {}(&mut self, e: &mut {}) {{",
-            self.config.handle_event_method_name, self.config.frame_event_type_name
+            "fn {}(&mut self, {}: &mut {}) {{",
+            self.config.handle_event_method_name,
+            self.config.frame_event_variable_name,
+            self.config.frame_event_type_name
         ));
         self.indent();
         self.newline();
@@ -1399,10 +1401,11 @@ impl RustVisitor {
             for state in &machine_block_node.states {
                 self.newline();
                 self.add_code(&format!(
-                    "{}::{} => self.{}(e),",
+                    "{}::{} => self.{}({}),",
                     self.state_enum_type_name(),
-                    &state.borrow().name,
-                    self.format_state_handler_name(&state.borrow().name)
+                    self.format_type_name(&state.borrow().name),
+                    self.format_state_handler_name(&state.borrow().name),
+                    self.config.frame_event_variable_name
                 ));
             }
         }
@@ -2692,7 +2695,8 @@ impl AstVisitor for RustVisitor {
         // self.indent();
         self.newline();
         self.add_code(&format!(
-            "let mut e = {}::new({}::{}, {});",
+            "let mut {} = {}::new({}::{}, {});",
+            self.config.frame_event_variable_name,
             self.config.frame_event_type_name,
             self.config.frame_event_message_type_name,
             &interface_method_node.name,
@@ -2706,8 +2710,9 @@ impl AstVisitor for RustVisitor {
         // self.add_code("};");
         self.newline();
         self.add_code(&format!(
-            "self.{}(&mut e);",
-            self.config.handle_event_method_name
+            "self.{}(&mut {});",
+            self.config.handle_event_method_name,
+            self.config.frame_event_variable_name,
         ));
 
         match &interface_method_node.return_type_opt {
@@ -3245,8 +3250,9 @@ impl AstVisitor for RustVisitor {
         self.indent();
         self.newline();
         self.add_code(&format!(
-            "self.{}(e);",
-            self.format_state_handler_name(&dispatch_node.target_state_ref.name)
+            "self.{}({});",
+            self.format_state_handler_name(&dispatch_node.target_state_ref.name),
+            self.config.frame_event_variable_name
         ));
         self.generate_comment(dispatch_node.line);
         self.outdent();

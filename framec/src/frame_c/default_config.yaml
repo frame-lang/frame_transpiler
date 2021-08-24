@@ -28,7 +28,7 @@ codegen:
       frame_event_parameter_type_name: FrameEventParameter
       frame_event_parameters_type_name: FrameEventParameters
       frame_event_return: FrameEventReturn
-      frame_event_variable_name: e
+      frame_event_variable_name: frame_event
       frame_event_parameters_attribute_name: parameters
       frame_event_message_attribute_name: message
       frame_event_return_attribute_name: ret
