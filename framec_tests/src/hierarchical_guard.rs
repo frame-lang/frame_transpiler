@@ -23,9 +23,9 @@ mod tests {
     #[test]
     fn hierarchical_child_transition_handler_with_guard() {
         let mut sm = HierarchicalGuard::new();
-        sm.A();
-        sm.B(true);
-        assert_eq!(sm.get_current_state_enum(), HierarchicalGuardState::S1);
+        sm.a();
+        sm.b(true);
+        assert_eq!(sm.state, HierarchicalGuardState::S1);
     }
 
     // Revisit: parent handler for event isn't getting called if child has handler
@@ -34,8 +34,8 @@ mod tests {
     #[ignore]
     fn hierarchical_parent_transition_handler_with_guard() {
         let mut sm = HierarchicalGuard::new();
-        sm.A();
-        sm.B(false);
-        assert_eq!(sm.get_current_state_enum(), HierarchicalGuardState::I);
+        sm.a();
+        sm.b(false);
+        assert_eq!(sm.state, HierarchicalGuardState::I);
     }
 }

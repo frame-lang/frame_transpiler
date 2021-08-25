@@ -1,15 +1,14 @@
-#![allow(non_snake_case)]
+use convert_case::{Case, Casing};
+use yaml_rust::Yaml;
 
 use super::super::ast::*;
 use super::super::scanner::{Token, TokenType};
 use super::super::symbol_table::*;
 use super::super::visitors::*;
-use yaml_rust::Yaml;
 
 struct ConfigFeatures {
-    lower_case_states: bool,
-    introspection: bool,
     generate_action_impl: bool,
+    follow_rust_naming: bool,
 }
 
 struct Config {
@@ -30,8 +29,7 @@ struct Config {
     state_context_name: String,
     state_context_suffix: String,
     state_context_var_name: String,
-    state_context_var_name_suffix: String,
-    state_context_struct_name: String,
+    state_context_method_suffix: String,
     this_state_context_var_name: String,
     frame_event_message_type_name: String,
     frame_event_type_name: String,
@@ -42,13 +40,13 @@ struct Config {
     frame_event_parameters_attribute_name: String,
     frame_event_message_attribute_name: String,
     frame_event_return_attribute_name: String,
-    frame_state_type_name: String,
     state_var_name: String,
-    state_var_name_prefix: String,
-    state_var_name_suffix: String,
+    state_handler_name_prefix: String,
+    state_handler_name_suffix: String,
     state_enum_suffix: String,
     state_enum_traits: String,
     initialize_method_name: String,
+    handle_event_method_name: String,
     transition_method_name: String,
     change_state_method_name: String,
     transition_hook_method_name: Option<String>,
@@ -62,21 +60,15 @@ impl Config {
         // println!("{:?}", rust_yaml);
         let features_yaml = &rust_yaml["features"];
         let config_features = ConfigFeatures {
-            lower_case_states: (&features_yaml["lower_case_states"])
-                .as_bool()
-                .unwrap_or(false)
-                .to_string()
-                .parse()
-                .unwrap(),
-            introspection: (&features_yaml["introspection"])
-                .as_bool()
-                .unwrap_or(false)
-                .to_string()
-                .parse()
-                .unwrap(),
             generate_action_impl: (&features_yaml["generate_action_impl"])
                 .as_bool()
                 .unwrap_or(true)
+                .to_string()
+                .parse()
+                .unwrap(),
+            follow_rust_naming: (&features_yaml["follow_rust_naming"])
+                .as_bool()
+                .unwrap_or(false)
                 .to_string()
                 .parse()
                 .unwrap(),
@@ -123,11 +115,11 @@ impl Config {
                 .as_str()
                 .unwrap_or_default()
                 .to_string(),
-            state_var_name_prefix: (&code_yaml["state_var_name_prefix"])
+            state_handler_name_prefix: (&code_yaml["state_handler_name_prefix"])
                 .as_str()
                 .unwrap_or_default()
                 .to_string(),
-            state_var_name_suffix: (&code_yaml["state_var_name_suffix"])
+            state_handler_name_suffix: (&code_yaml["state_handler_name_suffix"])
                 .as_str()
                 .unwrap_or_default()
                 .to_string(),
@@ -147,15 +139,7 @@ impl Config {
                 .as_str()
                 .unwrap_or_default()
                 .to_string(),
-            state_context_var_name_suffix: (&code_yaml["state_context_var_name_suffix"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            state_context_struct_name: (&code_yaml["state_context_struct_name"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            frame_state_type_name: (&code_yaml["frame_state_type_name"])
+            state_context_method_suffix: (&code_yaml["state_context_method_suffix"])
                 .as_str()
                 .unwrap_or_default()
                 .to_string(),
@@ -220,6 +204,10 @@ impl Config {
                 .as_str()
                 .unwrap_or_default()
                 .to_string(),
+            handle_event_method_name: (&code_yaml["handle_event_method_name"])
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
             transition_method_name: (&code_yaml["transition_method_name"])
                 .as_str()
                 .unwrap_or_default()
@@ -277,8 +265,6 @@ pub struct RustVisitor {
 }
 
 impl RustVisitor {
-    //* --------------------------------------------------------------------- *//
-
     pub fn new(
         arcanium: Arcanum,
         config_yaml: &Yaml,
@@ -290,7 +276,7 @@ impl RustVisitor {
         compiler_version: &str,
         comments: Vec<Token>,
     ) -> RustVisitor {
-        let config = RustVisitor::loadConfig(config_yaml);
+        let config = RustVisitor::load_config(config_yaml);
 
         RustVisitor {
             compiler_version: compiler_version.to_string(),
@@ -316,10 +302,8 @@ impl RustVisitor {
             generate_state_stack,
             generate_change_state,
             generate_transition_state,
-            generate_transition_hook: config.config_features.introspection
-                && config.transition_hook_method_name.is_some(),
-            generate_change_state_hook: config.config_features.introspection
-                && config.change_state_hook_method_name.is_some(),
+            generate_transition_hook: config.transition_hook_method_name.is_some(),
+            generate_change_state_hook: config.change_state_hook_method_name.is_some(),
             current_message: String::new(),
             config,
         }
@@ -327,21 +311,17 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    // Enter/exit messages are formatted "stateName:>" or "stateName:<"
-
-    fn loadConfig(config_yaml: &Yaml) -> Config {
+    fn load_config(config_yaml: &Yaml) -> Config {
         let codegen_yaml = &config_yaml["codegen"];
         let rust_yaml = &codegen_yaml["rust"];
         let config = Config::new(&rust_yaml);
-
         config
     }
 
     //* --------------------------------------------------------------------- *//
 
-    // Enter/exit messages are formatted "stateName:>" or "stateName:<"
-
-    pub fn isEnterOrExitMessage(&self, msg: &str) -> bool {
+    /// Enter/exit messages are formatted "stateName:>" or "stateName:<".
+    pub fn is_enter_or_exit_message(&self, msg: &str) -> bool {
         let split = msg.split(":");
         let vec: Vec<&str> = split.collect();
         vec.len() == 2
@@ -350,13 +330,14 @@ impl RustVisitor {
     //* --------------------------------------------------------------------- *//
 
     pub fn get_msg_enum(&self, msg: &str) -> String {
-        match msg {
+        let unformatted = match msg {
             // ">>" => self.config.start_system_msg.clone(),
             // "<<" => self.config.stop_system_msg.clone(),
             ">" => self.config.enter_msg.clone(),
             "<" => self.config.exit_msg.clone(),
             _ => self.arcanium.get_interface_or_msg_from_msg(msg).unwrap(),
-        }
+        };
+        self.format_type_name(&unformatted)
     }
 
     //* --------------------------------------------------------------------- *//
@@ -377,13 +358,12 @@ impl RustVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn format_frame_event_parameter_name(
-        &self, //                ,state_name_opt:&Option<String>
+        &self,
         unparsed_event_name: &str,
         param_name: &str,
     ) -> String {
         let (state_name_opt, event_name) = self.parse_event_name(&unparsed_event_name);
-
-        match &state_name_opt {
+        let unformatted_name = match &state_name_opt {
             Some(state_name) => format!(
                 "{}_{}_{}",
                 state_name,
@@ -399,22 +379,8 @@ impl RustVisitor {
                     None => format!("<Error - unknown message {}>,", &unparsed_event_name),
                 }
             }
-        }
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn format_state_context_variable_name(&self, state_name: &str) -> String {
-        format!(
-            "{}{}",
-            state_name, self.config.state_context_var_name_suffix
-        )
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn format_state_context_struct_name(&self, state_name: &str) -> String {
-        format!("{}{}", state_name, self.config.state_context_suffix)
+        };
+        self.format_value_name(&unformatted_name)
     }
 
     //* --------------------------------------------------------------------- *//
@@ -523,12 +489,14 @@ impl RustVisitor {
                     ));
                 } else if self.config.exit_token == self.current_message {
                     code.push_str(&format!(
-                        "{}.{}.as_ref().unwrap().get_{}_{}_{}()",
+                        "{}.{}.as_ref().unwrap().{}()",
                         self.config.frame_event_variable_name,
                         self.config.frame_event_parameters_attribute_name,
-                        self.current_state_name_opt.as_ref().unwrap(),
-                        self.config.exit_msg,
-                        variable_node.id_node.name.lexeme
+                        self.format_exit_param_getter(
+                            self.current_state_name_opt.as_ref().unwrap(),
+                            &self.config.exit_msg,
+                            &variable_node.id_node.name.lexeme
+                        )
                     ));
                 } else {
                     let msg = match &self
@@ -545,11 +513,10 @@ impl RustVisitor {
                         }
                     };
                     code.push_str(&format!(
-                        "{}.{}.as_ref().unwrap().get_{}_{}()",
+                        "{}.{}.as_ref().unwrap().{}()",
                         self.config.frame_event_variable_name,
                         self.config.frame_event_parameters_attribute_name,
-                        msg,
-                        variable_node.id_node.name.lexeme
+                        self.format_event_param_getter(&msg, &variable_node.id_node.name.lexeme)
                     ));
                 }
 
@@ -606,41 +573,96 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn format_action_name(&mut self, action_name: &String) -> String {
-        return format!(
-            "{}{}{}",
-            self.config.action_prefix, action_name, self.config.action_suffix
-        );
+    fn new_state_var_name(&self) -> String {
+        format!("new_{}", self.config.state_var_name)
+    }
+
+    fn new_state_context_var_name(&self) -> String {
+        format!("new_{}", self.config.state_context_var_name)
+    }
+
+    fn state_enum_type_name(&self) -> String {
+        self.format_type_name(&format!(
+            "{}{}",
+            self.system_name, self.config.state_enum_suffix
+        ))
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn uppercase_first_letter(s: &str) -> String {
-        // @TODO - not sure if this is a good idea or not
-        // let mut c = s.chars();
-        // match c.next() {
-        //     None => String::new(),
-        //     Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
-        // }
-        s.to_string()
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn format_state_name(&self, state_name: &str) -> String {
-        if self.config.config_features.lower_case_states {
-            return format!(
-                "{}{}{}",
-                self.config.state_var_name_prefix,
-                state_name.to_lowercase(),
-                self.config.state_var_name_suffix
-            );
-        } else {
-            return format!(
-                "{}{}{}",
-                self.config.state_var_name_prefix, state_name, self.config.state_var_name_suffix
-            );
+    /// Format a "type-level" name, e.g. a type, trait, or enum variant.
+    /// If Rust naming conventions are followed, these are in CamelCase.
+    fn format_type_name(&self, name: &String) -> String {
+        let mut formatted = name.clone();
+        if self.config.config_features.follow_rust_naming {
+            formatted = formatted.to_case(Case::UpperCamel);
         }
+        formatted
+    }
+
+    /// Format a "value-level" name, e.g. a function, method, variable.
+    /// If Rust naming conventions are followed, these are  in snake_case.
+    fn format_value_name(&self, name: &String) -> String {
+        let mut formatted = name.clone();
+        if self.config.config_features.follow_rust_naming {
+            formatted = formatted.to_case(Case::Snake);
+        }
+        formatted
+    }
+
+    fn format_action_name(&mut self, action_name: &String) -> String {
+        format!(
+            "{}{}{}",
+            self.config.action_prefix,
+            self.format_value_name(action_name),
+            self.config.action_suffix
+        )
+    }
+
+    fn format_getter_name(&self, member_name: &str) -> String {
+        format!("get_{}", self.format_value_name(&member_name.to_string()))
+    }
+
+    fn format_setter_name(&self, member_name: &str) -> String {
+        format!("set_{}", self.format_value_name(&member_name.to_string()))
+    }
+
+    fn format_event_param_getter(&self, message_name: &str, param_name: &str) -> String {
+        self.format_getter_name(&format!("{}_{}", message_name, param_name))
+    }
+
+    fn format_exit_param_getter(
+        &self,
+        state_name: &str,
+        message_name: &str,
+        param_name: &str,
+    ) -> String {
+        self.format_getter_name(&format!("{}_{}_{}", state_name, message_name, param_name))
+    }
+
+    fn format_state_context_method_name(&self, state_name: &str) -> String {
+        format!(
+            "{}{}",
+            self.format_value_name(&state_name.to_string()),
+            self.config.state_context_method_suffix
+        )
+    }
+
+    fn format_state_context_struct_name(&self, state_name: &str) -> String {
+        format!(
+            "{}{}",
+            self.format_type_name(&state_name.to_string()),
+            self.config.state_context_suffix
+        )
+    }
+
+    fn format_state_handler_name(&self, state_name: &str) -> String {
+        format!(
+            "{}{}{}",
+            self.config.state_handler_name_prefix,
+            self.format_value_name(&state_name.to_string()),
+            self.config.state_handler_name_suffix
+        )
     }
 
     //* --------------------------------------------------------------------- *//
@@ -743,321 +765,685 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    fn generate_state_enum(&mut self, system_node: &SystemNode) {
+        // add derived traits
+        let mut traits = self.config.state_enum_traits.clone();
+        match &system_node.attributes_opt {
+            Some(attributes) => {
+                if let Some(new_traits) = attributes.get("override_state_enum_traits") {
+                    traits = new_traits.value.clone();
+                }
+                if let Some(new_traits) = attributes.get("extend_state_enum_traits") {
+                    if traits.is_empty() {
+                        traits = new_traits.value.clone();
+                    } else {
+                        traits = format!("{}, {}", traits, new_traits.value);
+                    }
+                }
+            }
+            None => {}
+        }
+        self.add_code("#[allow(clippy::upper_case_acronyms)]");
+        self.newline();
+        self.add_code("#[allow(dead_code)]");
+        self.newline();
+        if !traits.is_empty() {
+            self.add_code(&format!("#[derive({})]", traits));
+            self.newline();
+        }
+
+        // add the state enum type
+        self.add_code(&format!("pub enum {} {{", self.state_enum_type_name()));
+        self.indent();
+        if let Some(machine_block_node) = &system_node.machine_block_node_opt {
+            for state in &machine_block_node.states {
+                self.newline();
+                self.add_code(&format!("{},", self.format_type_name(&state.borrow().name)));
+            }
+        }
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    /// Generate the struct, enum, and supporting function definitions
+    /// related to state contexts. State contexts include state parameters,
+    /// state variables, and enter event parameters. Note that exit event
+    /// parameters are handed by a separate mechanism.
+    fn generate_state_context_defs(&mut self, system_node: &SystemNode) {
+        if let Some(machine_block_node) = &system_node.machine_block_node_opt {
+            for state in &machine_block_node.states {
+                let state_node = state.borrow();
+
+                // generate state parameter declarations for this state
+                let mut has_state_args = false;
+                match &state_node.params_opt {
+                    Some(params) => {
+                        has_state_args = true;
+                        self.add_code("#[allow(dead_code)]");
+                        self.newline();
+                        self.add_code(&format!("struct {}StateArgs {{", state_node.name));
+                        self.indent();
+                        for param in params {
+                            let param_type = match &param.param_type_opt {
+                                Some(param_type) => param_type.get_type_str(),
+                                None => String::from("<?>"),
+                            };
+                            self.newline();
+                            self.add_code(&format!(
+                                "{}: {},",
+                                self.format_value_name(&param.param_name),
+                                param_type
+                            ));
+                        }
+                        self.outdent();
+                        self.newline();
+                        self.add_code("}");
+                        self.newline();
+                        self.newline();
+                    }
+                    None => {}
+                }
+
+                // generate state variable declarations for this state
+                let mut has_state_vars = false;
+                match &state_node.vars_opt {
+                    Some(var_decl_nodes) => {
+                        has_state_vars = true;
+                        self.add_code("#[allow(dead_code)]");
+                        self.newline();
+                        self.add_code(&format!("struct {}StateVars {{", state_node.name));
+                        self.indent();
+                        // self.add_code(&format!("{}: (",self.config.enter_arg_prefix));
+                        for var_decl_node in var_decl_nodes {
+                            let var_type = match &var_decl_node.borrow().type_opt {
+                                Some(var_type) => var_type.get_type_str(),
+                                None => "<?>".to_string(),
+                            };
+                            self.newline();
+                            self.add_code(&format!(
+                                "{}: {},",
+                                self.format_value_name(&var_decl_node.borrow().name),
+                                &var_type
+                            ));
+                        }
+                        self.outdent();
+                        self.newline();
+                        self.add_code("}");
+                        self.newline();
+                        self.newline();
+                    }
+                    None => {}
+                }
+
+                // generate enter event parameters for this state
+                let mut has_enter_event_params = false;
+                match &state_node.enter_event_handler_opt {
+                    Some(enter_event_handler) => {
+                        let eeh_ref = &enter_event_handler.borrow();
+                        let event_symbol = eeh_ref.event_symbol_rcref.borrow();
+                        match &event_symbol.params_opt {
+                            Some(params) => {
+                                has_enter_event_params = true;
+                                self.add_code("#[allow(dead_code)]");
+                                self.newline();
+                                self.add_code(&format!("struct {}EnterArgs {{", state_node.name));
+                                self.indent();
+                                for param in params {
+                                    let param_type = match &param.param_type_opt {
+                                        Some(param_type) => param_type.get_type_str(),
+                                        None => "<?>".to_string(),
+                                    };
+                                    self.newline();
+                                    self.add_code(&format!(
+                                        "{}: {},",
+                                        self.format_value_name(&param.name),
+                                        &param_type
+                                    ));
+                                }
+                                self.outdent();
+                                self.newline();
+                                self.add_code("}");
+                                self.newline();
+                                self.newline();
+                            }
+                            None => {}
+                        }
+                    }
+                    None => {}
+                }
+
+                // generate state context struct for this state
+                self.add_code("#[allow(dead_code)]");
+                self.newline();
+                self.add_code(&format!(
+                    "struct {} {{",
+                    self.format_state_context_struct_name(&state_node.name)
+                ));
+                self.indent();
+
+                if has_state_args {
+                    self.newline();
+                    self.add_code(&format!(
+                        "{}: {}StateArgs,",
+                        self.config.state_args_var, state_node.name
+                    ));
+                }
+
+                if has_state_vars {
+                    self.newline();
+                    self.add_code(&format!(
+                        "{}: {}StateVars,",
+                        self.config.state_vars_var_name, state_node.name
+                    ));
+                }
+
+                if has_enter_event_params {
+                    self.newline();
+                    self.add_code(&format!(
+                        "{}: {}EnterArgs,",
+                        self.config.enter_args_member_name, state_node.name
+                    ));
+                }
+                self.outdent();
+                self.newline();
+                self.add_code("}");
+                self.newline();
+                self.newline();
+            }
+
+            // generate the enum type that unions all the state context types
+            self.add_code("#[allow(dead_code)]");
+            self.newline();
+            self.add_code(&format!("enum {} {{", self.config.state_context_name));
+            self.indent();
+            for state in &machine_block_node.states {
+                self.newline();
+                let state_node = state.borrow();
+                self.add_code(&format!(
+                    "{}(RefCell<{}>),",
+                    self.format_type_name(&state_node.name),
+                    self.format_state_context_struct_name(&state_node.name)
+                ));
+            }
+            self.outdent();
+            self.newline();
+            self.add_code("}");
+            self.newline();
+            self.newline();
+
+            // generate methods to conveniently get specific state contexts
+            // from a value of the enum type
+            self.add_code("#[allow(dead_code)]");
+            self.newline();
+            self.add_code(&format!("impl {} {{", self.config.state_context_name));
+            self.indent();
+            for state in &machine_block_node.states {
+                let state_node = state.borrow();
+                self.newline();
+                self.newline();
+                self.add_code(&format!(
+                    "fn {}(&self) -> &RefCell<{}> {{",
+                    self.format_state_context_method_name(&state_node.name),
+                    self.format_state_context_struct_name(&state_node.name)
+                ));
+                self.indent();
+                self.newline();
+                self.add_code("match self {");
+                self.indent();
+                self.newline();
+                self.add_code(&format!(
+                    "{}::{}(context) => context,",
+                    self.config.state_context_name,
+                    self.format_type_name(&state_node.name)
+                ));
+                self.newline();
+                self.add_code(&format!(
+                    "_ => panic!(\"Failed conversion to {}\"),",
+                    self.format_state_context_struct_name(&state_node.name)
+                ));
+                self.outdent();
+                self.newline();
+                self.add_code("}");
+                self.outdent();
+                self.newline();
+                self.add_code("}");
+            }
+            self.outdent();
+            self.newline();
+            self.newline();
+            self.add_code("}");
+        }
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    /// Generate the constructor function.
+    fn generate_constructor(&mut self, system_node: &SystemNode) {
+        self.add_code(&format!("pub fn new() -> {} {{", system_node.name));
+        self.indent();
+        self.newline();
+
+        // create initial state context
+        if self.generate_state_context {
+            self.add_code(&format!(
+                "let init_context = {} {{}};",
+                self.format_state_context_struct_name(&self.first_state_name)
+            ));
+            self.newline();
+            self.add_code(&format!(
+                "let context = {}::{}(RefCell::new(init_context));",
+                self.config.state_context_name,
+                self.format_type_name(&self.first_state_name)
+            ));
+            self.newline();
+        }
+
+        // begin create state machine
+        self.add_code(&format!("let mut machine = {} {{", system_node.name));
+        self.indent();
+        self.newline();
+        self.add_code(&format!(
+            "{}: {}::{},",
+            self.config.state_var_name,
+            self.state_enum_type_name(),
+            self.format_type_name(&self.first_state_name)
+        ));
+
+        // initialize the state stack
+        if self.generate_state_stack {
+            self.newline();
+            self.add_code(&format!(
+                "{}: Vec::new(),",
+                self.config.state_stack_var_name
+            ));
+        }
+
+        // initialize domain variables
+        if let Some(domain_block_node) = &system_node.domain_block_node_opt {
+            for variable_decl_node_rcref in &domain_block_node.member_variables {
+                let variable_decl_node = variable_decl_node_rcref.borrow();
+                // variable_decl_node.accept(self);
+                let var_init_expr = &variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
+                let mut code = String::new();
+                var_init_expr.accept_to_string(self, &mut code);
+                self.newline();
+                self.add_code(&format!("{}: {},", variable_decl_node.name, code));
+            }
+        }
+
+        if self.generate_state_context {
+            self.newline();
+            self.add_code(&format!(
+                "{}: Rc::new(context),",
+                self.config.state_context_var_name
+            ));
+        }
+
+        self.outdent();
+        self.newline();
+        self.add_code("};");
+        // end of create state machine
+
+        // run the initialize method on the new machine
+        self.newline();
+        self.add_code(&format!(
+            "machine.{}();",
+            self.config.initialize_method_name
+        ));
+        self.newline();
+
+        // return the new machine
+        self.add_code("machine");
+
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    /// Generate the initialize method.
+    fn generate_initialize(&mut self) {
+        self.add_code(&format!(
+            "pub fn {}(&mut self) {{",
+            self.config.initialize_method_name
+        ));
+        self.indent();
+        self.newline();
+        self.add_code(&format!(
+            "let mut e = {}::new({}::{}, None);",
+            self.config.frame_event_type_name,
+            self.config.frame_event_message_type_name,
+            self.config.enter_msg
+        ));
+        self.newline();
+        self.add_code(&format!(
+            "self.{}(&mut e);",
+            self.config.handle_event_method_name
+        ));
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    /// Generate the event handling and state transition machinery.
     fn generate_machinery(&mut self, system_node: &SystemNode) {
         self.newline();
         self.newline();
         self.add_code("//=============== Machinery and Mechanisms ==============//");
         self.newline();
-        if self.config.config_features.introspection {
-            self.newline();
-            self.add_code(&format!(
-                "pub fn get_{}_enum(&self, state: {}) -> Option<{}{}> {{",
-                self.config.state_var_name,
-                self.config.frame_state_type_name,
-                self.system_name,
-                self.config.state_enum_suffix
-            ));
-            self.indent();
-            self.newline();
-            if let Some(machine_block_node) = &system_node.machine_block_node_opt {
-                let mut if_else_if = String::from("if");
-                for state in &machine_block_node.states {
-                    self.add_code(&format!(
-                        "{} state as *const {} == {}::{} as *const {} {{",
-                        if_else_if,
-                        self.config.frame_state_type_name,
-                        self.system_name,
-                        self.format_state_name(state.borrow().name.as_str()),
-                        self.config.frame_state_type_name
-                    ));
-                    self.indent();
-                    self.newline();
-                    self.add_code(&format!(
-                        "Some({}{}::{})",
-                        self.system_name,
-                        self.config.state_enum_suffix,
-                        state.borrow().name
-                    ));
-                    self.outdent();
-                    self.newline();
-                    self.add_code("}");
-                    if_else_if = " else if".to_string();
-                }
-            }
-            self.add_code(" else {");
-            self.indent();
-            self.newline();
-            self.add_code("None");
-            self.outdent();
-            self.newline();
-            self.add_code("}");
-            self.outdent();
-            self.newline();
-            self.add_code("}");
-            self.newline();
-            self.newline();
-            self.add_code(&format!(
-                "pub fn get_current_{}_enum(&self) -> {}{} {{",
-                self.config.state_var_name, self.system_name, self.config.state_enum_suffix
-            ));
-            self.indent();
-            self.newline();
-            self.add_code(&format!(
-                "self.get_{}_enum(self.state)",
-                self.config.state_var_name
-            ));
-            self.add_code(&format!(".expect(\"Machine in invalid state.\")"));
-            self.outdent();
-            self.newline();
-            self.add_code("}");
-            self.newline();
-        }
         self.newline();
         if let Some(_) = system_node.get_first_state() {
+            self.generate_handle_event(&system_node);
+            self.newline();
             if self.generate_transition_state {
-                if self.generate_state_context {
-                    if self.generate_exit_args {
-                        self.add_code(&format!(
-                            "fn {}(&mut self, new_state: {}, {}:Box<{}>, {}:Rc<RefCell<{}>>) {{",
-                            self.config.transition_method_name,
-                            self.config.frame_state_type_name,
-                            self.config.exit_args_member_name,
-                            self.config.frame_event_parameters_type_name,
-                            self.config.state_context_var_name,
-                            self.config.state_context_name
-                        ));
-                    } else {
-                        self.add_code(&format!(
-                            "fn {}(&mut self, new_state:{}, {}:Rc<RefCell<{}>>) {{",
-                            self.config.transition_method_name,
-                            self.config.frame_state_type_name,
-                            self.config.state_context_var_name,
-                            self.config.state_context_name
-                        ));
-                    }
-                } else {
-                    if self.generate_exit_args {
-                        self.add_code(&format!(
-                            "fn {}(&mut self, new_state: {}, {}:Box<{}>) {{",
-                            self.config.transition_method_name,
-                            self.config.frame_state_type_name,
-                            self.config.exit_args_member_name,
-                            self.config.frame_event_parameters_type_name
-                        ));
-                    } else {
-                        self.add_code(&format!(
-                            "fn {}(&mut self, new_state: {}) {{",
-                            self.config.transition_method_name, self.config.frame_state_type_name
-                        ));
-                    }
-                }
-                self.indent();
+                self.generate_transition();
                 self.newline();
-                if self.generate_transition_hook {
-                    self.add_code(&format!(
-                        "let old_state_enum = self.get_current_{}_enum();",
-                        self.config.state_var_name
-                    ));
-                    self.newline();
-                    self.add_code(&format!(
-                        "let new_state_enum = self.get_{}_enum(new_state)\
-                            .expect(\"Internal Frame error: transition to invalid new_state\");",
-                        self.config.state_var_name
-                    ));
-                    self.newline();
-                    self.add_code(&format!(
-                        "self.{}(old_state_enum, new_state_enum);",
-                        self.config.transition_hook_method_name.as_ref().unwrap()
-                    ));
-                    self.newline();
-                }
-                if self.generate_exit_args {
-                    self.add_code(&format!(
-                        "let mut exit_event = {}::new({}::{}, Some({}));",
-                        self.config.frame_event_type_name,
-                        self.config.frame_event_message_type_name,
-                        self.config.exit_msg,
-                        self.config.exit_args_member_name
-                    ));
-                } else {
-                    self.add_code(&format!(
-                        "let mut exit_event = {}::new({}::{}, None);",
-                        self.config.frame_event_type_name,
-                        self.config.frame_event_message_type_name,
-                        self.config.exit_msg
-                    ));
-                }
-                self.newline();
-                self.add_code(&format!(
-                    "(self.{})(self, &mut exit_event);",
-                    &self.config.state_var_name
-                ));
-                self.newline();
-                self.add_code(&format!(
-                    "self.{} = new_state;",
-                    &self.config.state_var_name
-                ));
-                self.newline();
-                if self.generate_state_context {
-                    self.add_code(&format!(
-                        "self.{} = {}.clone();",
-                        &self.config.state_context_var_name, &self.config.state_context_var_name
-                    ));
-                    self.newline();
-                }
-                self.add_code(&format!(
-                    "let mut enter_event = {}::new({}::{}, None);",
-                    self.config.frame_event_type_name,
-                    self.config.frame_event_message_type_name,
-                    self.config.enter_msg
-                ));
-                self.newline();
-                self.add_code(&format!(
-                    "(self.{})(self, &mut enter_event);",
-                    &self.config.state_var_name
-                ));
-                self.outdent();
-                self.newline();
-                self.add_code(&format!("}}"));
             }
             if self.generate_state_stack {
+                self.generate_state_stack();
                 self.newline();
-                if self.generate_state_context {
-                    self.newline();
-                    self.add_code(&format!(
-                        "fn {}(&mut self, {}:Rc<RefCell<{}>>) {{",
-                        self.config.state_stack_push_method_name,
-                        self.config.state_context_var_name,
-                        self.config.state_context_name
-                    ));
-                    self.indent();
-                    self.newline();
-                    self.add_code(&format!(
-                        "self.{}.push({});",
-                        self.config.state_stack_var_name, self.config.state_context_var_name
-                    ));
-                    self.outdent();
-                    self.newline();
-                    self.add_code(&format!("}}"));
-                    self.newline();
-                    self.newline();
-                    self.add_code(&format!(
-                        "fn {}(&mut self) -> Rc<RefCell<{}>> {{",
-                        self.config.state_stack_pop_method_name, self.config.state_context_name
-                    ));
-                    self.indent();
-                    self.newline();
-                    self.add_code(&format!(
-                        "let state_context_opt = self.{}.pop();",
-                        self.config.state_stack_var_name
-                    ));
-                    self.newline();
-                    self.add_code(&format!(" match state_context_opt {{"));
-                    self.indent();
-                    self.newline();
-                    self.add_code(&format!(
-                        "Some({}) => {},",
-                        self.config.state_context_var_name, self.config.state_context_var_name
-                    ));
-                    self.newline();
-                    self.add_code(&format!("None => panic!(\"Error - attempt to pop history when history stack is empty.\"),"));
-                    self.outdent();
-                    self.newline();
-                    self.add_code("}");
-                } else {
-                    self.newline();
-                    self.add_code(&format!(
-                        "fn {}(&mut self, state: {}) {{",
-                        self.config.state_stack_push_method_name, self.config.frame_state_type_name
-                    ));
-                    self.indent();
-                    self.newline();
-                    self.add_code(&format!(
-                        "self.{}.push(Rc::new(RefCell::new(state)));",
-                        self.config.state_stack_var_name
-                    ));
-                    self.outdent();
-                    self.newline();
-                    self.add_code(&format!("}}"));
-                    self.newline();
-                    self.newline();
-
-                    self.add_code(&format!(
-                        "fn {}(&mut self) -> {} {{",
-                        self.config.state_stack_pop_method_name, self.config.frame_state_type_name
-                    ));
-                    self.indent();
-                    self.newline();
-                    self.add_code(&format!(
-                        "let state_opt = self.{}.pop();",
-                        self.config.state_stack_var_name
-                    ));
-                    self.newline();
-                    self.add_code(&format!(" match state_opt {{"));
-                    self.indent();
-                    self.newline();
-                    self.add_code(&format!("Some(state) => *state.borrow(),"));
-                    self.newline();
-                    self.add_code(&format!("None => panic!(\"Error - attempt to pop history when history stack is empty.\"),"));
-                    self.outdent();
-                    self.newline();
-                    self.add_code("}");
-                }
-
-                self.outdent();
-                self.newline();
-                self.add_code("}");
             }
             if self.generate_change_state {
+                self.generate_change_state();
                 self.newline();
-                self.newline();
-                if self.generate_change_state_hook {
-                    self.add_code(&format!(
-                        "let old_state_enum = self.get_current_{}_enum();",
-                        self.config.state_var_name
-                    ));
-                    self.newline();
-                    self.add_code(&format!(
-                        "let new_state_enum = self.get_{}_enum(new_state)\
-                            .expect(\"Internal Frame error: change_state to invalid new_state\");",
-                        self.config.state_var_name
-                    ));
-                    self.newline();
-                    self.add_code(&format!(
-                        "self.{}(old_state_enum, new_state_enum);",
-                        self.config.change_state_hook_method_name.as_ref().unwrap()
-                    ));
-                    self.newline();
-                }
-                self.add_code(&format!(
-                    "fn {}(&mut self, new_state: {}) {{",
-                    self.config.change_state_method_name, self.config.frame_state_type_name
-                ));
-                self.indent();
-                self.newline();
-                self.add_code(&format!(
-                    "self.{} = new_state;",
-                    &self.config.state_var_name
-                ));
-
-                self.outdent();
-                self.newline();
-                self.add_code(&format!("}}"));
             }
-            //self.newline();
-
             if self.arcanium.is_serializable() {
                 for line in self.serialize.iter() {
                     self.code.push_str(&*format!("{}", line));
                     self.code.push_str(&*format!("\n{}", self.dent()));
                 }
-
                 for line in self.deserialize.iter() {
                     self.code.push_str(&*format!("{}", line));
                     self.code.push_str(&*format!("\n{}", self.dent()));
                 }
             }
         }
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    /// Generate the change_state method.
+    fn generate_change_state(&mut self) {
+        self.add_code(&format!(
+            "fn {}(&mut self, {}: {}) {{",
+            self.config.change_state_method_name,
+            self.new_state_var_name(),
+            self.state_enum_type_name()
+        ));
+        self.indent();
+        self.newline();
+        if self.generate_change_state_hook {
+            self.add_code(&format!(
+                "let old_state = self.{};",
+                self.config.state_var_name
+            ));
+            self.newline();
+            self.add_code(&format!(
+                "self.{}(old_state, {});",
+                self.config.change_state_hook_method_name.as_ref().unwrap(),
+                self.new_state_var_name(),
+            ));
+            self.newline();
+        }
+        self.add_code(&format!(
+            "self.{} = {};",
+            self.config.state_var_name,
+            self.new_state_var_name(),
+        ));
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.newline();
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    /// Generate the transition method.
+    fn generate_transition(&mut self) {
+        // generate method signature
+        if self.generate_state_context {
+            if self.generate_exit_args {
+                self.add_code(&format!(
+                    "fn {}(&mut self, {}: Option<Box<{}>>, {}: {}, {}: {}) {{",
+                    self.config.transition_method_name,
+                    self.config.exit_args_member_name,
+                    self.config.frame_event_parameters_type_name,
+                    self.new_state_var_name(),
+                    self.state_enum_type_name(),
+                    self.new_state_context_var_name(),
+                    self.config.state_context_name
+                ));
+            } else {
+                self.add_code(&format!(
+                    "fn {}(&mut self, {}: {}, {}: {}) {{",
+                    self.config.transition_method_name,
+                    self.new_state_var_name(),
+                    self.state_enum_type_name(),
+                    self.new_state_context_var_name(),
+                    self.config.state_context_name
+                ));
+            }
+        } else {
+            if self.generate_exit_args {
+                self.add_code(&format!(
+                    "fn {}(&mut self, {}: Option<Box<{}>>, {}: {}) {{",
+                    self.config.transition_method_name,
+                    self.config.exit_args_member_name,
+                    self.config.frame_event_parameters_type_name,
+                    self.new_state_var_name(),
+                    self.state_enum_type_name()
+                ));
+            } else {
+                self.add_code(&format!(
+                    "fn {}(&mut self, {}: {}) {{",
+                    self.config.transition_method_name,
+                    self.new_state_var_name(),
+                    self.state_enum_type_name()
+                ));
+            }
+        }
+        // generate method body
+        self.indent();
+        self.newline();
+        if self.generate_transition_hook {
+            self.add_code(&format!(
+                "let old_state = self.{};",
+                self.config.state_var_name
+            ));
+            self.newline();
+            self.add_code(&format!(
+                "self.{}(old_state, {});",
+                self.config.transition_hook_method_name.as_ref().unwrap(),
+                self.new_state_var_name()
+            ));
+            self.newline();
+        }
+        if self.generate_exit_args {
+            self.add_code(&format!(
+                "let mut exit_event = {}::new({}::{}, {});",
+                self.config.frame_event_type_name,
+                self.config.frame_event_message_type_name,
+                self.config.exit_msg,
+                self.config.exit_args_member_name
+            ));
+        } else {
+            self.add_code(&format!(
+                "let mut exit_event = {}::new({}::{}, None);",
+                self.config.frame_event_type_name,
+                self.config.frame_event_message_type_name,
+                self.config.exit_msg
+            ));
+        }
+        self.newline();
+        self.add_code(&format!(
+            "self.{}(&mut exit_event);",
+            self.config.handle_event_method_name
+        ));
+        self.newline();
+        self.add_code(&format!(
+            "self.{} = {};",
+            self.config.state_var_name,
+            self.new_state_var_name()
+        ));
+        self.newline();
+        if self.generate_state_context {
+            self.add_code(&format!(
+                "self.{} = Rc::new({});",
+                self.config.state_context_var_name,
+                self.new_state_context_var_name()
+            ));
+            self.newline();
+        }
+        self.add_code(&format!(
+            "let mut enter_event = {}::new({}::{}, None);",
+            self.config.frame_event_type_name,
+            self.config.frame_event_message_type_name,
+            self.config.enter_msg
+        ));
+        self.newline();
+        self.add_code(&format!(
+            "self.{}(&mut enter_event);",
+            &self.config.handle_event_method_name
+        ));
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.newline();
+    }
+
+    /// Generate state stack methods.
+    fn generate_state_stack(&mut self) {
+        if self.generate_state_context {
+            self.newline();
+            self.add_code(&format!(
+                "fn {}(&mut self, {}: Rc<{}>) {{",
+                self.config.state_stack_push_method_name,
+                self.config.state_context_var_name,
+                self.config.state_context_name
+            ));
+            self.indent();
+            self.newline();
+            self.add_code(&format!(
+                "self.{}.push({});",
+                self.config.state_stack_var_name, self.config.state_context_var_name
+            ));
+            self.outdent();
+            self.newline();
+            self.add_code(&format!("}}"));
+            self.newline();
+            self.newline();
+            self.add_code(&format!(
+                "fn {}(&mut self) -> Rc<{}> {{",
+                self.config.state_stack_pop_method_name, self.config.state_context_name
+            ));
+            self.indent();
+            self.newline();
+            self.add_code(&format!(
+                "let state_context_opt = self.{}.pop();",
+                self.config.state_stack_var_name
+            ));
+            self.newline();
+            self.add_code(&format!(" match state_context_opt {{"));
+            self.indent();
+            self.newline();
+            self.add_code(&format!(
+                "Some({}) => {},",
+                self.config.state_context_var_name, self.config.state_context_var_name
+            ));
+            self.newline();
+            self.add_code(&format!(
+                "None => panic!(\"Error - attempt to pop history when history stack is empty.\"),"
+            ));
+            self.outdent();
+            self.newline();
+            self.add_code("}");
+        } else {
+            self.newline();
+            self.add_code(&format!(
+                "fn {}(&mut self, state: {}) {{",
+                self.config.state_stack_push_method_name,
+                self.state_enum_type_name()
+            ));
+            self.indent();
+            self.newline();
+            self.add_code(&format!(
+                "self.{}.push(Rc::new(RefCell::new(state)));",
+                self.config.state_stack_var_name
+            ));
+            self.outdent();
+            self.newline();
+            self.add_code(&format!("}}"));
+            self.newline();
+            self.newline();
+
+            self.add_code(&format!(
+                "fn {}(&mut self) -> {} {{",
+                self.config.state_stack_pop_method_name,
+                self.state_enum_type_name()
+            ));
+            self.indent();
+            self.newline();
+            self.add_code(&format!(
+                "let state_opt = self.{}.pop();",
+                self.config.state_stack_var_name
+            ));
+            self.newline();
+            self.add_code(&format!(" match state_opt {{"));
+            self.indent();
+            self.newline();
+            self.add_code(&format!("Some(state) => *state.borrow(),"));
+            self.newline();
+            self.add_code(&format!(
+                "None => panic!(\"Error - attempt to pop history when history stack is empty.\"),"
+            ));
+            self.outdent();
+            self.newline();
+            self.add_code("}");
+        }
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.newline();
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn generate_handle_event(&mut self, system_node: &SystemNode) {
+        self.add_code(&format!(
+            "fn {}(&mut self, {}: &mut {}) {{",
+            self.config.handle_event_method_name,
+            self.config.frame_event_variable_name,
+            self.config.frame_event_type_name
+        ));
+        self.indent();
+        self.newline();
+        self.add_code(&format!("match self.{} {{", self.config.state_var_name));
+        if let Some(machine_block_node) = &system_node.machine_block_node_opt {
+            self.indent();
+            for state in &machine_block_node.states {
+                self.newline();
+                self.add_code(&format!(
+                    "{}::{} => self.{}({}),",
+                    self.state_enum_type_name(),
+                    self.format_type_name(&state.borrow().name),
+                    self.format_state_handler_name(&state.borrow().name),
+                    self.config.frame_event_variable_name
+                ));
+            }
+        }
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.newline();
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1114,7 +1500,7 @@ impl RustVisitor {
             "self.{}({}::{});",
             self.config.change_state_method_name,
             self.system_name,
-            self.format_state_name(target_state_name)
+            self.format_state_handler_name(target_state_name)
         ));
     }
 
@@ -1139,10 +1525,6 @@ impl RustVisitor {
                 self.newline();
             }
             None => {}
-        }
-
-        if self.generate_state_context {
-            self.newline();
         }
 
         // -- Exit Arguments --
@@ -1189,12 +1571,11 @@ impl RustVisitor {
                                             self.format_frame_event_parameter_name(&msg, &p.name);
 
                                         self.add_code(&format!(
-                                            "(*{}).set_{}({});",
+                                            "(*{}).{}({});",
                                             self.config.exit_args_member_name,
-                                            parameter_enum_name,
+                                            self.format_setter_name(&parameter_enum_name),
                                             expr
                                         ));
-                                        self.newline();
                                         self.newline();
                                     }
                                     None => self.errors.push(format!(
@@ -1365,21 +1746,12 @@ impl RustVisitor {
 
         if self.generate_state_context {
             self.add_code(&format!(
-                "let {} = {} {{",
-                self.format_state_context_variable_name(target_state_name),
+                "let context = {} {{",
                 self.format_state_context_struct_name(target_state_name)
             ));
             self.indent();
-            self.newline();
-            self.add_code(&format!(
-                "state: {}::{},",
-                &self.system_name,
-                self.format_state_name(target_state_name)
-            ));
-            //        self.output_string_vec(&enter_arguments);
-            self.newline();
-
             if has_state_args {
+                self.newline();
                 self.add_code(&format!(
                     "{}: {},",
                     self.config.state_args_var, formatted_state_args
@@ -1403,62 +1775,55 @@ impl RustVisitor {
             self.newline();
             self.add_code("};");
             self.newline();
+            self.add_code(&format!(
+                "let next_state_context = {}::{}(RefCell::new(context));",
+                self.config.state_context_name,
+                self.format_type_name(&target_state_name.to_string())
+            ));
             self.newline();
             self.add_code(&format!(
-                "let next_state_context: {} = {}::{} {{",
-                self.config.state_context_name, self.config.state_context_name, target_state_name
+                "drop({});",
+                self.config.this_state_context_var_name
             ));
-            self.indent();
-            self.newline();
-            self.add_code(&format!(
-                "{}: {}",
-                &target_state_name,
-                self.format_state_context_variable_name(target_state_name)
-            ));
-            self.outdent();
-            self.newline();
-
-            self.add_code("};");
-            self.newline();
             self.newline();
         }
         let exit_args = if has_exit_args {
-            self.config.exit_args_member_name.clone()
+            format!("Some({})", self.config.exit_args_member_name)
         } else {
-            "null".to_string()
+            "None".to_string()
         };
         if self.generate_state_context {
             if self.generate_exit_args {
                 self.add_code(&format!(
-                    "self.{}({}::{}, {},Rc::new(RefCell::new(next_state_context)));",
+                    "self.{}({}, {}::{}, next_state_context);",
                     self.config.transition_method_name,
-                    self.system_name,
-                    self.format_state_name(target_state_name),
-                    exit_args
+                    exit_args,
+                    self.state_enum_type_name(),
+                    self.format_type_name(&target_state_name.to_string())
                 ));
             } else {
                 self.add_code(&format!(
-                    "self.{}({}::{},Rc::new(RefCell::new(next_state_context)));",
+                    "self.{}({}::{}, next_state_context);",
                     self.config.transition_method_name,
-                    self.system_name,
-                    self.format_state_name(target_state_name)
+                    self.state_enum_type_name(),
+                    self.format_type_name(&target_state_name.to_string())
                 ));
             }
         } else {
             if self.generate_exit_args {
                 self.add_code(&format!(
-                    "self.{}({}::{}, {});",
+                    "self.{}({}, {}::{});",
                     self.config.transition_method_name,
-                    self.system_name,
-                    self.format_state_name(target_state_name),
-                    exit_args
+                    exit_args,
+                    self.state_enum_type_name(),
+                    self.format_type_name(&target_state_name.to_string())
                 ));
             } else {
                 self.add_code(&format!(
                     "self.{}({}::{});",
                     self.config.transition_method_name,
-                    self.system_name,
-                    self.format_state_name(target_state_name)
+                    self.state_enum_type_name(),
+                    self.format_type_name(&target_state_name.to_string())
                 ));
             }
         }
@@ -1507,9 +1872,9 @@ impl RustVisitor {
                     match &event_sym.borrow().params_opt {
                         Some(event_params) => {
                             if exit_args.exprs_t.len() != event_params.len() {
-                                self.errors.push(format!(
-                                    "Fatal error: misaligned parameters to arguments."
-                                ));
+                                self.errors.push(
+                                    "Fatal error: misaligned parameters to arguments.".to_string(),
+                                );
                             }
                             let mut param_symbols_it = event_params.iter();
                             self.add_code(&format!(
@@ -1529,9 +1894,9 @@ impl RustVisitor {
                                             self.format_frame_event_parameter_name(&msg, &p.name);
 
                                         self.add_code(&format!(
-                                            "(*{}).set_{}({});",
+                                            "(*{}).{}({});",
                                             self.config.exit_args_member_name,
-                                            parameter_enum_name,
+                                            self.format_setter_name(&parameter_enum_name),
                                             expr
                                         ));
                                         self.newline();
@@ -1560,7 +1925,7 @@ impl RustVisitor {
             ));
             self.newline();
             self.add_code(&format!(
-                "let state = {}.borrow().getState();",
+                "let state = {}.borrow().get_state();",
                 self.config.state_context_var_name
             ));
         } else {
@@ -1629,64 +1994,6 @@ impl AstVisitor for RustVisitor {
 
         self.newline();
         self.newline();
-
-        if self.config.config_features.introspection {
-            // add derived traits
-            let mut traits = self.config.state_enum_traits.clone();
-            match &system_node.attributes_opt {
-                Some(attributes) => {
-                    if let Some(new_traits) = attributes.get("override_state_enum_traits") {
-                        traits = new_traits.value.clone();
-                    }
-                    if let Some(new_traits) = attributes.get("extend_state_enum_traits") {
-                        if traits.is_empty() {
-                            traits = new_traits.value.clone();
-                        } else {
-                            traits = format!("{}, {}", traits, new_traits.value);
-                        }
-                    }
-                }
-                None => {}
-            }
-
-            self.add_code("#[allow(clippy::upper_case_acronyms)]");
-            self.newline();
-
-            if !traits.is_empty() {
-                self.add_code(&format!("#[derive({})]", traits));
-                self.newline();
-            }
-
-            // add the state enum type
-            self.add_code(&format!(
-                "pub enum {}{} {{",
-                self.system_name, self.config.state_enum_suffix
-            ));
-
-            self.indent();
-            if let Some(machine_block_node) = &system_node.machine_block_node_opt {
-                for state in &machine_block_node.states {
-                    self.newline();
-                    self.add_code(&format!("{},", state.borrow().name));
-                }
-            }
-            self.outdent();
-            self.newline();
-
-            self.add_code("}");
-            self.newline();
-            self.newline();
-        }
-
-        // add state type alias
-        self.add_code(&format!(
-            "type {} = fn(&mut {}, &mut {});",
-            self.config.frame_state_type_name, &system_node.name, self.config.frame_event_type_name
-        ));
-
-        self.newline();
-        self.newline();
-
         self.add_code("#[allow(dead_code)]");
         self.newline();
         self.add_code("#[allow(non_camel_case_types)]");
@@ -1726,7 +2033,8 @@ impl AstVisitor for RustVisitor {
                                         );
                                     self.add_code(&format!(
                                         "{} {{ param: {} }},",
-                                        parameter_enum_name, param_type
+                                        self.format_type_name(&parameter_enum_name),
+                                        param_type
                                     ));
                                 }
                             }
@@ -1741,9 +2049,11 @@ impl AstVisitor for RustVisitor {
         self.outdent();
         self.newline();
         self.add_code("}");
-        self.newline();
-        self.newline();
 
+        self.newline();
+        self.newline();
+        self.add_code("#[allow(dead_code)]");
+        self.newline();
         self.add_code(&format!("enum {} {{", self.config.frame_event_return));
         self.indent();
         self.newline();
@@ -1755,8 +2065,8 @@ impl AstVisitor for RustVisitor {
                 if let Some(return_type) = &interface_method_node.borrow().return_type_opt {
                     self.newline();
                     self.add_code(&format!(
-                        "{} {{ return_type: {} }},",
-                        RustVisitor::uppercase_first_letter(&if_name),
+                        "{} {{ return_value: {} }},",
+                        self.format_type_name(&if_name),
                         return_type.get_type_str()
                     ));
                 }
@@ -1765,9 +2075,13 @@ impl AstVisitor for RustVisitor {
         self.outdent();
         self.newline();
         self.add_code("}");
-        self.newline();
-        self.newline();
 
+        self.newline();
+        self.newline();
+        self.add_code("#[allow(dead_code)]");
+        self.newline();
+        self.add_code("#[allow(non_snake_case)]");
+        self.newline();
         self.add_code(&format!("impl {} {{", self.config.frame_event_return));
         if let Some(interface_block_node) = &system_node.interface_block_node_opt {
             for interface_method_node in &interface_block_node.interface_methods {
@@ -1776,8 +2090,8 @@ impl AstVisitor for RustVisitor {
                     self.indent();
                     self.newline();
                     self.add_code(&format!(
-                        "fn get_{}_ret(&self) -> {} {{",
-                        interface_method_node.borrow().name,
+                        "fn {}(&self) -> {} {{",
+                        self.format_event_param_getter(&interface_method_node.borrow().name, "ret"),
                         return_type.get_type_str()
                     ));
                     self.indent();
@@ -1786,12 +2100,12 @@ impl AstVisitor for RustVisitor {
                     self.indent();
                     self.newline();
                     self.add_code(&format!(
-                        "{}::{} {{ return_type }} => return_type.clone(),",
+                        "{}::{} {{ return_value }} => return_value.clone(),",
                         self.config.frame_event_return,
-                        interface_method_node.borrow().name
+                        self.format_type_name(&interface_method_node.borrow().name)
                     ));
                     self.newline();
-                    self.add_code(&format!("_ => panic!(\"Invalid return type\"),"));
+                    self.add_code(&format!("_ => panic!(\"Invalid return value\"),"));
                     self.outdent();
                     self.newline();
                     self.add_code("}");
@@ -1832,6 +2146,8 @@ impl AstVisitor for RustVisitor {
         self.add_code("}");
         self.newline();
         self.newline();
+        self.add_code("#[allow(dead_code)]");
+        self.newline();
         self.add_code(&format!("impl {} {{", self.config.frame_event_type_name));
         self.indent();
         self.newline();
@@ -1860,235 +2176,15 @@ impl AstVisitor for RustVisitor {
         self.outdent();
         self.newline();
         self.add_code("}");
+
+        self.newline();
+        self.newline();
+        self.generate_state_enum(&system_node);
+        self.newline();
         self.newline();
 
         if self.generate_state_context {
-            if let Some(machine_block_node) = &system_node.machine_block_node_opt {
-                for state in &machine_block_node.states {
-                    self.newline();
-                    let state_node = state.borrow();
-
-                    // struct S0EnterArgs {
-                    //     x:i32,
-                    //     y:String,
-                    // }
-
-                    // generate state parameter declarations
-                    let mut has_state_args = false;
-                    match &state_node.params_opt {
-                        Some(params) => {
-                            has_state_args = true;
-                            self.indent();
-                            self.add_code(&format!("struct {}StateArgs {{", state_node.name));
-
-                            for param in params {
-                                let param_type = match &param.param_type_opt {
-                                    Some(param_type) => param_type.get_type_str(),
-                                    None => String::from("<?>"),
-                                };
-
-                                self.newline();
-                                self.add_code(&format!("{}: {},", param.param_name, param_type));
-                            }
-                            self.outdent();
-                            self.newline();
-                            self.add_code("}");
-                            self.newline();
-                            self.newline();
-                        }
-                        None => {}
-                    }
-
-                    // self.add_code(&format!("struct {}StateVars {{",state_node.name));
-                    // self.add_code("}");
-                    self.newline();
-                    self.newline();
-                    let mut has_state_vars = false;
-                    match &state_node.vars_opt {
-                        Some(var_decl_nodes) => {
-                            has_state_vars = true;
-                            self.add_code(&format!("struct {}StateVars {{", state_node.name));
-                            self.indent();
-                            // self.add_code(&format!("{}: (",self.config.enter_arg_prefix));
-                            for var_decl_node in var_decl_nodes {
-                                let var_type = match &var_decl_node.borrow().type_opt {
-                                    Some(var_type) => var_type.get_type_str(),
-                                    None => "<?>".to_string(),
-                                };
-                                self.newline();
-                                self.add_code(&format!(
-                                    "{}: {},",
-                                    var_decl_node.borrow().name,
-                                    &var_type
-                                ));
-                            }
-                            self.outdent();
-                            self.newline();
-                            self.add_code("}");
-                            self.newline();
-                            self.newline();
-                        }
-                        None => {}
-                    }
-
-                    let mut has_enter_event_params = false;
-                    match &state_node.enter_event_handler_opt {
-                        Some(enter_event_handler) => {
-                            let eeh_ref = &enter_event_handler.borrow();
-                            let event_symbol = eeh_ref.event_symbol_rcref.borrow();
-                            match &event_symbol.params_opt {
-                                Some(params) => {
-                                    has_enter_event_params = true;
-                                    self.add_code(&format!(
-                                        "struct {}EnterArgs {{",
-                                        state_node.name
-                                    ));
-                                    self.indent();
-                                    // self.add_code(&format!("{}: (",self.config.enter_arg_prefix));
-                                    for param in params {
-                                        let param_type = match &param.param_type_opt {
-                                            Some(param_type) => param_type.get_type_str(),
-                                            None => "<?>".to_string(),
-                                        };
-                                        self.newline();
-                                        self.add_code(&format!("{}: {},", param.name, &param_type));
-                                    }
-                                    self.outdent();
-                                    self.newline();
-                                    self.add_code("}");
-                                    self.newline();
-                                    self.newline();
-                                }
-                                None => {}
-                            }
-                        }
-                        None => {}
-                    }
-
-                    // Generate state context struct per state
-                    self.add_code(&format!(
-                        "struct {}{} {{",
-                        state_node.name, self.config.state_context_struct_name
-                    ));
-                    self.indent();
-                    self.newline();
-                    self.add_code(&format!("state: {},", self.config.frame_state_type_name));
-                    self.newline();
-
-                    if has_state_args {
-                        self.add_code(&format!(
-                            "{}: {}StateArgs,",
-                            self.config.state_args_var, state_node.name
-                        ));
-                        self.newline();
-                    }
-
-                    if has_state_vars {
-                        self.add_code(&format!(
-                            "{}: {}StateVars,",
-                            self.config.state_vars_var_name, state_node.name
-                        ));
-                        self.newline();
-                    }
-
-                    // generate enter event parameters
-                    if has_enter_event_params {
-                        self.add_code(&format!(
-                            "{}: {}EnterArgs,",
-                            self.config.enter_args_member_name, state_node.name
-                        ));
-                        self.newline();
-                    }
-                    // match &state_node.enter_event_handler_opt {
-                    //     Some(enter_event_handler) => {
-                    //         let eeh_ref = &enter_event_handler.borrow();
-                    //         let event_symbol = eeh_ref.event_symbol_rcref.borrow();
-                    //         match &event_symbol.params_opt {
-                    //             Some(params) => {
-                    //                 // for param in params {
-                    //                 //     let param_type = match &param.param_type_opt {
-                    //                 //         Some(param_type) => param_type.get_type_str(),
-                    //                 //         None => "<?>".to_string(),
-                    //                 //     };
-                    //                 //     self.add_code(&format!("{},",&param_type));
-                    //                 //     self.newline();
-                    //                 // }
-                    //                 // self.add_code("),");
-                    //                 // for param in params {
-                    //                 //          let param_type = match &param.param_type_opt {
-                    //                 //              Some(param_type) => param_type.get_type_str(),
-                    //                 //              None => "<?>".to_string(),
-                    //                 //          };
-                    //                 //          self.add_code(&format!("{}{}: {},",self.config.enter_arg_prefix,&param.name,&param_type));
-                    //                 //          self.newline();
-                    //                 //      }
-                    //             },
-                    //             None => {}
-                    //         }
-                    //     },
-                    //     None => {}
-                    // }
-                    //}
-                    self.outdent();
-                    self.newline();
-                    self.add_code("}");
-                    self.newline();
-                    self.newline();
-                }
-
-                self.add_code(&format!("enum {} {{", self.config.state_context_name));
-                self.indent();
-                for state in &machine_block_node.states {
-                    self.newline();
-                    let state_node = state.borrow();
-                    self.add_code(&format!(
-                        "{} {{{}: {}{}}},",
-                        state_node.name,
-                        state_node.name,
-                        state_node.name,
-                        self.config.state_context_name
-                    ))
-                }
-                self.outdent();
-                self.newline();
-                self.add_code("}");
-                self.newline();
-
-                self.newline();
-                self.add_code(&format!("impl {} {{", self.config.state_context_name));
-                self.indent();
-                self.newline();
-                self.add_code(&format!(
-                    "fn getState(&self) -> {} {{",
-                    self.config.frame_state_type_name
-                ));
-                self.indent();
-                self.newline();
-                self.add_code("match self {");
-                self.indent();
-                for state in &machine_block_node.states {
-                    self.newline();
-                    let state_node = state.borrow();
-                    self.add_code(&format!(
-                        "{}::{} {{{}}}  =>  {}.state,",
-                        self.config.state_context_name,
-                        state_node.name,
-                        state_node.name,
-                        state_node.name
-                    ))
-                }
-                self.outdent();
-                self.newline();
-                self.add_code("}");
-
-                self.outdent();
-                self.newline();
-                self.add_code("}");
-                self.outdent();
-                self.newline();
-                self.add_code("}");
-                self.newline();
-            }
+            self.generate_state_context_defs(&system_node);
         }
 
         if let Some(actions_block_node) = &system_node.actions_block_node_opt {
@@ -2101,6 +2197,8 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.add_code("#[allow(clippy::upper_case_acronyms)]");
         self.newline();
+        self.add_code("#[allow(dead_code)]");
+        self.newline();
         self.add_code(&format!("pub struct {} {{", self.system_name));
         self.indent();
         self.newline();
@@ -2108,7 +2206,8 @@ impl AstVisitor for RustVisitor {
         // generate state variable
         self.add_code(&format!(
             "{}: {},",
-            &self.config.state_var_name, self.config.frame_state_type_name
+            &self.config.state_var_name,
+            self.state_enum_type_name()
         ));
 
         // generate state context variable
@@ -2116,23 +2215,24 @@ impl AstVisitor for RustVisitor {
         if self.generate_state_context {
             self.newline();
             self.add_code(&format!(
-                "{}: Rc<RefCell<{}>>,",
-                self.config.state_context_var_name, self.config.state_context_struct_name
+                "{}: Rc<{}>,",
+                self.config.state_context_var_name, self.config.state_context_name
             ));
             if self.generate_state_stack {
                 self.newline();
                 self.add_code(&format!(
-                    "{}: Vec<Rc<RefCell<{}>>>,",
+                    "{}: Vec<Rc<{}>>,",
                     self.config.state_stack_var_name, self.config.state_context_name
                 ));
             }
         } else {
             if self.generate_state_stack {
                 self.newline();
-                self.add_code(&format!(
-                    "{}: Vec<Rc<RefCell<{}>>>,",
-                    self.config.state_stack_var_name, self.config.frame_state_type_name
-                ));
+                // TODO state refactor
+                // self.add_code(&format!(
+                //     "{}: Vec<Rc<{}>>,",
+                //     self.config.state_stack_var_name, self.config.frame_state_type_name
+                // ));
             }
         }
 
@@ -2148,9 +2248,9 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.newline();
 
-        self.add_code("#[allow(non_snake_case)]");
-        self.newline();
         self.add_code("#[allow(dead_code)]");
+        self.newline();
+        self.add_code("#[allow(non_snake_case)]");
         self.newline();
         self.add_code(&format!("impl {} {{", system_node.name));
         self.indent();
@@ -2167,141 +2267,11 @@ impl AstVisitor for RustVisitor {
         }
 
         if self.has_states {
-            // generate constructor
-
             self.newline();
-            self.add_code(&format!("pub fn new() -> {} {{", system_node.name));
-            self.indent();
-
-            if self.generate_state_context {
-                self.add_code(&format!(
-                    "let {} = {} {{",
-                    self.format_state_context_variable_name(&self.first_state_name),
-                    self.format_state_context_struct_name(&self.first_state_name)
-                ));
-                self.indent();
-                self.newline();
-                self.add_code(&format!(
-                    "{}: {}::{},",
-                    self.config.state_var_name,
-                    &self.system_name,
-                    self.format_state_name(&self.first_state_name)
-                ));
-
-                self.outdent();
-                self.newline();
-                self.add_code("};");
-                self.newline();
-                self.newline();
-                self.add_code(&format!(
-                    "let state_context: {} = {}::{} {{",
-                    self.config.state_context_name,
-                    self.config.state_context_name,
-                    &self.first_state_name
-                ));
-                self.indent();
-                self.newline();
-                self.add_code(&format!(
-                    "{}: {}",
-                    &self.first_state_name,
-                    self.format_state_context_variable_name(&self.first_state_name)
-                ));
-                self.outdent();
-                self.newline();
-
-                self.add_code("};");
-                self.newline();
-                self.newline();
-            }
-
+            self.generate_constructor(&system_node);
             self.newline();
-            self.add_code(&format!("let mut machine = {} {{", system_node.name));
-            self.indent();
             self.newline();
-            self.add_code(&format!(
-                "{}: {}::{},",
-                &self.config.state_var_name,
-                system_node.name,
-                self.format_state_name(&self.first_state_name)
-            ));
-
-            // generate history mechanism
-            if self.generate_state_stack {
-                self.newline();
-                self.add_code(&format!(
-                    "{}: Vec::new(),",
-                    self.config.state_stack_var_name
-                ));
-            }
-
-            if let Some(domain_block_node) = &system_node.domain_block_node_opt {
-                for variable_decl_node_rcref in &domain_block_node.member_variables {
-                    let variable_decl_node = variable_decl_node_rcref.borrow();
-                    //   variable_decl_node.accept(self);
-
-                    let var_init_expr =
-                        &variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
-                    let mut code = String::new();
-                    var_init_expr.accept_to_string(self, &mut code);
-                    self.newline();
-                    self.add_code(&format!("{}: {},", variable_decl_node.name, code));
-                }
-            }
-
-            if self.generate_state_context {
-                self.newline();
-
-                self.add_code(&format!(
-                    "{}:Rc::new(RefCell::new(state_context)),",
-                    self.config.state_context_var_name //   , self.config.state_context_var_name
-                                                       //  , self.config.state_context_var_name
-                ));
-            }
-
-            self.outdent();
-            self.newline();
-            self.add_code("};");
-
-            // run the initialize method on the new machine
-            self.newline();
-            self.add_code(&format!(
-                "machine.{}();",
-                self.config.initialize_method_name
-            ));
-            self.newline();
-
-            // return the new machine
-            self.add_code("machine");
-
-            self.outdent();
-            self.newline();
-            self.add_code("}");
-            self.newline();
-
-            // end of generate constructor
-
-            // generate initialize method
-            self.newline();
-            self.add_code(&format!(
-                "pub fn {}(&mut self) {{",
-                self.config.initialize_method_name
-            ));
-            self.indent();
-            self.newline();
-            self.add_code(&format!(
-                "let mut e = {}::new({}::{}, None);",
-                self.config.frame_event_type_name,
-                self.config.frame_event_message_type_name,
-                self.config.enter_msg
-            ));
-            self.newline();
-            self.add_code(&format!(
-                "(self.{})(self, &mut e);",
-                &self.config.state_var_name
-            ));
-            self.outdent();
-            self.newline();
-            self.add_code("}");
+            self.generate_initialize();
             self.newline();
         }
 
@@ -2366,6 +2336,8 @@ impl AstVisitor for RustVisitor {
         _interface_block_node: &InterfaceBlockNode,
     ) -> AstVisitorReturnType {
         self.newline();
+        self.add_code("#[allow(dead_code)]");
+        self.newline();
         self.add_code(&format!(
             "enum {} {{",
             self.config.frame_event_message_type_name
@@ -2379,14 +2351,17 @@ impl AstVisitor for RustVisitor {
         let events = self.arcanium.get_event_names();
         for event in &events {
             //    ret.push(k.clone());
-            if self.isEnterOrExitMessage(&event) {
+            if self.is_enter_or_exit_message(&event) {
                 continue;
             }
             let message_opt = self.arcanium.get_interface_or_msg_from_msg(&event);
             match message_opt {
-                Some(cannonical_message_name) => {
+                Some(canonical_message_name) => {
                     self.newline();
-                    self.add_code(&format!("{},", cannonical_message_name));
+                    self.add_code(&format!(
+                        "{},",
+                        self.format_type_name(&canonical_message_name)
+                    ));
                 }
                 None => {
                     self.newline();
@@ -2401,67 +2376,61 @@ impl AstVisitor for RustVisitor {
 
         self.newline();
         self.newline();
-        self.newline();
         self.add_code("#[allow(dead_code)]");
         self.newline();
-        if self.config.config_features.introspection {
-            self.add_code(&format!(
-                "impl std::fmt::Display for {} {{",
-                self.config.frame_event_message_type_name
-            ));
-            self.indent();
-            self.newline();
-            self.add_code("fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {");
-            self.indent();
-            self.newline();
-            self.add_code("match self {");
-            self.indent();
-            self.newline();
-            self.add_code(&format!(
-                "{}::{} => write!(f, \"{}\"),",
-                self.config.frame_event_message_type_name,
-                self.config.enter_msg,
-                self.config.enter_msg
-            ));
-            self.newline();
-            self.add_code(&format!(
-                "{}::{} => write!(f, \"{}\"),",
-                self.config.frame_event_message_type_name,
-                self.config.exit_msg,
-                self.config.exit_msg
-            ));
-            for event in &events {
-                //    ret.push(k.clone());
-                if self.isEnterOrExitMessage(&event) {
-                    continue;
+        self.add_code(&format!(
+            "impl std::fmt::Display for {} {{",
+            self.config.frame_event_message_type_name
+        ));
+        self.indent();
+        self.newline();
+        self.add_code("fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {");
+        self.indent();
+        self.newline();
+        self.add_code("match self {");
+        self.indent();
+        self.newline();
+        self.add_code(&format!(
+            "{}::{} => write!(f, \"{}\"),",
+            self.config.frame_event_message_type_name, self.config.enter_msg, self.config.enter_msg
+        ));
+        self.newline();
+        self.add_code(&format!(
+            "{}::{} => write!(f, \"{}\"),",
+            self.config.frame_event_message_type_name, self.config.exit_msg, self.config.exit_msg
+        ));
+        for event in &events {
+            //    ret.push(k.clone());
+            if self.is_enter_or_exit_message(&event) {
+                continue;
+            }
+            let message_opt = self.arcanium.get_interface_or_msg_from_msg(&event);
+            match message_opt {
+                Some(canonical_message_name) => {
+                    let formatted_message_name = self.format_type_name(&canonical_message_name);
+                    self.newline();
+                    self.add_code(&format!(
+                        "{}::{} => write!(f, \"{}\"),",
+                        self.config.frame_event_message_type_name,
+                        formatted_message_name,
+                        formatted_message_name
+                    ));
                 }
-                let message_opt = self.arcanium.get_interface_or_msg_from_msg(&event);
-                match message_opt {
-                    Some(cannonical_message_name) => {
-                        self.newline();
-                        self.add_code(&format!(
-                            "{}::{} => write!(f, \"{}\"),",
-                            self.config.frame_event_message_type_name,
-                            cannonical_message_name,
-                            cannonical_message_name
-                        ));
-                    }
-                    None => {
-                        self.newline();
-                        self.add_code(&format!("<Error - unknown message {}>,", &event));
-                    }
+                None => {
+                    self.newline();
+                    self.add_code(&format!("<Error - unknown message {}>,", &event));
                 }
             }
-            self.outdent();
-            self.newline();
-            self.add_code("}");
-            self.outdent();
-            self.newline();
-            self.add_code("}");
-            self.outdent();
-            self.newline();
-            self.add_code("}");
         }
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
 
         AstVisitorReturnType::InterfaceBlockNode {}
     }
@@ -2549,8 +2518,10 @@ impl AstVisitor for RustVisitor {
                                             &param.name,
                                         );
                                     self.add_code(&format!(
-                                        "fn set_{}(&mut self, {}: {}) {{",
-                                        parameter_enum_name, param.name, param_type
+                                        "fn {}(&mut self, {}: {}) {{",
+                                        self.format_setter_name(&parameter_enum_name),
+                                        param.name,
+                                        param_type
                                     ));
                                     self.indent();
                                     self.newline();
@@ -2568,7 +2539,7 @@ impl AstVisitor for RustVisitor {
                                     self.add_code(&format!(
                                         "{}::{} {{ param: {} }},",
                                         self.config.frame_event_parameter_type_name,
-                                        parameter_enum_name,
+                                        self.format_type_name(&parameter_enum_name),
                                         param.name
                                     ));
                                     self.outdent();
@@ -2580,8 +2551,9 @@ impl AstVisitor for RustVisitor {
                                     self.newline();
                                     self.newline();
                                     self.add_code(&format!(
-                                        "fn get_{}(&self) -> {} {{",
-                                        parameter_enum_name, param_type
+                                        "fn {}(&self) -> {} {{",
+                                        self.format_getter_name(&parameter_enum_name),
+                                        param_type
                                     ));
                                     self.indent();
                                     self.newline();
@@ -2602,7 +2574,7 @@ impl AstVisitor for RustVisitor {
                                     self.add_code(&format!(
                                         "{}::{} {{ param }} => param.clone(),",
                                         self.config.frame_event_parameter_type_name,
-                                        parameter_enum_name
+                                        self.format_type_name(&parameter_enum_name)
                                     ));
                                     self.newline();
                                     self.add_code("_ => panic!(\"Invalid parameter\"),");
@@ -2705,7 +2677,10 @@ impl AstVisitor for RustVisitor {
         interface_method_node: &InterfaceMethodNode,
     ) -> AstVisitorReturnType {
         self.newline();
-        self.add_code(&format!("pub fn {}(&mut self", interface_method_node.name));
+        self.add_code(&format!(
+            "pub fn {}(&mut self",
+            self.format_value_name(&interface_method_node.name)
+        ));
 
         match &interface_method_node.params {
             Some(params) => self.format_parameter_list(params).clone(),
@@ -2742,8 +2717,9 @@ impl AstVisitor for RustVisitor {
                             self.format_frame_event_parameter_name(&msg, &param.param_name);
                         self.newline();
                         self.add_code(&format!(
-                            "(*frame_parameters).set_{}({});",
-                            parameter_enum_name, pname
+                            "(*frame_parameters).{}({});",
+                            self.format_setter_name(&parameter_enum_name),
+                            pname
                         ));
                     }
                 }
@@ -2756,10 +2732,11 @@ impl AstVisitor for RustVisitor {
         // self.indent();
         self.newline();
         self.add_code(&format!(
-            "let mut e = {}::new({}::{}, {});",
+            "let mut {} = {}::new({}::{}, {});",
+            self.config.frame_event_variable_name,
             self.config.frame_event_type_name,
             self.config.frame_event_message_type_name,
-            &interface_method_node.name,
+            self.format_type_name(&interface_method_node.name),
             &params_param_code
         ));
         // self.indent();
@@ -2770,8 +2747,8 @@ impl AstVisitor for RustVisitor {
         // self.add_code("};");
         self.newline();
         self.add_code(&format!(
-            "(self.{})(self, &mut e);",
-            self.config.state_var_name
+            "self.{}(&mut {});",
+            self.config.handle_event_method_name, self.config.frame_event_variable_name,
         ));
 
         match &interface_method_node.return_type_opt {
@@ -2785,13 +2762,13 @@ impl AstVisitor for RustVisitor {
                 self.indent();
                 self.newline();
                 self.add_code(&format!(
-                    "{}::{} {{ return_type }} => return_type.clone(),",
+                    "{}::{} {{ return_value }} => return_value.clone(),",
                     self.config.frame_event_return,
-                    RustVisitor::uppercase_first_letter(&interface_method_node.name)
+                    self.format_type_name(&interface_method_node.name)
                 ));
                 self.newline();
                 self.add_code(&format!(
-                    "_ => panic!(\"Bad return type for {}\"),",
+                    "_ => panic!(\"Bad return value for {}\"),",
                     &interface_method_node.name
                 ));
                 self.outdent();
@@ -2938,11 +2915,17 @@ impl AstVisitor for RustVisitor {
 
         self.add_code("#[allow(clippy::needless_return)]");
         self.newline();
+        self.add_code("#[allow(unreachable_patterns)]");
+        self.newline();
+        self.add_code("#[allow(unused_mut)]");
+        self.newline();
         self.add_code("#[allow(unused_parens)]");
+        self.newline();
+        self.add_code("#[allow(unused_variables)]");
         self.newline();
         self.add_code(&format!(
             "fn {}(&mut self, {}: &mut {}) {{",
-            self.format_state_name(&state_node.name),
+            self.format_state_handler_name(&state_node.name),
             self.config.frame_event_variable_name,
             self.config.frame_event_type_name
         ));
@@ -2951,35 +2934,16 @@ impl AstVisitor for RustVisitor {
         if self.generate_state_context {
             self.newline();
             self.add_code(&format!(
-                "let {}_clone = self.{}.clone();",
-                self.config.state_context_var_name, self.config.state_context_var_name
-            ));
-            self.newline();
-            self.add_code(&format!(
-                "let state_context_ref = {}_clone.borrow();",
+                "let {0}_clone = self.{0}.clone();",
                 self.config.state_context_var_name
             ));
             self.newline();
             self.add_code(&format!(
-                "let mut {} = match &*state_context_ref {{",
-                self.config.this_state_context_var_name
+                "let mut {} = {}_clone.{}().borrow_mut();",
+                self.config.this_state_context_var_name,
+                self.config.state_context_var_name,
+                self.format_state_context_method_name(&state_name)
             ));
-            self.indent();
-            self.newline();
-            self.add_code(&format!(
-                "{}::{} {{ {} }} => {},",
-                self.config.state_context_name, &state_name, &state_name, &state_name
-            ));
-            self.newline();
-            self.add_code(&format!(
-                "_ => panic!(\"Invalid {} for {}\"),",
-                self.config.state_context_name, &state_name
-            ));
-            self.outdent();
-            self.newline();
-            self.add_code("};");
-            self.newline();
-            self.newline();
         }
 
         // @TODO
@@ -3054,11 +3018,7 @@ impl AstVisitor for RustVisitor {
             panic!("||* not supported for Rust.");
         }
         self.generate_comment(evt_handler_node.line);
-
         self.indent();
-        if self.generate_state_context {
-            self.newline();
-        }
 
         match &evt_handler_node.msg_t {
             MessageType::CustomMessage { .. } => {
@@ -3111,9 +3071,9 @@ impl AstVisitor for RustVisitor {
                             self.config.frame_event_return_attribute_name
                         ));
                         self.add_code(&format!(
-                            "{}::{} {{return_type:",
+                            "{}::{} {{ return_value: ",
                             self.config.frame_event_return,
-                            RustVisitor::uppercase_first_letter(&self.current_message)
+                            self.format_type_name(&self.current_message)
                         ));
                         expr_t.accept(self);
 
@@ -3328,9 +3288,9 @@ impl AstVisitor for RustVisitor {
         self.indent();
         self.newline();
         self.add_code(&format!(
-            "({}::{})(self,e);",
-            self.system_name,
-            self.format_state_name(&dispatch_node.target_state_ref.name)
+            "self.{}({});",
+            self.format_state_handler_name(&dispatch_node.target_state_ref.name),
+            self.config.frame_event_variable_name
         ));
         self.generate_comment(dispatch_node.line);
         self.outdent();
@@ -4094,7 +4054,7 @@ impl AstVisitor for RustVisitor {
                         self.config.state_context_var_name, self.config.state_stack_pop_method_name
                     ));
                     self.add_code(&format!(
-                        "let state = {}.borrow().getState();",
+                        "let state = {}.borrow().get_state();",
                         self.config.state_context_var_name
                     ));
                 } else {
@@ -4145,21 +4105,20 @@ impl AstVisitor for RustVisitor {
                 is_reference,
             } => {
                 self.add_code(&format!(
-                    "{}{}.{}.as_ref().unwrap().get_{}_{}()",
+                    "{}{}.{}.as_ref().unwrap().{}()",
                     if *is_reference { "&" } else { "" },
                     self.config.frame_event_variable_name,
                     self.config.frame_event_parameters_attribute_name,
-                    self.current_message,
-                    param_tok.lexeme
+                    self.format_event_param_getter(&self.current_message, &param_tok.lexeme)
                 ));
             }
             FrameEventPart::Return { is_reference } => {
                 self.add_code(&format!(
-                    "{}{}.{}.get_{}_ret()",
+                    "{}{}.{}.{}()",
                     if *is_reference { "&" } else { "" },
                     self.config.frame_event_variable_name,
                     self.config.frame_event_return_attribute_name,
-                    self.current_message
+                    self.format_event_param_getter(&self.current_message, "ret")
                 ));
                 // self.add_code(&format!("{}{}.{}"
                 //                         ,if *is_reference {"&"} else {""}
@@ -4197,20 +4156,19 @@ impl AstVisitor for RustVisitor {
                 is_reference,
             } => {
                 output.push_str(&format!(
-                    "{}{}.{}.as_ref().unwrap().get_{}_{}()",
+                    "{}{}.{}.as_ref().unwrap().{}()",
                     if *is_reference { "&" } else { "" },
                     self.config.frame_event_variable_name,
                     self.config.frame_event_parameters_attribute_name,
-                    self.current_message,
-                    param_tok.lexeme
+                    self.format_event_param_getter(&self.current_message, &param_tok.lexeme)
                 ));
             }
             FrameEventPart::Return { is_reference } => output.push_str(&format!(
-                "{}{}.{}.get_{}_ret()",
+                "{}{}.{}.{}()",
                 if *is_reference { "&" } else { "" },
                 self.config.frame_event_variable_name,
                 self.config.frame_event_return_attribute_name,
-                self.current_message
+                self.format_event_param_getter(&self.current_message, "ret")
             )),
         }
 
@@ -4323,15 +4281,15 @@ impl AstVisitor for RustVisitor {
         variable_decl_node: &VariableDeclNode,
     ) -> AstVisitorReturnType {
         let var_type = match &variable_decl_node.type_opt {
-            Some(x) => x.get_type_str(),
-            None => String::from("<?>"),
+            Some(x) => format!(": {}", x.get_type_str()),
+            None => String::new(),
         };
         let var_name = &variable_decl_node.name;
         let var_init_expr = &variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
         self.newline();
         let mut code = String::new();
         var_init_expr.accept_to_string(self, &mut code);
-        self.add_code(&format!("let {}: {} = {};", var_name, var_type, code));
+        self.add_code(&format!("let {}{} = {};", var_name, var_type, code));
 
         // currently unused serialization code
         // self.serialize.push(format!("\tbag.domain[\"{}\"] = {};",var_name,var_name));
@@ -4398,9 +4356,9 @@ impl AstVisitor for RustVisitor {
                 ));
 
                 self.add_code(&format!(
-                    "{}::{} {{ return_type: {}}};",
+                    "{}::{} {{ return_value: {}}};",
                     self.config.frame_event_return,
-                    RustVisitor::uppercase_first_letter(&self.current_message),
+                    self.format_type_name(&self.current_message),
                     code
                 ));
             }

@@ -21,7 +21,7 @@ mod tests {
     fn hierarchical_entry_calls() {
         let mut sm = Hierarchical::new();
         sm.entry_log.clear();
-        sm.A();
+        sm.a();
         assert_eq!(sm.entry_log, vec!["S", "S0"]);
     }
 
@@ -30,21 +30,21 @@ mod tests {
     #[ignore]
     fn hierarchical_exit_calls() {
         let mut sm = Hierarchical::new();
-        sm.A();
+        sm.a();
         sm.exit_log.clear();
-        sm.C();
+        sm.c();
         assert_eq!(sm.exit_log, vec!["S", "S0"]);
     }
 
     #[test]
     fn hierarchical_current_state() {
         let mut sm = Hierarchical::new();
-        assert_eq!(sm.get_current_state_enum(), HierarchicalState::I);
-        sm.A();
-        assert_eq!(sm.get_current_state_enum(), HierarchicalState::S0);
-        sm.B();
-        assert_eq!(sm.get_current_state_enum(), HierarchicalState::S1);
-        sm.C();
-        assert_eq!(sm.get_current_state_enum(), HierarchicalState::I);
+        assert_eq!(sm.state, HierarchicalState::I);
+        sm.a();
+        assert_eq!(sm.state, HierarchicalState::S0);
+        sm.b();
+        assert_eq!(sm.state, HierarchicalState::S1);
+        sm.c();
+        assert_eq!(sm.state, HierarchicalState::I);
     }
 }
