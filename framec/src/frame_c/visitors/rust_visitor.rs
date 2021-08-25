@@ -253,6 +253,7 @@ pub struct RustVisitor {
     has_states: bool,
     errors: Vec<String>,
     visiting_call_chain_literal_variable: bool,
+    handler_transitioned: bool,
     generate_exit_args: bool,
     generate_state_context: bool,
     generate_state_stack: bool,
@@ -295,6 +296,7 @@ impl RustVisitor {
             errors: Vec::new(),
             warnings: Vec::new(),
             visiting_call_chain_literal_variable: false,
+            handler_transitioned: false,
             generate_exit_args,
             generate_state_context,
             generate_state_stack,
@@ -3080,9 +3082,14 @@ impl AstVisitor for RustVisitor {
                     self.add_code("return;")
                 }
             },
-            TerminatorType::Continue => {}
+            TerminatorType::Continue => {
+                if self.handler_transitioned {
+                    self.newline();
+                    self.add_code("return;")
+                }
+            }
         }
-
+        self.handler_transitioned = false;
         AstVisitorReturnType::EventHandlerTerminatorNode {}
     }
 
@@ -3236,6 +3243,7 @@ impl AstVisitor for RustVisitor {
                 self.generate_state_stack_pop_transition(transition_statement)
             }
         };
+        self.handler_transitioned = true;
 
         AstVisitorReturnType::CallStatementNode {}
     }
@@ -3262,6 +3270,7 @@ impl AstVisitor for RustVisitor {
                 "Fatal error - change state stack pop not implemented."
             )),
         };
+        self.handler_transitioned = true;
 
         AstVisitorReturnType::ChangeStateStmtNode {}
     }
