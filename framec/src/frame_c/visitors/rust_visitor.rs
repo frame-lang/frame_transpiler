@@ -245,7 +245,6 @@ pub struct RustVisitor {
     symbol_config: SymbolConfig,
     comments: Vec<Token>,
     current_comment_idx: usize,
-    first_event_handler: bool,
     system_name: String,
     first_state_name: String,
     serialize: Vec<String>,
@@ -288,7 +287,6 @@ impl RustVisitor {
             symbol_config: SymbolConfig::new(),
             comments,
             current_comment_idx: 0,
-            first_event_handler: true,
             system_name: String::new(),
             first_state_name: String::new(),
             serialize: Vec::new(),
@@ -2968,8 +2966,6 @@ impl AstVisitor for RustVisitor {
         ));
         self.indent();
 
-        self.first_event_handler = true; // context for formatting
-
         if state_node.evt_handlers_rcref.len() > 0 {
             for evt_handler_node in &state_node.evt_handlers_rcref {
                 evt_handler_node.as_ref().borrow().accept(self);
@@ -3046,7 +3042,6 @@ impl AstVisitor for RustVisitor {
         self.add_code(&format!("}}"));
 
         // this controls formatting here
-        self.first_event_handler = false;
         self.current_message = String::new();
         self.current_event_ret_type = String::new();
 
