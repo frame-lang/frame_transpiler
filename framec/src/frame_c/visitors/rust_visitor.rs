@@ -2972,17 +2972,18 @@ impl AstVisitor for RustVisitor {
             }
         }
         self.newline();
-        self.add_code("_ => {");
+        self.add_code("_ => {}");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+
+        // generate call to parent handler, if applicable
         match &state_node.dispatch_opt {
             Some(dispatch) => {
                 dispatch.accept(self);
             }
             None => {}
         }
-        self.add_code("}");
-        self.outdent();
-        self.newline();
-        self.add_code("}");
         self.outdent();
         self.newline();
         self.add_code("}");
@@ -3054,35 +3055,32 @@ impl AstVisitor for RustVisitor {
         &mut self,
         evt_handler_terminator_node: &TerminatorExpr,
     ) -> AstVisitorReturnType {
-        self.newline();
         match &evt_handler_terminator_node.terminator_type {
-            TerminatorType::Return => {
-                match &evt_handler_terminator_node.return_expr_t_opt {
-                    Some(expr_t) => {
-                        //                       return_type should be renamed return_value
-                        self.add_code(&format!(
-                            "{}.{} = ",
-                            self.config.frame_event_variable_name,
-                            self.config.frame_event_return_attribute_name
-                        ));
-                        self.add_code(&format!(
-                            "{}::{} {{ return_value: ",
-                            self.config.frame_event_return,
-                            self.format_type_name(&self.current_message)
-                        ));
-                        expr_t.accept(self);
+            TerminatorType::Return => match &evt_handler_terminator_node.return_expr_t_opt {
+                Some(expr_t) => {
+                    self.newline();
+                    self.add_code(&format!(
+                        "{}.{} = ",
+                        self.config.frame_event_variable_name,
+                        self.config.frame_event_return_attribute_name
+                    ));
+                    self.add_code(&format!(
+                        "{}::{} {{ return_value: ",
+                        self.config.frame_event_return,
+                        self.format_type_name(&self.current_message)
+                    ));
+                    expr_t.accept(self);
 
-                        self.add_code("};");
-                        self.newline();
-                        self.add_code("return;");
-                        self.newline();
-                    }
-                    None => self.add_code("return;"),
+                    self.add_code(" };");
+                    self.newline();
+                    self.add_code("return;");
                 }
-            }
-            TerminatorType::Continue => {
-                // self.add_code("break;")
-            }
+                None => {
+                    self.newline();
+                    self.add_code("return;")
+                }
+            },
+            TerminatorType::Continue => {}
         }
 
         AstVisitorReturnType::EventHandlerTerminatorNode {}
@@ -3280,7 +3278,6 @@ impl AstVisitor for RustVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_dispatch_node(&mut self, dispatch_node: &DispatchNode) -> AstVisitorReturnType {
-        self.indent();
         self.newline();
         self.add_code(&format!(
             "self.{}({});",
@@ -3288,9 +3285,6 @@ impl AstVisitor for RustVisitor {
             self.config.frame_event_variable_name
         ));
         self.generate_comment(dispatch_node.line);
-        self.outdent();
-        self.newline();
-
         AstVisitorReturnType::DispatchNode {}
     }
 
