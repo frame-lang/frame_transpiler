@@ -6,3 +6,4 @@ mod hierarchical_guard;
 mod state_params;
 mod state_vars;
 mod transition_params;
+mod var_scope;
