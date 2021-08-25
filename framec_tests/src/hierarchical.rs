@@ -105,7 +105,7 @@ mod tests {
     /// Test that location in a hierarchical state is represented correctly.
     /// In this test, several state transitions propagate message handling to
     /// parents, either by implicit fall-through or explicit continues.
-    fn current_state_foo() {
+    fn current_state_with_propagation() {
         let mut sm = Hierarchical::new();
         assert_eq!(sm.state, HierarchicalState::S);
         sm.a();
