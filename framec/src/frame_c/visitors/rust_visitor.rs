@@ -822,8 +822,10 @@ impl RustVisitor {
                 match &state_node.params_opt {
                     Some(params) => {
                         has_state_args = true;
-                        self.indent();
+                        self.add_code("#[allow(dead_code)]");
+                        self.newline();
                         self.add_code(&format!("struct {}StateArgs {{", state_node.name));
+                        self.indent();
                         for param in params {
                             let param_type = match &param.param_type_opt {
                                 Some(param_type) => param_type.get_type_str(),
@@ -849,6 +851,8 @@ impl RustVisitor {
                 match &state_node.vars_opt {
                     Some(var_decl_nodes) => {
                         has_state_vars = true;
+                        self.add_code("#[allow(dead_code)]");
+                        self.newline();
                         self.add_code(&format!("struct {}StateVars {{", state_node.name));
                         self.indent();
                         // self.add_code(&format!("{}: (",self.config.enter_arg_prefix));
@@ -882,6 +886,8 @@ impl RustVisitor {
                         match &event_symbol.params_opt {
                             Some(params) => {
                                 has_enter_event_params = true;
+                                self.add_code("#[allow(dead_code)]");
+                                self.newline();
                                 self.add_code(&format!("struct {}EnterArgs {{", state_node.name));
                                 self.indent();
                                 for param in params {
@@ -908,6 +914,8 @@ impl RustVisitor {
                 }
 
                 // generate state context struct for this state
+                self.add_code("#[allow(dead_code)]");
+                self.newline();
                 self.add_code(&format!(
                     "struct {} {{",
                     self.format_state_context_struct_name(&state_node.name)
@@ -945,6 +953,8 @@ impl RustVisitor {
             }
 
             // generate the enum type that unions all the state context types
+            self.add_code("#[allow(dead_code)]");
+            self.newline();
             self.add_code(&format!("enum {} {{", self.config.state_context_name));
             self.indent();
             for state in &machine_block_node.states {
@@ -964,6 +974,8 @@ impl RustVisitor {
 
             // generate methods to conveniently get specific state contexts
             // from a value of the enum type
+            self.add_code("#[allow(dead_code)]");
+            self.newline();
             self.add_code(&format!("impl {} {{", self.config.state_context_name));
             self.indent();
             for state in &machine_block_node.states {
@@ -2900,6 +2912,8 @@ impl AstVisitor for RustVisitor {
         self.add_code("#[allow(unused_mut)]");
         self.newline();
         self.add_code("#[allow(unused_parens)]");
+        self.newline();
+        self.add_code("#[allow(unused_variables)]");
         self.newline();
         self.add_code(&format!(
             "fn {}(&mut self, {}: &mut {}) {{",
