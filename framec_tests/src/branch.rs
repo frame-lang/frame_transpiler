@@ -132,7 +132,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     /// Test that a transition within a conditional expression returns from
     /// the handler early. That is, only the first executed transition applies.
     fn transition_returns_early() {

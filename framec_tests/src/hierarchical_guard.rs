@@ -31,7 +31,6 @@ mod tests {
     // Revisit: parent handler for event isn't getting called if child has handler
     // regardless of wether it results on transition or not
     #[test]
-    #[ignore]
     fn hierarchical_parent_transition_handler_with_guard() {
         let mut sm = HierarchicalGuard::new();
         sm.a();
