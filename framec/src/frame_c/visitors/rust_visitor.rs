@@ -3330,7 +3330,7 @@ impl AstVisitor for RustVisitor {
         self.newline();
         for branch_node in &bool_test_node.conditional_branch_nodes {
             if branch_node.is_negated {
-                self.add_code(&format!("{}!", if_or_else_if));
+                self.add_code(&format!("{}!(", if_or_else_if));
             } else {
                 self.add_code(&format!("{}", if_or_else_if));
             }
@@ -3338,7 +3338,7 @@ impl AstVisitor for RustVisitor {
             branch_node.expr_t.accept(self);
 
             if branch_node.is_negated {
-                self.add_code(&format!(""));
+                self.add_code(&format!(")"));
             }
             self.add_code(&format!(" {{"));
             self.indent();
