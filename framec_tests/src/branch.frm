@@ -5,6 +5,7 @@
     C
     D
     E
+    F
     OnBool [b:bool]
     OnInt [i:i16]
     
@@ -14,7 +15,8 @@
         |B| -> $NegatedIf ^
         |C| -> $Precedence ^
         |D| -> $NestedIf ^
-        |E| -> $TransitReturns ^
+        |E| -> $GuardedTransition ^
+        |F| -> $NestedGuardedTransition ^
     
     $SimpleIf
         |OnBool| [b:bool]
@@ -99,7 +101,7 @@
             ::
             ^
               
-      $TransitReturns
+      $GuardedTransition
           |OnInt| [i:i16]
               i > 100 ?
                   log("-> $F1")
@@ -110,6 +112,23 @@
                   log("-> $F2")
                   -> $F2
               ::
+              log("-> $F3")
+              -> $F3
+              ^
+      
+      $NestedGuardedTransition
+          |OnInt| [i:i16]
+              i > 10 ?
+                  i > 100 ?
+                      log("-> $F1")
+                      -> $F1
+                  : ::
+                  i > 50 ?
+                  : 
+                      log("-> $F2")
+                      -> $F2
+                  ::
+              : ::
               log("-> $F3")
               -> $F3
               ^

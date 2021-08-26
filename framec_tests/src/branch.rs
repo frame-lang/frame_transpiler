@@ -132,9 +132,9 @@ mod tests {
     }
 
     #[test]
-    /// Test that a transition within a conditional expression returns from
-    /// the handler early. That is, only the first executed transition applies.
-    fn transition_returns_early() {
+    /// Test that a transition guarded by a conditional expression triggers an
+    /// early return from the handler.
+    fn guarded_transition() {
         let mut sm = Branch::new();
         sm.e();
         sm.on_int(5);
@@ -147,6 +147,33 @@ mod tests {
         assert_eq!(sm.tape, vec!["-> $F2"]);
         sm = Branch::new();
         sm.e();
+        sm.on_int(115);
+        assert_eq!(sm.state, BranchState::F1);
+        assert_eq!(sm.tape, vec!["-> $F1"]);
+    }
+
+    #[test]
+    /// Test that a transition guarded by a nested conditional expression
+    /// triggers an early return from the handler, but this return doesn't
+    /// apply to non-transitioned branches.
+    fn nested_guarded_transition() {
+        let mut sm = Branch::new();
+        sm.f();
+        sm.on_int(5);
+        assert_eq!(sm.state, BranchState::F3);
+        assert_eq!(sm.tape, vec!["-> $F3"]);
+        sm = Branch::new();
+        sm.f();
+        sm.on_int(15);
+        assert_eq!(sm.state, BranchState::F2);
+        assert_eq!(sm.tape, vec!["-> $F2"]);
+        sm = Branch::new();
+        sm.f();
+        sm.on_int(65);
+        assert_eq!(sm.state, BranchState::F3);
+        assert_eq!(sm.tape, vec!["-> $F3"]);
+        sm = Branch::new();
+        sm.f();
         sm.on_int(115);
         assert_eq!(sm.state, BranchState::F1);
         assert_eq!(sm.tape, vec!["-> $F1"]);
