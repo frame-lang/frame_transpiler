@@ -8,7 +8,7 @@
     F
     OnBool [b:bool]
     OnInt [i:i16]
-    
+
     -machine-
     $I
         |A| -> $SimpleIf ^
@@ -17,13 +17,13 @@
         |D| -> $NestedIf ^
         |E| -> $GuardedTransition ^
         |F| -> $NestedGuardedTransition ^
-    
+
     $SimpleIf
         |OnBool| [b:bool]
             b ? log("then 1") : ::
-            b ? : log("else 1") :: 
+            b ? : log("else 1") ::
             b ? log("then 2") : log("else 2") :: b ? -> $F1 : -> $F2 :: ^
-        
+
         |OnInt| [i:i16]
             i > 5 ? log("> 5") : log("<= 5") ::
             i < 10 ? log("< 10") : log(">= 10") ::
@@ -35,15 +35,15 @@
                 -> $F2
             ::
             ^
-    
+
     $NegatedIf
         |OnBool| [b:bool]
             b ?! log("then 1") : ::
-            b ?! : log("else 1") :: 
-            b ?! log("then 2") : log("else 2") :: 
+            b ?! : log("else 1") ::
+            b ?! log("then 2") : log("else 2") ::
             b ?! -> $F1 : -> $F2 ::
             ^
-        
+
         |OnInt| [i:i16]
             i >= 5 ?! log("< 5") : log(">= 5") ::
             i <= 10 ?! log("> 10") : log("<= 10") ::
@@ -100,7 +100,7 @@
                 ::
             ::
             ^
-              
+
       $GuardedTransition
           |OnInt| [i:i16]
               i > 100 ?
@@ -115,7 +115,7 @@
               log("-> $F3")
               -> $F3
               ^
-      
+
       $NestedGuardedTransition
           |OnInt| [i:i16]
               i > 10 ?
@@ -124,7 +124,7 @@
                       -> $F1
                   : ::
                   i > 50 ?
-                  : 
+                  :
                       log("-> $F2")
                       -> $F2
                   ::
@@ -136,7 +136,7 @@
     $F1
     $F2
     $F3
-    
+
     -actions-
     log[msg:String]
 

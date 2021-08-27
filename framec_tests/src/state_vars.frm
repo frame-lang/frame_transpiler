@@ -3,11 +3,11 @@
     X
     Y
     Z
-    
+
     -machine-
     $Init
         |>| -> $A ^
-    
+
     $A
         var x:u32 = 0
         |X| x = x + 1 ^

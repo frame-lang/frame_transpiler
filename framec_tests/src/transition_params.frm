@@ -1,7 +1,7 @@
 #TransitParams
     -interface-
     Next
-    
+
     -machine-
     $Init
         |>|
