@@ -5,7 +5,7 @@
     C
     -machine-
     $I  |>| -> $S ^
-    
+
     $S
         |>| enter("S") ^
         |<| exit("S") ^
@@ -13,7 +13,7 @@
             -> $S0 ^
         |B| log("S.B")
             -> $S1 ^
-    
+
     $S0 => $S
         |>| enter("S0") :>
         |<| exit("S0") :>
