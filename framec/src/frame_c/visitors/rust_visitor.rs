@@ -253,7 +253,7 @@ pub struct RustVisitor {
     has_states: bool,
     errors: Vec<String>,
     visiting_call_chain_literal_variable: bool,
-    handler_transitioned: bool,
+    this_branch_transitioned: bool,
     generate_exit_args: bool,
     generate_state_context: bool,
     generate_state_stack: bool,
@@ -296,7 +296,7 @@ impl RustVisitor {
             errors: Vec::new(),
             warnings: Vec::new(),
             visiting_call_chain_literal_variable: false,
-            handler_transitioned: false,
+            this_branch_transitioned: false,
             generate_exit_args,
             generate_state_context,
             generate_state_stack,
@@ -1410,6 +1410,25 @@ impl RustVisitor {
         self.newline();
         self.add_code("}");
         self.newline();
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    /// Generate a return statement within a handler. Call this rather than
+    /// adding a return statement directly to ensure that the control-flow
+    /// state is properly maintained.
+    fn generate_return(&mut self) {
+        self.newline();
+        self.add_code("return;");
+        self.this_branch_transitioned = false;
+    }
+
+    /// Generate a return statement if the current branch contained a
+    /// transition or change-state.
+    fn generate_return_if_transitioned(&mut self) {
+        if self.this_branch_transitioned {
+            self.generate_return();
+        }
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2915,6 +2934,8 @@ impl AstVisitor for RustVisitor {
 
         self.add_code("#[allow(clippy::needless_return)]");
         self.newline();
+        self.add_code("#[allow(unreachable_code)]");
+        self.newline();
         self.add_code("#[allow(unreachable_patterns)]");
         self.newline();
         self.add_code("#[allow(unused_mut)]");
@@ -3058,38 +3079,32 @@ impl AstVisitor for RustVisitor {
         evt_handler_terminator_node: &TerminatorExpr,
     ) -> AstVisitorReturnType {
         match &evt_handler_terminator_node.terminator_type {
-            TerminatorType::Return => match &evt_handler_terminator_node.return_expr_t_opt {
-                Some(expr_t) => {
-                    self.newline();
-                    self.add_code(&format!(
-                        "{}.{} = ",
-                        self.config.frame_event_variable_name,
-                        self.config.frame_event_return_attribute_name
-                    ));
-                    self.add_code(&format!(
-                        "{}::{} {{ return_value: ",
-                        self.config.frame_event_return,
-                        self.format_type_name(&self.current_message)
-                    ));
-                    expr_t.accept(self);
+            TerminatorType::Return => {
+                match &evt_handler_terminator_node.return_expr_t_opt {
+                    Some(expr_t) => {
+                        self.newline();
+                        self.add_code(&format!(
+                            "{}.{} = ",
+                            self.config.frame_event_variable_name,
+                            self.config.frame_event_return_attribute_name
+                        ));
+                        self.add_code(&format!(
+                            "{}::{} {{ return_value: ",
+                            self.config.frame_event_return,
+                            self.format_type_name(&self.current_message)
+                        ));
+                        expr_t.accept(self);
 
-                    self.add_code(" };");
-                    self.newline();
-                    self.add_code("return;");
-                }
-                None => {
-                    self.newline();
-                    self.add_code("return;")
-                }
-            },
+                        self.add_code(" };");
+                    }
+                    None => {}
+                };
+                self.generate_return();
+            }
             TerminatorType::Continue => {
-                if self.handler_transitioned {
-                    self.newline();
-                    self.add_code("return;")
-                }
+                self.generate_return_if_transitioned();
             }
         }
-        self.handler_transitioned = false;
         AstVisitorReturnType::EventHandlerTerminatorNode {}
     }
 
@@ -3243,7 +3258,7 @@ impl AstVisitor for RustVisitor {
                 self.generate_state_stack_pop_transition(transition_statement)
             }
         };
-        self.handler_transitioned = true;
+        self.this_branch_transitioned = true;
 
         AstVisitorReturnType::CallStatementNode {}
     }
@@ -3270,7 +3285,7 @@ impl AstVisitor for RustVisitor {
                 "Fatal error - change state stack pop not implemented."
             )),
         };
-        self.handler_transitioned = true;
+        self.this_branch_transitioned = true;
 
         AstVisitorReturnType::ChangeStateStmtNode {}
     }
@@ -3330,7 +3345,7 @@ impl AstVisitor for RustVisitor {
         self.newline();
         for branch_node in &bool_test_node.conditional_branch_nodes {
             if branch_node.is_negated {
-                self.add_code(&format!("{}!", if_or_else_if));
+                self.add_code(&format!("{}!(", if_or_else_if));
             } else {
                 self.add_code(&format!("{}", if_or_else_if));
             }
@@ -3338,12 +3353,14 @@ impl AstVisitor for RustVisitor {
             branch_node.expr_t.accept(self);
 
             if branch_node.is_negated {
-                self.add_code(&format!(""));
+                self.add_code(&format!(")"));
             }
             self.add_code(&format!(" {{"));
             self.indent();
 
             branch_node.accept(self);
+
+            self.generate_return_if_transitioned();
 
             self.outdent();
             self.newline();
@@ -3464,22 +3481,25 @@ impl AstVisitor for RustVisitor {
             Some(branch_terminator_expr) => {
                 self.newline();
                 match &branch_terminator_expr.terminator_type {
-                    TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
-                        Some(expr_t) => {
-                            self.add_code(&format!("e._return = "));
-                            expr_t.accept(self);
-                            self.add_code(";");
-                            self.newline();
-                            self.add_code("return;");
-                        }
-                        None => self.add_code("return;"),
-                    },
+                    TerminatorType::Return => {
+                        match &branch_terminator_expr.return_expr_t_opt {
+                            Some(expr_t) => {
+                                self.add_code(&format!("e._return = "));
+                                expr_t.accept(self);
+                                self.add_code(";");
+                            }
+                            None => {}
+                        };
+                        self.generate_return();
+                    }
                     TerminatorType::Continue => {
-                        self.add_code("break;");
+                        self.generate_return_if_transitioned();
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
 
         AstVisitorReturnType::BoolTestConditionalBranchNode {}
@@ -3506,17 +3526,20 @@ impl AstVisitor for RustVisitor {
                             self.add_code(&format!("e._return = ",));
                             expr_t.accept(self);
                             self.add_code(";");
-                            self.newline();
-                            self.add_code("return;");
+                            self.generate_return();
                         }
-                        None => self.add_code("return;"),
+                        None => {
+                            self.generate_return();
+                        }
                     },
                     TerminatorType::Continue => {
-                        self.add_code("break;");
+                        self.generate_return_if_transitioned();
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
 
         self.outdent();
@@ -3599,6 +3622,8 @@ impl AstVisitor for RustVisitor {
 
             match_branch_node.accept(self);
 
+            self.generate_return_if_transitioned();
+
             self.outdent();
             self.newline();
             self.add_code(&format!("}}"));
@@ -3626,22 +3651,25 @@ impl AstVisitor for RustVisitor {
             Some(branch_terminator_expr) => {
                 self.newline();
                 match &branch_terminator_expr.terminator_type {
-                    TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
-                        Some(expr_t) => {
-                            self.add_code(&format!("e._return = "));
-                            expr_t.accept(self);
-                            self.add_code(";");
-                            self.newline();
-                            self.add_code("return;");
-                        }
-                        None => self.add_code("return;"),
-                    },
+                    TerminatorType::Return => {
+                        match &branch_terminator_expr.return_expr_t_opt {
+                            Some(expr_t) => {
+                                self.add_code(&format!("e._return = "));
+                                expr_t.accept(self);
+                                self.add_code(";");
+                            }
+                            None => {}
+                        };
+                        self.generate_return();
+                    }
                     TerminatorType::Continue => {
-                        self.add_code("break;");
+                        self.generate_return_if_transitioned();
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
 
         AstVisitorReturnType::StringMatchTestMatchBranchNode {}
@@ -3663,22 +3691,25 @@ impl AstVisitor for RustVisitor {
             Some(branch_terminator_expr) => {
                 self.newline();
                 match &branch_terminator_expr.terminator_type {
-                    TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
-                        Some(expr_t) => {
-                            self.add_code(&format!("e._return = "));
-                            expr_t.accept(self);
-                            self.add_code(";");
-                            self.newline();
-                            self.add_code("return;");
-                        }
-                        None => self.add_code("return;"),
-                    },
+                    TerminatorType::Return => {
+                        match &branch_terminator_expr.return_expr_t_opt {
+                            Some(expr_t) => {
+                                self.add_code(&format!("e._return = "));
+                                expr_t.accept(self);
+                                self.add_code(";");
+                            }
+                            None => {}
+                        };
+                        self.generate_return();
+                    }
                     TerminatorType::Continue => {
-                        self.add_code("break;");
+                        self.generate_return_if_transitioned();
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
 
         self.outdent();
@@ -3763,6 +3794,8 @@ impl AstVisitor for RustVisitor {
 
             match_branch_node.accept(self);
 
+            self.generate_return_if_transitioned();
+
             self.outdent();
             self.newline();
             self.add_code(&format!("}}"));
@@ -3791,22 +3824,25 @@ impl AstVisitor for RustVisitor {
             Some(branch_terminator_expr) => {
                 self.newline();
                 match &branch_terminator_expr.terminator_type {
-                    TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
-                        Some(expr_t) => {
-                            self.add_code(&format!("e._return = "));
-                            expr_t.accept(self);
-                            self.add_code(";");
-                            self.newline();
-                            self.add_code("return;");
-                        }
-                        None => self.add_code("return;"),
-                    },
+                    TerminatorType::Return => {
+                        match &branch_terminator_expr.return_expr_t_opt {
+                            Some(expr_t) => {
+                                self.add_code(&format!("e._return = "));
+                                expr_t.accept(self);
+                                self.add_code(";");
+                            }
+                            None => {}
+                        };
+                        self.generate_return();
+                    }
                     TerminatorType::Continue => {
-                        self.add_code("break;");
+                        self.generate_return_if_transitioned();
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
 
         AstVisitorReturnType::NumberMatchTestMatchBranchNode {}
@@ -3828,22 +3864,25 @@ impl AstVisitor for RustVisitor {
             Some(branch_terminator_expr) => {
                 self.newline();
                 match &branch_terminator_expr.terminator_type {
-                    TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
-                        Some(expr_t) => {
-                            self.add_code(&format!("e._return = "));
-                            expr_t.accept(self);
-                            self.add_code(";");
-                            self.newline();
-                            self.add_code("return;");
-                        }
-                        None => self.add_code("return;"),
-                    },
+                    TerminatorType::Return => {
+                        match &branch_terminator_expr.return_expr_t_opt {
+                            Some(expr_t) => {
+                                self.add_code(&format!("e._return = "));
+                                expr_t.accept(self);
+                                self.add_code(";");
+                            }
+                            None => {}
+                        };
+                        self.generate_return();
+                    }
                     TerminatorType::Continue => {
-                        self.add_code("break;");
+                        self.generate_return_if_transitioned();
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
 
         self.outdent();

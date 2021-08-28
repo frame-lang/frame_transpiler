@@ -3,7 +3,7 @@
     Next
     Prev
     Log
-    
+
     -machine-
     $Init
         |Next| -> $Split(1) ^
