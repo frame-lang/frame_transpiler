@@ -15,6 +15,7 @@ use downcast_rs::__std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
+use crate::frame_c::ast::StatementType::TransitionStmt;
 
 pub struct ParseError {
     // TODO:
@@ -1059,14 +1060,6 @@ impl<'a> Parser<'a> {
         let mut type_node_opt: Option<TypeNode> = None;
 
         if self.match_token(&vec![ColonTok]) {
-            // if !self.match_token(&vec![TokenType::IdentifierTok]) {
-            //     self.error_at_previous("Expected parameter type.");
-            //     return Err(ParseError::new("TODO"));
-            // }
-            //
-            // let type_name = self.previous().lexeme.clone();
-            //
-            // type_opt = Some(type_name);
             match self.type_decl() {
                 Ok(type_node) => type_node_opt = Some(type_node),
                 Err(parse_error) => return Err(parse_error),
@@ -1913,11 +1906,31 @@ impl<'a> Parser<'a> {
             match self.decl_or_stmt() {
                 Ok(opt_smt) => match opt_smt {
                     Some(statement) => {
+
+                        match &statement {
+                            DeclOrStmtType::StmtT {stmt_t} => {
+                                // Transitions or state changes must be the last statement in
+                                // an event handler.
+                                match stmt_t {
+                                    StatementType::TransitionStmt {transition_statement} => {
+                                        return statements;
+                                    },
+                                    StatementType::ChangeStateStmt {change_state_stmt} => {
+                                        return statements;
+                                    },
+                                    _ => {}
+                                }
+                            },
+                            _ => {}
+                        }
+
                         statements.push(statement);
+
                     }
                     None => {
                         return statements;
                     }
+
                 },
                 Err(_err) => {
                     let sync_tokens = &vec![
