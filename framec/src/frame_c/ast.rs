@@ -533,7 +533,7 @@ pub struct EventHandlerNode {
     pub state_name: String,
     pub msg_t: MessageType,
     pub statements: Vec<DeclOrStmtType>,
-    pub terminator_node: TerminatorExpr,
+    pub terminator_node_opt: Option<TerminatorExpr>,
     pub event_symbol_rcref: Rc<RefCell<EventSymbol>>,
     // this is so we can know to declare a StateContext at the
     // top of the event handler.
@@ -547,7 +547,7 @@ impl EventHandlerNode {
         state_name: String,
         msg_t: MessageType,
         statements: Vec<DeclOrStmtType>,
-        terminator_node: TerminatorExpr,
+        terminator_node: Option<TerminatorExpr>,
         event_symbol_rcref: Rc<RefCell<EventSymbol>>,
         event_handler_has_transition: bool,
         line: usize,
@@ -557,7 +557,7 @@ impl EventHandlerNode {
             state_name,
             msg_t,
             statements,
-            terminator_node,
+            terminator_node_opt: terminator_node,
             event_symbol_rcref,
             event_handler_has_transition,
             line,

@@ -1307,8 +1307,10 @@ impl AstVisitor for GdScript32Visitor {
         self.visit_decl_stmts(&evt_handler_node.statements);
 
         self.event_handler_has_code = evt_handler_node.statements.len() > 0usize;
-        let terminator_node = &evt_handler_node.terminator_node;
-        terminator_node.accept(self);
+        let terminator_node_opt = &evt_handler_node.terminator_node_opt;
+        if let Some(terminator_node) = terminator_node_opt {
+            terminator_node.accept(self);
+        }
         self.outdent();
         self.newline();
 

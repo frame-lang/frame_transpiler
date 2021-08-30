@@ -1849,7 +1849,7 @@ impl<'a> Parser<'a> {
             st_name.clone(),
             message_type,
             statements,
-            terminator_node,
+            terminator_node_opt,
             ret_event_symbol_rcref,
             self.event_handler_has_transition,
             line_number,
