@@ -7,7 +7,6 @@ impl Branch {
     pub fn log(&mut self, msg: String) {
         self.tape.push(msg);
     }
-    pub fn transition_hook(&mut self, _current: BranchState, _next: BranchState) {}
 }
 
 #[cfg(test)]

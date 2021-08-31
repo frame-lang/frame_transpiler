@@ -5,7 +5,6 @@ impl StateParams {
     pub fn got_param(&mut self, name: String, val: u32) {
         self.param_log.push(format!("{}={}", name, val));
     }
-    pub fn transition_hook(&mut self, _current: StateParamsState, _next: StateParamsState) {}
 }
 
 #[cfg(test)]

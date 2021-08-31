@@ -418,7 +418,10 @@ impl RustVisitor {
                 if variable_node.id_node.is_reference {
                     code.push_str("&");
                 }
-                code.push_str(&format!("self.{}", variable_node.id_node.name.lexeme));
+                code.push_str(&format!(
+                    "self.{}",
+                    self.format_value_name(&variable_node.id_node.name.lexeme)
+                ));
             }
             IdentifierDeclScope::StateParam => {
                 let var_node = variable_node;
@@ -439,7 +442,7 @@ impl RustVisitor {
                     "{}.{}.{}",
                     self.config.this_state_context_var_name,
                     self.config.state_args_var,
-                    &variable_node.id_node.name.lexeme
+                    self.format_value_name(&variable_node.id_node.name.lexeme)
                 ));
                 if self.visiting_call_chain_literal_variable {
                     code.push_str(")");
@@ -464,7 +467,7 @@ impl RustVisitor {
                     "{}.{}.{}",
                     self.config.this_state_context_var_name,
                     self.config.state_vars_var_name,
-                    &variable_node.id_node.name.lexeme
+                    self.format_value_name(&variable_node.id_node.name.lexeme)
                 ));
                 if self.visiting_call_chain_literal_variable {
                     code.push_str(")");
@@ -485,7 +488,7 @@ impl RustVisitor {
                         "{}.{}.{}",
                         self.config.this_state_context_var_name,
                         self.config.enter_args_member_name,
-                        &variable_node.id_node.name.lexeme
+                        self.format_value_name(&variable_node.id_node.name.lexeme)
                     ));
                 } else if self.config.exit_token == self.current_message {
                     code.push_str(&format!(
@@ -528,14 +531,14 @@ impl RustVisitor {
                 if variable_node.id_node.is_reference {
                     code.push_str("&");
                 }
-                code.push_str(&format!("{}", variable_node.id_node.name.lexeme));
+                code.push_str(&self.format_value_name(&variable_node.id_node.name.lexeme));
             }
             IdentifierDeclScope::None => {
                 // TODO: Explore labeling Variables as "extern" scope
                 if variable_node.id_node.is_reference {
                     code.push_str("&");
                 }
-                code.push_str(&format!("{}", variable_node.id_node.name.lexeme));
+                code.push_str(&self.format_value_name(&variable_node.id_node.name.lexeme));
             } // Actions?
             _ => self.errors.push("Illegal scope.".to_string()),
         }
@@ -552,22 +555,28 @@ impl RustVisitor {
                 Some(ret_type) => ret_type.get_type_str(),
                 None => String::from("<?>"),
             };
-            self.add_code(&format!("{}: {}", param.param_name, param_type));
+            self.add_code(&format!(
+                "{}: {}",
+                self.format_value_name(&param.param_name),
+                param_type
+            ));
         }
     }
 
     //* --------------------------------------------------------------------- *//
 
     fn format_actions_parameter_list(&mut self, params: &Vec<ParameterNode>) {
-        let mut separator = ",";
         for param in params {
-            self.add_code(&format!("{}", separator));
+            self.add_code(", ");
             let param_type: String = match &param.param_type_opt {
                 Some(ret_type) => ret_type.get_type_str(),
                 None => String::from("<?>"),
             };
-            self.add_code(&format!(" {}: {}", param.param_name, param_type));
-            separator = ",";
+            self.add_code(&format!(
+                "{}: {}",
+                self.format_value_name(&param.param_name),
+                param_type
+            ));
         }
     }
 
@@ -575,6 +584,10 @@ impl RustVisitor {
 
     fn new_state_var_name(&self) -> String {
         format!("new_{}", self.config.state_var_name)
+    }
+
+    fn old_state_var_name(&self) -> String {
+        format!("old_{}", self.config.state_var_name)
     }
 
     fn new_state_context_var_name(&self) -> String {
@@ -589,6 +602,8 @@ impl RustVisitor {
     }
 
     //* --------------------------------------------------------------------- *//
+
+    // Formatting helper functions
 
     /// Format a "type-level" name, e.g. a type, trait, or enum variant.
     /// If Rust naming conventions are followed, these are in CamelCase.
@@ -610,6 +625,47 @@ impl RustVisitor {
         formatted
     }
 
+    fn format_getter_name(&self, member_name: &str) -> String {
+        format!("get_{}", self.format_value_name(&member_name.to_string()))
+    }
+
+    fn format_setter_name(&self, member_name: &str) -> String {
+        format!("set_{}", self.format_value_name(&member_name.to_string()))
+    }
+
+    // Type/case names
+
+    fn format_enter_args_struct_name(&self, state_name: &str) -> String {
+        format!(
+            "{}EnterArgs",
+            self.format_type_name(&state_name.to_string())
+        )
+    }
+
+    fn format_state_args_struct_name(&self, state_name: &str) -> String {
+        format!(
+            "{}StateArgs",
+            self.format_type_name(&state_name.to_string())
+        )
+    }
+
+    fn format_state_context_struct_name(&self, state_name: &str) -> String {
+        format!(
+            "{}{}",
+            self.format_type_name(&state_name.to_string()),
+            self.config.state_context_suffix
+        )
+    }
+
+    fn format_state_vars_struct_name(&self, state_name: &str) -> String {
+        format!(
+            "{}StateVars",
+            self.format_type_name(&state_name.to_string())
+        )
+    }
+
+    // Method names
+
     fn format_action_name(&mut self, action_name: &String) -> String {
         format!(
             "{}{}{}",
@@ -617,14 +673,6 @@ impl RustVisitor {
             self.format_value_name(action_name),
             self.config.action_suffix
         )
-    }
-
-    fn format_getter_name(&self, member_name: &str) -> String {
-        format!("get_{}", self.format_value_name(&member_name.to_string()))
-    }
-
-    fn format_setter_name(&self, member_name: &str) -> String {
-        format!("set_{}", self.format_value_name(&member_name.to_string()))
     }
 
     fn format_event_param_getter(&self, message_name: &str, param_name: &str) -> String {
@@ -645,14 +693,6 @@ impl RustVisitor {
             "{}{}",
             self.format_value_name(&state_name.to_string()),
             self.config.state_context_method_suffix
-        )
-    }
-
-    fn format_state_context_struct_name(&self, state_name: &str) -> String {
-        format!(
-            "{}{}",
-            self.format_type_name(&state_name.to_string()),
-            self.config.state_context_suffix
         )
     }
 
@@ -783,8 +823,10 @@ impl RustVisitor {
             }
             None => {}
         }
-        self.add_code("#[allow(clippy::upper_case_acronyms)]");
-        self.newline();
+        if !self.config.config_features.follow_rust_naming {
+            self.add_code("#[allow(clippy::upper_case_acronyms)]");
+            self.newline();
+        }
         self.add_code("#[allow(dead_code)]");
         self.newline();
         if !traits.is_empty() {
@@ -824,7 +866,10 @@ impl RustVisitor {
                         has_state_args = true;
                         self.add_code("#[allow(dead_code)]");
                         self.newline();
-                        self.add_code(&format!("struct {}StateArgs {{", state_node.name));
+                        self.add_code(&format!(
+                            "struct {} {{",
+                            self.format_state_args_struct_name(&state_node.name)
+                        ));
                         self.indent();
                         for param in params {
                             let param_type = match &param.param_type_opt {
@@ -854,7 +899,10 @@ impl RustVisitor {
                         has_state_vars = true;
                         self.add_code("#[allow(dead_code)]");
                         self.newline();
-                        self.add_code(&format!("struct {}StateVars {{", state_node.name));
+                        self.add_code(&format!(
+                            "struct {} {{",
+                            self.format_state_vars_struct_name(&state_node.name)
+                        ));
                         self.indent();
                         // self.add_code(&format!("{}: (",self.config.enter_arg_prefix));
                         for var_decl_node in var_decl_nodes {
@@ -889,7 +937,10 @@ impl RustVisitor {
                                 has_enter_event_params = true;
                                 self.add_code("#[allow(dead_code)]");
                                 self.newline();
-                                self.add_code(&format!("struct {}EnterArgs {{", state_node.name));
+                                self.add_code(&format!(
+                                    "struct {} {{",
+                                    self.format_enter_args_struct_name(&state_node.name)
+                                ));
                                 self.indent();
                                 for param in params {
                                     let param_type = match &param.param_type_opt {
@@ -927,24 +978,27 @@ impl RustVisitor {
                 if has_state_args {
                     self.newline();
                     self.add_code(&format!(
-                        "{}: {}StateArgs,",
-                        self.config.state_args_var, state_node.name
+                        "{}: {},",
+                        self.config.state_args_var,
+                        self.format_state_args_struct_name(&state_node.name)
                     ));
                 }
 
                 if has_state_vars {
                     self.newline();
                     self.add_code(&format!(
-                        "{}: {}StateVars,",
-                        self.config.state_vars_var_name, state_node.name
+                        "{}: {},",
+                        self.config.state_vars_var_name,
+                        self.format_state_vars_struct_name(&state_node.name)
                     ));
                 }
 
                 if has_enter_event_params {
                     self.newline();
                     self.add_code(&format!(
-                        "{}: {}EnterArgs,",
-                        self.config.enter_args_member_name, state_node.name
+                        "{}: {},",
+                        self.config.enter_args_member_name,
+                        self.format_enter_args_struct_name(&state_node.name)
                     ));
                 }
                 self.outdent();
@@ -1065,12 +1119,12 @@ impl RustVisitor {
         if let Some(domain_block_node) = &system_node.domain_block_node_opt {
             for variable_decl_node_rcref in &domain_block_node.member_variables {
                 let variable_decl_node = variable_decl_node_rcref.borrow();
-                // variable_decl_node.accept(self);
+                let variable_name = self.format_value_name(&variable_decl_node.name);
                 let var_init_expr = &variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
                 let mut code = String::new();
                 var_init_expr.accept_to_string(self, &mut code);
                 self.newline();
-                self.add_code(&format!("{}: {},", variable_decl_node.name, code));
+                self.add_code(&format!("{}: {},", variable_name, code));
             }
         }
 
@@ -1180,21 +1234,23 @@ impl RustVisitor {
         self.newline();
         if self.generate_change_state_hook {
             self.add_code(&format!(
-                "let old_state = self.{};",
+                "let {} = self.{};",
+                self.old_state_var_name(),
                 self.config.state_var_name
             ));
             self.newline();
             self.add_code(&format!(
-                "self.{}(old_state, {});",
+                "self.{}({}, {});",
                 self.config.change_state_hook_method_name.as_ref().unwrap(),
-                self.new_state_var_name(),
+                self.old_state_var_name(),
+                self.new_state_var_name()
             ));
             self.newline();
         }
         self.add_code(&format!(
             "self.{} = {};",
             self.config.state_var_name,
-            self.new_state_var_name(),
+            self.new_state_var_name()
         ));
         self.outdent();
         self.newline();
@@ -1253,13 +1309,15 @@ impl RustVisitor {
         self.newline();
         if self.generate_transition_hook {
             self.add_code(&format!(
-                "let old_state = self.{};",
+                "let {} = self.{};",
+                self.old_state_var_name(),
                 self.config.state_var_name
             ));
             self.newline();
             self.add_code(&format!(
-                "self.{}(old_state, {});",
+                "self.{}({}, {});",
                 self.config.transition_hook_method_name.as_ref().unwrap(),
+                self.old_state_var_name(),
                 self.new_state_var_name()
             ));
             self.newline();
@@ -1636,7 +1694,10 @@ impl RustVisitor {
             msg.push_str(":");
             msg.push_str(&self.symbol_config.enter_msg_symbol);
 
-            formatted_enter_args = format!("{}EnterArgs {{", target_state_name);
+            formatted_enter_args = format!(
+                "{} {{",
+                self.format_enter_args_struct_name(&target_state_name)
+            );
             if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt) {
                 match &event_sym.borrow().params_opt {
                     Some(event_params) => {
@@ -1689,7 +1750,10 @@ impl RustVisitor {
         if let Some(state_args) = target_state_args_opt {
             //            let mut params_copy = Vec::new();
             has_state_args = true;
-            formatted_state_args = format!("{}StateArgs {{", target_state_name);
+            formatted_state_args = format!(
+                "{} {{",
+                self.format_state_args_struct_name(&target_state_name)
+            );
 
             if let Some(state_sym) = self.arcanium.get_state(&target_state_name) {
                 match &state_sym.borrow().params_opt {
@@ -1705,8 +1769,11 @@ impl RustVisitor {
                                     expr_t.accept_to_string(self, &mut expr);
                                     // self.add_code(&format!("state_context.addStateArg(\"{}\",{});", param_symbol.name, expr));
                                     // self.newline();
-                                    formatted_state_args
-                                        .push_str(&format!("{}: {},", param_symbol.name, expr));
+                                    formatted_state_args.push_str(&format!(
+                                        "{}: {},",
+                                        self.format_value_name(&param_symbol.name),
+                                        expr
+                                    ));
                                 }
                                 None => self.errors.push(format!(
                                     "Invalid number of arguments for \"{}\" state parameters.",
@@ -1741,7 +1808,10 @@ impl RustVisitor {
                     if state_node.vars_opt.is_some() {
                         //                        let mut separator = "";
                         has_state_vars = true;
-                        formatted_state_vars = format!("{}StateVars {{", target_state_name);
+                        formatted_state_vars = format!(
+                            "{} {{",
+                            self.format_state_vars_struct_name(&target_state_name)
+                        );
 
                         for var_rcref in state_node.vars_opt.as_ref().unwrap() {
                             let var = var_rcref.borrow();
@@ -1751,7 +1821,11 @@ impl RustVisitor {
                             // self.newline();
                             // self.add_code(&format!("state_context.addStateVar(\"{}\",{});", var.name, expr_code));
                             // self.newline();
-                            formatted_state_vars.push_str(&format!("{}: {},", var.name, expr_code));
+                            formatted_state_vars.push_str(&format!(
+                                "{}: {},",
+                                self.format_value_name(&var.name),
+                                expr_code
+                            ));
                         }
 
                         formatted_state_vars.push_str("}");
@@ -2014,8 +2088,10 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.newline();
         self.add_code("#[allow(dead_code)]");
-        self.newline();
-        self.add_code("#[allow(non_camel_case_types)]");
+        if !self.config.config_features.follow_rust_naming {
+            self.newline();
+            self.add_code("#[allow(non_camel_case_types)]");
+        }
         self.newline();
         self.add_code(&format!(
             "enum {} {{",
@@ -2098,8 +2174,10 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.newline();
         self.add_code("#[allow(dead_code)]");
-        self.newline();
-        self.add_code("#[allow(non_snake_case)]");
+        if !self.config.config_features.follow_rust_naming {
+            self.newline();
+            self.add_code("#[allow(non_snake_case)]");
+        }
         self.newline();
         self.add_code(&format!("impl {} {{", self.config.frame_event_return));
         if let Some(interface_block_node) = &system_node.interface_block_node_opt {
@@ -2213,8 +2291,10 @@ impl AstVisitor for RustVisitor {
 
         self.add_code("// System Controller ");
         self.newline();
-        self.newline();
-        self.add_code("#[allow(clippy::upper_case_acronyms)]");
+        if !self.config.config_features.follow_rust_naming {
+            self.newline();
+            self.add_code("#[allow(clippy::upper_case_acronyms)]");
+        }
         self.newline();
         self.add_code("#[allow(dead_code)]");
         self.newline();
@@ -2269,8 +2349,10 @@ impl AstVisitor for RustVisitor {
 
         self.add_code("#[allow(dead_code)]");
         self.newline();
-        self.add_code("#[allow(non_snake_case)]");
-        self.newline();
+        if !self.config.config_features.follow_rust_naming {
+            self.add_code("#[allow(non_snake_case)]");
+            self.newline();
+        }
         self.add_code(&format!("impl {} {{", system_node.name));
         self.indent();
         self.newline();
@@ -2480,8 +2562,10 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.newline();
         self.add_code("#[allow(dead_code)]");
-        self.newline();
-        self.add_code("#[allow(non_snake_case)]");
+        if !self.config.config_features.follow_rust_naming {
+            self.newline();
+            self.add_code("#[allow(non_snake_case)]");
+        }
         self.newline();
         self.add_code(&format!(
             "impl {} {{",
@@ -2529,6 +2613,7 @@ impl AstVisitor for RustVisitor {
                                         Some(param_type) => param_type.get_type_str(),
                                         None => "<?>".to_string().clone(),
                                     };
+                                    let param_name = self.format_value_name(&param.name);
                                     self.newline();
                                     self.newline();
                                     let parameter_enum_name = self
@@ -2539,7 +2624,7 @@ impl AstVisitor for RustVisitor {
                                     self.add_code(&format!(
                                         "fn {}(&mut self, {}: {}) {{",
                                         self.format_setter_name(&parameter_enum_name),
-                                        param.name,
+                                        param_name,
                                         param_type
                                     ));
                                     self.indent();
@@ -2559,7 +2644,7 @@ impl AstVisitor for RustVisitor {
                                         "{}::{} {{ param: {} }},",
                                         self.config.frame_event_parameter_type_name,
                                         self.format_type_name(&parameter_enum_name),
-                                        param.name
+                                        param_name
                                     ));
                                     self.outdent();
                                     self.newline();
@@ -2731,14 +2816,13 @@ impl AstVisitor for RustVisitor {
                             .arcanium
                             .get_msg_from_interface_name(&interface_method_node.name);
 
-                        let pname = &param.param_name;
                         let parameter_enum_name =
                             self.format_frame_event_parameter_name(&msg, &param.param_name);
                         self.newline();
                         self.add_code(&format!(
                             "(*frame_parameters).{}({});",
                             self.format_setter_name(&parameter_enum_name),
-                            pname
+                            self.format_value_name(&param.param_name)
                         ));
                     }
                 }
@@ -2856,15 +2940,39 @@ impl AstVisitor for RustVisitor {
     ) -> AstVisitorReturnType {
         if self.config.config_features.generate_action_impl {
             self.newline();
+            self.newline();
             self.add_code(&format!(
                 "trait {}{}{} {{ ",
                 self.config.actions_prefix, self.system_name, self.config.actions_suffix
             ));
             self.indent();
 
+            // add action signatures
             for action_decl_node_rcref in &actions_block_node.actions {
                 let action_decl_node = action_decl_node_rcref.borrow();
                 action_decl_node.accept(self);
+            }
+
+            // add hook signatures
+            if self.generate_transition_hook {
+                self.newline();
+                self.add_code(&format!(
+                    "fn {}(&self, {}: {enum_type}, {}: {enum_type});",
+                    self.config.transition_hook_method_name.as_ref().unwrap(),
+                    self.old_state_var_name(),
+                    self.new_state_var_name(),
+                    enum_type = self.state_enum_type_name()
+                ));
+            }
+            if self.generate_change_state_hook {
+                self.newline();
+                self.add_code(&format!(
+                    "fn {}(&self, {}: {enum_type}, {}: {enum_type});",
+                    self.config.change_state_hook_method_name.as_ref().unwrap(),
+                    self.old_state_var_name(),
+                    self.new_state_var_name(),
+                    enum_type = self.state_enum_type_name()
+                ));
             }
 
             self.outdent();
@@ -2884,6 +2992,8 @@ impl AstVisitor for RustVisitor {
     ) -> AstVisitorReturnType {
         if self.config.config_features.generate_action_impl {
             self.newline();
+            self.add_code("#[allow(unused_variables)]");
+            self.newline();
             self.add_code(&format!(
                 "impl {}{}{} for {} {{ ",
                 self.config.actions_prefix,
@@ -2893,10 +3003,34 @@ impl AstVisitor for RustVisitor {
             ));
             self.indent();
 
+            // add action implementations
             for action_decl_node_rcref in &actions_block_node.actions {
                 let action_decl_node = action_decl_node_rcref.borrow();
                 action_decl_node.accept_rust_impl(self);
             }
+
+            // add empty hook implementations
+            if self.generate_transition_hook {
+                self.newline();
+                self.add_code(&format!(
+                    "fn {}(&self, {}: {enum_type}, {}: {enum_type}) {{}}",
+                    self.config.transition_hook_method_name.as_ref().unwrap(),
+                    self.old_state_var_name(),
+                    self.new_state_var_name(),
+                    enum_type = self.state_enum_type_name()
+                ));
+            }
+            if self.generate_change_state_hook {
+                self.newline();
+                self.add_code(&format!(
+                    "fn {}(&self, {}: {enum_type}, {}: {enum_type}) {{}}",
+                    self.config.change_state_hook_method_name.as_ref().unwrap(),
+                    self.old_state_var_name(),
+                    self.new_state_var_name(),
+                    enum_type = self.state_enum_type_name()
+                ));
+            }
+
             self.outdent();
             self.newline();
             self.add_code("}");
@@ -3059,8 +3193,10 @@ impl AstVisitor for RustVisitor {
         // Generate statements
         self.visit_decl_stmts(&evt_handler_node.statements);
 
-        let terminator_node = &evt_handler_node.terminator_node;
-        terminator_node.accept(self);
+        let terminator_node_opt = &evt_handler_node.terminator_node_opt;
+        if let Some(terminator_node) = terminator_node_opt {
+            terminator_node.accept(self);
+        }
         self.outdent();
         self.newline();
         self.add_code(&format!("}}"));
@@ -4300,7 +4436,7 @@ impl AstVisitor for RustVisitor {
             Some(x) => x.get_type_str(),
             None => String::from("<?>"),
         };
-        let var_name = &variable_decl_node.name;
+        let var_name = self.format_value_name(&variable_decl_node.name);
         self.newline();
         self.add_code(&format!("{}: {},", var_name, var_type));
 
@@ -4321,7 +4457,7 @@ impl AstVisitor for RustVisitor {
             Some(x) => format!(": {}", x.get_type_str()),
             None => String::new(),
         };
-        let var_name = &variable_decl_node.name;
+        let var_name = self.format_value_name(&variable_decl_node.name);
         let var_init_expr = &variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
         self.newline();
         let mut code = String::new();

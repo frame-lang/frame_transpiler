@@ -13,7 +13,6 @@ impl Hierarchical {
     pub fn log(&mut self, msg: String) {
         self.tape.push(msg);
     }
-    pub fn transition_hook(&mut self, _current: HierarchicalState, _next: HierarchicalState) {}
 }
 
 #[cfg(test)]

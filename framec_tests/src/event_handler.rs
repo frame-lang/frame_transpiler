@@ -7,7 +7,6 @@ impl EventHandler {
     pub fn log(&mut self, msg: String, val: i32) {
         self.tape.push(format!("{}={}", msg, val));
     }
-    pub fn transition_hook(&mut self, _current: EventHandlerState, _next: EventHandlerState) {}
 }
 
 #[cfg(test)]

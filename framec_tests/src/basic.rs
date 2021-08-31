@@ -8,7 +8,6 @@ impl Basic {
     pub fn left(&mut self, state: String) {
         self.exit_log.push(state);
     }
-    pub fn transition_hook(&mut self, _current: BasicState, _next: BasicState) {}
 }
 
 #[cfg(test)]

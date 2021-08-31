@@ -21,8 +21,6 @@ impl VarScope {
         self.tape.push(s);
     }
 
-    pub fn transition_hook(&mut self, _current: VarScopeState, _next: VarScopeState) {}
-
     pub fn do_nn(&mut self) {
         self.nn("|nn|[d]".to_string());
     }

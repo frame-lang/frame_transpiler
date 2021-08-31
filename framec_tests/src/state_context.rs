@@ -9,8 +9,6 @@ impl StateContextSm {
     pub fn log(&mut self, name: String, val: i32) {
         self.tape.push(format!("{}={}", name, val));
     }
-
-    pub fn transition_hook(&mut self, _current: StateContextSmState, _next: StateContextSmState) {}
 }
 
 #[cfg(test)]

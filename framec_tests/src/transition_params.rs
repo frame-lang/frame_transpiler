@@ -11,7 +11,6 @@ impl TransitParams {
     pub fn exited(&mut self, val: bool, msg: String) {
         self.exit_log.push(format!("{} {}", val, msg));
     }
-    pub fn transition_hook(&mut self, _current: TransitParamsState, _next: TransitParamsState) {}
 }
 
 #[cfg(test)]

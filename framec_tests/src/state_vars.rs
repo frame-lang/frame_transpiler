@@ -1,9 +1,5 @@
 include!(concat!(env!("OUT_DIR"), "/", "state_vars.rs"));
 
-impl StateVars {
-    pub fn transition_hook(&mut self, _current: StateVarsState, _next: StateVarsState) {}
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
