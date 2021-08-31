@@ -2942,6 +2942,8 @@ impl AstVisitor for RustVisitor {
     ) -> AstVisitorReturnType {
         if self.config.config_features.generate_action_impl {
             self.newline();
+            self.add_code("#[allow(unused_variables)]");
+            self.newline();
             self.add_code(&format!(
                 "impl {}{}{} for {} {{ ",
                 self.config.actions_prefix,
