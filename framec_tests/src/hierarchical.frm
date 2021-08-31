@@ -55,9 +55,9 @@
             -> $S3 ^
 
     -actions-
-    enter[msg:String]
-    exit[msg:String]
-    log[msg:String]
+    enter [msg:String]
+    exit [msg:String]
+    log [msg:String]
 
     -domain-
     var enters:Log = `vec![]`

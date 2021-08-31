@@ -8,5 +8,6 @@ mod rust_naming;
 mod state_context;
 mod state_params;
 mod state_vars;
+mod transition;
 mod transition_params;
 mod var_scope;
