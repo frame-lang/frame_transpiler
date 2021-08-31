@@ -2277,18 +2277,21 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.newline();
         self.generate_state_enum(&system_node);
-        self.newline();
-        self.newline();
 
         if self.generate_state_context {
+            self.newline();
+            self.newline();
             self.generate_state_context_defs(&system_node);
         }
 
         if let Some(actions_block_node) = &system_node.actions_block_node_opt {
+            self.newline();
+            self.newline();
             actions_block_node.accept_rust_trait(self);
         }
-        self.newline();
 
+        self.newline();
+        self.newline();
         self.add_code("// System Controller ");
         self.newline();
         if !self.config.config_features.follow_rust_naming {
@@ -2939,8 +2942,6 @@ impl AstVisitor for RustVisitor {
         actions_block_node: &ActionsBlockNode,
     ) -> AstVisitorReturnType {
         if self.config.config_features.generate_action_impl {
-            self.newline();
-            self.newline();
             self.add_code(&format!(
                 "trait {}{}{} {{ ",
                 self.config.actions_prefix, self.system_name, self.config.actions_suffix
@@ -2978,7 +2979,6 @@ impl AstVisitor for RustVisitor {
             self.outdent();
             self.newline();
             self.add_code("}");
-            self.newline();
         }
 
         AstVisitorReturnType::ActionBlockNode {}
