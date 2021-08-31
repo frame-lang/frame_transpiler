@@ -16,7 +16,6 @@ impl RustNaming {
     pub fn log_final(&mut self, arg: i32) {
         self.final_log.push(arg);
     }
-    pub fn transition_hook(&mut self, _current: RustNamingState, _next: RustNamingState) {}
 }
 
 #[cfg(test)]

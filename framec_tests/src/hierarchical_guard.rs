@@ -7,12 +7,6 @@ impl HierarchicalGuard {
     pub fn log(&mut self, msg: String) {
         self.tape.push(msg);
     }
-    pub fn transition_hook(
-        &mut self,
-        _current: HierarchicalGuardState,
-        _next: HierarchicalGuardState,
-    ) {
-    }
 }
 
 #[cfg(test)]

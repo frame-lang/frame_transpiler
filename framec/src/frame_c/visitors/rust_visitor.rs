@@ -586,6 +586,10 @@ impl RustVisitor {
         format!("new_{}", self.config.state_var_name)
     }
 
+    fn old_state_var_name(&self) -> String {
+        format!("old_{}", self.config.state_var_name)
+    }
+
     fn new_state_context_var_name(&self) -> String {
         format!("new_{}", self.config.state_context_var_name)
     }
@@ -1230,21 +1234,23 @@ impl RustVisitor {
         self.newline();
         if self.generate_change_state_hook {
             self.add_code(&format!(
-                "let old_state = self.{};",
+                "let {} = self.{};",
+                self.old_state_var_name(),
                 self.config.state_var_name
             ));
             self.newline();
             self.add_code(&format!(
-                "self.{}(old_state, {});",
+                "self.{}({}, {});",
                 self.config.change_state_hook_method_name.as_ref().unwrap(),
-                self.new_state_var_name(),
+                self.old_state_var_name(),
+                self.new_state_var_name()
             ));
             self.newline();
         }
         self.add_code(&format!(
             "self.{} = {};",
             self.config.state_var_name,
-            self.new_state_var_name(),
+            self.new_state_var_name()
         ));
         self.outdent();
         self.newline();
@@ -1303,13 +1309,15 @@ impl RustVisitor {
         self.newline();
         if self.generate_transition_hook {
             self.add_code(&format!(
-                "let old_state = self.{};",
+                "let {} = self.{};",
+                self.old_state_var_name(),
                 self.config.state_var_name
             ));
             self.newline();
             self.add_code(&format!(
-                "self.{}(old_state, {});",
+                "self.{}({}, {});",
                 self.config.transition_hook_method_name.as_ref().unwrap(),
+                self.old_state_var_name(),
                 self.new_state_var_name()
             ));
             self.newline();
@@ -2939,9 +2947,32 @@ impl AstVisitor for RustVisitor {
             ));
             self.indent();
 
+            // add action signatures
             for action_decl_node_rcref in &actions_block_node.actions {
                 let action_decl_node = action_decl_node_rcref.borrow();
                 action_decl_node.accept(self);
+            }
+
+            // add hook signatures
+            if self.generate_transition_hook {
+                self.newline();
+                self.add_code(&format!(
+                    "fn {}(&self, {}: {enum_type}, {}: {enum_type});",
+                    self.config.transition_hook_method_name.as_ref().unwrap(),
+                    self.old_state_var_name(),
+                    self.new_state_var_name(),
+                    enum_type = self.state_enum_type_name()
+                ));
+            }
+            if self.generate_change_state_hook {
+                self.newline();
+                self.add_code(&format!(
+                    "fn {}(&self, {}: {enum_type}, {}: {enum_type});",
+                    self.config.change_state_hook_method_name.as_ref().unwrap(),
+                    self.old_state_var_name(),
+                    self.new_state_var_name(),
+                    enum_type = self.state_enum_type_name()
+                ));
             }
 
             self.outdent();
@@ -2972,10 +3003,34 @@ impl AstVisitor for RustVisitor {
             ));
             self.indent();
 
+            // add action implementations
             for action_decl_node_rcref in &actions_block_node.actions {
                 let action_decl_node = action_decl_node_rcref.borrow();
                 action_decl_node.accept_rust_impl(self);
             }
+
+            // add empty hook implementations
+            if self.generate_transition_hook {
+                self.newline();
+                self.add_code(&format!(
+                    "fn {}(&self, {}: {enum_type}, {}: {enum_type}) {{}}",
+                    self.config.transition_hook_method_name.as_ref().unwrap(),
+                    self.old_state_var_name(),
+                    self.new_state_var_name(),
+                    enum_type = self.state_enum_type_name()
+                ));
+            }
+            if self.generate_change_state_hook {
+                self.newline();
+                self.add_code(&format!(
+                    "fn {}(&self, {}: {enum_type}, {}: {enum_type}) {{}}",
+                    self.config.change_state_hook_method_name.as_ref().unwrap(),
+                    self.old_state_var_name(),
+                    self.new_state_var_name(),
+                    enum_type = self.state_enum_type_name()
+                ));
+            }
+
             self.outdent();
             self.newline();
             self.add_code("}");
