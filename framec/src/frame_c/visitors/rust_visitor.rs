@@ -8,6 +8,7 @@ use super::super::visitors::*;
 
 struct ConfigFeatures {
     generate_action_impl: bool,
+    generate_hook_methods: bool,
     follow_rust_naming: bool,
 }
 
@@ -49,8 +50,8 @@ struct Config {
     handle_event_method_name: String,
     transition_method_name: String,
     change_state_method_name: String,
-    transition_hook_method_name: Option<String>,
-    change_state_hook_method_name: Option<String>,
+    transition_hook_method_name: String,
+    change_state_hook_method_name: String,
     state_stack_push_method_name: String,
     state_stack_pop_method_name: String,
 }
@@ -66,9 +67,15 @@ impl Config {
                 .to_string()
                 .parse()
                 .unwrap(),
+            generate_hook_methods: (&features_yaml["generate_hook_methods"])
+                .as_bool()
+                .unwrap_or(true)
+                .to_string()
+                .parse()
+                .unwrap(),
             follow_rust_naming: (&features_yaml["follow_rust_naming"])
                 .as_bool()
-                .unwrap_or(false)
+                .unwrap_or(true)
                 .to_string()
                 .parse()
                 .unwrap(),
@@ -218,10 +225,12 @@ impl Config {
                 .to_string(),
             transition_hook_method_name: (&code_yaml["transition_hook_method_name"])
                 .as_str()
-                .map(|s| s.to_string()),
+                .unwrap_or_default()
+                .to_string(),
             change_state_hook_method_name: (&code_yaml["change_state_hook_method_name"])
                 .as_str()
-                .map(|s| s.to_string()),
+                .unwrap_or_default()
+                .to_string(),
             state_stack_push_method_name: (&code_yaml["state_stack_push_method_name"])
                 .as_str()
                 .unwrap_or_default()
@@ -302,8 +311,10 @@ impl RustVisitor {
             generate_state_stack,
             generate_change_state,
             generate_transition_state,
-            generate_transition_hook: config.transition_hook_method_name.is_some(),
-            generate_change_state_hook: config.change_state_hook_method_name.is_some(),
+            generate_transition_hook: config.config_features.generate_hook_methods
+                && generate_transition_state,
+            generate_change_state_hook: config.config_features.generate_hook_methods
+                && generate_change_state,
             current_message: String::new(),
             config,
         }
@@ -1241,7 +1252,7 @@ impl RustVisitor {
             self.newline();
             self.add_code(&format!(
                 "self.{}({}, {});",
-                self.config.change_state_hook_method_name.as_ref().unwrap(),
+                self.config.change_state_hook_method_name,
                 self.old_state_var_name(),
                 self.new_state_var_name()
             ));
@@ -1316,7 +1327,7 @@ impl RustVisitor {
             self.newline();
             self.add_code(&format!(
                 "self.{}({}, {});",
-                self.config.transition_hook_method_name.as_ref().unwrap(),
+                self.config.transition_hook_method_name,
                 self.old_state_var_name(),
                 self.new_state_var_name()
             ));
@@ -1576,8 +1587,8 @@ impl RustVisitor {
         self.add_code(&format!(
             "self.{}({}::{});",
             self.config.change_state_method_name,
-            self.system_name,
-            self.format_state_handler_name(target_state_name)
+            self.state_enum_type_name(),
+            self.format_type_name(&target_state_name.to_string())
         ));
     }
 
@@ -2277,18 +2288,21 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.newline();
         self.generate_state_enum(&system_node);
-        self.newline();
-        self.newline();
 
         if self.generate_state_context {
+            self.newline();
+            self.newline();
             self.generate_state_context_defs(&system_node);
         }
 
         if let Some(actions_block_node) = &system_node.actions_block_node_opt {
+            self.newline();
+            self.newline();
             actions_block_node.accept_rust_trait(self);
         }
-        self.newline();
 
+        self.newline();
+        self.newline();
         self.add_code("// System Controller ");
         self.newline();
         if !self.config.config_features.follow_rust_naming {
@@ -2939,8 +2953,6 @@ impl AstVisitor for RustVisitor {
         actions_block_node: &ActionsBlockNode,
     ) -> AstVisitorReturnType {
         if self.config.config_features.generate_action_impl {
-            self.newline();
-            self.newline();
             self.add_code(&format!(
                 "trait {}{}{} {{ ",
                 self.config.actions_prefix, self.system_name, self.config.actions_suffix
@@ -2958,7 +2970,7 @@ impl AstVisitor for RustVisitor {
                 self.newline();
                 self.add_code(&format!(
                     "fn {}(&self, {}: {enum_type}, {}: {enum_type});",
-                    self.config.transition_hook_method_name.as_ref().unwrap(),
+                    self.config.transition_hook_method_name,
                     self.old_state_var_name(),
                     self.new_state_var_name(),
                     enum_type = self.state_enum_type_name()
@@ -2968,7 +2980,7 @@ impl AstVisitor for RustVisitor {
                 self.newline();
                 self.add_code(&format!(
                     "fn {}(&self, {}: {enum_type}, {}: {enum_type});",
-                    self.config.change_state_hook_method_name.as_ref().unwrap(),
+                    self.config.change_state_hook_method_name,
                     self.old_state_var_name(),
                     self.new_state_var_name(),
                     enum_type = self.state_enum_type_name()
@@ -2978,7 +2990,6 @@ impl AstVisitor for RustVisitor {
             self.outdent();
             self.newline();
             self.add_code("}");
-            self.newline();
         }
 
         AstVisitorReturnType::ActionBlockNode {}
@@ -3014,7 +3025,7 @@ impl AstVisitor for RustVisitor {
                 self.newline();
                 self.add_code(&format!(
                     "fn {}(&self, {}: {enum_type}, {}: {enum_type}) {{}}",
-                    self.config.transition_hook_method_name.as_ref().unwrap(),
+                    self.config.transition_hook_method_name,
                     self.old_state_var_name(),
                     self.new_state_var_name(),
                     enum_type = self.state_enum_type_name()
@@ -3024,7 +3035,7 @@ impl AstVisitor for RustVisitor {
                 self.newline();
                 self.add_code(&format!(
                     "fn {}(&self, {}: {enum_type}, {}: {enum_type}) {{}}",
-                    self.config.change_state_hook_method_name.as_ref().unwrap(),
+                    self.config.change_state_hook_method_name,
                     self.old_state_var_name(),
                     self.new_state_var_name(),
                     enum_type = self.state_enum_type_name()
