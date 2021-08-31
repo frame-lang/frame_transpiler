@@ -555,22 +555,28 @@ impl RustVisitor {
                 Some(ret_type) => ret_type.get_type_str(),
                 None => String::from("<?>"),
             };
-            self.add_code(&format!("{}: {}", param.param_name, param_type));
+            self.add_code(&format!(
+                "{}: {}",
+                self.format_value_name(&param.param_name),
+                param_type
+            ));
         }
     }
 
     //* --------------------------------------------------------------------- *//
 
     fn format_actions_parameter_list(&mut self, params: &Vec<ParameterNode>) {
-        let mut separator = ",";
         for param in params {
-            self.add_code(&format!("{}", separator));
+            self.add_code(", ");
             let param_type: String = match &param.param_type_opt {
                 Some(ret_type) => ret_type.get_type_str(),
                 None => String::from("<?>"),
             };
-            self.add_code(&format!(" {}: {}", param.param_name, param_type));
-            separator = ",";
+            self.add_code(&format!(
+                "{}: {}",
+                self.format_value_name(&param.param_name),
+                param_type
+            ));
         }
     }
 
@@ -813,8 +819,10 @@ impl RustVisitor {
             }
             None => {}
         }
-        self.add_code("#[allow(clippy::upper_case_acronyms)]");
-        self.newline();
+        if !self.config.config_features.follow_rust_naming {
+            self.add_code("#[allow(clippy::upper_case_acronyms)]");
+            self.newline();
+        }
         self.add_code("#[allow(dead_code)]");
         self.newline();
         if !traits.is_empty() {
@@ -2072,8 +2080,10 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.newline();
         self.add_code("#[allow(dead_code)]");
-        self.newline();
-        self.add_code("#[allow(non_camel_case_types)]");
+        if !self.config.config_features.follow_rust_naming {
+            self.newline();
+            self.add_code("#[allow(non_camel_case_types)]");
+        }
         self.newline();
         self.add_code(&format!(
             "enum {} {{",
@@ -2156,8 +2166,10 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.newline();
         self.add_code("#[allow(dead_code)]");
-        self.newline();
-        self.add_code("#[allow(non_snake_case)]");
+        if !self.config.config_features.follow_rust_naming {
+            self.newline();
+            self.add_code("#[allow(non_snake_case)]");
+        }
         self.newline();
         self.add_code(&format!("impl {} {{", self.config.frame_event_return));
         if let Some(interface_block_node) = &system_node.interface_block_node_opt {
@@ -2271,8 +2283,10 @@ impl AstVisitor for RustVisitor {
 
         self.add_code("// System Controller ");
         self.newline();
-        self.newline();
-        self.add_code("#[allow(clippy::upper_case_acronyms)]");
+        if !self.config.config_features.follow_rust_naming {
+            self.newline();
+            self.add_code("#[allow(clippy::upper_case_acronyms)]");
+        }
         self.newline();
         self.add_code("#[allow(dead_code)]");
         self.newline();
@@ -2327,8 +2341,10 @@ impl AstVisitor for RustVisitor {
 
         self.add_code("#[allow(dead_code)]");
         self.newline();
-        self.add_code("#[allow(non_snake_case)]");
-        self.newline();
+        if !self.config.config_features.follow_rust_naming {
+            self.add_code("#[allow(non_snake_case)]");
+            self.newline();
+        }
         self.add_code(&format!("impl {} {{", system_node.name));
         self.indent();
         self.newline();
@@ -2538,8 +2554,10 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.newline();
         self.add_code("#[allow(dead_code)]");
-        self.newline();
-        self.add_code("#[allow(non_snake_case)]");
+        if !self.config.config_features.follow_rust_naming {
+            self.newline();
+            self.add_code("#[allow(non_snake_case)]");
+        }
         self.newline();
         self.add_code(&format!(
             "impl {} {{",
@@ -2587,6 +2605,7 @@ impl AstVisitor for RustVisitor {
                                         Some(param_type) => param_type.get_type_str(),
                                         None => "<?>".to_string().clone(),
                                     };
+                                    let param_name = self.format_value_name(&param.name);
                                     self.newline();
                                     self.newline();
                                     let parameter_enum_name = self
@@ -2597,7 +2616,7 @@ impl AstVisitor for RustVisitor {
                                     self.add_code(&format!(
                                         "fn {}(&mut self, {}: {}) {{",
                                         self.format_setter_name(&parameter_enum_name),
-                                        param.name,
+                                        param_name,
                                         param_type
                                     ));
                                     self.indent();
@@ -2617,7 +2636,7 @@ impl AstVisitor for RustVisitor {
                                         "{}::{} {{ param: {} }},",
                                         self.config.frame_event_parameter_type_name,
                                         self.format_type_name(&parameter_enum_name),
-                                        param.name
+                                        param_name
                                     ));
                                     self.outdent();
                                     self.newline();
@@ -2789,14 +2808,13 @@ impl AstVisitor for RustVisitor {
                             .arcanium
                             .get_msg_from_interface_name(&interface_method_node.name);
 
-                        let pname = &param.param_name;
                         let parameter_enum_name =
                             self.format_frame_event_parameter_name(&msg, &param.param_name);
                         self.newline();
                         self.add_code(&format!(
                             "(*frame_parameters).{}({});",
                             self.format_setter_name(&parameter_enum_name),
-                            pname
+                            self.format_value_name(&param.param_name)
                         ));
                     }
                 }
@@ -2913,6 +2931,7 @@ impl AstVisitor for RustVisitor {
         actions_block_node: &ActionsBlockNode,
     ) -> AstVisitorReturnType {
         if self.config.config_features.generate_action_impl {
+            self.newline();
             self.newline();
             self.add_code(&format!(
                 "trait {}{}{} {{ ",
