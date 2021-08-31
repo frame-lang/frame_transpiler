@@ -1576,8 +1576,8 @@ impl RustVisitor {
         self.add_code(&format!(
             "self.{}({}::{});",
             self.config.change_state_method_name,
-            self.system_name,
-            self.format_state_handler_name(target_state_name)
+            self.state_enum_type_name(),
+            self.format_type_name(&target_state_name.to_string())
         ));
     }
 
