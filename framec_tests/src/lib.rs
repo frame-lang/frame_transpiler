@@ -4,6 +4,7 @@ mod empty;
 mod event_handler;
 mod hierarchical;
 mod hierarchical_guard;
+mod r#match;
 mod rust_naming;
 mod state_context;
 mod state_params;
