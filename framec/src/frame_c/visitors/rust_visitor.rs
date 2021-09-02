@@ -23,9 +23,12 @@ struct Config {
     enter_msg: String,
     exit_msg: String,
     enter_args_member_name: String,
+    enter_args_suffix: String,
     exit_args_member_name: String,
     state_args_var: String,
+    state_args_suffix: String,
     state_vars_var_name: String,
+    state_vars_suffix: String,
     state_stack_var_name: String,
     state_context_name: String,
     state_context_suffix: String,
@@ -114,6 +117,10 @@ impl Config {
                 .as_str()
                 .unwrap_or_default()
                 .to_string(),
+            enter_args_suffix: (&code_yaml["enter_args_suffix"])
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
             exit_args_member_name: (&code_yaml["exit_args_member_name"])
                 .as_str()
                 .unwrap_or_default()
@@ -199,7 +206,15 @@ impl Config {
                 .as_str()
                 .unwrap_or_default()
                 .to_string(),
+            state_args_suffix: (&code_yaml["state_args_suffix"])
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
             state_vars_var_name: (&code_yaml["state_vars_var_name"])
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
+            state_vars_suffix: (&code_yaml["state_vars_suffix"])
                 .as_str()
                 .unwrap_or_default()
                 .to_string(),
@@ -648,15 +663,17 @@ impl RustVisitor {
 
     fn format_enter_args_struct_name(&self, state_name: &str) -> String {
         format!(
-            "{}EnterArgs",
-            self.format_type_name(&state_name.to_string())
+            "{}{}",
+            self.format_type_name(&state_name.to_string()),
+            self.config.enter_args_suffix
         )
     }
 
     fn format_state_args_struct_name(&self, state_name: &str) -> String {
         format!(
-            "{}StateArgs",
-            self.format_type_name(&state_name.to_string())
+            "{}{}",
+            self.format_type_name(&state_name.to_string()),
+            self.config.state_args_suffix
         )
     }
 
@@ -670,8 +687,9 @@ impl RustVisitor {
 
     fn format_state_vars_struct_name(&self, state_name: &str) -> String {
         format!(
-            "{}StateVars",
-            self.format_type_name(&state_name.to_string())
+            "{}{}",
+            self.format_type_name(&state_name.to_string()),
+            self.config.state_vars_suffix
         )
     }
 
