@@ -1590,79 +1590,71 @@ impl RustVisitor {
     /// transition statement. Returns `true` if any exit arguments were passed.
     fn generate_exit_arguments(
         &mut self,
-        transition_statement: &TransitionStatementNode,
         target_state_name: &str,
+        exit_args: &ExprListNode,
     ) -> bool {
-        let mut has_exit_args = false;
-        if let Some(exit_args) = &transition_statement.exit_args_opt {
-            if exit_args.exprs_t.len() > 0 {
-                has_exit_args = true;
-
-                // Note - searching for event keyed with "State:<"
-                // e.g. "S1:<"
-
-                let mut msg: String = String::new();
-                if let Some(state_name) = &self.current_state_name_opt {
-                    msg = state_name.clone();
-                }
-                msg.push_str(":");
-                msg.push_str(&self.symbol_config.exit_msg_symbol);
-
-                if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt)
-                {
-                    match &event_sym.borrow().params_opt {
-                        Some(event_params) => {
-                            if exit_args.exprs_t.len() != event_params.len() {
-                                self.errors.push(
-                                    "Fatal error: misaligned parameters to arguments.".to_string(),
-                                );
-                            }
-                            let mut param_symbols_it = event_params.iter();
-                            self.add_code(&format!(
-                                "let mut {} = Box::new({}::new());",
-                                self.config.exit_args_member_name,
-                                self.config.frame_event_parameters_type_name
-                            ));
-                            self.newline();
-                            // Loop through the ARGUMENTS...
-                            for expr_t in &exit_args.exprs_t {
-                                // ...and validate w/ the PARAMETERS
-                                match param_symbols_it.next() {
-                                    Some(p) => {
-                                        let mut expr = String::new();
-                                        expr_t.accept_to_string(self, &mut expr);
-                                        let parameter_enum_name =
-                                            self.format_frame_event_parameter_name(&msg, &p.name);
-
-                                        self.add_code(&format!(
-                                            "(*{}).{}({});",
-                                            self.config.exit_args_member_name,
-                                            self.format_setter_name(&parameter_enum_name),
-                                            expr
-                                        ));
-                                        self.newline();
-                                    }
-                                    None => self.errors.push(format!(
-                                        "Invalid number of arguments for \"{}\" event handler.",
-                                        msg
-                                    )),
-                                }
-                            }
-                        }
-                        None => self
-                            .errors
-                            .push(format!("Fatal error: misaligned parameters to arguments.")),
-                    }
-                } else {
-                    let current_state_name = &self.current_state_name_opt.as_ref().unwrap();
-                    self.errors.push(format!(
-                        "Missing exit event handler for transition from ${} to ${}.",
-                        current_state_name, &target_state_name
-                    ));
-                }
-            }
+        if exit_args.exprs_t.len() <= 0 {
+            return false;
         }
-        has_exit_args
+        // Note - searching for event keyed with "State:<"
+        // e.g. "S1:<"
+        let mut msg: String = String::new();
+        if let Some(state_name) = &self.current_state_name_opt {
+            msg = state_name.clone();
+        }
+        msg.push_str(":");
+        msg.push_str(&self.symbol_config.exit_msg_symbol);
+        if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt) {
+            match &event_sym.borrow().params_opt {
+                Some(event_params) => {
+                    if exit_args.exprs_t.len() != event_params.len() {
+                        self.errors
+                            .push("Fatal error: misaligned parameters to arguments.".to_string());
+                    }
+                    let mut param_symbols_it = event_params.iter();
+                    self.add_code(&format!(
+                        "let mut {} = Box::new({}::new());",
+                        self.config.exit_args_member_name,
+                        self.config.frame_event_parameters_type_name
+                    ));
+                    self.newline();
+                    // Loop through the ARGUMENTS...
+                    for expr_t in &exit_args.exprs_t {
+                        // ...and validate w/ the PARAMETERS
+                        match param_symbols_it.next() {
+                            Some(p) => {
+                                let mut expr = String::new();
+                                expr_t.accept_to_string(self, &mut expr);
+                                let parameter_enum_name =
+                                    self.format_frame_event_parameter_name(&msg, &p.name);
+
+                                self.add_code(&format!(
+                                    "(*{}).{}({});",
+                                    self.config.exit_args_member_name,
+                                    self.format_setter_name(&parameter_enum_name),
+                                    expr
+                                ));
+                                self.newline();
+                            }
+                            None => self.errors.push(format!(
+                                "Invalid number of arguments for \"{}\" event handler.",
+                                msg
+                            )),
+                        }
+                    }
+                }
+                None => self
+                    .errors
+                    .push(format!("Fatal error: misaligned parameters to arguments.")),
+            }
+        } else {
+            let current_state_name = &self.current_state_name_opt.as_ref().unwrap();
+            self.errors.push(format!(
+                "Missing exit event handler for transition from ${} to ${}.",
+                current_state_name, &target_state_name
+            ));
+        }
+        true
     }
 
     /// Generate the arguments to the enter event handler, passed in a
@@ -1670,64 +1662,54 @@ impl RustVisitor {
     /// string reference. Returns `true` if any enter arguments were passed.
     fn generate_enter_arguments(
         &mut self,
-        transition_statement: &TransitionStatementNode,
         target_state_name: &str,
+        enter_args: &ExprListNode,
         formatted_enter_args: &mut String,
     ) -> bool {
         let mut has_enter_args = false;
-        let enter_args_opt = match &transition_statement.target_state_context_t {
-            StateContextType::StateRef { state_context_node } => &state_context_node.enter_args_opt,
-            StateContextType::StateStackPop {} => &None,
-        };
-
-        if let Some(enter_args) = enter_args_opt {
-            // Note - searching for event keyed with "State:>"
-            // e.g. "S1:>"
-
-            let mut msg: String = String::from(target_state_name);
-            msg.push_str(":");
-            msg.push_str(&self.symbol_config.enter_msg_symbol);
-
-            formatted_enter_args.push_str(&format!(
-                "{} {{",
-                self.format_enter_args_struct_name(&target_state_name)
-            ));
-            if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt) {
-                match &event_sym.borrow().params_opt {
-                    Some(event_params) => {
-                        has_enter_args = true;
-                        if enter_args.exprs_t.len() != event_params.len() {
-                            self.errors
-                                .push(format!("Fatal error: misaligned parameters to arguments."));
-                        }
-                        let mut param_symbols_it = event_params.iter();
-                        for expr_t in &enter_args.exprs_t {
-                            match param_symbols_it.next() {
-                                Some(p) => {
-                                    let mut expr = String::new();
-                                    expr_t.accept_to_string(self, &mut expr);
-                                    // self.add_code(&format!("state_context.addEnterArg(\"{}\",{});", p.name, expr));
-                                    // enter_arguments.push(format!("enter_arg_{}:{},", p.name, expr));
-                                    formatted_enter_args
-                                        .push_str(&format!("{}: {},", p.name, expr));
-                                }
-                                None => self.errors.push(format!(
-                                    "Invalid number of arguments for \"{}\" event handler.",
-                                    msg
-                                )),
+        // Note - searching for event keyed with "State:>"
+        // e.g. "S1:>"
+        let mut msg: String = String::from(target_state_name);
+        msg.push_str(":");
+        msg.push_str(&self.symbol_config.enter_msg_symbol);
+        formatted_enter_args.push_str(&format!(
+            "{} {{",
+            self.format_enter_args_struct_name(&target_state_name)
+        ));
+        if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt) {
+            match &event_sym.borrow().params_opt {
+                Some(event_params) => {
+                    has_enter_args = true;
+                    if enter_args.exprs_t.len() != event_params.len() {
+                        self.errors
+                            .push(format!("Fatal error: misaligned parameters to arguments."));
+                    }
+                    let mut param_symbols_it = event_params.iter();
+                    for expr_t in &enter_args.exprs_t {
+                        match param_symbols_it.next() {
+                            Some(p) => {
+                                let mut expr = String::new();
+                                expr_t.accept_to_string(self, &mut expr);
+                                // self.add_code(&format!("state_context.addEnterArg(\"{}\",{});", p.name, expr));
+                                // enter_arguments.push(format!("enter_arg_{}:{},", p.name, expr));
+                                formatted_enter_args.push_str(&format!("{}: {},", p.name, expr));
                             }
+                            None => self.errors.push(format!(
+                                "Invalid number of arguments for \"{}\" event handler.",
+                                msg
+                            )),
                         }
                     }
-                    None => self.errors.push(format!(
-                        "Invalid number of arguments for \"{}\" event handler.",
-                        msg
-                    )),
                 }
-            } else {
-                self.warnings.push(format!("State {} does not have an enter event handler but is being passed parameters in a transition", target_state_name));
+                None => self.errors.push(format!(
+                    "Invalid number of arguments for \"{}\" event handler.",
+                    msg
+                )),
             }
-            formatted_enter_args.push_str("}");
+        } else {
+            self.warnings.push(format!("State {} does not have an enter event handler but is being passed parameters in a transition", target_state_name));
         }
+        formatted_enter_args.push_str("}");
         has_enter_args
     }
 
@@ -1736,61 +1718,52 @@ impl RustVisitor {
     /// `true` if any state arguments were passed.
     fn generate_state_arguments(
         &mut self,
-        transition_statement: &TransitionStatementNode,
         target_state_name: &str,
+        state_args: &ExprListNode,
         formatted_state_args: &mut String,
     ) -> bool {
-        let mut has_state_args = false;
-        let target_state_args_opt = match &transition_statement.target_state_context_t {
-            StateContextType::StateRef { state_context_node } => {
-                &state_context_node.state_ref_args_opt
-            }
-            StateContextType::StateStackPop {} => &Option::None,
-        };
-
-        if let Some(state_args) = target_state_args_opt {
-            has_state_args = true;
-            formatted_state_args.push_str(&format!(
-                "{} {{",
-                self.format_state_args_struct_name(&target_state_name)
-            ));
-
-            if let Some(state_sym) = self.arcanium.get_state(&target_state_name) {
-                match &state_sym.borrow().params_opt {
-                    Some(event_params) => {
-                        let mut param_symbols_it = event_params.iter();
-                        // Loop through the ARGUMENTS...
-                        for expr_t in &state_args.exprs_t {
-                            // ...and validate w/ the PARAMETERS
-                            match param_symbols_it.next() {
-                                Some(param_symbol_rcref) => {
-                                    let param_symbol = param_symbol_rcref.borrow();
-                                    let mut expr = String::new();
-                                    expr_t.accept_to_string(self, &mut expr);
-                                    // self.add_code(&format!("state_context.addStateArg(\"{}\",{});", param_symbol.name, expr));
-                                    // self.newline();
-                                    formatted_state_args.push_str(&format!(
-                                        "{}: {},",
-                                        self.format_value_name(&param_symbol.name),
-                                        expr
-                                    ));
-                                }
-                                None => self.errors.push(format!(
-                                    "Invalid number of arguments for \"{}\" state parameters.",
-                                    target_state_name
-                                )),
-                            }
-                            //
-                        }
-                    }
-                    None => {}
-                }
-            } else {
-                self.errors.push(format!("TODO"));
-            }
-            formatted_state_args.push_str("}");
+        if state_args.exprs_t.len() <= 0 {
+            return false;
         }
-        has_state_args
+        formatted_state_args.push_str(&format!(
+            "{} {{",
+            self.format_state_args_struct_name(&target_state_name)
+        ));
+        if let Some(state_sym) = self.arcanium.get_state(&target_state_name) {
+            match &state_sym.borrow().params_opt {
+                Some(event_params) => {
+                    let mut param_symbols_it = event_params.iter();
+                    // Loop through the ARGUMENTS...
+                    for expr_t in &state_args.exprs_t {
+                        // ...and validate w/ the PARAMETERS
+                        match param_symbols_it.next() {
+                            Some(param_symbol_rcref) => {
+                                let param_symbol = param_symbol_rcref.borrow();
+                                let mut expr = String::new();
+                                expr_t.accept_to_string(self, &mut expr);
+                                // self.add_code(&format!("state_context.addStateArg(\"{}\",{});", param_symbol.name, expr));
+                                // self.newline();
+                                formatted_state_args.push_str(&format!(
+                                    "{}: {},",
+                                    self.format_value_name(&param_symbol.name),
+                                    expr
+                                ));
+                            }
+                            None => self.errors.push(format!(
+                                "Invalid number of arguments for \"{}\" state parameters.",
+                                target_state_name
+                            )),
+                        }
+                        //
+                    }
+                }
+                None => {}
+            }
+        } else {
+            self.errors.push(format!("TODO"));
+        }
+        formatted_state_args.push_str("}");
+        true
     }
 
     /// Generate the state variables for the next state after a transition or
@@ -1802,42 +1775,33 @@ impl RustVisitor {
         target_state_name: &str,
         formatted_state_vars: &mut String,
     ) -> bool {
-        let target_state_rcref_opt = self.arcanium.get_state(&target_state_name);
         let mut has_state_vars = false;
-
-        match target_state_rcref_opt {
-            Some(q) => {
-                //                target_state_vars = "stateVars".to_string();
-                if let Some(state_symbol_rcref) = self.arcanium.get_state(&q.borrow().name) {
-                    let state_symbol = state_symbol_rcref.borrow();
-                    let state_node = &state_symbol.state_node.as_ref().unwrap().borrow();
-                    // generate local state variables
-                    if state_node.vars_opt.is_some() {
-                        //                        let mut separator = "";
-                        has_state_vars = true;
-                        formatted_state_vars.push_str(&format!(
-                            "{} {{",
-                            self.format_state_vars_struct_name(&target_state_name)
-                        ));
-                        for var_rcref in state_node.vars_opt.as_ref().unwrap() {
-                            let var = var_rcref.borrow();
-                            let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
-                            let mut expr_code = String::new();
-                            expr_t.accept_to_string(self, &mut expr_code);
-                            // self.newline();
-                            // self.add_code(&format!("state_context.addStateVar(\"{}\",{});", var.name, expr_code));
-                            // self.newline();
-                            formatted_state_vars.push_str(&format!(
-                                "{}: {},",
-                                self.format_value_name(&var.name),
-                                expr_code
-                            ));
-                        }
-                        formatted_state_vars.push_str("}");
-                    }
+        if let Some(state_symbol_rcref) = self.arcanium.get_state(&target_state_name) {
+            let state_symbol = state_symbol_rcref.borrow();
+            let state_node = &state_symbol.state_node.as_ref().unwrap().borrow();
+            // generate local state variables
+            if state_node.vars_opt.is_some() {
+                has_state_vars = true;
+                formatted_state_vars.push_str(&format!(
+                    "{} {{",
+                    self.format_state_vars_struct_name(&target_state_name)
+                ));
+                for var_rcref in state_node.vars_opt.as_ref().unwrap() {
+                    let var = var_rcref.borrow();
+                    let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
+                    let mut expr_code = String::new();
+                    expr_t.accept_to_string(self, &mut expr_code);
+                    // self.newline();
+                    // self.add_code(&format!("state_context.addStateVar(\"{}\",{});", var.name, expr_code));
+                    // self.newline();
+                    formatted_state_vars.push_str(&format!(
+                        "{}: {},",
+                        self.format_value_name(&var.name),
+                        expr_code
+                    ));
                 }
+                formatted_state_vars.push_str("}");
             }
-            None => {}
         }
         has_state_vars
     }
@@ -1892,21 +1856,46 @@ impl RustVisitor {
             None => {}
         }
 
-        // generate components of state context
+        // generate exit arguments
+        let mut has_exit_args = false;
+        if let Some(exit_args) = &transition_statement.exit_args_opt {
+            has_exit_args = self.generate_exit_arguments(&target_state_name, &exit_args);
+        }
+
+        // generate enter arguments
+        let mut has_enter_args = false;
         let mut formatted_enter_args = String::new();
+        match &transition_statement.target_state_context_t {
+            StateContextType::StateRef { state_context_node } => {
+                if let Some(enter_args) = &state_context_node.enter_args_opt {
+                    has_enter_args = self.generate_enter_arguments(
+                        &target_state_name,
+                        &enter_args,
+                        &mut formatted_enter_args,
+                    );
+                }
+            }
+            StateContextType::StateStackPop {} => {}
+        };
+
+        // generate state arguments
+        let mut has_state_args = false;
         let mut formatted_state_args = String::new();
+        match &transition_statement.target_state_context_t {
+            StateContextType::StateRef { state_context_node } => {
+                if let Some(state_args) = &state_context_node.state_ref_args_opt {
+                    has_state_args = self.generate_state_arguments(
+                        &target_state_name,
+                        &state_args,
+                        &mut formatted_state_args,
+                    );
+                }
+            }
+            StateContextType::StateStackPop {} => {}
+        };
+
+        // generate state variables
         let mut formatted_state_vars = String::new();
-        let has_exit_args = self.generate_exit_arguments(&transition_statement, &target_state_name);
-        let has_enter_args = self.generate_enter_arguments(
-            &transition_statement,
-            &target_state_name,
-            &mut formatted_enter_args,
-        );
-        let has_state_args = self.generate_state_arguments(
-            &transition_statement,
-            &target_state_name,
-            &mut formatted_state_args,
-        );
         let has_state_vars =
             self.generate_state_variables(&target_state_name, &mut formatted_state_vars);
 
