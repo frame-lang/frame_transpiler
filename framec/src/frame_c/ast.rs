@@ -845,7 +845,6 @@ pub enum ExprStmtType {
     },
 }
 
-
 impl TerminationAttrs for ExprStmtType {
     fn is_terminated(&self) -> bool {
         false
@@ -876,51 +875,58 @@ pub enum StatementType {
     NoStmt,
 }
 
-
 impl TerminationAttrs for StatementType {
     fn is_terminated(&self) -> bool {
         match &self {
-            StatementType::ExpressionStmt {expr_stmt_t} => {
+            StatementType::ExpressionStmt { expr_stmt_t } => {
                 return expr_stmt_t.is_terminated();
-            },
-            StatementType::TransitionStmt {transition_statement} => {
+            }
+            StatementType::TransitionStmt {
+                transition_statement,
+            } => {
                 return transition_statement.is_terminated();
-            },
-            StatementType::ChangeStateStmt {change_state_stmt} => {
+            }
+            StatementType::ChangeStateStmt { change_state_stmt } => {
                 return change_state_stmt.is_terminated();
-            },
-            StatementType::TestStmt {test_stmt_node} => {
+            }
+            StatementType::TestStmt { test_stmt_node } => {
                 return test_stmt_node.is_terminated();
-            },
-            StatementType::StateStackStmt {state_stack_operation_statement_node} => {
+            }
+            StatementType::StateStackStmt {
+                state_stack_operation_statement_node,
+            } => {
                 return false;
-            },
+            }
             StatementType::NoStmt => {
                 return false;
-            },
+            }
         }
     }
 
     fn must_be_terminated(&self) -> bool {
         match &self {
-            StatementType::ExpressionStmt {expr_stmt_t} => {
+            StatementType::ExpressionStmt { expr_stmt_t } => {
                 return expr_stmt_t.must_be_terminated();
-            },
-            StatementType::TransitionStmt {transition_statement} => {
+            }
+            StatementType::TransitionStmt {
+                transition_statement,
+            } => {
                 return transition_statement.must_be_terminated();
-            },
-            StatementType::ChangeStateStmt {change_state_stmt} => {
+            }
+            StatementType::ChangeStateStmt { change_state_stmt } => {
                 return change_state_stmt.must_be_terminated();
-            },
-            StatementType::TestStmt {test_stmt_node} => {
+            }
+            StatementType::TestStmt { test_stmt_node } => {
                 return test_stmt_node.must_be_terminated();
-            },
-            StatementType::StateStackStmt {state_stack_operation_statement_node} => {
+            }
+            StatementType::StateStackStmt {
+                state_stack_operation_statement_node,
+            } => {
                 return false;
-            },
+            }
             StatementType::NoStmt => {
                 return false;
-            },
+            }
         }
     }
 }
@@ -939,10 +945,10 @@ pub enum DeclOrStmtType {
 impl TerminationAttrs for DeclOrStmtType {
     fn is_terminated(&self) -> bool {
         match &self {
-            DeclOrStmtType::StmtT {stmt_t} => {
+            DeclOrStmtType::StmtT { stmt_t } => {
                 return stmt_t.is_terminated();
-            },
-            DeclOrStmtType::VarDeclT {..} => {
+            }
+            DeclOrStmtType::VarDeclT { .. } => {
                 return false;
             }
         }
@@ -950,10 +956,10 @@ impl TerminationAttrs for DeclOrStmtType {
 
     fn must_be_terminated(&self) -> bool {
         match &self {
-            DeclOrStmtType::StmtT {stmt_t} => {
+            DeclOrStmtType::StmtT { stmt_t } => {
                 return stmt_t.must_be_terminated();
-            },
-            DeclOrStmtType::VarDeclT {..} => {
+            }
+            DeclOrStmtType::VarDeclT { .. } => {
                 return false;
             }
         }
@@ -1168,16 +1174,16 @@ impl TerminationAttrs for ChangeStateStatementNode {
 
 pub struct TestStatementNode {
     pub test_t: TestType,
-    pub terminated:bool,
-    pub must_be_terminated:bool,
+    pub terminated: bool,
+    pub must_be_terminated: bool,
 }
 
 impl TestStatementNode {
     pub fn new(test_t: TestType) -> TestStatementNode {
         TestStatementNode {
             test_t,
-            terminated:false,
-            must_be_terminated:false,
+            terminated: false,
+            must_be_terminated: false,
         }
     }
 }
@@ -1663,8 +1669,8 @@ pub enum TestType {
 pub struct BoolTestNode {
     pub conditional_branch_nodes: Vec<BoolTestConditionalBranchNode>,
     pub else_branch_node_opt: Option<BoolTestElseBranchNode>,
-    pub terminated:bool,
-    pub must_be_terminated:bool,
+    pub terminated: bool,
+    pub must_be_terminated: bool,
 }
 
 impl BoolTestNode {
@@ -1672,7 +1678,6 @@ impl BoolTestNode {
         conditional_branch_nodes: Vec<BoolTestConditionalBranchNode>,
         else_branch_node_opt: Option<BoolTestElseBranchNode>,
     ) -> BoolTestNode {
-
         let mut terminated = true;
         let mut must_be_terminated = false;
         for branch in &conditional_branch_nodes {
@@ -1687,10 +1692,8 @@ impl BoolTestNode {
             Some(ref else_branch_node) => {
                 terminated = terminated && else_branch_node.is_terminated();
                 must_be_terminated = must_be_terminated || else_branch_node.must_be_terminated();
-            },
-            None => {
-                terminated = false
-            },
+            }
+            None => terminated = false,
         }
 
         BoolTestNode {
@@ -1725,8 +1728,8 @@ pub struct BoolTestConditionalBranchNode {
     pub expr_t: ExprType,
     pub statements: Vec<DeclOrStmtType>,
     pub branch_terminator_expr_opt: Option<TerminatorExpr>,
-    pub terminated:bool,
-    pub must_be_terminated:bool,
+    pub terminated: bool,
+    pub must_be_terminated: bool,
 }
 
 impl BoolTestConditionalBranchNode {
@@ -1755,7 +1758,6 @@ impl NodeElement for BoolTestConditionalBranchNode {
     }
 }
 
-
 impl TerminationAttrs for BoolTestConditionalBranchNode {
     fn is_terminated(&self) -> bool {
         self.terminated
@@ -1771,16 +1773,16 @@ impl TerminationAttrs for BoolTestConditionalBranchNode {
 pub struct BoolTestElseBranchNode {
     pub statements: Vec<DeclOrStmtType>,
     pub branch_terminator_expr_opt: Option<TerminatorExpr>,
-    pub terminated:bool,
-    pub must_be_terminated:bool,
+    pub terminated: bool,
+    pub must_be_terminated: bool,
 }
 
 impl BoolTestElseBranchNode {
     pub fn new(
         statements: Vec<DeclOrStmtType>,
         branch_terminator_t_opt: Option<TerminatorExpr>,
-        terminated:bool,
-        must_be_terminated:bool,
+        terminated: bool,
+        must_be_terminated: bool,
     ) -> BoolTestElseBranchNode {
         BoolTestElseBranchNode {
             statements,
@@ -1813,7 +1815,7 @@ pub struct StringMatchTestNode {
     pub expr_t: ExprType,
     pub match_branch_nodes: Vec<StringMatchTestMatchBranchNode>,
     pub else_branch_node_opt: Option<StringMatchTestElseBranchNode>,
-    pub terminated:bool,
+    pub terminated: bool,
 }
 
 impl StringMatchTestNode {
@@ -1826,7 +1828,7 @@ impl StringMatchTestNode {
             expr_t,
             match_branch_nodes,
             else_branch_node_opt,
-            terminated:false,
+            terminated: false,
         }
     }
 }
@@ -1843,7 +1845,7 @@ pub struct StringMatchTestMatchBranchNode {
     pub string_match_pattern_node: StringMatchTestPatternNode,
     pub statements: Vec<DeclOrStmtType>,
     pub branch_terminator_expr_opt: Option<TerminatorExpr>,
-    pub terminated:bool,
+    pub terminated: bool,
 }
 
 impl StringMatchTestMatchBranchNode {
@@ -1856,7 +1858,7 @@ impl StringMatchTestMatchBranchNode {
             string_match_pattern_node,
             statements,
             branch_terminator_expr_opt: branch_terminator_t_opt,
-            terminated:false,
+            terminated: false,
         }
     }
 }
@@ -1872,7 +1874,7 @@ impl NodeElement for StringMatchTestMatchBranchNode {
 pub struct StringMatchTestElseBranchNode {
     pub statements: Vec<DeclOrStmtType>,
     pub branch_terminator_expr_opt: Option<TerminatorExpr>,
-    pub terminated:bool,
+    pub terminated: bool,
 }
 
 impl StringMatchTestElseBranchNode {
@@ -1883,7 +1885,7 @@ impl StringMatchTestElseBranchNode {
         StringMatchTestElseBranchNode {
             statements,
             branch_terminator_expr_opt: branch_terminator_t_opt,
-            terminated:false,
+            terminated: false,
         }
     }
 }
@@ -1920,7 +1922,7 @@ pub struct NumberMatchTestNode {
     pub expr_t: ExprType,
     pub match_branch_nodes: Vec<NumberMatchTestMatchBranchNode>,
     pub else_branch_node_opt: Option<NumberMatchTestElseBranchNode>,
-    terminated:bool,
+    terminated: bool,
 }
 
 impl NumberMatchTestNode {
@@ -1933,7 +1935,7 @@ impl NumberMatchTestNode {
             expr_t,
             match_branch_nodes,
             else_branch_node_opt,
-            terminated:false,
+            terminated: false,
         }
     }
 }
@@ -1950,7 +1952,7 @@ pub struct NumberMatchTestMatchBranchNode {
     pub number_match_pattern_nodes: Vec<NumberMatchTestPatternNode>,
     pub statements: Vec<DeclOrStmtType>,
     pub branch_terminator_expr_opt: Option<TerminatorExpr>,
-    pub terminated:bool,
+    pub terminated: bool,
 }
 
 impl NumberMatchTestMatchBranchNode {
@@ -1963,7 +1965,7 @@ impl NumberMatchTestMatchBranchNode {
             number_match_pattern_nodes,
             statements,
             branch_terminator_expr_opt: branch_terminator_t_opt,
-            terminated:false,
+            terminated: false,
         }
     }
 }
@@ -1979,7 +1981,7 @@ impl NodeElement for NumberMatchTestMatchBranchNode {
 pub struct NumberMatchTestElseBranchNode {
     pub statements: Vec<DeclOrStmtType>,
     pub branch_terminator_expr_opt: Option<TerminatorExpr>,
-    pub terminated:bool,
+    pub terminated: bool,
 }
 
 impl NumberMatchTestElseBranchNode {
@@ -1990,7 +1992,7 @@ impl NumberMatchTestElseBranchNode {
         NumberMatchTestElseBranchNode {
             statements,
             branch_terminator_expr_opt: branch_terminator_t_opt,
-            terminated:false,
+            terminated: false,
         }
     }
 }

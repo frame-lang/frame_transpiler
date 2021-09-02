@@ -10,12 +10,12 @@ use super::scanner::TokenType::*;
 use super::scanner::*;
 use super::symbol_table::SymbolType::*;
 use super::symbol_table::*;
+use crate::frame_c::ast::StatementType::TransitionStmt;
 use crate::frame_c::utils::SystemHierarchy;
 use downcast_rs::__std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
-use crate::frame_c::ast::StatementType::TransitionStmt;
 
 pub struct ParseError {
     // TODO:
@@ -1799,7 +1799,7 @@ impl<'a> Parser<'a> {
         match statements.last() {
             Some(decl_or_stmt_t) => {
                 last_statement_is_terminated = decl_or_stmt_t.is_terminated();
-            },
+            }
             None => {}
         }
         let event_symbol_rcref = self.arcanum.get_event(&msg, &self.state_name_opt).unwrap();
@@ -1890,12 +1890,20 @@ impl<'a> Parser<'a> {
                     self.previous().line,
                 )))
             } else {
-                Ok(Some(TerminatorExpr::new(Return, None, self.previous().line)))
+                Ok(Some(TerminatorExpr::new(
+                    Return,
+                    None,
+                    self.previous().line,
+                )))
             }
         } else if self.match_token(&vec![TokenType::ElseContinueTok]) {
-            Ok(Some(TerminatorExpr::new(Continue, None, self.previous().line)))
+            Ok(Some(TerminatorExpr::new(
+                Continue,
+                None,
+                self.previous().line,
+            )))
         } else {
-        //    self.error_at_current("Expected event handler terminator.");
+            //    self.error_at_current("Expected event handler terminator.");
             Ok(None)
         }
     }
@@ -1911,11 +1919,10 @@ impl<'a> Parser<'a> {
 
         loop {
             // let result = self.decl_or_stmt();
-//            let must_terminate = false;
+            //            let must_terminate = false;
             match self.decl_or_stmt() {
                 Ok(opt_smt) => match opt_smt {
                     Some(statement) => {
-
                         // match &statement {
                         //     DeclOrStmtType::StmtT {stmt_t} => {
                         //         // Transitions or state changes must be the last statement in
@@ -1940,12 +1947,10 @@ impl<'a> Parser<'a> {
                         if must_be_terminated {
                             return statements;
                         }
-
                     }
                     None => {
                         return statements;
                     }
-
                 },
                 Err(_err) => {
                     let sync_tokens = &vec![
@@ -2273,7 +2278,6 @@ impl<'a> Parser<'a> {
         while self.match_token(&vec![ElseContinueTok]) {
             match self.bool_test_else_continue_branch() {
                 Ok(branch_node) => {
-
                     conditional_branches.push(branch_node);
                 }
                 Err(parse_error) => return Err(parse_error),
@@ -2346,7 +2350,6 @@ impl<'a> Parser<'a> {
         is_negated: bool,
         expr_t: ExprType,
     ) -> Result<BoolTestConditionalBranchNode, ParseError> {
-
         let statements = self.statements();
         let mut must_be_terminated = false;
 
@@ -2356,13 +2359,13 @@ impl<'a> Parser<'a> {
         match statements.last() {
             Some(decl_or_stmt_t) => {
                 must_be_terminated = decl_or_stmt_t.must_be_terminated();
-            },
+            }
             None => {}
         }
 
         let result = self.branch_terminator();
 
-  //      let terminated;
+        //      let terminated;
 
         // match result {
         //     Ok(terminator_exp_opt) => {
@@ -2375,7 +2378,6 @@ impl<'a> Parser<'a> {
         // }
         return match result {
             Ok(branch_terminator_expr_opt) => {
-
                 let terminated = branch_terminator_expr_opt.is_some();
 
                 Ok(BoolTestConditionalBranchNode::new(
@@ -2398,13 +2400,13 @@ impl<'a> Parser<'a> {
     fn bool_test_else_branch(&mut self) -> Result<BoolTestElseBranchNode, ParseError> {
         let statements = self.statements();
         let mut must_be_terminated = false;
-       // if the last statement in the branch is a
+        // if the last statement in the branch is a
         // "must_be_terminated" statement then that property
         // needs to be set on the branch as well.
         match statements.last() {
             Some(decl_or_stmt_t) => {
                 must_be_terminated = decl_or_stmt_t.must_be_terminated();
-            },
+            }
             None => {}
         }
 
