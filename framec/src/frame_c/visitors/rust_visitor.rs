@@ -1612,12 +1612,12 @@ impl RustVisitor {
                             .push("Fatal error: misaligned parameters to arguments.".to_string());
                     }
                     let mut param_symbols_it = event_params.iter();
+                    self.newline();
                     self.add_code(&format!(
                         "let mut {} = Box::new({}::new());",
                         self.config.exit_args_member_name,
                         self.config.frame_event_parameters_type_name
                     ));
-                    self.newline();
                     // Loop through the ARGUMENTS...
                     for expr_t in &exit_args.exprs_t {
                         // ...and validate w/ the PARAMETERS
@@ -1627,14 +1627,13 @@ impl RustVisitor {
                                 expr_t.accept_to_string(self, &mut expr);
                                 let parameter_enum_name =
                                     self.format_frame_event_parameter_name(&msg, &p.name);
-
+                                self.newline();
                                 self.add_code(&format!(
                                     "(*{}).{}({});",
                                     self.config.exit_args_member_name,
                                     self.format_setter_name(&parameter_enum_name),
                                     expr
                                 ));
-                                self.newline();
                             }
                             None => self.errors.push(format!(
                                 "Invalid number of arguments for \"{}\" event handler.",
@@ -1806,63 +1805,170 @@ impl RustVisitor {
         has_state_vars
     }
 
-    //* --------------------------------------------------------------------- *//
-
-    // TODO
-    fn generate_state_ref_change_state(
+    /// Generate code that initializes a new state context value stored in a
+    /// local variable named `next_state_context`.
+    fn generate_next_state_context(
         &mut self,
-        change_state_stmt_node: &ChangeStateStatementNode,
+        target_state_name: &str,
+        has_enter_args: bool,
+        has_state_args: bool,
+        has_state_vars: bool,
+        enter_args: &str,
+        state_args: &str,
+        state_vars: &str
     ) {
-        let target_state_name = match &change_state_stmt_node.state_context_t {
-            StateContextType::StateRef { state_context_node } => {
-                &state_context_node.state_ref_node.name
-            }
-            _ => {
-                self.errors
-                    .push("Change state target not found.".to_string());
-                "error"
-            }
-        };
-
         self.newline();
         self.add_code(&format!(
-            "self.{}({}::{});",
-            self.config.change_state_method_name,
-            self.state_enum_type_name(),
+            "let context = {} {{",
+            self.format_state_context_struct_name(target_state_name)
+        ));
+        self.indent();
+        if has_state_args {
+            self.newline();
+            self.add_code(&format!(
+                "{}: {},",
+                self.config.state_args_var, state_args
+            ));
+        }
+        if has_state_vars {
+            self.newline();
+            self.add_code(&format!(
+                "{}: {},",
+                self.config.state_vars_var_name, state_vars
+            ));
+        }
+        if has_enter_args {
+            self.newline();
+            self.add_code(&format!(
+                "{}: {},",
+                self.config.enter_args_member_name, enter_args
+            ));
+        }
+        self.outdent();
+        self.newline();
+        self.add_code("};");
+        self.newline();
+        self.add_code(&format!(
+            "let next_state_context = {}::{}(RefCell::new(context));",
+            self.config.state_context_name,
             self.format_type_name(&target_state_name.to_string())
         ));
     }
 
+
     //* --------------------------------------------------------------------- *//
 
-    fn generate_state_ref_transition(&mut self, transition_statement: &TransitionStatementNode) {
+    fn generate_state_ref_change_state(&mut self, change_state_stmt: &ChangeStateStatementNode) {
         self.newline();
-        self.add_code("// Start transition ");
-        self.newline();
+        self.add_code("// Start change state ");
 
         // get the name of the next state
-        let target_state_name = match &transition_statement.target_state_context_t {
+        let target_state_name = match &change_state_stmt.state_context_t {
             StateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_node.name
             }
             _ => {
-                self.errors.push("Unknown error.".to_string());
+                self.errors.push("Change state target not found.".to_string());
+                "error"
+            }
+        };
+
+        // print the change-state label, if provided
+        match &change_state_stmt.label_opt {
+            Some(label) => {
+                self.newline();
+                self.add_code(&format!("// {}", label));
+            }
+            None => {}
+        }
+
+        // generate state arguments
+        let mut has_state_args = false;
+        let mut formatted_state_args = String::new();
+        match &change_state_stmt.state_context_t {
+            StateContextType::StateRef { state_context_node } => {
+                if let Some(state_args) = &state_context_node.state_ref_args_opt {
+                    has_state_args = self.generate_state_arguments(
+                        &target_state_name,
+                        &state_args,
+                        &mut formatted_state_args,
+                    );
+                }
+            }
+            StateContextType::StateStackPop {} => {}
+        };
+        
+        // generate state variables
+        let mut formatted_state_vars = String::new();
+        let has_state_vars =
+            self.generate_state_variables(&target_state_name, &mut formatted_state_vars);
+        
+        // generate new state context
+        if self.generate_state_context {
+            self.generate_next_state_context(
+                &target_state_name,
+                false,
+                has_state_args,
+                has_state_vars,
+                "None",
+                &formatted_state_args,
+                &formatted_state_vars
+            );
+            self.newline();
+            self.add_code(&format!(
+                "drop({});",
+                self.config.this_state_context_var_name
+            ));
+        }
+
+        // call the change-state method
+        self.newline();
+        if self.generate_state_context {
+            self.add_code(&format!(
+                "self.{}({}::{}, next_state_context);",
+                self.config.transition_method_name,
+                self.state_enum_type_name(),
+                self.format_type_name(&target_state_name.to_string())
+            ));
+        } else {
+            self.add_code(&format!(
+                "self.{}({}::{});",
+                self.config.change_state_method_name,
+                self.state_enum_type_name(),
+                self.format_type_name(&target_state_name.to_string())
+            ));
+        }
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn generate_state_ref_transition(&mut self, transition_stmt: &TransitionStatementNode) {
+        self.newline();
+        self.add_code("// Start transition ");
+
+        // get the name of the next state
+        let target_state_name = match &transition_stmt.target_state_context_t {
+            StateContextType::StateRef { state_context_node } => {
+                &state_context_node.state_ref_node.name
+            }
+            _ => {
+                self.errors.push("Transition target not found.".to_string());
                 ""
             }
         };
 
         // print the transition label, if provided
-        match &transition_statement.label_opt {
+        match &transition_stmt.label_opt {
             Some(label) => {
-                self.add_code(&format!("// {}", label));
                 self.newline();
+                self.add_code(&format!("// {}", label));
             }
             None => {}
         }
 
         // generate exit arguments
         let mut has_exit_args = false;
-        if let Some(exit_args) = &transition_statement.exit_args_opt {
+        if let Some(exit_args) = &transition_stmt.exit_args_opt {
             has_exit_args = self.generate_exit_arguments(&target_state_name, &exit_args);
         }
         let exit_args = if has_exit_args {
@@ -1874,7 +1980,7 @@ impl RustVisitor {
         // generate enter arguments
         let mut has_enter_args = false;
         let mut formatted_enter_args = String::new();
-        match &transition_statement.target_state_context_t {
+        match &transition_stmt.target_state_context_t {
             StateContextType::StateRef { state_context_node } => {
                 if let Some(enter_args) = &state_context_node.enter_args_opt {
                     has_enter_args = self.generate_enter_arguments(
@@ -1890,7 +1996,7 @@ impl RustVisitor {
         // generate state arguments
         let mut has_state_args = false;
         let mut formatted_state_args = String::new();
-        match &transition_statement.target_state_context_t {
+        match &transition_stmt.target_state_context_t {
             StateContextType::StateRef { state_context_node } => {
                 if let Some(state_args) = &state_context_node.state_ref_args_opt {
                     has_state_args = self.generate_state_arguments(
@@ -1910,50 +2016,24 @@ impl RustVisitor {
 
         // generate new state context
         if self.generate_state_context {
-            self.add_code(&format!(
-                "let context = {} {{",
-                self.format_state_context_struct_name(target_state_name)
-            ));
-            self.indent();
-            if has_state_args {
-                self.newline();
-                self.add_code(&format!(
-                    "{}: {},",
-                    self.config.state_args_var, formatted_state_args
-                ));
-            }
-            if has_state_vars {
-                self.newline();
-                self.add_code(&format!(
-                    "{}: {},",
-                    self.config.state_vars_var_name, formatted_state_vars
-                ));
-            }
-            if has_enter_args {
-                self.newline();
-                self.add_code(&format!(
-                    "{}: {},",
-                    self.config.enter_args_member_name, formatted_enter_args
-                ));
-            }
-            self.outdent();
-            self.newline();
-            self.add_code("};");
-            self.newline();
-            self.add_code(&format!(
-                "let next_state_context = {}::{}(RefCell::new(context));",
-                self.config.state_context_name,
-                self.format_type_name(&target_state_name.to_string())
-            ));
+            self.generate_next_state_context(
+                &target_state_name,
+                has_enter_args,
+                has_state_args,
+                has_state_vars,
+                &formatted_enter_args,
+                &formatted_state_args,
+                &formatted_state_vars
+            );
             self.newline();
             self.add_code(&format!(
                 "drop({});",
                 self.config.this_state_context_var_name
             ));
-            self.newline();
         }
 
         // call the transition method
+        self.newline();
         if self.generate_state_context {
             if self.generate_exit_args {
                 self.add_code(&format!(
