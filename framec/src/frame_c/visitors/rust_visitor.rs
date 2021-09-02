@@ -1839,6 +1839,8 @@ impl RustVisitor {
         self.newline();
         self.add_code("// Start transition ");
         self.newline();
+
+        // get the name of the next state
         let target_state_name = match &transition_statement.target_state_context_t {
             StateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_node.name
@@ -1848,6 +1850,8 @@ impl RustVisitor {
                 ""
             }
         };
+
+        // print the transition label, if provided
         match &transition_statement.label_opt {
             Some(label) => {
                 self.add_code(&format!("// {}", label));
@@ -1861,6 +1865,11 @@ impl RustVisitor {
         if let Some(exit_args) = &transition_statement.exit_args_opt {
             has_exit_args = self.generate_exit_arguments(&target_state_name, &exit_args);
         }
+        let exit_args = if has_exit_args {
+            format!("Some({})", self.config.exit_args_member_name)
+        } else {
+            "None".to_string()
+        };
 
         // generate enter arguments
         let mut has_enter_args = false;
@@ -1943,11 +1952,8 @@ impl RustVisitor {
             ));
             self.newline();
         }
-        let exit_args = if has_exit_args {
-            format!("Some({})", self.config.exit_args_member_name)
-        } else {
-            "None".to_string()
-        };
+
+        // call the transition method
         if self.generate_state_context {
             if self.generate_exit_args {
                 self.add_code(&format!(
