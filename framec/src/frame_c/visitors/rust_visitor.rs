@@ -265,7 +265,7 @@ pub struct RustVisitor {
     dent: usize,
     current_state_name_opt: Option<String>,
     current_event_ret_type: String,
-    arcanium: Arcanum,
+    arcanum: Arcanum,
     symbol_config: SymbolConfig,
     comments: Vec<Token>,
     current_comment_idx: usize,
@@ -290,7 +290,7 @@ pub struct RustVisitor {
 
 impl RustVisitor {
     pub fn new(
-        arcanium: Arcanum,
+        arcanum: Arcanum,
         config_yaml: &Yaml,
         generate_exit_args: bool,
         generate_state_context: bool,
@@ -308,7 +308,7 @@ impl RustVisitor {
             dent: 0,
             current_state_name_opt: None,
             current_event_ret_type: String::new(),
-            arcanium,
+            arcanum,
             symbol_config: SymbolConfig::new(),
             comments,
             current_comment_idx: 0,
@@ -361,7 +361,7 @@ impl RustVisitor {
             // "<<" => self.config.stop_system_msg.clone(),
             ">" => self.config.enter_msg.clone(),
             "<" => self.config.exit_msg.clone(),
-            _ => self.arcanium.get_interface_or_msg_from_msg(msg).unwrap(),
+            _ => self.arcanum.get_interface_or_msg_from_msg(msg).unwrap(),
         };
         self.format_type_name(&unformatted)
     }
@@ -397,7 +397,7 @@ impl RustVisitor {
                 param_name
             ),
             None => {
-                let message_opt = self.arcanium.get_interface_or_msg_from_msg(&event_name);
+                let message_opt = self.arcanum.get_interface_or_msg_from_msg(&event_name);
                 match &message_opt {
                     Some(canonical_message_name) => {
                         format!("{}_{}", canonical_message_name, param_name)
@@ -529,7 +529,7 @@ impl RustVisitor {
                     ));
                 } else {
                     let msg = match &self
-                        .arcanium
+                        .arcanum
                         .get_interface_or_msg_from_msg(&self.current_message)
                     {
                         Some(canonical_message_name) => format!("{}", canonical_message_name),
@@ -1237,7 +1237,7 @@ impl RustVisitor {
                 self.generate_change_state();
                 self.newline();
             }
-            if self.arcanium.is_serializable() {
+            if self.arcanum.is_serializable() {
                 for line in self.serialize.iter() {
                     self.code.push_str(&*format!("{}", line));
                     self.code.push_str(&*format!("\n{}", self.dent()));
@@ -1604,7 +1604,7 @@ impl RustVisitor {
         }
         msg.push_str(":");
         msg.push_str(&self.symbol_config.exit_msg_symbol);
-        if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt) {
+        if let Some(event_sym) = self.arcanum.get_event(&msg, &self.current_state_name_opt) {
             match &event_sym.borrow().params_opt {
                 Some(event_params) => {
                     if exit_args.exprs_t.len() != event_params.len() {
@@ -1676,7 +1676,7 @@ impl RustVisitor {
             "{} {{",
             self.format_enter_args_struct_name(&target_state_name)
         ));
-        if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt) {
+        if let Some(event_sym) = self.arcanum.get_event(&msg, &self.current_state_name_opt) {
             match &event_sym.borrow().params_opt {
                 Some(event_params) => {
                     has_enter_args = true;
@@ -1729,7 +1729,7 @@ impl RustVisitor {
             "{} {{",
             self.format_state_args_struct_name(&target_state_name)
         ));
-        if let Some(state_sym) = self.arcanium.get_state(&target_state_name) {
+        if let Some(state_sym) = self.arcanum.get_state(&target_state_name) {
             match &state_sym.borrow().params_opt {
                 Some(event_params) => {
                     let mut param_symbols_it = event_params.iter();
@@ -1776,7 +1776,7 @@ impl RustVisitor {
         formatted_state_vars: &mut String,
     ) -> bool {
         let mut has_state_vars = false;
-        if let Some(state_symbol_rcref) = self.arcanium.get_state(&target_state_name) {
+        if let Some(state_symbol_rcref) = self.arcanum.get_state(&target_state_name) {
             let state_symbol = state_symbol_rcref.borrow();
             let state_node = &state_symbol.state_node.as_ref().unwrap().borrow();
             // generate local state variables
@@ -2023,7 +2023,7 @@ impl RustVisitor {
                 msg.push_str(":");
                 msg.push_str(&self.symbol_config.exit_msg_symbol);
 
-                if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt)
+                if let Some(event_sym) = self.arcanum.get_event(&msg, &self.current_state_name_opt)
                 {
                     match &event_sym.borrow().params_opt {
                         Some(event_params) => {
@@ -2164,10 +2164,10 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.add_code("None,");
 
-        let vec = self.arcanium.get_event_names();
+        let vec = self.arcanum.get_event_names();
         for unparsed_event_name in vec {
             match self
-                .arcanium
+                .arcanum
                 .get_event(&unparsed_event_name, &self.current_state_name_opt)
             {
                 Some(event_sym) => {
@@ -2515,13 +2515,13 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.add_code(&format!("{},", self.config.exit_msg));
 
-        let events = self.arcanium.get_event_names();
+        let events = self.arcanum.get_event_names();
         for event in &events {
             //    ret.push(k.clone());
             if self.is_enter_or_exit_message(&event) {
                 continue;
             }
-            let message_opt = self.arcanium.get_interface_or_msg_from_msg(&event);
+            let message_opt = self.arcanum.get_interface_or_msg_from_msg(&event);
             match message_opt {
                 Some(canonical_message_name) => {
                     self.newline();
@@ -2571,7 +2571,7 @@ impl AstVisitor for RustVisitor {
             if self.is_enter_or_exit_message(&event) {
                 continue;
             }
-            let message_opt = self.arcanium.get_interface_or_msg_from_msg(&event);
+            let message_opt = self.arcanum.get_interface_or_msg_from_msg(&event);
             match message_opt {
                 Some(canonical_message_name) => {
                     let formatted_message_name = self.format_type_name(&canonical_message_name);
@@ -2662,10 +2662,10 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.add_code("}");
 
-        let vec = self.arcanium.get_event_names();
+        let vec = self.arcanum.get_event_names();
         for unparsed_event_name in vec {
             match self
-                .arcanium
+                .arcanum
                 .get_event(&unparsed_event_name, &self.current_state_name_opt)
             {
                 Some(event_sym) => {
@@ -2879,7 +2879,7 @@ impl AstVisitor for RustVisitor {
                 Some(params) => {
                     for param in params {
                         let msg = self
-                            .arcanium
+                            .arcanum
                             .get_msg_from_interface_name(&interface_method_node.name);
 
                         let parameter_enum_name =
