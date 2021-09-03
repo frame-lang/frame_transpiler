@@ -893,7 +893,7 @@ impl TerminationAttrs for StatementType {
                 return test_stmt_node.is_terminated();
             }
             StatementType::StateStackStmt {
-                state_stack_operation_statement_node,
+                ..
             } => {
                 return false;
             }
@@ -920,7 +920,7 @@ impl TerminationAttrs for StatementType {
                 return test_stmt_node.must_be_terminated();
             }
             StatementType::StateStackStmt {
-                state_stack_operation_statement_node,
+                ..
             } => {
                 return false;
             }
@@ -1196,11 +1196,31 @@ impl NodeElement for TestStatementNode {
 
 impl TerminationAttrs for TestStatementNode {
     fn is_terminated(&self) -> bool {
-        self.terminated
+        match &self.test_t {
+            TestType::BoolTest {bool_test_node}=> {
+                bool_test_node.is_terminated()
+            },
+            TestType::StringMatchTest {string_match_test_node}=> {
+                string_match_test_node.is_terminated()
+            },
+            TestType::NumberMatchTest {number_match_test_node}=> {
+                number_match_test_node.is_terminated()
+            },
+        }
     }
 
     fn must_be_terminated(&self) -> bool {
-        self.must_be_terminated
+        match &self.test_t {
+            TestType::BoolTest {bool_test_node}=> {
+                bool_test_node.must_be_terminated()
+            },
+            TestType::StringMatchTest {string_match_test_node}=> {
+                string_match_test_node.must_be_terminated()
+            },
+            TestType::NumberMatchTest {number_match_test_node}=> {
+                number_match_test_node.must_be_terminated()
+            },
+        }
     }
 }
 
@@ -1816,6 +1836,7 @@ pub struct StringMatchTestNode {
     pub match_branch_nodes: Vec<StringMatchTestMatchBranchNode>,
     pub else_branch_node_opt: Option<StringMatchTestElseBranchNode>,
     pub terminated: bool,
+    pub must_be_terminated:bool,
 }
 
 impl StringMatchTestNode {
@@ -1829,6 +1850,7 @@ impl StringMatchTestNode {
             match_branch_nodes,
             else_branch_node_opt,
             terminated: false,
+            must_be_terminated: false,
         }
     }
 }
@@ -1836,6 +1858,16 @@ impl StringMatchTestNode {
 impl NodeElement for StringMatchTestNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         ast_visitor.visit_string_match_test_node(self);
+    }
+}
+
+impl TerminationAttrs for StringMatchTestNode {
+    fn is_terminated(&self) -> bool {
+        self.terminated
+    }
+
+    fn must_be_terminated(&self) -> bool {
+        self.must_be_terminated
     }
 }
 
@@ -1875,6 +1907,7 @@ pub struct StringMatchTestElseBranchNode {
     pub statements: Vec<DeclOrStmtType>,
     pub branch_terminator_expr_opt: Option<TerminatorExpr>,
     pub terminated: bool,
+    pub must_be_terminated: bool,
 }
 
 impl StringMatchTestElseBranchNode {
@@ -1886,6 +1919,7 @@ impl StringMatchTestElseBranchNode {
             statements,
             branch_terminator_expr_opt: branch_terminator_t_opt,
             terminated: false,
+            must_be_terminated: false,
         }
     }
 }
@@ -1923,6 +1957,7 @@ pub struct NumberMatchTestNode {
     pub match_branch_nodes: Vec<NumberMatchTestMatchBranchNode>,
     pub else_branch_node_opt: Option<NumberMatchTestElseBranchNode>,
     terminated: bool,
+    must_be_terminated: bool,
 }
 
 impl NumberMatchTestNode {
@@ -1936,6 +1971,7 @@ impl NumberMatchTestNode {
             match_branch_nodes,
             else_branch_node_opt,
             terminated: false,
+            must_be_terminated: false,
         }
     }
 }
@@ -1943,6 +1979,16 @@ impl NumberMatchTestNode {
 impl NodeElement for NumberMatchTestNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         ast_visitor.visit_number_match_test_node(self);
+    }
+}
+
+impl TerminationAttrs for NumberMatchTestNode {
+    fn is_terminated(&self) -> bool {
+        self.terminated
+    }
+
+    fn must_be_terminated(&self) -> bool {
+        self.must_be_terminated
     }
 }
 
