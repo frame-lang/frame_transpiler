@@ -1811,9 +1811,7 @@ impl<'a> Parser<'a> {
             Ok(None) => {
                 if last_statement_must_be_terminated {
                     if !last_statement_is_terminated {
-                        self.error_at_current(
-                            "Event handler not properly terminated.",
-                        );
+                        self.error_at_current("Event handler not properly terminated.");
 
                         let sync_tokens = &vec![
                             PipeTok,
@@ -1828,9 +1826,7 @@ impl<'a> Parser<'a> {
                 } else {
                     // !last_statement_must_be_terminated and no event handler termination
                     if !last_statement_is_terminated {
-                        self.error_at_current(
-                            "Event handler not properly terminated.",
-                        );
+                        self.error_at_current("Event handler not properly terminated.");
 
                         let sync_tokens = &vec![
                             PipeTok,
@@ -1844,7 +1840,7 @@ impl<'a> Parser<'a> {
                     }
                 }
                 None
-            },
+            }
             Err(_parse_error) => {
                 // TODO: this vec keeps the parser from hanging. don't know why
                 let sync_tokens = &vec![

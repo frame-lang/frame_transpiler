@@ -892,9 +892,7 @@ impl TerminationAttrs for StatementType {
             StatementType::TestStmt { test_stmt_node } => {
                 return test_stmt_node.is_terminated();
             }
-            StatementType::StateStackStmt {
-                ..
-            } => {
+            StatementType::StateStackStmt { .. } => {
                 return false;
             }
             StatementType::NoStmt => {
@@ -919,9 +917,7 @@ impl TerminationAttrs for StatementType {
             StatementType::TestStmt { test_stmt_node } => {
                 return test_stmt_node.must_be_terminated();
             }
-            StatementType::StateStackStmt {
-                ..
-            } => {
+            StatementType::StateStackStmt { .. } => {
                 return false;
             }
             StatementType::NoStmt => {
@@ -1197,29 +1193,25 @@ impl NodeElement for TestStatementNode {
 impl TerminationAttrs for TestStatementNode {
     fn is_terminated(&self) -> bool {
         match &self.test_t {
-            TestType::BoolTest {bool_test_node}=> {
-                bool_test_node.is_terminated()
-            },
-            TestType::StringMatchTest {string_match_test_node}=> {
-                string_match_test_node.is_terminated()
-            },
-            TestType::NumberMatchTest {number_match_test_node}=> {
-                number_match_test_node.is_terminated()
-            },
+            TestType::BoolTest { bool_test_node } => bool_test_node.is_terminated(),
+            TestType::StringMatchTest {
+                string_match_test_node,
+            } => string_match_test_node.is_terminated(),
+            TestType::NumberMatchTest {
+                number_match_test_node,
+            } => number_match_test_node.is_terminated(),
         }
     }
 
     fn must_be_terminated(&self) -> bool {
         match &self.test_t {
-            TestType::BoolTest {bool_test_node}=> {
-                bool_test_node.must_be_terminated()
-            },
-            TestType::StringMatchTest {string_match_test_node}=> {
-                string_match_test_node.must_be_terminated()
-            },
-            TestType::NumberMatchTest {number_match_test_node}=> {
-                number_match_test_node.must_be_terminated()
-            },
+            TestType::BoolTest { bool_test_node } => bool_test_node.must_be_terminated(),
+            TestType::StringMatchTest {
+                string_match_test_node,
+            } => string_match_test_node.must_be_terminated(),
+            TestType::NumberMatchTest {
+                number_match_test_node,
+            } => number_match_test_node.must_be_terminated(),
         }
     }
 }
@@ -1836,7 +1828,7 @@ pub struct StringMatchTestNode {
     pub match_branch_nodes: Vec<StringMatchTestMatchBranchNode>,
     pub else_branch_node_opt: Option<StringMatchTestElseBranchNode>,
     pub terminated: bool,
-    pub must_be_terminated:bool,
+    pub must_be_terminated: bool,
 }
 
 impl StringMatchTestNode {
