@@ -1221,21 +1221,20 @@ impl RustVisitor {
         self.newline();
         self.add_code("//=============== Machinery and Mechanisms ==============//");
         self.newline();
-        self.newline();
         if let Some(_) = system_node.get_first_state() {
-            self.generate_handle_event(&system_node);
             self.newline();
+            self.generate_handle_event(&system_node);
             if self.generate_transition_state {
-                self.generate_transition();
                 self.newline();
+                self.generate_transition();
             }
             if self.generate_state_stack {
-                self.generate_state_stack();
                 self.newline();
+                self.generate_state_stack();
             }
             if self.generate_change_state {
-                self.generate_change_state();
                 self.newline();
+                self.generate_change_state();
             }
             if self.arcanum.is_serializable() {
                 for line in self.serialize.iter() {
@@ -1254,12 +1253,23 @@ impl RustVisitor {
 
     /// Generate the change_state method.
     fn generate_change_state(&mut self) {
-        self.add_code(&format!(
-            "fn {}(&mut self, {}: {}) {{",
-            self.config.change_state_method_name,
-            self.new_state_var_name(),
-            self.state_enum_type_name()
-        ));
+        if self.generate_state_context {
+            self.add_code(&format!(
+                "fn {}(&mut self, {}: {}, {}: {}) {{",
+                self.config.change_state_method_name,
+                self.new_state_var_name(),
+                self.state_enum_type_name(),
+                self.new_state_context_var_name(),
+                self.config.state_context_name
+            ));
+        } else {
+            self.add_code(&format!(
+                "fn {}(&mut self, {}: {}) {{",
+                self.config.change_state_method_name,
+                self.new_state_var_name(),
+                self.state_enum_type_name()
+            ));
+        }
         self.indent();
         self.newline();
         if self.generate_change_state_hook {
@@ -1282,6 +1292,14 @@ impl RustVisitor {
             self.config.state_var_name,
             self.new_state_var_name()
         ));
+        if self.generate_state_context {
+            self.newline();
+            self.add_code(&format!(
+                "self.{} = Rc::new({});",
+                self.config.state_context_var_name,
+                self.new_state_context_var_name()
+            ));
+        }
         self.outdent();
         self.newline();
         self.add_code("}");
@@ -1379,15 +1397,15 @@ impl RustVisitor {
             self.config.state_var_name,
             self.new_state_var_name()
         ));
-        self.newline();
         if self.generate_state_context {
+            self.newline();
             self.add_code(&format!(
                 "self.{} = Rc::new({});",
                 self.config.state_context_var_name,
                 self.new_state_context_var_name()
             ));
-            self.newline();
         }
+        self.newline();
         self.add_code(&format!(
             "let mut enter_event = {}::new({}::{}, None);",
             self.config.frame_event_type_name,
@@ -1935,7 +1953,7 @@ impl RustVisitor {
         if self.generate_state_context {
             self.add_code(&format!(
                 "self.{}({}::{}, next_state_context);",
-                self.config.transition_method_name,
+                self.config.change_state_method_name,
                 self.state_enum_type_name(),
                 self.format_type_name(&target_state_name.to_string())
             ));
