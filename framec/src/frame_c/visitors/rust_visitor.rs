@@ -511,7 +511,7 @@ impl RustVisitor {
                 // if generating state context and is the enter event...
                 if self.generate_state_context && self.config.enter_token == self.current_message {
                     code.push_str(&format!(
-                        "{}.{}.{}",
+                        "{}.{}.as_ref().unwrap().{}",
                         self.config.this_state_context_var_name,
                         self.config.enter_args_member_name,
                         self.format_value_name(&variable_node.id_node.name.lexeme)
@@ -1026,7 +1026,7 @@ impl RustVisitor {
                 if has_enter_event_params {
                     self.newline();
                     self.add_code(&format!(
-                        "{}: {},",
+                        "{}: Option<{}>,",
                         self.config.enter_args_member_name,
                         self.format_enter_args_struct_name(&state_node.name)
                     ));
@@ -1557,7 +1557,6 @@ impl RustVisitor {
 
     fn generate_comment(&mut self, line: usize) {
         // can't use self.newline() or self.add_code() due to double borrow.
-        let mut generated_comment = false;
         while self.current_comment_idx < self.comments.len()
             && line >= self.comments[self.current_comment_idx].line
         {
@@ -1577,10 +1576,6 @@ impl RustVisitor {
             }
 
             self.current_comment_idx += 1;
-            generated_comment = true;
-        }
-        if generated_comment {
-            //            self.code.push_str(&*format!("\n{}",(0..self.dent).map(|_| "\t").collect::<String>()));
         }
     }
 
@@ -1596,15 +1591,18 @@ impl RustVisitor {
         if exit_args.exprs_t.len() <= 0 {
             return false;
         }
-        // Note - searching for event keyed with "State:<"
-        // e.g. "S1:<"
-        let mut msg: String = String::new();
-        if let Some(state_name) = &self.current_state_name_opt {
-            msg = state_name.clone();
-        }
-        msg.push_str(":");
-        msg.push_str(&self.symbol_config.exit_msg_symbol);
-        if let Some(event_sym) = self.arcanum.get_event(&msg, &self.current_state_name_opt) {
+        // Search for event keyed with "State:<", e.g. "S1:<"
+        let exit_msg = format!(
+            "{}:{}",
+            self.current_state_name_opt
+                .as_ref()
+                .unwrap_or(&String::new()),
+            self.symbol_config.exit_msg_symbol
+        );
+        if let Some(event_sym) = self
+            .arcanum
+            .get_event(&exit_msg, &self.current_state_name_opt)
+        {
             match &event_sym.borrow().params_opt {
                 Some(event_params) => {
                     if exit_args.exprs_t.len() != event_params.len() {
@@ -1626,7 +1624,7 @@ impl RustVisitor {
                                 let mut expr = String::new();
                                 expr_t.accept_to_string(self, &mut expr);
                                 let parameter_enum_name =
-                                    self.format_frame_event_parameter_name(&msg, &p.name);
+                                    self.format_frame_event_parameter_name(&exit_msg, &p.name);
                                 self.newline();
                                 self.add_code(&format!(
                                     "(*{}).{}({});",
@@ -1637,7 +1635,7 @@ impl RustVisitor {
                             }
                             None => self.errors.push(format!(
                                 "Invalid number of arguments for \"{}\" event handler.",
-                                msg
+                                exit_msg
                             )),
                         }
                     }
@@ -1656,6 +1654,23 @@ impl RustVisitor {
         true
     }
 
+    /// Does a transition from the current state to the target state require
+    /// enter arguments?
+    fn requires_enter_arguments(&mut self, target_state_name: &str) -> bool {
+        let enter_msg = format!(
+            "{}:{}",
+            target_state_name, &self.symbol_config.enter_msg_symbol
+        );
+        if let Some(event_sym) = self
+            .arcanum
+            .get_event(&enter_msg, &self.current_state_name_opt)
+        {
+            event_sym.borrow().params_opt.is_some()
+        } else {
+            false
+        }
+    }
+
     /// Generate the arguments to the enter event handler, passed in a
     /// transition statement. The formatted arguments are returned via a
     /// string reference. Returns `true` if any enter arguments were passed.
@@ -1666,16 +1681,19 @@ impl RustVisitor {
         formatted_enter_args: &mut String,
     ) -> bool {
         let mut has_enter_args = false;
-        // Note - searching for event keyed with "State:>"
-        // e.g. "S1:>"
-        let mut msg: String = String::from(target_state_name);
-        msg.push_str(":");
-        msg.push_str(&self.symbol_config.enter_msg_symbol);
+        // Search for event keyed with "State:>", e.g. "S1:>"
+        let enter_msg = format!(
+            "{}:{}",
+            target_state_name, &self.symbol_config.enter_msg_symbol
+        );
         formatted_enter_args.push_str(&format!(
-            "{} {{",
+            "{} {{ ",
             self.format_enter_args_struct_name(&target_state_name)
         ));
-        if let Some(event_sym) = self.arcanum.get_event(&msg, &self.current_state_name_opt) {
+        if let Some(event_sym) = self
+            .arcanum
+            .get_event(&enter_msg, &self.current_state_name_opt)
+        {
             match &event_sym.borrow().params_opt {
                 Some(event_params) => {
                     has_enter_args = true;
@@ -1689,20 +1707,18 @@ impl RustVisitor {
                             Some(p) => {
                                 let mut expr = String::new();
                                 expr_t.accept_to_string(self, &mut expr);
-                                // self.add_code(&format!("state_context.addEnterArg(\"{}\",{});", p.name, expr));
-                                // enter_arguments.push(format!("enter_arg_{}:{},", p.name, expr));
-                                formatted_enter_args.push_str(&format!("{}: {},", p.name, expr));
+                                formatted_enter_args.push_str(&format!("{}: {}, ", p.name, expr));
                             }
                             None => self.errors.push(format!(
                                 "Invalid number of arguments for \"{}\" event handler.",
-                                msg
+                                enter_msg
                             )),
                         }
                     }
                 }
                 None => self.errors.push(format!(
                     "Invalid number of arguments for \"{}\" event handler.",
-                    msg
+                    enter_msg
                 )),
             }
         } else {
@@ -1725,7 +1741,7 @@ impl RustVisitor {
             return false;
         }
         formatted_state_args.push_str(&format!(
-            "{} {{",
+            "{} {{ ",
             self.format_state_args_struct_name(&target_state_name)
         ));
         if let Some(state_sym) = self.arcanum.get_state(&target_state_name) {
@@ -1740,10 +1756,8 @@ impl RustVisitor {
                                 let param_symbol = param_symbol_rcref.borrow();
                                 let mut expr = String::new();
                                 expr_t.accept_to_string(self, &mut expr);
-                                // self.add_code(&format!("state_context.addStateArg(\"{}\",{});", param_symbol.name, expr));
-                                // self.newline();
                                 formatted_state_args.push_str(&format!(
-                                    "{}: {},",
+                                    "{}: {}, ",
                                     self.format_value_name(&param_symbol.name),
                                     expr
                                 ));
@@ -1790,9 +1804,6 @@ impl RustVisitor {
                     let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
                     let mut expr_code = String::new();
                     expr_t.accept_to_string(self, &mut expr_code);
-                    // self.newline();
-                    // self.add_code(&format!("state_context.addStateVar(\"{}\",{});", var.name, expr_code));
-                    // self.newline();
                     formatted_state_vars.push_str(&format!(
                         "{}: {},",
                         self.format_value_name(&var.name),
@@ -1815,7 +1826,7 @@ impl RustVisitor {
         has_state_vars: bool,
         enter_args: &str,
         state_args: &str,
-        state_vars: &str
+        state_vars: &str,
     ) {
         self.newline();
         self.add_code(&format!(
@@ -1825,10 +1836,7 @@ impl RustVisitor {
         self.indent();
         if has_state_args {
             self.newline();
-            self.add_code(&format!(
-                "{}: {},",
-                self.config.state_args_var, state_args
-            ));
+            self.add_code(&format!("{}: {},", self.config.state_args_var, state_args));
         }
         if has_state_vars {
             self.newline();
@@ -1855,7 +1863,6 @@ impl RustVisitor {
         ));
     }
 
-
     //* --------------------------------------------------------------------- *//
 
     fn generate_state_ref_change_state(&mut self, change_state_stmt: &ChangeStateStatementNode) {
@@ -1868,7 +1875,8 @@ impl RustVisitor {
                 &state_context_node.state_ref_node.name
             }
             _ => {
-                self.errors.push("Change state target not found.".to_string());
+                self.errors
+                    .push("Change state target not found.".to_string());
                 "error"
             }
         };
@@ -1897,22 +1905,23 @@ impl RustVisitor {
             }
             StateContextType::StateStackPop {} => {}
         };
-        
+
         // generate state variables
         let mut formatted_state_vars = String::new();
         let has_state_vars =
             self.generate_state_variables(&target_state_name, &mut formatted_state_vars);
-        
+
         // generate new state context
+        let requires_enter_args = self.requires_enter_arguments(&target_state_name);
         if self.generate_state_context {
             self.generate_next_state_context(
                 &target_state_name,
-                false,
+                requires_enter_args,
                 has_state_args,
                 has_state_vars,
                 "None",
                 &formatted_state_args,
-                &formatted_state_vars
+                &formatted_state_vars,
             );
             self.newline();
             self.add_code(&format!(
@@ -1979,7 +1988,7 @@ impl RustVisitor {
 
         // generate enter arguments
         let mut has_enter_args = false;
-        let mut formatted_enter_args = String::new();
+        let mut formatted_enter_args = String::from("Some(");
         match &transition_stmt.target_state_context_t {
             StateContextType::StateRef { state_context_node } => {
                 if let Some(enter_args) = &state_context_node.enter_args_opt {
@@ -1992,6 +2001,7 @@ impl RustVisitor {
             }
             StateContextType::StateStackPop {} => {}
         };
+        formatted_enter_args.push_str(")");
 
         // generate state arguments
         let mut has_state_args = false;
@@ -2023,7 +2033,7 @@ impl RustVisitor {
                 has_state_vars,
                 &formatted_enter_args,
                 &formatted_state_args,
-                &formatted_state_vars
+                &formatted_state_vars,
             );
             self.newline();
             self.add_code(&format!(

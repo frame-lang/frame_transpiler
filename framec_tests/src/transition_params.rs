@@ -20,7 +20,7 @@ mod tests {
         sm.next();
         assert_eq!(sm.tape, vec!["hi A"]);
     }
-    
+
     #[test]
     fn enter_and_exit() {
         let mut sm = TransitParams::new();
