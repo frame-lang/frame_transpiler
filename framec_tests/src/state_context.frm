@@ -1,5 +1,6 @@
 #StateContextSm
     -interface-
+    Start
     LogState
     Inc : i32
     Next [arg:i32]
@@ -7,7 +8,25 @@
 
     -machine-
     $Init
-        |>| -> (3 5) $Foo ^
+        var w:i32 = 0
+
+        |>|
+            w = 3
+            log("w" w)
+            ^
+
+        |Inc|
+            w = w + 1
+            log("w" w)
+            ^(w)
+
+        |LogState|
+            log("w" w)
+            ^
+
+        |Start|
+            -> (3 w) $Foo
+            ^
 
     $Foo
         var x:i32 = 0
@@ -68,7 +87,7 @@
         |Change| [arg:i32]
             var tmp = y + z + arg
             log("tmp" tmp)
-            ->> $Foo
+            ->> $Init
             ^
 
     -actions-

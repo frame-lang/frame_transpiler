@@ -1108,24 +1108,29 @@ impl RustVisitor {
     fn generate_constructor(&mut self, system_node: &SystemNode) {
         self.add_code(&format!("pub fn new() -> {} {{", system_node.name));
         self.indent();
-        self.newline();
 
-        // create initial state context
+        let init_state_name = self.first_state_name.clone();
+
+        // initial state variables
+        let mut formatted_state_vars = String::new();
+        let has_state_vars =
+            self.generate_state_variables(&init_state_name, &mut formatted_state_vars);
+
+        // initial state context
         if self.generate_state_context {
-            self.add_code(&format!(
-                "let init_context = {} {{}};",
-                self.format_state_context_struct_name(&self.first_state_name)
-            ));
-            self.newline();
-            self.add_code(&format!(
-                "let context = {}::{}(RefCell::new(init_context));",
-                self.config.state_context_name,
-                self.format_type_name(&self.first_state_name)
-            ));
-            self.newline();
+            self.generate_next_state_context(
+                &init_state_name,
+                false,
+                false,
+                has_state_vars,
+                "",
+                "",
+                &formatted_state_vars,
+            );
         }
 
         // begin create state machine
+        self.newline();
         self.add_code(&format!("let mut machine = {} {{", system_node.name));
         self.indent();
         self.newline();
@@ -1161,7 +1166,7 @@ impl RustVisitor {
         if self.generate_state_context {
             self.newline();
             self.add_code(&format!(
-                "{}: Rc::new(context),",
+                "{}: Rc::new(next_state_context),",
                 self.config.state_context_var_name
             ));
         }
