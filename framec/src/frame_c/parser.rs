@@ -3444,31 +3444,6 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    // state_context ->
-
-    fn change_state_context(
-        &mut self,
-        _: Option<ExprListNode>,
-    ) -> Result<Option<StateContextType>, ParseError> {
-        // parse state ref e.g. '$S1'
-        if !self.match_token(&vec![TokenType::StateTok]) {
-            return Err(ParseError::new("Missing $"));
-        }
-
-        if !self.match_token(&vec![TokenType::IdentifierTok]) {
-            return Err(ParseError::new("Missing state identifier."));
-        }
-
-        let state_id = self.previous();
-        let name = state_id.lexeme.clone();
-
-        let state_context_node = StateContextNode::new(StateRefNode::new(name), None, None);
-
-        Ok(Some(StateContextType::StateRef { state_context_node }))
-    }
-
-    /* --------------------------------------------------------------------- */
-
     // transition : exitArgs '->' enterArgs transitionLabel stateRef stateArgs
 
     fn transition(
@@ -3536,7 +3511,7 @@ impl<'a> Parser<'a> {
         }
 
         let state_context_t;
-        match self.change_state_context(None) {
+        match self.state_context(None) {
             Ok(Some(scn)) => state_context_t = scn,
             Ok(None) => return Err(ParseError::new("TODO")),
             Err(parse_error) => return Err(parse_error),

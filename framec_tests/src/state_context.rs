@@ -16,7 +16,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn interaction() {
+    fn transition() {
         let mut sm = StateContextSm::new();
         assert_eq!(sm.tape, vec!["a=3", "b=5", "x=15"]);
         sm.tape.clear();
@@ -36,5 +36,24 @@ mod tests {
         let r = sm.inc();
         assert_eq!(r, 50);
         assert_eq!(sm.tape, vec!["z=48", "z=49", "z=50"]);
+    }
+
+    #[test]
+    fn change_state() {
+        let mut sm = StateContextSm::new();
+        sm.tape.clear();
+        sm.inc();
+        assert_eq!(sm.tape, vec!["x=16"]);
+        sm.tape.clear();
+
+        sm.change(10);
+        sm.log_state();
+        assert_eq!(sm.tape, vec!["y=26", "z=0"]);
+        sm.tape.clear();
+
+        sm.inc();
+        sm.change(100);
+        sm.log_state();
+        assert_eq!(sm.tape, vec!["z=1", "tmp=127", "x=0"]);
     }
 }
