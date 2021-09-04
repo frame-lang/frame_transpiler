@@ -10,6 +10,7 @@ use super::scanner::TokenType::*;
 use super::scanner::*;
 use super::symbol_table::SymbolType::*;
 use super::symbol_table::*;
+use crate::frame_c::ast::StatementType::TransitionStmt;
 use crate::frame_c::utils::SystemHierarchy;
 use downcast_rs::__std::cell::RefCell;
 use std::collections::HashMap;

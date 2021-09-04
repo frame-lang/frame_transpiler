@@ -892,7 +892,9 @@ impl TerminationAttrs for StatementType {
             StatementType::TestStmt { test_stmt_node } => {
                 return test_stmt_node.is_terminated();
             }
-            StatementType::StateStackStmt { .. } => {
+            StatementType::StateStackStmt {
+                state_stack_operation_statement_node,
+            } => {
                 return false;
             }
             StatementType::NoStmt => {
@@ -917,7 +919,9 @@ impl TerminationAttrs for StatementType {
             StatementType::TestStmt { test_stmt_node } => {
                 return test_stmt_node.must_be_terminated();
             }
-            StatementType::StateStackStmt { .. } => {
+            StatementType::StateStackStmt {
+                state_stack_operation_statement_node,
+            } => {
                 return false;
             }
             StatementType::NoStmt => {
