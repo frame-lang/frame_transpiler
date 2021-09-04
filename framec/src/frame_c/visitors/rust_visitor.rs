@@ -1235,7 +1235,7 @@ impl RustVisitor {
             }
             if self.generate_state_stack {
                 self.newline();
-                self.generate_state_stack();
+                self.generate_state_stack_methods();
             }
             if self.generate_change_state {
                 self.newline();
@@ -1429,98 +1429,63 @@ impl RustVisitor {
     }
 
     /// Generate state stack methods.
-    fn generate_state_stack(&mut self) {
+    fn generate_state_stack_methods(&mut self) {
+        self.newline();
+        self.add_code(&format!(
+            "fn {}(&mut self) {{",
+            self.config.state_stack_push_method_name
+        ));
+        self.indent();
+        self.newline();
         if self.generate_state_context {
-            self.newline();
             self.add_code(&format!(
-                "fn {}(&mut self, {}: Rc<{}>) {{",
-                self.config.state_stack_push_method_name,
-                self.config.state_context_var_name,
+                "self.{}.push((self.{}, Rc::clone(&self.{})));",
+                self.config.state_stack_var_name,
+                self.config.state_var_name,
+                self.config.state_context_var_name
+            ));
+        } else {
+            self.add_code(&format!(
+                "self.{}.push(self.{});",
+                self.config.state_stack_var_name, self.config.state_var_name
+            ));
+        }
+        self.outdent();
+        self.newline();
+        self.add_code(&format!("}}"));
+        self.newline();
+        self.newline();
+        if self.generate_state_context {
+            self.add_code(&format!(
+                "fn {}(&mut self) -> ({}, Rc<{}>) {{",
+                self.config.state_stack_pop_method_name,
+                self.state_enum_type_name(),
                 self.config.state_context_name
             ));
-            self.indent();
-            self.newline();
-            self.add_code(&format!(
-                "self.{}.push({});",
-                self.config.state_stack_var_name, self.config.state_context_var_name
-            ));
-            self.outdent();
-            self.newline();
-            self.add_code(&format!("}}"));
-            self.newline();
-            self.newline();
-            self.add_code(&format!(
-                "fn {}(&mut self) -> Rc<{}> {{",
-                self.config.state_stack_pop_method_name, self.config.state_context_name
-            ));
-            self.indent();
-            self.newline();
-            self.add_code(&format!(
-                "let state_context_opt = self.{}.pop();",
-                self.config.state_stack_var_name
-            ));
-            self.newline();
-            self.add_code(&format!(" match state_context_opt {{"));
-            self.indent();
-            self.newline();
-            self.add_code(&format!(
-                "Some({}) => {},",
-                self.config.state_context_var_name, self.config.state_context_var_name
-            ));
-            self.newline();
-            self.add_code(&format!(
-                "None => panic!(\"Error - attempt to pop history when history stack is empty.\"),"
-            ));
-            self.outdent();
-            self.newline();
-            self.add_code("}");
         } else {
-            self.newline();
-            self.add_code(&format!(
-                "fn {}(&mut self, state: {}) {{",
-                self.config.state_stack_push_method_name,
-                self.state_enum_type_name()
-            ));
-            self.indent();
-            self.newline();
-            self.add_code(&format!(
-                "self.{}.push(Rc::new(RefCell::new(state)));",
-                self.config.state_stack_var_name
-            ));
-            self.outdent();
-            self.newline();
-            self.add_code(&format!("}}"));
-            self.newline();
-            self.newline();
-
             self.add_code(&format!(
                 "fn {}(&mut self) -> {} {{",
                 self.config.state_stack_pop_method_name,
                 self.state_enum_type_name()
             ));
-            self.indent();
-            self.newline();
-            self.add_code(&format!(
-                "let state_opt = self.{}.pop();",
-                self.config.state_stack_var_name
-            ));
-            self.newline();
-            self.add_code(&format!(" match state_opt {{"));
-            self.indent();
-            self.newline();
-            self.add_code(&format!("Some(state) => *state.borrow(),"));
-            self.newline();
-            self.add_code(&format!(
-                "None => panic!(\"Error - attempt to pop history when history stack is empty.\"),"
-            ));
-            self.outdent();
-            self.newline();
-            self.add_code("}");
         }
+        self.indent();
+        self.newline();
+        self.add_code(&format!(
+            "match self.{}.pop() {{",
+            self.config.state_stack_var_name
+        ));
+        self.indent();
+        self.newline();
+        self.add_code("Some(elem) => elem,");
+        self.newline();
+        self.add_code("None => panic!(\"Error: attempted to pop when history stack is empty.\")");
         self.outdent();
         self.newline();
         self.add_code("}");
+        self.outdent();
         self.newline();
+        self.add_code("}");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2495,28 +2460,31 @@ impl AstVisitor for RustVisitor {
         ));
 
         // generate state context variable
-
         if self.generate_state_context {
             self.newline();
             self.add_code(&format!(
                 "{}: Rc<{}>,",
                 self.config.state_context_var_name, self.config.state_context_name
             ));
-            if self.generate_state_stack {
+        }
+
+        // generate state stack variable
+        if self.generate_state_stack {
+            if self.generate_state_context {
                 self.newline();
                 self.add_code(&format!(
-                    "{}: Vec<Rc<{}>>,",
-                    self.config.state_stack_var_name, self.config.state_context_name
+                    "{}: Vec<({}, Rc<{}>)>,",
+                    self.config.state_stack_var_name,
+                    self.state_enum_type_name(),
+                    self.config.state_context_name
                 ));
-            }
-        } else {
-            if self.generate_state_stack {
+            } else {
                 self.newline();
-                // TODO state refactor
-                // self.add_code(&format!(
-                //     "{}: Vec<Rc<{}>>,",
-                //     self.config.state_stack_var_name, self.config.frame_state_type_name
-                // ));
+                self.add_code(&format!(
+                    "{}: Vec<{}>,",
+                    self.config.state_stack_var_name,
+                    self.state_enum_type_name()
+                ));
             }
         }
 
@@ -4389,18 +4357,10 @@ impl AstVisitor for RustVisitor {
         {
             StateStackOperationType::Push => {
                 self.newline();
-                if self.generate_state_context {
-                    self.add_code(&format!(
-                        "self.{}(self.{}.clone());",
-                        self.config.state_stack_push_method_name,
-                        self.config.state_context_var_name
-                    ));
-                } else {
-                    self.add_code(&format!(
-                        "self.{}(self.{});",
-                        self.config.state_stack_push_method_name, self.config.state_var_name
-                    ));
-                }
+                self.add_code(&format!(
+                    "self.{}();",
+                    self.config.state_stack_push_method_name
+                ));
             }
             StateStackOperationType::Pop => {
                 if self.generate_state_context {
