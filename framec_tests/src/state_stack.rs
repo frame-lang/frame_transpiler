@@ -93,4 +93,27 @@ mod tests {
         assert_eq!(sm.state, StateStackState::B);
         assert_eq!(sm.tape, vec!["C:<", "A:>", "A:<", "B:>"]);
     }
+
+    #[test]
+    #[ignore]
+    /// Test that pop change-states do not trigger enter/exit events.
+    fn pop_change_state_no_events() {
+        let mut sm = StateStack::new();
+        sm.to_b();
+        sm.push();
+        sm.to_a();
+        sm.push();
+        sm.to_c();
+        sm.push(); // stack top-to-bottom: C, A, B
+        sm.to_a();
+        sm.tape.clear();
+        assert_eq!(sm.state, StateStackState::A);
+        sm.pop_change();
+        assert_eq!(sm.state, StateStackState::C);
+        assert!(sm.tape.is_empty());
+        sm.pop();
+        sm.pop_change();
+        assert_eq!(sm.state, StateStackState::B);
+        assert_eq!(sm.tape, vec!["C:<", "A:>"]);
+    }
 }

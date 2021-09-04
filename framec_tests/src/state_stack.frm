@@ -5,6 +5,7 @@
     to_c
     push
     pop
+    pop_change
 
     -machine-
     $A
@@ -22,6 +23,8 @@
             $$[+] ^
         |pop| 
             -> $$[-] ^
+        --- |pop_change| 
+        ---     ->> $$[-] ^
     
     $B
         |>|
@@ -38,6 +41,8 @@
             $$[+] ^
         |pop| 
             -> $$[-] ^
+        --- |pop_change| 
+        ---     ->> $$[-] ^
     
     $C
         |>|
@@ -54,6 +59,8 @@
             $$[+] ^
         |pop| 
             -> $$[-] ^
+        --- |pop_change| 
+        ---     ->> $$[-] ^
 
     -actions-
     log [msg:String]
