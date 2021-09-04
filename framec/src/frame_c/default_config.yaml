@@ -16,9 +16,12 @@ codegen:
       enter_msg: Enter
       exit_msg: Exit
       enter_args_member_name: enter_args
+      enter_args_suffix: EnterArgs
       exit_args_member_name: exit_args
       state_args_var: state_args
+      state_args_suffix: StateArgs
       state_vars_var_name: state_vars
+      state_vars_suffix: StateVars
       state_context_name: StateContext
       state_context_suffix: StateContext
       state_context_var_name: state_context

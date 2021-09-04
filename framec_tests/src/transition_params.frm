@@ -1,31 +1,46 @@
 #TransitParams
     -interface-
     Next
+    Change
 
     -machine-
     $Init
-        |>|
-            -> ("hi A" 1) $A ^
+        |Next|
+            -> ("hi A") $A ^
+        |Change|
+            ->> $A ^
 
     $A
-        |>| [msg:String val:i16]
-            entered(msg.clone() val) ^
+        |>| [msg:String]
+            log(msg.clone()) ^
+
+        |<|
+            log("bye A") ^
+
         |Next|
-            -> ("hi B" 2) $B ^
+            -> ("hi B" 42) $B ^
+
+        |Change|
+            ->> $B ^
 
     $B
         |>| [msg:String val:i16]
-            entered(msg.clone() val) ^
+            log(msg.clone())
+            log(val.to_string()) ^
+
         |<| [val:bool msg:String]
-            exited(val msg.clone()) ^
+            log(val.to_string())
+            log(msg.clone()) ^
+
         |Next|
-            (true "bye B") -> ("hi again A" 3) $A ^
+            (true "bye B") -> ("hi again A") $A ^
+
+        |Change|
+            ->> $A ^
 
     -actions-
-    entered [msg:String val:i16]
-    exited [val:bool msg:String]
+    log [msg:String]
 
     -domain-
-    var enter_log:Log = `vec![]`
-    var exit_log:Log = `vec![]`
+    var tape:Log = `vec![]`
 ##

@@ -1,11 +1,32 @@
 #StateContextSm
     -interface-
+    Start
+    LogState
     Inc : i32
     Next [arg:i32]
+    Change [arg:i32]
 
     -machine-
     $Init
-        |>| -> (3 5) $Foo ^
+        var w:i32 = 0
+
+        |>|
+            w = 3
+            log("w" w)
+            ^
+
+        |Inc|
+            w = w + 1
+            log("w" w)
+            ^(w)
+
+        |LogState|
+            log("w" w)
+            ^
+
+        |Start|
+            -> (3 w) $Foo
+            ^
 
     $Foo
         var x:i32 = 0
@@ -23,6 +44,10 @@
             log("x" x)
             ^
 
+        |LogState|
+            log("x" x)
+            ^
+
         |Inc|
             x = x + 1
             log("x" x)
@@ -31,6 +56,11 @@
         |Next| [arg:i32]
             var tmp = arg * 10  --- FIXME: Swapping this to 10 * arg causes a parse error!
             (10) -> (tmp) $Bar(x)
+            ^
+
+        |Change| [arg:i32]
+            var tmp = x + arg
+            ->> $Bar(tmp)
             ^
 
     $Bar [y:i32]
@@ -44,10 +74,21 @@
             log("z" z)
             ^
 
+        |LogState|
+            log("y" y)
+            log("z" z)
+            ^
+
         |Inc|
             z = z + 1
             log("z" z)
             ^(z)
+
+        |Change| [arg:i32]
+            var tmp = y + z + arg
+            log("tmp" tmp)
+            ->> $Init
+            ^
 
     -actions-
     log [name:String val:i32]
