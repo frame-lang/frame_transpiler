@@ -3691,15 +3691,38 @@ impl<'a> Parser<'a> {
         }
 
         let statements = self.statements();
+        let mut must_be_terminated = false;
+        let mut last_statement_terminated = false;
+
+        // if the last statement in the branch is a
+        // "must_be_terminated" statement then that property
+        // needs to be set on the branch as well.
+        match statements.last() {
+            // the statements themselves have either a default or inherited trait
+            // of needing to be terminated. e.g. Transitions, ChangeStates must be terminated.
+            Some(decl_or_stmt_t) => {
+                must_be_terminated = decl_or_stmt_t.must_be_terminated();
+                last_statement_terminated = decl_or_stmt_t.is_terminated();
+            }
+            None => {}
+        }
 
         let result = self.branch_terminator();
 
         return match result {
-            Ok(branch_terminator_t_opt) => Ok(NumberMatchTestMatchBranchNode::new(
-                match_numbers,
-                statements,
-                branch_terminator_t_opt,
-            )),
+            Ok(branch_terminator_t_opt) => {
+                // determine that the branch is terminated by the existence
+                // of a terminator (how existential)
+                let terminated = last_statement_terminated || branch_terminator_t_opt.is_some();
+
+                Ok(NumberMatchTestMatchBranchNode::new(
+                    match_numbers,
+                    statements,
+                    branch_terminator_t_opt,
+                    terminated,
+                    must_be_terminated,
+                ))
+            },
             Err(parse_error) => Err(parse_error),
         };
     }
@@ -3712,14 +3735,34 @@ impl<'a> Parser<'a> {
         &mut self,
     ) -> Result<NumberMatchTestElseBranchNode, ParseError> {
         let statements = self.statements();
+        let mut must_be_terminated = false;
+        let mut last_statement_terminated = false;
+
+        // if the last statement in the branch is a
+        // "must_be_terminated" statement then that property
+        // needs to be set on the branch as well.
+        match statements.last() {
+            Some(decl_or_stmt_t) => {
+                must_be_terminated = decl_or_stmt_t.must_be_terminated();
+                last_statement_terminated = decl_or_stmt_t.is_terminated();
+            }
+            None => {}
+        }
 
         let result = self.branch_terminator();
 
         return match result {
-            Ok(branch_terminator_opt) => Ok(NumberMatchTestElseBranchNode::new(
-                statements,
-                branch_terminator_opt,
-            )),
+            Ok(branch_terminator_opt) => {
+                let x = branch_terminator_opt.is_some();
+                let terminated = last_statement_terminated || x;
+
+                Ok(NumberMatchTestElseBranchNode::new(
+                    statements,
+                    branch_terminator_opt,
+                    terminated,
+                    must_be_terminated,
+                ))
+            },
             Err(parse_error) => Err(parse_error),
         };
     }
