@@ -892,9 +892,7 @@ impl TerminationAttrs for StatementType {
             StatementType::TestStmt { test_stmt_node } => {
                 return test_stmt_node.is_terminated();
             }
-            StatementType::StateStackStmt {
-                state_stack_operation_statement_node,
-            } => {
+            StatementType::StateStackStmt { .. } => {
                 return false;
             }
             StatementType::NoStmt => {
@@ -919,9 +917,7 @@ impl TerminationAttrs for StatementType {
             StatementType::TestStmt { test_stmt_node } => {
                 return test_stmt_node.must_be_terminated();
             }
-            StatementType::StateStackStmt {
-                state_stack_operation_statement_node,
-            } => {
+            StatementType::StateStackStmt { .. } => {
                 return false;
             }
             StatementType::NoStmt => {
@@ -1841,12 +1837,29 @@ impl StringMatchTestNode {
         match_branch_nodes: Vec<StringMatchTestMatchBranchNode>,
         else_branch_node_opt: Option<StringMatchTestElseBranchNode>,
     ) -> StringMatchTestNode {
+        let mut terminated = true;
+        let mut must_be_terminated = false;
+        for branch in &match_branch_nodes {
+            // the test node is terminated if all branches are.
+            terminated = terminated && branch.is_terminated();
+            // the test node must be terminated if any branch must.
+            must_be_terminated = must_be_terminated || branch.must_be_terminated();
+        }
+        // the StringMatchTestNode can only be considered fully terminated
+        // if else branch exists and is also terminated.
+        match else_branch_node_opt {
+            Some(ref else_branch_node) => {
+                terminated = terminated && else_branch_node.is_terminated();
+                must_be_terminated = must_be_terminated || else_branch_node.must_be_terminated();
+            }
+            None => terminated = false,
+        }
         StringMatchTestNode {
             expr_t,
             match_branch_nodes,
             else_branch_node_opt,
-            terminated: false,
-            must_be_terminated: false,
+            terminated,
+            must_be_terminated,
         }
     }
 }
@@ -1874,6 +1887,7 @@ pub struct StringMatchTestMatchBranchNode {
     pub statements: Vec<DeclOrStmtType>,
     pub branch_terminator_expr_opt: Option<TerminatorExpr>,
     pub terminated: bool,
+    pub must_be_terminated: bool,
 }
 
 impl StringMatchTestMatchBranchNode {
@@ -1881,12 +1895,15 @@ impl StringMatchTestMatchBranchNode {
         string_match_pattern_node: StringMatchTestPatternNode,
         statements: Vec<DeclOrStmtType>,
         branch_terminator_t_opt: Option<TerminatorExpr>,
+        terminated: bool,
+        must_be_terminated: bool,
     ) -> StringMatchTestMatchBranchNode {
         StringMatchTestMatchBranchNode {
             string_match_pattern_node,
             statements,
             branch_terminator_expr_opt: branch_terminator_t_opt,
-            terminated: false,
+            terminated,
+            must_be_terminated,
         }
     }
 }
@@ -1894,6 +1911,16 @@ impl StringMatchTestMatchBranchNode {
 impl NodeElement for StringMatchTestMatchBranchNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         ast_visitor.visit_string_match_test_match_branch_node(self);
+    }
+}
+
+impl TerminationAttrs for StringMatchTestMatchBranchNode {
+    fn is_terminated(&self) -> bool {
+        self.terminated
+    }
+
+    fn must_be_terminated(&self) -> bool {
+        self.must_be_terminated
     }
 }
 
@@ -1910,12 +1937,14 @@ impl StringMatchTestElseBranchNode {
     pub fn new(
         statements: Vec<DeclOrStmtType>,
         branch_terminator_t_opt: Option<TerminatorExpr>,
+        terminated: bool,
+        must_be_terminated: bool,
     ) -> StringMatchTestElseBranchNode {
         StringMatchTestElseBranchNode {
             statements,
             branch_terminator_expr_opt: branch_terminator_t_opt,
-            terminated: false,
-            must_be_terminated: false,
+            terminated,
+            must_be_terminated,
         }
     }
 }
@@ -1926,6 +1955,15 @@ impl NodeElement for StringMatchTestElseBranchNode {
     }
 }
 
+impl TerminationAttrs for StringMatchTestElseBranchNode {
+    fn is_terminated(&self) -> bool {
+        self.terminated
+    }
+
+    fn must_be_terminated(&self) -> bool {
+        self.must_be_terminated
+    }
+}
 //-----------------------------------------------------//
 
 pub struct StringMatchTestPatternNode {
