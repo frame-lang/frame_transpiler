@@ -22,7 +22,7 @@ use yaml_rust::YamlLoader;
 /* --------------------------------------------------------------------- */
 
 static IS_DEBUG: bool = false;
-static FRAMEC_VERSION: &str = "emitted from framec_v0.5.1";
+static FRAMEC_VERSION: &str = "emitted from framec_v0.6.0";
 
 /* --------------------------------------------------------------------- */
 

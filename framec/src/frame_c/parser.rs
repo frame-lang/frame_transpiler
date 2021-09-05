@@ -10,7 +10,6 @@ use super::scanner::TokenType::*;
 use super::scanner::*;
 use super::symbol_table::SymbolType::*;
 use super::symbol_table::*;
-use crate::frame_c::ast::StatementType::TransitionStmt;
 use crate::frame_c::utils::SystemHierarchy;
 use downcast_rs::__std::cell::RefCell;
 use std::collections::HashMap;
@@ -1795,10 +1794,13 @@ impl<'a> Parser<'a> {
         }
 
         let statements = self.statements();
+
         let mut last_statement_is_terminated = false;
+        let mut last_statement_must_be_terminated = false;
         match statements.last() {
             Some(decl_or_stmt_t) => {
                 last_statement_is_terminated = decl_or_stmt_t.is_terminated();
+                last_statement_must_be_terminated = decl_or_stmt_t.must_be_terminated();
             }
             None => {}
         }
@@ -1806,7 +1808,39 @@ impl<'a> Parser<'a> {
         let ret_event_symbol_rcref = Rc::clone(&event_symbol_rcref);
         let terminator_node_opt = match self.event_handler_terminator(event_symbol_rcref) {
             Ok(Some(terminator_node)) => Some(terminator_node),
-            Ok(None) => None,
+            Ok(None) => {
+                if last_statement_must_be_terminated {
+                    if !last_statement_is_terminated {
+                        self.error_at_current("Event handler not properly terminated.");
+
+                        let sync_tokens = &vec![
+                            PipeTok,
+                            CaretTok,
+                            StateTok,
+                            ActionsBlockTok,
+                            DomainBlockTok,
+                            SystemEndTok,
+                        ];
+                        self.synchronize(sync_tokens);
+                    }
+                } else {
+                    // !last_statement_must_be_terminated and no event handler termination
+                    if !last_statement_is_terminated {
+                        self.error_at_current("Event handler not properly terminated.");
+
+                        let sync_tokens = &vec![
+                            PipeTok,
+                            CaretTok,
+                            StateTok,
+                            ActionsBlockTok,
+                            DomainBlockTok,
+                            SystemEndTok,
+                        ];
+                        self.synchronize(sync_tokens);
+                    }
+                }
+                None
+            }
             Err(_parse_error) => {
                 // TODO: this vec keeps the parser from hanging. don't know why
                 let sync_tokens = &vec![
@@ -1915,7 +1949,6 @@ impl<'a> Parser<'a> {
     // TODO: need result and optional
     fn statements(&mut self) -> Vec<DeclOrStmtType> {
         let mut statements = Vec::new();
-        let terminated = false;
 
         loop {
             // let result = self.decl_or_stmt();
@@ -1923,25 +1956,6 @@ impl<'a> Parser<'a> {
             match self.decl_or_stmt() {
                 Ok(opt_smt) => match opt_smt {
                     Some(statement) => {
-                        // match &statement {
-                        //     DeclOrStmtType::StmtT {stmt_t} => {
-                        //         // Transitions or state changes must be the last statement in
-                        //         // an event handler.
-                        //         match stmt_t {
-                        //             StatementType::TransitionStmt {transition_statement} => {
-                        //                 statements.push(statement);
-                        //                 return statements;
-                        //             },
-                        //             StatementType::ChangeStateStmt {change_state_stmt} => {
-                        //                 statements.push(statement);
-                        //                 return statements;
-                        //             },
-                        //             _ => {}
-                        //         }
-                        //     },
-                        //     _ => {}
-                        // }
-
                         let must_be_terminated = statement.must_be_terminated();
                         statements.push(statement);
                         if must_be_terminated {
@@ -2252,7 +2266,6 @@ impl<'a> Parser<'a> {
 
     fn bool_test(&mut self, expr_t: ExprType) -> Result<BoolTestNode, ParseError> {
         let is_negated: bool;
-        let is_terminated = true;
 
         // '?'
         if self.match_token(&vec![BoolTestTrueTok]) {
@@ -2352,33 +2365,28 @@ impl<'a> Parser<'a> {
     ) -> Result<BoolTestConditionalBranchNode, ParseError> {
         let statements = self.statements();
         let mut must_be_terminated = false;
+        let mut last_statement_terminated = false;
 
         // if the last statement in the branch is a
         // "must_be_terminated" statement then that property
         // needs to be set on the branch as well.
         match statements.last() {
+            // the statements themselves have either a default or inherited trait
+            // of needing to be terminated. e.g. Transitions, ChangeStates must be terminated.
             Some(decl_or_stmt_t) => {
                 must_be_terminated = decl_or_stmt_t.must_be_terminated();
+                last_statement_terminated = decl_or_stmt_t.is_terminated();
             }
             None => {}
         }
 
         let result = self.branch_terminator();
 
-        //      let terminated;
-
-        // match result {
-        //     Ok(terminator_exp_opt) => {
-        //         terminated = terminator_exp_opt.is_some();
-        //     },
-        //     Err(parse_error) => { return Err(parse_error); }
-        // }
-        // if terminated && result.is_some() {
-        //     return Err(ParseError::new("Unnecessary branch terminator."));
-        // }
         return match result {
             Ok(branch_terminator_expr_opt) => {
-                let terminated = branch_terminator_expr_opt.is_some();
+                // determine that the branch is terminated by the existence
+                // of a terminator (how existential)
+                let terminated = last_statement_terminated || branch_terminator_expr_opt.is_some();
 
                 Ok(BoolTestConditionalBranchNode::new(
                     is_negated,
@@ -2400,12 +2408,15 @@ impl<'a> Parser<'a> {
     fn bool_test_else_branch(&mut self) -> Result<BoolTestElseBranchNode, ParseError> {
         let statements = self.statements();
         let mut must_be_terminated = false;
+        let mut last_statement_terminated = false;
+
         // if the last statement in the branch is a
         // "must_be_terminated" statement then that property
         // needs to be set on the branch as well.
         match statements.last() {
             Some(decl_or_stmt_t) => {
                 must_be_terminated = decl_or_stmt_t.must_be_terminated();
+                last_statement_terminated = decl_or_stmt_t.is_terminated();
             }
             None => {}
         }
@@ -2414,7 +2425,7 @@ impl<'a> Parser<'a> {
 
         return match result {
             Ok(branch_terminator_expr_opt) => {
-                let terminated = branch_terminator_expr_opt.is_some();
+                let terminated = last_statement_terminated || branch_terminator_expr_opt.is_some();
 
                 Ok(BoolTestElseBranchNode::new(
                     statements,
@@ -2566,15 +2577,38 @@ impl<'a> Parser<'a> {
         }
 
         let statements = self.statements();
+        let mut must_be_terminated = false;
+        let mut last_statement_terminated = false;
+
+        // if the last statement in the branch is a
+        // "must_be_terminated" statement then that property
+        // needs to be set on the branch as well.
+        match statements.last() {
+            // the statements themselves have either a default or inherited trait
+            // of needing to be terminated. e.g. Transitions, ChangeStates must be terminated.
+            Some(decl_or_stmt_t) => {
+                must_be_terminated = decl_or_stmt_t.must_be_terminated();
+                last_statement_terminated = decl_or_stmt_t.is_terminated();
+            }
+            None => {}
+        }
 
         let result = self.branch_terminator();
 
         return match result {
-            Ok(branch_terminator_t_opt) => Ok(StringMatchTestMatchBranchNode::new(
-                string_match_pattern_node,
-                statements,
-                branch_terminator_t_opt,
-            )),
+            Ok(branch_terminator_t_opt) => {
+                // determine that the branch is terminated by the existence
+                // of a terminator (how existential)
+                let terminated = last_statement_terminated || branch_terminator_t_opt.is_some();
+
+                Ok(StringMatchTestMatchBranchNode::new(
+                    string_match_pattern_node,
+                    statements,
+                    branch_terminator_t_opt,
+                    terminated,
+                    must_be_terminated,
+                ))
+            }
             Err(parse_error) => Err(parse_error),
         };
     }
@@ -2587,14 +2621,33 @@ impl<'a> Parser<'a> {
         &mut self,
     ) -> Result<StringMatchTestElseBranchNode, ParseError> {
         let statements = self.statements();
+        let mut must_be_terminated = false;
+        let mut last_statement_terminated = false;
+
+        // if the last statement in the branch is a
+        // "must_be_terminated" statement then that property
+        // needs to be set on the branch as well.
+        match statements.last() {
+            Some(decl_or_stmt_t) => {
+                must_be_terminated = decl_or_stmt_t.must_be_terminated();
+                last_statement_terminated = decl_or_stmt_t.is_terminated();
+            }
+            None => {}
+        }
 
         let result = self.branch_terminator();
 
         return match result {
-            Ok(branch_terminator_opt) => Ok(StringMatchTestElseBranchNode::new(
-                statements,
-                branch_terminator_opt,
-            )),
+            Ok(branch_terminator_opt) => {
+                let terminated = last_statement_terminated || branch_terminator_opt.is_some();
+
+                Ok(StringMatchTestElseBranchNode::new(
+                    statements,
+                    branch_terminator_opt,
+                    terminated,
+                    must_be_terminated,
+                ))
+            }
             Err(parse_error) => Err(parse_error),
         };
     }
@@ -3613,15 +3666,38 @@ impl<'a> Parser<'a> {
         }
 
         let statements = self.statements();
+        let mut must_be_terminated = false;
+        let mut last_statement_terminated = false;
+
+        // if the last statement in the branch is a
+        // "must_be_terminated" statement then that property
+        // needs to be set on the branch as well.
+        match statements.last() {
+            // the statements themselves have either a default or inherited trait
+            // of needing to be terminated. e.g. Transitions, ChangeStates must be terminated.
+            Some(decl_or_stmt_t) => {
+                must_be_terminated = decl_or_stmt_t.must_be_terminated();
+                last_statement_terminated = decl_or_stmt_t.is_terminated();
+            }
+            None => {}
+        }
 
         let result = self.branch_terminator();
 
         return match result {
-            Ok(branch_terminator_t_opt) => Ok(NumberMatchTestMatchBranchNode::new(
-                match_numbers,
-                statements,
-                branch_terminator_t_opt,
-            )),
+            Ok(branch_terminator_t_opt) => {
+                // determine that the branch is terminated by the existence
+                // of a terminator (how existential)
+                let terminated = last_statement_terminated || branch_terminator_t_opt.is_some();
+
+                Ok(NumberMatchTestMatchBranchNode::new(
+                    match_numbers,
+                    statements,
+                    branch_terminator_t_opt,
+                    terminated,
+                    must_be_terminated,
+                ))
+            },
             Err(parse_error) => Err(parse_error),
         };
     }
@@ -3634,14 +3710,34 @@ impl<'a> Parser<'a> {
         &mut self,
     ) -> Result<NumberMatchTestElseBranchNode, ParseError> {
         let statements = self.statements();
+        let mut must_be_terminated = false;
+        let mut last_statement_terminated = false;
+
+        // if the last statement in the branch is a
+        // "must_be_terminated" statement then that property
+        // needs to be set on the branch as well.
+        match statements.last() {
+            Some(decl_or_stmt_t) => {
+                must_be_terminated = decl_or_stmt_t.must_be_terminated();
+                last_statement_terminated = decl_or_stmt_t.is_terminated();
+            }
+            None => {}
+        }
 
         let result = self.branch_terminator();
 
         return match result {
-            Ok(branch_terminator_opt) => Ok(NumberMatchTestElseBranchNode::new(
-                statements,
-                branch_terminator_opt,
-            )),
+            Ok(branch_terminator_opt) => {
+                let x = branch_terminator_opt.is_some();
+                let terminated = last_statement_terminated || x;
+
+                Ok(NumberMatchTestElseBranchNode::new(
+                    statements,
+                    branch_terminator_opt,
+                    terminated,
+                    must_be_terminated,
+                ))
+            },
             Err(parse_error) => Err(parse_error),
         };
     }
