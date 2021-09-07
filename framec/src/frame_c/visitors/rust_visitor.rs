@@ -1937,6 +1937,46 @@ impl RustVisitor {
         }
     }
 
+    fn generate_state_stack_pop_change_state(&mut self, change_state_stmt: &ChangeStateStatementNode) {
+        self.newline();
+        self.add_code("// Start change state ");
+
+        // print the change-state label, if provided
+        match &change_state_stmt.label_opt {
+            Some(label) => {
+                self.newline();
+                self.add_code(&format!("// {}", label));
+            }
+            None => {}
+        }
+
+        // TODO: generate state arguments?
+
+        // pop the state/context and pass to change-state method
+        self.newline();
+        if self.generate_state_context {
+            self.add_code(&format!(
+                "let (next_state, next_state_context) = self.{}();",
+                self.config.state_stack_pop_method_name
+            ));
+            self.newline();
+            self.add_code(&format!(
+                "self.{}(next_state, *next_state_context);",
+                self.config.change_state_method_name
+            ));
+        } else {
+            self.add_code(&format!(
+                "let next_state = self.{}();",
+                self.config.state_stack_pop_method_name
+            ));
+            self.newline();
+            self.add_code(&format!(
+                "self.{}(next_state);",
+                self.config.change_state_method_name
+            ));
+        }
+    }
+
     //* --------------------------------------------------------------------- *//
 
     fn generate_state_ref_transition(&mut self, transition_stmt: &TransitionStatementNode) {
@@ -2068,12 +2108,6 @@ impl RustVisitor {
             }
         }
     }
-
-    // //* --------------------------------------------------------------------- *//
-    //
-    // fn format_target_state_name(&self,state_name:&str) -> String {
-    //     format!("{}_state",state_name.to_lowercase())
-    // }
 
     //* --------------------------------------------------------------------- *//
 
@@ -3565,9 +3599,9 @@ impl AstVisitor for RustVisitor {
             StateContextType::StateRef { .. } => {
                 self.generate_state_ref_change_state(change_state_stmt_node)
             }
-            StateContextType::StateStackPop {} => self.errors.push(format!(
-                "Fatal error - change state stack pop not implemented."
-            )),
+            StateContextType::StateStackPop {} => {
+                self.generate_state_stack_pop_change_state(change_state_stmt_node)
+            }
         };
         self.this_branch_transitioned = true;
 

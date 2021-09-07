@@ -19,13 +19,13 @@
             -> $B ^
         |to_c|
             -> $C ^
-        |push| 
+        |push|
             $$[+] ^
-        |pop| 
+        |pop|
             -> $$[-] ^
-        --- |pop_change| 
-        ---     ->> $$[-] ^
-    
+        |pop_change|
+            ->> $$[-] ^
+
     $B
         |>|
             log("B:>") ^
@@ -37,13 +37,13 @@
             -> $B ^
         |to_c|
             -> $C ^
-        |push| 
+        |push|
             $$[+] ^
-        |pop| 
+        |pop|
             -> $$[-] ^
-        --- |pop_change| 
-        ---     ->> $$[-] ^
-    
+        |pop_change|
+            ->> $$[-] ^
+
     $C
         |>|
             log("C:>") ^
@@ -55,12 +55,12 @@
             -> $B ^
         |to_c|
             -> $C ^
-        |push| 
+        |push|
             $$[+] ^
-        |pop| 
+        |pop|
             -> $$[-] ^
-        --- |pop_change| 
-        ---     ->> $$[-] ^
+        |pop_change|
+            ->> $$[-] ^
 
     -actions-
     log [msg:String]

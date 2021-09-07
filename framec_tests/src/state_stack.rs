@@ -95,7 +95,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     /// Test that pop change-states do not trigger enter/exit events.
     fn pop_change_state_no_events() {
         let mut sm = StateStack::new();
