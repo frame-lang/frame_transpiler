@@ -7,6 +7,7 @@ mod hierarchical_guard;
 mod r#match;
 mod rust_naming;
 mod state_context;
+mod state_context_stack;
 mod state_params;
 mod state_stack;
 mod state_vars;

@@ -1,4 +1,5 @@
-//! Tests the basic functionality of the state stack feature.
+//! Tests the basic functionality of the state stack feature. This test case
+//! does not include any features that require a state context.
 
 type Log = Vec<String>;
 include!(concat!(env!("OUT_DIR"), "/", "state_stack.rs"));
