@@ -5,9 +5,10 @@ codegen:
 
   rust:
     features:
+      enable_monitoring_callbacks: true
+      follow_rust_naming: true
       generate_action_impl: true
       generate_hook_methods: true
-      follow_rust_naming: true
     code:
       actions_prefix:
       actions_suffix: Actions
@@ -50,3 +51,7 @@ codegen:
       state_stack_var_name: state_stack
       state_stack_push_method_name: state_stack_push
       state_stack_pop_method_name: state_stack_pop
+      change_state_callbacks_var_name: change_state_callbacks
+      transition_callbacks_var_name: transition_callbacks
+      add_change_state_callback_method_name: add_change_state_callback
+      add_transition_callback_method_name: add_transitition_callback

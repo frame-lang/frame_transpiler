@@ -7,9 +7,10 @@ use super::super::symbol_table::*;
 use super::super::visitors::*;
 
 struct ConfigFeatures {
+    enable_monitoring_callbacks: bool,
+    follow_rust_naming: bool,
     generate_action_impl: bool,
     generate_hook_methods: bool,
-    follow_rust_naming: bool,
 }
 
 struct Config {
@@ -57,6 +58,10 @@ struct Config {
     change_state_hook_method_name: String,
     state_stack_push_method_name: String,
     state_stack_pop_method_name: String,
+    change_state_callbacks_var_name: String,
+    transition_callbacks_var_name: String,
+    add_change_state_callback_method_name: String,
+    add_transition_callback_method_name: String,
 }
 
 impl Config {
@@ -64,6 +69,18 @@ impl Config {
         // println!("{:?}", rust_yaml);
         let features_yaml = &rust_yaml["features"];
         let config_features = ConfigFeatures {
+            enable_monitoring_callbacks: (&features_yaml["enable_monitoring_callbacks"])
+                .as_bool()
+                .unwrap_or(true)
+                .to_string()
+                .parse()
+                .unwrap(),
+            follow_rust_naming: (&features_yaml["follow_rust_naming"])
+                .as_bool()
+                .unwrap_or(true)
+                .to_string()
+                .parse()
+                .unwrap(),
             generate_action_impl: (&features_yaml["generate_action_impl"])
                 .as_bool()
                 .unwrap_or(true)
@@ -71,12 +88,6 @@ impl Config {
                 .parse()
                 .unwrap(),
             generate_hook_methods: (&features_yaml["generate_hook_methods"])
-                .as_bool()
-                .unwrap_or(true)
-                .to_string()
-                .parse()
-                .unwrap(),
-            follow_rust_naming: (&features_yaml["follow_rust_naming"])
                 .as_bool()
                 .unwrap_or(true)
                 .to_string()
@@ -254,6 +265,22 @@ impl Config {
                 .as_str()
                 .unwrap_or_default()
                 .to_string(),
+            change_state_callbacks_var_name: (&code_yaml["change_state_callbacks_var_name"])
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
+            transition_callbacks_var_name: (&code_yaml["transition_callbacks_var_name"])
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
+            add_change_state_callback_method_name: (&code_yaml["add_change_state_callback_method_name"])
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
+            add_transition_callback_method_name: (&code_yaml["add_transition_callback_method_name"])
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
         }
     }
 }
@@ -283,8 +310,10 @@ pub struct RustVisitor {
     generate_state_stack: bool,
     generate_change_state: bool,
     generate_transition_state: bool,
-    generate_transition_hook: bool,
     generate_change_state_hook: bool,
+    generate_transition_hook: bool,
+    generate_change_state_callbacks: bool,
+    generate_transition_callbacks: bool,
     current_message: String,
 }
 
@@ -326,10 +355,14 @@ impl RustVisitor {
             generate_state_stack,
             generate_change_state,
             generate_transition_state,
-            generate_transition_hook: config.config_features.generate_hook_methods
-                && generate_transition_state,
             generate_change_state_hook: config.config_features.generate_hook_methods
                 && generate_change_state,
+            generate_transition_hook: config.config_features.generate_hook_methods
+                && generate_transition_state,
+            generate_change_state_callbacks: config.config_features.enable_monitoring_callbacks
+                && generate_change_state,
+            generate_transition_callbacks: config.config_features.enable_monitoring_callbacks
+                && generate_transition_state,
             current_message: String::new(),
             config,
         }
@@ -1104,6 +1137,50 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    /// Generate methods for registring callbacks to monitor the behavior of
+    /// this state machine.
+    fn generate_add_callback_methods(&mut self) {
+        // change-state callbacks
+        if self.generate_change_state {
+            self.newline();
+            self.newline();
+            self.add_code(&format!(
+                "pub fn {}(&mut self, c: impl FnMut() + 'static) {{",
+                self.config.add_change_state_callback_method_name
+            ));
+            self.indent();
+            self.newline();
+            self.add_code(&format!(
+                "self.{}.push(Box::new(c));",
+                self.config.change_state_callbacks_var_name
+            ));
+            self.outdent();
+            self.newline();
+            self.add_code("}");
+        }
+        
+        // transition callbacks
+        if self.generate_transition_state {
+            self.newline();
+            self.newline();
+            self.add_code(&format!(
+                "pub fn {}(&mut self, c: impl FnMut() + 'static) {{",
+                self.config.add_transition_callback_method_name
+            ));
+            self.indent();
+            self.newline();
+            self.add_code(&format!(
+                "self.{}.push(Box::new(c));",
+                self.config.transition_callbacks_var_name
+            ));
+            self.outdent();
+            self.newline();
+            self.add_code("}");
+        }
+    }
+
+    //* --------------------------------------------------------------------- *//
+
     /// Generate the constructor function.
     fn generate_constructor(&mut self, system_node: &SystemNode) {
         self.add_code(&format!("pub fn new() -> {} {{", system_node.name));
@@ -1140,6 +1217,24 @@ impl RustVisitor {
             self.state_enum_type_name(),
             self.format_type_name(&self.first_state_name)
         ));
+
+        // initialize the callback variables
+        if self.config.config_features.enable_monitoring_callbacks {
+            if self.generate_change_state {
+                self.newline();
+                self.add_code(&format!(
+                    "{}: Vec::new(),",
+                    self.config.change_state_callbacks_var_name
+                ));
+            }
+            if self.generate_transition_state {
+                self.newline();
+                self.add_code(&format!(
+                    "{}: Vec::new(),",
+                    self.config.transition_callbacks_var_name
+                ));
+            }
+        }
 
         // initialize the state stack
         if self.generate_state_stack {
@@ -1277,6 +1372,9 @@ impl RustVisitor {
         }
         self.indent();
         self.newline();
+        if self.generate_change_state_callbacks {
+            // TODO callbacks
+        }
         if self.generate_change_state_hook {
             self.add_code(&format!(
                 "let {} = self.{};",
@@ -1360,6 +1458,9 @@ impl RustVisitor {
         // generate method body
         self.indent();
         self.newline();
+        if self.generate_transition_callbacks {
+            // TODO callbacks
+        }
         if self.generate_transition_hook {
             self.add_code(&format!(
                 "let {} = self.{};",
@@ -2438,6 +2539,22 @@ impl AstVisitor for RustVisitor {
             ));
         }
 
+        // generate callback variables
+        if self.generate_change_state_callbacks {
+            self.newline();
+            self.add_code(&format!(
+                "{}: Vec<Box<dyn FnMut()>>,",
+                self.config.change_state_callbacks_var_name
+            ));
+        }
+        if self.generate_transition_callbacks {
+            self.newline();
+            self.add_code(&format!(
+                "{}: Vec<Box<dyn FnMut()>>,",
+                self.config.transition_callbacks_var_name
+            ));
+        }
+
         // generate state stack variable
         if self.generate_state_stack {
             if self.generate_state_context {
@@ -2478,7 +2595,6 @@ impl AstVisitor for RustVisitor {
         }
         self.add_code(&format!("impl {} {{", system_node.name));
         self.indent();
-        self.newline();
 
         // First state name needed for machinery.
         // Don't generate if there isn't at least one state.
@@ -2492,11 +2608,15 @@ impl AstVisitor for RustVisitor {
 
         if self.has_states {
             self.newline();
+            self.newline();
             self.generate_constructor(&system_node);
             self.newline();
             self.newline();
             self.generate_initialize();
-            self.newline();
+        }
+
+        if self.config.config_features.enable_monitoring_callbacks {
+            self.generate_add_callback_methods();
         }
 
         self.serialize.push("".to_string());
@@ -2512,6 +2632,7 @@ impl AstVisitor for RustVisitor {
         // self.subclass_code.push("/********************\n".to_string());
         // self.subclass_code.push(format!("public partial class {}Controller : {} {{",system_node.name,system_node.name));
 
+        self.newline();
         if let Some(interface_block_node) = &system_node.interface_block_node_opt {
             interface_block_node.accept(self);
         }
