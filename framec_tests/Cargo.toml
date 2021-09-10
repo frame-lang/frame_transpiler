@@ -1,7 +1,7 @@
 [package]
 name = "framec_tests"
 version = "0.1.0"
-authors = ["Fernando De la Garza <fernando.delagarza@savant.com>"]
+authors = ["Eric Walkingshaw <eric.wakingshaw@savant.com>", "Fernando De la Garza <fernando.delagarza@savant.com>"]
 edition = "2018"
 
 [dependencies]
@@ -9,5 +9,6 @@ edition = "2018"
 [build-dependencies]
 anyhow = "1.0"
 framec = { path = "../framec" }
+frame_runtime = { path = "../frame_runtime" }
 walkdir = "2.3"
 
