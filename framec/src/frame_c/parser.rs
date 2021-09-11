@@ -1905,23 +1905,28 @@ impl<'a> Parser<'a> {
             match self.decl_or_stmt() {
                 Ok(opt_smt) => match opt_smt {
                     Some(statement) => {
-                        // match &statement {
-                        //     DeclOrStmtType::StmtT {stmt_t} => {
-                        //         // Transitions or state changes must be the last statement in
-                        //         // an event handler.
-                        //         match stmt_t {
-                        //             StatementType::TransitionStmt { .. } => {
-                        //                 return statements;
-                        //             },
-                        //             StatementType::ChangeStateStmt { .. } => {
-                        //                 return statements;
-                        //             },
-                        //             _ => {}
-                        //         }
-                        //     },
-                        //     _ => {}
-                        // }
-                        statements.push(statement);
+                        match &statement {
+                            DeclOrStmtType::StmtT { stmt_t } => {
+                                // Transitions or state changes must be the last statement in
+                                // an event handler.
+                                match stmt_t {
+                                    StatementType::TransitionStmt { .. } => {
+                                        statements.push(statement);
+                                        return statements;
+                                    }
+                                    StatementType::ChangeStateStmt { .. } => {
+                                        statements.push(statement);
+                                        return statements;
+                                    }
+                                    _ => {
+                                        statements.push(statement);
+                                    }
+                                }
+                            }
+                            _ => {
+                                statements.push(statement);
+                            }
+                        }
                     }
                     None => {
                         return statements;
