@@ -31,6 +31,7 @@ mod tests {
     struct TestArgs {
         x: i32,
         y: bool,
+        z: Option<f32>,
     }
 
     impl Environment for TestArgs {
@@ -41,6 +42,7 @@ mod tests {
             match name {
                 "x" => Some(&self.x),
                 "y" => Some(&self.y),
+                "z" => Some(&self.z),
                 _ => None,
             }
         }
@@ -57,17 +59,26 @@ mod tests {
         let empty = EmptyEnvironment {};
         assert!(empty.lookup("x").is_none());
         assert!(empty.lookup("y").is_none());
+        assert!(empty.lookup("z").is_none());
     }
 
     #[test]
     fn struct_environment_not_empty() {
-        let args = TestArgs { x: 42, y: false };
+        let args = TestArgs {
+            x: 42,
+            y: false,
+            z: Some(3.14),
+        };
         assert!(!args.is_empty());
     }
 
     #[test]
     fn struct_environment_lookup_success() {
-        let args = TestArgs { x: 42, y: false };
+        let args = TestArgs {
+            x: 42,
+            y: false,
+            z: Some(3.14),
+        };
 
         let opt_x = args.lookup("x");
         assert!(opt_x.is_some());
@@ -80,26 +91,42 @@ mod tests {
         let opt_bool = opt_y.unwrap().downcast_ref::<bool>();
         assert!(opt_bool.is_some());
         assert_eq!(*opt_bool.unwrap(), false);
+
+        let opt_y = args.lookup("z");
+        assert!(opt_y.is_some());
+        let opt_bool = opt_y.unwrap().downcast_ref::<Option<f32>>();
+        assert!(opt_bool.is_some());
+        assert_eq!(*opt_bool.unwrap(), Some(3.14));
     }
 
     #[test]
     fn struct_environment_lookup_type_error() {
-        let args = TestArgs { x: 42, y: false };
+        let args = TestArgs {
+            x: 42,
+            y: false,
+            z: Some(3.14),
+        };
         let opt_x = args.lookup("x");
         assert!(opt_x.is_some());
-        let opt_i32 = opt_x.unwrap().downcast_ref::<bool>();
-        assert!(opt_i32.is_none());
+        assert!(opt_x.unwrap().downcast_ref::<bool>().is_none());
 
         let opt_y = args.lookup("y");
         assert!(opt_y.is_some());
-        let opt_bool = opt_y.unwrap().downcast_ref::<i32>();
-        assert!(opt_bool.is_none());
+        assert!(opt_y.unwrap().downcast_ref::<i32>().is_none());
+
+        let opt_z = args.lookup("z");
+        assert!(opt_z.is_some());
+        assert!(opt_y.unwrap().downcast_ref::<f32>().is_none());
+        assert!(opt_y.unwrap().downcast_ref::<Option<i32>>().is_none());
     }
 
     #[test]
     fn struct_environment_lookup_undefined() {
-        let args = TestArgs { x: 42, y: false };
-        let opt_z = args.lookup("z");
-        assert!(opt_z.is_none());
+        let args = TestArgs {
+            x: 42,
+            y: false,
+            z: Some(3.14),
+        };
+        assert!(args.lookup("w").is_none());
     }
 }

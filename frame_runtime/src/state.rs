@@ -9,7 +9,6 @@ pub trait State {
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
 
     enum TestState {
