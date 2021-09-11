@@ -1356,10 +1356,8 @@ impl AstVisitor for JavaScriptVisitor {
         // Generate statements
         self.visit_decl_stmts(&evt_handler_node.statements);
 
-        let terminator_node_opt = &evt_handler_node.terminator_node_opt;
-        if let Some(terminator_node) = terminator_node_opt {
-            terminator_node.accept(self);
-        }
+        let terminator_node = &evt_handler_node.terminator_node;
+        terminator_node.accept(self);
         self.outdent();
         self.newline();
         self.add_code(&format!("}}"));

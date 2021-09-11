@@ -14,7 +14,7 @@
         |Simple| -> $SimpleMatch ^
         |Multi|  -> $MultiMatch ^
         |Nested| -> $NestedMatch ^
-        |Child|  -> $ChildMatch
+        |Child|  -> $ChildMatch ^
 
     $EmptyMatch
         |OnString| [s:String]
