@@ -20,10 +20,8 @@ pub struct TransitionInfo {
     old_state: Box<dyn State>,
     /// The state after the transition.
     new_state: Box<dyn State>,
-    /// Arguments to the enter handler of the new state.
-    enter_args: Box<dyn Environment>,
     /// Arguments to the exit handler of the old state.
-    exit_args: Box<dyn Environment>,
+    exit_arguments: Box<dyn Environment>,
 }
 
 /// Callback manager.
@@ -43,8 +41,7 @@ impl CallbackManager {
             kind: TransitionKind::ChangeState,
             old_state,
             new_state,
-            enter_args: Box::new(EmptyEnvironment {}),
-            exit_args: Box::new(EmptyEnvironment {}),
+            exit_arguments: Box::new(EmptyEnvironment {}),
         };
         self.call_transition_callbacks(&info);
     }
@@ -55,7 +52,6 @@ impl CallbackManager {
             old_state,
             new_state,
             Box::new(EmptyEnvironment {}),
-            Box::new(EmptyEnvironment {}),
         );
     }
 
@@ -65,15 +61,13 @@ impl CallbackManager {
         &mut self,
         old_state: Box<dyn State>,
         new_state: Box<dyn State>,
-        enter_args: Box<dyn Environment>,
-        exit_args: Box<dyn Environment>,
+        exit_arguments: Box<dyn Environment>,
     ) {
         let info = TransitionInfo {
             kind: TransitionKind::Transition,
             old_state,
             new_state,
-            enter_args,
-            exit_args,
+            exit_arguments,
         };
         self.call_transition_callbacks(&info);
     }

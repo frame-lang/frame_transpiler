@@ -14,12 +14,6 @@ pub trait StateMachine {
     /// The domain variables associated with this machine.
     fn domain_variables(&self) -> &dyn Environment;
 
-    /// The state variables associated with the current state. Note that this
-    /// method is in the [StateMachine] trait rather than the [State] trait
-    /// since state variables are not persistent and so are only defined for
-    /// the currently active state.
-    fn state_variables(&self) -> &dyn Environment;
-
     /// The callback manager for this state machine.
     fn callback_manager(&self) -> &CallbackManager;
 }
