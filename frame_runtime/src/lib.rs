@@ -6,6 +6,7 @@
 //! their value is mostly in demonstrating what generated code that realizes
 //! these interfaces should look like.
 
+#[allow(dead_code)]
 mod callback;
 mod environment;
 mod machine;

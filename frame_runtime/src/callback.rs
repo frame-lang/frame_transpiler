@@ -48,11 +48,7 @@ impl CallbackManager {
 
     /// Invoke all the transition callbacks for a standard transition.
     pub fn transition(&mut self, old_state: Box<dyn State>, new_state: Box<dyn State>) {
-        self.transition_with_args(
-            old_state,
-            new_state,
-            Box::new(EmptyEnvironment {}),
-        );
+        self.transition_with_args(old_state, new_state, Box::new(EmptyEnvironment {}));
     }
 
     /// Invoke all the transition callbacks for a transition with enter/exit

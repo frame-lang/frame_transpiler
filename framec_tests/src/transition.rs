@@ -100,6 +100,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     /// Test transition hook method.
     fn transition_hook() {
         let mut sm = Transition::new();
@@ -111,6 +112,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     /// Test change-state hook method.
     fn change_state_hook() {
         let mut sm = Transition::new();
