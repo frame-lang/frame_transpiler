@@ -1166,7 +1166,7 @@ impl RustVisitor {
         if self.generate_state_context {
             self.newline();
             self.add_code(&format!(
-                "{}: Rc::new(next_state_context),",
+                "{}: next_state_context,",
                 self.config.state_context_var_name
             ));
         }
@@ -1235,7 +1235,7 @@ impl RustVisitor {
             }
             if self.generate_state_stack {
                 self.newline();
-                self.generate_state_stack();
+                self.generate_state_stack_methods();
             }
             if self.generate_change_state {
                 self.newline();
@@ -1260,7 +1260,7 @@ impl RustVisitor {
     fn generate_change_state(&mut self) {
         if self.generate_state_context {
             self.add_code(&format!(
-                "fn {}(&mut self, {}: {}, {}: {}) {{",
+                "fn {}(&mut self, {}: {}, {}: Rc<{}>) {{",
                 self.config.change_state_method_name,
                 self.new_state_var_name(),
                 self.state_enum_type_name(),
@@ -1300,7 +1300,7 @@ impl RustVisitor {
         if self.generate_state_context {
             self.newline();
             self.add_code(&format!(
-                "self.{} = Rc::new({});",
+                "self.{} = Rc::clone(&{});",
                 self.config.state_context_var_name,
                 self.new_state_context_var_name()
             ));
@@ -1319,7 +1319,7 @@ impl RustVisitor {
         if self.generate_state_context {
             if self.generate_exit_args {
                 self.add_code(&format!(
-                    "fn {}(&mut self, {}: Option<Box<{}>>, {}: {}, {}: {}) {{",
+                    "fn {}(&mut self, {}: Option<Box<{}>>, {}: {}, {}: Rc<{}>) {{",
                     self.config.transition_method_name,
                     self.config.exit_args_member_name,
                     self.config.frame_event_parameters_type_name,
@@ -1330,7 +1330,7 @@ impl RustVisitor {
                 ));
             } else {
                 self.add_code(&format!(
-                    "fn {}(&mut self, {}: {}, {}: {}) {{",
+                    "fn {}(&mut self, {}: {}, {}: Rc<{}>) {{",
                     self.config.transition_method_name,
                     self.new_state_var_name(),
                     self.state_enum_type_name(),
@@ -1405,7 +1405,7 @@ impl RustVisitor {
         if self.generate_state_context {
             self.newline();
             self.add_code(&format!(
-                "self.{} = Rc::new({});",
+                "self.{} = Rc::clone(&{});",
                 self.config.state_context_var_name,
                 self.new_state_context_var_name()
             ));
@@ -1429,98 +1429,63 @@ impl RustVisitor {
     }
 
     /// Generate state stack methods.
-    fn generate_state_stack(&mut self) {
+    fn generate_state_stack_methods(&mut self) {
+        self.newline();
+        self.add_code(&format!(
+            "fn {}(&mut self) {{",
+            self.config.state_stack_push_method_name
+        ));
+        self.indent();
+        self.newline();
         if self.generate_state_context {
-            self.newline();
             self.add_code(&format!(
-                "fn {}(&mut self, {}: Rc<{}>) {{",
-                self.config.state_stack_push_method_name,
-                self.config.state_context_var_name,
+                "self.{}.push((self.{}, Rc::clone(&self.{})));",
+                self.config.state_stack_var_name,
+                self.config.state_var_name,
+                self.config.state_context_var_name
+            ));
+        } else {
+            self.add_code(&format!(
+                "self.{}.push(self.{});",
+                self.config.state_stack_var_name, self.config.state_var_name
+            ));
+        }
+        self.outdent();
+        self.newline();
+        self.add_code(&format!("}}"));
+        self.newline();
+        self.newline();
+        if self.generate_state_context {
+            self.add_code(&format!(
+                "fn {}(&mut self) -> ({}, Rc<{}>) {{",
+                self.config.state_stack_pop_method_name,
+                self.state_enum_type_name(),
                 self.config.state_context_name
             ));
-            self.indent();
-            self.newline();
-            self.add_code(&format!(
-                "self.{}.push({});",
-                self.config.state_stack_var_name, self.config.state_context_var_name
-            ));
-            self.outdent();
-            self.newline();
-            self.add_code(&format!("}}"));
-            self.newline();
-            self.newline();
-            self.add_code(&format!(
-                "fn {}(&mut self) -> Rc<{}> {{",
-                self.config.state_stack_pop_method_name, self.config.state_context_name
-            ));
-            self.indent();
-            self.newline();
-            self.add_code(&format!(
-                "let state_context_opt = self.{}.pop();",
-                self.config.state_stack_var_name
-            ));
-            self.newline();
-            self.add_code(&format!(" match state_context_opt {{"));
-            self.indent();
-            self.newline();
-            self.add_code(&format!(
-                "Some({}) => {},",
-                self.config.state_context_var_name, self.config.state_context_var_name
-            ));
-            self.newline();
-            self.add_code(&format!(
-                "None => panic!(\"Error - attempt to pop history when history stack is empty.\"),"
-            ));
-            self.outdent();
-            self.newline();
-            self.add_code("}");
         } else {
-            self.newline();
-            self.add_code(&format!(
-                "fn {}(&mut self, state: {}) {{",
-                self.config.state_stack_push_method_name,
-                self.state_enum_type_name()
-            ));
-            self.indent();
-            self.newline();
-            self.add_code(&format!(
-                "self.{}.push(Rc::new(RefCell::new(state)));",
-                self.config.state_stack_var_name
-            ));
-            self.outdent();
-            self.newline();
-            self.add_code(&format!("}}"));
-            self.newline();
-            self.newline();
-
             self.add_code(&format!(
                 "fn {}(&mut self) -> {} {{",
                 self.config.state_stack_pop_method_name,
                 self.state_enum_type_name()
             ));
-            self.indent();
-            self.newline();
-            self.add_code(&format!(
-                "let state_opt = self.{}.pop();",
-                self.config.state_stack_var_name
-            ));
-            self.newline();
-            self.add_code(&format!(" match state_opt {{"));
-            self.indent();
-            self.newline();
-            self.add_code(&format!("Some(state) => *state.borrow(),"));
-            self.newline();
-            self.add_code(&format!(
-                "None => panic!(\"Error - attempt to pop history when history stack is empty.\"),"
-            ));
-            self.outdent();
-            self.newline();
-            self.add_code("}");
         }
+        self.indent();
+        self.newline();
+        self.add_code(&format!(
+            "match self.{}.pop() {{",
+            self.config.state_stack_var_name
+        ));
+        self.indent();
+        self.newline();
+        self.add_code("Some(elem) => elem,");
+        self.newline();
+        self.add_code("None => panic!(\"Error: attempted to pop when history stack is empty.\")");
         self.outdent();
         self.newline();
         self.add_code("}");
+        self.outdent();
         self.newline();
+        self.add_code("}");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1880,7 +1845,7 @@ impl RustVisitor {
         self.add_code("};");
         self.newline();
         self.add_code(&format!(
-            "let next_state_context = {}::{}(RefCell::new(context));",
+            "let next_state_context = Rc::new({}::{}(RefCell::new(context)));",
             self.config.state_context_name,
             self.format_type_name(&target_state_name.to_string())
         ));
@@ -1890,7 +1855,7 @@ impl RustVisitor {
 
     fn generate_state_ref_change_state(&mut self, change_state_stmt: &ChangeStateStatementNode) {
         self.newline();
-        self.add_code("// Start change state ");
+        self.add_code("// Start change state");
 
         // get the name of the next state
         let target_state_name = match &change_state_stmt.state_context_t {
@@ -1976,7 +1941,7 @@ impl RustVisitor {
 
     fn generate_state_ref_transition(&mut self, transition_stmt: &TransitionStatementNode) {
         self.newline();
-        self.add_code("// Start transition ");
+        self.add_code("// Start transition");
 
         // get the name of the next state
         let target_state_name = match &transition_stmt.target_state_context_t {
@@ -2104,138 +2069,108 @@ impl RustVisitor {
         }
     }
 
-    // //* --------------------------------------------------------------------- *//
-    //
-    // fn format_target_state_name(&self,state_name:&str) -> String {
-    //     format!("{}_state",state_name.to_lowercase())
-    // }
+    //* --------------------------------------------------------------------- *//
+
+    // NOTE: Stack pop change-states do not support passing state arguments.
+    // It's unclear whether this feature makes sense or how to support it.
+    // On a pop transition, the state that is being changed to is not known
+    // statically, so the programmer does not know how many arguments to pass.
+    fn generate_state_stack_pop_change_state(
+        &mut self,
+        change_state_stmt: &ChangeStateStatementNode,
+    ) {
+        self.newline();
+        self.add_code("// Start change state");
+
+        // print the change-state label, if provided
+        match &change_state_stmt.label_opt {
+            Some(label) => {
+                self.newline();
+                self.add_code(&format!("// {}", label));
+            }
+            None => {}
+        }
+
+        // pop the state/context and pass to change-state method
+        self.newline();
+        if self.generate_state_context {
+            self.add_code(&format!(
+                "drop({});",
+                self.config.this_state_context_var_name
+            ));
+            self.newline();
+            self.add_code(&format!(
+                "let (next_state, next_state_context) = self.{}();",
+                self.config.state_stack_pop_method_name
+            ));
+            self.newline();
+            self.add_code(&format!(
+                "self.{}(next_state, next_state_context);",
+                self.config.change_state_method_name
+            ));
+        } else {
+            self.add_code(&format!(
+                "let next_state = self.{}();",
+                self.config.state_stack_pop_method_name
+            ));
+            self.newline();
+            self.add_code(&format!(
+                "self.{}(next_state);",
+                self.config.change_state_method_name
+            ));
+        }
+    }
 
     //* --------------------------------------------------------------------- *//
 
-    // NOTE!!: it is *currently* disallowed to send state or event arguments to a state stack pop target
-    // So currently this method just sets any exit_args and pops the context from the state stack.
-
+    // NOTE: Stack pop transitions do not support passing state or event
+    // arguments. It's unclear whether this feature makes sense or how to
+    // support it. On a pop transition, the state that is being changed to is
+    // not known statically, so the programmer does not know how many arguments
+    // to pass. State variables are supported, however.
     fn generate_state_stack_pop_transition(
         &mut self,
         transition_statement: &TransitionStatementNode,
     ) {
         self.newline();
+        self.add_code("// Start transition");
+
+        // print the transition label, if provided
         match &transition_statement.label_opt {
             Some(label) => {
-                self.add_code(&format!("// {}", label));
                 self.newline();
+                self.add_code(&format!("// {}", label));
             }
             None => {}
         }
 
-        // -- Exit Arguments --
-
-        if let Some(exit_args) = &transition_statement.exit_args_opt {
-            if exit_args.exprs_t.len() > 0 {
-                // Note - searching for event keyed with "State:<"
-                // e.g. "S1:<"
-
-                let mut msg: String = String::new();
-                if let Some(state_name) = &self.current_state_name_opt {
-                    msg = state_name.clone();
-                }
-                msg.push_str(":");
-                msg.push_str(&self.symbol_config.exit_msg_symbol);
-
-                if let Some(event_sym) = self.arcanum.get_event(&msg, &self.current_state_name_opt)
-                {
-                    match &event_sym.borrow().params_opt {
-                        Some(event_params) => {
-                            if exit_args.exprs_t.len() != event_params.len() {
-                                self.errors.push(
-                                    "Fatal error: misaligned parameters to arguments.".to_string(),
-                                );
-                            }
-                            let mut param_symbols_it = event_params.iter();
-                            self.add_code(&format!(
-                                "let mut {} = Box::new({}::new());",
-                                self.config.exit_args_member_name,
-                                self.config.frame_event_parameters_type_name
-                            ));
-                            self.newline();
-                            // Loop through the ARGUMENTS...
-                            for expr_t in &exit_args.exprs_t {
-                                // ...and validate w/ the PARAMETERS
-                                match param_symbols_it.next() {
-                                    Some(p) => {
-                                        let mut expr = String::new();
-                                        expr_t.accept_to_string(self, &mut expr);
-                                        let parameter_enum_name =
-                                            self.format_frame_event_parameter_name(&msg, &p.name);
-
-                                        self.add_code(&format!(
-                                            "(*{}).{}({});",
-                                            self.config.exit_args_member_name,
-                                            self.format_setter_name(&parameter_enum_name),
-                                            expr
-                                        ));
-                                        self.newline();
-                                    }
-                                    None => self.errors.push(format!(
-                                        "Invalid number of arguments for \"{}\" event handler.",
-                                        msg
-                                    )),
-                                }
-                            }
-                        }
-                        None => self
-                            .errors
-                            .push(format!("Fatal error: misaligned parameters to arguments.")),
-                    }
-                } else {
-                    self.errors.push(format!("TODO"));
-                }
-            }
-        }
-
+        // pop the state/context and pass to transition method
+        self.newline();
         if self.generate_state_context {
             self.add_code(&format!(
-                "let {} = self.{}();",
-                self.config.state_context_var_name, self.config.state_stack_pop_method_name
+                "drop({});",
+                self.config.this_state_context_var_name
             ));
             self.newline();
             self.add_code(&format!(
-                "let state = {}.borrow().get_state();",
-                self.config.state_context_var_name
+                "let (next_state, next_state_context) = self.{}();",
+                self.config.state_stack_pop_method_name
+            ));
+            self.newline();
+            self.add_code(&format!(
+                "self.{}(next_state, next_state_context);",
+                self.config.transition_method_name
             ));
         } else {
             self.add_code(&format!(
-                "let state = self.{}();",
+                "let next_state = self.{}();",
                 self.config.state_stack_pop_method_name
             ));
-        }
-        self.newline();
-        if self.generate_exit_args {
-            if self.generate_state_context {
-                self.add_code(&format!(
-                    "self.{}(state, {}, self.{});",
-                    self.config.transition_method_name,
-                    self.config.exit_args_member_name,
-                    self.config.state_context_var_name
-                ));
-            } else {
-                self.add_code(&format!(
-                    "self.{}(state, {});",
-                    self.config.transition_method_name, self.config.exit_args_member_name
-                ));
-            }
-        } else {
-            if self.generate_state_context {
-                self.add_code(&format!(
-                    "self.{}(state, {});",
-                    self.config.transition_method_name, self.config.state_context_var_name
-                ));
-            } else {
-                self.add_code(&format!(
-                    "self.{}(state);",
-                    self.config.transition_method_name
-                ));
-            }
+            self.newline();
+            self.add_code(&format!(
+                "self.{}(next_state);",
+                self.config.transition_method_name
+            ));
         }
     }
 }
@@ -2495,28 +2430,31 @@ impl AstVisitor for RustVisitor {
         ));
 
         // generate state context variable
-
         if self.generate_state_context {
             self.newline();
             self.add_code(&format!(
                 "{}: Rc<{}>,",
                 self.config.state_context_var_name, self.config.state_context_name
             ));
-            if self.generate_state_stack {
+        }
+
+        // generate state stack variable
+        if self.generate_state_stack {
+            if self.generate_state_context {
                 self.newline();
                 self.add_code(&format!(
-                    "{}: Vec<Rc<{}>>,",
-                    self.config.state_stack_var_name, self.config.state_context_name
+                    "{}: Vec<({}, Rc<{}>)>,",
+                    self.config.state_stack_var_name,
+                    self.state_enum_type_name(),
+                    self.config.state_context_name
                 ));
-            }
-        } else {
-            if self.generate_state_stack {
+            } else {
                 self.newline();
-                // TODO state refactor
-                // self.add_code(&format!(
-                //     "{}: Vec<Rc<{}>>,",
-                //     self.config.state_stack_var_name, self.config.frame_state_type_name
-                // ));
+                self.add_code(&format!(
+                    "{}: Vec<{}>,",
+                    self.config.state_stack_var_name,
+                    self.state_enum_type_name()
+                ));
             }
         }
 
@@ -3271,7 +3209,7 @@ impl AstVisitor for RustVisitor {
         if self.generate_state_context {
             self.newline();
             self.add_code(&format!(
-                "let {0}_clone = self.{0}.clone();",
+                "let {0}_clone = Rc::clone(&self.{0});",
                 self.config.state_context_var_name
             ));
             self.newline();
@@ -3597,9 +3535,9 @@ impl AstVisitor for RustVisitor {
             StateContextType::StateRef { .. } => {
                 self.generate_state_ref_change_state(change_state_stmt_node)
             }
-            StateContextType::StateStackPop {} => self.errors.push(format!(
-                "Fatal error - change state stack pop not implemented."
-            )),
+            StateContextType::StateStackPop {} => {
+                self.generate_state_stack_pop_change_state(change_state_stmt_node)
+            }
         };
         self.this_branch_transitioned = true;
 
@@ -4387,18 +4325,10 @@ impl AstVisitor for RustVisitor {
         {
             StateStackOperationType::Push => {
                 self.newline();
-                if self.generate_state_context {
-                    self.add_code(&format!(
-                        "self.{}(self.{}.clone());",
-                        self.config.state_stack_push_method_name,
-                        self.config.state_context_var_name
-                    ));
-                } else {
-                    self.add_code(&format!(
-                        "self.{}(self.{});",
-                        self.config.state_stack_push_method_name, self.config.state_var_name
-                    ));
-                }
+                self.add_code(&format!(
+                    "self.{}();",
+                    self.config.state_stack_push_method_name
+                ));
             }
             StateStackOperationType::Pop => {
                 if self.generate_state_context {
