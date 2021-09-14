@@ -762,6 +762,20 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    fn enter_block(&mut self) {
+        self.add_code("{");
+        self.indent();
+        self.newline();
+    }
+
+    fn exit_block(&mut self) {
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+    }
+
+    //* --------------------------------------------------------------------- *//
+
     fn visit_decl_stmts(&mut self, decl_stmt_types: &Vec<DeclOrStmtType>) {
         for decl_stmt_t in decl_stmt_types.iter() {
             match decl_stmt_t {
@@ -874,16 +888,16 @@ impl RustVisitor {
                 let state_node = state.borrow();
 
                 // generate state parameter declarations for this state
+                let state_args_struct_name = self.format_state_args_struct_name(&state_node.name);
                 let mut has_state_args = false;
                 match &state_node.params_opt {
                     Some(params) => {
                         has_state_args = true;
-                        let struct_name = self.format_state_args_struct_name(&state_node.name);
                         let mut bound_names: Vec<String> = Vec::new();
 
                         self.add_code("#[allow(dead_code)]");
                         self.newline();
-                        self.add_code(&format!("struct {} {{", struct_name));
+                        self.add_code(&format!("struct {} {{", state_args_struct_name));
                         self.indent();
                         for param in params {
                             let param_name = self.format_value_name(&param.param_name);
@@ -895,30 +909,28 @@ impl RustVisitor {
                             self.add_code(&format!("{}: {},", param_name, param_type));
                             bound_names.push(param_name);
                         }
-                        self.outdent();
-                        self.newline();
-                        self.add_code("}");
+                        self.exit_block();
                         self.newline();
                         self.newline();
 
                         if self.config.config_features.runtime_support {
-                            self.generate_environment_impl(&struct_name, bound_names);
+                            self.generate_environment_impl(&state_args_struct_name, bound_names);
                         }
                     }
                     None => {}
                 }
 
                 // generate state variable declarations for this state
+                let state_vars_struct_name = self.format_state_vars_struct_name(&state_node.name);
                 let mut has_state_vars = false;
                 match &state_node.vars_opt {
                     Some(var_decl_nodes) => {
                         has_state_vars = true;
-                        let struct_name = self.format_state_vars_struct_name(&state_node.name);
                         let mut bound_names: Vec<String> = Vec::new();
 
                         self.add_code("#[allow(dead_code)]");
                         self.newline();
-                        self.add_code(&format!("struct {} {{", struct_name));
+                        self.add_code(&format!("struct {} {{", state_vars_struct_name));
                         self.indent();
                         for var_decl_node in var_decl_nodes {
                             let var_name = self.format_value_name(&var_decl_node.borrow().name);
@@ -930,20 +942,19 @@ impl RustVisitor {
                             self.add_code(&format!("{}: {},", var_name, var_type));
                             bound_names.push(var_name);
                         }
-                        self.outdent();
-                        self.newline();
-                        self.add_code("}");
+                        self.exit_block();
                         self.newline();
                         self.newline();
 
                         if self.config.config_features.runtime_support {
-                            self.generate_environment_impl(&struct_name, bound_names);
+                            self.generate_environment_impl(&state_vars_struct_name, bound_names);
                         }
                     }
                     None => {}
                 }
 
                 // generate enter event parameters for this state
+                let enter_args_struct_name = self.format_enter_args_struct_name(&state_node.name);
                 let mut has_enter_event_params = false;
                 match &state_node.enter_event_handler_opt {
                     Some(enter_event_handler) => {
@@ -952,13 +963,11 @@ impl RustVisitor {
                         match &event_symbol.params_opt {
                             Some(params) => {
                                 has_enter_event_params = true;
-                                let struct_name =
-                                    self.format_enter_args_struct_name(&state_node.name);
                                 let mut bound_names: Vec<String> = Vec::new();
 
                                 self.add_code("#[allow(dead_code)]");
                                 self.newline();
-                                self.add_code(&format!("struct {} {{", struct_name));
+                                self.add_code(&format!("struct {} {{", enter_args_struct_name));
                                 self.indent();
                                 for param in params {
                                     let param_name = self.format_value_name(&param.name);
@@ -970,14 +979,15 @@ impl RustVisitor {
                                     self.add_code(&format!("{}: {},", param_name, param_type));
                                     bound_names.push(param_name);
                                 }
-                                self.outdent();
-                                self.newline();
-                                self.add_code("}");
+                                self.exit_block();
                                 self.newline();
                                 self.newline();
 
                                 if self.config.config_features.runtime_support {
-                                    self.generate_environment_impl(&struct_name, bound_names);
+                                    self.generate_environment_impl(
+                                        &enter_args_struct_name,
+                                        bound_names,
+                                    );
                                 }
                             }
                             None => {}
@@ -987,20 +997,17 @@ impl RustVisitor {
                 }
 
                 // generate state context struct for this state
+                let context_struct_name = self.format_state_context_struct_name(&state_node.name);
                 self.add_code("#[allow(dead_code)]");
                 self.newline();
-                self.add_code(&format!(
-                    "struct {} {{",
-                    self.format_state_context_struct_name(&state_node.name)
-                ));
+                self.add_code(&format!("struct {} {{", context_struct_name));
                 self.indent();
 
                 if has_state_args {
                     self.newline();
                     self.add_code(&format!(
                         "{}: {},",
-                        self.config.state_args_var,
-                        self.format_state_args_struct_name(&state_node.name)
+                        self.config.state_args_var, state_args_struct_name
                     ));
                 }
 
@@ -1008,8 +1015,7 @@ impl RustVisitor {
                     self.newline();
                     self.add_code(&format!(
                         "{}: {},",
-                        self.config.state_vars_var_name,
-                        self.format_state_vars_struct_name(&state_node.name)
+                        self.config.state_vars_var_name, state_vars_struct_name
                     ));
                 }
 
@@ -1017,15 +1023,65 @@ impl RustVisitor {
                     self.newline();
                     self.add_code(&format!(
                         "{}: Option<{}>,",
-                        self.config.enter_args_member_name,
-                        self.format_enter_args_struct_name(&state_node.name)
+                        self.config.enter_args_member_name, enter_args_struct_name
                     ));
                 }
-                self.outdent();
-                self.newline();
-                self.add_code("}");
+                self.exit_block();
                 self.newline();
                 self.newline();
+
+                // generate implementation of runtime state
+                if self.config.config_features.runtime_support {
+                    self.add_code(&format!("impl State for {} ", context_struct_name));
+                    self.enter_block();
+
+                    self.add_code("fn name(&self) -> &'static str ");
+                    self.enter_block();
+                    self.add_code(&format!("\"{}\"", &state_node.name));
+                    self.exit_block();
+                    self.newline();
+
+                    self.add_code("fn state_arguments(&self) -> &dyn Environment ");
+                    self.enter_block();
+                    if has_state_args {
+                        self.add_code(&format!("&self.{}", self.config.state_args_var));
+                    } else {
+                        self.add_code("EMPTY");
+                    }
+                    self.exit_block();
+                    self.newline();
+
+                    self.add_code("fn state_variables(&self) -> &dyn Environment ");
+                    self.enter_block();
+                    if has_state_vars {
+                        self.add_code(&format!("&self.{}", self.config.state_vars_var_name));
+                    } else {
+                        self.add_code("EMPTY");
+                    }
+                    self.exit_block();
+                    self.newline();
+
+                    self.add_code("fn enter_arguments(&self) -> &dyn Environment ");
+                    self.enter_block();
+                    if has_enter_event_params {
+                        self.add_code(&format!(
+                            "match &self.{} ",
+                            self.config.enter_args_member_name
+                        ));
+                        self.enter_block();
+                        self.add_code("Some(args) => args,");
+                        self.newline();
+                        self.add_code("None => EMPTY");
+                        self.exit_block();
+                    } else {
+                        self.add_code("EMPTY");
+                    }
+                    self.exit_block();
+
+                    self.exit_block();
+                    self.newline();
+                    self.newline();
+                }
             }
 
             // generate the enum type that unions all the state context types
@@ -1042,9 +1098,7 @@ impl RustVisitor {
                     self.format_state_context_struct_name(&state_node.name)
                 ));
             }
-            self.outdent();
-            self.newline();
-            self.add_code("}");
+            self.exit_block();
             self.newline();
             self.newline();
 
@@ -1078,44 +1132,29 @@ impl RustVisitor {
                     "_ => panic!(\"Failed conversion to {}\"),",
                     self.format_state_context_struct_name(&state_node.name)
                 ));
-                self.outdent();
-                self.newline();
-                self.add_code("}");
-                self.outdent();
-                self.newline();
-                self.add_code("}");
+                self.exit_block();
+                self.exit_block();
             }
-            self.outdent();
             self.newline();
-            self.newline();
-            self.add_code("}");
+            self.exit_block();
         }
     }
 
     fn generate_environment_impl(&mut self, type_name: &str, bound_names: Vec<String>) {
-        self.add_code(&format!("impl Environment for {} {{", type_name));
-        self.indent();
-        self.newline();
-        self.add_code("fn lookup(&self, name: &str) -> Option<&dyn Any> {");
-        self.indent();
-        self.newline();
-        self.add_code("match name {");
-        self.indent();
-        self.newline();
+        self.add_code(&format!("impl Environment for {} ", type_name));
+        self.enter_block();
+        self.add_code("fn lookup(&self, name: &str) -> Option<&dyn Any> ");
+        self.enter_block();
+        self.add_code("match name ");
+        self.enter_block();
         for name in bound_names {
             self.add_code(&format!("\"{0}\" => Some(&self.{0}),", name));
             self.newline();
         }
         self.add_code("_ => None");
-        self.outdent();
-        self.newline();
-        self.add_code("}");
-        self.outdent();
-        self.newline();
-        self.add_code("}");
-        self.outdent();
-        self.newline();
-        self.add_code("}");
+        self.exit_block();
+        self.exit_block();
+        self.exit_block();
         self.newline();
         self.newline();
     }
@@ -2191,7 +2230,11 @@ impl AstVisitor for RustVisitor {
             self.newline();
             self.add_code("#[allow(unused_imports)]");
             self.newline();
-            self.add_code("use frame_runtime::environment::Environment;");
+            self.add_code("use frame_runtime::environment::{EMPTY, Environment};");
+            self.newline();
+            self.add_code("#[allow(unused_imports)]");
+            self.newline();
+            self.add_code("use frame_runtime::state::State;");
             self.newline();
         }
 
