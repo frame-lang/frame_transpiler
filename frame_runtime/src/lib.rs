@@ -7,7 +7,7 @@
 //! these interfaces should look like.
 
 #[allow(dead_code)]
-mod callback;
-mod environment;
-mod machine;
-mod state;
+pub mod callback;
+pub mod environment;
+pub mod machine;
+pub mod state;

@@ -1,7 +1,7 @@
 //! This module provides infrastructure to support registering and invoking
 //! callbacks that notify clients of events within a running state machine.
 
-use crate::environment::{EMPTY, Environment};
+use crate::environment::{Environment, EMPTY};
 use crate::state::State;
 
 /// Was the transition a standard transition or a change-state transition,
@@ -48,7 +48,7 @@ impl CallbackManager {
 
     /// Invoke all the transition callbacks for a standard transition.
     pub fn transition(&mut self, old_state: &dyn State, new_state: &dyn State) {
-        self.transition_with_args(old_state, new_state, EMPTY); 
+        self.transition_with_args(old_state, new_state, EMPTY);
     }
 
     /// Invoke all the transition callbacks for a transition with enter/exit

@@ -878,30 +878,32 @@ impl RustVisitor {
                 match &state_node.params_opt {
                     Some(params) => {
                         has_state_args = true;
+                        let struct_name = self.format_state_args_struct_name(&state_node.name);
+                        let mut bound_names: Vec<String> = Vec::new();
+
                         self.add_code("#[allow(dead_code)]");
                         self.newline();
-                        self.add_code(&format!(
-                            "struct {} {{",
-                            self.format_state_args_struct_name(&state_node.name)
-                        ));
+                        self.add_code(&format!("struct {} {{", struct_name));
                         self.indent();
                         for param in params {
+                            let param_name = self.format_value_name(&param.param_name);
                             let param_type = match &param.param_type_opt {
                                 Some(param_type) => param_type.get_type_str(),
                                 None => String::from("<?>"),
                             };
                             self.newline();
-                            self.add_code(&format!(
-                                "{}: {},",
-                                self.format_value_name(&param.param_name),
-                                param_type
-                            ));
+                            self.add_code(&format!("{}: {},", param_name, param_type));
+                            bound_names.push(param_name);
                         }
                         self.outdent();
                         self.newline();
                         self.add_code("}");
                         self.newline();
                         self.newline();
+
+                        if self.config.config_features.runtime_support {
+                            self.generate_environment_impl(&struct_name, bound_names);
+                        }
                     }
                     None => {}
                 }
@@ -911,31 +913,32 @@ impl RustVisitor {
                 match &state_node.vars_opt {
                     Some(var_decl_nodes) => {
                         has_state_vars = true;
+                        let struct_name = self.format_state_vars_struct_name(&state_node.name);
+                        let mut bound_names: Vec<String> = Vec::new();
+
                         self.add_code("#[allow(dead_code)]");
                         self.newline();
-                        self.add_code(&format!(
-                            "struct {} {{",
-                            self.format_state_vars_struct_name(&state_node.name)
-                        ));
+                        self.add_code(&format!("struct {} {{", struct_name));
                         self.indent();
-                        // self.add_code(&format!("{}: (",self.config.enter_arg_prefix));
                         for var_decl_node in var_decl_nodes {
+                            let var_name = self.format_value_name(&var_decl_node.borrow().name);
                             let var_type = match &var_decl_node.borrow().type_opt {
                                 Some(var_type) => var_type.get_type_str(),
                                 None => "<?>".to_string(),
                             };
                             self.newline();
-                            self.add_code(&format!(
-                                "{}: {},",
-                                self.format_value_name(&var_decl_node.borrow().name),
-                                &var_type
-                            ));
+                            self.add_code(&format!("{}: {},", var_name, var_type));
+                            bound_names.push(var_name);
                         }
                         self.outdent();
                         self.newline();
                         self.add_code("}");
                         self.newline();
                         self.newline();
+
+                        if self.config.config_features.runtime_support {
+                            self.generate_environment_impl(&struct_name, bound_names);
+                        }
                     }
                     None => {}
                 }
@@ -949,30 +952,33 @@ impl RustVisitor {
                         match &event_symbol.params_opt {
                             Some(params) => {
                                 has_enter_event_params = true;
+                                let struct_name =
+                                    self.format_enter_args_struct_name(&state_node.name);
+                                let mut bound_names: Vec<String> = Vec::new();
+
                                 self.add_code("#[allow(dead_code)]");
                                 self.newline();
-                                self.add_code(&format!(
-                                    "struct {} {{",
-                                    self.format_enter_args_struct_name(&state_node.name)
-                                ));
+                                self.add_code(&format!("struct {} {{", struct_name));
                                 self.indent();
                                 for param in params {
+                                    let param_name = self.format_value_name(&param.name);
                                     let param_type = match &param.param_type_opt {
                                         Some(param_type) => param_type.get_type_str(),
                                         None => "<?>".to_string(),
                                     };
                                     self.newline();
-                                    self.add_code(&format!(
-                                        "{}: {},",
-                                        self.format_value_name(&param.name),
-                                        &param_type
-                                    ));
+                                    self.add_code(&format!("{}: {},", param_name, param_type));
+                                    bound_names.push(param_name);
                                 }
                                 self.outdent();
                                 self.newline();
                                 self.add_code("}");
                                 self.newline();
                                 self.newline();
+
+                                if self.config.config_features.runtime_support {
+                                    self.generate_environment_impl(&struct_name, bound_names);
+                                }
                             }
                             None => {}
                         }
@@ -1084,6 +1090,34 @@ impl RustVisitor {
             self.newline();
             self.add_code("}");
         }
+    }
+
+    fn generate_environment_impl(&mut self, type_name: &str, bound_names: Vec<String>) {
+        self.add_code(&format!("impl Environment for {} {{", type_name));
+        self.indent();
+        self.newline();
+        self.add_code("fn lookup(&self, name: &str) -> Option<&dyn Any> {");
+        self.indent();
+        self.newline();
+        self.add_code("match name {");
+        self.indent();
+        self.newline();
+        for name in bound_names {
+            self.add_code(&format!("\"{0}\" => Some(&self.{0}),", name));
+            self.newline();
+        }
+        self.add_code("_ => None");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.newline();
+        self.newline();
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2150,6 +2184,16 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.add_code("use std::rc::Rc;");
         self.newline();
+        if self.config.config_features.runtime_support {
+            self.add_code("#[allow(unused_imports)]");
+            self.newline();
+            self.add_code("use std::any::Any;");
+            self.newline();
+            self.add_code("#[allow(unused_imports)]");
+            self.newline();
+            self.add_code("use frame_runtime::environment::Environment;");
+            self.newline();
+        }
 
         if let Some(interface_block_node) = &system_node.interface_block_node_opt {
             interface_block_node.accept_frame_messages_enum(self);

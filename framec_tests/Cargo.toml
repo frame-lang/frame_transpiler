@@ -5,10 +5,10 @@ authors = ["Eric Walkingshaw <eric.wakingshaw@savant.com>", "Fernando De la Garz
 edition = "2018"
 
 [dependencies]
+frame_runtime = { path = "../frame_runtime" }
 
 [build-dependencies]
 anyhow = "1.0"
 framec = { path = "../framec" }
-frame_runtime = { path = "../frame_runtime" }
 walkdir = "2.3"
 
