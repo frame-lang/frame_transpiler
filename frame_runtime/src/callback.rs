@@ -1,7 +1,7 @@
 //! This module provides infrastructure to support registering and invoking
 //! callbacks that notify clients of events within a running state machine.
 
-use crate::environment::{EmptyEnvironment, Environment};
+use crate::environment::{EMPTY, Environment};
 use crate::state::State;
 
 /// Was the transition a standard transition or a change-state transition,
@@ -13,15 +13,15 @@ pub enum TransitionKind {
 
 /// Information about a transition or change-state operation, passed to
 /// callbacks that are registered to monitor
-pub struct TransitionInfo {
+pub struct TransitionInfo<'a> {
     /// What kind of transition occurred?
     kind: TransitionKind,
     /// The state before the transition.
-    old_state: Box<dyn State>,
+    old_state: &'a dyn State,
     /// The state after the transition.
-    new_state: Box<dyn State>,
+    new_state: &'a dyn State,
     /// Arguments to the exit handler of the old state.
-    exit_arguments: Box<dyn Environment>,
+    exit_arguments: &'a dyn Environment,
 }
 
 /// Callback manager.
@@ -36,28 +36,28 @@ impl CallbackManager {
     }
 
     /// Invoke all the transition callbacks for a change-state transition.
-    pub fn change_state(&mut self, old_state: Box<dyn State>, new_state: Box<dyn State>) {
+    pub fn change_state(&mut self, old_state: &dyn State, new_state: &dyn State) {
         let info = TransitionInfo {
             kind: TransitionKind::ChangeState,
             old_state,
             new_state,
-            exit_arguments: Box::new(EmptyEnvironment {}),
+            exit_arguments: EMPTY,
         };
         self.call_transition_callbacks(&info);
     }
 
     /// Invoke all the transition callbacks for a standard transition.
-    pub fn transition(&mut self, old_state: Box<dyn State>, new_state: Box<dyn State>) {
-        self.transition_with_args(old_state, new_state, Box::new(EmptyEnvironment {}));
+    pub fn transition(&mut self, old_state: &dyn State, new_state: &dyn State) {
+        self.transition_with_args(old_state, new_state, EMPTY); 
     }
 
     /// Invoke all the transition callbacks for a transition with enter/exit
     /// arguments.
     pub fn transition_with_args(
         &mut self,
-        old_state: Box<dyn State>,
-        new_state: Box<dyn State>,
-        exit_arguments: Box<dyn Environment>,
+        old_state: &dyn State,
+        new_state: &dyn State,
+        exit_arguments: &dyn Environment,
     ) {
         let info = TransitionInfo {
             kind: TransitionKind::Transition,

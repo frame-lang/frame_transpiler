@@ -8,17 +8,17 @@ pub trait State {
     /// The name of this state.
     fn name(&self) -> &'static str;
     /// Arguments to the enter handler when this state was entered.
-    fn state_arguments(&self) -> Box<dyn Environment>;
+    fn state_arguments(&self) -> &dyn Environment;
     /// Arguments to the enter handler when this state was entered.
-    fn state_variables(&self) -> Box<dyn Environment>;
+    fn state_variables(&self) -> &dyn Environment;
     /// Arguments to the enter handler when this state was entered.
-    fn enter_arguments(&self) -> Box<dyn Environment>;
+    fn enter_arguments(&self) -> &dyn Environment;
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::environment::EmptyEnvironment;
+    use crate::environment::EMPTY;
 
     enum TestState {
         A,
@@ -32,14 +32,14 @@ mod tests {
                 TestState::B => "B",
             }
         }
-        fn state_arguments(&self) -> Box<dyn Environment> {
-            Box::new(EmptyEnvironment {})
+        fn state_arguments(&self) -> &dyn Environment {
+            EMPTY
         }
-        fn state_variables(&self) -> Box<dyn Environment> {
-            Box::new(EmptyEnvironment {})
+        fn state_variables(&self) -> &dyn Environment {
+            EMPTY
         }
-        fn enter_arguments(&self) -> Box<dyn Environment> {
-            Box::new(EmptyEnvironment {})
+        fn enter_arguments(&self) -> &dyn Environment {
+            EMPTY
         }
     }
 
