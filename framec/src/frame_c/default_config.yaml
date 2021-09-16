@@ -15,8 +15,10 @@ codegen:
       action_suffix:
       enter_msg: Enter
       exit_msg: Exit
+      event_args_name: EventArgs
+      event_args_suffix: Args
+      event_args_method_suffix: _args
       enter_args_member_name: enter_args
-      enter_args_suffix: EnterArgs
       exit_args_member_name: exit_args
       state_args_var: state_args
       state_args_suffix: StateArgs

@@ -1,5 +1,5 @@
 use convert_case::{Case, Casing};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use yaml_rust::Yaml;
 
 use super::super::ast::*;
@@ -23,8 +23,10 @@ struct Config {
     exit_token: String,
     enter_msg: String,
     exit_msg: String,
+    event_args_name: String,
+    event_args_suffix: String,
+    event_args_method_suffix: String,
     enter_args_member_name: String,
-    enter_args_suffix: String,
     exit_args_member_name: String,
     state_args_var: String,
     state_args_suffix: String,
@@ -112,11 +114,19 @@ impl Config {
                 .as_str()
                 .unwrap_or_default()
                 .to_string(),
-            enter_args_member_name: (&code_yaml["enter_args_member_name"])
+            event_args_name: (&code_yaml["event_args_name"])
                 .as_str()
                 .unwrap_or_default()
                 .to_string(),
-            enter_args_suffix: (&code_yaml["enter_args_suffix"])
+            event_args_suffix: (&code_yaml["event_args_suffix"])
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
+            event_args_method_suffix: (&code_yaml["event_args_method_suffix"])
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
+            enter_args_member_name: (&code_yaml["enter_args_member_name"])
                 .as_str()
                 .unwrap_or_default()
                 .to_string(),
@@ -646,12 +656,35 @@ impl RustVisitor {
 
     // Type/case names
 
-    fn format_enter_args_struct_name(&self, state_name: &str) -> String {
-        format!(
-            "{}{}",
-            self.format_type_name(&state_name.to_string()),
-            self.config.enter_args_suffix
-        )
+    /// Get an event name in a format usable in Rust types and enum cases.
+    fn format_event_type_name(&self, raw_event_name: &String) -> String {
+        let (state_name_opt, event_name) = self.parse_event_name(&raw_event_name);
+        match state_name_opt {
+            Some(state_name) => {
+                if event_name.eq(&self.config.enter_token) {
+                    self.format_enter_event_type_name(&state_name)
+                } else if event_name.eq(&self.config.exit_token) {
+                    self.format_exit_event_type_name(&state_name)
+                } else {
+                    self.format_type_name(&format!("{}_{}", state_name, event_name))
+                }
+            }
+            None => self.format_type_name(&event_name.clone()),
+        }
+    }
+
+    /// Get the event type name for the enter event of the given state.
+    fn format_enter_event_type_name(&self, state_name: &str) -> String {
+        self.format_type_name(&format!("{}{}", state_name, self.config.enter_msg))
+    }
+
+    /// Get the event type name for the exit event of the given state.
+    fn format_exit_event_type_name(&self, state_name: &str) -> String {
+        self.format_type_name(&format!("{}{}", state_name, self.config.exit_msg))
+    }
+
+    fn format_args_struct_name(&self, event_type_name: &str) -> String {
+        format!("{}{}", event_type_name, self.config.event_args_suffix)
     }
 
     fn format_state_args_struct_name(&self, state_name: &str) -> String {
@@ -700,6 +733,14 @@ impl RustVisitor {
         param_name: &str,
     ) -> String {
         self.format_getter_name(&format!("{}_{}_{}", state_name, message_name, param_name))
+    }
+
+    fn format_args_method_name(&self, event_type_name: &str) -> String {
+        format!(
+            "{}{}",
+            self.format_value_name(&event_type_name.to_string()),
+            self.config.event_args_method_suffix
+        )
     }
 
     fn format_state_context_method_name(&self, state_name: &str) -> String {
@@ -879,6 +920,105 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    /// Generate the structs, enum, and supporting function definitions related
+    /// to event arguments.
+    fn generate_event_arg_defs(&mut self) {
+        let mut has_params: HashSet<String> = HashSet::new();
+
+        // generate an arg struct for all events that have parameters
+        for event_name in self.arcanum.get_event_names() {
+            match self.arcanum.get_event(&event_name, &None) {
+                Some(event_sym) => {
+                    match &event_sym.borrow().params_opt {
+                        Some(params) => {
+                            let event_type_name = self.format_event_type_name(&event_name);
+                            let event_struct_name = self.format_args_struct_name(&event_type_name);
+                            let mut bound_names: Vec<String> = Vec::new();
+
+                            self.add_code("#[allow(dead_code)]");
+                            self.newline();
+                            self.add_code(&format!("struct {} {{", event_struct_name));
+                            self.indent();
+                            for param in params {
+                                let param_name = self.format_value_name(&param.name);
+                                let param_type = match &param.param_type_opt {
+                                    Some(param_type) => param_type.get_type_str(),
+                                    None => "<?>".to_string(),
+                                };
+                                self.newline();
+                                self.add_code(&format!("{}: {},", param_name, param_type));
+                                bound_names.push(param_name);
+                            }
+                            self.exit_block();
+                            self.newline();
+                            self.newline();
+
+                            // generate the env
+                            if self.config.config_features.runtime_support {
+                                self.generate_environment_impl(&event_struct_name, bound_names);
+                            }
+                            has_params.insert(event_type_name);
+                        }
+                        None => {}
+                    }
+                }
+                None => {}
+            }
+        }
+
+        if !has_params.is_empty() {
+            // generate the enum type that unions all the arg structs
+            self.add_code("#[allow(dead_code)]");
+            self.newline();
+            self.add_code(&format!("enum {} ", self.config.event_args_name));
+            self.enter_block();
+            self.add_code("None,");
+            for event_type_name in &has_params {
+                self.newline();
+                self.add_code(&format!(
+                    "{}({}),",
+                    &event_type_name,
+                    self.format_args_struct_name(&event_type_name)
+                ));
+            }
+            self.exit_block();
+            self.newline();
+            self.newline();
+
+            // generate methods to conveniently get specific arg structs
+            // from a value of the enum type
+            self.add_code("#[allow(dead_code)]");
+            self.newline();
+            self.add_code(&format!("impl {} {{", self.config.event_args_name));
+            self.indent();
+            for event_type_name in &has_params {
+                self.newline();
+                self.add_code(&format!(
+                    "fn {}(&self) -> &{} {{",
+                    self.format_args_method_name(&event_type_name),
+                    self.format_args_struct_name(&event_type_name)
+                ));
+                self.indent();
+                self.newline();
+                self.add_code("match self {");
+                self.indent();
+                self.newline();
+                self.add_code(&format!(
+                    "{}::{}(args) => args,",
+                    self.config.event_args_name, event_type_name
+                ));
+                self.newline();
+                self.add_code(&format!(
+                    "_ => panic!(\"Failed conversion to {}\"),",
+                    self.format_args_struct_name(&event_type_name)
+                ));
+                self.exit_block();
+                self.exit_block();
+            }
+            self.exit_block();
+        }
+    }
+
     /// Generate the struct, enum, and supporting function definitions
     /// related to state contexts. State contexts include state parameters,
     /// state variables, and enter event parameters. Note that exit event
@@ -954,49 +1094,6 @@ impl RustVisitor {
                     None => {}
                 }
 
-                // generate enter event parameters for this state
-                let enter_args_struct_name = self.format_enter_args_struct_name(&state_node.name);
-                let mut has_enter_event_params = false;
-                match &state_node.enter_event_handler_opt {
-                    Some(enter_event_handler) => {
-                        let eeh_ref = &enter_event_handler.borrow();
-                        let event_symbol = eeh_ref.event_symbol_rcref.borrow();
-                        match &event_symbol.params_opt {
-                            Some(params) => {
-                                has_enter_event_params = true;
-                                let mut bound_names: Vec<String> = Vec::new();
-
-                                self.add_code("#[allow(dead_code)]");
-                                self.newline();
-                                self.add_code(&format!("struct {} {{", enter_args_struct_name));
-                                self.indent();
-                                for param in params {
-                                    let param_name = self.format_value_name(&param.name);
-                                    let param_type = match &param.param_type_opt {
-                                        Some(param_type) => param_type.get_type_str(),
-                                        None => "<?>".to_string(),
-                                    };
-                                    self.newline();
-                                    self.add_code(&format!("{}: {},", param_name, param_type));
-                                    bound_names.push(param_name);
-                                }
-                                self.exit_block();
-                                self.newline();
-                                self.newline();
-
-                                if self.config.config_features.runtime_support {
-                                    self.generate_environment_impl(
-                                        &enter_args_struct_name,
-                                        bound_names,
-                                    );
-                                }
-                            }
-                            None => {}
-                        }
-                    }
-                    None => {}
-                }
-
                 // generate state context struct for this state
                 let context_struct_name = self.format_state_context_struct_name(&state_node.name);
                 self.add_code("#[allow(dead_code)]");
@@ -1020,13 +1117,6 @@ impl RustVisitor {
                     ));
                 }
 
-                if has_enter_event_params {
-                    self.newline();
-                    self.add_code(&format!(
-                        "{}: Option<{}>,",
-                        self.config.enter_args_member_name, enter_args_struct_name
-                    ));
-                }
                 self.exit_block();
                 self.newline();
                 self.newline();
@@ -1064,19 +1154,7 @@ impl RustVisitor {
 
                     self.add_code("fn enter_arguments(&self) -> &dyn Environment ");
                     self.enter_block();
-                    if has_enter_event_params {
-                        self.add_code(&format!(
-                            "match &self.{} ",
-                            self.config.enter_args_member_name
-                        ));
-                        self.enter_block();
-                        self.add_code("Some(args) => args,");
-                        self.newline();
-                        self.add_code("None => EMPTY");
-                        self.exit_block();
-                    } else {
-                        self.add_code("EMPTY");
-                    }
+                    self.add_code("EMPTY"); // TODO move this method elsewhere
                     self.exit_block();
 
                     self.exit_block();
@@ -1112,7 +1190,6 @@ impl RustVisitor {
             for state in &machine_block_node.states {
                 let state_node = state.borrow();
                 self.newline();
-                self.newline();
                 self.add_code(&format!(
                     "fn {}(&self) -> &RefCell<{}> {{",
                     self.format_state_context_method_name(&state_node.name),
@@ -1136,7 +1213,6 @@ impl RustVisitor {
                 self.exit_block();
                 self.exit_block();
             }
-            self.newline();
             self.exit_block();
         }
     }
@@ -1359,50 +1435,32 @@ impl RustVisitor {
     /// Generate the transition method.
     fn generate_transition(&mut self) {
         // generate method signature
-        if self.generate_state_context {
-            if self.generate_exit_args {
-                self.add_code(&format!(
-                    "fn {}(&mut self, {}: Option<Box<{}>>, {}: {}, {}: Rc<{}>) {{",
-                    self.config.transition_method_name,
-                    self.config.exit_args_member_name,
-                    self.config.frame_event_parameters_type_name,
-                    self.new_state_var_name(),
-                    self.state_enum_type_name(),
-                    self.new_state_context_var_name(),
-                    self.config.state_context_name
-                ));
-            } else {
-                self.add_code(&format!(
-                    "fn {}(&mut self, {}: {}, {}: Rc<{}>) {{",
-                    self.config.transition_method_name,
-                    self.new_state_var_name(),
-                    self.state_enum_type_name(),
-                    self.new_state_context_var_name(),
-                    self.config.state_context_name
-                ));
-            }
-        } else {
-            if self.generate_exit_args {
-                self.add_code(&format!(
-                    "fn {}(&mut self, {}: Option<Box<{}>>, {}: {}) {{",
-                    self.config.transition_method_name,
-                    self.config.exit_args_member_name,
-                    self.config.frame_event_parameters_type_name,
-                    self.new_state_var_name(),
-                    self.state_enum_type_name()
-                ));
-            } else {
-                self.add_code(&format!(
-                    "fn {}(&mut self, {}: {}) {{",
-                    self.config.transition_method_name,
-                    self.new_state_var_name(),
-                    self.state_enum_type_name()
-                ));
-            }
+        self.add_code(&format!(
+            "fn {}(&mut self, ",
+            self.config.transition_method_name
+        ));
+        if self.generate_exit_args {
+            self.add_code(&format!(
+                "{}: {}, ",
+                self.config.exit_args_member_name, self.config.event_args_name
+            ));
         }
+        self.add_code(&format!(
+            "{}: {}",
+            self.new_state_var_name(),
+            self.state_enum_type_name()
+        ));
+        if self.generate_state_context {
+            self.add_code(&format!(
+                ", {}: Rc<{}>",
+                self.new_state_context_var_name(),
+                self.config.state_context_name
+            ));
+        }
+        self.add_code(") ");
+        self.enter_block();
+
         // generate method body
-        self.indent();
-        self.newline();
         if self.generate_exit_args {
             self.add_code(&format!(
                 "let mut exit_event = {}::new({}::{}, {});",
@@ -1702,9 +1760,10 @@ impl RustVisitor {
             "{}:{}",
             target_state_name, &self.symbol_config.enter_msg_symbol
         );
+        let enter_event_type_name = self.format_enter_event_type_name(&target_state_name);
         formatted_enter_args.push_str(&format!(
             "{} {{ ",
-            self.format_enter_args_struct_name(&target_state_name)
+            self.format_args_struct_name(&enter_event_type_name)
         ));
         if let Some(event_sym) = self
             .arcanum
@@ -2436,6 +2495,9 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.newline();
         self.generate_state_enum(&system_node);
+        self.newline();
+        self.newline();
+        self.generate_event_arg_defs();
 
         if self.generate_state_context {
             self.newline();
