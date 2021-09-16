@@ -15,7 +15,6 @@ codegen:
       action_suffix:
       enter_msg: Enter
       exit_msg: Exit
-      event_args_name: EventArgs
       event_args_suffix: Args
       event_args_method_suffix: _args
       enter_args_member_name: enter_args
@@ -29,13 +28,12 @@ codegen:
       state_context_var_name: state_context
       state_context_method_suffix: _context
       this_state_context_var_name: this_state_context
+      frame_event_args_type_name: FrameEventArgs
       frame_event_message_type_name: FrameMessage
       frame_event_type_name: FrameEvent
-      frame_event_parameter_type_name: FrameEventParameter
-      frame_event_parameters_type_name: FrameEventParameters
       frame_event_return: FrameEventReturn
       frame_event_variable_name: frame_event
-      frame_event_parameters_attribute_name: parameters
+      frame_event_args_attribute_name: arguments
       frame_event_message_attribute_name: message
       frame_event_return_attribute_name: ret
       state_var_name: state

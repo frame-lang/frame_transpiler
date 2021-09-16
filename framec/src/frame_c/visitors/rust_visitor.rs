@@ -1,5 +1,5 @@
 use convert_case::{Case, Casing};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use yaml_rust::Yaml;
 
 use super::super::ast::*;
@@ -23,7 +23,6 @@ struct Config {
     exit_token: String,
     enter_msg: String,
     exit_msg: String,
-    event_args_name: String,
     event_args_suffix: String,
     event_args_method_suffix: String,
     enter_args_member_name: String,
@@ -38,13 +37,12 @@ struct Config {
     state_context_var_name: String,
     state_context_method_suffix: String,
     this_state_context_var_name: String,
+    frame_event_args_type_name: String,
     frame_event_message_type_name: String,
     frame_event_type_name: String,
-    frame_event_parameter_type_name: String,
-    frame_event_parameters_type_name: String,
     frame_event_return: String,
     frame_event_variable_name: String,
-    frame_event_parameters_attribute_name: String,
+    frame_event_args_attribute_name: String,
     frame_event_message_attribute_name: String,
     frame_event_return_attribute_name: String,
     state_var_name: String,
@@ -114,10 +112,6 @@ impl Config {
                 .as_str()
                 .unwrap_or_default()
                 .to_string(),
-            event_args_name: (&code_yaml["event_args_name"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
             event_args_suffix: (&code_yaml["event_args_suffix"])
                 .as_str()
                 .unwrap_or_default()
@@ -166,15 +160,11 @@ impl Config {
                 .as_str()
                 .unwrap_or_default()
                 .to_string(),
+            frame_event_args_type_name: (&code_yaml["frame_event_args_type_name"])
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
             frame_event_type_name: (&code_yaml["frame_event_type_name"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            frame_event_parameter_type_name: (&code_yaml["frame_event_parameter_type_name"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            frame_event_parameters_type_name: (&code_yaml["frame_event_parameters_type_name"])
                 .as_str()
                 .unwrap_or_default()
                 .to_string(),
@@ -190,8 +180,7 @@ impl Config {
                 .as_str()
                 .unwrap_or_default()
                 .to_string(),
-            frame_event_parameters_attribute_name: (&code_yaml
-                ["frame_event_parameters_attribute_name"])
+            frame_event_args_attribute_name: (&code_yaml["frame_event_args_attribute_name"])
                 .as_str()
                 .unwrap_or_default()
                 .to_string(),
@@ -503,46 +492,17 @@ impl RustVisitor {
                     code.push_str("&");
                 }
 
-                // if generating state context and is the enter event...
-                if self.generate_state_context && self.config.enter_token == self.current_message {
-                    code.push_str(&format!(
-                        "{}.{}.as_ref().unwrap().{}",
-                        self.config.this_state_context_var_name,
-                        self.config.enter_args_member_name,
-                        self.format_value_name(&variable_node.id_node.name.lexeme)
-                    ));
-                } else if self.config.exit_token == self.current_message {
-                    code.push_str(&format!(
-                        "{}.{}.as_ref().unwrap().{}().unwrap()",
-                        self.config.frame_event_variable_name,
-                        self.config.frame_event_parameters_attribute_name,
-                        self.format_exit_param_getter(
-                            self.current_state_name_opt.as_ref().unwrap(),
-                            &self.config.exit_msg,
-                            &variable_node.id_node.name.lexeme
-                        )
-                    ));
-                } else {
-                    let msg = match &self
-                        .arcanum
-                        .get_interface_or_msg_from_msg(&self.current_message)
-                    {
-                        Some(canonical_message_name) => format!("{}", canonical_message_name),
-                        None => {
-                            self.errors.push(format!(
-                                "<Error - unknown message {}>,",
-                                &self.current_message
-                            ));
-                            format!("<Error - unknown message {}>", &self.current_message)
-                        }
-                    };
-                    code.push_str(&format!(
-                        "{}.{}.as_ref().unwrap().{}().unwrap()",
-                        self.config.frame_event_variable_name,
-                        self.config.frame_event_parameters_attribute_name,
-                        self.format_event_param_getter(&msg, &variable_node.id_node.name.lexeme)
-                    ));
-                }
+                let event_type = self.format_state_event_type_name(
+                    self.current_state_name_opt.as_ref().unwrap(),
+                    &variable_node.id_node.name.lexeme,
+                );
+                code.push_str(&format!(
+                    "{}.{}.{}().{}",
+                    &self.config.frame_event_variable_name,
+                    &self.config.frame_event_args_attribute_name,
+                    &self.format_args_method_name(&event_type),
+                    &variable_node.id_node.name.lexeme
+                ));
 
                 if self.visiting_call_chain_literal_variable {
                     code.push_str(")");
@@ -660,16 +620,19 @@ impl RustVisitor {
     fn format_event_type_name(&self, raw_event_name: &String) -> String {
         let (state_name_opt, event_name) = self.parse_event_name(&raw_event_name);
         match state_name_opt {
-            Some(state_name) => {
-                if event_name.eq(&self.config.enter_token) {
-                    self.format_enter_event_type_name(&state_name)
-                } else if event_name.eq(&self.config.exit_token) {
-                    self.format_exit_event_type_name(&state_name)
-                } else {
-                    self.format_type_name(&format!("{}_{}", state_name, event_name))
-                }
-            }
+            Some(state_name) => self.format_state_event_type_name(&state_name, &event_name),
             None => self.format_type_name(&event_name.clone()),
+        }
+    }
+
+    /// Get the event type name for a given state+event.
+    fn format_state_event_type_name(&self, state_name: &String, event_name: &String) -> String {
+        if event_name.eq(&self.config.enter_token) {
+            self.format_enter_event_type_name(&state_name)
+        } else if event_name.eq(&self.config.exit_token) {
+            self.format_exit_event_type_name(&state_name)
+        } else {
+            self.format_type_name(&format!("{}", event_name))
         }
     }
 
@@ -722,19 +685,8 @@ impl RustVisitor {
         )
     }
 
-    fn format_event_param_getter(&self, message_name: &str, param_name: &str) -> String {
-        self.format_getter_name(&format!("{}_{}", message_name, param_name))
-    }
-
-    fn format_exit_param_getter(
-        &self,
-        state_name: &str,
-        message_name: &str,
-        param_name: &str,
-    ) -> String {
-        self.format_getter_name(&format!("{}_{}_{}", state_name, message_name, param_name))
-    }
-
+    /// Get the name of the method that returns the particular args struct for
+    /// this event.
     fn format_args_method_name(&self, event_type_name: &str) -> String {
         format!(
             "{}{}",
@@ -970,7 +922,7 @@ impl RustVisitor {
             // generate the enum type that unions all the arg structs
             self.add_code("#[allow(dead_code)]");
             self.newline();
-            self.add_code(&format!("enum {} ", self.config.event_args_name));
+            self.add_code(&format!("enum {} ", self.config.frame_event_args_type_name));
             self.enter_block();
             self.add_code("None,");
             for event_type_name in &has_params {
@@ -989,7 +941,10 @@ impl RustVisitor {
             // from a value of the enum type
             self.add_code("#[allow(dead_code)]");
             self.newline();
-            self.add_code(&format!("impl {} {{", self.config.event_args_name));
+            self.add_code(&format!(
+                "impl {} {{",
+                self.config.frame_event_args_type_name
+            ));
             self.indent();
             for event_type_name in &has_params {
                 self.newline();
@@ -1005,7 +960,7 @@ impl RustVisitor {
                 self.newline();
                 self.add_code(&format!(
                     "{}::{}(args) => args,",
-                    self.config.event_args_name, event_type_name
+                    self.config.frame_event_args_type_name, event_type_name
                 ));
                 self.newline();
                 self.add_code(&format!(
@@ -1442,7 +1397,7 @@ impl RustVisitor {
         if self.generate_exit_args {
             self.add_code(&format!(
                 "{}: {}, ",
-                self.config.exit_args_member_name, self.config.event_args_name
+                self.config.exit_args_member_name, self.config.frame_event_args_type_name
             ));
         }
         self.add_code(&format!(
@@ -2446,16 +2401,20 @@ impl AstVisitor for RustVisitor {
         self.indent();
         self.newline();
         self.add_code(&format!(
-            "message: {},",
+            "{}: {},",
+            self.config.frame_event_message_attribute_name,
             self.config.frame_event_message_type_name
         ));
         self.newline();
         self.add_code(&format!(
-            "parameters: Option<Box<{}>>,",
-            self.config.frame_event_parameters_type_name
+            "{}: {},",
+            self.config.frame_event_args_attribute_name, self.config.frame_event_args_type_name
         ));
         self.newline();
-        self.add_code(&format!("ret: {},", self.config.frame_event_return));
+        self.add_code(&format!(
+            "{}: {},",
+            self.config.frame_event_return_attribute_name, self.config.frame_event_return
+        ));
         self.outdent();
         self.newline();
         self.add_code("}");
@@ -2467,9 +2426,11 @@ impl AstVisitor for RustVisitor {
         self.indent();
         self.newline();
         self.add_code(&format!(
-            "fn new(message: {}, parameters: Option<Box<{}>>) -> {} {{",
+            "fn new({}: {}, {}: {}) -> {} {{",
+            self.config.frame_event_message_attribute_name,
             self.config.frame_event_message_type_name,
-            self.config.frame_event_parameters_type_name,
+            self.config.frame_event_args_attribute_name,
+            self.config.frame_event_args_type_name,
             self.config.frame_event_type_name
         ));
         self.indent();
@@ -2477,9 +2438,12 @@ impl AstVisitor for RustVisitor {
         self.add_code(&format!("{} {{", self.config.frame_event_type_name));
         self.indent();
         self.newline();
-        self.add_code("message,");
+        self.add_code(&format!(
+            "{},",
+            self.config.frame_event_message_attribute_name
+        ));
         self.newline();
-        self.add_code("parameters,");
+        self.add_code(&format!("{},", self.config.frame_event_args_attribute_name));
         self.newline();
         self.add_code(&format!("ret: {}::None,", self.config.frame_event_return));
         self.outdent();
@@ -2769,233 +2733,6 @@ impl AstVisitor for RustVisitor {
         &mut self,
         _interface_block_node: &InterfaceBlockNode,
     ) -> AstVisitorReturnType {
-        self.newline();
-        self.newline();
-        self.add_code("#[allow(dead_code)]");
-        self.newline();
-        self.add_code(&format!(
-            "struct {} {{",
-            self.config.frame_event_parameters_type_name
-        ));
-        self.indent();
-        self.newline();
-        self.add_code(&format!(
-            "parameters: HashMap<String, {}>,",
-            self.config.frame_event_parameter_type_name
-        ));
-        self.outdent();
-        self.newline();
-        self.add_code("}");
-        self.newline();
-        self.newline();
-        self.add_code("#[allow(dead_code)]");
-        if !self.config.config_features.follow_rust_naming {
-            self.newline();
-            self.add_code("#[allow(non_snake_case)]");
-        }
-        self.newline();
-        self.add_code(&format!(
-            "impl {} {{",
-            self.config.frame_event_parameters_type_name
-        ));
-        self.indent();
-        self.newline();
-        self.add_code(&format!(
-            "fn new() -> {} {{",
-            self.config.frame_event_parameters_type_name
-        ));
-        self.indent();
-        self.newline();
-        self.add_code(&format!(
-            "{} {{",
-            self.config.frame_event_parameters_type_name
-        ));
-        self.indent();
-        self.newline();
-        self.add_code(&format!(
-            "{}: HashMap::new(),",
-            self.config.frame_event_parameters_attribute_name
-        ));
-        self.outdent();
-        self.newline();
-        self.add_code("}");
-        self.outdent();
-        self.newline();
-        self.add_code("}");
-
-        let vec = self.arcanum.get_event_names();
-        let mut param_getters: HashMap<String, Vec<String>> = HashMap::new();
-        for unparsed_event_name in vec {
-            match self
-                .arcanum
-                .get_event(&unparsed_event_name, &self.current_state_name_opt)
-            {
-                Some(event_sym) => {
-                    let (_state_name_opt, event_name) =
-                        self.parse_event_name(&event_sym.borrow().msg);
-                    if !(event_name.eq(&self.config.enter_token)) {
-                        match &event_sym.borrow().params_opt {
-                            Some(params) => {
-                                for param in params {
-                                    let param_type = match &param.param_type_opt {
-                                        Some(param_type) => param_type.get_type_str(),
-                                        None => "<?>".to_string().clone(),
-                                    };
-                                    let param_name = self.format_value_name(&param.name);
-                                    let qualified_param_name = self
-                                        .format_frame_event_parameter_name(
-                                            &unparsed_event_name,
-                                            &param.name,
-                                        );
-                                    let param_getter_name =
-                                        self.format_getter_name(&qualified_param_name);
-                                    let param_setter_name =
-                                        self.format_setter_name(&qualified_param_name);
-                                    let param_enum_name =
-                                        self.format_type_name(&qualified_param_name);
-                                    self.newline();
-                                    self.newline();
-                                    self.add_code(&format!(
-                                        "fn {}(&mut self, {}: {}) {{",
-                                        param_setter_name, param_name, param_type
-                                    ));
-                                    self.indent();
-                                    self.newline();
-                                    self.add_code(&format!(
-                                        "self.{}.insert(",
-                                        self.config.frame_event_parameters_attribute_name
-                                    ));
-                                    self.indent();
-                                    self.newline();
-                                    self.add_code(&format!(
-                                        "String::from(\"{}\"),",
-                                        qualified_param_name
-                                    ));
-                                    self.newline();
-                                    self.add_code(&format!(
-                                        "{}::{} {{ param: {} }},",
-                                        self.config.frame_event_parameter_type_name,
-                                        param_enum_name,
-                                        param_name
-                                    ));
-                                    self.outdent();
-                                    self.newline();
-                                    self.add_code(&format!(");"));
-                                    self.outdent();
-                                    self.newline();
-                                    self.add_code("}");
-                                    self.newline();
-                                    self.newline();
-                                    self.add_code(&format!(
-                                        "fn {}(&self) -> Option<{}> {{",
-                                        param_getter_name, param_type
-                                    ));
-                                    self.indent();
-                                    self.newline();
-                                    self.add_code(&format!(
-                                        "match self.{}.get(\"{}\") {{",
-                                        self.config.frame_event_parameters_attribute_name,
-                                        qualified_param_name
-                                    ));
-                                    self.indent();
-                                    self.newline();
-                                    self.add_code("Some(parameter) => match parameter {");
-                                    self.indent();
-                                    self.newline();
-
-                                    self.add_code(&format!(
-                                        "{}::{} {{ param }} => Some(param.clone()),",
-                                        self.config.frame_event_parameter_type_name,
-                                        param_enum_name
-                                    ));
-                                    self.newline();
-                                    self.add_code("_ => None,");
-                                    // self.outdent();
-                                    // self.newline();
-                                    // self.add_code("}"); // match self.parameters.get
-                                    self.outdent();
-                                    self.newline();
-                                    self.add_code("},"); // Some(parameter)
-                                    self.newline();
-                                    self.add_code("None => None,");
-                                    // self.outdent();
-                                    // self.newline();
-                                    self.outdent();
-                                    self.newline();
-                                    self.add_code("}");
-                                    self.outdent();
-                                    self.newline();
-                                    self.add_code("}");
-
-                                    if self.config.config_features.runtime_support {
-                                        match param_getters.get_mut(&param_name) {
-                                            Some(getters) => {
-                                                getters.push(param_getter_name);
-                                            }
-                                            None => {
-                                                param_getters
-                                                    .insert(param_name, vec![param_getter_name]);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            None => {}
-                        }
-                    }
-                }
-                None => {}
-            }
-            // self.newline();
-            // self.add_code(&format!("{},",x));
-        }
-
-        self.outdent();
-        self.newline();
-        self.add_code("}");
-
-        if self.config.config_features.runtime_support {
-            self.newline();
-            self.newline();
-            self.add_code(&format!(
-                "impl Environment for {} ",
-                self.config.frame_event_parameters_type_name
-            ));
-            self.enter_block();
-            self.add_code("fn lookup(&self, name: &str) -> Option<&dyn Any> ");
-            self.enter_block();
-            self.add_code("match name ");
-            self.enter_block();
-            for (param, getters) in &param_getters {
-                self.add_code(&format!("\"{}\" => ", param));
-                for getter in getters {
-                    self.indent();
-                    self.newline();
-                    self.add_code(&format!("self.{}().map_or_else(||", getter));
-                }
-                self.add_code(" None");
-                self.indent();
-                for _ in getters {
-                    self.add_code(",");
-                    self.newline();
-                    // self.add_code("|v| Some(&v as &dyn Any))");
-                    self.add_code("|_v| None)");
-                    self.outdent();
-                }
-                self.add_code(",");
-                self.outdent();
-                self.newline();
-            }
-            self.add_code("_ => None");
-            self.exit_block();
-            self.exit_block();
-            self.exit_block();
-        }
-
-        // for interface_method_node in &interface_block_node.interface_methods {
-        //     interface_method_node.accept(self);
-        // }
-
         AstVisitorReturnType::InterfaceBlockNode {}
     }
 
