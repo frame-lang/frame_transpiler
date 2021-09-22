@@ -1112,6 +1112,7 @@ impl Arcanum {
     // This method preferentially gets the interface name for a message if it
     // exists or returns the message name itself.
 
+    #[allow(dead_code)]
     pub fn get_msg_from_interface_name(&self, interface_name: &String) -> String {
         let system_symbol_rcref = self.system_symbol_opt.as_ref().unwrap();
         let system_symbol = system_symbol_rcref.borrow();

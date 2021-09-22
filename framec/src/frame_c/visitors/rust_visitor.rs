@@ -367,45 +367,6 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn format_frame_event_parameter_name(
-        &self,
-        unparsed_event_name: &str,
-        param_name: &str,
-    ) -> String {
-        let (state_name_opt, event_name) = self.parse_event_name(&unparsed_event_name);
-        let unformatted_name = match &state_name_opt {
-            Some(state_name) => format!(
-                "{}_{}_{}",
-                state_name,
-                &*self.canonical_event_name(&event_name),
-                param_name
-            ),
-            None => {
-                let message_opt = self.arcanum.get_interface_or_msg_from_msg(&event_name);
-                match &message_opt {
-                    Some(canonical_message_name) => {
-                        format!("{}_{}", canonical_message_name, param_name)
-                    }
-                    None => format!("<Error - unknown message {}>,", &unparsed_event_name),
-                }
-            }
-        };
-        self.format_value_name(&unformatted_name)
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn canonical_event_name(&self, msg_name: &str) -> String {
-        if msg_name.eq(&self.config.enter_token) {
-            return self.config.enter_msg.clone();
-        } else if msg_name.eq(&self.config.exit_token) {
-            return self.config.exit_msg.clone();
-        }
-        return msg_name.to_string();
-    }
-
-    //* --------------------------------------------------------------------- *//
-
     pub fn get_code(&self) -> String {
         if self.errors.len() > 0 {
             let mut error_list = String::new();
@@ -494,14 +455,14 @@ impl RustVisitor {
 
                 let event_type = self.format_state_event_type_name(
                     self.current_state_name_opt.as_ref().unwrap(),
-                    &variable_node.id_node.name.lexeme,
+                    &self.current_message,
                 );
                 code.push_str(&format!(
                     "{}.{}.{}().{}",
-                    &self.config.frame_event_variable_name,
-                    &self.config.frame_event_args_attribute_name,
-                    &self.format_args_method_name(&event_type),
-                    &variable_node.id_node.name.lexeme
+                    self.config.frame_event_variable_name,
+                    self.config.frame_event_args_attribute_name,
+                    self.format_args_method_name(&event_type),
+                    self.format_value_name(&variable_node.id_node.name.lexeme)
                 ));
 
                 if self.visiting_call_chain_literal_variable {
@@ -567,6 +528,7 @@ impl RustVisitor {
         format!("new_{}", self.config.state_var_name)
     }
 
+    #[allow(dead_code)]
     fn old_state_var_name(&self) -> String {
         format!("old_{}", self.config.state_var_name)
     }
@@ -608,10 +570,6 @@ impl RustVisitor {
 
     fn format_getter_name(&self, member_name: &str) -> String {
         format!("get_{}", self.format_value_name(&member_name.to_string()))
-    }
-
-    fn format_setter_name(&self, member_name: &str) -> String {
-        format!("set_{}", self.format_value_name(&member_name.to_string()))
     }
 
     // Type/case names
@@ -683,6 +641,10 @@ impl RustVisitor {
             self.format_value_name(action_name),
             self.config.action_suffix
         )
+    }
+
+    fn format_param_getter(&self, message_name: &str, param_name: &str) -> String {
+        self.format_getter_name(&format!("{}_{}", message_name, param_name))
     }
 
     /// Get the name of the method that returns the particular args struct for
@@ -884,12 +846,12 @@ impl RustVisitor {
                     match &event_sym.borrow().params_opt {
                         Some(params) => {
                             let event_type_name = self.format_event_type_name(&event_name);
-                            let event_struct_name = self.format_args_struct_name(&event_type_name);
+                            let args_struct_name = self.format_args_struct_name(&event_type_name);
                             let mut bound_names: Vec<String> = Vec::new();
 
                             self.add_code("#[allow(dead_code)]");
                             self.newline();
-                            self.add_code(&format!("struct {} {{", event_struct_name));
+                            self.add_code(&format!("struct {} {{", args_struct_name));
                             self.indent();
                             for param in params {
                                 let param_name = self.format_value_name(&param.name);
@@ -907,7 +869,7 @@ impl RustVisitor {
 
                             // generate the env
                             if self.config.config_features.runtime_support {
-                                self.generate_environment_impl(&event_struct_name, bound_names);
+                                self.generate_environment_impl(&args_struct_name, bound_names);
                             }
                             has_params.insert(event_type_name);
                         }
@@ -918,25 +880,25 @@ impl RustVisitor {
             }
         }
 
-        if !has_params.is_empty() {
-            // generate the enum type that unions all the arg structs
-            self.add_code("#[allow(dead_code)]");
+        // generate the enum type that unions all the arg structs
+        self.add_code("#[allow(dead_code)]");
+        self.newline();
+        self.add_code(&format!("enum {} ", self.config.frame_event_args_type_name));
+        self.enter_block();
+        self.add_code("None,");
+        for event_type_name in &has_params {
             self.newline();
-            self.add_code(&format!("enum {} ", self.config.frame_event_args_type_name));
-            self.enter_block();
-            self.add_code("None,");
-            for event_type_name in &has_params {
-                self.newline();
-                self.add_code(&format!(
-                    "{}({}),",
-                    &event_type_name,
-                    self.format_args_struct_name(&event_type_name)
-                ));
-            }
-            self.exit_block();
-            self.newline();
-            self.newline();
+            self.add_code(&format!(
+                "{}({}),",
+                &event_type_name,
+                self.format_args_struct_name(&event_type_name)
+            ));
+        }
+        self.exit_block();
+        self.newline();
+        self.newline();
 
+        if !has_params.is_empty() {
             // generate methods to conveniently get specific arg structs
             // from a value of the enum type
             self.add_code("#[allow(dead_code)]");
@@ -1201,18 +1163,18 @@ impl RustVisitor {
         let init_state_name = self.first_state_name.clone();
 
         // initial state variables
+        self.indent();
         let mut formatted_state_vars = String::new();
         let has_state_vars =
             self.generate_state_variables(&init_state_name, &mut formatted_state_vars);
+        self.outdent();
 
         // initial state context
         if self.generate_state_context {
             self.generate_next_state_context(
                 &init_state_name,
                 false,
-                false,
                 has_state_vars,
-                "",
                 "",
                 &formatted_state_vars,
             );
@@ -1292,10 +1254,11 @@ impl RustVisitor {
         self.indent();
         self.newline();
         self.add_code(&format!(
-            "let mut e = {}::new({}::{}, None);",
+            "let mut e = {}::new({}::{}, {}::None);",
             self.config.frame_event_type_name,
             self.config.frame_event_message_type_name,
-            self.config.enter_msg
+            self.config.enter_msg,
+            self.config.frame_event_args_type_name
         ));
         self.newline();
         self.add_code(&format!(
@@ -1400,6 +1363,13 @@ impl RustVisitor {
                 self.config.exit_args_member_name, self.config.frame_event_args_type_name
             ));
         }
+        if self.generate_state_context {
+            // TODO generate_enter_args
+            self.add_code(&format!(
+                "{}: {}, ",
+                self.config.enter_args_member_name, self.config.frame_event_args_type_name
+            ));
+        }
         self.add_code(&format!(
             "{}: {}",
             self.new_state_var_name(),
@@ -1416,22 +1386,18 @@ impl RustVisitor {
         self.enter_block();
 
         // generate method body
-        if self.generate_exit_args {
-            self.add_code(&format!(
-                "let mut exit_event = {}::new({}::{}, {});",
-                self.config.frame_event_type_name,
-                self.config.frame_event_message_type_name,
-                self.config.exit_msg,
-                self.config.exit_args_member_name
-            ));
+        let exit_args = if self.generate_exit_args {
+            format!("{}", self.config.exit_args_member_name)
         } else {
-            self.add_code(&format!(
-                "let mut exit_event = {}::new({}::{}, None);",
-                self.config.frame_event_type_name,
-                self.config.frame_event_message_type_name,
-                self.config.exit_msg
-            ));
-        }
+            format!("{}::None", self.config.frame_event_args_type_name)
+        };
+        self.add_code(&format!(
+            "let mut exit_event = {}::new({}::{}, {});",
+            self.config.frame_event_type_name,
+            self.config.frame_event_message_type_name,
+            self.config.exit_msg,
+            exit_args
+        ));
         self.newline();
         self.add_code(&format!(
             "self.{}(&mut exit_event);",
@@ -1452,11 +1418,18 @@ impl RustVisitor {
             ));
         }
         self.newline();
+        let enter_args = if self.generate_state_context {
+            // TODO generate_enter_args
+            format!("{}", self.config.enter_args_member_name)
+        } else {
+            format!("{}::None", self.config.frame_event_args_type_name)
+        };
         self.add_code(&format!(
-            "let mut enter_event = {}::new({}::{}, None);",
+            "let mut enter_event = {}::new({}::{}, {});",
             self.config.frame_event_type_name,
             self.config.frame_event_message_type_name,
-            self.config.enter_msg
+            self.config.enter_msg,
+            enter_args
         ));
         self.newline();
         self.add_code(&format!(
@@ -1610,240 +1583,235 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    /// Generate the arguments to the exit event handler, passed in a
-    /// transition statement. Returns `true` if any exit arguments were passed.
-    fn generate_exit_arguments(
+    /// Generate code that evaluates a list of expressions and constructs a
+    /// value of the appropriate argument struct. Writes the generated code
+    /// as a struct literal expression to `arg_code`. Returns `true` if any
+    /// arguments were passed.
+    fn generate_arguments(
         &mut self,
-        target_state_name: &str,
-        exit_args: &ExprListNode,
+        arg_struct_name: &String,
+        param_names: Vec<&String>,
+        arg_exprs: &ExprListNode,
+        arg_code: &mut String,
     ) -> bool {
-        if exit_args.exprs_t.len() <= 0 {
+        // check to make sure the right number of arguments were passed
+        if param_names.len() != arg_exprs.exprs_t.len() {
+            self.errors.push(format!(
+                "Incorrect number of arguments for {}: expected {} got {}",
+                arg_struct_name,
+                param_names.len(),
+                arg_exprs.exprs_t.len()
+            ));
             return false;
         }
-        // Search for event keyed with "State:<", e.g. "S1:<"
-        let exit_msg = format!(
-            "{}:{}",
-            self.current_state_name_opt
-                .as_ref()
-                .unwrap_or(&String::new()),
-            self.symbol_config.exit_msg_symbol
-        );
-        if let Some(event_sym) = self
-            .arcanum
-            .get_event(&exit_msg, &self.current_state_name_opt)
-        {
-            match &event_sym.borrow().params_opt {
-                Some(event_params) => {
-                    if exit_args.exprs_t.len() != event_params.len() {
-                        self.errors
-                            .push("Fatal error: misaligned parameters to arguments.".to_string());
-                    }
-                    let mut param_symbols_it = event_params.iter();
-                    self.newline();
-                    self.add_code(&format!(
-                        "let mut {} = Box::new({}::new());",
-                        self.config.exit_args_member_name,
-                        self.config.frame_event_parameters_type_name
-                    ));
-                    // Loop through the ARGUMENTS...
-                    for expr_t in &exit_args.exprs_t {
-                        // ...and validate w/ the PARAMETERS
-                        match param_symbols_it.next() {
-                            Some(p) => {
-                                let mut expr = String::new();
-                                expr_t.accept_to_string(self, &mut expr);
-                                let qualified_param_name =
-                                    self.format_frame_event_parameter_name(&exit_msg, &p.name);
-                                self.newline();
-                                self.add_code(&format!(
-                                    "(*{}).{}({});",
-                                    self.config.exit_args_member_name,
-                                    self.format_setter_name(&qualified_param_name),
-                                    expr
-                                ));
-                            }
-                            None => self.errors.push(format!(
-                                "Invalid number of arguments for \"{}\" event handler.",
-                                exit_msg
-                            )),
-                        }
-                    }
-                }
-                None => self
-                    .errors
-                    .push(format!("Fatal error: misaligned parameters to arguments.")),
-            }
-        } else {
-            let current_state_name = &self.current_state_name_opt.as_ref().unwrap();
-            self.errors.push(format!(
-                "Missing exit event handler for transition from ${} to ${}.",
-                current_state_name, &target_state_name
-            ));
+        // check to see if there are any arguments to process
+        if param_names.len() == 0 {
+            arg_code.push_str("None");
+            return false;
         }
+        // generate code to eval arguments and build struct
+        arg_code.push_str(&format!("{} {{", &arg_struct_name));
+        self.indent();
+        for (param, arg) in param_names.iter().zip(arg_exprs.exprs_t.iter()) {
+            let mut expr = String::new();
+            arg.accept_to_string(self, &mut expr);
+            self.newline_to_string(arg_code);
+            arg_code.push_str(&format!("{}: {},", self.format_value_name(param), expr));
+        }
+        self.outdent();
+        self.newline_to_string(arg_code);
+        arg_code.push_str("}");
         true
     }
 
-    /// Does a transition from the current state to the target state require
-    /// enter arguments?
-    fn requires_enter_arguments(&mut self, target_state_name: &str) -> bool {
-        let enter_msg = format!(
-            "{}:{}",
-            target_state_name, &self.symbol_config.enter_msg_symbol
-        );
-        if let Some(event_sym) = self
-            .arcanum
-            .get_event(&enter_msg, &self.current_state_name_opt)
-        {
-            event_sym.borrow().params_opt.is_some()
+    /// Get the exit arguments from a transition statement and generate a value
+    /// of the exit arguments struct. Writes the generated struct literal
+    /// expression to `arg_code`. Returns `true` if any arguments were passed.
+    fn generate_exit_arguments(
+        &mut self,
+        transition_stmt: &TransitionStatementNode,
+        arg_code: &mut String,
+    ) -> bool {
+        let mut has_args = false;
+        if let Some(exit_args) = &transition_stmt.exit_args_opt {
+            // Search for event keyed with "State:<", e.g. "S1:<"
+            let empty = String::new();
+            let current_state_name = self.current_state_name_opt.as_ref().unwrap_or(&empty);
+            let exit_msg = format!(
+                "{}:{}",
+                current_state_name, self.symbol_config.exit_msg_symbol
+            );
+            let exit_event_type_name = self.format_exit_event_type_name(&current_state_name);
+            let arg_struct_name = self.format_args_struct_name(&exit_event_type_name);
+            if let Some(event_sym) = self
+                .arcanum
+                .get_event(&exit_msg, &self.current_state_name_opt)
+            {
+                match &event_sym.borrow().params_opt {
+                    Some(event_params) => {
+                        let param_names = event_params.iter().map(|p| &p.name).collect();
+                        has_args = self.generate_arguments(
+                            &arg_struct_name,
+                            param_names,
+                            exit_args,
+                            arg_code,
+                        );
+                        arg_code.insert_str(
+                            0,
+                            &format!(
+                                "{}::{}(",
+                                self.config.frame_event_args_type_name, exit_event_type_name
+                            ),
+                        );
+                        arg_code.push_str(")");
+                    }
+                    None => self.errors.push(format!(
+                        "Invalid number of arguments for \"{}\" event handler.",
+                        exit_msg
+                    )),
+                }
+            } else {
+                self.warnings.push(format!("State {} does not have an exit event handler but is being passed parameters in a transition", current_state_name));
+            }
         } else {
-            false
+            arg_code.push_str(&format!("{}::None", self.config.frame_event_args_type_name));
         }
+        has_args
     }
 
-    /// Generate the arguments to the enter event handler, passed in a
-    /// transition statement. The formatted arguments are returned via a
-    /// string reference. Returns `true` if any enter arguments were passed.
+    /// Get the enter arguments from a transition statement and generate a
+    /// value of the enter arguments struct. Writes the generated struct
+    /// literal expression to `arg_code`. Returns `true` if any arguments were
+    /// passed.
     fn generate_enter_arguments(
         &mut self,
         target_state_name: &str,
-        enter_args: &ExprListNode,
-        formatted_enter_args: &mut String,
+        state_context_node: &StateContextNode,
+        arg_code: &mut String,
     ) -> bool {
-        let mut has_enter_args = false;
-        // Search for event keyed with "State:>", e.g. "S1:>"
-        let enter_msg = format!(
-            "{}:{}",
-            target_state_name, &self.symbol_config.enter_msg_symbol
-        );
-        let enter_event_type_name = self.format_enter_event_type_name(&target_state_name);
-        formatted_enter_args.push_str(&format!(
-            "{} {{ ",
-            self.format_args_struct_name(&enter_event_type_name)
-        ));
-        if let Some(event_sym) = self
-            .arcanum
-            .get_event(&enter_msg, &self.current_state_name_opt)
-        {
-            match &event_sym.borrow().params_opt {
-                Some(event_params) => {
-                    has_enter_args = true;
-                    if enter_args.exprs_t.len() != event_params.len() {
-                        self.errors
-                            .push(format!("Fatal error: misaligned parameters to arguments."));
+        let mut has_args = false;
+        if let Some(enter_args) = &state_context_node.enter_args_opt {
+            // Search for event keyed with "State:>", e.g. "S1:>"
+            let enter_msg = format!(
+                "{}:{}",
+                target_state_name, &self.symbol_config.enter_msg_symbol
+            );
+            let enter_event_type_name = self.format_enter_event_type_name(&target_state_name);
+            let arg_struct_name = self.format_args_struct_name(&enter_event_type_name);
+            if let Some(event_sym) = self
+                .arcanum
+                .get_event(&enter_msg, &self.current_state_name_opt)
+            {
+                match &event_sym.borrow().params_opt {
+                    Some(event_params) => {
+                        let param_names = event_params.iter().map(|p| &p.name).collect();
+                        has_args = self.generate_arguments(
+                            &arg_struct_name,
+                            param_names,
+                            enter_args,
+                            arg_code,
+                        );
+                        arg_code.insert_str(
+                            0,
+                            &format!(
+                                "{}::{}(",
+                                self.config.frame_event_args_type_name, enter_event_type_name
+                            ),
+                        );
+                        arg_code.push_str(")");
                     }
-                    let mut param_symbols_it = event_params.iter();
-                    for expr_t in &enter_args.exprs_t {
-                        match param_symbols_it.next() {
-                            Some(p) => {
-                                let mut expr = String::new();
-                                expr_t.accept_to_string(self, &mut expr);
-                                formatted_enter_args.push_str(&format!("{}: {}, ", p.name, expr));
-                            }
-                            None => self.errors.push(format!(
-                                "Invalid number of arguments for \"{}\" event handler.",
-                                enter_msg
-                            )),
-                        }
+                    None => {
+                        self.errors.push(format!(
+                            "The \"{}\" event handler was passed arguments, but it does not accept any.",
+                            enter_msg
+                        ));
                     }
                 }
-                None => self.errors.push(format!(
-                    "Invalid number of arguments for \"{}\" event handler.",
-                    enter_msg
-                )),
+            } else {
+                self.warnings.push(format!("State {} does not have an enter event handler but is being passed parameters in a transition", target_state_name));
             }
         } else {
-            self.warnings.push(format!("State {} does not have an enter event handler but is being passed parameters in a transition", target_state_name));
+            arg_code.push_str(&format!("{}::None", self.config.frame_event_args_type_name));
         }
-        formatted_enter_args.push_str("}");
-        has_enter_args
+        has_args
     }
 
-    /// Generate the arguments to the next state in a transition/change-state.
-    /// The formatted arguments are returned via a string reference. Returns
-    /// `true` if any state arguments were passed.
+    /// Get the arguments to the next state from a transition statement and
+    /// generate a value of the corresponding arguments struct. Writes the
+    /// generated struct literal expression to `arg_code`. Returns `true` if
+    /// any arguments were passed.
     fn generate_state_arguments(
         &mut self,
         target_state_name: &str,
         state_args: &ExprListNode,
-        formatted_state_args: &mut String,
+        arg_code: &mut String,
     ) -> bool {
-        if state_args.exprs_t.len() <= 0 {
-            return false;
-        }
-        formatted_state_args.push_str(&format!(
-            "{} {{ ",
-            self.format_state_args_struct_name(&target_state_name)
-        ));
+        let mut has_args = false;
+        let arg_struct_name = self.format_state_args_struct_name(&target_state_name.to_string());
         if let Some(state_sym) = self.arcanum.get_state(&target_state_name) {
             match &state_sym.borrow().params_opt {
                 Some(event_params) => {
-                    let mut param_symbols_it = event_params.iter();
-                    // Loop through the ARGUMENTS...
-                    for expr_t in &state_args.exprs_t {
-                        // ...and validate w/ the PARAMETERS
-                        match param_symbols_it.next() {
-                            Some(param_symbol_rcref) => {
-                                let param_symbol = param_symbol_rcref.borrow();
-                                let mut expr = String::new();
-                                expr_t.accept_to_string(self, &mut expr);
-                                formatted_state_args.push_str(&format!(
-                                    "{}: {}, ",
-                                    self.format_value_name(&param_symbol.name),
-                                    expr
-                                ));
-                            }
-                            None => self.errors.push(format!(
-                                "Invalid number of arguments for \"{}\" state parameters.",
-                                target_state_name
-                            )),
-                        }
-                        //
+                    let mut param_names = Vec::new();
+                    for param in event_params {
+                        let name = &param.borrow().name;
+                        param_names.push(name.clone());
                     }
+                    has_args = self.generate_arguments(
+                        &arg_struct_name,
+                        param_names.iter().collect(),
+                        state_args,
+                        arg_code
+                    );
                 }
-                None => {}
+                None => self.errors.push(format!(
+                    "The \"{}\" state was passed arguments in a transition, but it does not accept any.",
+                    target_state_name
+                )),
             }
         } else {
-            self.errors.push(format!("TODO"));
+            self.errors.push(format!(
+                "Could not find state {}, which was passed arguments in a transition.",
+                target_state_name
+            ));
         }
-        formatted_state_args.push_str("}");
-        true
+        has_args
     }
 
     /// Generate the state variables for the next state after a transition or
-    /// change-state. The formatted variable definitions are returned via a
-    /// string reference. Returns `true` if the next state contains any state
+    /// change-state. Writes the generated struct literal expression to
+    /// `var_code`. Returns `true` if the next state contains any state
     /// variables.
-    fn generate_state_variables(
-        &mut self,
-        target_state_name: &str,
-        formatted_state_vars: &mut String,
-    ) -> bool {
-        let mut has_state_vars = false;
+    fn generate_state_variables(&mut self, target_state_name: &str, var_code: &mut String) -> bool {
+        let mut has_vars = false;
         if let Some(state_symbol_rcref) = self.arcanum.get_state(&target_state_name) {
             let state_symbol = state_symbol_rcref.borrow();
             let state_node = &state_symbol.state_node.as_ref().unwrap().borrow();
             // generate local state variables
             if state_node.vars_opt.is_some() {
-                has_state_vars = true;
-                formatted_state_vars.push_str(&format!(
+                has_vars = true;
+                var_code.push_str(&format!(
                     "{} {{",
                     self.format_state_vars_struct_name(&target_state_name)
                 ));
+                self.indent();
                 for var_rcref in state_node.vars_opt.as_ref().unwrap() {
                     let var = var_rcref.borrow();
                     let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
                     let mut expr_code = String::new();
                     expr_t.accept_to_string(self, &mut expr_code);
-                    formatted_state_vars.push_str(&format!(
+                    self.newline_to_string(var_code);
+                    var_code.push_str(&format!(
                         "{}: {},",
                         self.format_value_name(&var.name),
                         expr_code
                     ));
                 }
-                formatted_state_vars.push_str("}");
+                self.outdent();
+                self.newline_to_string(var_code);
+                var_code.push_str("}");
             }
         }
-        has_state_vars
+        has_vars
     }
 
     /// Generate code that initializes a new state context value stored in a
@@ -1851,10 +1819,8 @@ impl RustVisitor {
     fn generate_next_state_context(
         &mut self,
         target_state_name: &str,
-        has_enter_args: bool,
         has_state_args: bool,
         has_state_vars: bool,
-        enter_args: &str,
         state_args: &str,
         state_vars: &str,
     ) {
@@ -1873,13 +1839,6 @@ impl RustVisitor {
             self.add_code(&format!(
                 "{}: {},",
                 self.config.state_vars_var_name, state_vars
-            ));
-        }
-        if has_enter_args {
-            self.newline();
-            self.add_code(&format!(
-                "{}: {},",
-                self.config.enter_args_member_name, enter_args
             ));
         }
         self.outdent();
@@ -1920,16 +1879,18 @@ impl RustVisitor {
             None => {}
         }
 
+        self.indent();
+
         // generate state arguments
         let mut has_state_args = false;
-        let mut formatted_state_args = String::new();
+        let mut state_args_code = String::new();
         match &change_state_stmt.state_context_t {
             StateContextType::StateRef { state_context_node } => {
                 if let Some(state_args) = &state_context_node.state_ref_args_opt {
                     has_state_args = self.generate_state_arguments(
                         &target_state_name,
                         &state_args,
-                        &mut formatted_state_args,
+                        &mut state_args_code,
                     );
                 }
             }
@@ -1937,21 +1898,20 @@ impl RustVisitor {
         };
 
         // generate state variables
-        let mut formatted_state_vars = String::new();
+        let mut state_vars_code = String::new();
         let has_state_vars =
-            self.generate_state_variables(&target_state_name, &mut formatted_state_vars);
+            self.generate_state_variables(&target_state_name, &mut state_vars_code);
+
+        self.outdent();
 
         // generate new state context
-        let requires_enter_args = self.requires_enter_arguments(&target_state_name);
         if self.generate_state_context {
             self.generate_next_state_context(
                 &target_state_name,
-                requires_enter_args,
                 has_state_args,
                 has_state_vars,
-                "None",
-                &formatted_state_args,
-                &formatted_state_vars,
+                &state_args_code,
+                &state_vars_code,
             );
             self.newline();
             self.add_code(&format!(
@@ -2006,43 +1966,54 @@ impl RustVisitor {
         }
 
         // generate exit arguments
-        let mut has_exit_args = false;
-        if let Some(exit_args) = &transition_stmt.exit_args_opt {
-            has_exit_args = self.generate_exit_arguments(&target_state_name, &exit_args);
+        if self.generate_exit_args {
+            let mut exit_args_code = String::new();
+            self.generate_exit_arguments(&transition_stmt, &mut exit_args_code);
+            self.newline();
+            self.add_code(&format!(
+                "let {} = {};",
+                self.config.exit_args_member_name, exit_args_code
+            ));
         }
-        let exit_args = if has_exit_args {
-            format!("Some({})", self.config.exit_args_member_name)
-        } else {
-            "None".to_string()
-        };
 
         // generate enter arguments
-        let mut has_enter_args = false;
-        let mut formatted_enter_args = String::from("Some(");
-        match &transition_stmt.target_state_context_t {
-            StateContextType::StateRef { state_context_node } => {
-                if let Some(enter_args) = &state_context_node.enter_args_opt {
+        if self.generate_state_context {
+            // TODO generate_enter_args
+            let mut has_enter_args = false;
+            let mut enter_args_code = String::new();
+            match &transition_stmt.target_state_context_t {
+                StateContextType::StateRef { state_context_node } => {
                     has_enter_args = self.generate_enter_arguments(
                         &target_state_name,
-                        &enter_args,
-                        &mut formatted_enter_args,
+                        &state_context_node,
+                        &mut enter_args_code,
                     );
                 }
+                StateContextType::StateStackPop {} => {}
             }
-            StateContextType::StateStackPop {} => {}
-        };
-        formatted_enter_args.push_str(")");
+            if !has_enter_args {
+                enter_args_code = format!("{}::None", self.config.frame_event_args_type_name);
+            }
+            self.newline();
+            self.add_code(&format!(
+                "let {} = {};",
+                self.config.enter_args_member_name, enter_args_code
+            ));
+        }
+
+        // indent to generate parts of context at the right indentation level
+        self.indent();
 
         // generate state arguments
         let mut has_state_args = false;
-        let mut formatted_state_args = String::new();
+        let mut state_args_code = String::new();
         match &transition_stmt.target_state_context_t {
             StateContextType::StateRef { state_context_node } => {
                 if let Some(state_args) = &state_context_node.state_ref_args_opt {
                     has_state_args = self.generate_state_arguments(
                         &target_state_name,
                         &state_args,
-                        &mut formatted_state_args,
+                        &mut state_args_code,
                     );
                 }
             }
@@ -2050,20 +2021,21 @@ impl RustVisitor {
         };
 
         // generate state variables
-        let mut formatted_state_vars = String::new();
+        let mut state_vars_code = String::new();
         let has_state_vars =
-            self.generate_state_variables(&target_state_name, &mut formatted_state_vars);
+            self.generate_state_variables(&target_state_name, &mut state_vars_code);
+
+        // end indent for parts of context
+        self.outdent();
 
         // generate new state context
         if self.generate_state_context {
             self.generate_next_state_context(
                 &target_state_name,
-                has_enter_args,
                 has_state_args,
                 has_state_vars,
-                &formatted_enter_args,
-                &formatted_state_args,
-                &formatted_state_vars,
+                &state_args_code,
+                &state_vars_code,
             );
             self.newline();
             self.add_code(&format!(
@@ -2074,41 +2046,23 @@ impl RustVisitor {
 
         // call the transition method
         self.newline();
-        if self.generate_state_context {
-            if self.generate_exit_args {
-                self.add_code(&format!(
-                    "self.{}({}, {}::{}, next_state_context);",
-                    self.config.transition_method_name,
-                    exit_args,
-                    self.state_enum_type_name(),
-                    self.format_type_name(&target_state_name.to_string())
-                ));
-            } else {
-                self.add_code(&format!(
-                    "self.{}({}::{}, next_state_context);",
-                    self.config.transition_method_name,
-                    self.state_enum_type_name(),
-                    self.format_type_name(&target_state_name.to_string())
-                ));
-            }
-        } else {
-            if self.generate_exit_args {
-                self.add_code(&format!(
-                    "self.{}({}, {}::{});",
-                    self.config.transition_method_name,
-                    exit_args,
-                    self.state_enum_type_name(),
-                    self.format_type_name(&target_state_name.to_string())
-                ));
-            } else {
-                self.add_code(&format!(
-                    "self.{}({}::{});",
-                    self.config.transition_method_name,
-                    self.state_enum_type_name(),
-                    self.format_type_name(&target_state_name.to_string())
-                ));
-            }
+        self.add_code(&format!("self.{}(", self.config.transition_method_name));
+        if self.generate_exit_args {
+            self.add_code(&format!("{}, ", self.config.exit_args_member_name));
         }
+        if self.generate_state_context {
+            // TODO generate_enter_args
+            self.add_code(&format!("{}, ", self.config.enter_args_member_name));
+        }
+        self.add_code(&format!(
+            "{}::{}",
+            self.state_enum_type_name(),
+            self.format_type_name(&target_state_name.to_string())
+        ));
+        if self.generate_state_context {
+            self.add_code(", next_state_context");
+        }
+        self.add_code(");");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2200,8 +2154,9 @@ impl RustVisitor {
             ));
             self.newline();
             self.add_code(&format!(
-                "self.{}(next_state, next_state_context);",
-                self.config.transition_method_name
+                "self.{}({}::None, next_state, next_state_context);",
+                self.config.transition_method_name,
+                self.config.frame_event_args_type_name // TODO generate_enter_args
             ));
         } else {
             self.add_code(&format!(
@@ -2232,8 +2187,6 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.add_code("use std::cell::RefCell;");
         self.newline();
-        self.add_code("use std::collections::HashMap;");
-        self.newline();
         self.add_code("#[allow(unused_imports)]");
         self.newline();
         self.add_code("use std::rc::Rc;");
@@ -2257,66 +2210,6 @@ impl AstVisitor for RustVisitor {
             interface_block_node.accept_frame_messages_enum(self);
             interface_block_node.accept_frame_parameters(self);
         }
-
-        self.newline();
-        self.newline();
-        self.add_code("#[allow(dead_code)]");
-        if !self.config.config_features.follow_rust_naming {
-            self.newline();
-            self.add_code("#[allow(non_camel_case_types)]");
-        }
-        self.newline();
-        self.add_code(&format!(
-            "enum {} {{",
-            self.config.frame_event_parameter_type_name
-        ));
-        self.indent();
-        self.newline();
-        self.add_code("None,");
-
-        let vec = self.arcanum.get_event_names();
-        for unparsed_event_name in vec {
-            match self
-                .arcanum
-                .get_event(&unparsed_event_name, &self.current_state_name_opt)
-            {
-                Some(event_sym) => {
-                    let (_state_name_opt, event_name) =
-                        self.parse_event_name(&event_sym.borrow().msg);
-
-                    // enter messages handled in state context struct
-                    if !(event_name.eq(&self.config.enter_token)) {
-                        match &event_sym.borrow().params_opt {
-                            Some(params) => {
-                                for param in params {
-                                    let param_type = match &param.param_type_opt {
-                                        Some(param_type) => param_type.get_type_str(),
-                                        None => "<?>".to_string().clone(),
-                                    };
-                                    self.newline();
-                                    let qualified_param_name = self
-                                        .format_frame_event_parameter_name(
-                                            &event_sym.borrow().msg,
-                                            &param.name,
-                                        );
-                                    self.add_code(&format!(
-                                        "{} {{ param: {} }},",
-                                        self.format_type_name(&qualified_param_name),
-                                        param_type
-                                    ));
-                                }
-                            }
-                            None => {}
-                        }
-                    }
-                }
-                None => {}
-            }
-        }
-
-        self.outdent();
-        self.newline();
-        self.add_code("}");
 
         self.newline();
         self.newline();
@@ -2361,7 +2254,7 @@ impl AstVisitor for RustVisitor {
                     self.newline();
                     self.add_code(&format!(
                         "fn {}(&self) -> {} {{",
-                        self.format_event_param_getter(&interface_method_node.borrow().name, "ret"),
+                        self.format_param_getter(&interface_method_node.borrow().name, "ret"),
                         return_type.get_type_str()
                     ));
                     self.indent();
@@ -2813,56 +2706,41 @@ impl AstVisitor for RustVisitor {
             }
             None => {}
         }
-        self.add_code(" {");
-        self.indent();
-        let params_param_code;
+        self.enter_block();
 
+        let event_type_name = self.format_type_name(&interface_method_node.name);
+        self.add_code(&format!(
+            "let frame_args = {}::",
+            self.config.frame_event_args_type_name
+        ));
         if interface_method_node.params.is_some() {
-            params_param_code = String::from("Some(frame_parameters)");
-            self.newline();
             self.add_code(&format!(
-                "let mut frame_parameters = Box::new({}::new());",
-                self.config.frame_event_parameters_type_name
+                "{}({} {{ ",
+                event_type_name,
+                self.format_args_struct_name(&event_type_name)
             ));
             match &interface_method_node.params {
                 Some(params) => {
                     for param in params {
-                        let msg = self
-                            .arcanum
-                            .get_msg_from_interface_name(&interface_method_node.name);
-
-                        let qualified_param_name =
-                            self.format_frame_event_parameter_name(&msg, &param.param_name);
-                        self.newline();
-                        self.add_code(&format!(
-                            "(*frame_parameters).{}({});",
-                            self.format_setter_name(&qualified_param_name),
-                            self.format_value_name(&param.param_name)
-                        ));
+                        self.add_code(&format!("{}, ", self.format_value_name(&param.param_name)));
                     }
                 }
                 None => {}
             }
+            self.add_code("});");
         } else {
-            params_param_code = String::from("None");
+            self.add_code("None;")
         }
 
-        // self.indent();
         self.newline();
         self.add_code(&format!(
-            "let mut {} = {}::new({}::{}, {});",
+            "let mut {} = {}::new({}::{}, frame_args);",
             self.config.frame_event_variable_name,
             self.config.frame_event_type_name,
             self.config.frame_event_message_type_name,
-            self.format_type_name(&interface_method_node.name),
-            &params_param_code
+            event_type_name
         ));
-        // self.indent();
-        // self.newline();
-        // self.add_code(&format!("message : String::from(\"{}\"),", method_name_or_alias));
-        // self.outdent();
-        // self.newline();
-        // self.add_code("};");
+
         self.newline();
         self.add_code(&format!(
             "self.{}(&mut {});",
@@ -4235,21 +4113,23 @@ impl AstVisitor for RustVisitor {
                 param_tok,
                 is_reference,
             } => {
+                let event_name = self.format_event_type_name(&self.current_message);
                 self.add_code(&format!(
-                    "{}{}.{}.as_ref().unwrap().{}().unwrap()",
+                    "{}{}.{}.{}().{}",
                     if *is_reference { "&" } else { "" },
                     self.config.frame_event_variable_name,
-                    self.config.frame_event_parameters_attribute_name,
-                    self.format_event_param_getter(&self.current_message, &param_tok.lexeme)
+                    self.config.frame_event_args_attribute_name,
+                    self.format_args_method_name(&event_name),
+                    self.format_value_name(&param_tok.lexeme)
                 ));
             }
             FrameEventPart::Return { is_reference } => {
                 self.add_code(&format!(
-                    "{}{}.{}.{}().unwrap()",
+                    "{}{}.{}.{}()",
                     if *is_reference { "&" } else { "" },
                     self.config.frame_event_variable_name,
                     self.config.frame_event_return_attribute_name,
-                    self.format_event_param_getter(&self.current_message, "ret")
+                    self.format_param_getter(&self.current_message, "ret")
                 ));
                 // self.add_code(&format!("{}{}.{}"
                 //                         ,if *is_reference {"&"} else {""}
@@ -4286,20 +4166,22 @@ impl AstVisitor for RustVisitor {
                 param_tok,
                 is_reference,
             } => {
+                let event_name = self.format_event_type_name(&self.current_message);
                 output.push_str(&format!(
-                    "{}{}.{}.as_ref().unwrap().{}().unwrap()",
+                    "{}{}.{}.{}().{}",
                     if *is_reference { "&" } else { "" },
                     self.config.frame_event_variable_name,
-                    self.config.frame_event_parameters_attribute_name,
-                    self.format_event_param_getter(&self.current_message, &param_tok.lexeme)
+                    self.config.frame_event_args_attribute_name,
+                    self.format_args_method_name(&event_name),
+                    self.format_value_name(&param_tok.lexeme)
                 ));
             }
             FrameEventPart::Return { is_reference } => output.push_str(&format!(
-                "{}{}.{}.{}().unwrap()",
+                "{}{}.{}.{}()",
                 if *is_reference { "&" } else { "" },
                 self.config.frame_event_variable_name,
                 self.config.frame_event_return_attribute_name,
-                self.format_event_param_getter(&self.current_message, "ret")
+                self.format_param_getter(&self.current_message, "ret")
             )),
         }
 
