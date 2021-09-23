@@ -3,26 +3,7 @@
 
 use crate::environment::{Environment, EMPTY};
 use crate::state::State;
-
-/// Was the transition a standard transition or a change-state transition,
-/// which bypasses enter/exit events?
-pub enum TransitionKind {
-    ChangeState,
-    Transition,
-}
-
-/// Information about a transition or change-state operation, passed to
-/// callbacks that are registered to monitor
-pub struct TransitionInfo<'a> {
-    /// What kind of transition occurred?
-    kind: TransitionKind,
-    /// The state before the transition.
-    old_state: &'a dyn State,
-    /// The state after the transition.
-    new_state: &'a dyn State,
-    /// Arguments to the exit handler of the old state.
-    exit_arguments: &'a dyn Environment,
-}
+use crate::transition::{TransitionInfo, TransitionKind};
 
 /// Callback manager.
 pub struct CallbackManager {
@@ -42,13 +23,14 @@ impl CallbackManager {
             old_state,
             new_state,
             exit_arguments: EMPTY,
+            enter_arguments: EMPTY,
         };
         self.call_transition_callbacks(&info);
     }
 
     /// Invoke all the transition callbacks for a standard transition.
     pub fn transition(&mut self, old_state: &dyn State, new_state: &dyn State) {
-        self.transition_with_args(old_state, new_state, EMPTY);
+        self.transition_with_args(old_state, new_state, EMPTY, EMPTY);
     }
 
     /// Invoke all the transition callbacks for a transition with enter/exit
@@ -58,12 +40,14 @@ impl CallbackManager {
         old_state: &dyn State,
         new_state: &dyn State,
         exit_arguments: &dyn Environment,
+        enter_arguments: &dyn Environment,
     ) {
         let info = TransitionInfo {
             kind: TransitionKind::Transition,
             old_state,
             new_state,
             exit_arguments,
+            enter_arguments,
         };
         self.call_transition_callbacks(&info);
     }

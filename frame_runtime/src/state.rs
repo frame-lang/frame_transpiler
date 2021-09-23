@@ -7,12 +7,12 @@ use crate::environment::Environment;
 pub trait State {
     /// The name of this state.
     fn name(&self) -> &'static str;
-    /// Arguments to the enter handler when this state was entered.
+
+    /// Arguments passed to the state on transition.
     fn state_arguments(&self) -> &dyn Environment;
-    /// Arguments to the enter handler when this state was entered.
+
+    /// Variables associated with this state.
     fn state_variables(&self) -> &dyn Environment;
-    /// Arguments to the enter handler when this state was entered.
-    fn enter_arguments(&self) -> &dyn Environment;
 }
 
 #[cfg(test)]
@@ -36,9 +36,6 @@ mod tests {
             EMPTY
         }
         fn state_variables(&self) -> &dyn Environment {
-            EMPTY
-        }
-        fn enter_arguments(&self) -> &dyn Environment {
             EMPTY
         }
     }

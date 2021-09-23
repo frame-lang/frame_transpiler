@@ -11,3 +11,4 @@ pub mod callback;
 pub mod environment;
 pub mod machine;
 pub mod state;
+pub mod transition;
