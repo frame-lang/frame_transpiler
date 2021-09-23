@@ -52,9 +52,6 @@ mod tests {
     }
 
     impl Environment for TestArgs {
-        fn is_empty(&self) -> bool {
-            false
-        }
         fn lookup(&self, name: &str) -> Option<&dyn Any> {
             match name {
                 "x" => Some(&self.x),

@@ -6,13 +6,20 @@ use crate::state::State;
 use crate::transition::{TransitionInfo, TransitionKind};
 
 /// Callback manager.
-pub struct CallbackManager {
-    transition_callbacks: Vec<Box<dyn FnMut(&TransitionInfo)>>,
+pub struct CallbackManager<'a> {
+    transition_callbacks: Vec<Box<dyn FnMut(&TransitionInfo) + 'a>>,
 }
 
-impl CallbackManager {
+impl<'a> CallbackManager<'a> {
+    /// Create a new callback manager.
+    pub fn new() -> CallbackManager<'a> {
+        CallbackManager {
+            transition_callbacks: Vec::new(),
+        }
+    }
+
     /// Register a callback to be called on each transition.
-    pub fn add_transition_callback(&mut self, callback: impl FnMut(&TransitionInfo) + 'static) {
+    pub fn add_transition_callback(&mut self, callback: impl FnMut(&TransitionInfo) + 'a) {
         self.transition_callbacks.push(Box::new(callback));
     }
 
@@ -57,5 +64,57 @@ impl CallbackManager {
         for c in &mut self.transition_callbacks {
             (**c)(info);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    enum TestState {
+        A,
+        B,
+    }
+
+    impl State for TestState {
+        fn name(&self) -> &'static str {
+            match self {
+                TestState::A => "A",
+                TestState::B => "B",
+            }
+        }
+        fn state_arguments(&self) -> &dyn Environment {
+            EMPTY
+        }
+        fn state_variables(&self) -> &dyn Environment {
+            EMPTY
+        }
+    }
+
+    #[test]
+    fn callbacks_are_called() {
+        let tape: Vec<String> = Vec::new();
+        let tape_rc = Rc::new(RefCell::new(tape));
+        let mut cm = CallbackManager::new();
+        cm.add_transition_callback(|i| {
+            tape_rc
+                .borrow_mut()
+                .push(format!("old: {}", i.old_state.name()))
+        });
+        cm.add_transition_callback(|i| {
+            tape_rc
+                .borrow_mut()
+                .push(format!("new: {}", i.new_state.name()))
+        });
+
+        cm.transition(&TestState::A, &TestState::B);
+        assert_eq!(*tape_rc.borrow(), vec!["old: A", "new: B"]);
+        tape_rc.borrow_mut().clear();
+
+        cm.change_state(&TestState::B, &TestState::A);
+        assert_eq!(*tape_rc.borrow(), vec!["old: B", "new: A"]);
     }
 }
