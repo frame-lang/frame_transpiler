@@ -17,20 +17,21 @@
 //!         |>| [init:i32]
 //!             x = init ^
 //!
-//!         |<| [last:i32] ^
+//!         |<| [done:i32] ^
 //!
 //!         |inc| [arg:i32]
 //!             x = x + arg
 //!             ^(x)
 //!
 //!         |next|
-//!             (x) -> (3) $Bar ^
+//!             #.x = #.x + x
+//!             (x) -> (3) $Bar (4) ^
 //!
-//!     $Bar
+//!     $Bar [tilt:i32]
 //!         var y:i32 = 0
 //!
 //!         |>| [start:i32]
-//!             y = start ^
+//!             y = start + tilt ^
 //!
 //!         |<| [end:i32] ^
 //!
@@ -39,7 +40,12 @@
 //!             ^(y)
 //!
 //!         |next|
-//!             (y) -> (4) $Foo ^
+//!             #.y = #.y + y
+//!             (y) -> (5) $Foo ^
+//!     -actions-
+//!     -domain-
+//!     var x:i32 = 0
+//!     var y:i32 = 0
 //! ##
 //! ```
 
@@ -118,32 +124,6 @@ impl Environment for IncArgs {
     }
 }
 
-struct BarEnterArgs {
-    start: i32,
-}
-
-impl Environment for BarEnterArgs {
-    fn lookup(&self, name: &str) -> Option<&dyn Any> {
-        match name {
-            "start" => Some(&self.start),
-            _ => None,
-        }
-    }
-}
-
-struct FooExitArgs {
-    last: i32,
-}
-
-impl Environment for FooExitArgs {
-    fn lookup(&self, name: &str) -> Option<&dyn Any> {
-        match name {
-            "last" => Some(&self.last),
-            _ => None,
-        }
-    }
-}
-
 struct FooEnterArgs {
     init: i32,
 }
@@ -152,6 +132,32 @@ impl Environment for FooEnterArgs {
     fn lookup(&self, name: &str) -> Option<&dyn Any> {
         match name {
             "init" => Some(&self.init),
+            _ => None,
+        }
+    }
+}
+
+struct FooExitArgs {
+    done: i32,
+}
+
+impl Environment for FooExitArgs {
+    fn lookup(&self, name: &str) -> Option<&dyn Any> {
+        match name {
+            "done" => Some(&self.done),
+            _ => None,
+        }
+    }
+}
+
+struct BarEnterArgs {
+    start: i32,
+}
+
+impl Environment for BarEnterArgs {
+    fn lookup(&self, name: &str) -> Option<&dyn Any> {
+        match name {
+            "start" => Some(&self.start),
             _ => None,
         }
     }
@@ -172,31 +178,24 @@ impl Environment for BarExitArgs {
 
 enum FrameEventArgs {
     None,
-    BarExit(BarExitArgs),
     Inc(IncArgs),
-    BarEnter(BarEnterArgs),
-    FooExit(FooExitArgs),
     FooEnter(FooEnterArgs),
+    FooExit(FooExitArgs),
+    BarEnter(BarEnterArgs),
+    BarExit(BarExitArgs),
 }
 
 impl FrameEventArgs {
-    #[allow(dead_code)]
-    fn bar_exit_args(&self) -> &BarExitArgs {
-        match self {
-            FrameEventArgs::BarExit(args) => args,
-            _ => panic!("Failed conversion to BarExitArgs"),
-        }
-    }
     fn inc_args(&self) -> &IncArgs {
         match self {
             FrameEventArgs::Inc(args) => args,
             _ => panic!("Failed conversion to IncArgs"),
         }
     }
-    fn bar_enter_args(&self) -> &BarEnterArgs {
+    fn foo_enter_args(&self) -> &FooEnterArgs {
         match self {
-            FrameEventArgs::BarEnter(args) => args,
-            _ => panic!("Failed conversion to BarEnterArgs"),
+            FrameEventArgs::FooEnter(args) => args,
+            _ => panic!("Failed conversion to FooEnterArgs"),
         }
     }
     #[allow(dead_code)]
@@ -206,10 +205,17 @@ impl FrameEventArgs {
             _ => panic!("Failed conversion to FooExitArgs"),
         }
     }
-    fn foo_enter_args(&self) -> &FooEnterArgs {
+    fn bar_enter_args(&self) -> &BarEnterArgs {
         match self {
-            FrameEventArgs::FooEnter(args) => args,
-            _ => panic!("Failed conversion to FooEnterArgs"),
+            FrameEventArgs::BarEnter(args) => args,
+            _ => panic!("Failed conversion to BarEnterArgs"),
+        }
+    }
+    #[allow(dead_code)]
+    fn bar_exit_args(&self) -> &BarExitArgs {
+        match self {
+            FrameEventArgs::BarExit(args) => args,
+            _ => panic!("Failed conversion to BarExitArgs"),
         }
     }
 }
@@ -257,6 +263,19 @@ impl State for FooStateContext {
     }
 }
 
+struct BarStateArgs {
+    tilt: i32,
+}
+
+impl Environment for BarStateArgs {
+    fn lookup(&self, name: &str) -> Option<&dyn Any> {
+        match name {
+            "tilt" => Some(&self.tilt),
+            _ => None,
+        }
+    }
+}
+
 struct BarStateVars {
     y: i32,
 }
@@ -271,6 +290,7 @@ impl Environment for BarStateVars {
 }
 
 struct BarStateContext {
+    state_args: BarStateArgs,
     state_vars: BarStateVars,
 }
 
@@ -279,7 +299,7 @@ impl State for BarStateContext {
         "Bar"
     }
     fn state_arguments(&self) -> &dyn Environment {
-        EMPTY
+        &self.state_args
     }
     fn state_variables(&self) -> &dyn Environment {
         &self.state_vars
@@ -316,11 +336,15 @@ impl StateContext {
 pub struct Demo {
     state: DemoState,
     state_context: Rc<StateContext>,
+    x: i32,
+    y: i32,
 }
 
 impl Environment for Demo {
     fn lookup(&self, name: &str) -> Option<&dyn Any> {
         match name {
+            "x" => Some(&self.x),
+            "y" => Some(&self.y),
             _ => None,
         }
     }
@@ -332,6 +356,8 @@ impl Demo {
         let next_state_context = Rc::new(StateContext::Init(RefCell::new(context)));
         let mut machine = Demo {
             state: DemoState::Init,
+            x: 0,
+            y: 0,
             state_context: next_state_context,
         };
         machine.initialize();
@@ -399,12 +425,14 @@ impl Demo {
                 return;
             }
             FrameMessage::Next => {
+                self.x = self.x + this_state_context.state_vars.x;
                 // Start transition
                 let exit_args = FrameEventArgs::FooExit(FooExitArgs {
-                    last: this_state_context.state_vars.x,
+                    done: this_state_context.state_vars.x,
                 });
                 let enter_args = FrameEventArgs::BarEnter(BarEnterArgs { start: 3 });
                 let context = BarStateContext {
+                    state_args: BarStateArgs { tilt: 4 },
                     state_vars: BarStateVars { y: 0 },
                 };
                 let next_state_context = Rc::new(StateContext::Bar(RefCell::new(context)));
@@ -420,7 +448,8 @@ impl Demo {
         let mut this_state_context = state_context_clone.bar_context().borrow_mut();
         match frame_event.message {
             FrameMessage::Enter => {
-                this_state_context.state_vars.y = frame_event.arguments.bar_enter_args().start;
+                this_state_context.state_vars.y = frame_event.arguments.bar_enter_args().start
+                    + this_state_context.state_args.tilt;
                 return;
             }
             FrameMessage::Exit => {
@@ -435,11 +464,12 @@ impl Demo {
                 return;
             }
             FrameMessage::Next => {
+                self.y = self.y + this_state_context.state_vars.y;
                 // Start transition
                 let exit_args = FrameEventArgs::BarExit(BarExitArgs {
                     end: this_state_context.state_vars.y,
                 });
-                let enter_args = FrameEventArgs::FooEnter(FooEnterArgs { init: 4 });
+                let enter_args = FrameEventArgs::FooEnter(FooEnterArgs { init: 5 });
                 let context = FooStateContext {
                     state_vars: FooStateVars { x: 0 },
                 };
