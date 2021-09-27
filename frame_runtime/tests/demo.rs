@@ -374,15 +374,15 @@ impl<'a> Environment for Demo<'a> {
     }
 }
 
-impl<'a> StateMachine for Demo<'a> {
+impl<'a> StateMachine<'a> for Demo<'a> {
     fn current_state(&self) -> Ref<dyn State> {
         self.state_context.as_ref().as_runtime_state()
     }
     fn domain_variables(&self) -> &dyn Environment {
         self
     }
-    fn callback_manager(&self) -> &CallbackManager {
-        &self.callback_manager
+    fn callback_manager(&mut self) -> &mut CallbackManager<'a> {
+        &mut self.callback_manager
     }
 }
 
@@ -649,4 +649,35 @@ fn state_arguments() {
     assert_eq!(4, lookup_i32(sm.current_state().state_arguments(), "tilt"));
     sm.next();
     assert!(sm.current_state().state_arguments().lookup("tilt").is_none());
+}
+
+#[test]
+#[rustfmt::skip]
+fn transition_callbacks() {
+    let tape: Vec<String> = Vec::new();
+    let tape_rc = RefCell::new(tape);
+    let mut sm = Demo::new();
+    sm.callback_manager().add_transition_callback(|i| {
+        tape_rc
+            .borrow_mut()
+            .push(format!("kind: {:?}", i.kind))
+    });
+    sm.callback_manager().add_transition_callback(|i| {
+        tape_rc
+            .borrow_mut()
+            .push(format!("old: {}", i.old_state.name()))
+    });
+    sm.callback_manager().add_transition_callback(|i| {
+        tape_rc
+            .borrow_mut()
+            .push(format!("new: {}", i.new_state.name()))
+    });
+    sm.next();
+    assert_eq!(*tape_rc.borrow(), vec!["kind: Transition", "old: Foo", "new: Bar"]);
+    tape_rc.borrow_mut().clear();
+    sm.next();
+    assert_eq!(*tape_rc.borrow(), vec!["kind: ChangeState", "old: Bar", "new: Foo"]);
+    tape_rc.borrow_mut().clear();
+    sm.next();
+    assert_eq!(*tape_rc.borrow(), vec!["kind: Transition", "old: Foo", "new: Bar"]);
 }

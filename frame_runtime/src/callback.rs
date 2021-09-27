@@ -68,7 +68,6 @@ mod tests {
     use super::*;
 
     use std::cell::RefCell;
-    use std::rc::Rc;
 
     enum TestState {
         A,
@@ -93,7 +92,7 @@ mod tests {
     #[test]
     fn callbacks_are_called() {
         let tape: Vec<String> = Vec::new();
-        let tape_rc = Rc::new(RefCell::new(tape));
+        let tape_rc = RefCell::new(tape);
         let mut cm = CallbackManager::new();
         cm.add_transition_callback(|i| {
             tape_rc

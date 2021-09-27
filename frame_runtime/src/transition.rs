@@ -7,6 +7,7 @@ use std::cell::Ref;
 
 /// Was this a standard transition or a change-state transition, which bypasses
 /// enter/exit events?
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub enum TransitionKind {
     ChangeState,
     Transition,
