@@ -49,10 +49,12 @@
 //! ##
 //! ```
 
+use frame_runtime::callback::CallbackManager;
 use frame_runtime::environment::{Environment, EMPTY};
+use frame_runtime::machine::StateMachine;
 use frame_runtime::state::State;
 use std::any::Any;
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell};
 use std::rc::Rc;
 
 enum FrameMessage {
@@ -88,14 +90,14 @@ impl FrameEventReturn {
     }
 }
 
-pub struct FrameEvent {
+pub struct FrameEvent<'a> {
     message: FrameMessage,
-    arguments: FrameEventArgs,
+    arguments: &'a FrameEventArgs,
     ret: FrameEventReturn,
 }
 
-impl FrameEvent {
-    fn new(message: FrameMessage, arguments: FrameEventArgs) -> FrameEvent {
+impl<'a> FrameEvent<'a> {
+    fn new(message: FrameMessage, arguments: &'a FrameEventArgs) -> FrameEvent<'a> {
         FrameEvent {
             message,
             arguments,
@@ -176,6 +178,7 @@ impl Environment for BarExitArgs {
     }
 }
 
+#[allow(dead_code)]
 enum FrameEventArgs {
     None,
     Inc(IncArgs),
@@ -183,6 +186,19 @@ enum FrameEventArgs {
     FooExit(FooExitArgs),
     BarEnter(BarEnterArgs),
     BarExit(BarExitArgs),
+}
+
+impl Environment for FrameEventArgs {
+    fn lookup(&self, name: &str) -> Option<&dyn Any> {
+        match self {
+            FrameEventArgs::None => EMPTY.lookup(name),
+            FrameEventArgs::Inc(args) => args.lookup(name),
+            FrameEventArgs::FooEnter(args) => args.lookup(name),
+            FrameEventArgs::FooExit(args) => args.lookup(name),
+            FrameEventArgs::BarEnter(args) => args.lookup(name),
+            FrameEventArgs::BarExit(args) => args.lookup(name),
+        }
+    }
 }
 
 impl FrameEventArgs {
@@ -313,6 +329,13 @@ enum StateContext {
 }
 
 impl StateContext {
+    fn as_runtime_state(&self) -> Ref<dyn State> {
+        match self {
+            StateContext::Init(context) => Ref::map(context.borrow(), |c| c as &dyn State),
+            StateContext::Foo(context) => Ref::map(context.borrow(), |c| c as &dyn State),
+            StateContext::Bar(context) => Ref::map(context.borrow(), |c| c as &dyn State),
+        }
+    }
     fn init_context(&self) -> &RefCell<InitStateContext> {
         match self {
             StateContext::Init(context) => context,
@@ -333,14 +356,15 @@ impl StateContext {
     }
 }
 
-pub struct Demo {
+pub struct Demo<'a> {
     state: DemoState,
     state_context: Rc<StateContext>,
+    callback_manager: CallbackManager<'a>,
     x: i32,
     y: i32,
 }
 
-impl Environment for Demo {
+impl<'a> Environment for Demo<'a> {
     fn lookup(&self, name: &str) -> Option<&dyn Any> {
         match name {
             "x" => Some(&self.x),
@@ -350,28 +374,41 @@ impl Environment for Demo {
     }
 }
 
-impl Demo {
-    pub fn new() -> Demo {
+impl<'a> StateMachine for Demo<'a> {
+    fn current_state(&self) -> Ref<dyn State> {
+        self.state_context.as_ref().as_runtime_state()
+    }
+    fn domain_variables(&self) -> &dyn Environment {
+        self
+    }
+    fn callback_manager(&self) -> &CallbackManager {
+        &self.callback_manager
+    }
+}
+
+impl<'a> Demo<'a> {
+    pub fn new() -> Demo<'a> {
         let context = InitStateContext {};
         let next_state_context = Rc::new(StateContext::Init(RefCell::new(context)));
         let mut machine = Demo {
             state: DemoState::Init,
+            state_context: next_state_context,
+            callback_manager: CallbackManager::new(),
             x: 0,
             y: 0,
-            state_context: next_state_context,
         };
         machine.initialize();
         machine
     }
 
     pub fn initialize(&mut self) {
-        let mut e = FrameEvent::new(FrameMessage::Enter, FrameEventArgs::None);
+        let mut e = FrameEvent::new(FrameMessage::Enter, &FrameEventArgs::None);
         self.handle_event(&mut e);
     }
 
     pub fn inc(&mut self, arg: i32) -> i32 {
         let frame_args = FrameEventArgs::Inc(IncArgs { arg });
-        let mut frame_event = FrameEvent::new(FrameMessage::Inc, frame_args);
+        let mut frame_event = FrameEvent::new(FrameMessage::Inc, &frame_args);
         self.handle_event(&mut frame_event);
         match frame_event.ret {
             FrameEventReturn::Inc { return_value } => return_value.clone(),
@@ -381,7 +418,7 @@ impl Demo {
 
     pub fn next(&mut self) {
         let frame_args = FrameEventArgs::None;
-        let mut frame_event = FrameEvent::new(FrameMessage::Next, frame_args);
+        let mut frame_event = FrameEvent::new(FrameMessage::Next, &frame_args);
         self.handle_event(&mut frame_event);
     }
 
@@ -492,16 +529,40 @@ impl Demo {
         new_state: DemoState,
         new_state_context: Rc<StateContext>,
     ) {
-        let mut exit_event = FrameEvent::new(FrameMessage::Exit, exit_args);
+        // exit event for old state
+        let mut exit_event = FrameEvent::new(FrameMessage::Exit, &exit_args);
         self.handle_event(&mut exit_event);
+
+        // update state
+        let old_state_context = Rc::clone(&self.state_context);
+        let old_runtime_state = old_state_context.as_ref().as_runtime_state();
         self.state = new_state;
         self.state_context = Rc::clone(&new_state_context);
-        let mut enter_event = FrameEvent::new(FrameMessage::Enter, enter_args);
+        let new_runtime_state = new_state_context.as_runtime_state();
+
+        // call transition callbacks
+        self.callback_manager.transition(
+            old_runtime_state,
+            new_runtime_state,
+            &exit_args,
+            &enter_args,
+        );
+
+        // enter event for new state
+        let mut enter_event = FrameEvent::new(FrameMessage::Enter, &enter_args);
         self.handle_event(&mut enter_event);
     }
-    
+
     fn change_state(&mut self, new_state: DemoState, new_state_context: Rc<StateContext>) {
+        // update state
+        let old_state_context = Rc::clone(&self.state_context);
+        let old_runtime_state = old_state_context.as_ref().as_runtime_state();
         self.state = new_state;
         self.state_context = Rc::clone(&new_state_context);
+        let new_runtime_state = new_state_context.as_runtime_state();
+
+        // call change-state callbacks
+        self.callback_manager
+            .change_state(old_runtime_state, new_runtime_state);
     }
 }

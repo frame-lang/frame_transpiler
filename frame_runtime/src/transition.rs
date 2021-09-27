@@ -3,6 +3,7 @@
 
 use crate::environment::Environment;
 use crate::state::State;
+use std::cell::Ref;
 
 /// Was this a standard transition or a change-state transition, which bypasses
 /// enter/exit events?
@@ -17,10 +18,10 @@ pub struct TransitionInfo<'a> {
     pub kind: TransitionKind,
 
     /// The state before the transition.
-    pub old_state: &'a dyn State,
+    pub old_state: Ref<'a, dyn State>,
 
     /// The state after the transition.
-    pub new_state: &'a dyn State,
+    pub new_state: Ref<'a, dyn State>,
 
     /// Arguments to the exit handler of the old state.
     pub exit_arguments: &'a dyn Environment,

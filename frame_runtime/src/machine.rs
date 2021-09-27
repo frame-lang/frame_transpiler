@@ -3,13 +3,14 @@
 use crate::callback::CallbackManager;
 use crate::environment::Environment;
 use crate::state::State;
+use std::cell::Ref;
 
 /// An interface to a running state machine that supports inspecting its
 /// current state and variables, and registering callbacks to be notified of
 /// various events.
 pub trait StateMachine {
     /// The current state of this machine.
-    fn current_state(&self) -> &dyn State;
+    fn current_state(&self) -> Ref<dyn State>;
 
     /// The domain variables associated with this machine.
     fn domain_variables(&self) -> &dyn Environment;

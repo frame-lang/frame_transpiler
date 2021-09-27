@@ -4,6 +4,7 @@
 use crate::environment::{Environment, EMPTY};
 use crate::state::State;
 use crate::transition::{TransitionInfo, TransitionKind};
+use std::cell::Ref;
 
 /// Callback manager.
 pub struct CallbackManager<'a> {
@@ -24,7 +25,7 @@ impl<'a> CallbackManager<'a> {
     }
 
     /// Invoke all the transition callbacks for a change-state transition.
-    pub fn change_state(&mut self, old_state: &dyn State, new_state: &dyn State) {
+    pub fn change_state(&mut self, old_state: Ref<dyn State>, new_state: Ref<dyn State>) {
         let info = TransitionInfo {
             kind: TransitionKind::ChangeState,
             old_state,
@@ -35,17 +36,12 @@ impl<'a> CallbackManager<'a> {
         self.call_transition_callbacks(&info);
     }
 
-    /// Invoke all the transition callbacks for a standard transition.
-    pub fn transition(&mut self, old_state: &dyn State, new_state: &dyn State) {
-        self.transition_with_args(old_state, new_state, EMPTY, EMPTY);
-    }
-
     /// Invoke all the transition callbacks for a transition with enter/exit
     /// arguments.
-    pub fn transition_with_args(
+    pub fn transition(
         &mut self,
-        old_state: &dyn State,
-        new_state: &dyn State,
+        old_state: Ref<dyn State>,
+        new_state: Ref<dyn State>,
         exit_arguments: &dyn Environment,
         enter_arguments: &dyn Environment,
     ) {
@@ -110,11 +106,13 @@ mod tests {
                 .push(format!("new: {}", i.new_state.name()))
         });
 
-        cm.transition(&TestState::A, &TestState::B);
+        let a_rc = RefCell::new(TestState::A);
+        let b_rc = RefCell::new(TestState::B);
+        cm.transition(a_rc.borrow(), b_rc.borrow(), EMPTY, EMPTY);
         assert_eq!(*tape_rc.borrow(), vec!["old: A", "new: B"]);
         tape_rc.borrow_mut().clear();
 
-        cm.change_state(&TestState::B, &TestState::A);
+        cm.change_state(b_rc.borrow(), a_rc.borrow());
         assert_eq!(*tape_rc.borrow(), vec!["old: B", "new: A"]);
     }
 }
