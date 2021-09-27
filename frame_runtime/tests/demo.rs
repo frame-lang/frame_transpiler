@@ -41,7 +41,7 @@
 //!
 //!         |next|
 //!             #.y = #.y + y
-//!             (y) -> (5) $Foo ^
+//!             ->> $Foo ^
 //!     -actions-
 //!     -domain-
 //!     var x:i32 = 0
@@ -465,17 +465,13 @@ impl Demo {
             }
             FrameMessage::Next => {
                 self.y = self.y + this_state_context.state_vars.y;
-                // Start transition
-                let exit_args = FrameEventArgs::BarExit(BarExitArgs {
-                    end: this_state_context.state_vars.y,
-                });
-                let enter_args = FrameEventArgs::FooEnter(FooEnterArgs { init: 5 });
+                // Start change state
                 let context = FooStateContext {
                     state_vars: FooStateVars { x: 0 },
                 };
                 let next_state_context = Rc::new(StateContext::Foo(RefCell::new(context)));
                 drop(this_state_context);
-                self.transition(exit_args, enter_args, DemoState::Foo, next_state_context);
+                self.change_state(DemoState::Foo, next_state_context);
                 return;
             }
         }
@@ -502,5 +498,10 @@ impl Demo {
         self.state_context = Rc::clone(&new_state_context);
         let mut enter_event = FrameEvent::new(FrameMessage::Enter, enter_args);
         self.handle_event(&mut enter_event);
+    }
+    
+    fn change_state(&mut self, new_state: DemoState, new_state_context: Rc<StateContext>) {
+        self.state = new_state;
+        self.state_context = Rc::clone(&new_state_context);
     }
 }
