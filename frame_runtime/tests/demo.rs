@@ -566,3 +566,87 @@ impl<'a> Demo<'a> {
             .change_state(old_runtime_state, new_runtime_state);
     }
 }
+
+// Begin testing code
+
+/// Helper function to lookup an `i32` value in an environment.
+fn lookup_i32(env: &(impl Environment + ?Sized), name: &str) -> i32 {
+    *env.lookup(name).unwrap().downcast_ref().unwrap()
+}
+
+#[test]
+fn current_state() {
+    let mut sm = Demo::new();
+    assert_eq!("Foo", sm.current_state().name());
+    sm.inc(3);
+    assert_eq!("Foo", sm.current_state().name());
+    sm.next();
+    assert_eq!("Bar", sm.current_state().name());
+    sm.inc(4);
+    assert_eq!("Bar", sm.current_state().name());
+    sm.next();
+    assert_eq!("Foo", sm.current_state().name());
+}
+
+#[test]
+fn domain_variables() {
+    let mut sm = Demo::new();
+    assert_eq!(0, lookup_i32(sm.domain_variables(), "x"));
+    assert_eq!(0, lookup_i32(sm.domain_variables(), "y"));
+    assert!(sm.domain_variables().lookup("z").is_none());
+    assert!(sm.domain_variables().lookup("arg").is_none());
+    assert!(sm.domain_variables().lookup("inc").is_none());
+    sm.inc(3);
+    sm.inc(4);
+    assert_eq!(0, lookup_i32(sm.domain_variables(), "x"));
+    assert_eq!(0, lookup_i32(sm.domain_variables(), "y"));
+    sm.next();
+    assert_eq!(9, lookup_i32(sm.domain_variables(), "x"));
+    assert_eq!(0, lookup_i32(sm.domain_variables(), "y"));
+    sm.inc(5);
+    sm.inc(6);
+    assert_eq!(9, lookup_i32(sm.domain_variables(), "x"));
+    assert_eq!(0, lookup_i32(sm.domain_variables(), "y"));
+    sm.next();
+    assert_eq!(9, lookup_i32(sm.domain_variables(), "x"));
+    assert_eq!(18, lookup_i32(sm.domain_variables(), "y"));
+    sm.inc(7);
+    sm.next();
+    assert_eq!(16, lookup_i32(sm.domain_variables(), "x"));
+    assert_eq!(18, lookup_i32(sm.domain_variables(), "y"));
+}
+
+#[test]
+fn state_variables() {
+    let mut sm = Demo::new();
+    assert_eq!(2, lookup_i32(sm.current_state().state_variables(), "x"));
+    assert!(sm.current_state().state_variables().lookup("y").is_none());
+    sm.inc(3);
+    sm.inc(4);
+    assert_eq!(9, lookup_i32(sm.current_state().state_variables(), "x"));
+    sm.next();
+    assert_eq!(7, lookup_i32(sm.current_state().state_variables(), "y"));
+    assert!(sm.current_state().state_variables().lookup("x").is_none());
+    sm.inc(5);
+    sm.inc(6);
+    assert_eq!(18, lookup_i32(sm.current_state().state_variables(), "y"));
+    sm.next();
+    assert_eq!(0, lookup_i32(sm.current_state().state_variables(), "x"));
+    sm.inc(7);
+    assert_eq!(7, lookup_i32(sm.current_state().state_variables(), "x"));
+}
+
+#[test]
+#[rustfmt::skip]
+fn state_arguments() {
+    let mut sm = Demo::new();
+    assert!(sm.current_state().state_arguments().lookup("x").is_none());
+    assert!(sm.current_state().state_arguments().lookup("y").is_none());
+    assert!(sm.current_state().state_arguments().lookup("tilt").is_none());
+    sm.next();
+    assert!(sm.current_state().state_arguments().lookup("x").is_none());
+    assert!(sm.current_state().state_arguments().lookup("y").is_none());
+    assert_eq!(4, lookup_i32(sm.current_state().state_arguments(), "tilt"));
+    sm.next();
+    assert!(sm.current_state().state_arguments().lookup("tilt").is_none());
+}
