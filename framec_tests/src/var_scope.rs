@@ -16,7 +16,7 @@ type Log = Vec<String>;
 include!(concat!(env!("OUT_DIR"), "/", "var_scope.rs"));
 
 #[allow(dead_code)]
-impl VarScope {
+impl<'a> VarScope<'a> {
     pub fn log(&mut self, s: String) {
         self.tape.push(s);
     }

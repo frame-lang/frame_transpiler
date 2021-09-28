@@ -1,7 +1,7 @@
 type Log = Vec<String>;
 include!(concat!(env!("OUT_DIR"), "/", "basic.rs"));
 
-impl Basic {
+impl<'a> Basic<'a> {
     pub fn entered(&mut self, state: String) {
         self.entry_log.push(state);
     }

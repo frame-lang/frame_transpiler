@@ -1,7 +1,7 @@
 type Log = Vec<String>;
 include!(concat!(env!("OUT_DIR"), "/", "state_params.rs"));
 
-impl StateParams {
+impl<'a> StateParams<'a> {
     pub fn got_param(&mut self, name: String, val: u32) {
         self.param_log.push(format!("{}={}", name, val));
     }

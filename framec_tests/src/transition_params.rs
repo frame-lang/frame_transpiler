@@ -4,7 +4,7 @@
 type Log = Vec<String>;
 include!(concat!(env!("OUT_DIR"), "/", "transition_params.rs"));
 
-impl TransitParams {
+impl<'a> TransitParams<'a> {
     pub fn log(&mut self, msg: String) {
         self.tape.push(format!("{}", msg));
     }

@@ -3,7 +3,7 @@
 type Log = Vec<String>;
 include!(concat!(env!("OUT_DIR"), "/", "branch.rs"));
 
-impl Branch {
+impl<'a> Branch<'a> {
     pub fn log(&mut self, msg: String) {
         self.tape.push(msg);
     }

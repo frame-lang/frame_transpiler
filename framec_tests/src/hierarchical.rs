@@ -3,7 +3,7 @@
 type Log = Vec<String>;
 include!(concat!(env!("OUT_DIR"), "/", "hierarchical.rs"));
 
-impl Hierarchical {
+impl<'a> Hierarchical<'a> {
     pub fn enter(&mut self, msg: String) {
         self.enters.push(msg);
     }

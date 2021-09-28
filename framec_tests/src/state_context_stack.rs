@@ -16,7 +16,7 @@
 type Log = Vec<String>;
 include!(concat!(env!("OUT_DIR"), "/", "state_context_stack.rs"));
 
-impl StateContextStack {
+impl<'a> StateContextStack<'a> {
     pub fn log(&mut self, msg: String) {
         self.tape.push(msg);
     }

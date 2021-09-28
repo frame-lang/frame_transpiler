@@ -15,7 +15,7 @@ type Log = Vec<String>;
 include!(concat!(env!("OUT_DIR"), "/", "transition.rs"));
 
 #[allow(dead_code)]
-impl Transition {
+impl<'a> Transition<'a> {
     pub fn enter(&mut self, state: String) {
         self.enters.push(state);
     }

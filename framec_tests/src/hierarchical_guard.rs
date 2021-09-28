@@ -3,7 +3,7 @@
 type Log = Vec<String>;
 include!(concat!(env!("OUT_DIR"), "/", "hierarchical_guard.rs"));
 
-impl HierarchicalGuard {
+impl<'a> HierarchicalGuard<'a> {
     pub fn log(&mut self, msg: String) {
         self.tape.push(msg);
     }

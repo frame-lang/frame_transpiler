@@ -48,4 +48,5 @@ codegen:
       state_stack_var_name: state_stack
       state_stack_push_method_name: state_stack_push
       state_stack_pop_method_name: state_stack_pop
+      state_cell_var_name: state_cell
       callback_manager_var_name: callback_manager
