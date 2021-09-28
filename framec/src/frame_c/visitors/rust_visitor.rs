@@ -1747,7 +1747,6 @@ impl RustVisitor {
 
     /// Generate state stack methods.
     fn generate_state_stack_methods(&mut self) {
-        self.newline();
         self.add_code(&format!(
             "fn {}(&mut self) {{",
             self.config.state_stack_push_method_name
@@ -1803,6 +1802,7 @@ impl RustVisitor {
         self.outdent();
         self.newline();
         self.add_code("}");
+        self.newline();
     }
 
     //* --------------------------------------------------------------------- *//
