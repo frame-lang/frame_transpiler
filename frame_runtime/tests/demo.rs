@@ -570,8 +570,12 @@ impl<'a> Demo<'a> {
 // Begin testing code
 
 /// Helper function to lookup an `i32` value in an environment.
+/// Returns -1 if the lookup fails for any reason.
 fn lookup_i32(env: &(impl Environment + ?Sized), name: &str) -> i32 {
-    *env.lookup(name).unwrap().downcast_ref().unwrap()
+    match env.lookup(name) {
+        None => -1,
+        Some(any) => *any.downcast_ref().unwrap_or(&-1),
+    }
 }
 
 #[test]
@@ -660,17 +664,15 @@ fn transition_callbacks() {
     sm.callback_manager().add_transition_callback(|i| {
         tape_rc
             .borrow_mut()
-            .push(format!("kind: {:?}", i.kind))
+            .push(format!("kind: {:?}", i.kind));
     });
     sm.callback_manager().add_transition_callback(|i| {
         tape_rc
             .borrow_mut()
-            .push(format!("old: {}", i.old_state.name()))
-    });
-    sm.callback_manager().add_transition_callback(|i| {
+            .push(format!("old: {}", i.old_state.name()));
         tape_rc
             .borrow_mut()
-            .push(format!("new: {}", i.new_state.name()))
+            .push(format!("new: {}", i.new_state.name()));
     });
     sm.next();
     assert_eq!(*tape_rc.borrow(), vec!["kind: Transition", "old: Foo", "new: Bar"]);
@@ -680,4 +682,31 @@ fn transition_callbacks() {
     tape_rc.borrow_mut().clear();
     sm.next();
     assert_eq!(*tape_rc.borrow(), vec!["kind: Transition", "old: Foo", "new: Bar"]);
+}
+
+#[test]
+fn enter_exit_arguments() {
+    let tape: Vec<(i32, i32, i32, i32)> = Vec::new();
+    let tape_rc = RefCell::new(tape);
+    let mut sm = Demo::new();
+    sm.callback_manager().add_transition_callback(|i| {
+        let enter = i.enter_arguments;
+        let exit = i.exit_arguments;
+        tape_rc.borrow_mut().push((
+            lookup_i32(enter, "init"),
+            lookup_i32(enter, "start"),
+            lookup_i32(exit, "done"),
+            lookup_i32(exit, "end"),
+        ));
+    });
+    sm.inc(10);
+    sm.next(); // transition done=12, start=3
+    sm.inc(10);
+    sm.next(); // change-state
+    sm.inc(10);
+    sm.next(); // transition done=10, start=3
+    assert_eq!(
+        *tape_rc.borrow(),
+        vec![(-1, 3, 12, -1), (-1, -1, -1, -1), (-1, 3, 10, -1)]
+    );
 }
