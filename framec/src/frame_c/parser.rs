@@ -99,6 +99,7 @@ pub struct Parser<'a> {
     system_hierarchy_opt: Option<SystemHierarchy>,
     is_parsing_rhs: bool,
     event_handler_has_transition: bool,
+    pub generate_enter_args: bool,
     pub generate_exit_args: bool,
     pub generate_state_context: bool,
     pub generate_state_stack: bool,
@@ -130,6 +131,7 @@ impl<'a> Parser<'a> {
             system_hierarchy_opt: None,
             is_parsing_rhs: false,
             event_handler_has_transition: false,
+            generate_enter_args: false,
             generate_exit_args: false,
             generate_state_context: false,
             generate_state_stack: false,
@@ -3388,8 +3390,8 @@ impl<'a> Parser<'a> {
 
         // enterArgs: '(' ')' | '(' expr ')'
         if self.match_token(&vec![LParenTok]) {
-            // need StateContext mechanism
-            self.generate_state_context = true;
+            // need enter args generated
+            self.generate_enter_args = true;
             match self.expr_list() {
                 Ok(Some(ExprListT { expr_list_node })) => enter_args_opt = Some(expr_list_node),
                 Ok(Some(_)) => return Err(ParseError::new("TODO")), // TODO

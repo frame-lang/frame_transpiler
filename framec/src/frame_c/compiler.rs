@@ -142,6 +142,7 @@ impl Exe {
             return Err(run_error);
         }
 
+        let generate_enter_args = semantic_parser.generate_enter_args;
         let generate_exit_args = semantic_parser.generate_exit_args;
         let generate_state_context = semantic_parser.generate_state_context;
         let generate_state_stack = semantic_parser.generate_state_stack;
@@ -160,7 +161,7 @@ impl Exe {
             let mut visitor = JavaScriptVisitor::new(
                 semantic_parser.get_arcanum(),
                 generate_exit_args,
-                generate_state_context,
+                generate_enter_args || generate_state_context,
                 generate_state_stack,
                 generate_change_state,
                 generate_transition_state,
@@ -174,7 +175,7 @@ impl Exe {
                 semantic_parser.get_arcanum(),
                 &config_yaml,
                 generate_exit_args,
-                generate_state_context,
+                generate_enter_args || generate_state_context,
                 generate_state_stack,
                 generate_change_state,
                 generate_transition_state,
@@ -187,7 +188,7 @@ impl Exe {
             let mut visitor = CsVisitorForBob::new(
                 semantic_parser.get_arcanum(),
                 generate_exit_args,
-                generate_state_context,
+                generate_enter_args || generate_state_context,
                 generate_state_stack,
                 generate_change_state,
                 generate_transition_state,
@@ -200,7 +201,7 @@ impl Exe {
             let mut visitor = CsVisitor::new(
                 semantic_parser.get_arcanum(),
                 generate_exit_args,
-                generate_state_context,
+                generate_enter_args || generate_state_context,
                 generate_state_stack,
                 generate_change_state,
                 generate_transition_state,
@@ -213,7 +214,7 @@ impl Exe {
             let mut visitor = GdScript32Visitor::new(
                 semantic_parser.get_arcanum(),
                 generate_exit_args,
-                generate_state_context,
+                generate_enter_args || generate_state_context,
                 generate_state_stack,
                 generate_change_state,
                 generate_transition_state,
@@ -226,7 +227,7 @@ impl Exe {
             let mut visitor = Java8Visitor::new(
                 semantic_parser.get_arcanum(),
                 generate_exit_args,
-                generate_state_context,
+                generate_enter_args || generate_state_context,
                 generate_state_stack,
                 generate_change_state,
                 generate_transition_state,
@@ -239,7 +240,7 @@ impl Exe {
             let mut visitor = PythonVisitor::new(
                 semantic_parser.get_arcanum(),
                 generate_exit_args,
-                generate_state_context,
+                generate_enter_args || generate_state_context,
                 generate_state_stack,
                 generate_change_state,
                 generate_transition_state,
@@ -255,7 +256,7 @@ impl Exe {
             let (x, y) = semantic_parser.get_all();
             let mut visitor = PlantUmlVisitor::new(
                 x,
-                y, //       , _generate_exit_args
+                y,
                 generate_state_context,
                 generate_state_stack,
                 generate_change_state,
@@ -269,6 +270,7 @@ impl Exe {
             let mut visitor = RustVisitor::new(
                 semantic_parser.get_arcanum(),
                 &config_yaml,
+                generate_enter_args,
                 generate_exit_args,
                 generate_state_context,
                 generate_state_stack,

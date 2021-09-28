@@ -273,6 +273,7 @@ pub struct RustVisitor {
     errors: Vec<String>,
     visiting_call_chain_literal_variable: bool,
     this_branch_transitioned: bool,
+    generate_enter_args: bool,
     generate_exit_args: bool,
     generate_state_context: bool,
     generate_state_stack: bool,
@@ -285,6 +286,7 @@ impl RustVisitor {
     pub fn new(
         arcanum: Arcanum,
         config_yaml: &Yaml,
+        generate_enter_args: bool,
         generate_exit_args: bool,
         generate_state_context: bool,
         generate_state_stack: bool,
@@ -314,6 +316,7 @@ impl RustVisitor {
             warnings: Vec::new(),
             visiting_call_chain_literal_variable: false,
             this_branch_transitioned: false,
+            generate_enter_args,
             generate_exit_args,
             generate_state_context,
             generate_state_stack,
@@ -1438,8 +1441,7 @@ impl RustVisitor {
                 self.config.exit_args_member_name, self.config.frame_event_args_type_name
             ));
         }
-        if self.generate_state_context {
-            // TODO generate_enter_args
+        if self.generate_enter_args {
             self.add_code(&format!(
                 "{}: {}, ",
                 self.config.enter_args_member_name, self.config.frame_event_args_type_name
@@ -1493,8 +1495,7 @@ impl RustVisitor {
             ));
         }
         self.newline();
-        let enter_args = if self.generate_state_context {
-            // TODO generate_enter_args
+        let enter_args = if self.generate_enter_args {
             format!("{}", self.config.enter_args_member_name)
         } else {
             format!("{}::None", self.config.frame_event_args_type_name)
@@ -2052,8 +2053,7 @@ impl RustVisitor {
         }
 
         // generate enter arguments
-        if self.generate_state_context {
-            // TODO generate_enter_args
+        if self.generate_enter_args {
             let mut has_enter_args = false;
             let mut enter_args_code = String::new();
             match &transition_stmt.target_state_context_t {
@@ -2125,8 +2125,7 @@ impl RustVisitor {
         if self.generate_exit_args {
             self.add_code(&format!("{}, ", self.config.exit_args_member_name));
         }
-        if self.generate_state_context {
-            // TODO generate_enter_args
+        if self.generate_enter_args {
             self.add_code(&format!("{}, ", self.config.enter_args_member_name));
         }
         self.add_code(&format!(
@@ -2229,9 +2228,8 @@ impl RustVisitor {
             ));
             self.newline();
             self.add_code(&format!(
-                "self.{}({}::None, next_state, next_state_context);",
-                self.config.transition_method_name,
-                self.config.frame_event_args_type_name // TODO generate_enter_args
+                "self.{}(next_state, next_state_context);",
+                self.config.transition_method_name
             ));
         } else {
             self.add_code(&format!(
