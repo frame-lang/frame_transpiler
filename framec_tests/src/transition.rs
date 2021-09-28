@@ -22,24 +22,16 @@ impl<'a> Transition<'a> {
     pub fn exit(&mut self, state: String) {
         self.exits.push(state);
     }
-    pub fn transition_hook(&mut self, old_state: TransitionState, new_state: TransitionState) {
-        let s = format!("{:?}->{:?}", old_state, new_state);
-        self.hooks.push(s);
-    }
-    pub fn change_state_hook(&mut self, old_state: TransitionState, new_state: TransitionState) {
-        let s = format!("{:?}->>{:?}", old_state, new_state);
-        self.hooks.push(s);
-    }
     pub fn clear_all(&mut self) {
         self.enters.clear();
         self.exits.clear();
-        self.hooks.clear();
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use frame_runtime::transition::*;
 
     #[test]
     /// Test that transition works and triggers enter and exit events.
@@ -99,33 +91,55 @@ mod tests {
         assert_eq!(sm.enters, vec!["S4"]);
     }
 
-    #[test]
-    #[ignore]
-    /// Test transition hook method.
-    fn transition_hook() {
-        let mut sm = Transition::new();
-        sm.transit();
-        assert_eq!(sm.hooks, vec!["S0->S1"]);
-        sm.clear_all();
-        sm.transit();
-        assert_eq!(sm.hooks, vec!["S1->S2", "S2->S3"]);
+    /// Function to register as a callback to log transitions.
+    fn log_transits(log: &RefCell<Log>, info: &TransitionInfo) {
+        let old_state = info.old_state.name();
+        let new_state = info.new_state.name();
+        match info.kind {
+            TransitionKind::ChangeState => {
+                log.borrow_mut()
+                    .push(format!("{}->>{}", old_state, new_state));
+            }
+            TransitionKind::Transition => {
+                log.borrow_mut()
+                    .push(format!("{}->{}", old_state, new_state));
+            }
+        }
     }
 
     #[test]
-    #[ignore]
-    /// Test change-state hook method.
-    fn change_state_hook() {
+    /// Test transition callbacks.
+    fn transition_callback() {
+        let transits: RefCell<Log> = RefCell::new(Vec::new());
         let mut sm = Transition::new();
-        sm.change();
-        assert_eq!(sm.hooks, vec!["S0->>S1"]);
-        sm.clear_all();
-        sm.change();
-        assert_eq!(sm.hooks, vec!["S1->>S2"]);
-        sm.clear_all();
-        sm.change();
-        assert_eq!(sm.hooks, vec!["S2->>S3"]);
-        sm.clear_all();
+        sm.callback_manager().add_transition_callback(|i| {
+            log_transits(&transits, i);
+        });
         sm.transit();
-        assert_eq!(sm.hooks, vec!["S3->S4", "S4->>S0"]);
+        assert_eq!(*transits.borrow(), vec!["S0->S1"]);
+        transits.borrow_mut().clear();
+        sm.transit();
+        assert_eq!(*transits.borrow(), vec!["S1->S2", "S2->S3"]);
+    }
+
+    #[test]
+    /// Test change-state callbacks
+    fn change_state_callback() {
+        let transits: RefCell<Log> = RefCell::new(Vec::new());
+        let mut sm = Transition::new();
+        sm.callback_manager().add_transition_callback(|i| {
+            log_transits(&transits, i);
+        });
+        sm.change();
+        assert_eq!(*transits.borrow(), vec!["S0->>S1"]);
+        transits.borrow_mut().clear();
+        sm.change();
+        assert_eq!(*transits.borrow(), vec!["S1->>S2"]);
+        transits.borrow_mut().clear();
+        sm.change();
+        assert_eq!(*transits.borrow(), vec!["S2->>S3"]);
+        transits.borrow_mut().clear();
+        sm.transit();
+        assert_eq!(*transits.borrow(), vec!["S3->S4", "S4->>S0"]);
     }
 }

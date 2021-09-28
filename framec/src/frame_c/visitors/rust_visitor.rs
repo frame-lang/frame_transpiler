@@ -1542,6 +1542,14 @@ impl RustVisitor {
                 "self.{} = Rc::clone(&{});",
                 self.config.state_context_var_name, new_state_context_var
             ));
+        } else {
+            if self.config.config_features.runtime_support {
+                self.newline();
+                self.add_code(&format!(
+                    "self.{} = RefCell::new(self.{});",
+                    self.config.state_cell_var_name, self.config.state_var_name
+                ));
+            }
         }
 
         // call transition callbacks
@@ -1677,6 +1685,14 @@ impl RustVisitor {
                 "self.{} = Rc::clone(&{});",
                 self.config.state_context_var_name, new_state_context_var
             ));
+        } else {
+            if self.config.config_features.runtime_support {
+                self.newline();
+                self.add_code(&format!(
+                    "self.{} = RefCell::new(self.{});",
+                    self.config.state_cell_var_name, self.config.state_var_name
+                ));
+            }
         }
 
         // call transition callbacks
