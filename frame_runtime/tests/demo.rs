@@ -659,40 +659,40 @@ fn state_arguments() {
 #[rustfmt::skip]
 fn transition_callbacks() {
     let tape: Vec<String> = Vec::new();
-    let tape_rc = RefCell::new(tape);
+    let tape_cell = RefCell::new(tape);
     let mut sm = Demo::new();
     sm.callback_manager().add_transition_callback(|i| {
-        tape_rc
+        tape_cell
             .borrow_mut()
             .push(format!("kind: {:?}", i.kind));
     });
     sm.callback_manager().add_transition_callback(|i| {
-        tape_rc
+        tape_cell
             .borrow_mut()
             .push(format!("old: {}", i.old_state.name()));
-        tape_rc
+        tape_cell
             .borrow_mut()
             .push(format!("new: {}", i.new_state.name()));
     });
     sm.next();
-    assert_eq!(*tape_rc.borrow(), vec!["kind: Transition", "old: Foo", "new: Bar"]);
-    tape_rc.borrow_mut().clear();
+    assert_eq!(*tape_cell.borrow(), vec!["kind: Transition", "old: Foo", "new: Bar"]);
+    tape_cell.borrow_mut().clear();
     sm.next();
-    assert_eq!(*tape_rc.borrow(), vec!["kind: ChangeState", "old: Bar", "new: Foo"]);
-    tape_rc.borrow_mut().clear();
+    assert_eq!(*tape_cell.borrow(), vec!["kind: ChangeState", "old: Bar", "new: Foo"]);
+    tape_cell.borrow_mut().clear();
     sm.next();
-    assert_eq!(*tape_rc.borrow(), vec!["kind: Transition", "old: Foo", "new: Bar"]);
+    assert_eq!(*tape_cell.borrow(), vec!["kind: Transition", "old: Foo", "new: Bar"]);
 }
 
 #[test]
 fn enter_exit_arguments() {
     let tape: Vec<(i32, i32, i32, i32)> = Vec::new();
-    let tape_rc = RefCell::new(tape);
+    let tape_cell = RefCell::new(tape);
     let mut sm = Demo::new();
     sm.callback_manager().add_transition_callback(|i| {
         let enter = i.enter_arguments;
         let exit = i.exit_arguments;
-        tape_rc.borrow_mut().push((
+        tape_cell.borrow_mut().push((
             lookup_i32(enter, "init"),
             lookup_i32(enter, "start"),
             lookup_i32(exit, "done"),
@@ -706,7 +706,7 @@ fn enter_exit_arguments() {
     sm.inc(10);
     sm.next(); // transition done=10, start=3
     assert_eq!(
-        *tape_rc.borrow(),
+        *tape_cell.borrow(),
         vec![(-1, 3, 12, -1), (-1, -1, -1, -1), (-1, 3, 10, -1)]
     );
 }
