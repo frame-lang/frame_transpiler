@@ -3039,7 +3039,7 @@ impl AstVisitor for RustVisitor {
     ) -> AstVisitorReturnType {
         self.add_code(&format!(
             "self.{}",
-            interface_method_call_expr_node.identifier.name.lexeme
+            self.format_value_name(&interface_method_call_expr_node.identifier.name.lexeme)
         ));
         interface_method_call_expr_node.call_expr_list.accept(self);
         //        self.add_code(&format!(""));
@@ -3056,7 +3056,7 @@ impl AstVisitor for RustVisitor {
     ) -> AstVisitorReturnType {
         output.push_str(&format!(
             "self.{}",
-            interface_method_call_expr_node.identifier.name.lexeme
+            self.format_value_name(&interface_method_call_expr_node.identifier.name.lexeme)
         ));
         interface_method_call_expr_node
             .call_expr_list
