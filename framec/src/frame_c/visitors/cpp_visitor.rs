@@ -1353,6 +1353,7 @@ impl AstVisitor for CppVisitor {
 
         let terminator_node = &evt_handler_node.terminator_node;
         terminator_node.accept(self);
+
         self.outdent();
 
         self.newline();

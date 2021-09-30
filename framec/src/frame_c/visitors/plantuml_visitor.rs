@@ -1251,10 +1251,6 @@ impl AstVisitor for PlantUmlVisitor {
 
         let terminator_node = &evt_handler_node.terminator_node;
         terminator_node.accept(self);
-        // self.outdent();
-        //
-        // self.newline();
-        // self.add_code(&format!("}}"));
 
         // this controls formatting here
         self.first_event_handler = false;

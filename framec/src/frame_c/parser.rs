@@ -1059,14 +1059,6 @@ impl<'a> Parser<'a> {
         let mut type_node_opt: Option<TypeNode> = None;
 
         if self.match_token(&vec![ColonTok]) {
-            // if !self.match_token(&vec![TokenType::IdentifierTok]) {
-            //     self.error_at_previous("Expected parameter type.");
-            //     return Err(ParseError::new("TODO"));
-            // }
-            //
-            // let type_name = self.previous().lexeme.clone();
-            //
-            // type_opt = Some(type_name);
             match self.type_decl() {
                 Ok(type_node) => type_node_opt = Some(type_node),
                 Err(parse_error) => return Err(parse_error),
@@ -1802,7 +1794,6 @@ impl<'a> Parser<'a> {
         }
 
         let statements = self.statements();
-
         let event_symbol_rcref = self.arcanum.get_event(&msg, &self.state_name_opt).unwrap();
         let ret_event_symbol_rcref = Rc::clone(&event_symbol_rcref);
         let terminator_node = match self.event_handler_terminator(event_symbol_rcref) {
@@ -1910,10 +1901,32 @@ impl<'a> Parser<'a> {
 
         loop {
             // let result = self.decl_or_stmt();
+            //            let must_terminate = false;
             match self.decl_or_stmt() {
                 Ok(opt_smt) => match opt_smt {
                     Some(statement) => {
-                        statements.push(statement);
+                        match &statement {
+                            DeclOrStmtType::StmtT { stmt_t } => {
+                                // Transitions or state changes must be the last statement in
+                                // an event handler.
+                                match stmt_t {
+                                    StatementType::TransitionStmt { .. } => {
+                                        statements.push(statement);
+                                        return statements;
+                                    }
+                                    StatementType::ChangeStateStmt { .. } => {
+                                        statements.push(statement);
+                                        return statements;
+                                    }
+                                    _ => {
+                                        statements.push(statement);
+                                    }
+                                }
+                            }
+                            _ => {
+                                statements.push(statement);
+                            }
+                        }
                     }
                     None => {
                         return statements;
@@ -2317,15 +2330,13 @@ impl<'a> Parser<'a> {
         expr_t: ExprType,
     ) -> Result<BoolTestConditionalBranchNode, ParseError> {
         let statements = self.statements();
-
         let result = self.branch_terminator();
-
         return match result {
-            Ok(branch_terminator_t_opt) => Ok(BoolTestConditionalBranchNode::new(
+            Ok(branch_terminator_expr_opt) => Ok(BoolTestConditionalBranchNode::new(
                 is_negated,
                 expr_t,
                 statements,
-                branch_terminator_t_opt,
+                branch_terminator_expr_opt,
             )),
             Err(parse_error) => Err(parse_error),
         };
@@ -2337,13 +2348,11 @@ impl<'a> Parser<'a> {
 
     fn bool_test_else_branch(&mut self) -> Result<BoolTestElseBranchNode, ParseError> {
         let statements = self.statements();
-
         let result = self.branch_terminator();
-
         return match result {
-            Ok(branch_terminator_opt) => Ok(BoolTestElseBranchNode::new(
+            Ok(branch_terminator_expr_opt) => Ok(BoolTestElseBranchNode::new(
                 statements,
-                branch_terminator_opt,
+                branch_terminator_expr_opt,
             )),
             Err(parse_error) => Err(parse_error),
         };
@@ -2351,7 +2360,7 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    // branch_terminator -> ^ | '>'
+    // branch_terminator -> '^' | ':>'
 
     // TODO: explore returning a TerminatorType rather than node
     fn branch_terminator(&mut self) -> Result<Option<TerminatorExpr>, ParseError> {
@@ -2488,9 +2497,7 @@ impl<'a> Parser<'a> {
         }
 
         let statements = self.statements();
-
         let result = self.branch_terminator();
-
         return match result {
             Ok(branch_terminator_t_opt) => Ok(StringMatchTestMatchBranchNode::new(
                 string_match_pattern_node,
@@ -2509,9 +2516,7 @@ impl<'a> Parser<'a> {
         &mut self,
     ) -> Result<StringMatchTestElseBranchNode, ParseError> {
         let statements = self.statements();
-
         let result = self.branch_terminator();
-
         return match result {
             Ok(branch_terminator_opt) => Ok(StringMatchTestElseBranchNode::new(
                 statements,
@@ -3366,31 +3371,6 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    // state_context ->
-
-    fn change_state_context(
-        &mut self,
-        _: Option<ExprListNode>,
-    ) -> Result<Option<StateContextType>, ParseError> {
-        // parse state ref e.g. '$S1'
-        if !self.match_token(&vec![TokenType::StateTok]) {
-            return Err(ParseError::new("Missing $"));
-        }
-
-        if !self.match_token(&vec![TokenType::IdentifierTok]) {
-            return Err(ParseError::new("Missing state identifier."));
-        }
-
-        let state_id = self.previous();
-        let name = state_id.lexeme.clone();
-
-        let state_context_node = StateContextNode::new(StateRefNode::new(name), None, None);
-
-        Ok(Some(StateContextType::StateRef { state_context_node }))
-    }
-
-    /* --------------------------------------------------------------------- */
-
     // transition : exitArgs '->' enterArgs transitionLabel stateRef stateArgs
 
     fn transition(
@@ -3458,7 +3438,7 @@ impl<'a> Parser<'a> {
         }
 
         let state_context_t;
-        match self.change_state_context(None) {
+        match self.state_context(None) {
             Ok(Some(scn)) => state_context_t = scn,
             Ok(None) => return Err(ParseError::new("TODO")),
             Err(parse_error) => return Err(parse_error),
@@ -3558,11 +3538,8 @@ impl<'a> Parser<'a> {
         if let Err(parse_error) = self.consume(ForwardSlashTok, "Expected '/'.") {
             return Err(parse_error);
         }
-
         let statements = self.statements();
-
         let result = self.branch_terminator();
-
         return match result {
             Ok(branch_terminator_t_opt) => Ok(NumberMatchTestMatchBranchNode::new(
                 match_numbers,
@@ -3581,9 +3558,7 @@ impl<'a> Parser<'a> {
         &mut self,
     ) -> Result<NumberMatchTestElseBranchNode, ParseError> {
         let statements = self.statements();
-
         let result = self.branch_terminator();
-
         return match result {
             Ok(branch_terminator_opt) => Ok(NumberMatchTestElseBranchNode::new(
                 statements,

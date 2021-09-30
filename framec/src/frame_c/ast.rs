@@ -557,7 +557,7 @@ impl EventHandlerNode {
             state_name,
             msg_t,
             statements,
-            terminator_node,
+            terminator_node: terminator_node,
             event_symbol_rcref,
             event_handler_has_transition,
             line,
