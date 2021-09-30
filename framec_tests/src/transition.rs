@@ -123,7 +123,7 @@ mod tests {
     }
 
     #[test]
-    /// Test change-state callbacks
+    /// Test change-state callbacks.
     fn change_state_callback() {
         let transits: RefCell<Log> = RefCell::new(Vec::new());
         let mut sm = Transition::new();

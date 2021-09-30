@@ -28,6 +28,7 @@ mod tests {
         sm.b();
         assert_eq!(sm.entry_log, vec!["S1", "S0"]);
     }
+
     #[test]
     fn exit_calls() {
         let mut sm = Basic::new();
@@ -35,6 +36,7 @@ mod tests {
         sm.b();
         assert_eq!(sm.exit_log, vec!["S0", "S1"]);
     }
+
     #[test]
     fn current_state() {
         let mut sm = Basic::new();
@@ -43,5 +45,38 @@ mod tests {
         assert_eq!(sm.state, BasicState::S1);
         sm.b();
         assert_eq!(sm.state, BasicState::S0);
+    }
+
+    #[test]
+    /// Test that we can access the current state via the runtime interface.
+    fn runtime_current_state() {
+        let mut sm = Basic::new();
+        assert_eq!(sm.current_state().name(), "S0");
+        sm.a();
+        assert_eq!(sm.current_state().name(), "S1");
+        sm.b();
+        assert_eq!(sm.current_state().name(), "S0");
+    }
+
+    #[test]
+    /// Test that we can access the domain variables via the runtime interface.
+    fn runtime_domain_variables() {
+        let mut sm = Basic::new();
+        sm.a();
+        sm.b();
+        let entry_log: &Log = sm
+            .domain_variables()
+            .lookup("entry_log")
+            .unwrap()
+            .downcast_ref()
+            .unwrap();
+        let exit_log: &Log = sm
+            .domain_variables()
+            .lookup("exit_log")
+            .unwrap()
+            .downcast_ref()
+            .unwrap();
+        assert_eq!(*entry_log, vec!["S0", "S1", "S0"]);
+        assert_eq!(*exit_log, vec!["S0", "S1"]);
     }
 }

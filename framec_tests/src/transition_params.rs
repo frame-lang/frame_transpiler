@@ -13,6 +13,7 @@ impl<'a> TransitParams<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use frame_runtime::transition::*;
 
     #[test]
     fn enter() {
@@ -63,5 +64,50 @@ mod tests {
         sm.next();
         assert_eq!(sm.state, TransitParamsState::A);
         assert_eq!(sm.tape, vec!["true", "bye B", "hi again A"]);
+    }
+
+    #[test]
+    /// Test that transition callbacks get event arguments.
+    fn callbacks_get_event_args() {
+        let out: RefCell<String> = RefCell::new(String::new());
+        let mut sm = TransitParams::new();
+        sm.callback_manager().add_transition_callback(|info| {
+            let mut entry = String::new();
+            info.exit_arguments.lookup("msg").map(|any| {
+                entry.push_str(&format!("msg: {}, ", any.downcast_ref::<String>().unwrap()));
+            });
+            info.exit_arguments.lookup("val").map(|any| {
+                entry.push_str(&format!("val: {}, ", any.downcast_ref::<bool>().unwrap()));
+            });
+            entry.push_str(&format!(
+                "{}{}{}",
+                info.old_state.name(),
+                match info.kind {
+                    TransitionKind::ChangeState => "->>",
+                    TransitionKind::Transition => "->",
+                },
+                info.new_state.name(),
+            ));
+            info.enter_arguments.lookup("msg").map(|any| {
+                entry.push_str(&format!(", msg: {}", any.downcast_ref::<String>().unwrap()));
+            });
+            info.enter_arguments.lookup("val").map(|any| {
+                entry.push_str(&format!(", val: {}", any.downcast_ref::<i16>().unwrap()));
+            });
+            *out.borrow_mut() = entry;
+        });
+        sm.next();
+        assert_eq!(*out.borrow(), "Init->A, msg: hi A");
+        sm.next();
+        assert_eq!(*out.borrow(), "A->B, msg: hi B, val: 42");
+        sm.next();
+        assert_eq!(
+            *out.borrow(),
+            "msg: bye B, val: true, B->A, msg: hi again A"
+        );
+        sm.change();
+        assert_eq!(*out.borrow(), "A->>B");
+        sm.change();
+        assert_eq!(*out.borrow(), "B->>A");
     }
 }

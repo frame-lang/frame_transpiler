@@ -13,6 +13,7 @@ impl<'a> StateStack<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use frame_runtime::transition::*;
 
     #[test]
     /// Test that a pop restores a pushed state.
@@ -115,5 +116,42 @@ mod tests {
         sm.pop_change();
         assert_eq!(sm.state, StateStackState::B);
         assert_eq!(sm.tape, vec!["C:<", "A:>"]);
+    }
+
+    #[test]
+    /// Test that pop transitions and change-states trigger callbacks.
+    fn pop_transition_callbacks() {
+        let out: RefCell<String> = RefCell::new(String::new());
+        let mut sm = StateStack::new();
+        sm.callback_manager().add_transition_callback(|info| {
+            *out.borrow_mut() = format!(
+                "{}{}{}",
+                info.old_state.name(),
+                match info.kind {
+                    TransitionKind::ChangeState => "->>",
+                    TransitionKind::Transition => "->",
+                },
+                info.new_state.name(),
+            );
+        });
+        sm.to_c();
+        sm.push();
+        sm.to_b();
+        sm.push();
+        sm.to_a();
+        sm.push(); // stack top-to-bottom: A, B, C
+        sm.to_b();
+        assert_eq!(*out.borrow(), "A->B");
+        sm.pop();
+        assert_eq!(*out.borrow(), "B->A");
+        sm.pop_change();
+        assert_eq!(*out.borrow(), "A->>B");
+        sm.push();
+        sm.to_c();
+        assert_eq!(*out.borrow(), "B->C");
+        sm.pop_change();
+        assert_eq!(*out.borrow(), "C->>B");
+        sm.pop();
+        assert_eq!(*out.borrow(), "B->C");
     }
 }
