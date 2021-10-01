@@ -84,7 +84,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     /// Test that dynamic interface calls are renamed correctly.
     fn interface_calls() {
         let mut sm = RustNaming::new();
@@ -94,9 +93,9 @@ mod tests {
         sm.call(String::from("snake_event"), 4);
         sm.call(String::from("CamelEvent"), 5);
         sm.call(String::from("event123"), 6);
-        assert_eq!(sm.final_log, vec![1103, 1307, 1209]);
+        assert_eq!(sm.final_log, vec![1103, 1307, 1211]);
         assert_eq!(sm.snake_log, vec![1307]);
         assert_eq!(sm.camel_log, vec![1103]);
-        assert_eq!(sm.log_123, vec![1209]);
+        assert_eq!(sm.log_123, vec![1211]);
     }
 }

@@ -2,6 +2,7 @@ mod basic;
 mod branch;
 mod empty;
 mod event_handler;
+mod handler_calls;
 mod hierarchical;
 mod hierarchical_guard;
 mod r#match;
