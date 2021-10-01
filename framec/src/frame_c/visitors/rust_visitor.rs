@@ -3039,10 +3039,9 @@ impl AstVisitor for RustVisitor {
     ) -> AstVisitorReturnType {
         self.add_code(&format!(
             "self.{}",
-            interface_method_call_expr_node.identifier.name.lexeme
+            self.format_value_name(&interface_method_call_expr_node.identifier.name.lexeme)
         ));
         interface_method_call_expr_node.call_expr_list.accept(self);
-        //        self.add_code(&format!(""));
         // TODO: review this return as I think it is a nop.
         AstVisitorReturnType::InterfaceMethodCallExpressionNode {}
     }
@@ -3056,13 +3055,11 @@ impl AstVisitor for RustVisitor {
     ) -> AstVisitorReturnType {
         output.push_str(&format!(
             "self.{}",
-            interface_method_call_expr_node.identifier.name.lexeme
+            self.format_value_name(&interface_method_call_expr_node.identifier.name.lexeme)
         ));
         interface_method_call_expr_node
             .call_expr_list
             .accept_to_string(self, output);
-        //        self.add_code(&format!(""));
-
         // TODO: review this return as I think it is a nop.
         AstVisitorReturnType::InterfaceMethodCallExpressionNode {}
     }
@@ -3761,11 +3758,48 @@ impl AstVisitor for RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    // NOTE: Interface method calls must be treated specially since they may transition.
+    //
+    // The current approach is conservative, essentially assuming that an interface method call
+    // always transitions. This assumption imposes the following restrictions:
+    //
+    //  * Interface method calls cannot occur in a chain (they must be a standalone call).
+    //  * Interface method calls terminate the execution of their handler (like transitions).
+    //
+    // It would be possible to lift these restrictions and track the execution of a handler more
+    // precisely, but this would require embedding some logic in the generated code and would make
+    // handlers harder to reason about. The conservative approach has the advantage of both
+    // simplifying the implementation and reasoning about Frame programs.
     fn visit_call_chain_literal_statement_node(
         &mut self,
         method_call_chain_literal_stmt_node: &CallChainLiteralStmtNode,
     ) -> AstVisitorReturnType {
         self.newline();
+
+        // special case for interface method calls
+        let call_chain = &method_call_chain_literal_stmt_node
+            .call_chain_literal_expr_node
+            .call_chain;
+        if call_chain.len() == 1 {
+            if let CallChainLiteralNodeType::InterfaceMethodCallT {
+                interface_method_call_expr_node,
+            } = &call_chain[0]
+            {
+                self.this_branch_transitioned = true;
+                self.add_code(&format!(
+                    "drop({});",
+                    self.config.this_state_context_var_name
+                ));
+                self.newline();
+                interface_method_call_expr_node.accept(self);
+                self.add_code(";");
+                self.newline();
+                self.add_code("return;");
+                return AstVisitorReturnType::CallChainLiteralStmtNode {};
+            }
+        }
+
+        // standard case
         method_call_chain_literal_stmt_node
             .call_chain_literal_expr_node
             .accept(self);
@@ -3780,7 +3814,6 @@ impl AstVisitor for RustVisitor {
         method_call_chain_expression_node: &CallChainLiteralExprNode,
     ) -> AstVisitorReturnType {
         // TODO: maybe put this in an AST node
-
         let mut separator = "";
 
         for node in &method_call_chain_expression_node.call_chain {
@@ -3792,10 +3825,10 @@ impl AstVisitor for RustVisitor {
                 CallChainLiteralNodeType::CallT { call } => {
                     call.accept(self);
                 }
-                CallChainLiteralNodeType::InterfaceMethodCallT {
-                    interface_method_call_expr_node,
-                } => {
-                    interface_method_call_expr_node.accept(self);
+                CallChainLiteralNodeType::InterfaceMethodCallT { .. } => {
+                    self.errors.push(String::from(
+                        "Error: Interface method calls may not appear in call chains.",
+                    ));
                 }
                 CallChainLiteralNodeType::ActionCallT {
                     action_call_expr_node,
@@ -3832,10 +3865,10 @@ impl AstVisitor for RustVisitor {
                 CallChainLiteralNodeType::CallT { call } => {
                     call.accept_to_string(self, output);
                 }
-                CallChainLiteralNodeType::InterfaceMethodCallT {
-                    interface_method_call_expr_node,
-                } => {
-                    interface_method_call_expr_node.accept_to_string(self, output);
+                CallChainLiteralNodeType::InterfaceMethodCallT { .. } => {
+                    self.errors.push(String::from(
+                        "Error: Interface method calls may not appear in call chains.",
+                    ));
                 }
                 CallChainLiteralNodeType::ActionCallT {
                     action_call_expr_node,

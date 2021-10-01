@@ -1,9 +1,9 @@
-#[follow_rust_naming="true"]
 #RustNaming
     -interface-
     snake_event [snake_param:i32]
     CamelEvent [CamelParam:i32]
     event123 [param123:i32]
+    call [event:String param:i32]
 
     -machine-
     $Init
@@ -15,6 +15,13 @@
 
         |event123| [param123:i32]
             -> $state123(param123) ^
+
+        |call| [event:String param:i32]
+            event ?~
+                /snake_event/ snake_event(param) :>
+                /CamelEvent/ CamelEvent(param) :>
+                /event123/ event123(param)
+                : :: ^
 
     $snake_state [snake_state_param:i32]
 
@@ -36,6 +43,13 @@
             action123(localVar123)
             -> $Final(localVar123) ^
 
+        |call| [event:String param:i32]
+            event ?~
+                /snake_event/ snake_event(param) :>
+                /CamelEvent/ CamelEvent(param) :>
+                /event123/ event123(param)
+                : :: ^
+
     $CamelState [CamelStateParam:i32]
 
         --- 1200
@@ -56,6 +70,13 @@
             action123(localVar123)
             -> $Final(localVar123) ^
 
+        |call| [event:String param:i32]
+            event ?~
+                /snake_event/ snake_event(param) :>
+                /CamelEvent/ CamelEvent(param) :>
+                /event123/ event123(param)
+                : :: ^
+
     $state123 [stateParam123:i32]
 
         --- 1300
@@ -75,6 +96,13 @@
             var localVar123:i32 = stateVar123 + stateParam123 + param123
             action123(localVar123)
             -> $Final(localVar123) ^
+
+        |call| [event:String param:i32]
+            event ?~
+                /snake_event/ snake_event(param) :>
+                /CamelEvent/ CamelEvent(param) :>
+                /event123/ event123(param)
+                : :: ^
 
     $Final [result:i32]
         |>|
