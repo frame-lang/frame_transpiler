@@ -3786,11 +3786,13 @@ impl AstVisitor for RustVisitor {
             } = &call_chain[0]
             {
                 self.this_branch_transitioned = true;
-                self.add_code(&format!(
-                    "drop({});",
-                    self.config.this_state_context_var_name
-                ));
-                self.newline();
+                if self.generate_state_context {
+                    self.add_code(&format!(
+                        "drop({});",
+                        self.config.this_state_context_var_name
+                    ));
+                    self.newline();
+                }
                 interface_method_call_expr_node.accept(self);
                 self.add_code(";");
                 self.newline();
