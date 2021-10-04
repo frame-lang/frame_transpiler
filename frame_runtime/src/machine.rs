@@ -31,6 +31,7 @@ mod tests {
     use crate::environment::EMPTY;
     use std::any::Any;
     use std::cell::RefCell;
+    use std::sync::Mutex;
 
     #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
     enum TestState {
@@ -117,16 +118,18 @@ mod tests {
     #[test]
     fn transition_callbacks() {
         let tape: Vec<String> = Vec::new();
-        let tape_cell = RefCell::new(tape);
+        let tape_mutex = Mutex::new(tape);
         let mut sm = TestMachine::new();
         sm.callback_manager().add_transition_callback(|i| {
-            tape_cell
-                .borrow_mut()
-                .push(format!("{}->{}", i.old_state.name(), i.new_state.name()));
+            tape_mutex.lock().unwrap().push(format!(
+                "{}->{}",
+                i.old_state.name(),
+                i.new_state.name()
+            ));
         });
         sm.next();
         sm.next();
         sm.next();
-        assert_eq!(*tape_cell.borrow(), vec!["A->B", "B->A", "A->B"]);
+        assert_eq!(*tape_mutex.lock().unwrap(), vec!["A->B", "B->A", "A->B"]);
     }
 }
