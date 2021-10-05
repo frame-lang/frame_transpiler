@@ -87,7 +87,7 @@ checksum = "fe56556a8c9f9f556150eb6b390bc1a8b3715fd2ddbb4585f36b6a5672c6a833"
 
 [[package]]
 name = "frame_runtime"
-version = "0.1.0"
+version = "0.7.0"
 
 [[package]]
 name = "framec"
@@ -104,7 +104,7 @@ dependencies = [
 
 [[package]]
 name = "framec_tests"
-version = "0.1.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "frame_runtime",
