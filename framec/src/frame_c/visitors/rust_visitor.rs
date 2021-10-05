@@ -10,6 +10,7 @@ use super::super::visitors::*;
 struct ConfigFeatures {
     follow_rust_naming: bool,
     generate_action_impl: bool,
+    generate_hook_methods: bool,
     runtime_support: bool,
 }
 
@@ -54,6 +55,8 @@ struct Config {
     handle_event_method_name: String,
     transition_method_name: String,
     change_state_method_name: String,
+    transition_hook_method_name: String,
+    change_state_hook_method_name: String,
     state_stack_push_method_name: String,
     state_stack_pop_method_name: String,
     state_cell_var_name: String,
@@ -72,6 +75,12 @@ impl Config {
                 .parse()
                 .unwrap(),
             generate_action_impl: (&features_yaml["generate_action_impl"])
+                .as_bool()
+                .unwrap_or(true)
+                .to_string()
+                .parse()
+                .unwrap(),
+            generate_hook_methods: (&features_yaml["generate_hook_methods"])
                 .as_bool()
                 .unwrap_or(true)
                 .to_string()
@@ -238,6 +247,14 @@ impl Config {
                 .as_str()
                 .unwrap_or_default()
                 .to_string(),
+            transition_hook_method_name: (&code_yaml["transition_hook_method_name"])
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
+            change_state_hook_method_name: (&code_yaml["change_state_hook_method_name"])
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
             state_stack_push_method_name: (&code_yaml["state_stack_push_method_name"])
                 .as_str()
                 .unwrap_or_default()
@@ -284,6 +301,8 @@ pub struct RustVisitor {
     generate_state_stack: bool,
     generate_change_state: bool,
     generate_transition_state: bool,
+    generate_change_state_hook: bool,
+    generate_transition_hook: bool,
     current_message: String,
 }
 
@@ -327,6 +346,10 @@ impl RustVisitor {
             generate_state_stack,
             generate_change_state,
             generate_transition_state,
+            generate_change_state_hook: config.config_features.generate_hook_methods
+                && generate_change_state,
+            generate_transition_hook: config.config_features.generate_hook_methods
+                && generate_transition_state,
             current_message: String::new(),
             config,
         }
@@ -1480,6 +1503,7 @@ impl RustVisitor {
     fn generate_change_state(&mut self) {
         let old_state_context_var = self.old_var_name(&self.config.state_context_var_name);
         let new_state_context_var = self.new_var_name(&self.config.state_context_var_name);
+        let old_state_var = self.old_var_name(&self.config.state_var_name);
         let new_state_var = self.new_var_name(&self.config.state_var_name);
 
         // generate method signature
@@ -1503,6 +1527,13 @@ impl RustVisitor {
         self.indent();
 
         // save old state
+        if self.generate_change_state_hook {
+            self.newline();
+            self.add_code(&format!(
+                "let {} = self.{};",
+                old_state_var, self.config.state_var_name
+            ));
+        }
         if self.config.config_features.runtime_support {
             if self.generate_state_context {
                 self.newline();
@@ -1552,6 +1583,15 @@ impl RustVisitor {
             }
         }
 
+        // call hook method
+        if self.generate_change_state_hook {
+            self.newline();
+            self.add_code(&format!(
+                "self.{}({}, {});",
+                self.config.change_state_hook_method_name, old_state_var, new_state_var,
+            ));
+        }
+
         // call transition callbacks
         if self.config.config_features.runtime_support {
             self.newline();
@@ -1593,6 +1633,7 @@ impl RustVisitor {
     fn generate_transition(&mut self) {
         let old_state_context_var = self.old_var_name(&self.config.state_context_var_name);
         let new_state_context_var = self.new_var_name(&self.config.state_context_var_name);
+        let old_state_var = self.old_var_name(&self.config.state_var_name);
         let new_state_var = self.new_var_name(&self.config.state_var_name);
 
         // generate method signature
@@ -1646,6 +1687,13 @@ impl RustVisitor {
         ));
 
         // save old state
+        if self.generate_transition_hook {
+            self.newline();
+            self.add_code(&format!(
+                "let {} = self.{};",
+                old_state_var, self.config.state_var_name
+            ));
+        }
         if self.config.config_features.runtime_support {
             if self.generate_state_context {
                 self.newline();
@@ -1693,6 +1741,15 @@ impl RustVisitor {
                     self.config.state_cell_var_name, self.config.state_var_name
                 ));
             }
+        }
+
+        // call hook method
+        if self.generate_transition_hook {
+            self.newline();
+            self.add_code(&format!(
+                "self.{}({}, {});",
+                self.config.transition_hook_method_name, old_state_var, new_state_var,
+            ));
         }
 
         // call transition callbacks
@@ -2695,6 +2752,13 @@ impl AstVisitor for RustVisitor {
             actions_block_node.accept_rust_trait(self);
             self.newline();
             self.newline();
+        } else if self.config.config_features.generate_hook_methods {
+            let empty_actions_block_node = ActionsBlockNode {
+                actions: Vec::new(),
+            };
+            empty_actions_block_node.accept_rust_trait(self);
+            self.newline();
+            self.newline();
         }
 
         // define state machine struct
@@ -2909,6 +2973,13 @@ impl AstVisitor for RustVisitor {
 
         if let Some(actions_block_node) = &system_node.actions_block_node_opt {
             actions_block_node.accept_rust_impl(self);
+        } else if self.config.config_features.generate_hook_methods {
+            let empty_actions_block_node = ActionsBlockNode {
+                actions: Vec::new(),
+            };
+            empty_actions_block_node.accept_rust_impl(self);
+            self.newline();
+            self.newline();
         }
 
         // self.generate_subclass();
@@ -3244,6 +3315,30 @@ impl AstVisitor for RustVisitor {
                 action_decl_node.accept(self);
             }
 
+            // add hook signatures
+            let old_state_var = self.old_var_name(&self.config.state_var_name);
+            let new_state_var = self.new_var_name(&self.config.state_var_name);
+            if self.generate_transition_hook {
+                self.newline();
+                self.add_code(&format!(
+                    "fn {}(&self, {}: {enum_type}, {}: {enum_type});",
+                    self.config.transition_hook_method_name,
+                    old_state_var,
+                    new_state_var,
+                    enum_type = self.state_enum_type_name()
+                ));
+            }
+            if self.generate_change_state_hook {
+                self.newline();
+                self.add_code(&format!(
+                    "fn {}(&self, {}: {enum_type}, {}: {enum_type});",
+                    self.config.change_state_hook_method_name,
+                    old_state_var,
+                    new_state_var,
+                    enum_type = self.state_enum_type_name()
+                ));
+            }
+
             self.outdent();
             self.newline();
             self.add_code("}");
@@ -3274,6 +3369,30 @@ impl AstVisitor for RustVisitor {
             for action_decl_node_rcref in &actions_block_node.actions {
                 let action_decl_node = action_decl_node_rcref.borrow();
                 action_decl_node.accept_rust_impl(self);
+            }
+
+            // add empty hook implementations
+            let old_state_var = self.old_var_name(&self.config.state_var_name);
+            let new_state_var = self.new_var_name(&self.config.state_var_name);
+            if self.generate_transition_hook {
+                self.newline();
+                self.add_code(&format!(
+                    "fn {}(&self, {}: {enum_type}, {}: {enum_type}) {{}}",
+                    self.config.transition_hook_method_name,
+                    old_state_var,
+                    new_state_var,
+                    enum_type = self.state_enum_type_name()
+                ));
+            }
+            if self.generate_change_state_hook {
+                self.newline();
+                self.add_code(&format!(
+                    "fn {}(&self, {}: {enum_type}, {}: {enum_type}) {{}}",
+                    self.config.change_state_hook_method_name,
+                    old_state_var,
+                    new_state_var,
+                    enum_type = self.state_enum_type_name()
+                ));
             }
 
             self.outdent();

@@ -49,4 +49,5 @@
     -domain-
     var enters:Log = `vec![]`
     var exits:Log = `vec![]`
+    var hooks:Log = `vec![]`
 ##
