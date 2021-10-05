@@ -14,6 +14,7 @@ impl<'a> TransitParams<'a> {
 mod tests {
     use super::*;
     use frame_runtime::transition::*;
+    use std::sync::Mutex;
 
     #[test]
     fn enter() {
@@ -69,7 +70,7 @@ mod tests {
     #[test]
     /// Test that transition callbacks get event arguments.
     fn callbacks_get_event_args() {
-        let out: RefCell<String> = RefCell::new(String::new());
+        let out = Mutex::new(String::new());
         let mut sm = TransitParams::new();
         sm.callback_manager().add_transition_callback(|info| {
             let mut entry = String::new();
@@ -94,20 +95,20 @@ mod tests {
             info.enter_arguments.lookup("val").map(|any| {
                 entry.push_str(&format!(", val: {}", any.downcast_ref::<i16>().unwrap()));
             });
-            *out.borrow_mut() = entry;
+            *out.lock().unwrap() = entry;
         });
         sm.next();
-        assert_eq!(*out.borrow(), "Init->A, msg: hi A");
+        assert_eq!(*out.lock().unwrap(), "Init->A, msg: hi A");
         sm.next();
-        assert_eq!(*out.borrow(), "A->B, msg: hi B, val: 42");
+        assert_eq!(*out.lock().unwrap(), "A->B, msg: hi B, val: 42");
         sm.next();
         assert_eq!(
-            *out.borrow(),
+            *out.lock().unwrap(),
             "msg: bye B, val: true, B->A, msg: hi again A"
         );
         sm.change();
-        assert_eq!(*out.borrow(), "A->>B");
+        assert_eq!(*out.lock().unwrap(), "A->>B");
         sm.change();
-        assert_eq!(*out.borrow(), "B->>A");
+        assert_eq!(*out.lock().unwrap(), "B->>A");
     }
 }

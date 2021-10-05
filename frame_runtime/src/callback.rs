@@ -8,7 +8,7 @@ use std::cell::Ref;
 
 /// Callback manager.
 pub struct CallbackManager<'a> {
-    transition_callbacks: Vec<Box<dyn FnMut(&TransitionInfo) + 'a>>,
+    transition_callbacks: Vec<Box<dyn FnMut(&TransitionInfo) + Send + 'a>>,
 }
 
 impl<'a> CallbackManager<'a> {
@@ -20,7 +20,7 @@ impl<'a> CallbackManager<'a> {
     }
 
     /// Register a callback to be called on each transition.
-    pub fn add_transition_callback(&mut self, callback: impl FnMut(&TransitionInfo) + 'a) {
+    pub fn add_transition_callback(&mut self, callback: impl FnMut(&TransitionInfo) + Send + 'a) {
         self.transition_callbacks.push(Box::new(callback));
     }
 
@@ -68,6 +68,7 @@ mod tests {
     use super::*;
 
     use std::cell::RefCell;
+    use std::sync::Mutex;
 
     enum TestState {
         A,
@@ -92,26 +93,28 @@ mod tests {
     #[test]
     fn callbacks_are_called() {
         let tape: Vec<String> = Vec::new();
-        let tape_rc = RefCell::new(tape);
+        let tape_mutex = Mutex::new(tape);
         let mut cm = CallbackManager::new();
         cm.add_transition_callback(|i| {
-            tape_rc
-                .borrow_mut()
+            tape_mutex
+                .lock()
+                .unwrap()
                 .push(format!("old: {}", i.old_state.name()))
         });
         cm.add_transition_callback(|i| {
-            tape_rc
-                .borrow_mut()
+            tape_mutex
+                .lock()
+                .unwrap()
                 .push(format!("new: {}", i.new_state.name()))
         });
 
         let a_rc = RefCell::new(TestState::A);
         let b_rc = RefCell::new(TestState::B);
         cm.transition(a_rc.borrow(), b_rc.borrow(), EMPTY, EMPTY);
-        assert_eq!(*tape_rc.borrow(), vec!["old: A", "new: B"]);
-        tape_rc.borrow_mut().clear();
+        assert_eq!(*tape_mutex.lock().unwrap(), vec!["old: A", "new: B"]);
+        tape_mutex.lock().unwrap().clear();
 
         cm.change_state(b_rc.borrow(), a_rc.borrow());
-        assert_eq!(*tape_rc.borrow(), vec!["old: B", "new: A"]);
+        assert_eq!(*tape_mutex.lock().unwrap(), vec!["old: B", "new: A"]);
     }
 }

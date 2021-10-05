@@ -32,6 +32,7 @@ impl<'a> Transition<'a> {
 mod tests {
     use super::*;
     use frame_runtime::transition::*;
+    use std::sync::Mutex;
 
     #[test]
     /// Test that transition works and triggers enter and exit events.
@@ -92,16 +93,18 @@ mod tests {
     }
 
     /// Function to register as a callback to log transitions.
-    fn log_transits(log: &RefCell<Log>, info: &TransitionInfo) {
+    fn log_transits(log: &Mutex<Log>, info: &TransitionInfo) {
         let old_state = info.old_state.name();
         let new_state = info.new_state.name();
         match info.kind {
             TransitionKind::ChangeState => {
-                log.borrow_mut()
+                log.lock()
+                    .unwrap()
                     .push(format!("{}->>{}", old_state, new_state));
             }
             TransitionKind::Transition => {
-                log.borrow_mut()
+                log.lock()
+                    .unwrap()
                     .push(format!("{}->{}", old_state, new_state));
             }
         }
@@ -110,36 +113,36 @@ mod tests {
     #[test]
     /// Test transition callbacks.
     fn transition_callback() {
-        let transits: RefCell<Log> = RefCell::new(Vec::new());
+        let transits = Mutex::new(Vec::new());
         let mut sm = Transition::new();
         sm.callback_manager().add_transition_callback(|i| {
             log_transits(&transits, i);
         });
         sm.transit();
-        assert_eq!(*transits.borrow(), vec!["S0->S1"]);
-        transits.borrow_mut().clear();
+        assert_eq!(*transits.lock().unwrap(), vec!["S0->S1"]);
+        transits.lock().unwrap().clear();
         sm.transit();
-        assert_eq!(*transits.borrow(), vec!["S1->S2", "S2->S3"]);
+        assert_eq!(*transits.lock().unwrap(), vec!["S1->S2", "S2->S3"]);
     }
 
     #[test]
     /// Test change-state callbacks.
     fn change_state_callback() {
-        let transits: RefCell<Log> = RefCell::new(Vec::new());
+        let transits = Mutex::new(Vec::new());
         let mut sm = Transition::new();
         sm.callback_manager().add_transition_callback(|i| {
             log_transits(&transits, i);
         });
         sm.change();
-        assert_eq!(*transits.borrow(), vec!["S0->>S1"]);
-        transits.borrow_mut().clear();
+        assert_eq!(*transits.lock().unwrap(), vec!["S0->>S1"]);
+        transits.lock().unwrap().clear();
         sm.change();
-        assert_eq!(*transits.borrow(), vec!["S1->>S2"]);
-        transits.borrow_mut().clear();
+        assert_eq!(*transits.lock().unwrap(), vec!["S1->>S2"]);
+        transits.lock().unwrap().clear();
         sm.change();
-        assert_eq!(*transits.borrow(), vec!["S2->>S3"]);
-        transits.borrow_mut().clear();
+        assert_eq!(*transits.lock().unwrap(), vec!["S2->>S3"]);
+        transits.lock().unwrap().clear();
         sm.transit();
-        assert_eq!(*transits.borrow(), vec!["S3->S4", "S4->>S0"]);
+        assert_eq!(*transits.lock().unwrap(), vec!["S3->S4", "S4->>S0"]);
     }
 }

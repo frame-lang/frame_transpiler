@@ -14,6 +14,7 @@ impl<'a> StateStack<'a> {
 mod tests {
     use super::*;
     use frame_runtime::transition::*;
+    use std::sync::Mutex;
 
     #[test]
     /// Test that a pop restores a pushed state.
@@ -121,10 +122,10 @@ mod tests {
     #[test]
     /// Test that pop transitions and change-states trigger callbacks.
     fn pop_transition_callbacks() {
-        let out: RefCell<String> = RefCell::new(String::new());
+        let out = Mutex::new(String::new());
         let mut sm = StateStack::new();
         sm.callback_manager().add_transition_callback(|info| {
-            *out.borrow_mut() = format!(
+            *out.lock().unwrap() = format!(
                 "{}{}{}",
                 info.old_state.name(),
                 match info.kind {
@@ -141,17 +142,17 @@ mod tests {
         sm.to_a();
         sm.push(); // stack top-to-bottom: A, B, C
         sm.to_b();
-        assert_eq!(*out.borrow(), "A->B");
+        assert_eq!(*out.lock().unwrap(), "A->B");
         sm.pop();
-        assert_eq!(*out.borrow(), "B->A");
+        assert_eq!(*out.lock().unwrap(), "B->A");
         sm.pop_change();
-        assert_eq!(*out.borrow(), "A->>B");
+        assert_eq!(*out.lock().unwrap(), "A->>B");
         sm.push();
         sm.to_c();
-        assert_eq!(*out.borrow(), "B->C");
+        assert_eq!(*out.lock().unwrap(), "B->C");
         sm.pop_change();
-        assert_eq!(*out.borrow(), "C->>B");
+        assert_eq!(*out.lock().unwrap(), "C->>B");
         sm.pop();
-        assert_eq!(*out.borrow(), "B->C");
+        assert_eq!(*out.lock().unwrap(), "B->C");
     }
 }

@@ -91,7 +91,7 @@ version = "0.1.0"
 
 [[package]]
 name = "framec"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "convert_case",
  "downcast-rs",

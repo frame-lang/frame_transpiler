@@ -56,6 +56,7 @@ use frame_runtime::state::State;
 use std::any::Any;
 use std::cell::{Ref, RefCell};
 use std::rc::Rc;
+use std::sync::Mutex;
 
 enum FrameMessage {
     Enter,
@@ -659,40 +660,43 @@ fn state_arguments() {
 #[rustfmt::skip]
 fn transition_callbacks() {
     let tape: Vec<String> = Vec::new();
-    let tape_cell = RefCell::new(tape);
+    let tape_mutex = Mutex::new(tape);
     let mut sm = Demo::new();
     sm.callback_manager().add_transition_callback(|i| {
-        tape_cell
-            .borrow_mut()
+        tape_mutex
+            .lock()
+            .unwrap()
             .push(format!("kind: {:?}", i.kind));
     });
     sm.callback_manager().add_transition_callback(|i| {
-        tape_cell
-            .borrow_mut()
+        tape_mutex
+            .lock()
+            .unwrap()
             .push(format!("old: {}", i.old_state.name()));
-        tape_cell
-            .borrow_mut()
+        tape_mutex
+            .lock()
+            .unwrap()
             .push(format!("new: {}", i.new_state.name()));
     });
     sm.next();
-    assert_eq!(*tape_cell.borrow(), vec!["kind: Transition", "old: Foo", "new: Bar"]);
-    tape_cell.borrow_mut().clear();
+    assert_eq!(*tape_mutex.lock().unwrap(), vec!["kind: Transition", "old: Foo", "new: Bar"]);
+    tape_mutex.lock().unwrap().clear();
     sm.next();
-    assert_eq!(*tape_cell.borrow(), vec!["kind: ChangeState", "old: Bar", "new: Foo"]);
-    tape_cell.borrow_mut().clear();
+    assert_eq!(*tape_mutex.lock().unwrap(), vec!["kind: ChangeState", "old: Bar", "new: Foo"]);
+    tape_mutex.lock().unwrap().clear();
     sm.next();
-    assert_eq!(*tape_cell.borrow(), vec!["kind: Transition", "old: Foo", "new: Bar"]);
+    assert_eq!(*tape_mutex.lock().unwrap(), vec!["kind: Transition", "old: Foo", "new: Bar"]);
 }
 
 #[test]
 fn enter_exit_arguments() {
     let tape: Vec<(i32, i32, i32, i32)> = Vec::new();
-    let tape_cell = RefCell::new(tape);
+    let tape_mutex = Mutex::new(tape);
     let mut sm = Demo::new();
     sm.callback_manager().add_transition_callback(|i| {
         let enter = i.enter_arguments;
         let exit = i.exit_arguments;
-        tape_cell.borrow_mut().push((
+        tape_mutex.lock().unwrap().push((
             lookup_i32(enter, "init"),
             lookup_i32(enter, "start"),
             lookup_i32(exit, "done"),
@@ -706,7 +710,7 @@ fn enter_exit_arguments() {
     sm.inc(10);
     sm.next(); // transition done=10, start=3
     assert_eq!(
-        *tape_cell.borrow(),
+        *tape_mutex.lock().unwrap(),
         vec![(-1, 3, 12, -1), (-1, -1, -1, -1), (-1, 3, 10, -1)]
     );
 }
