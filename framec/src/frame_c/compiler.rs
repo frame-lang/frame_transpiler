@@ -22,7 +22,7 @@ use yaml_rust::YamlLoader;
 /* --------------------------------------------------------------------- */
 
 static IS_DEBUG: bool = false;
-static FRAMEC_VERSION: &str = "emitted from framec_v0.6.0";
+static FRAMEC_VERSION: &str = "emitted from framec_v0.7.0";
 
 /* --------------------------------------------------------------------- */
 
@@ -267,9 +267,11 @@ impl Exe {
             visitor.run(&system_node);
             output = visitor.get_code();
         } else if output_format == "rust" {
+            let attributes = &system_node.attributes_opt;
             let mut visitor = RustVisitor::new(
                 semantic_parser.get_arcanum(),
                 &config_yaml,
+                attributes,
                 generate_enter_args,
                 generate_exit_args,
                 generate_state_context,

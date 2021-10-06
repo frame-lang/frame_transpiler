@@ -1,5 +1,5 @@
 use convert_case::{Case, Casing};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use yaml_rust::Yaml;
 
 use super::super::ast::*;
@@ -16,10 +16,12 @@ struct ConfigFeatures {
 
 struct Config {
     config_features: ConfigFeatures,
+
     actions_prefix: String,
     actions_suffix: String,
     action_prefix: String,
     action_suffix: String,
+
     enter_token: String,
     exit_token: String,
     enter_msg: String,
@@ -28,249 +30,468 @@ struct Config {
     event_args_method_suffix: String,
     enter_args_member_name: String,
     exit_args_member_name: String,
-    state_args_var: String,
-    state_args_suffix: String,
-    state_vars_var_name: String,
-    state_vars_suffix: String,
-    state_stack_var_name: String,
-    state_context_name: String,
-    state_context_suffix: String,
-    state_context_var_name: String,
-    state_context_method_suffix: String,
-    this_state_context_var_name: String,
-    frame_event_args_type_name: String,
-    frame_event_message_type_name: String,
+
     frame_event_type_name: String,
-    frame_event_return: String,
     frame_event_variable_name: String,
     frame_event_args_attribute_name: String,
+    frame_event_args_type_name: String,
     frame_event_message_attribute_name: String,
+    frame_event_message_type_name: String,
     frame_event_return_attribute_name: String,
-    state_var_name: String,
-    state_handler_name_prefix: String,
-    state_handler_name_suffix: String,
-    state_enum_suffix: String,
-    state_enum_traits: String,
+    frame_event_return_type_name: String,
+
     initialize_method_name: String,
     handle_event_method_name: String,
-    transition_method_name: String,
     change_state_method_name: String,
-    transition_hook_method_name: String,
+    transition_method_name: String,
+
+    state_handler_name_prefix: String,
+    state_handler_name_suffix: String,
+
+    state_var_name: String,
+    state_args_suffix: String,
+    state_args_var_name: String,
+    state_vars_suffix: String,
+    state_vars_var_name: String,
+
+    state_context_type_name: String,
+    state_context_var_name: String,
+    state_context_suffix: String,
+    state_context_method_suffix: String,
+    this_state_context_var_name: String,
+
+    state_enum_suffix: String,
+    state_enum_traits: String,
+
     change_state_hook_method_name: String,
+    transition_hook_method_name: String,
+
+    state_stack_var_name: String,
     state_stack_push_method_name: String,
     state_stack_pop_method_name: String,
-    state_cell_var_name: String,
+
     callback_manager_var_name: String,
+    state_cell_var_name: String,
 }
 
 impl Config {
-    fn new(rust_yaml: &Yaml) -> Config {
-        // println!("{:?}", rust_yaml);
+    /// Lookup the value a Boolean configuration option.
+    fn lookup_bool(
+        name: &str,
+        default: bool,
+        yaml: &Yaml,
+        attributes: &Option<HashMap<String, AttributeNode>>,
+        warnings: &mut Vec<String>,
+    ) -> bool {
+        let mut yaml_value = default;
+        match yaml[name] {
+            Yaml::Boolean(val) => {
+                yaml_value = val;
+            }
+            Yaml::BadValue => {
+                warnings.push(format!(
+                    "Expected config option {} to be defined, but it wasn't.",
+                    name
+                ));
+            }
+            _ => {
+                warnings.push(format!(
+                    "Expected config option {} to be a Boolean value, but it wasn't.",
+                    name
+                ));
+            }
+        }
+        let mut result = yaml_value;
+        if let Some(attr_node) = attributes.as_ref().and_then(|m| m.get(name)) {
+            match attr_node.value.parse() {
+                Ok(val) => {
+                    result = val;
+                }
+                Err(err) => {
+                    warnings.push(format!(
+                        "Found attribute for config option {}, but parsing its value produced an error: {}",
+                        name, err
+                    ));
+                }
+            }
+        }
+        result
+    }
+
+    /// Lookup the value of a String configuration option.
+    fn lookup_string(
+        name: &str,
+        default: &str,
+        yaml: &Yaml,
+        attributes: &Option<HashMap<String, AttributeNode>>,
+        warnings: &mut Vec<String>,
+    ) -> String {
+        let mut yaml_value = String::from(default);
+        match &yaml[name] {
+            Yaml::String(val) => {
+                yaml_value = val.to_string();
+            }
+            Yaml::BadValue => {
+                warnings.push(format!(
+                    "Expected config option {} to be defined, but it wasn't.",
+                    name
+                ));
+            }
+            _ => {
+                warnings.push(format!(
+                    "Expected config option {} to be a String value, but it wasn't.",
+                    name
+                ));
+            }
+        }
+        let mut result = yaml_value;
+        if let Some(attr_node) = attributes.as_ref().and_then(|m| m.get(name)) {
+            result = attr_node.value.clone();
+        }
+        result
+    }
+
+    fn new(
+        rust_yaml: &Yaml,
+        attributes: &Option<HashMap<String, AttributeNode>>,
+        warnings: &mut Vec<String>,
+    ) -> Config {
         let features_yaml = &rust_yaml["features"];
         let config_features = ConfigFeatures {
-            follow_rust_naming: (&features_yaml["follow_rust_naming"])
-                .as_bool()
-                .unwrap_or(true)
-                .to_string()
-                .parse()
-                .unwrap(),
-            generate_action_impl: (&features_yaml["generate_action_impl"])
-                .as_bool()
-                .unwrap_or(true)
-                .to_string()
-                .parse()
-                .unwrap(),
-            generate_hook_methods: (&features_yaml["generate_hook_methods"])
-                .as_bool()
-                .unwrap_or(true)
-                .to_string()
-                .parse()
-                .unwrap(),
-            runtime_support: (&features_yaml["runtime_support"])
-                .as_bool()
-                .unwrap_or(true)
-                .to_string()
-                .parse()
-                .unwrap(),
+            follow_rust_naming: Config::lookup_bool(
+                "follow_rust_naming",
+                true,
+                features_yaml,
+                attributes,
+                warnings,
+            ),
+            generate_action_impl: Config::lookup_bool(
+                "generate_action_impl",
+                true,
+                features_yaml,
+                attributes,
+                warnings,
+            ),
+            generate_hook_methods: Config::lookup_bool(
+                "generate_hook_methods",
+                true,
+                features_yaml,
+                attributes,
+                warnings,
+            ),
+            runtime_support: Config::lookup_bool(
+                "runtime_support",
+                true,
+                features_yaml,
+                attributes,
+                warnings,
+            ),
         };
-        let code_yaml = &rust_yaml["code"];
 
+        let code_yaml = &rust_yaml["code"];
         Config {
             config_features,
-            actions_prefix: (&code_yaml["actions_prefix"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            actions_suffix: (&code_yaml["actions_suffix"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            action_prefix: (&code_yaml["action_prefix"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            action_suffix: (&code_yaml["action_suffix"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
+            actions_prefix: Config::lookup_string(
+                "actions_prefix",
+                "",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+            actions_suffix: Config::lookup_string(
+                "actions_suffix",
+                "Actions",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+            action_prefix: Config::lookup_string(
+                "action_prefix",
+                "",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+            action_suffix: Config::lookup_string(
+                "action_suffix",
+                "",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+
             enter_token: String::from(">"),
             exit_token: String::from("<"),
-            enter_msg: (&code_yaml["enter_msg"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            exit_msg: (&code_yaml["exit_msg"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            event_args_suffix: (&code_yaml["event_args_suffix"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            event_args_method_suffix: (&code_yaml["event_args_method_suffix"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            enter_args_member_name: (&code_yaml["enter_args_member_name"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            exit_args_member_name: (&code_yaml["exit_args_member_name"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            state_var_name: (&code_yaml["state_var_name"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            state_handler_name_prefix: (&code_yaml["state_handler_name_prefix"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            state_handler_name_suffix: (&code_yaml["state_handler_name_suffix"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            state_enum_suffix: (&code_yaml["state_enum_suffix"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            state_enum_traits: (&code_yaml["state_enum_traits"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            state_context_var_name: (&code_yaml["state_context_var_name"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            this_state_context_var_name: (&code_yaml["this_state_context_var_name"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            state_context_method_suffix: (&code_yaml["state_context_method_suffix"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            frame_event_args_type_name: (&code_yaml["frame_event_args_type_name"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            frame_event_type_name: (&code_yaml["frame_event_type_name"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            frame_event_message_type_name: (&code_yaml["frame_event_message_type_name"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            frame_event_return: (&code_yaml["frame_event_return"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            frame_event_variable_name: (&code_yaml["frame_event_variable_name"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            frame_event_args_attribute_name: (&code_yaml["frame_event_args_attribute_name"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            frame_event_message_attribute_name: (&code_yaml["frame_event_message_attribute_name"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            frame_event_return_attribute_name: (&code_yaml["frame_event_return_attribute_name"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            state_context_name: (&code_yaml["state_context_name"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            state_context_suffix: (&code_yaml["state_context_suffix"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            state_args_var: (&code_yaml["state_args_var"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            state_args_suffix: (&code_yaml["state_args_suffix"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            state_vars_var_name: (&code_yaml["state_vars_var_name"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            state_vars_suffix: (&code_yaml["state_vars_suffix"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            state_stack_var_name: (&code_yaml["state_stack_var_name"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            initialize_method_name: (&code_yaml["initialize_method_name"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            handle_event_method_name: (&code_yaml["handle_event_method_name"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            transition_method_name: (&code_yaml["transition_method_name"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            change_state_method_name: (&code_yaml["change_state_method_name"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            transition_hook_method_name: (&code_yaml["transition_hook_method_name"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            change_state_hook_method_name: (&code_yaml["change_state_hook_method_name"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            state_stack_push_method_name: (&code_yaml["state_stack_push_method_name"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            state_stack_pop_method_name: (&code_yaml["state_stack_pop_method_name"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            state_cell_var_name: (&code_yaml["state_cell_var_name"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            callback_manager_var_name: (&code_yaml["callback_manager_var_name"])
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
+            enter_msg: Config::lookup_string("enter_msg", "Enter", code_yaml, attributes, warnings),
+            exit_msg: Config::lookup_string("exit_msg", "Exit", code_yaml, attributes, warnings),
+            event_args_suffix: Config::lookup_string(
+                "event_args_suffix",
+                "Args",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+            event_args_method_suffix: Config::lookup_string(
+                "event_args_method_suffix",
+                "_args",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+            enter_args_member_name: Config::lookup_string(
+                "enter_args_member_name",
+                "enter_args",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+            exit_args_member_name: Config::lookup_string(
+                "exit_args_member_name",
+                "exit_args",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+
+            frame_event_type_name: Config::lookup_string(
+                "frame_event_type_name",
+                "FrameEvent",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+            frame_event_variable_name: Config::lookup_string(
+                "frame_event_variable_name",
+                "frame_event",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+            frame_event_args_attribute_name: Config::lookup_string(
+                "frame_event_args_attribute_name",
+                "arguments",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+            frame_event_args_type_name: Config::lookup_string(
+                "frame_event_args_type_name",
+                "FrameEventArgs",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+            frame_event_message_attribute_name: Config::lookup_string(
+                "frame_event_message_attribute_name",
+                "message",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+            frame_event_message_type_name: Config::lookup_string(
+                "frame_event_message_type_name",
+                "FrameMessage",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+            frame_event_return_attribute_name: Config::lookup_string(
+                "frame_event_return_attribute_name",
+                "ret",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+            frame_event_return_type_name: Config::lookup_string(
+                "frame_event_return_type_name",
+                "FrameEventReturn",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+
+            initialize_method_name: Config::lookup_string(
+                "initialize_method_name",
+                "initialize",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+            handle_event_method_name: Config::lookup_string(
+                "handle_event_method_name",
+                "handle_event",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+            change_state_method_name: Config::lookup_string(
+                "change_state_method_name",
+                "change_state",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+            transition_method_name: Config::lookup_string(
+                "transition_method_name",
+                "transition",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+
+            state_handler_name_prefix: Config::lookup_string(
+                "state_handler_name_prefix",
+                "",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+            state_handler_name_suffix: Config::lookup_string(
+                "state_handler_name_suffix",
+                "_handler",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+
+            state_var_name: Config::lookup_string(
+                "state_var_name",
+                "state",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+            state_args_suffix: Config::lookup_string(
+                "state_args_suffix",
+                "StateArgs",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+            state_args_var_name: Config::lookup_string(
+                "state_args_var_name",
+                "state_args",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+            state_vars_suffix: Config::lookup_string(
+                "state_vars_suffix",
+                "StateVars",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+            state_vars_var_name: Config::lookup_string(
+                "state_vars_var_name",
+                "state_vars",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+
+            state_context_type_name: Config::lookup_string(
+                "state_context_type_name",
+                "StateContext",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+            state_context_var_name: Config::lookup_string(
+                "state_context_var_name",
+                "state_context",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+            state_context_suffix: Config::lookup_string(
+                "state_context_suffix",
+                "StateContext",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+            state_context_method_suffix: Config::lookup_string(
+                "state_context_method_suffix",
+                "_context",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+            this_state_context_var_name: Config::lookup_string(
+                "this_state_context_var_name",
+                "this_state_context",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+
+            state_enum_suffix: Config::lookup_string(
+                "state_enum_suffix",
+                "State",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+            state_enum_traits: Config::lookup_string(
+                "state_enum_traits",
+                "Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+
+            change_state_hook_method_name: Config::lookup_string(
+                "change_state_hook_method_name",
+                "change_state_hook",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+            transition_hook_method_name: Config::lookup_string(
+                "transition_hook_method_name",
+                "transition_hook",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+
+            state_stack_var_name: Config::lookup_string(
+                "state_stack_var_name",
+                "state_stack",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+            state_stack_push_method_name: Config::lookup_string(
+                "state_stack_push_method_name",
+                "state_stack_push",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+            state_stack_pop_method_name: Config::lookup_string(
+                "state_stack_pop_method_name",
+                "state_stack_pop",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+
+            callback_manager_var_name: Config::lookup_string(
+                "callback_manager_var_name",
+                "callback_manager",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
+            state_cell_var_name: Config::lookup_string(
+                "state_cell_var_name",
+                "state_cell",
+                code_yaml,
+                attributes,
+                warnings,
+            ),
         }
     }
 }
@@ -310,6 +531,7 @@ impl RustVisitor {
     pub fn new(
         arcanum: Arcanum,
         config_yaml: &Yaml,
+        attributes: &Option<HashMap<String, AttributeNode>>,
         generate_enter_args: bool,
         generate_exit_args: bool,
         generate_state_context: bool,
@@ -319,7 +541,8 @@ impl RustVisitor {
         compiler_version: &str,
         comments: Vec<Token>,
     ) -> RustVisitor {
-        let config = RustVisitor::load_config(config_yaml);
+        let mut warnings = Vec::new();
+        let config = RustVisitor::load_config(config_yaml, attributes, &mut warnings);
 
         RustVisitor {
             compiler_version: compiler_version.to_string(),
@@ -337,7 +560,7 @@ impl RustVisitor {
             deserialize: Vec::new(),
             has_states: false,
             errors: Vec::new(),
-            warnings: Vec::new(),
+            warnings,
             visiting_call_chain_literal_variable: false,
             this_branch_transitioned: false,
             generate_enter_args,
@@ -357,10 +580,14 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn load_config(config_yaml: &Yaml) -> Config {
+    fn load_config(
+        config_yaml: &Yaml,
+        attributes: &Option<HashMap<String, AttributeNode>>,
+        warnings: &mut Vec<String>,
+    ) -> Config {
         let codegen_yaml = &config_yaml["codegen"];
         let rust_yaml = &codegen_yaml["rust"];
-        let config = Config::new(&rust_yaml);
+        let config = Config::new(&rust_yaml, attributes, warnings);
         config
     }
 
@@ -448,7 +675,7 @@ impl RustVisitor {
                 code.push_str(&format!(
                     "{}.{}.{}",
                     self.config.this_state_context_var_name,
-                    self.config.state_args_var,
+                    self.config.state_args_var_name,
                     self.format_value_name(&variable_node.id_node.name.lexeme)
                 ));
                 if self.visiting_call_chain_literal_variable {
@@ -1161,7 +1388,7 @@ impl RustVisitor {
                     self.newline();
                     self.add_code(&format!(
                         "{}: {},",
-                        self.config.state_args_var, state_args_struct_name
+                        self.config.state_args_var_name, state_args_struct_name
                     ));
                 }
 
@@ -1191,7 +1418,7 @@ impl RustVisitor {
                     self.add_code("fn state_arguments(&self) -> &dyn Environment");
                     self.enter_block();
                     if has_state_args {
-                        self.add_code(&format!("&self.{}", self.config.state_args_var));
+                        self.add_code(&format!("&self.{}", self.config.state_args_var_name));
                     } else {
                         self.add_code("EMPTY");
                     }
@@ -1217,7 +1444,7 @@ impl RustVisitor {
             // generate the enum type that unions all the state context types
             self.add_code("#[allow(dead_code)]");
             self.newline();
-            self.add_code(&format!("enum {} {{", self.config.state_context_name));
+            self.add_code(&format!("enum {} {{", self.config.state_context_type_name));
             self.indent();
             for state in &machine_block_node.states {
                 self.newline();
@@ -1234,7 +1461,7 @@ impl RustVisitor {
 
             self.add_code("#[allow(dead_code)]");
             self.newline();
-            self.add_code(&format!("impl {} {{", self.config.state_context_name));
+            self.add_code(&format!("impl {} {{", self.config.state_context_type_name));
             self.indent();
 
             // generate method to get the state context as a runtime state
@@ -1249,7 +1476,7 @@ impl RustVisitor {
                     self.newline();
                     self.add_code(&format!(
                         "{}::{}(context) => Ref::map(context.borrow(), |c| c as &dyn State),",
-                        self.config.state_context_name,
+                        self.config.state_context_type_name,
                         self.format_type_name(&state_node.name)
                     ));
                 }
@@ -1274,7 +1501,7 @@ impl RustVisitor {
                 self.newline();
                 self.add_code(&format!(
                     "{}::{}(context) => context,",
-                    self.config.state_context_name,
+                    self.config.state_context_type_name,
                     self.format_type_name(&state_node.name)
                 ));
                 self.newline();
@@ -1514,7 +1741,7 @@ impl RustVisitor {
                 new_state_var,
                 self.state_enum_type_name(),
                 new_state_context_var,
-                self.config.state_context_name
+                self.config.state_context_type_name
             ));
         } else {
             self.add_code(&format!(
@@ -1661,7 +1888,7 @@ impl RustVisitor {
         if self.generate_state_context {
             self.add_code(&format!(
                 ", {}: Rc<{}>",
-                new_state_context_var, self.config.state_context_name
+                new_state_context_var, self.config.state_context_type_name
             ));
         }
         self.add_code(")");
@@ -1849,7 +2076,7 @@ impl RustVisitor {
                 "fn {}(&mut self) -> ({}, Rc<{}>) {{",
                 self.config.state_stack_pop_method_name,
                 self.state_enum_type_name(),
-                self.config.state_context_name
+                self.config.state_context_type_name
             ));
         } else {
             self.add_code(&format!(
@@ -2208,7 +2435,10 @@ impl RustVisitor {
         self.indent();
         if has_state_args {
             self.newline();
-            self.add_code(&format!("{}: {},", self.config.state_args_var, state_args));
+            self.add_code(&format!(
+                "{}: {},",
+                self.config.state_args_var_name, state_args
+            ));
         }
         if has_state_vars {
             self.newline();
@@ -2223,7 +2453,7 @@ impl RustVisitor {
         self.newline();
         self.add_code(&format!(
             "let next_state_context = Rc::new({}::{}(RefCell::new(context)));",
-            self.config.state_context_name,
+            self.config.state_context_type_name,
             self.format_type_name(&target_state_name.to_string())
         ));
     }
@@ -2592,7 +2822,10 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.add_code("#[allow(dead_code)]");
         self.newline();
-        self.add_code(&format!("enum {} {{", self.config.frame_event_return));
+        self.add_code(&format!(
+            "enum {} {{",
+            self.config.frame_event_return_type_name
+        ));
         self.indent();
         self.newline();
         self.add_code("None,");
@@ -2622,7 +2855,10 @@ impl AstVisitor for RustVisitor {
             self.add_code("#[allow(non_snake_case)]");
         }
         self.newline();
-        self.add_code(&format!("impl {} {{", self.config.frame_event_return));
+        self.add_code(&format!(
+            "impl {} {{",
+            self.config.frame_event_return_type_name
+        ));
         if let Some(interface_block_node) = &system_node.interface_block_node_opt {
             for interface_method_node in &interface_block_node.interface_methods {
                 //let if_name = interface_method_node.name.clone();
@@ -2641,7 +2877,7 @@ impl AstVisitor for RustVisitor {
                     self.newline();
                     self.add_code(&format!(
                         "{}::{} {{ return_value }} => return_value.clone(),",
-                        self.config.frame_event_return,
+                        self.config.frame_event_return_type_name,
                         self.format_type_name(&interface_method_node.borrow().name)
                     ));
                     self.newline();
@@ -2686,7 +2922,7 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.add_code(&format!(
             "{}: {},",
-            self.config.frame_event_return_attribute_name, self.config.frame_event_return
+            self.config.frame_event_return_attribute_name, self.config.frame_event_return_type_name
         ));
         self.outdent();
         self.newline();
@@ -2724,7 +2960,10 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.add_code(&format!("{},", self.config.frame_event_args_attribute_name));
         self.newline();
-        self.add_code(&format!("ret: {}::None,", self.config.frame_event_return));
+        self.add_code(&format!(
+            "ret: {}::None,",
+            self.config.frame_event_return_type_name
+        ));
         self.outdent();
         self.newline();
         self.add_code("}");
@@ -2790,7 +3029,7 @@ impl AstVisitor for RustVisitor {
             self.newline();
             self.add_code(&format!(
                 "{}: Rc<{}>,",
-                self.config.state_context_var_name, self.config.state_context_name
+                self.config.state_context_var_name, self.config.state_context_type_name
             ));
         }
 
@@ -2802,7 +3041,7 @@ impl AstVisitor for RustVisitor {
                     "{}: Vec<({}, Rc<{}>)>,",
                     self.config.state_stack_var_name,
                     self.state_enum_type_name(),
-                    self.config.state_context_name
+                    self.config.state_context_type_name
                 ));
             } else {
                 self.newline();
@@ -3229,7 +3468,7 @@ impl AstVisitor for RustVisitor {
                 self.newline();
                 self.add_code(&format!(
                     "{}::{} {{ return_value }} => return_value.clone(),",
-                    self.config.frame_event_return,
+                    self.config.frame_event_return_type_name,
                     self.format_type_name(&interface_method_node.name)
                 ));
                 self.newline();
@@ -3588,7 +3827,7 @@ impl AstVisitor for RustVisitor {
                         ));
                         self.add_code(&format!(
                             "{}::{} {{ return_value: ",
-                            self.config.frame_event_return,
+                            self.config.frame_event_return_type_name,
                             self.format_type_name(&self.current_message)
                         ));
                         expr_t.accept(self);
@@ -4926,7 +5165,7 @@ impl AstVisitor for RustVisitor {
 
                 self.add_code(&format!(
                     "{}::{} {{ return_value: {}}};",
-                    self.config.frame_event_return,
+                    self.config.frame_event_return_type_name,
                     self.format_type_name(&self.current_message),
                     code
                 ));
