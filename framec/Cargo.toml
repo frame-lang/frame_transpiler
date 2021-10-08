@@ -9,7 +9,6 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-anyhow = "1.0"
 convert_case = "0.4.0"
 downcast-rs = "1.2.0"
 exitcode = "1.1.2"

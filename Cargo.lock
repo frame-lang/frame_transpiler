@@ -127,7 +127,6 @@ version = "0.7.0"
 name = "framec"
 version = "0.7.0"
 dependencies = [
- "anyhow",
  "convert_case",
  "downcast-rs",
  "exitcode",
