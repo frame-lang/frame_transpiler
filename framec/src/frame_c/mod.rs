@@ -1,4 +1,5 @@
 mod ast;
+pub mod cli;
 pub mod compiler;
 mod parser;
 mod scanner;

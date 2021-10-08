@@ -16,6 +16,7 @@ use exitcode::USAGE;
 extern crate yaml_rust;
 use self::yaml_rust::Yaml;
 use std::fs;
+use std::path::{Path, PathBuf};
 use yaml_rust::YamlLoader;
 //use crate::frame_c::visitors::xtate_visitor::XStateVisitor;
 
@@ -45,54 +46,100 @@ impl Exe {
 
     /* --------------------------------------------------------------------- */
 
-    // Detect if config.yaml file is present in transpiler folder
-    // and load it if so. Otherwise create it from internal
-    // default_config.yaml file.
-
-    fn load_or_create_config_file(&self) -> Result<Yaml, RunError> {
-        // try to read the external config.yaml file
-        let config_yaml = match fs::read_to_string("config.yaml") {
-            Ok(value) => value,
-            Err(_err) => {
-                // doesn't exist. load internal default config
-                let default_config_yaml = include_str!("default_config.yaml");
-                // now write to disk to create the default external config file
-                match fs::write("config.yaml", default_config_yaml) {
-                    // success - just return the contents of the default
-                    Ok(_) => default_config_yaml.to_string(),
-                    Err(err) => {
-                        // error - couldn't write file
-                        let error_msg = format!("Error writing config.yaml: {}", err);
-                        let run_error =
-                            RunError::new(frame_exitcode::DEFAULT_CONFIG_ERR, &*error_msg);
-                        return Err(run_error);
-                    }
-                }
-            }
-        };
-
-        // parse config yaml
-        let config_result = YamlLoader::load_from_str(config_yaml.as_str());
-        match config_result {
-            Ok(config_yaml_vec) => Ok(config_yaml_vec[0].clone()),
-            Err(scan_error) => {
+    /// Load a configuration from the file at the given path.
+    pub fn load_config_file(&self, path: &Path) -> Result<Yaml, RunError> {
+        match fs::read_to_string(path) {
+            Ok(content) => self.parse_config_yaml(&content),
+            Err(err) => {
                 let error_msg = format!(
-                    "Error parsing default_config.yaml: {}",
-                    scan_error.to_string()
+                    "Error reading config file {}: {}",
+                    path.to_str().unwrap(),
+                    err
                 );
+                Err(RunError::new(
+                    frame_exitcode::MISSING_CONFIG_ERR,
+                    &*error_msg,
+                ))
+            }
+        }
+    }
+
+    /// Load the `default_config.yaml` file.
+    pub fn load_default_config_file(&self) -> Result<Yaml, RunError> {
+        let content = include_str!("default_config.yaml");
+        self.parse_config_yaml(&content.to_string())
+    }
+
+    /// Write out the `default_config.yaml` file as a new `config.yaml` file in
+    /// the current working directory.
+    pub fn write_default_config_file(&self) -> Result<(), RunError> {
+        let contents = include_str!("default_config.yaml");
+        match fs::write("config.yaml", contents) {
+            Ok(_) => Ok(()),
+            Err(err) => {
+                let error_msg = format!("Error writing config.yaml: {}", err);
                 let run_error = RunError::new(frame_exitcode::DEFAULT_CONFIG_ERR, &*error_msg);
-                return Err(run_error);
+                Err(run_error)
+            }
+        }
+    }
+
+    /// Parse the contents of a configuration file.
+    fn parse_config_yaml(&self, content: &String) -> Result<Yaml, RunError> {
+        let yaml = YamlLoader::load_from_str(content.as_str());
+        match yaml {
+            Ok(yaml_vec) => Ok(yaml_vec[0].clone()),
+            Err(err) => {
+                let error_msg = format!("Error parsing default_config.yaml: {}", err);
+                let run_error = RunError::new(frame_exitcode::DEFAULT_CONFIG_ERR, &*error_msg);
+                Err(run_error)
             }
         }
     }
 
     /* --------------------------------------------------------------------- */
 
-    pub fn run(&self, contents: String, mut output_format: String) -> Result<String, RunError> {
-        let config_yaml = match self.load_or_create_config_file() {
-            Ok(config_yaml) => config_yaml,
-            Err(err) => return Err(err),
-        };
+    pub fn run_file(
+        &self,
+        local_config: &Option<PathBuf>,
+        input_path: &Path,
+        output_format: String,
+    ) -> Result<String, RunError> {
+        match fs::read_to_string(input_path) {
+            Ok(content) => {
+                Exe::debug_print(&format!("{}", &content));
+                self.run(local_config, content, output_format)
+            }
+            Err(err) => {
+                let error_msg = format!("Error reading input file: {}", err);
+                let run_error = RunError::new(exitcode::NOINPUT, &*error_msg);
+                Err(run_error)
+            }
+        }
+    }
+
+    pub fn run(
+        &self,
+        local_config: &Option<PathBuf>,
+        content: String,
+        mut output_format: String,
+    ) -> Result<String, RunError> {
+        // load default config
+        let default_config_yaml = self.load_default_config_file()?;
+
+        // load local config, if provided
+        // TODO: should instead pass an Option<&Yaml> into visitors
+        let mut local_config_yaml = default_config_yaml.clone();
+        if let Some(path) = local_config {
+            match self.load_config_file(path) {
+                Ok(yaml) => {
+                    local_config_yaml = yaml;
+                }
+                Err(err) => {
+                    return Err(err);
+                }
+            }
+        }
 
         // NOTE!!! There is a bug w/ the CLion debugger when a variable (maybe just String type)
         // isn't initialized under some circumstances. Basically the debugger
@@ -105,7 +152,7 @@ impl Exe {
         // let mut output= String::new();
 
         let output;
-        let scanner = Scanner::new(contents);
+        let scanner = Scanner::new(content);
 
         let (has_errors, errors, tokens) = scanner.scan_tokens();
         if has_errors {
@@ -173,7 +220,7 @@ impl Exe {
         } else if output_format == "cpp" {
             let mut visitor = CppVisitor::new(
                 semantic_parser.get_arcanum(),
-                &config_yaml,
+                &default_config_yaml, // TODO pass in local_config_yaml too
                 generate_exit_args,
                 generate_enter_args || generate_state_context,
                 generate_state_stack,
@@ -270,7 +317,8 @@ impl Exe {
             let attributes = &system_node.attributes_opt;
             let mut visitor = RustVisitor::new(
                 semantic_parser.get_arcanum(),
-                &config_yaml,
+                &default_config_yaml,
+                &local_config_yaml,
                 attributes,
                 generate_enter_args,
                 generate_exit_args,

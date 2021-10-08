@@ -78,30 +78,46 @@ impl Config {
     /// Lookup the value a Boolean configuration option.
     fn lookup_bool(
         name: &str,
-        default: bool,
-        yaml: &Yaml,
+        default_yaml: &Yaml,
+        local_yaml: &Yaml,
         attributes: &Option<HashMap<String, AttributeNode>>,
+        errors: &mut Vec<String>,
         warnings: &mut Vec<String>,
     ) -> bool {
-        let mut yaml_value = default;
-        match yaml[name] {
+        // initialize with value from default config
+        let mut result = true;
+        match default_yaml[name] {
             Yaml::Boolean(val) => {
-                yaml_value = val;
+                result = val;
             }
             Yaml::BadValue => {
-                warnings.push(format!(
-                    "Expected config option {} to be defined, but it wasn't.",
+                errors.push(format!(
+                    "No default value defined for config option {}",
                     name
                 ));
             }
             _ => {
-                warnings.push(format!(
-                    "Expected config option {} to be a Boolean value, but it wasn't.",
+                errors.push(format!(
+                    "Default value for config option {} should be a Boolean, but isn't.",
                     name
                 ));
             }
         }
-        let mut result = yaml_value;
+        // override with value from local config
+        match local_yaml[name] {
+            Yaml::BadValue => {} // not in local config
+            Yaml::Boolean(val) => {
+                result = val;
+            }
+            _ => {
+                warnings.push(format!(
+                    "Local configuration defines option {} but it is not a Boolean value. \
+                    Using the default value {} instead.",
+                    name, result
+                ));
+            }
+        }
+        // override with value from attributes
         if let Some(attr_node) = attributes.as_ref().and_then(|m| m.get(name)) {
             match attr_node.value.parse() {
                 Ok(val) => {
@@ -118,33 +134,52 @@ impl Config {
         result
     }
 
-    /// Lookup the value of a String configuration option.
+    /// Lookup the value a String configuration option.
     fn lookup_string(
         name: &str,
-        default: &str,
-        yaml: &Yaml,
+        default_yaml: &Yaml,
+        local_yaml: &Yaml,
         attributes: &Option<HashMap<String, AttributeNode>>,
+        errors: &mut Vec<String>,
         warnings: &mut Vec<String>,
     ) -> String {
-        let mut yaml_value = String::from(default);
-        match &yaml[name] {
+        // initialize with value from default config
+        let mut result = String::new();
+        match &default_yaml[name] {
             Yaml::String(val) => {
-                yaml_value = val.to_string();
+                result = val.to_string();
+            }
+            Yaml::Null => {
+                result = String::new();
             }
             Yaml::BadValue => {
-                warnings.push(format!(
-                    "Expected config option {} to be defined, but it wasn't.",
+                errors.push(format!(
+                    "No default value defined for config option {}",
                     name
                 ));
             }
             _ => {
-                warnings.push(format!(
-                    "Expected config option {} to be a String value, but it wasn't.",
+                errors.push(format!(
+                    "Default value for config option {} should be a String, but isn't.",
                     name
                 ));
             }
         }
-        let mut result = yaml_value;
+        // override with value from local config
+        match &local_yaml[name] {
+            Yaml::BadValue => {} // not in local config
+            Yaml::String(val) => {
+                result = val.to_string();
+            }
+            _ => {
+                warnings.push(format!(
+                    "Local configuration defines option {} but it is not a String value. \
+                    Using the default value {} instead.",
+                    name, result
+                ));
+            }
+        }
+        // override with value from attributes
         if let Some(attr_node) = attributes.as_ref().and_then(|m| m.get(name)) {
             result = attr_node.value.clone();
         }
@@ -152,344 +187,407 @@ impl Config {
     }
 
     fn new(
-        rust_yaml: &Yaml,
+        default_yaml: &Yaml,
+        local_yaml: &Yaml,
         attributes: &Option<HashMap<String, AttributeNode>>,
+        errors: &mut Vec<String>,
         warnings: &mut Vec<String>,
     ) -> Config {
-        let features_yaml = &rust_yaml["features"];
+        let default_features_yaml = &default_yaml["features"];
+        let local_features_yaml = &local_yaml["features"];
         let config_features = ConfigFeatures {
             follow_rust_naming: Config::lookup_bool(
                 "follow_rust_naming",
-                true,
-                features_yaml,
+                default_features_yaml,
+                local_features_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
             generate_action_impl: Config::lookup_bool(
                 "generate_action_impl",
-                true,
-                features_yaml,
+                default_features_yaml,
+                local_features_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
             generate_hook_methods: Config::lookup_bool(
                 "generate_hook_methods",
-                true,
-                features_yaml,
+                default_features_yaml,
+                local_features_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
             runtime_support: Config::lookup_bool(
                 "runtime_support",
-                true,
-                features_yaml,
+                default_features_yaml,
+                local_features_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
         };
 
-        let code_yaml = &rust_yaml["code"];
+        let default_code_yaml = &default_yaml["code"];
+        let local_code_yaml = &local_yaml["code"];
         Config {
             config_features,
             actions_prefix: Config::lookup_string(
                 "actions_prefix",
-                "",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
             actions_suffix: Config::lookup_string(
                 "actions_suffix",
-                "Actions",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
             action_prefix: Config::lookup_string(
                 "action_prefix",
-                "",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
             action_suffix: Config::lookup_string(
                 "action_suffix",
-                "",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
 
             enter_token: String::from(">"),
             exit_token: String::from("<"),
-            enter_msg: Config::lookup_string("enter_msg", "Enter", code_yaml, attributes, warnings),
-            exit_msg: Config::lookup_string("exit_msg", "Exit", code_yaml, attributes, warnings),
+            enter_msg: Config::lookup_string(
+                "enter_msg",
+                default_code_yaml,
+                local_code_yaml,
+                attributes,
+                errors,
+                warnings,
+            ),
+            exit_msg: Config::lookup_string(
+                "exit_msg",
+                default_code_yaml,
+                local_code_yaml,
+                attributes,
+                errors,
+                warnings,
+            ),
             event_args_suffix: Config::lookup_string(
                 "event_args_suffix",
-                "Args",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
             event_args_method_suffix: Config::lookup_string(
                 "event_args_method_suffix",
-                "_args",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
             enter_args_member_name: Config::lookup_string(
                 "enter_args_member_name",
-                "enter_args",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
             exit_args_member_name: Config::lookup_string(
                 "exit_args_member_name",
-                "exit_args",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
 
             frame_event_type_name: Config::lookup_string(
                 "frame_event_type_name",
-                "FrameEvent",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
             frame_event_variable_name: Config::lookup_string(
                 "frame_event_variable_name",
-                "frame_event",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
             frame_event_args_attribute_name: Config::lookup_string(
                 "frame_event_args_attribute_name",
-                "arguments",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
             frame_event_args_type_name: Config::lookup_string(
                 "frame_event_args_type_name",
-                "FrameEventArgs",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
             frame_event_message_attribute_name: Config::lookup_string(
                 "frame_event_message_attribute_name",
-                "message",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
             frame_event_message_type_name: Config::lookup_string(
                 "frame_event_message_type_name",
-                "FrameMessage",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
             frame_event_return_attribute_name: Config::lookup_string(
                 "frame_event_return_attribute_name",
-                "ret",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
             frame_event_return_type_name: Config::lookup_string(
                 "frame_event_return_type_name",
-                "FrameEventReturn",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
 
             initialize_method_name: Config::lookup_string(
                 "initialize_method_name",
-                "initialize",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
             handle_event_method_name: Config::lookup_string(
                 "handle_event_method_name",
-                "handle_event",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
             change_state_method_name: Config::lookup_string(
                 "change_state_method_name",
-                "change_state",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
             transition_method_name: Config::lookup_string(
                 "transition_method_name",
-                "transition",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
 
             state_handler_name_prefix: Config::lookup_string(
                 "state_handler_name_prefix",
-                "",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
             state_handler_name_suffix: Config::lookup_string(
                 "state_handler_name_suffix",
-                "_handler",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
 
             state_var_name: Config::lookup_string(
                 "state_var_name",
-                "state",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
             state_args_suffix: Config::lookup_string(
                 "state_args_suffix",
-                "StateArgs",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
             state_args_var_name: Config::lookup_string(
                 "state_args_var_name",
-                "state_args",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
             state_vars_suffix: Config::lookup_string(
                 "state_vars_suffix",
-                "StateVars",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
             state_vars_var_name: Config::lookup_string(
                 "state_vars_var_name",
-                "state_vars",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
 
             state_context_type_name: Config::lookup_string(
                 "state_context_type_name",
-                "StateContext",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
             state_context_var_name: Config::lookup_string(
                 "state_context_var_name",
-                "state_context",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
             state_context_suffix: Config::lookup_string(
                 "state_context_suffix",
-                "StateContext",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
             state_context_method_suffix: Config::lookup_string(
                 "state_context_method_suffix",
-                "_context",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
             this_state_context_var_name: Config::lookup_string(
                 "this_state_context_var_name",
-                "this_state_context",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
 
             state_enum_suffix: Config::lookup_string(
                 "state_enum_suffix",
-                "State",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
             state_enum_traits: Config::lookup_string(
                 "state_enum_traits",
-                "Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
 
             change_state_hook_method_name: Config::lookup_string(
                 "change_state_hook_method_name",
-                "change_state_hook",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
             transition_hook_method_name: Config::lookup_string(
                 "transition_hook_method_name",
-                "transition_hook",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
 
             state_stack_var_name: Config::lookup_string(
                 "state_stack_var_name",
-                "state_stack",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
             state_stack_push_method_name: Config::lookup_string(
                 "state_stack_push_method_name",
-                "state_stack_push",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
             state_stack_pop_method_name: Config::lookup_string(
                 "state_stack_pop_method_name",
-                "state_stack_pop",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
 
             callback_manager_var_name: Config::lookup_string(
                 "callback_manager_var_name",
-                "callback_manager",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
             state_cell_var_name: Config::lookup_string(
                 "state_cell_var_name",
-                "state_cell",
-                code_yaml,
+                default_code_yaml,
+                local_code_yaml,
                 attributes,
+                errors,
                 warnings,
             ),
         }
@@ -530,7 +628,8 @@ pub struct RustVisitor {
 impl RustVisitor {
     pub fn new(
         arcanum: Arcanum,
-        config_yaml: &Yaml,
+        default_yaml: &Yaml,
+        local_yaml: &Yaml,
         attributes: &Option<HashMap<String, AttributeNode>>,
         generate_enter_args: bool,
         generate_exit_args: bool,
@@ -541,8 +640,15 @@ impl RustVisitor {
         compiler_version: &str,
         comments: Vec<Token>,
     ) -> RustVisitor {
+        let mut errors = Vec::new();
         let mut warnings = Vec::new();
-        let config = RustVisitor::load_config(config_yaml, attributes, &mut warnings);
+        let config = Config::new(
+            &default_yaml["codegen"]["rust"],
+            &local_yaml["codegen"]["rust"],
+            attributes,
+            &mut errors,
+            &mut warnings,
+        );
 
         RustVisitor {
             compiler_version: compiler_version.to_string(),
@@ -559,7 +665,7 @@ impl RustVisitor {
             serialize: Vec::new(),
             deserialize: Vec::new(),
             has_states: false,
-            errors: Vec::new(),
+            errors,
             warnings,
             visiting_call_chain_literal_variable: false,
             this_branch_transitioned: false,
@@ -576,19 +682,6 @@ impl RustVisitor {
             current_message: String::new(),
             config,
         }
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn load_config(
-        config_yaml: &Yaml,
-        attributes: &Option<HashMap<String, AttributeNode>>,
-        warnings: &mut Vec<String>,
-    ) -> Config {
-        let codegen_yaml = &config_yaml["codegen"];
-        let rust_yaml = &codegen_yaml["rust"];
-        let config = Config::new(&rust_yaml, attributes, warnings);
-        config
     }
 
     //* --------------------------------------------------------------------- *//
