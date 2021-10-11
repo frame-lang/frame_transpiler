@@ -12,7 +12,7 @@ Frame is a simple yet powerful textual language for defining the dynamic behavio
 A Markdown Language For System Designers
 ----------------------------------------
 
-UML and other modeling specifications promote a visual-first paradigm. However this approach to system design requires (sometimes expensive) diagramming and modeling tools. Additionally - let’s just say it - working with boxes and lines to code can be a pain when the systems get complex.
+UML and other modeling specifications promote a visual-first paradigm. However this approach to system design requires (sometimes expensive) diagramming and modeling tools. Additionally - let’s just say it - working with boxes and lines to code can be a pain when systems get complex.
 
 With Frame, anyone with a text editor can quickly sketch out a system design concept - notepad is just fine!
 
