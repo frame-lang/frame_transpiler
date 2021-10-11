@@ -33,7 +33,7 @@ With Frame, anyone with a text editor can quickly sketch out a system design con
            |turnOff| -> $Off ^
    ##
 
-.. image:: lamp.png
+.. image:: 
    :target: https://www.plantuml.com/plantuml/png/SoWkIImgAStDuG8oIb8L_DFI5AgvQc6yF30dMYjMGLVN3YJ91SGWDaZAIa5DsT38nBgaj2ZFFm_2vWAAGvMYo0FvK0KEgNafGFi0
 
 Contents
