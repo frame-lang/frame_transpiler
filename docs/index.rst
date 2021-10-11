@@ -5,6 +5,8 @@ Contents
 --------
 
 .. toctree::
+   :maxdepth: 1
+   :caption: General
+   :name: sec-general
 
-   about
-   introduction
+   about/index
