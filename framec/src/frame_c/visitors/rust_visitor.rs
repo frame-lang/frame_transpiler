@@ -312,7 +312,7 @@ impl RustVisitor {
 
     fn lifetime_ref_annotation(&self) -> &str {
         if self.config.features.runtime_support {
-            "'a "
+            "&'a "
         } else {
             ""
         }
@@ -321,6 +321,14 @@ impl RustVisitor {
     fn lifetime_type_annotation(&self) -> &str {
         if self.config.features.runtime_support {
             "<'a>"
+        } else {
+            ""
+        }
+    }
+
+    fn ref_if_runtime_support(&self) -> &str {
+        if self.config.features.runtime_support {
+            "&"
         } else {
             ""
         }
@@ -1175,12 +1183,13 @@ impl RustVisitor {
         self.indent();
         self.newline();
         self.add_code(&format!(
-            "let mut {} = {}::new({}::{}, &{}::None);",
+            "let mut {} = {}::new({}::{}, {}{}::None);",
             self.config.code.frame_event_variable_name,
             self.config.code.frame_event_type_name,
             self.config.code.frame_event_message_type_name,
             self.config.code.enter_msg,
-            self.config.code.frame_event_args_type_name
+            self.ref_if_runtime_support(),
+            self.config.code.frame_event_args_type_name,
         ));
         self.newline();
         self.add_code(&format!(
@@ -1406,10 +1415,11 @@ impl RustVisitor {
             format!("{}::None", self.config.code.frame_event_args_type_name)
         };
         self.add_code(&format!(
-            "let mut exit_event = {}::new({}::{}, &{});",
+            "let mut exit_event = {}::new({}::{}, {}{});",
             self.config.code.frame_event_type_name,
             self.config.code.frame_event_message_type_name,
             self.config.code.exit_msg,
+            self.ref_if_runtime_support(),
             exit_args
         ));
         self.newline();
@@ -1533,10 +1543,11 @@ impl RustVisitor {
             format!("{}::None", self.config.code.frame_event_args_type_name)
         };
         self.add_code(&format!(
-            "let mut enter_event = {}::new({}::{}, &{});",
+            "let mut enter_event = {}::new({}::{}, {}{});",
             self.config.code.frame_event_type_name,
             self.config.code.frame_event_message_type_name,
             self.config.code.enter_msg,
+            self.ref_if_runtime_support(),
             enter_args
         ));
         self.newline();
@@ -2431,7 +2442,7 @@ impl AstVisitor for RustVisitor {
         ));
         self.newline();
         self.add_code(&format!(
-            "{}: &{}{},",
+            "{}: {}{},",
             self.config.code.frame_event_args_attribute_name,
             self.lifetime_ref_annotation(),
             self.config.code.frame_event_args_type_name
@@ -2457,7 +2468,7 @@ impl AstVisitor for RustVisitor {
         self.indent();
         self.newline();
         self.add_code(&format!(
-            "fn new({}: {}, {}: &{}{}) -> {}{} {{",
+            "fn new({}: {}, {}: {}{}) -> {}{} {{",
             self.config.code.frame_event_message_attribute_name,
             self.config.code.frame_event_message_type_name,
             self.config.code.frame_event_args_attribute_name,
@@ -2968,11 +2979,12 @@ impl AstVisitor for RustVisitor {
 
         self.newline();
         self.add_code(&format!(
-            "let mut {} = {}::new({}::{}, &frame_args);",
+            "let mut {} = {}::new({}::{}, {}frame_args);",
             self.config.code.frame_event_variable_name,
             self.config.code.frame_event_type_name,
             self.config.code.frame_event_message_type_name,
-            event_type_name
+            event_type_name,
+            self.ref_if_runtime_support()
         ));
 
         self.newline();
