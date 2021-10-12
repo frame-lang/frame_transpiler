@@ -336,6 +336,20 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    /// Disable formatting/style warnings.
+    fn disable_style_warnings(&mut self) {
+        if !self.config.features.follow_rust_naming {
+            self.add_code("#[allow(clippy::upper_case_acronyms)]");
+            self.newline();
+            self.add_code("#[allow(non_camel_case_types)]");
+            self.newline();
+            self.add_code("#[allow(non_snake_case)]");
+            self.newline();
+        }
+        self.add_code("#[allow(dead_code)]");
+        self.newline();
+    }
+
     // Formatting helper functions
 
     /// Format a "type-level" name, e.g. a type, trait, or enum variant.
@@ -597,12 +611,7 @@ impl RustVisitor {
             }
             None => {}
         }
-        if !self.config.features.follow_rust_naming {
-            self.add_code("#[allow(clippy::upper_case_acronyms)]");
-            self.newline();
-        }
-        self.add_code("#[allow(dead_code)]");
-        self.newline();
+        self.disable_style_warnings();
         if !traits.is_empty() {
             self.add_code(&format!("#[derive({})]", traits));
             self.newline();
@@ -675,8 +684,7 @@ impl RustVisitor {
                             let args_struct_name = self.format_args_struct_name(&event_type_name);
                             let mut bound_names: Vec<String> = Vec::new();
 
-                            self.add_code("#[allow(dead_code)]");
-                            self.newline();
+                            self.disable_style_warnings();
                             self.add_code(&format!("struct {} {{", args_struct_name));
                             self.indent();
                             for param in params {
@@ -711,8 +719,7 @@ impl RustVisitor {
         }
 
         // generate the enum type that unions all the arg structs
-        self.add_code("#[allow(dead_code)]");
-        self.newline();
+        self.disable_style_warnings();
         self.add_code(&format!(
             "enum {}",
             self.config.code.frame_event_args_type_name
@@ -763,8 +770,7 @@ impl RustVisitor {
         if !has_params.is_empty() {
             // generate methods to conveniently get specific arg structs
             // from a value of the enum type
-            self.add_code("#[allow(dead_code)]");
-            self.newline();
+            self.disable_style_warnings();
             self.add_code(&format!(
                 "impl {} {{",
                 self.config.code.frame_event_args_type_name
@@ -817,8 +823,7 @@ impl RustVisitor {
                         has_state_args = true;
                         let mut bound_names: Vec<String> = Vec::new();
 
-                        self.add_code("#[allow(dead_code)]");
-                        self.newline();
+                        self.disable_style_warnings();
                         self.add_code(&format!("struct {} {{", state_args_struct_name));
                         self.indent();
                         for param in params {
@@ -854,8 +859,7 @@ impl RustVisitor {
                         has_state_vars = true;
                         let mut bound_names: Vec<String> = Vec::new();
 
-                        self.add_code("#[allow(dead_code)]");
-                        self.newline();
+                        self.disable_style_warnings();
                         self.add_code(&format!("struct {} {{", state_vars_struct_name));
                         self.indent();
                         for var_decl_node in var_decl_nodes {
@@ -885,8 +889,7 @@ impl RustVisitor {
 
                 // generate state context struct for this state
                 let context_struct_name = self.format_state_context_struct_name(&state_node.name);
-                self.add_code("#[allow(dead_code)]");
-                self.newline();
+                self.disable_style_warnings();
                 self.add_code(&format!("struct {} {{", context_struct_name));
                 self.indent();
 
@@ -948,8 +951,7 @@ impl RustVisitor {
             }
 
             // generate the enum type that unions all the state context types
-            self.add_code("#[allow(dead_code)]");
-            self.newline();
+            self.disable_style_warnings();
             self.add_code(&format!(
                 "enum {} {{",
                 self.config.code.state_context_type_name
@@ -968,8 +970,7 @@ impl RustVisitor {
             self.newline();
             self.newline();
 
-            self.add_code("#[allow(dead_code)]");
-            self.newline();
+            self.disable_style_warnings();
             self.add_code(&format!(
                 "impl {} {{",
                 self.config.code.state_context_type_name
@@ -2377,12 +2378,7 @@ impl AstVisitor for RustVisitor {
 
         self.newline();
         self.newline();
-        self.add_code("#[allow(dead_code)]");
-        if !self.config.features.follow_rust_naming {
-            self.newline();
-            self.add_code("#[allow(non_snake_case)]");
-        }
-        self.newline();
+        self.disable_style_warnings();
         self.add_code(&format!(
             "impl {} {{",
             self.config.code.frame_event_return_type_name
@@ -2426,8 +2422,7 @@ impl AstVisitor for RustVisitor {
 
         self.newline();
         self.newline();
-        self.add_code("#[allow(dead_code)]");
-        self.newline();
+        self.disable_style_warnings();
         self.add_code(&format!(
             "pub struct {}{} {{",
             self.config.code.frame_event_type_name,
@@ -2458,8 +2453,7 @@ impl AstVisitor for RustVisitor {
         self.add_code("}");
         self.newline();
         self.newline();
-        self.add_code("#[allow(dead_code)]");
-        self.newline();
+        self.disable_style_warnings();
         self.add_code(&format!(
             "impl{0} {1}{0} {{",
             self.lifetime_type_annotation(),
@@ -2535,13 +2529,7 @@ impl AstVisitor for RustVisitor {
         // define state machine struct
         self.add_code("// System Controller ");
         self.newline();
-        if !self.config.features.follow_rust_naming {
-            self.newline();
-            self.add_code("#[allow(clippy::upper_case_acronyms)]");
-        }
-        self.newline();
-        self.add_code("#[allow(dead_code)]");
-        self.newline();
+        self.disable_style_warnings();
         self.add_code(&format!(
             "pub struct {}{}",
             self.system_type_name(),
@@ -2664,12 +2652,7 @@ impl AstVisitor for RustVisitor {
         }
 
         // add state machine methods
-        self.add_code("#[allow(dead_code)]");
-        self.newline();
-        if !self.config.features.follow_rust_naming {
-            self.add_code("#[allow(non_snake_case)]");
-            self.newline();
-        }
+        self.disable_style_warnings();
         self.add_code(&format!(
             "impl{0} {1}{0} {{",
             self.lifetime_type_annotation(),
@@ -2765,8 +2748,7 @@ impl AstVisitor for RustVisitor {
         _interface_block_node: &InterfaceBlockNode,
     ) -> AstVisitorReturnType {
         self.newline();
-        self.add_code("#[allow(dead_code)]");
-        self.newline();
+        self.disable_style_warnings();
         self.add_code(&format!(
             "enum {} {{",
             self.config.code.frame_event_message_type_name
@@ -2805,8 +2787,7 @@ impl AstVisitor for RustVisitor {
 
         self.newline();
         self.newline();
-        self.add_code("#[allow(dead_code)]");
-        self.newline();
+        self.disable_style_warnings();
         self.add_code(&format!(
             "impl std::fmt::Display for {} {{",
             self.config.code.frame_event_message_type_name
@@ -3131,8 +3112,7 @@ impl AstVisitor for RustVisitor {
     ) -> AstVisitorReturnType {
         if self.config.features.generate_action_impl {
             self.newline();
-            self.add_code("#[allow(unused_variables)]");
-            self.newline();
+            self.disable_style_warnings();
             self.add_code(&format!(
                 "impl{0} {1}{0} for {2}{0} {{ ",
                 self.lifetime_type_annotation(),
