@@ -508,9 +508,8 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     fn attribute(&mut self) -> Result<AttributeNode, ParseError> {
-        let name;
-        let value;
-
+        // attribute name: identifier (identifier | : | .)*
+        let mut name;
         if self.match_token(&vec![IdentifierTok]) {
             name = self.previous().lexeme.clone();
         } else {
@@ -518,11 +517,17 @@ impl<'a> Parser<'a> {
             let parse_error = ParseError::new("TODO");
             return Err(parse_error);
         }
-        if let Err(_) = self.consume(TokenType::EqualsTok, "Expected '('") {
-            self.error_at_current("Expected '='.");
-            let parse_error = ParseError::new("TODO");
-            return Err(parse_error);
+        while self.match_token(&vec![IdentifierTok, ColonTok, DotTok]) {
+            name.push_str(&self.previous().lexeme.clone());
         }
+        
+        // equals
+        if let Err(err) = self.consume(TokenType::EqualsTok, "Expected '='") {
+            return Err(err);
+        }
+        
+        // attribute value: string
+        let value;
         if self.match_token(&vec![StringTok]) {
             value = self.previous().lexeme.clone();
         } else {
