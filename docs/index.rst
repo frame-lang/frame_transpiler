@@ -16,7 +16,7 @@ UML and other modeling specifications promote a visual-first paradigm. However t
 
 With Frame, anyone with a text editor can quickly sketch out a system design concept - notepad is just fine!
 
-.. |codeblk1| code-block:: 
+..  code-block:: 
   :linenos:
    #Lamp
 
