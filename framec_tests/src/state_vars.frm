@@ -1,3 +1,4 @@
+#[feature:codegen.rust.features.runtime_support="true"]
 #StateVars
     -interface-
     X

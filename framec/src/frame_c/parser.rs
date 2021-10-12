@@ -520,12 +520,12 @@ impl<'a> Parser<'a> {
         while self.match_token(&vec![IdentifierTok, ColonTok, DotTok]) {
             name.push_str(&self.previous().lexeme.clone());
         }
-        
+
         // equals
         if let Err(err) = self.consume(TokenType::EqualsTok, "Expected '='") {
             return Err(err);
         }
-        
+
         // attribute value: string
         let value;
         if self.match_token(&vec![StringTok]) {

@@ -317,8 +317,8 @@ impl Default for RustFeatures {
         RustFeatures {
             follow_rust_naming: true,
             generate_action_impl: true,
-            generate_hook_methods: true,
-            runtime_support: true,
+            generate_hook_methods: false,
+            runtime_support: false,
         }
     }
 }

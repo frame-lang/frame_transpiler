@@ -5,7 +5,7 @@
 type Log = Vec<String>;
 include!(concat!(env!("OUT_DIR"), "/", "handler_calls.rs"));
 
-impl<'a> HandlerCalls<'a> {
+impl HandlerCalls {
     pub fn log(&mut self, from: String, val: i32) {
         self.tape.push(format!("{}({})", from, val));
     }

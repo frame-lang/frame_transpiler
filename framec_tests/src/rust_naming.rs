@@ -3,7 +3,7 @@
 type Log = Vec<i32>;
 include!(concat!(env!("OUT_DIR"), "/", "rust_naming.rs"));
 
-impl<'a> RustNaming<'a> {
+impl RustNaming {
     pub fn snake_action(&mut self, arg: i32) {
         self.snake_log.push(arg);
     }
