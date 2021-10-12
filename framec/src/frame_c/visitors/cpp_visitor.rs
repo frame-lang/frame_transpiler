@@ -1,11 +1,11 @@
 #![allow(non_snake_case)]
 
-use super::super::ast::*;
-use super::super::scanner::{Token, TokenType};
-use super::super::symbol_table::SymbolType::*;
-use super::super::symbol_table::*;
-use super::super::visitors::*;
-use yaml_rust::Yaml;
+use crate::frame_c::ast::*;
+use crate::frame_c::config::FrameConfig;
+use crate::frame_c::scanner::{Token, TokenType};
+use crate::frame_c::symbol_table::SymbolType::*;
+use crate::frame_c::symbol_table::*;
+use crate::frame_c::visitors::*;
 
 pub struct CppVisitor {
     compiler_version: String,
@@ -36,7 +36,7 @@ impl CppVisitor {
 
     pub fn new(
         arcanium: Arcanum,
-        _config_yaml: &Yaml,
+        _config: FrameConfig,
         generate_exit_args: bool,
         generate_state_context: bool,
         generate_state_stack: bool,

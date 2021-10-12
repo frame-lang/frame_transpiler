@@ -7,14 +7,9 @@ use std::path::Path;
 use std::path::PathBuf;
 use walkdir::WalkDir;
 
-fn process_frame(
-    config_path: &PathBuf,
-    input_path: &Path,
-    output_path: &Path,
-    lang: &str,
-) -> Result<()> {
+fn process_frame(input_path: &Path, output_path: &Path, lang: &str) -> Result<()> {
     let exe = Exe::new();
-    let output_code = exe.run_file(&Some(config_path.clone()), input_path, lang.to_string())?;
+    let output_code = exe.run_file(&None, input_path, lang.to_string())?;
     fs::write(output_path, output_code)?;
     Ok(())
 }
@@ -24,9 +19,6 @@ fn main() -> Result<()> {
     if !input_dir.is_dir() {
         bail!("{:?} isn't a directory", input_dir);
     }
-
-    let config_path = PathBuf::from("config.yaml");
-
     let out = PathBuf::from(env::var("OUT_DIR").unwrap());
     create_dir_all(&out)
         .unwrap_or_else(|_| panic!("Failed to create output directory: {:?}", &out));
@@ -45,7 +37,7 @@ fn main() -> Result<()> {
 
             let mut output_file = out.join(stripped_path);
             output_file.set_extension("rs");
-            process_frame(&config_path, &input_path, &output_file, "rust")?;
+            process_frame(&input_path, &output_file, "rust")?;
         }
     }
     Ok(())

@@ -1,601 +1,14 @@
 use convert_case::{Case, Casing};
-use std::collections::{HashMap, HashSet};
-use yaml_rust::Yaml;
+use std::collections::HashSet;
 
-use super::super::ast::*;
-use super::super::scanner::{Token, TokenType};
-use super::super::symbol_table::*;
-use super::super::visitors::*;
-
-struct ConfigFeatures {
-    follow_rust_naming: bool,
-    generate_action_impl: bool,
-    generate_hook_methods: bool,
-    runtime_support: bool,
-}
-
-struct Config {
-    config_features: ConfigFeatures,
-
-    actions_prefix: String,
-    actions_suffix: String,
-    action_prefix: String,
-    action_suffix: String,
-
-    enter_token: String,
-    exit_token: String,
-    enter_msg: String,
-    exit_msg: String,
-    event_args_suffix: String,
-    event_args_method_suffix: String,
-    enter_args_member_name: String,
-    exit_args_member_name: String,
-
-    frame_event_type_name: String,
-    frame_event_variable_name: String,
-    frame_event_args_attribute_name: String,
-    frame_event_args_type_name: String,
-    frame_event_message_attribute_name: String,
-    frame_event_message_type_name: String,
-    frame_event_return_attribute_name: String,
-    frame_event_return_type_name: String,
-
-    initialize_method_name: String,
-    handle_event_method_name: String,
-    change_state_method_name: String,
-    transition_method_name: String,
-
-    state_handler_name_prefix: String,
-    state_handler_name_suffix: String,
-
-    state_var_name: String,
-    state_args_suffix: String,
-    state_args_var_name: String,
-    state_vars_suffix: String,
-    state_vars_var_name: String,
-
-    state_context_type_name: String,
-    state_context_var_name: String,
-    state_context_suffix: String,
-    state_context_method_suffix: String,
-    this_state_context_var_name: String,
-
-    state_enum_suffix: String,
-    state_enum_traits: String,
-
-    change_state_hook_method_name: String,
-    transition_hook_method_name: String,
-
-    state_stack_var_name: String,
-    state_stack_push_method_name: String,
-    state_stack_pop_method_name: String,
-
-    callback_manager_var_name: String,
-    state_cell_var_name: String,
-}
-
-impl Config {
-    /// Lookup the value a Boolean configuration option.
-    fn lookup_bool(
-        name: &str,
-        default_yaml: &Yaml,
-        local_yaml: &Yaml,
-        attributes: &Option<HashMap<String, AttributeNode>>,
-        errors: &mut Vec<String>,
-        warnings: &mut Vec<String>,
-    ) -> bool {
-        // initialize with value from default config
-        let mut result = true;
-        match default_yaml[name] {
-            Yaml::Boolean(val) => {
-                result = val;
-            }
-            Yaml::BadValue => {
-                errors.push(format!(
-                    "No default value defined for config option {}",
-                    name
-                ));
-            }
-            _ => {
-                errors.push(format!(
-                    "Default value for config option {} should be a Boolean, but isn't.",
-                    name
-                ));
-            }
-        }
-        // override with value from local config
-        match local_yaml[name] {
-            Yaml::BadValue => {} // not in local config
-            Yaml::Boolean(val) => {
-                result = val;
-            }
-            _ => {
-                warnings.push(format!(
-                    "Local configuration defines option {} but it is not a Boolean value. \
-                    Using the default value {} instead.",
-                    name, result
-                ));
-            }
-        }
-        // override with value from attributes
-        if let Some(attr_node) = attributes.as_ref().and_then(|m| m.get(name)) {
-            match attr_node.value.parse() {
-                Ok(val) => {
-                    result = val;
-                }
-                Err(err) => {
-                    warnings.push(format!(
-                        "Found attribute for config option {}, but parsing its value produced an error: {}",
-                        name, err
-                    ));
-                }
-            }
-        }
-        result
-    }
-
-    /// Lookup the value a String configuration option.
-    fn lookup_string(
-        name: &str,
-        default_yaml: &Yaml,
-        local_yaml: &Yaml,
-        attributes: &Option<HashMap<String, AttributeNode>>,
-        errors: &mut Vec<String>,
-        warnings: &mut Vec<String>,
-    ) -> String {
-        // initialize with value from default config
-        let mut result = String::new();
-        match &default_yaml[name] {
-            Yaml::String(val) => {
-                result = val.to_string();
-            }
-            Yaml::Null => {
-                result = String::new();
-            }
-            Yaml::BadValue => {
-                errors.push(format!(
-                    "No default value defined for config option {}",
-                    name
-                ));
-            }
-            _ => {
-                errors.push(format!(
-                    "Default value for config option {} should be a String, but isn't.",
-                    name
-                ));
-            }
-        }
-        // override with value from local config
-        match &local_yaml[name] {
-            Yaml::BadValue => {} // not in local config
-            Yaml::String(val) => {
-                result = val.to_string();
-            }
-            _ => {
-                warnings.push(format!(
-                    "Local configuration defines option {} but it is not a String value. \
-                    Using the default value {} instead.",
-                    name, result
-                ));
-            }
-        }
-        // override with value from attributes
-        if let Some(attr_node) = attributes.as_ref().and_then(|m| m.get(name)) {
-            result = attr_node.value.clone();
-        }
-        result
-    }
-
-    fn new(
-        default_yaml: &Yaml,
-        local_yaml: &Yaml,
-        attributes: &Option<HashMap<String, AttributeNode>>,
-        errors: &mut Vec<String>,
-        warnings: &mut Vec<String>,
-    ) -> Config {
-        let default_features_yaml = &default_yaml["features"];
-        let local_features_yaml = &local_yaml["features"];
-        let config_features = ConfigFeatures {
-            follow_rust_naming: Config::lookup_bool(
-                "follow_rust_naming",
-                default_features_yaml,
-                local_features_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-            generate_action_impl: Config::lookup_bool(
-                "generate_action_impl",
-                default_features_yaml,
-                local_features_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-            generate_hook_methods: Config::lookup_bool(
-                "generate_hook_methods",
-                default_features_yaml,
-                local_features_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-            runtime_support: Config::lookup_bool(
-                "runtime_support",
-                default_features_yaml,
-                local_features_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-        };
-
-        let default_code_yaml = &default_yaml["code"];
-        let local_code_yaml = &local_yaml["code"];
-        Config {
-            config_features,
-            actions_prefix: Config::lookup_string(
-                "actions_prefix",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-            actions_suffix: Config::lookup_string(
-                "actions_suffix",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-            action_prefix: Config::lookup_string(
-                "action_prefix",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-            action_suffix: Config::lookup_string(
-                "action_suffix",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-
-            enter_token: String::from(">"),
-            exit_token: String::from("<"),
-            enter_msg: Config::lookup_string(
-                "enter_msg",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-            exit_msg: Config::lookup_string(
-                "exit_msg",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-            event_args_suffix: Config::lookup_string(
-                "event_args_suffix",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-            event_args_method_suffix: Config::lookup_string(
-                "event_args_method_suffix",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-            enter_args_member_name: Config::lookup_string(
-                "enter_args_member_name",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-            exit_args_member_name: Config::lookup_string(
-                "exit_args_member_name",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-
-            frame_event_type_name: Config::lookup_string(
-                "frame_event_type_name",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-            frame_event_variable_name: Config::lookup_string(
-                "frame_event_variable_name",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-            frame_event_args_attribute_name: Config::lookup_string(
-                "frame_event_args_attribute_name",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-            frame_event_args_type_name: Config::lookup_string(
-                "frame_event_args_type_name",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-            frame_event_message_attribute_name: Config::lookup_string(
-                "frame_event_message_attribute_name",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-            frame_event_message_type_name: Config::lookup_string(
-                "frame_event_message_type_name",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-            frame_event_return_attribute_name: Config::lookup_string(
-                "frame_event_return_attribute_name",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-            frame_event_return_type_name: Config::lookup_string(
-                "frame_event_return_type_name",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-
-            initialize_method_name: Config::lookup_string(
-                "initialize_method_name",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-            handle_event_method_name: Config::lookup_string(
-                "handle_event_method_name",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-            change_state_method_name: Config::lookup_string(
-                "change_state_method_name",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-            transition_method_name: Config::lookup_string(
-                "transition_method_name",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-
-            state_handler_name_prefix: Config::lookup_string(
-                "state_handler_name_prefix",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-            state_handler_name_suffix: Config::lookup_string(
-                "state_handler_name_suffix",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-
-            state_var_name: Config::lookup_string(
-                "state_var_name",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-            state_args_suffix: Config::lookup_string(
-                "state_args_suffix",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-            state_args_var_name: Config::lookup_string(
-                "state_args_var_name",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-            state_vars_suffix: Config::lookup_string(
-                "state_vars_suffix",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-            state_vars_var_name: Config::lookup_string(
-                "state_vars_var_name",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-
-            state_context_type_name: Config::lookup_string(
-                "state_context_type_name",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-            state_context_var_name: Config::lookup_string(
-                "state_context_var_name",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-            state_context_suffix: Config::lookup_string(
-                "state_context_suffix",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-            state_context_method_suffix: Config::lookup_string(
-                "state_context_method_suffix",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-            this_state_context_var_name: Config::lookup_string(
-                "this_state_context_var_name",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-
-            state_enum_suffix: Config::lookup_string(
-                "state_enum_suffix",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-            state_enum_traits: Config::lookup_string(
-                "state_enum_traits",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-
-            change_state_hook_method_name: Config::lookup_string(
-                "change_state_hook_method_name",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-            transition_hook_method_name: Config::lookup_string(
-                "transition_hook_method_name",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-
-            state_stack_var_name: Config::lookup_string(
-                "state_stack_var_name",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-            state_stack_push_method_name: Config::lookup_string(
-                "state_stack_push_method_name",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-            state_stack_pop_method_name: Config::lookup_string(
-                "state_stack_pop_method_name",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-
-            callback_manager_var_name: Config::lookup_string(
-                "callback_manager_var_name",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-            state_cell_var_name: Config::lookup_string(
-                "state_cell_var_name",
-                default_code_yaml,
-                local_code_yaml,
-                attributes,
-                errors,
-                warnings,
-            ),
-        }
-    }
-}
+use crate::frame_c::ast::*;
+use crate::frame_c::config::*;
+use crate::frame_c::scanner::{Token, TokenType};
+use crate::frame_c::symbol_table::*;
+use crate::frame_c::visitors::*;
 
 pub struct RustVisitor {
-    config: Config,
+    config: RustConfig,
     compiler_version: String,
     code: String,
     dent: usize,
@@ -628,9 +41,7 @@ pub struct RustVisitor {
 impl RustVisitor {
     pub fn new(
         arcanum: Arcanum,
-        default_yaml: &Yaml,
-        local_yaml: &Yaml,
-        attributes: &Option<HashMap<String, AttributeNode>>,
+        config: FrameConfig,
         generate_enter_args: bool,
         generate_exit_args: bool,
         generate_state_context: bool,
@@ -640,16 +51,7 @@ impl RustVisitor {
         compiler_version: &str,
         comments: Vec<Token>,
     ) -> RustVisitor {
-        let mut errors = Vec::new();
-        let mut warnings = Vec::new();
-        let config = Config::new(
-            &default_yaml["codegen"]["rust"],
-            &local_yaml["codegen"]["rust"],
-            attributes,
-            &mut errors,
-            &mut warnings,
-        );
-
+        let rust_config = config.codegen.rust;
         RustVisitor {
             compiler_version: compiler_version.to_string(),
             code: String::from(""),
@@ -665,8 +67,8 @@ impl RustVisitor {
             serialize: Vec::new(),
             deserialize: Vec::new(),
             has_states: false,
-            errors,
-            warnings,
+            errors: Vec::new(),
+            warnings: Vec::new(),
             visiting_call_chain_literal_variable: false,
             this_branch_transitioned: false,
             generate_enter_args,
@@ -675,12 +77,12 @@ impl RustVisitor {
             generate_state_stack,
             generate_change_state,
             generate_transition_state,
-            generate_change_state_hook: config.config_features.generate_hook_methods
+            generate_change_state_hook: rust_config.features.generate_hook_methods
                 && generate_change_state,
-            generate_transition_hook: config.config_features.generate_hook_methods
+            generate_transition_hook: rust_config.features.generate_hook_methods
                 && generate_transition_state,
             current_message: String::new(),
-            config,
+            config: rust_config,
         }
     }
 
@@ -697,10 +99,10 @@ impl RustVisitor {
 
     pub fn get_msg_enum(&self, msg: &str) -> String {
         let unformatted = match msg {
-            // ">>" => self.config.start_system_msg.clone(),
-            // "<<" => self.config.stop_system_msg.clone(),
-            ">" => self.config.enter_msg.clone(),
-            "<" => self.config.exit_msg.clone(),
+            // ">>" => self.config.code.start_system_msg.clone(),
+            // "<<" => self.config.code.stop_system_msg.clone(),
+            ">" => self.config.code.enter_msg.clone(),
+            "<" => self.config.code.exit_msg.clone(),
             _ => self.arcanum.get_interface_or_msg_from_msg(msg).unwrap(),
         };
         self.format_type_name(&unformatted)
@@ -767,8 +169,8 @@ impl RustVisitor {
 
                 code.push_str(&format!(
                     "{}.{}.{}",
-                    self.config.this_state_context_var_name,
-                    self.config.state_args_var_name,
+                    self.config.code.this_state_context_var_name,
+                    self.config.code.state_args_var_name,
                     self.format_value_name(&variable_node.id_node.name.lexeme)
                 ));
                 if self.visiting_call_chain_literal_variable {
@@ -792,8 +194,8 @@ impl RustVisitor {
 
                 code.push_str(&format!(
                     "{}.{}.{}",
-                    self.config.this_state_context_var_name,
-                    self.config.state_vars_var_name,
+                    self.config.code.this_state_context_var_name,
+                    self.config.code.state_vars_var_name,
                     self.format_value_name(&variable_node.id_node.name.lexeme)
                 ));
                 if self.visiting_call_chain_literal_variable {
@@ -815,8 +217,8 @@ impl RustVisitor {
                 );
                 code.push_str(&format!(
                     "{}.{}.{}().{}",
-                    self.config.frame_event_variable_name,
-                    self.config.frame_event_args_attribute_name,
+                    self.config.code.frame_event_variable_name,
+                    self.config.code.frame_event_args_attribute_name,
                     self.format_args_method_name(&event_type),
                     self.format_value_name(&variable_node.id_node.name.lexeme)
                 ));
@@ -895,21 +297,21 @@ impl RustVisitor {
     fn state_enum_type_name(&self) -> String {
         self.format_type_name(&format!(
             "{}{}",
-            self.system_name, self.config.state_enum_suffix
+            self.system_name, self.config.code.state_enum_suffix
         ))
     }
 
     fn action_trait_type_name(&self) -> String {
         self.format_type_name(&format!(
             "{}{}{}",
-            self.config.actions_prefix,
+            self.config.code.actions_prefix,
             self.system_type_name(),
-            self.config.actions_suffix
+            self.config.code.actions_suffix
         ))
     }
 
     fn lifetime_ref_annotation(&self) -> &str {
-        if self.config.config_features.runtime_support {
+        if self.config.features.runtime_support {
             "'a "
         } else {
             ""
@@ -917,7 +319,7 @@ impl RustVisitor {
     }
 
     fn lifetime_type_annotation(&self) -> &str {
-        if self.config.config_features.runtime_support {
+        if self.config.features.runtime_support {
             "<'a>"
         } else {
             ""
@@ -932,7 +334,7 @@ impl RustVisitor {
     /// If Rust naming conventions are followed, these are in CamelCase.
     fn format_type_name(&self, name: &String) -> String {
         let mut formatted = name.clone();
-        if self.config.config_features.follow_rust_naming {
+        if self.config.features.follow_rust_naming {
             formatted = formatted.to_case(Case::UpperCamel);
         }
         formatted
@@ -942,7 +344,7 @@ impl RustVisitor {
     /// If Rust naming conventions are followed, these are  in snake_case.
     fn format_value_name(&self, name: &String) -> String {
         let mut formatted = name.clone();
-        if self.config.config_features.follow_rust_naming {
+        if self.config.features.follow_rust_naming {
             formatted = formatted.to_case(Case::Snake);
         }
         formatted
@@ -965,9 +367,9 @@ impl RustVisitor {
 
     /// Get the event type name for a given state+event.
     fn format_state_event_type_name(&self, state_name: &String, event_name: &String) -> String {
-        if event_name.eq(&self.config.enter_token) {
+        if event_name.eq(&self.config.code.enter_token) {
             self.format_enter_event_type_name(&state_name)
-        } else if event_name.eq(&self.config.exit_token) {
+        } else if event_name.eq(&self.config.code.exit_token) {
             self.format_exit_event_type_name(&state_name)
         } else {
             self.format_type_name(&format!("{}", event_name))
@@ -976,23 +378,23 @@ impl RustVisitor {
 
     /// Get the event type name for the enter event of the given state.
     fn format_enter_event_type_name(&self, state_name: &str) -> String {
-        self.format_type_name(&format!("{}{}", state_name, self.config.enter_msg))
+        self.format_type_name(&format!("{}{}", state_name, self.config.code.enter_msg))
     }
 
     /// Get the event type name for the exit event of the given state.
     fn format_exit_event_type_name(&self, state_name: &str) -> String {
-        self.format_type_name(&format!("{}{}", state_name, self.config.exit_msg))
+        self.format_type_name(&format!("{}{}", state_name, self.config.code.exit_msg))
     }
 
     fn format_args_struct_name(&self, event_type_name: &str) -> String {
-        format!("{}{}", event_type_name, self.config.event_args_suffix)
+        format!("{}{}", event_type_name, self.config.code.event_args_suffix)
     }
 
     fn format_state_args_struct_name(&self, state_name: &str) -> String {
         format!(
             "{}{}",
             self.format_type_name(&state_name.to_string()),
-            self.config.state_args_suffix
+            self.config.code.state_args_suffix
         )
     }
 
@@ -1000,7 +402,7 @@ impl RustVisitor {
         format!(
             "{}{}",
             self.format_type_name(&state_name.to_string()),
-            self.config.state_context_suffix
+            self.config.code.state_context_suffix
         )
     }
 
@@ -1008,7 +410,7 @@ impl RustVisitor {
         format!(
             "{}{}",
             self.format_type_name(&state_name.to_string()),
-            self.config.state_vars_suffix
+            self.config.code.state_vars_suffix
         )
     }
 
@@ -1017,9 +419,9 @@ impl RustVisitor {
     fn format_action_name(&mut self, action_name: &String) -> String {
         format!(
             "{}{}{}",
-            self.config.action_prefix,
+            self.config.code.action_prefix,
             self.format_value_name(action_name),
-            self.config.action_suffix
+            self.config.code.action_suffix
         )
     }
 
@@ -1033,7 +435,7 @@ impl RustVisitor {
         format!(
             "{}{}",
             self.format_value_name(&event_type_name.to_string()),
-            self.config.event_args_method_suffix
+            self.config.code.event_args_method_suffix
         )
     }
 
@@ -1041,16 +443,16 @@ impl RustVisitor {
         format!(
             "{}{}",
             self.format_value_name(&state_name.to_string()),
-            self.config.state_context_method_suffix
+            self.config.code.state_context_method_suffix
         )
     }
 
     fn format_state_handler_name(&self, state_name: &str) -> String {
         format!(
             "{}{}{}",
-            self.config.state_handler_name_prefix,
+            self.config.code.state_handler_name_prefix,
             self.format_value_name(&state_name.to_string()),
-            self.config.state_handler_name_suffix
+            self.config.code.state_handler_name_suffix
         )
     }
 
@@ -1171,7 +573,7 @@ impl RustVisitor {
     /// Generate an enum type that enumerates the states of the machine.
     fn generate_state_enum(&mut self, system_node: &SystemNode) {
         // add derived traits
-        let mut traits = self.config.state_enum_traits.clone();
+        let mut traits = self.config.code.state_enum_traits.clone();
         match &system_node.attributes_opt {
             Some(attributes) => {
                 if let Some(new_traits) = attributes.get("override_state_enum_traits") {
@@ -1187,7 +589,7 @@ impl RustVisitor {
             }
             None => {}
         }
-        if !self.config.config_features.follow_rust_naming {
+        if !self.config.features.follow_rust_naming {
             self.add_code("#[allow(clippy::upper_case_acronyms)]");
             self.newline();
         }
@@ -1213,7 +615,7 @@ impl RustVisitor {
         self.add_code("}");
 
         // generate trivial runtime state impl if no state contexts
-        if self.config.config_features.runtime_support && !self.generate_state_context {
+        if self.config.features.runtime_support && !self.generate_state_context {
             self.newline();
             self.newline();
             self.add_code(&format!("impl State for {}", state_enum_type));
@@ -1284,7 +686,7 @@ impl RustVisitor {
                             self.newline();
 
                             // generate the env
-                            if self.config.config_features.runtime_support {
+                            if self.config.features.runtime_support {
                                 self.generate_environment_impl(
                                     false,
                                     &args_struct_name,
@@ -1303,7 +705,10 @@ impl RustVisitor {
         // generate the enum type that unions all the arg structs
         self.add_code("#[allow(dead_code)]");
         self.newline();
-        self.add_code(&format!("enum {}", self.config.frame_event_args_type_name));
+        self.add_code(&format!(
+            "enum {}",
+            self.config.code.frame_event_args_type_name
+        ));
         self.enter_block();
         self.add_code("None,");
         for event_type_name in &has_params {
@@ -1319,10 +724,10 @@ impl RustVisitor {
         self.newline();
 
         // generate environment impl for enum type
-        if self.config.config_features.runtime_support {
+        if self.config.features.runtime_support {
             self.add_code(&format!(
                 "impl Environment for {}",
-                self.config.frame_event_args_type_name
+                self.config.code.frame_event_args_type_name
             ));
             self.enter_block();
             self.add_code("fn lookup(&self, name: &str) -> Option<&dyn Any>");
@@ -1331,13 +736,13 @@ impl RustVisitor {
             self.enter_block();
             self.add_code(&format!(
                 "{}::None => EMPTY.lookup(name),",
-                self.config.frame_event_args_type_name
+                self.config.code.frame_event_args_type_name
             ));
             for event_type_name in &has_params {
                 self.newline();
                 self.add_code(&format!(
                     "{}::{}(args) => args.lookup(name),",
-                    self.config.frame_event_args_type_name, &event_type_name
+                    self.config.code.frame_event_args_type_name, &event_type_name
                 ));
             }
             self.exit_block();
@@ -1354,7 +759,7 @@ impl RustVisitor {
             self.newline();
             self.add_code(&format!(
                 "impl {} {{",
-                self.config.frame_event_args_type_name
+                self.config.code.frame_event_args_type_name
             ));
             self.indent();
             for event_type_name in &has_params {
@@ -1371,7 +776,7 @@ impl RustVisitor {
                 self.newline();
                 self.add_code(&format!(
                     "{}::{}(args) => args,",
-                    self.config.frame_event_args_type_name, event_type_name
+                    self.config.code.frame_event_args_type_name, event_type_name
                 ));
                 self.newline();
                 self.add_code(&format!(
@@ -1422,7 +827,7 @@ impl RustVisitor {
                         self.newline();
                         self.newline();
 
-                        if self.config.config_features.runtime_support {
+                        if self.config.features.runtime_support {
                             self.generate_environment_impl(
                                 false,
                                 &state_args_struct_name,
@@ -1459,7 +864,7 @@ impl RustVisitor {
                         self.newline();
                         self.newline();
 
-                        if self.config.config_features.runtime_support {
+                        if self.config.features.runtime_support {
                             self.generate_environment_impl(
                                 false,
                                 &state_vars_struct_name,
@@ -1481,7 +886,7 @@ impl RustVisitor {
                     self.newline();
                     self.add_code(&format!(
                         "{}: {},",
-                        self.config.state_args_var_name, state_args_struct_name
+                        self.config.code.state_args_var_name, state_args_struct_name
                     ));
                 }
 
@@ -1489,7 +894,7 @@ impl RustVisitor {
                     self.newline();
                     self.add_code(&format!(
                         "{}: {},",
-                        self.config.state_vars_var_name, state_vars_struct_name
+                        self.config.code.state_vars_var_name, state_vars_struct_name
                     ));
                 }
 
@@ -1498,7 +903,7 @@ impl RustVisitor {
                 self.newline();
 
                 // generate implementation of runtime state
-                if self.config.config_features.runtime_support {
+                if self.config.features.runtime_support {
                     self.add_code(&format!("impl State for {}", context_struct_name));
                     self.enter_block();
 
@@ -1511,7 +916,7 @@ impl RustVisitor {
                     self.add_code("fn state_arguments(&self) -> &dyn Environment");
                     self.enter_block();
                     if has_state_args {
-                        self.add_code(&format!("&self.{}", self.config.state_args_var_name));
+                        self.add_code(&format!("&self.{}", self.config.code.state_args_var_name));
                     } else {
                         self.add_code("EMPTY");
                     }
@@ -1521,7 +926,7 @@ impl RustVisitor {
                     self.add_code("fn state_variables(&self) -> &dyn Environment");
                     self.enter_block();
                     if has_state_vars {
-                        self.add_code(&format!("&self.{}", self.config.state_vars_var_name));
+                        self.add_code(&format!("&self.{}", self.config.code.state_vars_var_name));
                     } else {
                         self.add_code("EMPTY");
                     }
@@ -1537,7 +942,10 @@ impl RustVisitor {
             // generate the enum type that unions all the state context types
             self.add_code("#[allow(dead_code)]");
             self.newline();
-            self.add_code(&format!("enum {} {{", self.config.state_context_type_name));
+            self.add_code(&format!(
+                "enum {} {{",
+                self.config.code.state_context_type_name
+            ));
             self.indent();
             for state in &machine_block_node.states {
                 self.newline();
@@ -1554,11 +962,14 @@ impl RustVisitor {
 
             self.add_code("#[allow(dead_code)]");
             self.newline();
-            self.add_code(&format!("impl {} {{", self.config.state_context_type_name));
+            self.add_code(&format!(
+                "impl {} {{",
+                self.config.code.state_context_type_name
+            ));
             self.indent();
 
             // generate method to get the state context as a runtime state
-            if self.config.config_features.runtime_support {
+            if self.config.features.runtime_support {
                 self.newline();
                 self.add_code("fn as_runtime_state(&self) -> Ref<dyn State>");
                 self.enter_block();
@@ -1569,7 +980,7 @@ impl RustVisitor {
                     self.newline();
                     self.add_code(&format!(
                         "{}::{}(context) => Ref::map(context.borrow(), |c| c as &dyn State),",
-                        self.config.state_context_type_name,
+                        self.config.code.state_context_type_name,
                         self.format_type_name(&state_node.name)
                     ));
                 }
@@ -1594,7 +1005,7 @@ impl RustVisitor {
                 self.newline();
                 self.add_code(&format!(
                     "{}::{}(context) => context,",
-                    self.config.state_context_type_name,
+                    self.config.code.state_context_type_name,
                     self.format_type_name(&state_node.name)
                 ));
                 self.newline();
@@ -1679,7 +1090,7 @@ impl RustVisitor {
         self.enter_block();
         self.add_code(&format!(
             "{}: {}::{},",
-            self.config.state_var_name,
+            self.config.code.state_var_name,
             self.state_enum_type_name(),
             self.format_type_name(&self.first_state_name)
         ));
@@ -1689,17 +1100,17 @@ impl RustVisitor {
             self.newline();
             self.add_code(&format!(
                 "{}: Vec::new(),",
-                self.config.state_stack_var_name
+                self.config.code.state_stack_var_name
             ));
         }
 
         // initialize runtime support
-        if self.config.config_features.runtime_support {
+        if self.config.features.runtime_support {
             if !self.generate_state_context {
                 self.newline();
                 self.add_code(&format!(
                     "{}: RefCell::new({}::{}),",
-                    self.config.state_cell_var_name,
+                    self.config.code.state_cell_var_name,
                     self.state_enum_type_name(),
                     self.format_type_name(&self.first_state_name)
                 ));
@@ -1707,7 +1118,7 @@ impl RustVisitor {
             self.newline();
             self.add_code(&format!(
                 "{}: CallbackManager::new(),",
-                self.config.callback_manager_var_name
+                self.config.code.callback_manager_var_name
             ));
         }
 
@@ -1728,7 +1139,7 @@ impl RustVisitor {
             self.newline();
             self.add_code(&format!(
                 "{}: next_state_context,",
-                self.config.state_context_var_name
+                self.config.code.state_context_var_name
             ));
         }
 
@@ -1741,7 +1152,7 @@ impl RustVisitor {
         self.newline();
         self.add_code(&format!(
             "machine.{}();",
-            self.config.initialize_method_name
+            self.config.code.initialize_method_name
         ));
         self.newline();
 
@@ -1759,22 +1170,22 @@ impl RustVisitor {
     fn generate_initialize(&mut self) {
         self.add_code(&format!(
             "pub fn {}(&mut self) {{",
-            self.config.initialize_method_name
+            self.config.code.initialize_method_name
         ));
         self.indent();
         self.newline();
         self.add_code(&format!(
             "let mut {} = {}::new({}::{}, &{}::None);",
-            self.config.frame_event_variable_name,
-            self.config.frame_event_type_name,
-            self.config.frame_event_message_type_name,
-            self.config.enter_msg,
-            self.config.frame_event_args_type_name
+            self.config.code.frame_event_variable_name,
+            self.config.code.frame_event_type_name,
+            self.config.code.frame_event_message_type_name,
+            self.config.code.enter_msg,
+            self.config.code.frame_event_args_type_name
         ));
         self.newline();
         self.add_code(&format!(
             "self.{}(&mut {});",
-            self.config.handle_event_method_name, self.config.frame_event_variable_name
+            self.config.code.handle_event_method_name, self.config.code.frame_event_variable_name
         ));
         self.outdent();
         self.newline();
@@ -1821,25 +1232,25 @@ impl RustVisitor {
 
     /// Generate the change_state method.
     fn generate_change_state(&mut self) {
-        let old_state_context_var = self.old_var_name(&self.config.state_context_var_name);
-        let new_state_context_var = self.new_var_name(&self.config.state_context_var_name);
-        let old_state_var = self.old_var_name(&self.config.state_var_name);
-        let new_state_var = self.new_var_name(&self.config.state_var_name);
+        let old_state_context_var = self.old_var_name(&self.config.code.state_context_var_name);
+        let new_state_context_var = self.new_var_name(&self.config.code.state_context_var_name);
+        let old_state_var = self.old_var_name(&self.config.code.state_var_name);
+        let new_state_var = self.new_var_name(&self.config.code.state_var_name);
 
         // generate method signature
         if self.generate_state_context {
             self.add_code(&format!(
                 "fn {}(&mut self, {}: {}, {}: Rc<{}>) {{",
-                self.config.change_state_method_name,
+                self.config.code.change_state_method_name,
                 new_state_var,
                 self.state_enum_type_name(),
                 new_state_context_var,
-                self.config.state_context_type_name
+                self.config.code.state_context_type_name
             ));
         } else {
             self.add_code(&format!(
                 "fn {}(&mut self, {}: {}) {{",
-                self.config.change_state_method_name,
+                self.config.code.change_state_method_name,
                 new_state_var,
                 self.state_enum_type_name()
             ));
@@ -1851,15 +1262,15 @@ impl RustVisitor {
             self.newline();
             self.add_code(&format!(
                 "let {} = self.{};",
-                old_state_var, self.config.state_var_name
+                old_state_var, self.config.code.state_var_name
             ));
         }
-        if self.config.config_features.runtime_support {
+        if self.config.features.runtime_support {
             if self.generate_state_context {
                 self.newline();
                 self.add_code(&format!(
                     "let {} = Rc::clone(&self.{});",
-                    old_state_context_var, self.config.state_context_var_name
+                    old_state_context_var, self.config.code.state_context_var_name
                 ));
                 self.newline();
                 self.add_code(&format!(
@@ -1867,11 +1278,11 @@ impl RustVisitor {
                     old_state_context_var
                 ));
             } else {
-                let old_state_cell_name = self.old_var_name(&self.config.state_cell_var_name);
+                let old_state_cell_name = self.old_var_name(&self.config.code.state_cell_var_name);
                 self.newline();
                 self.add_code(&format!(
                     "let {} = RefCell::new(self.{});",
-                    old_state_cell_name, self.config.state_var_name
+                    old_state_cell_name, self.config.code.state_var_name
                 ));
                 self.newline();
                 self.add_code(&format!(
@@ -1885,20 +1296,20 @@ impl RustVisitor {
         self.newline();
         self.add_code(&format!(
             "self.{} = {};",
-            self.config.state_var_name, new_state_var
+            self.config.code.state_var_name, new_state_var
         ));
         if self.generate_state_context {
             self.newline();
             self.add_code(&format!(
                 "self.{} = Rc::clone(&{});",
-                self.config.state_context_var_name, new_state_context_var
+                self.config.code.state_context_var_name, new_state_context_var
             ));
         } else {
-            if self.config.config_features.runtime_support {
+            if self.config.features.runtime_support {
                 self.newline();
                 self.add_code(&format!(
                     "self.{} = RefCell::new(self.{});",
-                    self.config.state_cell_var_name, self.config.state_var_name
+                    self.config.code.state_cell_var_name, self.config.code.state_var_name
                 ));
             }
         }
@@ -1908,12 +1319,12 @@ impl RustVisitor {
             self.newline();
             self.add_code(&format!(
                 "self.{}({}, {});",
-                self.config.change_state_hook_method_name, old_state_var, new_state_var,
+                self.config.code.change_state_hook_method_name, old_state_var, new_state_var,
             ));
         }
 
         // call transition callbacks
-        if self.config.config_features.runtime_support {
+        if self.config.features.runtime_support {
             self.newline();
             if self.generate_state_context {
                 self.add_code(&format!(
@@ -1923,13 +1334,13 @@ impl RustVisitor {
             } else {
                 self.add_code(&format!(
                     "let new_runtime_state = self.{}.borrow();",
-                    self.config.state_cell_var_name
+                    self.config.code.state_cell_var_name
                 ));
             }
             self.newline();
             self.add_code(&format!(
                 "self.{}.change_state(",
-                self.config.callback_manager_var_name
+                self.config.code.callback_manager_var_name
             ));
             self.indent();
             self.newline();
@@ -1951,26 +1362,27 @@ impl RustVisitor {
 
     /// Generate the transition method.
     fn generate_transition(&mut self) {
-        let old_state_context_var = self.old_var_name(&self.config.state_context_var_name);
-        let new_state_context_var = self.new_var_name(&self.config.state_context_var_name);
-        let old_state_var = self.old_var_name(&self.config.state_var_name);
-        let new_state_var = self.new_var_name(&self.config.state_var_name);
+        let old_state_context_var = self.old_var_name(&self.config.code.state_context_var_name);
+        let new_state_context_var = self.new_var_name(&self.config.code.state_context_var_name);
+        let old_state_var = self.old_var_name(&self.config.code.state_var_name);
+        let new_state_var = self.new_var_name(&self.config.code.state_var_name);
 
         // generate method signature
         self.add_code(&format!(
             "fn {}(&mut self, ",
-            self.config.transition_method_name
+            self.config.code.transition_method_name
         ));
         if self.generate_exit_args {
             self.add_code(&format!(
                 "{}: {}, ",
-                self.config.exit_args_member_name, self.config.frame_event_args_type_name
+                self.config.code.exit_args_member_name, self.config.code.frame_event_args_type_name
             ));
         }
         if self.generate_enter_args {
             self.add_code(&format!(
                 "{}: {}, ",
-                self.config.enter_args_member_name, self.config.frame_event_args_type_name
+                self.config.code.enter_args_member_name,
+                self.config.code.frame_event_args_type_name
             ));
         }
         self.add_code(&format!(
@@ -1981,7 +1393,7 @@ impl RustVisitor {
         if self.generate_state_context {
             self.add_code(&format!(
                 ", {}: Rc<{}>",
-                new_state_context_var, self.config.state_context_type_name
+                new_state_context_var, self.config.code.state_context_type_name
             ));
         }
         self.add_code(")");
@@ -1989,21 +1401,21 @@ impl RustVisitor {
 
         // exit event for old state
         let exit_args = if self.generate_exit_args {
-            format!("{}", self.config.exit_args_member_name)
+            format!("{}", self.config.code.exit_args_member_name)
         } else {
-            format!("{}::None", self.config.frame_event_args_type_name)
+            format!("{}::None", self.config.code.frame_event_args_type_name)
         };
         self.add_code(&format!(
             "let mut exit_event = {}::new({}::{}, &{});",
-            self.config.frame_event_type_name,
-            self.config.frame_event_message_type_name,
-            self.config.exit_msg,
+            self.config.code.frame_event_type_name,
+            self.config.code.frame_event_message_type_name,
+            self.config.code.exit_msg,
             exit_args
         ));
         self.newline();
         self.add_code(&format!(
             "self.{}(&mut exit_event);",
-            self.config.handle_event_method_name
+            self.config.code.handle_event_method_name
         ));
 
         // save old state
@@ -2011,15 +1423,15 @@ impl RustVisitor {
             self.newline();
             self.add_code(&format!(
                 "let {} = self.{};",
-                old_state_var, self.config.state_var_name
+                old_state_var, self.config.code.state_var_name
             ));
         }
-        if self.config.config_features.runtime_support {
+        if self.config.features.runtime_support {
             if self.generate_state_context {
                 self.newline();
                 self.add_code(&format!(
                     "let {} = Rc::clone(&self.{});",
-                    old_state_context_var, self.config.state_context_var_name
+                    old_state_context_var, self.config.code.state_context_var_name
                 ));
                 self.newline();
                 self.add_code(&format!(
@@ -2027,11 +1439,11 @@ impl RustVisitor {
                     old_state_context_var
                 ));
             } else {
-                let old_state_cell_name = self.old_var_name(&self.config.state_cell_var_name);
+                let old_state_cell_name = self.old_var_name(&self.config.code.state_cell_var_name);
                 self.newline();
                 self.add_code(&format!(
                     "let {} = RefCell::new(self.{});",
-                    old_state_cell_name, self.config.state_var_name
+                    old_state_cell_name, self.config.code.state_var_name
                 ));
                 self.newline();
                 self.add_code(&format!(
@@ -2045,20 +1457,20 @@ impl RustVisitor {
         self.newline();
         self.add_code(&format!(
             "self.{} = {};",
-            self.config.state_var_name, new_state_var
+            self.config.code.state_var_name, new_state_var
         ));
         if self.generate_state_context {
             self.newline();
             self.add_code(&format!(
                 "self.{} = Rc::clone(&{});",
-                self.config.state_context_var_name, new_state_context_var
+                self.config.code.state_context_var_name, new_state_context_var
             ));
         } else {
-            if self.config.config_features.runtime_support {
+            if self.config.features.runtime_support {
                 self.newline();
                 self.add_code(&format!(
                     "self.{} = RefCell::new(self.{});",
-                    self.config.state_cell_var_name, self.config.state_var_name
+                    self.config.code.state_cell_var_name, self.config.code.state_var_name
                 ));
             }
         }
@@ -2068,12 +1480,12 @@ impl RustVisitor {
             self.newline();
             self.add_code(&format!(
                 "self.{}({}, {});",
-                self.config.transition_hook_method_name, old_state_var, new_state_var,
+                self.config.code.transition_hook_method_name, old_state_var, new_state_var,
             ));
         }
 
         // call transition callbacks
-        if self.config.config_features.runtime_support {
+        if self.config.features.runtime_support {
             self.newline();
             if self.generate_state_context {
                 self.add_code(&format!(
@@ -2083,13 +1495,13 @@ impl RustVisitor {
             } else {
                 self.add_code(&format!(
                     "let new_runtime_state = self.{}.borrow();",
-                    self.config.state_cell_var_name
+                    self.config.code.state_cell_var_name
                 ));
             }
             self.newline();
             self.add_code(&format!(
                 "self.{}.transition(",
-                self.config.callback_manager_var_name
+                self.config.code.callback_manager_var_name
             ));
             self.indent();
             self.newline();
@@ -2098,13 +1510,13 @@ impl RustVisitor {
             self.add_code("new_runtime_state,");
             self.newline();
             if self.generate_exit_args {
-                self.add_code(&format!("&{},", self.config.exit_args_member_name));
+                self.add_code(&format!("&{},", self.config.code.exit_args_member_name));
             } else {
                 self.add_code("EMPTY,");
             }
             self.newline();
             if self.generate_enter_args {
-                self.add_code(&format!("&{},", self.config.enter_args_member_name));
+                self.add_code(&format!("&{},", self.config.code.enter_args_member_name));
             } else {
                 self.add_code("EMPTY,");
             }
@@ -2116,21 +1528,21 @@ impl RustVisitor {
         // enter event for new state
         self.newline();
         let enter_args = if self.generate_enter_args {
-            format!("{}", self.config.enter_args_member_name)
+            format!("{}", self.config.code.enter_args_member_name)
         } else {
-            format!("{}::None", self.config.frame_event_args_type_name)
+            format!("{}::None", self.config.code.frame_event_args_type_name)
         };
         self.add_code(&format!(
             "let mut enter_event = {}::new({}::{}, &{});",
-            self.config.frame_event_type_name,
-            self.config.frame_event_message_type_name,
-            self.config.enter_msg,
+            self.config.code.frame_event_type_name,
+            self.config.code.frame_event_message_type_name,
+            self.config.code.enter_msg,
             enter_args
         ));
         self.newline();
         self.add_code(&format!(
             "self.{}(&mut enter_event);",
-            &self.config.handle_event_method_name
+            &self.config.code.handle_event_method_name
         ));
         self.outdent();
         self.newline();
@@ -2142,21 +1554,21 @@ impl RustVisitor {
     fn generate_state_stack_methods(&mut self) {
         self.add_code(&format!(
             "fn {}(&mut self) {{",
-            self.config.state_stack_push_method_name
+            self.config.code.state_stack_push_method_name
         ));
         self.indent();
         self.newline();
         if self.generate_state_context {
             self.add_code(&format!(
                 "self.{}.push((self.{}, Rc::clone(&self.{})));",
-                self.config.state_stack_var_name,
-                self.config.state_var_name,
-                self.config.state_context_var_name
+                self.config.code.state_stack_var_name,
+                self.config.code.state_var_name,
+                self.config.code.state_context_var_name
             ));
         } else {
             self.add_code(&format!(
                 "self.{}.push(self.{});",
-                self.config.state_stack_var_name, self.config.state_var_name
+                self.config.code.state_stack_var_name, self.config.code.state_var_name
             ));
         }
         self.outdent();
@@ -2167,14 +1579,14 @@ impl RustVisitor {
         if self.generate_state_context {
             self.add_code(&format!(
                 "fn {}(&mut self) -> ({}, Rc<{}>) {{",
-                self.config.state_stack_pop_method_name,
+                self.config.code.state_stack_pop_method_name,
                 self.state_enum_type_name(),
-                self.config.state_context_type_name
+                self.config.code.state_context_type_name
             ));
         } else {
             self.add_code(&format!(
                 "fn {}(&mut self) -> {} {{",
-                self.config.state_stack_pop_method_name,
+                self.config.code.state_stack_pop_method_name,
                 self.state_enum_type_name()
             ));
         }
@@ -2182,7 +1594,7 @@ impl RustVisitor {
         self.newline();
         self.add_code(&format!(
             "match self.{}.pop() {{",
-            self.config.state_stack_var_name
+            self.config.code.state_stack_var_name
         ));
         self.indent();
         self.newline();
@@ -2222,13 +1634,16 @@ impl RustVisitor {
     fn generate_handle_event(&mut self, system_node: &SystemNode) {
         self.add_code(&format!(
             "fn {}(&mut self, {}: &mut {}) {{",
-            self.config.handle_event_method_name,
-            self.config.frame_event_variable_name,
-            self.config.frame_event_type_name
+            self.config.code.handle_event_method_name,
+            self.config.code.frame_event_variable_name,
+            self.config.code.frame_event_type_name
         ));
         self.indent();
         self.newline();
-        self.add_code(&format!("match self.{} {{", self.config.state_var_name));
+        self.add_code(&format!(
+            "match self.{} {{",
+            self.config.code.state_var_name
+        ));
         if let Some(machine_block_node) = &system_node.machine_block_node_opt {
             self.indent();
             for state in &machine_block_node.states {
@@ -2238,7 +1653,7 @@ impl RustVisitor {
                     self.state_enum_type_name(),
                     self.format_type_name(&state.borrow().name),
                     self.format_state_handler_name(&state.borrow().name),
-                    self.config.frame_event_variable_name
+                    self.config.code.frame_event_variable_name
                 ));
             }
         }
@@ -2356,7 +1771,7 @@ impl RustVisitor {
                             0,
                             &format!(
                                 "{}::{}(",
-                                self.config.frame_event_args_type_name, exit_event_type_name
+                                self.config.code.frame_event_args_type_name, exit_event_type_name
                             ),
                         );
                         arg_code.push_str(")");
@@ -2370,7 +1785,10 @@ impl RustVisitor {
                 self.warnings.push(format!("State {} does not have an exit event handler but is being passed parameters in a transition", current_state_name));
             }
         } else {
-            arg_code.push_str(&format!("{}::None", self.config.frame_event_args_type_name));
+            arg_code.push_str(&format!(
+                "{}::None",
+                self.config.code.frame_event_args_type_name
+            ));
         }
         has_args
     }
@@ -2411,7 +1829,7 @@ impl RustVisitor {
                             0,
                             &format!(
                                 "{}::{}(",
-                                self.config.frame_event_args_type_name, enter_event_type_name
+                                self.config.code.frame_event_args_type_name, enter_event_type_name
                             ),
                         );
                         arg_code.push_str(")");
@@ -2427,7 +1845,10 @@ impl RustVisitor {
                 self.warnings.push(format!("State {} does not have an enter event handler but is being passed parameters in a transition", target_state_name));
             }
         } else {
-            arg_code.push_str(&format!("{}::None", self.config.frame_event_args_type_name));
+            arg_code.push_str(&format!(
+                "{}::None",
+                self.config.code.frame_event_args_type_name
+            ));
         }
         has_args
     }
@@ -2530,14 +1951,14 @@ impl RustVisitor {
             self.newline();
             self.add_code(&format!(
                 "{}: {},",
-                self.config.state_args_var_name, state_args
+                self.config.code.state_args_var_name, state_args
             ));
         }
         if has_state_vars {
             self.newline();
             self.add_code(&format!(
                 "{}: {},",
-                self.config.state_vars_var_name, state_vars
+                self.config.code.state_vars_var_name, state_vars
             ));
         }
         self.outdent();
@@ -2546,7 +1967,7 @@ impl RustVisitor {
         self.newline();
         self.add_code(&format!(
             "let next_state_context = Rc::new({}::{}(RefCell::new(context)));",
-            self.config.state_context_type_name,
+            self.config.code.state_context_type_name,
             self.format_type_name(&target_state_name.to_string())
         ));
     }
@@ -2615,7 +2036,7 @@ impl RustVisitor {
             self.newline();
             self.add_code(&format!(
                 "drop({});",
-                self.config.this_state_context_var_name
+                self.config.code.this_state_context_var_name
             ));
         }
 
@@ -2624,14 +2045,14 @@ impl RustVisitor {
         if self.generate_state_context {
             self.add_code(&format!(
                 "self.{}({}::{}, next_state_context);",
-                self.config.change_state_method_name,
+                self.config.code.change_state_method_name,
                 self.state_enum_type_name(),
                 self.format_type_name(&target_state_name.to_string())
             ));
         } else {
             self.add_code(&format!(
                 "self.{}({}::{});",
-                self.config.change_state_method_name,
+                self.config.code.change_state_method_name,
                 self.state_enum_type_name(),
                 self.format_type_name(&target_state_name.to_string())
             ));
@@ -2671,7 +2092,7 @@ impl RustVisitor {
             self.newline();
             self.add_code(&format!(
                 "let {} = {};",
-                self.config.exit_args_member_name, exit_args_code
+                self.config.code.exit_args_member_name, exit_args_code
             ));
         }
 
@@ -2690,12 +2111,12 @@ impl RustVisitor {
                 StateContextType::StateStackPop {} => {}
             }
             if !has_enter_args {
-                enter_args_code = format!("{}::None", self.config.frame_event_args_type_name);
+                enter_args_code = format!("{}::None", self.config.code.frame_event_args_type_name);
             }
             self.newline();
             self.add_code(&format!(
                 "let {} = {};",
-                self.config.enter_args_member_name, enter_args_code
+                self.config.code.enter_args_member_name, enter_args_code
             ));
         }
 
@@ -2738,18 +2159,21 @@ impl RustVisitor {
             self.newline();
             self.add_code(&format!(
                 "drop({});",
-                self.config.this_state_context_var_name
+                self.config.code.this_state_context_var_name
             ));
         }
 
         // call the transition method
         self.newline();
-        self.add_code(&format!("self.{}(", self.config.transition_method_name));
+        self.add_code(&format!(
+            "self.{}(",
+            self.config.code.transition_method_name
+        ));
         if self.generate_exit_args {
-            self.add_code(&format!("{}, ", self.config.exit_args_member_name));
+            self.add_code(&format!("{}, ", self.config.code.exit_args_member_name));
         }
         if self.generate_enter_args {
-            self.add_code(&format!("{}, ", self.config.enter_args_member_name));
+            self.add_code(&format!("{}, ", self.config.code.enter_args_member_name));
         }
         self.add_code(&format!(
             "{}::{}",
@@ -2789,27 +2213,27 @@ impl RustVisitor {
         if self.generate_state_context {
             self.add_code(&format!(
                 "drop({});",
-                self.config.this_state_context_var_name
+                self.config.code.this_state_context_var_name
             ));
             self.newline();
             self.add_code(&format!(
                 "let (next_state, next_state_context) = self.{}();",
-                self.config.state_stack_pop_method_name
+                self.config.code.state_stack_pop_method_name
             ));
             self.newline();
             self.add_code(&format!(
                 "self.{}(next_state, next_state_context);",
-                self.config.change_state_method_name
+                self.config.code.change_state_method_name
             ));
         } else {
             self.add_code(&format!(
                 "let next_state = self.{}();",
-                self.config.state_stack_pop_method_name
+                self.config.code.state_stack_pop_method_name
             ));
             self.newline();
             self.add_code(&format!(
                 "self.{}(next_state);",
-                self.config.change_state_method_name
+                self.config.code.change_state_method_name
             ));
         }
     }
@@ -2842,27 +2266,27 @@ impl RustVisitor {
         if self.generate_state_context {
             self.add_code(&format!(
                 "drop({});",
-                self.config.this_state_context_var_name
+                self.config.code.this_state_context_var_name
             ));
             self.newline();
             self.add_code(&format!(
                 "let (next_state, next_state_context) = self.{}();",
-                self.config.state_stack_pop_method_name
+                self.config.code.state_stack_pop_method_name
             ));
             self.newline();
             self.add_code(&format!(
                 "self.{}(next_state, next_state_context);",
-                self.config.transition_method_name
+                self.config.code.transition_method_name
             ));
         } else {
             self.add_code(&format!(
                 "let next_state = self.{}();",
-                self.config.state_stack_pop_method_name
+                self.config.code.state_stack_pop_method_name
             ));
             self.newline();
             self.add_code(&format!(
                 "self.{}(next_state);",
-                self.config.transition_method_name
+                self.config.code.transition_method_name
             ));
         }
     }
@@ -2887,7 +2311,7 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.add_code("use std::rc::Rc;");
         self.newline();
-        if self.config.config_features.runtime_support {
+        if self.config.features.runtime_support {
             self.add_code("#[allow(unused_imports)]");
             self.newline();
             self.add_code("use std::any::Any;");
@@ -2917,7 +2341,7 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.add_code(&format!(
             "enum {} {{",
-            self.config.frame_event_return_type_name
+            self.config.code.frame_event_return_type_name
         ));
         self.indent();
         self.newline();
@@ -2943,14 +2367,14 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.newline();
         self.add_code("#[allow(dead_code)]");
-        if !self.config.config_features.follow_rust_naming {
+        if !self.config.features.follow_rust_naming {
             self.newline();
             self.add_code("#[allow(non_snake_case)]");
         }
         self.newline();
         self.add_code(&format!(
             "impl {} {{",
-            self.config.frame_event_return_type_name
+            self.config.code.frame_event_return_type_name
         ));
         if let Some(interface_block_node) = &system_node.interface_block_node_opt {
             for interface_method_node in &interface_block_node.interface_methods {
@@ -2970,7 +2394,7 @@ impl AstVisitor for RustVisitor {
                     self.newline();
                     self.add_code(&format!(
                         "{}::{} {{ return_value }} => return_value.clone(),",
-                        self.config.frame_event_return_type_name,
+                        self.config.code.frame_event_return_type_name,
                         self.format_type_name(&interface_method_node.borrow().name)
                     ));
                     self.newline();
@@ -2995,27 +2419,28 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.add_code(&format!(
             "pub struct {}{} {{",
-            self.config.frame_event_type_name,
+            self.config.code.frame_event_type_name,
             self.lifetime_type_annotation()
         ));
         self.indent();
         self.newline();
         self.add_code(&format!(
             "{}: {},",
-            self.config.frame_event_message_attribute_name,
-            self.config.frame_event_message_type_name
+            self.config.code.frame_event_message_attribute_name,
+            self.config.code.frame_event_message_type_name
         ));
         self.newline();
         self.add_code(&format!(
             "{}: &{}{},",
-            self.config.frame_event_args_attribute_name,
+            self.config.code.frame_event_args_attribute_name,
             self.lifetime_ref_annotation(),
-            self.config.frame_event_args_type_name
+            self.config.code.frame_event_args_type_name
         ));
         self.newline();
         self.add_code(&format!(
             "{}: {},",
-            self.config.frame_event_return_attribute_name, self.config.frame_event_return_type_name
+            self.config.code.frame_event_return_attribute_name,
+            self.config.code.frame_event_return_type_name
         ));
         self.outdent();
         self.newline();
@@ -3027,35 +2452,38 @@ impl AstVisitor for RustVisitor {
         self.add_code(&format!(
             "impl{0} {1}{0} {{",
             self.lifetime_type_annotation(),
-            self.config.frame_event_type_name
+            self.config.code.frame_event_type_name
         ));
         self.indent();
         self.newline();
         self.add_code(&format!(
             "fn new({}: {}, {}: &{}{}) -> {}{} {{",
-            self.config.frame_event_message_attribute_name,
-            self.config.frame_event_message_type_name,
-            self.config.frame_event_args_attribute_name,
+            self.config.code.frame_event_message_attribute_name,
+            self.config.code.frame_event_message_type_name,
+            self.config.code.frame_event_args_attribute_name,
             self.lifetime_ref_annotation(),
-            self.config.frame_event_args_type_name,
-            self.config.frame_event_type_name,
+            self.config.code.frame_event_args_type_name,
+            self.config.code.frame_event_type_name,
             self.lifetime_type_annotation()
         ));
         self.indent();
         self.newline();
-        self.add_code(&format!("{} {{", self.config.frame_event_type_name));
+        self.add_code(&format!("{} {{", self.config.code.frame_event_type_name));
         self.indent();
         self.newline();
         self.add_code(&format!(
             "{},",
-            self.config.frame_event_message_attribute_name
+            self.config.code.frame_event_message_attribute_name
         ));
         self.newline();
-        self.add_code(&format!("{},", self.config.frame_event_args_attribute_name));
+        self.add_code(&format!(
+            "{},",
+            self.config.code.frame_event_args_attribute_name
+        ));
         self.newline();
         self.add_code(&format!(
             "ret: {}::None,",
-            self.config.frame_event_return_type_name
+            self.config.code.frame_event_return_type_name
         ));
         self.outdent();
         self.newline();
@@ -3084,7 +2512,7 @@ impl AstVisitor for RustVisitor {
             actions_block_node.accept_rust_trait(self);
             self.newline();
             self.newline();
-        } else if self.config.config_features.generate_hook_methods {
+        } else if self.config.features.generate_hook_methods {
             let empty_actions_block_node = ActionsBlockNode {
                 actions: Vec::new(),
             };
@@ -3096,7 +2524,7 @@ impl AstVisitor for RustVisitor {
         // define state machine struct
         self.add_code("// System Controller ");
         self.newline();
-        if !self.config.config_features.follow_rust_naming {
+        if !self.config.features.follow_rust_naming {
             self.newline();
             self.add_code("#[allow(clippy::upper_case_acronyms)]");
         }
@@ -3113,7 +2541,7 @@ impl AstVisitor for RustVisitor {
         // generate state variable
         self.add_code(&format!(
             "{}: {},",
-            &self.config.state_var_name,
+            &self.config.code.state_var_name,
             self.state_enum_type_name()
         ));
 
@@ -3122,7 +2550,7 @@ impl AstVisitor for RustVisitor {
             self.newline();
             self.add_code(&format!(
                 "{}: Rc<{}>,",
-                self.config.state_context_var_name, self.config.state_context_type_name
+                self.config.code.state_context_var_name, self.config.code.state_context_type_name
             ));
         }
 
@@ -3132,34 +2560,34 @@ impl AstVisitor for RustVisitor {
                 self.newline();
                 self.add_code(&format!(
                     "{}: Vec<({}, Rc<{}>)>,",
-                    self.config.state_stack_var_name,
+                    self.config.code.state_stack_var_name,
                     self.state_enum_type_name(),
-                    self.config.state_context_type_name
+                    self.config.code.state_context_type_name
                 ));
             } else {
                 self.newline();
                 self.add_code(&format!(
                     "{}: Vec<{}>,",
-                    self.config.state_stack_var_name,
+                    self.config.code.state_stack_var_name,
                     self.state_enum_type_name()
                 ));
             }
         }
 
         // generate runtime support variables
-        if self.config.config_features.runtime_support {
+        if self.config.features.runtime_support {
             if !self.generate_state_context {
                 self.newline();
                 self.add_code(&format!(
                     "{}: RefCell<{}>,",
-                    self.config.state_cell_var_name,
+                    self.config.code.state_cell_var_name,
                     self.state_enum_type_name()
                 ));
             }
             self.newline();
             self.add_code(&format!(
                 "{}: CallbackManager<'a>,",
-                self.config.callback_manager_var_name
+                self.config.code.callback_manager_var_name
             ));
         }
 
@@ -3179,7 +2607,7 @@ impl AstVisitor for RustVisitor {
         self.newline();
 
         // add runtime support
-        if self.config.config_features.runtime_support {
+        if self.config.features.runtime_support {
             self.generate_environment_impl(true, &self.system_type_name(), domain_vars);
 
             self.add_code(&format!(
@@ -3194,12 +2622,12 @@ impl AstVisitor for RustVisitor {
             if self.generate_state_context {
                 self.add_code(&format!(
                     "self.{}.as_ref().as_runtime_state()",
-                    self.config.state_context_var_name
+                    self.config.code.state_context_var_name
                 ));
             } else {
                 self.add_code(&format!(
                     "Ref::map(self.{}.borrow(), |s| s as &dyn State)",
-                    self.config.state_cell_var_name
+                    self.config.code.state_cell_var_name
                 ));
             }
             self.exit_block();
@@ -3215,7 +2643,7 @@ impl AstVisitor for RustVisitor {
             self.enter_block();
             self.add_code(&format!(
                 "&mut self.{}",
-                self.config.callback_manager_var_name
+                self.config.code.callback_manager_var_name
             ));
             self.exit_block();
 
@@ -3227,7 +2655,7 @@ impl AstVisitor for RustVisitor {
         // add state machine methods
         self.add_code("#[allow(dead_code)]");
         self.newline();
-        if !self.config.config_features.follow_rust_naming {
+        if !self.config.features.follow_rust_naming {
             self.add_code("#[allow(non_snake_case)]");
             self.newline();
         }
@@ -3305,7 +2733,7 @@ impl AstVisitor for RustVisitor {
 
         if let Some(actions_block_node) = &system_node.actions_block_node_opt {
             actions_block_node.accept_rust_impl(self);
-        } else if self.config.config_features.generate_hook_methods {
+        } else if self.config.features.generate_hook_methods {
             let empty_actions_block_node = ActionsBlockNode {
                 actions: Vec::new(),
             };
@@ -3330,13 +2758,13 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.add_code(&format!(
             "enum {} {{",
-            self.config.frame_event_message_type_name
+            self.config.code.frame_event_message_type_name
         ));
         self.indent();
         self.newline();
-        self.add_code(&format!("{},", self.config.enter_msg));
+        self.add_code(&format!("{},", self.config.code.enter_msg));
         self.newline();
-        self.add_code(&format!("{},", self.config.exit_msg));
+        self.add_code(&format!("{},", self.config.code.exit_msg));
 
         let events = self.arcanum.get_event_names();
         for event in &events {
@@ -3370,7 +2798,7 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.add_code(&format!(
             "impl std::fmt::Display for {} {{",
-            self.config.frame_event_message_type_name
+            self.config.code.frame_event_message_type_name
         ));
         self.indent();
         self.newline();
@@ -3382,12 +2810,16 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.add_code(&format!(
             "{}::{} => write!(f, \"{}\"),",
-            self.config.frame_event_message_type_name, self.config.enter_msg, self.config.enter_msg
+            self.config.code.frame_event_message_type_name,
+            self.config.code.enter_msg,
+            self.config.code.enter_msg
         ));
         self.newline();
         self.add_code(&format!(
             "{}::{} => write!(f, \"{}\"),",
-            self.config.frame_event_message_type_name, self.config.exit_msg, self.config.exit_msg
+            self.config.code.frame_event_message_type_name,
+            self.config.code.exit_msg,
+            self.config.code.exit_msg
         ));
         for event in &events {
             //    ret.push(k.clone());
@@ -3401,7 +2833,7 @@ impl AstVisitor for RustVisitor {
                     self.newline();
                     self.add_code(&format!(
                         "{}::{} => write!(f, \"{}\"),",
-                        self.config.frame_event_message_type_name,
+                        self.config.code.frame_event_message_type_name,
                         formatted_message_name,
                         formatted_message_name
                     ));
@@ -3513,7 +2945,7 @@ impl AstVisitor for RustVisitor {
         let event_type_name = self.format_type_name(&interface_method_node.name);
         self.add_code(&format!(
             "let frame_args = {}::",
-            self.config.frame_event_args_type_name
+            self.config.code.frame_event_args_type_name
         ));
         if interface_method_node.params.is_some() {
             self.add_code(&format!(
@@ -3537,16 +2969,16 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.add_code(&format!(
             "let mut {} = {}::new({}::{}, &frame_args);",
-            self.config.frame_event_variable_name,
-            self.config.frame_event_type_name,
-            self.config.frame_event_message_type_name,
+            self.config.code.frame_event_variable_name,
+            self.config.code.frame_event_type_name,
+            self.config.code.frame_event_message_type_name,
             event_type_name
         ));
 
         self.newline();
         self.add_code(&format!(
             "self.{}(&mut {});",
-            self.config.handle_event_method_name, self.config.frame_event_variable_name,
+            self.config.code.handle_event_method_name, self.config.code.frame_event_variable_name,
         ));
 
         match &interface_method_node.return_type_opt {
@@ -3554,14 +2986,14 @@ impl AstVisitor for RustVisitor {
                 self.newline();
                 self.add_code(&format!(
                     "match {}.{} {{",
-                    self.config.frame_event_variable_name,
-                    self.config.frame_event_return_attribute_name
+                    self.config.code.frame_event_variable_name,
+                    self.config.code.frame_event_return_attribute_name
                 ));
                 self.indent();
                 self.newline();
                 self.add_code(&format!(
                     "{}::{} {{ return_value }} => return_value.clone(),",
-                    self.config.frame_event_return_type_name,
+                    self.config.code.frame_event_return_type_name,
                     self.format_type_name(&interface_method_node.name)
                 ));
                 self.newline();
@@ -3633,7 +3065,7 @@ impl AstVisitor for RustVisitor {
         &mut self,
         actions_block_node: &ActionsBlockNode,
     ) -> AstVisitorReturnType {
-        if self.config.config_features.generate_action_impl {
+        if self.config.features.generate_action_impl {
             self.add_code(&format!(
                 "trait {}{} {{ ",
                 self.action_trait_type_name(),
@@ -3648,13 +3080,13 @@ impl AstVisitor for RustVisitor {
             }
 
             // add hook signatures
-            let old_state_var = self.old_var_name(&self.config.state_var_name);
-            let new_state_var = self.new_var_name(&self.config.state_var_name);
+            let old_state_var = self.old_var_name(&self.config.code.state_var_name);
+            let new_state_var = self.new_var_name(&self.config.code.state_var_name);
             if self.generate_transition_hook {
                 self.newline();
                 self.add_code(&format!(
                     "fn {}(&self, {}: {enum_type}, {}: {enum_type});",
-                    self.config.transition_hook_method_name,
+                    self.config.code.transition_hook_method_name,
                     old_state_var,
                     new_state_var,
                     enum_type = self.state_enum_type_name()
@@ -3664,7 +3096,7 @@ impl AstVisitor for RustVisitor {
                 self.newline();
                 self.add_code(&format!(
                     "fn {}(&self, {}: {enum_type}, {}: {enum_type});",
-                    self.config.change_state_hook_method_name,
+                    self.config.code.change_state_hook_method_name,
                     old_state_var,
                     new_state_var,
                     enum_type = self.state_enum_type_name()
@@ -3685,7 +3117,7 @@ impl AstVisitor for RustVisitor {
         &mut self,
         actions_block_node: &ActionsBlockNode,
     ) -> AstVisitorReturnType {
-        if self.config.config_features.generate_action_impl {
+        if self.config.features.generate_action_impl {
             self.newline();
             self.add_code("#[allow(unused_variables)]");
             self.newline();
@@ -3704,13 +3136,13 @@ impl AstVisitor for RustVisitor {
             }
 
             // add empty hook implementations
-            let old_state_var = self.old_var_name(&self.config.state_var_name);
-            let new_state_var = self.new_var_name(&self.config.state_var_name);
+            let old_state_var = self.old_var_name(&self.config.code.state_var_name);
+            let new_state_var = self.new_var_name(&self.config.code.state_var_name);
             if self.generate_transition_hook {
                 self.newline();
                 self.add_code(&format!(
                     "fn {}(&self, {}: {enum_type}, {}: {enum_type}) {{}}",
-                    self.config.transition_hook_method_name,
+                    self.config.code.transition_hook_method_name,
                     old_state_var,
                     new_state_var,
                     enum_type = self.state_enum_type_name()
@@ -3720,7 +3152,7 @@ impl AstVisitor for RustVisitor {
                 self.newline();
                 self.add_code(&format!(
                     "fn {}(&self, {}: {enum_type}, {}: {enum_type}) {{}}",
-                    self.config.change_state_hook_method_name,
+                    self.config.code.change_state_hook_method_name,
                     old_state_var,
                     new_state_var,
                     enum_type = self.state_enum_type_name()
@@ -3777,8 +3209,8 @@ impl AstVisitor for RustVisitor {
         self.add_code(&format!(
             "fn {}(&mut self, {}: &mut {}) {{",
             self.format_state_handler_name(&state_node.name),
-            self.config.frame_event_variable_name,
-            self.config.frame_event_type_name
+            self.config.code.frame_event_variable_name,
+            self.config.code.frame_event_type_name
         ));
         self.indent();
         let state_name = &self.current_state_name_opt.as_ref().unwrap().clone();
@@ -3786,13 +3218,13 @@ impl AstVisitor for RustVisitor {
             self.newline();
             self.add_code(&format!(
                 "let {0}_clone = Rc::clone(&self.{0});",
-                self.config.state_context_var_name
+                self.config.code.state_context_var_name
             ));
             self.newline();
             self.add_code(&format!(
                 "let mut {} = {}_clone.{}().borrow_mut();",
-                self.config.this_state_context_var_name,
-                self.config.state_context_var_name,
+                self.config.code.this_state_context_var_name,
+                self.config.code.state_context_var_name,
                 self.format_state_context_method_name(&state_name)
             ));
         }
@@ -3815,7 +3247,8 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.add_code(&format!(
             "match {}.{} {{",
-            self.config.frame_event_variable_name, self.config.frame_event_message_attribute_name
+            self.config.code.frame_event_variable_name,
+            self.config.code.frame_event_message_attribute_name
         ));
         self.indent();
 
@@ -3859,7 +3292,7 @@ impl AstVisitor for RustVisitor {
             self.current_message = message_node.name.clone();
             self.add_code(&format!(
                 "{}::{} => {{",
-                self.config.frame_event_message_type_name,
+                self.config.code.frame_event_message_type_name,
                 self.get_msg_enum(&message_node.name)
             ));
         } else {
@@ -3915,12 +3348,12 @@ impl AstVisitor for RustVisitor {
                         self.newline();
                         self.add_code(&format!(
                             "{}.{} = ",
-                            self.config.frame_event_variable_name,
-                            self.config.frame_event_return_attribute_name
+                            self.config.code.frame_event_variable_name,
+                            self.config.code.frame_event_return_attribute_name
                         ));
                         self.add_code(&format!(
                             "{}::{} {{ return_value: ",
-                            self.config.frame_event_return_type_name,
+                            self.config.code.frame_event_return_type_name,
                             self.format_type_name(&self.current_message)
                         ));
                         expr_t.accept(self);
@@ -4136,7 +3569,7 @@ impl AstVisitor for RustVisitor {
         self.add_code(&format!(
             "self.{}({});",
             self.format_state_handler_name(&dispatch_node.target_state_ref.name),
-            self.config.frame_event_variable_name
+            self.config.code.frame_event_variable_name
         ));
         self.generate_comment(dispatch_node.line);
         AstVisitorReturnType::DispatchNode {}
@@ -4240,7 +3673,7 @@ impl AstVisitor for RustVisitor {
                 if self.generate_state_context {
                     self.add_code(&format!(
                         "drop({});",
-                        self.config.this_state_context_var_name
+                        self.config.code.this_state_context_var_name
                     ));
                     self.newline();
                 }
@@ -4941,23 +4374,24 @@ impl AstVisitor for RustVisitor {
                 self.newline();
                 self.add_code(&format!(
                     "self.{}();",
-                    self.config.state_stack_push_method_name
+                    self.config.code.state_stack_push_method_name
                 ));
             }
             StateStackOperationType::Pop => {
                 if self.generate_state_context {
                     self.add_code(&format!(
                         "let {} = self.{}();",
-                        self.config.state_context_var_name, self.config.state_stack_pop_method_name
+                        self.config.code.state_context_var_name,
+                        self.config.code.state_stack_pop_method_name
                     ));
                     self.add_code(&format!(
                         "let state = {}.borrow().get_state();",
-                        self.config.state_context_var_name
+                        self.config.code.state_context_var_name
                     ));
                 } else {
                     self.add_code(&format!(
                         "let state = self.{}();",
-                        self.config.state_stack_pop_method_name
+                        self.config.code.state_stack_pop_method_name
                     ));
                 }
             }
@@ -4987,16 +4421,16 @@ impl AstVisitor for RustVisitor {
             FrameEventPart::Event { is_reference } => self.add_code(&format!(
                 "{}{}",
                 if *is_reference { "&" } else { "" },
-                self.config.frame_event_variable_name
+                self.config.code.frame_event_variable_name
             )),
             FrameEventPart::Message { is_reference } => self.add_code(&format!(
                 "{}{}.{}.to_string()",
                 if *is_reference { "&" } else { "" },
-                self.config.frame_event_variable_name,
-                self.config.frame_event_message_attribute_name
+                self.config.code.frame_event_variable_name,
+                self.config.code.frame_event_message_attribute_name
             )),
             // FrameEventPart::Param {param_tok} => self.add_code(&format!("{}._parameters[\"{}\"]"
-            //                                                             ,self.config.frame_event_variable_name
+            //                                                             ,self.config.code.frame_event_variable_name
             FrameEventPart::Param {
                 param_tok,
                 is_reference,
@@ -5005,8 +4439,8 @@ impl AstVisitor for RustVisitor {
                 self.add_code(&format!(
                     "{}{}.{}.{}().{}",
                     if *is_reference { "&" } else { "" },
-                    self.config.frame_event_variable_name,
-                    self.config.frame_event_args_attribute_name,
+                    self.config.code.frame_event_variable_name,
+                    self.config.code.frame_event_args_attribute_name,
                     self.format_args_method_name(&event_name),
                     self.format_value_name(&param_tok.lexeme)
                 ));
@@ -5015,14 +4449,14 @@ impl AstVisitor for RustVisitor {
                 self.add_code(&format!(
                     "{}{}.{}.{}()",
                     if *is_reference { "&" } else { "" },
-                    self.config.frame_event_variable_name,
-                    self.config.frame_event_return_attribute_name,
+                    self.config.code.frame_event_variable_name,
+                    self.config.code.frame_event_return_attribute_name,
                     self.format_param_getter(&self.current_message, "ret")
                 ));
                 // self.add_code(&format!("{}{}.{}"
                 //                         ,if *is_reference {"&"} else {""}
-                //                        ,self.config.frame_event_variable_name
-                //                        ,self.config.frame_event_return_attribute_name))
+                //                        ,self.config.code.frame_event_variable_name
+                //                        ,self.config.code.frame_event_return_attribute_name))
             }
         }
 
@@ -5042,13 +4476,13 @@ impl AstVisitor for RustVisitor {
             FrameEventPart::Event { is_reference } => output.push_str(&format!(
                 "{}{}",
                 if *is_reference { "&" } else { "" },
-                self.config.frame_event_variable_name
+                self.config.code.frame_event_variable_name
             )),
             FrameEventPart::Message { is_reference } => output.push_str(&format!(
                 "{}{}.{}.to_string()",
                 if *is_reference { "&" } else { "" },
-                self.config.frame_event_variable_name,
-                self.config.frame_event_message_attribute_name
+                self.config.code.frame_event_variable_name,
+                self.config.code.frame_event_message_attribute_name
             )),
             FrameEventPart::Param {
                 param_tok,
@@ -5058,8 +4492,8 @@ impl AstVisitor for RustVisitor {
                 output.push_str(&format!(
                     "{}{}.{}.{}().{}",
                     if *is_reference { "&" } else { "" },
-                    self.config.frame_event_variable_name,
-                    self.config.frame_event_args_attribute_name,
+                    self.config.code.frame_event_variable_name,
+                    self.config.code.frame_event_args_attribute_name,
                     self.format_args_method_name(&event_name),
                     self.format_value_name(&param_tok.lexeme)
                 ));
@@ -5067,8 +4501,8 @@ impl AstVisitor for RustVisitor {
             FrameEventPart::Return { is_reference } => output.push_str(&format!(
                 "{}{}.{}.{}()",
                 if *is_reference { "&" } else { "" },
-                self.config.frame_event_variable_name,
-                self.config.frame_event_return_attribute_name,
+                self.config.code.frame_event_variable_name,
+                self.config.code.frame_event_return_attribute_name,
                 self.format_param_getter(&self.current_message, "ret")
             )),
         }
@@ -5252,13 +4686,13 @@ impl AstVisitor for RustVisitor {
                     .accept_to_string(self, &mut code);
                 self.add_code(&format!(
                     "{}.{} = ",
-                    self.config.frame_event_variable_name,
-                    self.config.frame_event_return_attribute_name
+                    self.config.code.frame_event_variable_name,
+                    self.config.code.frame_event_return_attribute_name
                 ));
 
                 self.add_code(&format!(
                     "{}::{} {{ return_value: {}}};",
-                    self.config.frame_event_return_type_name,
+                    self.config.code.frame_event_return_type_name,
                     self.format_type_name(&self.current_message),
                     code
                 ));

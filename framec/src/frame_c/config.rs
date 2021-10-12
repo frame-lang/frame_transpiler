@@ -7,43 +7,45 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
-/// Write out the default configuration to `config.yaml` in the current working
-/// directory.
-pub fn write_default_yaml_file() -> Result<(), RunError> {
-    let default_config = FrameConfig::default();
-    match serde_yaml::to_string(&default_config) {
-        Ok(serialized) => match fs::write("config.yaml", serialized) {
-            Ok(_) => Ok(()),
-            Err(err) => {
-                let msg = format!("Error writing default config.yaml: {}", err);
-                Err(RunError::new(frame_exitcode::DEFAULT_CONFIG_ERR, &*msg))
-            }
-        },
-        Err(err) => {
-            let msg = format!("Error serializing default configuration: {}", err);
-            Err(RunError::new(frame_exitcode::DEFAULT_CONFIG_ERR, &*msg))
-        }
-    }
-}
-
-/// Generate a configuration by merging the default configuration with an
-/// optional local configuration file and any configuration attributes from
-/// the Frame spec.
-pub fn generate_config(
-    local_config: &Option<PathBuf>,
-    system_node: &SystemNode,
-) -> Result<FrameConfig, Error> {
-    let mut figment = FrameConfig::default().figment();
-    if let Some(path) = local_config {
-        figment = figment.merge(Yaml::file(path));
-    }
-    figment.merge(Figment::from(system_node)).extract()
-}
-
 /// The root struct of a frame configuration.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FrameConfig {
     pub codegen: CodeGenConfig,
+}
+
+impl FrameConfig {
+    /// Write out the default configuration to `config.yaml` in the current working
+    /// directory.
+    pub fn write_default_yaml_file() -> Result<(), RunError> {
+        let default_config = FrameConfig::default();
+        match serde_yaml::to_string(&default_config) {
+            Ok(serialized) => match fs::write("config.yaml", serialized) {
+                Ok(_) => Ok(()),
+                Err(err) => {
+                    let msg = format!("Error writing default config.yaml: {}", err);
+                    Err(RunError::new(frame_exitcode::CONFIG_ERR, &*msg))
+                }
+            },
+            Err(err) => {
+                let msg = format!("Error serializing default configuration: {}", err);
+                Err(RunError::new(frame_exitcode::CONFIG_ERR, &*msg))
+            }
+        }
+    }
+
+    /// Load a configuration by merging the default configuration with an optional
+    /// local configuration file, then overriding any configuration attributes
+    /// defined in the Frame spec.
+    pub fn load(
+        local_config: &Option<PathBuf>,
+        system_node: &SystemNode,
+    ) -> Result<FrameConfig, Error> {
+        let mut figment = FrameConfig::default().figment();
+        if let Some(path) = local_config {
+            figment = figment.merge(Yaml::file(path));
+        }
+        figment.merge(Figment::from(system_node)).extract()
+    }
 }
 
 /// Configuration options related to code generation.
@@ -188,7 +190,16 @@ impl Provider for FrameConfig {
     }
 }
 
-/// Make `AttributeNode` a `Provider`.
+/// Make `AttributeNode` a `Provider`. An attribute may contain zero or one
+/// configuration settings.
+///
+/// Attributes setting Boolean configuration options are prefixed with
+/// `feature:` while String configuration options are prefixed with `code:`.
+/// The rest of the attribute name is a path of field names to the relevant
+/// attribute.
+///
+/// For example, to set the Rust backend's `runtime_support` feature, the
+/// attribute must be named `feature:codegen.rust.features.runtime_support`.
 impl Provider for AttributeNode {
     fn metadata(&self) -> Metadata {
         Metadata::named("AttributeNode")
@@ -235,8 +246,8 @@ impl Provider for AttributeNode {
     }
 }
 
-/// Make `SystemNode` a `Provider` by extracting configuration attribute
-/// settings from the Frame spec.
+/// Make `SystemNode` a `Provider` by extracting and merging all configuration
+/// attribute settings from the Frame spec.
 impl Provider for SystemNode {
     fn metadata(&self) -> Metadata {
         Metadata::named("SystemNode attributes")

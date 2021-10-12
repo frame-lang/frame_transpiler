@@ -1,7 +1,9 @@
 use crate::frame_c::compiler::Exe;
+use crate::frame_c::config::FrameConfig;
 use std::path::PathBuf;
 use structopt::StructOpt;
 
+/// Command line arguments to the `framec` executable.
 #[derive(StructOpt)]
 pub struct Cli {
     /// Path to configuration file.
@@ -39,7 +41,7 @@ pub fn run_with(args: Cli) {
 
     // generate config file, if requested, then exit
     if args.generate_config {
-        match exe.write_default_config_file() {
+        match FrameConfig::write_default_yaml_file() {
             Ok(()) => {}
             Err(err) => {
                 eprintln!("Error generating config.yaml file:\n{}", err.error);

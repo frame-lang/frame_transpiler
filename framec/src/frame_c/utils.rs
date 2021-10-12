@@ -140,14 +140,12 @@ pub(crate) mod frame_exitcode {
 
     /// Framepiler parse error exit
     pub const PARSE_ERR: FrameExitCode = 1;
-    pub const DEFAULT_CONFIG_ERR: FrameExitCode = 2;
-    pub const MISSING_CONFIG_ERR: FrameExitCode = 3;
+    pub const CONFIG_ERR: FrameExitCode = 2;
 
     pub fn as_string(code: FrameExitCode) -> String {
         match code {
             PARSE_ERR => "Frame parse error".to_string(),
-            DEFAULT_CONFIG_ERR => "Default configuration error".to_string(),
-            MISSING_CONFIG_ERR => "Missing configuration error".to_string(),
+            CONFIG_ERR => "Configuration error".to_string(),
             _ => format!("Unknown error code {}", code),
         }
     }
