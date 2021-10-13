@@ -485,7 +485,7 @@ impl JavaScriptVisitor {
             && line >= self.comments[self.current_comment_idx].line
         {
             let comment = &self.comments[self.current_comment_idx];
-            if comment.token_type == TokenType::SingleLineCommentTok {
+            if comment.token_type == TokenType::SingleLineComment {
                 self.code
                     .push_str(&*format!("  // {}", &comment.lexeme[3..]));
                 self.code.push_str(&*format!(
@@ -2183,15 +2183,13 @@ impl AstVisitor for JavaScriptVisitor {
         literal_expression_node: &LiteralExprNode,
     ) -> AstVisitorReturnType {
         match &literal_expression_node.token_t {
-            TokenType::NumberTok => self.add_code(&literal_expression_node.value.to_string()),
-            TokenType::SuperStringTok => self.add_code(&literal_expression_node.value.to_string()),
-            TokenType::StringTok => {
-                self.add_code(&format!("\"{}\"", literal_expression_node.value))
-            }
-            TokenType::TrueTok => self.add_code("true"),
-            TokenType::FalseTok => self.add_code("false"),
-            TokenType::NullTok => self.add_code("null"),
-            TokenType::NilTok => self.add_code("null"),
+            TokenType::Number => self.add_code(&literal_expression_node.value.to_string()),
+            TokenType::SuperString => self.add_code(&literal_expression_node.value.to_string()),
+            TokenType::String => self.add_code(&format!("\"{}\"", literal_expression_node.value)),
+            TokenType::True => self.add_code("true"),
+            TokenType::False => self.add_code("false"),
+            TokenType::Null => self.add_code("null"),
+            TokenType::Nil => self.add_code("null"),
             _ => panic!("TODO"),
         }
 
@@ -2207,20 +2205,20 @@ impl AstVisitor for JavaScriptVisitor {
     ) -> AstVisitorReturnType {
         // TODO: make a focused enum or the literals
         match &literal_expression_node.token_t {
-            TokenType::NumberTok => output.push_str(&literal_expression_node.value.to_string()),
-            TokenType::StringTok => {
+            TokenType::Number => output.push_str(&literal_expression_node.value.to_string()),
+            TokenType::String => {
                 output.push_str(&format!("\"{}\"", literal_expression_node.value));
             }
-            TokenType::TrueTok => {
+            TokenType::True => {
                 output.push_str("true");
             }
-            TokenType::FalseTok => {
+            TokenType::False => {
                 output.push_str("false");
             }
-            TokenType::NilTok => {
+            TokenType::Nil => {
                 output.push_str("null");
             }
-            TokenType::NullTok => {
+            TokenType::Null => {
                 output.push_str("null");
             }
             _ => panic!("TODO"),

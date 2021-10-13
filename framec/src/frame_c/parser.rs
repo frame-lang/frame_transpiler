@@ -6,7 +6,6 @@ use super::ast::ExprType::*;
 use super::ast::MessageType::{AnyMessage, CustomMessage};
 use super::ast::TerminatorType::{Continue, Return};
 use super::ast::*;
-use super::scanner::TokenType::*;
 use super::scanner::*;
 use super::symbol_table::SymbolType::*;
 use super::symbol_table::*;
@@ -176,12 +175,12 @@ impl<'a> Parser<'a> {
 
     fn match_token(&mut self, token_types: &Vec<TokenType>) -> bool {
         // cache off comments
-        while self.check(SingleLineCommentTok) || self.check(MultiLineCommentTok) {
+        while self.check(TokenType::SingleLineComment) || self.check(TokenType::MultiLineComment) {
             self.comments.push(self.peek().clone());
             self.advance();
         }
 
-        if self.check(ErrorTok) {
+        if self.check(TokenType::Error) {
             self.error_at_current("Unexpected token.");
             self.advance();
             return false;
@@ -231,7 +230,7 @@ impl<'a> Parser<'a> {
 
     fn is_at_end(&self) -> bool {
         match self.peek().token_type {
-            TokenType::EofTok => true,
+            TokenType::Eof => true,
             _ => false,
         }
     }
@@ -285,8 +284,8 @@ impl<'a> Parser<'a> {
         let mut error_msg = format!("[line {}] Error", token.line);
 
         match token.token_type {
-            TokenType::EofTok => error_msg.push_str(&" at end".to_string()),
-            TokenType::ErrorTok => error_msg.push_str(&format!(" at '{}'", token.lexeme)),
+            TokenType::Eof => error_msg.push_str(&" at end".to_string()),
+            TokenType::Error => error_msg.push_str(&format!(" at '{}'", token.lexeme)),
             _ => error_msg.push_str(&format!(" at '{}'", token.lexeme)),
         }
 
@@ -314,7 +313,7 @@ impl<'a> Parser<'a> {
 
         self.last_sync_token_idx = self.current;
 
-        while self.peek().token_type != TokenType::EofTok {
+        while self.peek().token_type != TokenType::Eof {
             for sync_token in sync_tokens {
                 if *sync_token == self.peek().token_type {
                     return true;
@@ -336,7 +335,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let vec_comments = &vec![SingleLineCommentTok, MultiLineCommentTok];
+        let vec_comments = &vec![TokenType::SingleLineComment, TokenType::MultiLineComment];
         for comment_token_type in vec_comments {
             if *comment_token_type == token.token_type {
                 return true;
@@ -355,7 +354,7 @@ impl<'a> Parser<'a> {
         let mut actions_block_node_opt = Option::None;
         let mut domain_block_node_opt = Option::None;
 
-        if self.match_token(&vec![EofTok]) {
+        if self.match_token(&vec![TokenType::Eof]) {
             self.error_at_current("Empty system.");
             return SystemNode::new(
                 String::from("error"),
@@ -370,17 +369,17 @@ impl<'a> Parser<'a> {
         }
 
         // Parse free-form header ```whatever```
-        if self.match_token(&vec![ThreeTicksTok]) {
-            while self.match_token(&vec![SuperStringTok]) {
+        if self.match_token(&vec![TokenType::ThreeTicks]) {
+            while self.match_token(&vec![TokenType::SuperString]) {
                 let tok = self.previous();
                 header.push_str(&*tok.lexeme.clone());
             }
             if self
-                .consume(TokenType::ThreeTicksTok, "Expected '```'.")
+                .consume(TokenType::ThreeTicks, "Expected '```'.")
                 .is_err()
             {
                 self.error_at_current("Expected closing ```.");
-                let sync_tokens = &vec![SystemTok];
+                let sync_tokens = &vec![TokenType::System];
                 self.synchronize(sync_tokens);
             }
         }
@@ -391,19 +390,19 @@ impl<'a> Parser<'a> {
         };
 
         // TODO: Error handling
-        if !self.match_token(&vec![SystemTok]) {
+        if !self.match_token(&vec![TokenType::System]) {
             self.error_at_current("Expected #.");
-            let sync_tokens = &vec![IdentifierTok];
+            let sync_tokens = &vec![TokenType::Identifier];
             self.synchronize(sync_tokens);
         }
-        if !self.match_token(&vec![IdentifierTok]) {
+        if !self.match_token(&vec![TokenType::Identifier]) {
             self.error_at_current("Expected system identifer.");
             let sync_tokens = &vec![
-                InterfaceBlockTok,
-                MachineBlockTok,
-                ActionsBlockTok,
-                DomainBlockTok,
-                SystemEndTok,
+                TokenType::InterfaceBlock,
+                TokenType::MachineBlock,
+                TokenType::ActionsBlock,
+                TokenType::DomainBlock,
+                TokenType::SystemEnd,
             ];
             self.synchronize(sync_tokens);
         }
@@ -424,7 +423,7 @@ impl<'a> Parser<'a> {
             self.arcanum.set_parse_scope(&system_name);
         }
 
-        if self.match_token(&vec![InterfaceBlockTok]) {
+        if self.match_token(&vec![TokenType::InterfaceBlock]) {
             self.arcanum
                 .debug_print_current_symbols(self.arcanum.get_current_symtab());
             let x = self.interface_block();
@@ -433,7 +432,7 @@ impl<'a> Parser<'a> {
                 .debug_print_current_symbols(self.arcanum.get_current_symtab());
         }
 
-        if self.match_token(&vec![MachineBlockTok]) {
+        if self.match_token(&vec![TokenType::MachineBlock]) {
             self.arcanum
                 .debug_print_current_symbols(self.arcanum.get_current_symtab());
             machine_block_node_opt = Option::Some(self.machine_block());
@@ -441,11 +440,11 @@ impl<'a> Parser<'a> {
                 .debug_print_current_symbols(self.arcanum.get_current_symtab());
         }
 
-        if self.match_token(&vec![ActionsBlockTok]) {
+        if self.match_token(&vec![TokenType::ActionsBlock]) {
             actions_block_node_opt = Option::Some(self.actions_block());
         }
 
-        if self.match_token(&vec![DomainBlockTok]) {
+        if self.match_token(&vec![TokenType::DomainBlock]) {
             self.arcanum
                 .debug_print_current_symbols(self.arcanum.get_current_symtab());
             domain_block_node_opt = Option::Some(self.domain_block());
@@ -453,7 +452,7 @@ impl<'a> Parser<'a> {
                 .debug_print_current_symbols(self.arcanum.get_current_symtab());
         }
 
-        if !self.match_token(&vec![SystemEndTok]) {
+        if !self.match_token(&vec![TokenType::SystemEnd]) {
             self.error_at_current("Expected ##.");
         }
 
@@ -479,13 +478,13 @@ impl<'a> Parser<'a> {
         let mut attributes: HashMap<String, AttributeNode> = HashMap::new();
 
         loop {
-            if self.match_token(&vec![InnerAttributeTok]) {
+            if self.match_token(&vec![TokenType::InnerAttribute]) {
                 // not supported yet
                 let parse_error = ParseError::new(
                     "Found '#![' token - inner attribute syntax not currently supported.",
                 );
                 return Err(parse_error);
-            } else if self.match_token(&vec![OuterAttributeTok]) {
+            } else if self.match_token(&vec![TokenType::OuterAttribute]) {
                 let attribute_node = match self.attribute() {
                     Ok(attribute_node) => attribute_node,
                     Err(err) => {
@@ -493,7 +492,7 @@ impl<'a> Parser<'a> {
                     }
                 };
                 attributes.insert(attribute_node.name.clone(), attribute_node);
-                if let Err(parse_error) = self.consume(RBracketTok, "Expected ']'.") {
+                if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
                     return Err(parse_error);
                 }
             } else {
@@ -513,25 +512,29 @@ impl<'a> Parser<'a> {
     fn attribute(&mut self) -> Result<AttributeNode, ParseError> {
         // attribute name: identifier (identifier | : | .)*
         let mut name;
-        if self.match_token(&vec![IdentifierTok]) {
+        if self.match_token(&vec![TokenType::Identifier]) {
             name = self.previous().lexeme.clone();
         } else {
             self.error_at_current("Expected attribute name.");
             let parse_error = ParseError::new("TODO");
             return Err(parse_error);
         }
-        while self.match_token(&vec![IdentifierTok, ColonTok, DotTok]) {
+        while self.match_token(&vec![
+            TokenType::Identifier,
+            TokenType::Colon,
+            TokenType::Dot,
+        ]) {
             name.push_str(&self.previous().lexeme.clone());
         }
 
         // equals
-        if let Err(err) = self.consume(TokenType::EqualsTok, "Expected '='") {
+        if let Err(err) = self.consume(TokenType::Equals, "Expected '='") {
             return Err(err);
         }
 
         // attribute value: string
         let value;
-        if self.match_token(&vec![StringTok]) {
+        if self.match_token(&vec![TokenType::String]) {
             value = self.previous().lexeme.clone();
         } else {
             self.error_at_current("Expected attribute value.");
@@ -563,18 +566,18 @@ impl<'a> Parser<'a> {
         // NOTE: this loop peeks() ahead and then interface_method() consumes
         // the identifier. Not sure if this is the best way.
 
-        while self.match_token(&vec![TokenType::IdentifierTok]) {
+        while self.match_token(&vec![TokenType::Identifier]) {
             match self.interface_method() {
                 Ok(interface_method_node) => {
                     interface_methods.push(interface_method_node);
                 }
                 Err(_parse_error) => {
                     let sync_tokens = &vec![
-                        IdentifierTok,
-                        MachineBlockTok,
-                        ActionsBlockTok,
-                        DomainBlockTok,
-                        SystemEndTok,
+                        TokenType::Identifier,
+                        TokenType::MachineBlock,
+                        TokenType::ActionsBlock,
+                        TokenType::DomainBlock,
+                        TokenType::SystemEnd,
                     ];
                     self.synchronize(sync_tokens);
                 }
@@ -600,7 +603,7 @@ impl<'a> Parser<'a> {
         let mut return_type_opt: Option<TypeNode> = Option::None;
         let mut alias_opt: Option<MessageNode> = Option::None;
 
-        if self.match_token(&vec![TokenType::LBracketTok]) {
+        if self.match_token(&vec![TokenType::LBracket]) {
             match self.parameters() {
                 Ok(Some(parameters)) => params_opt = Some(parameters),
                 Ok(None) => return Err(ParseError::new("TODO")),
@@ -609,7 +612,7 @@ impl<'a> Parser<'a> {
         }
 
         // Parse return type
-        if self.match_token(&vec![TokenType::ColonTok]) {
+        if self.match_token(&vec![TokenType::Colon]) {
             match self.type_decl() {
                 Ok(type_node) => return_type_opt = Some(type_node),
                 Err(parse_error) => return Err(parse_error),
@@ -617,10 +620,10 @@ impl<'a> Parser<'a> {
         }
 
         // Parse alias
-        if self.match_token(&vec![TokenType::AtTok]) {
-            if self.consume(TokenType::LParenTok, "Expected '('").is_err() {
+        if self.match_token(&vec![TokenType::At]) {
+            if self.consume(TokenType::LParen, "Expected '('").is_err() {
                 self.error_at_current("Expected '('.");
-                let sync_tokens = &vec![PipeTok];
+                let sync_tokens = &vec![TokenType::Pipe];
                 self.synchronize(sync_tokens);
             }
 
@@ -629,24 +632,24 @@ impl<'a> Parser<'a> {
                 Ok(AnyMessage { .. }) => {
                     self.error_at_previous("Expected message, found '||*");
                     let sync_tokens = &vec![
-                        RParenTok,
-                        MachineBlockTok,
-                        ActionsBlockTok,
-                        DomainBlockTok,
-                        SystemEndTok,
+                        TokenType::RParen,
+                        TokenType::MachineBlock,
+                        TokenType::ActionsBlock,
+                        TokenType::DomainBlock,
+                        TokenType::SystemEnd,
                     ];
                     self.synchronize(sync_tokens);
                 }
                 Err(err) => return Err(err),
             }
 
-            if self.consume(TokenType::RParenTok, "Expected ')'").is_err() {
+            if self.consume(TokenType::RParen, "Expected ')'").is_err() {
                 let sync_tokens = &vec![
-                    IdentifierTok,
-                    MachineBlockTok,
-                    ActionsBlockTok,
-                    DomainBlockTok,
-                    SystemEndTok,
+                    TokenType::Identifier,
+                    TokenType::MachineBlock,
+                    TokenType::ActionsBlock,
+                    TokenType::DomainBlock,
+                    TokenType::SystemEnd,
                 ];
                 self.synchronize(sync_tokens);
             }
@@ -734,15 +737,15 @@ impl<'a> Parser<'a> {
     fn type_decl(&mut self) -> Result<TypeNode, ParseError> {
         let mut is_reference = false;
 
-        if self.match_token(&vec![TokenType::SuperStringTok]) {
+        if self.match_token(&vec![TokenType::SuperString]) {
             let id = self.previous();
             let type_str = id.lexeme.clone();
             Ok(TypeNode::new(true, false, type_str))
         } else {
-            if self.match_token(&vec![TokenType::AndTok]) {
+            if self.match_token(&vec![TokenType::And]) {
                 is_reference = true
             }
-            if !self.match_token(&vec![TokenType::IdentifierTok]) {
+            if !self.match_token(&vec![TokenType::Identifier]) {
                 self.error_at_current("Expected return type name.");
                 return Err(ParseError::new("TODO"));
             }
@@ -761,33 +764,38 @@ impl<'a> Parser<'a> {
     fn message(&mut self) -> Result<MessageType, ParseError> {
         let message_node;
 
-        if self.peek().token_type == AtTok {
-            if let Err(parse_error) = self.consume(AtTok, "Expected '@'.") {
+        if self.peek().token_type == TokenType::At {
+            if let Err(parse_error) = self.consume(TokenType::At, "Expected '@'.") {
                 return Err(parse_error);
             }
         }
-        if self.match_token(&vec![AnyMessageTok]) {
+        if self.match_token(&vec![TokenType::AnyMessage]) {
             let tok = self.previous();
 
             return Ok(MessageType::AnyMessage { line: tok.line });
         }
-        if !self.match_token(&vec![TokenType::PipeTok]) {
+        if !self.match_token(&vec![TokenType::Pipe]) {
             self.error_at_previous("Expected '|'.");
             return Err(ParseError::new("TODO"));
         }
 
         let tt = self.peek().token_type;
         match tt {
-            IdentifierTok | StringTok | GTTok | GTx2Tok | GTx3Tok | LTTok | LTx2Tok | LTx3Tok => {
-                message_node = self.create_message_node(tt)
-            }
+            TokenType::Identifier
+            | TokenType::String
+            | TokenType::GT
+            | TokenType::GTx2
+            | TokenType::GTx3
+            | TokenType::LT
+            | TokenType::LTx2
+            | TokenType::LTx3 => message_node = self.create_message_node(tt),
             _ => {
                 self.error_at_current("Expected '|'");
                 return Err(ParseError::new("TODO"));
             }
         }
 
-        if let Err(parse_error) = self.consume(TokenType::PipeTok, "Expected '|'.") {
+        if let Err(parse_error) = self.consume(TokenType::Pipe, "Expected '|'.") {
             return Err(parse_error);
         }
 
@@ -813,7 +821,7 @@ impl<'a> Parser<'a> {
     fn parameters(&mut self) -> Result<Option<Vec<ParameterNode>>, ParseError> {
         let mut parameters: Vec<ParameterNode> = Vec::new();
 
-        while !self.match_token(&vec![TokenType::RBracketTok]) {
+        while !self.match_token(&vec![TokenType::RBracket]) {
             match self.parameter() {
                 Ok(parameter_opt) => match parameter_opt {
                     Some(parameter_node) => {
@@ -825,16 +833,19 @@ impl<'a> Parser<'a> {
                 },
                 Err(_parse_error) => {
                     let sync_tokens = &vec![
-                        IdentifierTok,
-                        ColonTok,
-                        RBracketTok,
-                        MachineBlockTok,
-                        ActionsBlockTok,
-                        DomainBlockTok,
-                        SystemEndTok,
+                        TokenType::Identifier,
+                        TokenType::Colon,
+                        TokenType::RBracket,
+                        TokenType::MachineBlock,
+                        TokenType::ActionsBlock,
+                        TokenType::DomainBlock,
+                        TokenType::SystemEnd,
                     ];
                     self.synchronize(sync_tokens);
-                    if !self.follows(self.peek(), &vec![IdentifierTok, ColonTok, RBracketTok]) {
+                    if !self.follows(
+                        self.peek(),
+                        &vec![TokenType::Identifier, TokenType::Colon, TokenType::RBracket],
+                    ) {
                         break;
                     }
                 }
@@ -853,7 +864,7 @@ impl<'a> Parser<'a> {
     // parameter -> param_name ( ':' param_type )?
 
     fn parameter(&mut self) -> Result<Option<ParameterNode>, ParseError> {
-        if !self.match_token(&vec![TokenType::IdentifierTok]) {
+        if !self.match_token(&vec![TokenType::Identifier]) {
             self.error_at_current("Expected parameter name.");
             return Err(ParseError::new("TODO"));
         }
@@ -863,7 +874,7 @@ impl<'a> Parser<'a> {
 
         let mut param_type_opt: Option<TypeNode> = None;
 
-        if self.match_token(&vec![TokenType::ColonTok]) {
+        if self.match_token(&vec![TokenType::Colon]) {
             match self.type_decl() {
                 Ok(type_node) => param_type_opt = Some(type_node),
                 Err(parse_error) => return Err(parse_error),
@@ -895,18 +906,22 @@ impl<'a> Parser<'a> {
 
         let mut states = Vec::new();
 
-        while self.match_token(&vec![TokenType::StateTok]) {
+        while self.match_token(&vec![TokenType::State]) {
             match self.state() {
                 Ok(state_rcref) => {
                     states.push(state_rcref);
                 }
                 Err(_) => {
                     self.error_at_current("Error parsing Machine Block.");
-                    let sync_tokens = &vec![StateTok];
+                    let sync_tokens = &vec![TokenType::State];
                     if self.synchronize(sync_tokens) {
                         continue;
                     } else {
-                        let sync_tokens = &vec![ActionsBlockTok, DomainBlockTok, SystemEndTok];
+                        let sync_tokens = &vec![
+                            TokenType::ActionsBlock,
+                            TokenType::DomainBlock,
+                            TokenType::SystemEnd,
+                        ];
                         self.synchronize(sync_tokens);
                         break;
                     }
@@ -932,7 +947,7 @@ impl<'a> Parser<'a> {
 
         let mut actions = Vec::new();
 
-        while self.match_token(&vec![IdentifierTok]) {
+        while self.match_token(&vec![TokenType::Identifier]) {
             match self.action_decl() {
                 Ok(action_decl_node) => actions.push(action_decl_node),
                 Err(_) => {}
@@ -953,7 +968,7 @@ impl<'a> Parser<'a> {
 
         let mut params: Option<Vec<ParameterNode>> = Option::None;
 
-        if self.match_token(&vec![LBracketTok]) {
+        if self.match_token(&vec![TokenType::LBracket]) {
             params = match self.parameters() {
                 Ok(Some(parameters)) => Some(parameters),
                 Ok(None) => None,
@@ -963,7 +978,7 @@ impl<'a> Parser<'a> {
 
         let mut type_opt: Option<TypeNode> = None;
 
-        if self.match_token(&vec![ColonTok]) {
+        if self.match_token(&vec![TokenType::Colon]) {
             match self.type_decl() {
                 Ok(type_node) => type_opt = Some(type_node),
                 Err(parse_error) => return Err(parse_error),
@@ -972,13 +987,13 @@ impl<'a> Parser<'a> {
 
         let mut code_opt: Option<String> = None;
 
-        if self.match_token(&vec![OpenBraceTok]) {
-            if self.match_token(&vec![SuperStringTok]) {
+        if self.match_token(&vec![TokenType::OpenBrace]) {
+            if self.match_token(&vec![TokenType::SuperString]) {
                 let token = self.previous();
                 code_opt = Some(token.lexeme.clone());
             }
 
-            if let Err(parse_error) = self.consume(CloseBraceTok, "Expected '}'.") {
+            if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
                 return Err(parse_error);
             }
         }
@@ -1029,11 +1044,11 @@ impl<'a> Parser<'a> {
 
         let mut domain_variables = Vec::new();
 
-        while self.match_token(&vec![VarTok, ConstTok]) {
+        while self.match_token(&vec![TokenType::Var, TokenType::Const]) {
             match self.variable_decl(IdentifierDeclScope::DomainBlock) {
                 Ok(domain_variable_node) => domain_variables.push(domain_variable_node),
                 Err(_parse_err) => {
-                    let sync_tokens = &vec![VarTok, ConstTok, SystemEndTok];
+                    let sync_tokens = &vec![TokenType::Var, TokenType::Const, TokenType::SystemEnd];
                     self.synchronize(sync_tokens);
                 }
             }
@@ -1053,12 +1068,12 @@ impl<'a> Parser<'a> {
         identifier_decl_scope: IdentifierDeclScope,
     ) -> Result<Rc<RefCell<VariableDeclNode>>, ParseError> {
         let is_constant = match self.previous().token_type {
-            VarTok => false,
-            ConstTok => true,
+            TokenType::Var => false,
+            TokenType::Const => true,
             _ => return Err(ParseError::new("TODO")),
         };
 
-        let name = match self.match_token(&vec![IdentifierTok]) {
+        let name = match self.match_token(&vec![TokenType::Identifier]) {
             false => {
                 self.error_at_current("Expected declaration identifier");
                 return Err(ParseError::new("TODO"));
@@ -1068,7 +1083,7 @@ impl<'a> Parser<'a> {
 
         let mut type_node_opt: Option<TypeNode> = None;
 
-        if self.match_token(&vec![ColonTok]) {
+        if self.match_token(&vec![TokenType::Colon]) {
             match self.type_decl() {
                 Ok(type_node) => type_node_opt = Some(type_node),
                 Err(parse_error) => return Err(parse_error),
@@ -1077,7 +1092,7 @@ impl<'a> Parser<'a> {
 
         let initializer_expr_t_opt;
 
-        if self.match_token(&vec![EqualsTok]) {
+        if self.match_token(&vec![TokenType::Equals]) {
             match self.equality() {
                 Ok(Some(LiteralExprT {literal_expr_node}))
                     => initializer_expr_t_opt = Some(LiteralExprT {literal_expr_node}),
@@ -1189,10 +1204,15 @@ impl<'a> Parser<'a> {
         let line = self.previous().line;
 
         // TODO
-        if !self.match_token(&vec![TokenType::IdentifierTok]) {
+        if !self.match_token(&vec![TokenType::Identifier]) {
             // error message and synchronize
             self.error_at_current("Expected state name.");
-            let sync_tokens = &vec![StateTok, ActionsBlockTok, DomainBlockTok, SystemEndTok];
+            let sync_tokens = &vec![
+                TokenType::State,
+                TokenType::ActionsBlock,
+                TokenType::DomainBlock,
+                TokenType::SystemEnd,
+            ];
             self.synchronize(sync_tokens);
 
             let state_node = StateNode::new(
@@ -1233,7 +1253,7 @@ impl<'a> Parser<'a> {
         //   let params:Option<Vec<ParameterNode>>
         let mut pop_state_params_scope = false;
         let mut params_opt = None;
-        if self.match_token(&vec![TokenType::LBracketTok]) {
+        if self.match_token(&vec![TokenType::LBracket]) {
             // generate StateContext mechanism for state parameter support
             self.generate_state_context = true;
             match self.parameters() {
@@ -1280,10 +1300,10 @@ impl<'a> Parser<'a> {
 
         // Dispatch clause.
         // '=>' '$' state_id
-        if self.match_token(&vec![TokenType::DispatchTok]) {
-            match self.consume(TokenType::StateTok, "Expected '$'") {
+        if self.match_token(&vec![TokenType::Dispatch]) {
+            match self.consume(TokenType::State, "Expected '$'") {
                 Ok(_) => {
-                    if self.match_token(&vec![TokenType::IdentifierTok]) {
+                    if self.match_token(&vec![TokenType::Identifier]) {
                         let id = self.previous();
                         let target_state_name = id.lexeme.clone();
 
@@ -1292,11 +1312,11 @@ impl<'a> Parser<'a> {
                     } else {
                         self.error_at_current("Expected dispatch target state identifier.");
                         let sync_tokens = &vec![
-                            PipeTok,
-                            StateTok,
-                            ActionsBlockTok,
-                            DomainBlockTok,
-                            SystemEndTok,
+                            TokenType::Pipe,
+                            TokenType::State,
+                            TokenType::ActionsBlock,
+                            TokenType::DomainBlock,
+                            TokenType::SystemEnd,
                         ];
                         self.synchronize(sync_tokens);
                     }
@@ -1304,11 +1324,11 @@ impl<'a> Parser<'a> {
                 Err(_) => {
                     // synchronize to next event handler, state, remaining blocks or the end token
                     let sync_tokens = &vec![
-                        PipeTok,
-                        StateTok,
-                        ActionsBlockTok,
-                        DomainBlockTok,
-                        SystemEndTok,
+                        TokenType::Pipe,
+                        TokenType::State,
+                        TokenType::ActionsBlock,
+                        TokenType::DomainBlock,
+                        TokenType::SystemEnd,
                     ];
                     self.synchronize(sync_tokens);
                 }
@@ -1356,7 +1376,7 @@ impl<'a> Parser<'a> {
         // variable decl
         // let v     (mutable)
         // const c   (immutable)
-        while self.match_token(&vec![VarTok, ConstTok]) {
+        while self.match_token(&vec![TokenType::Var, TokenType::Const]) {
             self.generate_state_context = true;
             match self.variable_decl(IdentifierDeclScope::StateVar) {
                 Ok(variable_node) => {
@@ -1377,7 +1397,7 @@ impl<'a> Parser<'a> {
         let mut calls = Vec::new();
 
         // @TODO - add reference syntax
-        while self.match_token(&vec![IdentifierTok]) {
+        while self.match_token(&vec![TokenType::Identifier]) {
             match self.variable_or_call_expr(IdentifierDeclScope::None) {
                 // Ok(Some(VariableExprT { var_node: id_node }))
                 //     => {
@@ -1409,7 +1429,7 @@ impl<'a> Parser<'a> {
         let mut exit_event_handler = Option::None;
 
         loop {
-            while self.match_token(&vec![SingleLineCommentTok]) {
+            while self.match_token(&vec![TokenType::SingleLineComment]) {
                 // consume
                 // @TODO: fix this. see https://app.asana.com/0/1199651557660024/1199953268166075/f
                 // this is a hack because we don't use
@@ -1425,13 +1445,13 @@ impl<'a> Parser<'a> {
                  */
             }
 
-            if self.peek().token_type == AtTok
-                || self.peek().token_type == PipeTok
-                || self.peek().token_type == AnyMessageTok
+            if self.peek().token_type == TokenType::At
+                || self.peek().token_type == TokenType::Pipe
+                || self.peek().token_type == TokenType::AnyMessage
             {
-                while self.peek().token_type == AtTok
-                    || self.peek().token_type == PipeTok
-                    || self.peek().token_type == AnyMessageTok
+                while self.peek().token_type == TokenType::At
+                    || self.peek().token_type == TokenType::Pipe
+                    || self.peek().token_type == TokenType::AnyMessage
                 {
                     match self.event_handler() {
                         Ok(eh_opt) => {
@@ -1466,29 +1486,34 @@ impl<'a> Parser<'a> {
                         }
                         Err(_) => {
                             let sync_tokens = &vec![
-                                PipeTok,
-                                StateTok,
-                                ActionsBlockTok,
-                                DomainBlockTok,
-                                SystemEndTok,
+                                TokenType::Pipe,
+                                TokenType::State,
+                                TokenType::ActionsBlock,
+                                TokenType::DomainBlock,
+                                TokenType::SystemEnd,
                             ];
                             self.synchronize(sync_tokens);
                         }
                     }
                 }
             } else {
-                let follows_vec = &vec![StateTok, ActionsBlockTok, DomainBlockTok, SystemEndTok];
+                let follows_vec = &vec![
+                    TokenType::State,
+                    TokenType::ActionsBlock,
+                    TokenType::DomainBlock,
+                    TokenType::SystemEnd,
+                ];
                 if self.follows(self.peek(), follows_vec) {
                     // next token is expected
                     break;
                 } else {
                     self.error_at_current("Unexpected token in event handler message");
                     let sync_tokens = &vec![
-                        PipeTok,
-                        AnyMessageTok,
-                        StateTok,
-                        ActionsBlockTok,
-                        DomainBlockTok,
+                        TokenType::Pipe,
+                        TokenType::AnyMessage,
+                        TokenType::State,
+                        TokenType::ActionsBlock,
+                        TokenType::DomainBlock,
                     ];
                     if !self.synchronize(sync_tokens) {
                         return Err(ParseError::new("TODO"));
@@ -1608,7 +1633,7 @@ impl<'a> Parser<'a> {
         let mut pop_params_scope = false;
 
         // Parse event handler parameters
-        if self.match_token(&vec![TokenType::LBracketTok]) {
+        if self.match_token(&vec![TokenType::LBracket]) {
             if msg == self.arcanum.symbol_config.enter_msg_symbol {
                 self.generate_state_context = true;
             }
@@ -1700,12 +1725,12 @@ impl<'a> Parser<'a> {
                                                     );
 
                                                     let sync_tokens = &vec![
-                                                        PipeTok,
-                                                        CaretTok,
-                                                        StateTok,
-                                                        ActionsBlockTok,
-                                                        DomainBlockTok,
-                                                        SystemEndTok,
+                                                        TokenType::Pipe,
+                                                        TokenType::Caret,
+                                                        TokenType::State,
+                                                        TokenType::ActionsBlock,
+                                                        TokenType::DomainBlock,
+                                                        TokenType::SystemEnd,
                                                     ];
                                                     self.synchronize(sync_tokens);
                                                 }
@@ -1773,7 +1798,7 @@ impl<'a> Parser<'a> {
         }
 
         // Parse return type
-        if self.match_token(&vec![TokenType::ColonTok]) {
+        if self.match_token(&vec![TokenType::Colon]) {
             let return_type_opt;
             match self.type_decl() {
                 Ok(type_node) => return_type_opt = Some(type_node),
@@ -1811,11 +1836,11 @@ impl<'a> Parser<'a> {
             Err(_parse_error) => {
                 // TODO: this vec keeps the parser from hanging. don't know why
                 let sync_tokens = &vec![
-                    PipeTok,
-                    StateTok,
-                    ActionsBlockTok,
-                    DomainBlockTok,
-                    SystemEndTok,
+                    TokenType::Pipe,
+                    TokenType::State,
+                    TokenType::ActionsBlock,
+                    TokenType::DomainBlock,
+                    TokenType::SystemEnd,
                 ];
                 self.synchronize(sync_tokens);
                 // create "dummy" node to keep processing
@@ -1872,8 +1897,8 @@ impl<'a> Parser<'a> {
         //     None => None,
         // };
 
-        if self.match_token(&vec![TokenType::CaretTok]) {
-            if self.match_token(&vec![TokenType::LParenTok]) {
+        if self.match_token(&vec![TokenType::Caret]) {
+            if self.match_token(&vec![TokenType::LParen]) {
                 let expr_t = match self.unary_expression() {
                     Ok(Some(expr_t)) => expr_t,
                     _ => {
@@ -1882,7 +1907,7 @@ impl<'a> Parser<'a> {
                     }
                 };
 
-                if let Err(parse_error) = self.consume(RParenTok, "Expected ')'.") {
+                if let Err(parse_error) = self.consume(TokenType::RParen, "Expected ')'.") {
                     return Err(parse_error);
                 }
                 Ok(TerminatorExpr::new(
@@ -1893,7 +1918,7 @@ impl<'a> Parser<'a> {
             } else {
                 Ok(TerminatorExpr::new(Return, None, self.previous().line))
             }
-        } else if self.match_token(&vec![TokenType::ElseContinueTok]) {
+        } else if self.match_token(&vec![TokenType::ElseContinue]) {
             Ok(TerminatorExpr::new(Continue, None, self.previous().line))
         } else {
             self.error_at_current("Expected event handler terminator.");
@@ -1944,19 +1969,19 @@ impl<'a> Parser<'a> {
                 },
                 Err(_err) => {
                     let sync_tokens = &vec![
-                        IdentifierTok,
-                        LParenTok,
-                        CaretTok,
-                        GTTok,
-                        SystemTok,
-                        StateTok,
-                        PipePipeTok,
-                        DotTok,
-                        ColonTok,
-                        PipeTok,
-                        ActionsBlockTok,
-                        DomainBlockTok,
-                        SystemEndTok,
+                        TokenType::Identifier,
+                        TokenType::LParen,
+                        TokenType::Caret,
+                        TokenType::GT,
+                        TokenType::System,
+                        TokenType::State,
+                        TokenType::PipePipe,
+                        TokenType::Dot,
+                        TokenType::Colon,
+                        TokenType::Pipe,
+                        TokenType::ActionsBlock,
+                        TokenType::DomainBlock,
+                        TokenType::SystemEnd,
                     ];
                     self.synchronize(sync_tokens);
                 }
@@ -1969,7 +1994,7 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     fn decl_or_stmt(&mut self) -> Result<Option<DeclOrStmtType>, ParseError> {
-        if self.match_token(&vec![VarTok, ConstTok]) {
+        if self.match_token(&vec![TokenType::Var, TokenType::Const]) {
             match self.variable_decl(IdentifierDeclScope::EventHandlerVar) {
                 Ok(var_decl_t_rc_ref) => {
                     return Ok(Some(DeclOrStmtType::VarDeclT { var_decl_t_rc_ref }));
@@ -1999,12 +2024,12 @@ impl<'a> Parser<'a> {
             Ok(et_opt) => expr_t_opt = et_opt,
             Err(_) => {
                 let sync_tokens = &vec![
-                    IdentifierTok,
-                    PipeTok,
-                    StateTok,
-                    ActionsBlockTok,
-                    DomainBlockTok,
-                    SystemEndTok,
+                    TokenType::Identifier,
+                    TokenType::Pipe,
+                    TokenType::State,
+                    TokenType::ActionsBlock,
+                    TokenType::DomainBlock,
+                    TokenType::SystemEnd,
                 ];
                 self.synchronize(sync_tokens);
             }
@@ -2075,7 +2100,7 @@ impl<'a> Parser<'a> {
                 match expr_t {
                     ExprListT { expr_list_node } => {
                         // path for transitions w/ an exit params group
-                        if self.match_token(&vec![TokenType::TransitionTok]) {
+                        if self.match_token(&vec![TokenType::Transition]) {
                             match self.transition(Some(expr_list_node)) {
                                 Ok(Some(stmt_t)) => return Ok(Some(stmt_t)),
                                 Ok(None) => return Err(ParseError::new("TODO")),
@@ -2163,7 +2188,7 @@ impl<'a> Parser<'a> {
             }
             None => {
                 // This path is for transitions w/o an exit params group
-                if self.match_token(&vec![TransitionTok]) {
+                if self.match_token(&vec![TokenType::Transition]) {
                     match self.transition(None) {
                         Ok(Some(transition)) => return Ok(Some(transition)),
                         Ok(_) => return Err(ParseError::new("TODO")),
@@ -2173,7 +2198,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        if self.match_token(&vec![ChangeStateTok]) {
+        if self.match_token(&vec![TokenType::ChangeState]) {
             return match self.change_state() {
                 Ok(Some(state_context_t)) => Ok(Some(state_context_t)),
                 Ok(None) => Err(ParseError::new("TODO")),
@@ -2211,20 +2236,20 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     fn is_bool_test(&self) -> bool {
-        self.peek().token_type == TokenType::BoolTestTrueTok
-            || self.peek().token_type == TokenType::BoolTestFalseTok
+        self.peek().token_type == TokenType::BoolTestTrue
+            || self.peek().token_type == TokenType::BoolTestFalse
     }
 
     /* --------------------------------------------------------------------- */
 
     fn is_string_match_test(&self) -> bool {
-        self.peek().token_type == TokenType::StringTestTok
+        self.peek().token_type == TokenType::StringTest
     }
 
     /* --------------------------------------------------------------------- */
 
     fn is_number_match_test(&self) -> bool {
-        self.peek().token_type == TokenType::NumberTestTok
+        self.peek().token_type == TokenType::NumberTest
     }
 
     /* --------------------------------------------------------------------- */
@@ -2244,11 +2269,11 @@ impl<'a> Parser<'a> {
         let is_negated: bool;
 
         // '?'
-        if self.match_token(&vec![BoolTestTrueTok]) {
+        if self.match_token(&vec![TokenType::BoolTestTrue]) {
             is_negated = false;
 
         // ?!
-        } else if self.match_token(&vec![BoolTestFalseTok]) {
+        } else if self.match_token(&vec![TokenType::BoolTestFalse]) {
             is_negated = true;
         } else {
             return Err(ParseError::new("TODO"));
@@ -2264,7 +2289,7 @@ impl<'a> Parser<'a> {
 
         conditional_branches.push(first_branch_node);
 
-        while self.match_token(&vec![ElseContinueTok]) {
+        while self.match_token(&vec![TokenType::ElseContinue]) {
             match self.bool_test_else_continue_branch() {
                 Ok(branch_node) => {
                     conditional_branches.push(branch_node);
@@ -2275,7 +2300,7 @@ impl<'a> Parser<'a> {
 
         // (':' bool_test_else_branch)?
         let mut bool_test_else_node_opt: Option<BoolTestElseBranchNode> = None;
-        if self.match_token(&vec![ColonTok]) {
+        if self.match_token(&vec![TokenType::Colon]) {
             bool_test_else_node_opt = Option::from(match self.bool_test_else_branch() {
                 Ok(statements_t_opt) => statements_t_opt,
                 Err(parse_error) => return Err(parse_error),
@@ -2283,7 +2308,9 @@ impl<'a> Parser<'a> {
         }
 
         // '::'
-        if let Err(parse_error) = self.consume(TestTerminatorTok, "Expected TestTerminator.") {
+        if let Err(parse_error) =
+            self.consume(TokenType::TestTerminator, "Expected TestTerminator.")
+        {
             return Err(parse_error);
         }
 
@@ -2317,11 +2344,11 @@ impl<'a> Parser<'a> {
         let is_negated: bool;
 
         // '?'
-        if self.match_token(&vec![BoolTestTrueTok]) {
+        if self.match_token(&vec![TokenType::BoolTestTrue]) {
             is_negated = false;
 
         // ?!
-        } else if self.match_token(&vec![BoolTestFalseTok]) {
+        } else if self.match_token(&vec![TokenType::BoolTestFalse]) {
             is_negated = true;
         } else {
             return Err(ParseError::new("TODO"));
@@ -2374,8 +2401,8 @@ impl<'a> Parser<'a> {
 
     // TODO: explore returning a TerminatorType rather than node
     fn branch_terminator(&mut self) -> Result<Option<TerminatorExpr>, ParseError> {
-        if self.match_token(&vec![TokenType::CaretTok]) {
-            if self.match_token(&vec![TokenType::LParenTok]) {
+        if self.match_token(&vec![TokenType::Caret]) {
+            if self.match_token(&vec![TokenType::LParen]) {
                 let expr_t = match self.unary_expression() {
                     Ok(Some(expr_t)) => expr_t,
                     _ => {
@@ -2384,7 +2411,7 @@ impl<'a> Parser<'a> {
                     }
                 };
 
-                if let Err(parse_error) = self.consume(RParenTok, "Expected ')'.") {
+                if let Err(parse_error) = self.consume(TokenType::RParen, "Expected ')'.") {
                     return Err(parse_error);
                 }
                 return Ok(Some(TerminatorExpr::new(
@@ -2399,7 +2426,7 @@ impl<'a> Parser<'a> {
                     self.previous().line,
                 )));
             }
-        } else if self.match_token(&vec![TokenType::GTTok]) {
+        } else if self.match_token(&vec![TokenType::GT]) {
             return Ok(Some(TerminatorExpr::new(
                 Continue,
                 None,
@@ -2424,7 +2451,7 @@ impl<'a> Parser<'a> {
     // string_match_test -> '?~'  ('/' match_string ('|' match_string)* '/' (statement* branch_terminator?) ':>')+ ':' (statement* branch_terminator?) '::'
 
     fn string_match_test(&mut self, expr_t: ExprType) -> Result<StringMatchTestNode, ParseError> {
-        if let Err(parse_error) = self.consume(StringTestTok, "Expected '?~'.") {
+        if let Err(parse_error) = self.consume(TokenType::StringTest, "Expected '?~'.") {
             return Err(parse_error);
         }
 
@@ -2437,7 +2464,7 @@ impl<'a> Parser<'a> {
 
         conditional_branches.push(first_branch_node);
 
-        while self.match_token(&vec![ElseContinueTok]) {
+        while self.match_token(&vec![TokenType::ElseContinue]) {
             match self.string_match_test_match_branch() {
                 Ok(branch_node) => {
                     conditional_branches.push(branch_node);
@@ -2448,7 +2475,7 @@ impl<'a> Parser<'a> {
 
         // (':' match_test_else_branch)?
         let mut else_branch_opt: Option<StringMatchTestElseBranchNode> = None;
-        if self.match_token(&vec![ColonTok]) {
+        if self.match_token(&vec![TokenType::Colon]) {
             else_branch_opt = Option::from(match self.string_match_test_else_branch() {
                 Ok(statements_t_opt) => statements_t_opt,
                 Err(parse_error) => return Err(parse_error),
@@ -2456,7 +2483,9 @@ impl<'a> Parser<'a> {
         }
 
         // '::'
-        if let Err(parse_error) = self.consume(TestTerminatorTok, "Expected TestTerminator.") {
+        if let Err(parse_error) =
+            self.consume(TokenType::TestTerminator, "Expected TestTerminator.")
+        {
             return Err(parse_error);
         }
 
@@ -2474,13 +2503,13 @@ impl<'a> Parser<'a> {
     fn string_match_test_match_branch(
         &mut self,
     ) -> Result<StringMatchTestMatchBranchNode, ParseError> {
-        if let Err(parse_error) = self.consume(ForwardSlashTok, "Expected '/'.") {
+        if let Err(parse_error) = self.consume(TokenType::ForwardSlash, "Expected '/'.") {
             return Err(parse_error);
         }
 
         let mut match_strings: Vec<String> = Vec::new();
 
-        if !self.match_token(&vec![MatchStringTok]) {
+        if !self.match_token(&vec![TokenType::MatchString]) {
             return Err(ParseError::new("TODO"));
         }
 
@@ -2489,8 +2518,8 @@ impl<'a> Parser<'a> {
         let match_pattern_string = match_string_tok.lexeme.clone();
         match_strings.push(match_pattern_string);
 
-        while self.match_token(&vec![PipeTok]) {
-            if !self.match_token(&vec![MatchStringTok]) {
+        while self.match_token(&vec![TokenType::Pipe]) {
+            if !self.match_token(&vec![TokenType::MatchString]) {
                 return Err(ParseError::new("TODO"));
             }
 
@@ -2502,7 +2531,7 @@ impl<'a> Parser<'a> {
 
         let string_match_pattern_node = StringMatchTestPatternNode::new(match_strings);
 
-        if let Err(parse_error) = self.consume(ForwardSlashTok, "Expected '/'.") {
+        if let Err(parse_error) = self.consume(TokenType::ForwardSlash, "Expected '/'.") {
             return Err(parse_error);
         }
 
@@ -2555,7 +2584,7 @@ impl<'a> Parser<'a> {
             Err(parse_error) => return Err(parse_error),
         };
 
-        if self.match_token(&vec![TokenType::EqualsTok]) {
+        if self.match_token(&vec![TokenType::Equals]) {
             // this changes the tokens generated for expression lists
             // like (a) and (a b c)
             self.is_parsing_rhs = true;
@@ -2594,7 +2623,7 @@ impl<'a> Parser<'a> {
             Err(parse_error) => return Err(parse_error),
         };
 
-        while self.match_token(&vec![TokenType::BangEqualTok, TokenType::EqualEqualTok]) {
+        while self.match_token(&vec![TokenType::BangEqual, TokenType::EqualEqual]) {
             //           let line = self.previous().line;
             let operator_token = self.previous();
             let op_type = OperatorType::get_operator_type(&operator_token.token_type);
@@ -2621,10 +2650,10 @@ impl<'a> Parser<'a> {
         };
 
         while self.match_token(&vec![
-            TokenType::GTTok,
-            TokenType::GreaterEqualTok,
-            TokenType::LTTok,
-            TokenType::LessEqualTok,
+            TokenType::GT,
+            TokenType::GreaterEqual,
+            TokenType::LT,
+            TokenType::LessEqual,
         ]) {
             let operator_token = self.previous();
             let op_type = OperatorType::get_operator_type(&operator_token.token_type);
@@ -2650,7 +2679,7 @@ impl<'a> Parser<'a> {
             Err(parse_error) => return Err(parse_error),
         };
 
-        while self.match_token(&vec![TokenType::DashTok, TokenType::PlusTok]) {
+        while self.match_token(&vec![TokenType::Dash, TokenType::Plus]) {
             let operator_token = self.previous();
             let op_type = OperatorType::get_operator_type(&operator_token.token_type);
             let r_value = match self.factor() {
@@ -2675,7 +2704,7 @@ impl<'a> Parser<'a> {
             Err(parse_error) => return Err(parse_error),
         };
 
-        while self.match_token(&vec![TokenType::ForwardSlashTok, TokenType::StarTok]) {
+        while self.match_token(&vec![TokenType::ForwardSlash, TokenType::Star]) {
             let operator_token = self.previous();
             let op_type = OperatorType::get_operator_type(&operator_token.token_type);
             let r_value = match self.logical_xor() {
@@ -2700,7 +2729,7 @@ impl<'a> Parser<'a> {
             Err(parse_error) => return Err(parse_error),
         };
 
-        while self.match_token(&vec![TokenType::LogicalXorTok]) {
+        while self.match_token(&vec![TokenType::LogicalXor]) {
             let operator_token = self.previous();
             let op_type = OperatorType::get_operator_type(&operator_token.token_type);
             let r_value = match self.logical_or() {
@@ -2725,7 +2754,7 @@ impl<'a> Parser<'a> {
             Err(parse_error) => return Err(parse_error),
         };
 
-        while self.match_token(&vec![TokenType::PipePipeTok]) {
+        while self.match_token(&vec![TokenType::PipePipe]) {
             let operator_token = self.previous();
             let op_type = OperatorType::get_operator_type(&operator_token.token_type);
             let r_value = match self.logical_and() {
@@ -2750,7 +2779,7 @@ impl<'a> Parser<'a> {
             Err(parse_error) => return Err(parse_error),
         };
 
-        while self.match_token(&vec![TokenType::LogicalAndTok]) {
+        while self.match_token(&vec![TokenType::LogicalAnd]) {
             let operator_token = self.previous();
             let op_type = OperatorType::get_operator_type(&operator_token.token_type);
             let r_value = match self.unary_expression() {
@@ -2771,7 +2800,7 @@ impl<'a> Parser<'a> {
     // unary_expression -> TODO
 
     fn unary_expression(&mut self) -> Result<Option<ExprType>, ParseError> {
-        if self.match_token(&vec![BangTok, DashTok]) {
+        if self.match_token(&vec![TokenType::Bang, TokenType::Dash]) {
             let token = self.previous();
             let mut operator_type = OperatorType::get_operator_type(&token.token_type);
             if operator_type == OperatorType::Minus {
@@ -2791,7 +2820,7 @@ impl<'a> Parser<'a> {
         }
 
         // '(' ')' | '(' expr+ ')'
-        if self.match_token(&vec![LParenTok]) {
+        if self.match_token(&vec![TokenType::LParen]) {
             match self.expr_list() {
                 Ok(Some(ExprListT {
                     expr_list_node: expr_node,
@@ -2809,15 +2838,15 @@ impl<'a> Parser<'a> {
         let mut scope = IdentifierDeclScope::None;
 
         //        let mut scope_override = false;
-        if self.match_token(&vec![SystemTok]) {
-            if let Err(parse_error) = self.consume(DotTok, "Expected '.'.") {
+        if self.match_token(&vec![TokenType::System]) {
+            if let Err(parse_error) = self.consume(TokenType::Dot, "Expected '.'.") {
                 return Err(parse_error); // TODO
             }
             scope = IdentifierDeclScope::DomainBlock;
         //           scope_override = true;
-        } else if self.match_token(&vec![StateTok]) {
-            if self.match_token(&vec![LBracketTok]) {
-                return if self.match_token(&vec![IdentifierTok]) {
+        } else if self.match_token(&vec![TokenType::State]) {
+            if self.match_token(&vec![TokenType::LBracket]) {
+                return if self.match_token(&vec![TokenType::Identifier]) {
                     //                    let id = self.previous().lexeme.clone();
                     let id_node = IdentifierNode::new(
                         self.previous().clone(),
@@ -2831,7 +2860,7 @@ impl<'a> Parser<'a> {
                         self.arcanum.lookup(&id_node.name.lexeme, &var_scope);
 
                     let var_node = VariableNode::new(id_node, var_scope, symbol_type_rcref_opt);
-                    if let Err(parse_error) = self.consume(RBracketTok, "Expected ']'.") {
+                    if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
                         return Err(parse_error); // TODO
                     }
                     Ok(Some(VariableExprT { var_node }))
@@ -2839,8 +2868,8 @@ impl<'a> Parser<'a> {
                     self.error_at_current("Expected identifier.");
                     Err(ParseError::new("TODO")) // TODO
                 };
-            } else if self.match_token(&vec![DotTok]) {
-                return if self.match_token(&vec![IdentifierTok]) {
+            } else if self.match_token(&vec![TokenType::Dot]) {
+                return if self.match_token(&vec![TokenType::Identifier]) {
                     let id_node = IdentifierNode::new(
                         self.previous().clone(),
                         None,
@@ -2861,11 +2890,11 @@ impl<'a> Parser<'a> {
                 self.error_at_current("Unexpected token.");
                 return Err(ParseError::new("TODO"));
             }
-        } else if self.match_token(&vec![PipePipeLBracketTok]) {
-            //           if self.match_token(&vec![LBracketTok]) {
+        } else if self.match_token(&vec![TokenType::PipePipeLBracket]) {
+            //           if self.match_token(&vec![TokenType::LBracket]) {
             let id_node;
             let var_node;
-            if self.match_token(&vec![IdentifierTok]) {
+            if self.match_token(&vec![TokenType::Identifier]) {
                 id_node = IdentifierNode::new(
                     self.previous().clone(),
                     None,
@@ -2880,13 +2909,13 @@ impl<'a> Parser<'a> {
                 self.error_at_current("Expected identifier.");
                 return Err(ParseError::new("TODO"));
             }
-            if let Err(parse_error) = self.consume(RBracketTok, "Expected ']'.") {
+            if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
                 return Err(parse_error);
             }
             return Ok(Some(VariableExprT { var_node }));
-        } else if self.match_token(&vec![PipePipeDotTok]) {
+        } else if self.match_token(&vec![TokenType::PipePipeDot]) {
             let id_node;
-            if self.match_token(&vec![IdentifierTok]) {
+            if self.match_token(&vec![TokenType::Identifier]) {
                 let id_tok = self.previous().clone();
                 id_node = IdentifierNode::new(
                     id_tok,
@@ -2915,12 +2944,12 @@ impl<'a> Parser<'a> {
         // deal w/ references. We can basically put & in front
         // of a wide range of syntax it doesn't apply to.
         let mut is_reference = false;
-        if self.match_token(&vec![AndTok]) {
+        if self.match_token(&vec![TokenType::And]) {
             is_reference = true;
         }
 
         // TODO: I think only identifier is allowed?
-        if self.match_token(&vec![IdentifierTok]) {
+        if self.match_token(&vec![TokenType::Identifier]) {
             match self.variable_or_call_expr(scope) {
                 Ok(Some(VariableExprT { mut var_node })) => {
                     var_node.id_node.is_reference = is_reference;
@@ -2995,11 +3024,11 @@ impl<'a> Parser<'a> {
     //
 
     fn stack_operation(&mut self) -> Result<Option<StateStackOperationNode>, ParseError> {
-        if self.match_token(&vec![StateStackOperationPushTok]) {
+        if self.match_token(&vec![TokenType::StateStackOperationPush]) {
             self.generate_state_stack = true;
             let ssot = StateStackOperationNode::new(StateStackOperationType::Push);
             return Ok(Some(ssot));
-        } else if self.match_token(&vec![StateStackOperationPopTok]) {
+        } else if self.match_token(&vec![TokenType::StateStackOperationPop]) {
             self.generate_state_stack = true;
             let ssot = StateStackOperationNode::new(StateStackOperationType::Pop);
             return Ok(Some(ssot));
@@ -3019,21 +3048,21 @@ impl<'a> Parser<'a> {
         &mut self,
         is_reference: bool,
     ) -> Result<Option<FrameEventPart>, ParseError> {
-        if !self.match_token(&vec![AtTok]) {
+        if !self.match_token(&vec![TokenType::At]) {
             return Ok(None);
         }
 
         // '@' '||'
-        if self.match_token(&vec![PipePipeTok]) {
+        if self.match_token(&vec![TokenType::PipePipe]) {
             return Ok(Some(FrameEventPart::Message { is_reference }));
         }
 
         // '@' '[' identifier ']'
-        if self.match_token(&vec![LBracketTok]) {
-            if self.match_token(&vec![IdentifierTok]) {
+        if self.match_token(&vec![TokenType::LBracket]) {
+            if self.match_token(&vec![TokenType::Identifier]) {
                 let id_tok = self.previous().clone();
 
-                if let Err(parse_error) = self.consume(RBracketTok, "Expected ']'.") {
+                if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
                     return Err(parse_error);
                 }
                 return Ok(Some(FrameEventPart::Param {
@@ -3047,7 +3076,7 @@ impl<'a> Parser<'a> {
         }
 
         // '@' '^'
-        if self.match_token(&vec![CaretTok]) {
+        if self.match_token(&vec![TokenType::Caret]) {
             return Ok(Some(FrameEventPart::Return { is_reference }));
         }
 
@@ -3062,7 +3091,7 @@ impl<'a> Parser<'a> {
     fn expr_list(&mut self) -> Result<Option<ExprType>, ParseError> {
         let mut expressions: Vec<ExprType> = Vec::new();
 
-        while !self.match_token(&vec![RParenTok]) {
+        while !self.match_token(&vec![TokenType::RParen]) {
             match self.expression() {
                 Ok(Some(expression)) => {
                     expressions.push(expression);
@@ -3105,7 +3134,7 @@ impl<'a> Parser<'a> {
         let mut is_first_node = true;
         loop {
             // test for method call
-            if self.match_token(&vec![LParenTok]) {
+            if self.match_token(&vec![TokenType::LParen]) {
                 let r = self.method_call(id_node);
                 match r {
                     Ok(method_call_expr_node) => {
@@ -3186,11 +3215,11 @@ impl<'a> Parser<'a> {
             }
 
             // end of chain if no  '.'
-            if !self.match_token(&vec![DotTok]) {
+            if !self.match_token(&vec![TokenType::Dot]) {
                 break;
             }
 
-            if self.match_token(&vec![IdentifierTok]) {
+            if self.match_token(&vec![TokenType::Identifier]) {
                 id_node = IdentifierNode::new(
                     self.previous().clone(),
                     None,
@@ -3304,13 +3333,13 @@ impl<'a> Parser<'a> {
     fn literal_expr(&mut self) -> Result<Option<LiteralExprNode>, ParseError> {
         // TODO: move this vec to the scanner
         let literal_tokens = vec![
-            SuperStringTok,
-            StringTok,
-            NumberTok,
-            TrueTok,
-            FalseTok,
-            NullTok,
-            NilTok,
+            TokenType::SuperString,
+            TokenType::String,
+            TokenType::Number,
+            TokenType::True,
+            TokenType::False,
+            TokenType::Null,
+            TokenType::Nil,
         ];
 
         for literal_tok in literal_tokens {
@@ -3333,15 +3362,15 @@ impl<'a> Parser<'a> {
         &mut self,
         enter_args_opt: Option<ExprListNode>,
     ) -> Result<Option<StateContextType>, ParseError> {
-        if self.match_token(&vec![TokenType::StateStackOperationPopTok]) {
+        if self.match_token(&vec![TokenType::StateStackOperationPop]) {
             Ok(Some(StateContextType::StateStackPop {}))
         } else {
             // parse state ref e.g. '$S1'
-            if !self.match_token(&vec![TokenType::StateTok]) {
+            if !self.match_token(&vec![TokenType::State]) {
                 return Err(ParseError::new("Missing $"));
             }
 
-            if !self.match_token(&vec![TokenType::IdentifierTok]) {
+            if !self.match_token(&vec![TokenType::Identifier]) {
                 return Err(ParseError::new("Missing state identifier"));
             }
 
@@ -3351,7 +3380,7 @@ impl<'a> Parser<'a> {
             // parse optional state ref expression list
             // '(' ')' | '(' expr ')'
             let mut state_ref_args_opt = None;
-            if self.match_token(&vec![LParenTok]) {
+            if self.match_token(&vec![TokenType::LParen]) {
                 match self.expr_list() {
                     Ok(Some(ExprListT { expr_list_node })) => {
                         state_ref_args_opt = Some(expr_list_node)
@@ -3387,7 +3416,7 @@ impl<'a> Parser<'a> {
         let mut transition_label: Option<String> = None;
 
         // enterArgs: '(' ')' | '(' expr ')'
-        if self.match_token(&vec![LParenTok]) {
+        if self.match_token(&vec![TokenType::LParen]) {
             // need enter args generated
             self.generate_enter_args = true;
             match self.expr_list() {
@@ -3399,7 +3428,7 @@ impl<'a> Parser<'a> {
         }
 
         // transition label string
-        if self.match_token(&vec![StringTok]) {
+        if self.match_token(&vec![TokenType::String]) {
             transition_label = Some(self.previous().lexeme.clone());
         }
 
@@ -3433,7 +3462,7 @@ impl<'a> Parser<'a> {
         let mut label_opt: Option<String> = None;
 
         // change_state label string
-        if self.match_token(&vec![StringTok]) {
+        if self.match_token(&vec![TokenType::String]) {
             label_opt = Some(self.previous().lexeme.clone());
         }
 
@@ -3457,7 +3486,7 @@ impl<'a> Parser<'a> {
     // match_number_test -> '?#'  ('/' match_number_pattern  ('|' match_number_pattern)* '/' (statement* branch_terminator?) ':>')+ ':' (statement* branch_terminator?) '::'
 
     fn number_match_test(&mut self, expr_t: ExprType) -> Result<NumberMatchTestNode, ParseError> {
-        if let Err(parse_error) = self.consume(NumberTestTok, "Expected '?#'.") {
+        if let Err(parse_error) = self.consume(TokenType::NumberTest, "Expected '?#'.") {
             return Err(parse_error);
         }
 
@@ -3470,7 +3499,7 @@ impl<'a> Parser<'a> {
 
         conditional_branches.push(first_branch_node);
 
-        while self.match_token(&vec![ElseContinueTok]) {
+        while self.match_token(&vec![TokenType::ElseContinue]) {
             match self.number_match_test_match_branch() {
                 Ok(branch_node) => {
                     conditional_branches.push(branch_node);
@@ -3481,7 +3510,7 @@ impl<'a> Parser<'a> {
 
         // (':' match_test_else_branch)?
         let mut else_branch_opt: Option<NumberMatchTestElseBranchNode> = None;
-        if self.match_token(&vec![ColonTok]) {
+        if self.match_token(&vec![TokenType::Colon]) {
             else_branch_opt = Option::from(match self.number_match_test_else_branch() {
                 Ok(statements_t_opt) => statements_t_opt,
                 Err(parse_error) => return Err(parse_error),
@@ -3489,7 +3518,9 @@ impl<'a> Parser<'a> {
         }
 
         // '::'
-        if let Err(parse_error) = self.consume(TestTerminatorTok, "Expected TestTerminator.") {
+        if let Err(parse_error) =
+            self.consume(TokenType::TestTerminator, "Expected TestTerminator.")
+        {
             return Err(parse_error);
         }
 
@@ -3507,13 +3538,13 @@ impl<'a> Parser<'a> {
     fn number_match_test_match_branch(
         &mut self,
     ) -> Result<NumberMatchTestMatchBranchNode, ParseError> {
-        if let Err(parse_error) = self.consume(ForwardSlashTok, "Expected '/'.") {
+        if let Err(parse_error) = self.consume(TokenType::ForwardSlash, "Expected '/'.") {
             return Err(parse_error);
         }
 
         let mut match_numbers = Vec::new();
 
-        if !self.match_token(&vec![NumberTok]) {
+        if !self.match_token(&vec![TokenType::Number]) {
             return Err(ParseError::new("TODO"));
         }
 
@@ -3523,8 +3554,8 @@ impl<'a> Parser<'a> {
         let number_match_pattern_node = NumberMatchTestPatternNode::new(match_pattern_number);
         match_numbers.push(number_match_pattern_node);
 
-        while self.match_token(&vec![PipeTok]) {
-            if !self.match_token(&vec![NumberTok]) {
+        while self.match_token(&vec![TokenType::Pipe]) {
+            if !self.match_token(&vec![TokenType::Number]) {
                 return Err(ParseError::new("TODO"));
             }
 
@@ -3535,7 +3566,7 @@ impl<'a> Parser<'a> {
             match_numbers.push(number_match_pattern_node);
         }
 
-        if let Err(parse_error) = self.consume(ForwardSlashTok, "Expected '/'.") {
+        if let Err(parse_error) = self.consume(TokenType::ForwardSlash, "Expected '/'.") {
             return Err(parse_error);
         }
         let statements = self.statements();
