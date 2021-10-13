@@ -1,5 +1,6 @@
 mod basic;
 mod branch;
+mod config;
 mod empty;
 mod event_handler;
 mod handler_calls;
