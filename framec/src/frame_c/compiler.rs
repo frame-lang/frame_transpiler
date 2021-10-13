@@ -51,7 +51,7 @@ impl Exe {
     ) -> Result<String, RunError> {
         match fs::read_to_string(input_path) {
             Ok(content) => {
-                Exe::debug_print(&format!("{}", &content));
+                Exe::debug_print(&(&content).to_string());
                 self.run(config_path, content, output_format)
             }
             Err(err) => {
@@ -83,7 +83,7 @@ impl Exe {
 
         let (has_errors, errors, tokens) = scanner.scan_tokens();
         if has_errors {
-            let run_error = RunError::new(frame_exitcode::PARSE_ERR, &*errors.clone());
+            let run_error = RunError::new(frame_exitcode::PARSE_ERR, &*errors);
             return Err(run_error);
         }
 
@@ -132,7 +132,7 @@ impl Exe {
         }
 
         // load configuration
-        let config = match FrameConfig::load(&local_config_path, &system_node) {
+        let config = match FrameConfig::load(local_config_path, &system_node) {
             Ok(cfg) => cfg,
             Err(err) => {
                 let run_error = RunError::new(frame_exitcode::CONFIG_ERR, &err.to_string());

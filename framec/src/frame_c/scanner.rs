@@ -104,14 +104,14 @@ impl Scanner {
             self.start,
             len,
         ));
-        return (self.has_errors, self.errors.clone(), self.tokens);
+        (self.has_errors, self.errors.clone(), self.tokens)
     }
 
     fn is_whitespace(&self) -> bool {
         if self.peek() == ' ' || self.peek() == '\n' || self.peek() == '\r' || self.peek() == '\t' {
             return true;
         }
-        return false;
+        false
     }
 
     fn match_first_header_token(&mut self) -> bool {
@@ -268,12 +268,11 @@ impl Scanner {
                 }
             }
             '@' => self.add_token(AtTok),
-            ' ' => return,
-            '\r' => return,
-            '\t' => return,
+            ' ' => {}
+            '\r' => {}
+            '\t' => {}
             '\n' => {
                 //    self.line += 1;
-                return;
             }
             '-' => {
                 if !self.block_keyword() {
@@ -450,7 +449,7 @@ impl Scanner {
 
         let kw = &self.keywords.get(text);
         if let Some(keyword) = kw {
-            let tok_type = (*keyword).clone();
+            let tok_type = *(*keyword);
             self.add_token(tok_type);
         } else {
             self.add_token(IdentifierTok);
@@ -464,7 +463,6 @@ impl Scanner {
                 self.advance();
             }
             self.add_token(SingleLineCommentTok);
-            return;
         }
     }
 

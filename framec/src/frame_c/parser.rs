@@ -208,7 +208,7 @@ impl<'a> Parser<'a> {
             self.current += 1;
             self.current_tok_ref = &self.tokens[self.current];
             self.current_token = self.peek().lexeme.clone();
-            self.processed_tokens.push_str(" ");
+            self.processed_tokens.push(' ');
             self.processed_tokens.push_str(&self.peek().lexeme.clone());
             //            println!("Current token = {:?}",self.peek());
         }
@@ -224,7 +224,7 @@ impl<'a> Parser<'a> {
             return true;
         }
 
-        return false;
+        false
     }
 
     /* --------------------------------------------------------------------- */
@@ -285,7 +285,7 @@ impl<'a> Parser<'a> {
         let mut error_msg = format!("[line {}] Error", token.line);
 
         match token.token_type {
-            TokenType::EofTok => error_msg.push_str(&format!(" at end")),
+            TokenType::EofTok => error_msg.push_str(&" at end".to_string()),
             TokenType::ErrorTok => error_msg.push_str(&format!(" at '{}'", token.lexeme)),
             _ => error_msg.push_str(&format!(" at '{}'", token.lexeme)),
         }
@@ -375,7 +375,10 @@ impl<'a> Parser<'a> {
                 let tok = self.previous();
                 header.push_str(&*tok.lexeme.clone());
             }
-            if let Err(_) = self.consume(TokenType::ThreeTicksTok, "Expected '```'.") {
+            if self
+                .consume(TokenType::ThreeTicksTok, "Expected '```'.")
+                .is_err()
+            {
                 self.error_at_current("Expected closing ```.");
                 let sync_tokens = &vec![SystemTok];
                 self.synchronize(sync_tokens);
@@ -498,7 +501,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        if attributes.len() == 0 {
+        if attributes.is_empty() {
             Ok(None)
         } else {
             Ok(Some(attributes))
@@ -535,7 +538,7 @@ impl<'a> Parser<'a> {
             let parse_error = ParseError::new("TODO");
             return Err(parse_error);
         }
-        return Ok(AttributeNode::new(name, value));
+        Ok(AttributeNode::new(name, value))
     }
 
     /* --------------------------------------------------------------------- */
@@ -615,7 +618,7 @@ impl<'a> Parser<'a> {
 
         // Parse alias
         if self.match_token(&vec![TokenType::AtTok]) {
-            if let Err(_) = self.consume(TokenType::LParenTok, "Expected '('") {
+            if self.consume(TokenType::LParenTok, "Expected '('").is_err() {
                 self.error_at_current("Expected '('.");
                 let sync_tokens = &vec![PipeTok];
                 self.synchronize(sync_tokens);
@@ -637,7 +640,7 @@ impl<'a> Parser<'a> {
                 Err(err) => return Err(err),
             }
 
-            if let Err(_) = self.consume(TokenType::RParenTok, "Expected ')'") {
+            if self.consume(TokenType::RParenTok, "Expected ')'").is_err() {
                 let sync_tokens = &vec![
                     IdentifierTok,
                     MachineBlockTok,
@@ -705,14 +708,14 @@ impl<'a> Parser<'a> {
         let interface_method_rcref = Rc::new(RefCell::new(interface_method_node));
 
         if self.is_building_symbol_table {
-            let mut interface_method_symbol = InterfaceMethodSymbol::new(name.clone());
+            let mut interface_method_symbol = InterfaceMethodSymbol::new(name);
             // TODO: note what is being done. We are linking to the AST node generated in the syntax pass.
             // This AST tree is otherwise disposed of. This may be fine but feels wrong. Alternatively
             // we could copy this information out of the node and into the symbol.
             interface_method_symbol.set_ast_node(Rc::clone(&interface_method_rcref));
             let interface_method_symbol_rcref = Rc::new(RefCell::new(interface_method_symbol));
             let interface_method_symbol_t = InterfaceMethodSymbolT {
-                interface_method_symbol_rcref: interface_method_symbol_rcref.clone(),
+                interface_method_symbol_rcref,
             };
             // TODO: just insert into arcanum directly
             self.arcanum
@@ -838,11 +841,11 @@ impl<'a> Parser<'a> {
             }
         }
 
-        if parameters.len() > 0 {
+        if !parameters.is_empty() {
             return Ok(Some(parameters));
         }
 
-        return Ok(None);
+        Ok(None)
     }
 
     /* --------------------------------------------------------------------- */
@@ -984,7 +987,7 @@ impl<'a> Parser<'a> {
         let action_decl_rcref = Rc::new(RefCell::new(action_decl_node));
 
         if self.is_building_symbol_table {
-            let s = action_name.clone();
+            let s = action_name;
             let mut action_decl_symbol = ActionDeclSymbol::new(s);
             // TODO: note what is being done. We are linking to the AST node generated in the syntax pass.
             // This AST tree is otherwise disposed of. This may be fine but feels wrong. Alternatively
@@ -1117,7 +1120,7 @@ impl<'a> Parser<'a> {
             // syntactic pass
             // add variable to current symbol table
             let scope = self.arcanum.get_current_identifier_scope();
-            let variable_symbol = VariableSymbol::new(name.clone(), type_node_opt, scope);
+            let variable_symbol = VariableSymbol::new(name, type_node_opt, scope);
             let variable_symbol_rcref = Rc::new(RefCell::new(variable_symbol));
             let variable_symbol_t = match identifier_decl_scope {
                 IdentifierDeclScope::DomainBlock => SymbolType::DomainVariableSymbolT {
@@ -1318,7 +1321,7 @@ impl<'a> Parser<'a> {
             Some(dispatch_node) => match &mut self.system_hierarchy_opt {
                 Some(system_hierarchy) => {
                     let target_state_name = dispatch_node.target_state_ref.name.clone();
-                    system_hierarchy.add_node(state_name.clone(), target_state_name.clone());
+                    system_hierarchy.add_node(state_name.clone(), target_state_name);
                 }
                 None => {
                     return Err(ParseError::new("System Hierarchy should always be here."));
@@ -1365,7 +1368,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        if vars.len() > 0 {
+        if !vars.is_empty() {
             vars_opt = Some(vars);
         }
 
@@ -1394,7 +1397,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        if calls.len() > 0 {
+        if !calls.is_empty() {
             calls_opt = Some(calls);
         }
 
@@ -1844,7 +1847,7 @@ impl<'a> Parser<'a> {
         }
 
         Ok(Some(EventHandlerNode::new(
-            st_name.clone(),
+            st_name,
             message_type,
             statements,
             terminator_node,
@@ -1894,7 +1897,7 @@ impl<'a> Parser<'a> {
             Ok(TerminatorExpr::new(Continue, None, self.previous().line))
         } else {
             self.error_at_current("Expected event handler terminator.");
-            return Err(ParseError::new("TODO"));
+            Err(ParseError::new("TODO"))
         }
     }
 
@@ -2011,7 +2014,7 @@ impl<'a> Parser<'a> {
             Some(expr_t) => {
                 if self.is_bool_test() {
                     if !self.is_testable_expression(&expr_t) {
-                        self.error_at_current(&format!("Not a testable expression."));
+                        self.error_at_current(&"Not a testable expression.".to_string());
                         return Err(ParseError::new("TODO"));
                     }
                     let result = self.bool_test(expr_t);
@@ -2029,7 +2032,7 @@ impl<'a> Parser<'a> {
                     };
                 } else if self.is_string_match_test() {
                     if !self.is_testable_expression(&expr_t) {
-                        self.error_at_current(&format!("Not a testable expression."));
+                        self.error_at_current(&"Not a testable expression.".to_string());
                         return Err(ParseError::new("TODO"));
                     }
                     let result = self.string_match_test(expr_t);
@@ -2049,7 +2052,7 @@ impl<'a> Parser<'a> {
                     };
                 } else if self.is_number_match_test() {
                     if !self.is_testable_expression(&expr_t) {
-                        self.error_at_current(&format!("Not a testable expression."));
+                        self.error_at_current(&"Not a testable expression.".to_string());
                         return Err(ParseError::new("TODO"));
                     }
                     let result = self.number_match_test(expr_t);
@@ -2199,7 +2202,7 @@ impl<'a> Parser<'a> {
                 }
 
                 let first_expr_t = expr_list_node.exprs_t.first().unwrap();
-                return self.is_testable_expression(first_expr_t);
+                self.is_testable_expression(first_expr_t)
             }
             _ => true,
         }
@@ -2284,10 +2287,10 @@ impl<'a> Parser<'a> {
             return Err(parse_error);
         }
 
-        return Ok(BoolTestNode::new(
+        Ok(BoolTestNode::new(
             conditional_branches,
             bool_test_else_node_opt,
-        ));
+        ))
     }
 
     /* --------------------------------------------------------------------- */
@@ -2338,7 +2341,7 @@ impl<'a> Parser<'a> {
     ) -> Result<BoolTestConditionalBranchNode, ParseError> {
         let statements = self.statements();
         let result = self.branch_terminator();
-        return match result {
+        match result {
             Ok(branch_terminator_expr_opt) => Ok(BoolTestConditionalBranchNode::new(
                 is_negated,
                 expr_t,
@@ -2346,7 +2349,7 @@ impl<'a> Parser<'a> {
                 branch_terminator_expr_opt,
             )),
             Err(parse_error) => Err(parse_error),
-        };
+        }
     }
 
     /* --------------------------------------------------------------------- */
@@ -2356,13 +2359,13 @@ impl<'a> Parser<'a> {
     fn bool_test_else_branch(&mut self) -> Result<BoolTestElseBranchNode, ParseError> {
         let statements = self.statements();
         let result = self.branch_terminator();
-        return match result {
+        match result {
             Ok(branch_terminator_expr_opt) => Ok(BoolTestElseBranchNode::new(
                 statements,
                 branch_terminator_expr_opt,
             )),
             Err(parse_error) => Err(parse_error),
-        };
+        }
     }
 
     /* --------------------------------------------------------------------- */
@@ -2403,7 +2406,7 @@ impl<'a> Parser<'a> {
                 self.previous().line,
             )));
         } else {
-            return Ok(None);
+            Ok(None)
         }
     }
 
@@ -2457,11 +2460,11 @@ impl<'a> Parser<'a> {
             return Err(parse_error);
         }
 
-        return Ok(StringMatchTestNode::new(
+        Ok(StringMatchTestNode::new(
             expr_t,
             conditional_branches,
             else_branch_opt,
-        ));
+        ))
     }
 
     /* --------------------------------------------------------------------- */
@@ -2505,14 +2508,14 @@ impl<'a> Parser<'a> {
 
         let statements = self.statements();
         let result = self.branch_terminator();
-        return match result {
+        match result {
             Ok(branch_terminator_t_opt) => Ok(StringMatchTestMatchBranchNode::new(
                 string_match_pattern_node,
                 statements,
                 branch_terminator_t_opt,
             )),
             Err(parse_error) => Err(parse_error),
-        };
+        }
     }
 
     /* --------------------------------------------------------------------- */
@@ -2524,13 +2527,13 @@ impl<'a> Parser<'a> {
     ) -> Result<StringMatchTestElseBranchNode, ParseError> {
         let statements = self.statements();
         let result = self.branch_terminator();
-        return match result {
+        match result {
             Ok(branch_terminator_opt) => Ok(StringMatchTestElseBranchNode::new(
                 statements,
                 branch_terminator_opt,
             )),
             Err(parse_error) => Err(parse_error),
-        };
+        }
     }
 
     /* --------------------------------------------------------------------- */
@@ -2824,10 +2827,8 @@ impl<'a> Parser<'a> {
                         self.previous().line,
                     );
                     let var_scope = id_node.scope.clone();
-                    let symbol_type_rcref_opt = self
-                        .arcanum
-                        .lookup(&id_node.name.lexeme, &var_scope)
-                        .clone();
+                    let symbol_type_rcref_opt =
+                        self.arcanum.lookup(&id_node.name.lexeme, &var_scope);
 
                     let var_node = VariableNode::new(id_node, var_scope, symbol_type_rcref_opt);
                     if let Err(parse_error) = self.consume(RBracketTok, "Expected ']'.") {
@@ -2848,10 +2849,8 @@ impl<'a> Parser<'a> {
                         self.previous().line,
                     );
                     let var_scope = id_node.scope.clone();
-                    let symbol_type_rcref_opt = self
-                        .arcanum
-                        .lookup(&id_node.name.lexeme, &var_scope)
-                        .clone();
+                    let symbol_type_rcref_opt =
+                        self.arcanum.lookup(&id_node.name.lexeme, &var_scope);
                     let var_node = VariableNode::new(id_node, var_scope, symbol_type_rcref_opt);
                     Ok(Some(VariableExprT { var_node }))
                 } else {
@@ -2875,10 +2874,7 @@ impl<'a> Parser<'a> {
                     self.previous().line,
                 );
                 let var_scope = id_node.scope.clone();
-                let symbol_type_rcref_opt = self
-                    .arcanum
-                    .lookup(&id_node.name.lexeme, &var_scope)
-                    .clone();
+                let symbol_type_rcref_opt = self.arcanum.lookup(&id_node.name.lexeme, &var_scope);
                 var_node = VariableNode::new(id_node, var_scope, symbol_type_rcref_opt);
             } else {
                 self.error_at_current("Expected identifier.");
@@ -2905,10 +2901,7 @@ impl<'a> Parser<'a> {
             }
 
             let var_scope = id_node.scope.clone();
-            let symbol_type_rcref_opt = self
-                .arcanum
-                .lookup(&id_node.name.lexeme, &var_scope)
-                .clone();
+            let symbol_type_rcref_opt = self.arcanum.lookup(&id_node.name.lexeme, &var_scope);
             let var_node = VariableNode::new(id_node, var_scope, symbol_type_rcref_opt);
             return Ok(Some(VariableExprT { var_node }));
         } else {
@@ -3012,7 +3005,7 @@ impl<'a> Parser<'a> {
             return Ok(Some(ssot));
         }
 
-        return Ok(None);
+        Ok(None)
     }
 
     /* --------------------------------------------------------------------- */
@@ -3212,9 +3205,9 @@ impl<'a> Parser<'a> {
         }
 
         let call_chain_literal_expr_node = CallChainLiteralExprNode::new(call_chain);
-        return Ok(Some(CallChainLiteralExprT {
+        Ok(Some(CallChainLiteralExprT {
             call_chain_expr_node: call_chain_literal_expr_node,
-        }));
+        }))
     }
 
     /* --------------------------------------------------------------------- */
@@ -3229,8 +3222,7 @@ impl<'a> Parser<'a> {
         // find the variable in the arcanum
         symbol_type_rcref_opt = self
             .arcanum
-            .lookup(&identifier_node.name.lexeme, &explicit_scope)
-            .clone();
+            .lookup(&identifier_node.name.lexeme, explicit_scope);
         match &symbol_type_rcref_opt {
             Some(symbol_type_rcref) => {
                 let symbol_type = symbol_type_rcref.borrow();
@@ -3268,15 +3260,16 @@ impl<'a> Parser<'a> {
             None => {}
         };
 
-        if !self.is_building_symbol_table {
-            if *explicit_scope != IdentifierDeclScope::None && *explicit_scope != scope {
-                let msg = &format!(
-                    "Identifier {} - invalid scope identifier.",
-                    identifier_node.name.lexeme
-                );
-                self.error_at_current(msg);
-                return Err(ParseError::new(msg));
-            }
+        if !self.is_building_symbol_table
+            && *explicit_scope != IdentifierDeclScope::None
+            && *explicit_scope != scope
+        {
+            let msg = &format!(
+                "Identifier {} - invalid scope identifier.",
+                identifier_node.name.lexeme
+            );
+            self.error_at_current(msg);
+            return Err(ParseError::new(msg));
         }
 
         Ok(scope)
@@ -3301,7 +3294,7 @@ impl<'a> Parser<'a> {
 
         let method_call_expr_node = CallExprNode::new(identifer_node, call_expr_list_node, None);
         //        let method_call_expression_type = ExpressionType::MethodCallExprType {method_call_expr_node};
-        return Ok(method_call_expr_node);
+        Ok(method_call_expr_node)
     }
 
     /* --------------------------------------------------------------------- */
@@ -3421,13 +3414,13 @@ impl<'a> Parser<'a> {
         // top of the event handler.
         self.event_handler_has_transition = true;
 
-        return Ok(Some(StatementType::TransitionStmt {
+        Ok(Some(StatementType::TransitionStmt {
             transition_statement: TransitionStatementNode {
                 target_state_context_t: state_context_t,
                 exit_args_opt,
                 label_opt: transition_label,
             },
-        }));
+        }))
     }
 
     /* --------------------------------------------------------------------- */
@@ -3451,12 +3444,12 @@ impl<'a> Parser<'a> {
             Err(parse_error) => return Err(parse_error),
         }
 
-        return Ok(Some(StatementType::ChangeStateStmt {
+        Ok(Some(StatementType::ChangeStateStmt {
             change_state_stmt: ChangeStateStatementNode {
                 state_context_t,
                 label_opt,
             },
-        }));
+        }))
     }
 
     /* --------------------------------------------------------------------- */
@@ -3500,11 +3493,11 @@ impl<'a> Parser<'a> {
             return Err(parse_error);
         }
 
-        return Ok(NumberMatchTestNode::new(
+        Ok(NumberMatchTestNode::new(
             expr_t,
             conditional_branches,
             else_branch_opt,
-        ));
+        ))
     }
 
     /* --------------------------------------------------------------------- */
@@ -3547,14 +3540,14 @@ impl<'a> Parser<'a> {
         }
         let statements = self.statements();
         let result = self.branch_terminator();
-        return match result {
+        match result {
             Ok(branch_terminator_t_opt) => Ok(NumberMatchTestMatchBranchNode::new(
                 match_numbers,
                 statements,
                 branch_terminator_t_opt,
             )),
             Err(parse_error) => Err(parse_error),
-        };
+        }
     }
 
     /* --------------------------------------------------------------------- */
@@ -3566,12 +3559,12 @@ impl<'a> Parser<'a> {
     ) -> Result<NumberMatchTestElseBranchNode, ParseError> {
         let statements = self.statements();
         let result = self.branch_terminator();
-        return match result {
+        match result {
             Ok(branch_terminator_opt) => Ok(NumberMatchTestElseBranchNode::new(
                 statements,
                 branch_terminator_opt,
             )),
             Err(parse_error) => Err(parse_error),
-        };
+        }
     }
 }

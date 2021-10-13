@@ -78,7 +78,7 @@ impl SmcatVisitor {
         }
 
         for child_node_name in &node.children {
-            let child_node = self.system_hierarchy.get_node(&child_node_name).unwrap();
+            let child_node = self.system_hierarchy.get_node(child_node_name).unwrap();
             self.generate_states(&child_node.name, false, actual_indent, output);
         }
 

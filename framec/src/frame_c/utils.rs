@@ -49,7 +49,7 @@ impl SystemHierarchy {
     }
 
     pub fn add_node(&mut self, node_name: String, parent_node_name_original: String) {
-        let parent_node_name = parent_node_name_original.clone();
+        let parent_node_name = parent_node_name_original;
 
         match self.index.get_mut(&node_name) {
             Some(_index_node) => {
@@ -61,7 +61,7 @@ impl SystemHierarchy {
             }
         }
 
-        if parent_node_name != "" {
+        if !parent_node_name.is_empty() {
             match self.index.get_mut(&parent_node_name) {
                 Some(_index_parent_node) => {
                     // found parent node in index

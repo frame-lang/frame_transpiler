@@ -325,7 +325,6 @@ impl SymbolTable {
                     system_symbol_ref: system_symbol,
                 }));
                 self.symbols.insert(name, st_ref);
-                ()
             }
             ParseScopeType::InterfaceBlockScope {
                 interface_block_scope_symbol_rcref,
@@ -335,7 +334,6 @@ impl SymbolTable {
                     interface_block_symbol_rcref: interface_block_scope_symbol_rcref,
                 }));
                 self.symbols.insert(name, st_ref);
-                ()
             }
             ParseScopeType::MachineBlockScope {
                 machine_scope_symbol_rcref: machine_symbol,
@@ -345,7 +343,6 @@ impl SymbolTable {
                     machine_block_symbol_rcref: machine_symbol,
                 }));
                 self.symbols.insert(name, st_ref);
-                ()
             }
             ParseScopeType::StateScope { state_symbol } => {
                 let name = state_symbol.borrow().name.clone();
@@ -353,7 +350,6 @@ impl SymbolTable {
                     state_symbol_ref: state_symbol,
                 }));
                 self.symbols.insert(name, st_ref);
-                ()
             }
             ParseScopeType::StateParamsScope {
                 state_params_scope_symbol_rcref: state_params_scope,
@@ -363,7 +359,6 @@ impl SymbolTable {
                     state_params_scope_rcref: state_params_scope,
                 }));
                 self.symbols.insert(name, st_ref);
-                ()
             }
             ParseScopeType::StateLocalScope {
                 state_local_scope_symbol_rcref: state_block_scope_symbol_rcref,
@@ -373,7 +368,6 @@ impl SymbolTable {
                     state_local_scope_struct_rcref: state_block_scope_symbol_rcref,
                 }));
                 self.symbols.insert(name, st_ref);
-                ()
             }
             ParseScopeType::EventHandlerScope {
                 event_handler_scope_symbol_rcref,
@@ -383,7 +377,6 @@ impl SymbolTable {
                     event_handler_scope_symbol: event_handler_scope_symbol_rcref,
                 }));
                 self.symbols.insert(name, st_ref);
-                ()
             }
             ParseScopeType::EventHandlerParamsScope {
                 event_handler_params_scope_symbol_rcref,
@@ -393,11 +386,9 @@ impl SymbolTable {
                     .name
                     .clone();
                 let st_ref = Rc::new(RefCell::new(SymbolType::EventHandlerParamsScopeSymbolT {
-                    event_handler_params_scope_symbol_rcref:
-                        event_handler_params_scope_symbol_rcref,
+                    event_handler_params_scope_symbol_rcref,
                 }));
                 self.symbols.insert(name, st_ref);
-                ()
             }
             ParseScopeType::EventHandlerLocalScope {
                 event_handler_local_scope_symbol_rcref: event_handler_block_scope_symbol_rcref,
@@ -407,7 +398,6 @@ impl SymbolTable {
                     event_handler_local_scope_rcref: event_handler_block_scope_symbol_rcref,
                 }));
                 self.symbols.insert(name, st_ref);
-                ()
             }
             ParseScopeType::ActionsBlockScope {
                 actions_block_scope_symbol_rcref: actions_block_scope_symbol,
@@ -417,7 +407,6 @@ impl SymbolTable {
                     actions_block_symbol_rcref: actions_block_scope_symbol,
                 }));
                 self.symbols.insert(name, st_ref);
-                ()
             }
             ParseScopeType::DomainBlockScope {
                 domain_block_scope_symbol_rcref: domain_symbol,
@@ -427,7 +416,6 @@ impl SymbolTable {
                     domain_block_symbol_rcref: domain_symbol,
                 }));
                 self.symbols.insert(name, st_ref);
-                ()
             }
         }
     }
@@ -442,7 +430,6 @@ impl SymbolTable {
                     domain_variable_symbol_rcref: Rc::clone(domain_variable_symbol_rcref),
                 }));
                 self.symbols.insert(name, st_ref);
-                ()
             }
             SymbolType::StateParamSymbolT {
                 state_param_symbol_rcref,
@@ -452,7 +439,6 @@ impl SymbolTable {
                     state_param_symbol_rcref: Rc::clone(state_param_symbol_rcref),
                 }));
                 self.symbols.insert(name, st_ref);
-                ()
             }
             SymbolType::StateLocalScopeSymbolT {
                 state_local_scope_struct_rcref,
@@ -462,7 +448,6 @@ impl SymbolTable {
                     state_local_scope_struct_rcref: Rc::clone(state_local_scope_struct_rcref),
                 }));
                 self.symbols.insert(name, st_ref);
-                ()
             }
             SymbolType::StateVariableSymbolT {
                 state_variable_symbol_rcref,
@@ -472,7 +457,6 @@ impl SymbolTable {
                     state_variable_symbol_rcref: Rc::clone(state_variable_symbol_rcref),
                 }));
                 self.symbols.insert(name, st_ref);
-                ()
             }
             SymbolType::EventHandlerParamSymbolT {
                 event_handler_param_symbol_rcref,
@@ -482,7 +466,6 @@ impl SymbolTable {
                     event_handler_param_symbol_rcref: Rc::clone(event_handler_param_symbol_rcref),
                 }));
                 self.symbols.insert(name, st_ref);
-                ()
             }
             SymbolType::EventHandlerLocalScopeSymbolT {
                 event_handler_local_scope_rcref,
@@ -492,7 +475,6 @@ impl SymbolTable {
                     event_handler_local_scope_rcref: Rc::clone(event_handler_local_scope_rcref),
                 }));
                 self.symbols.insert(name, st_ref);
-                ()
             }
             SymbolType::EventHandlerVariableSymbolT {
                 event_handler_variable_symbol_rcref,
@@ -504,7 +486,6 @@ impl SymbolTable {
                     ),
                 }));
                 self.symbols.insert(name, st_ref);
-                ()
             }
             // TODO: Currently actions are just declared.
             // When actions have bodies then this should become a scope symbol.
@@ -516,7 +497,6 @@ impl SymbolTable {
                     action_decl_symbol_rcref: Rc::clone(action_decl_symbol_rcref),
                 }));
                 self.symbols.insert(name, symbol_type_rcref);
-                ()
             }
             SymbolType::InterfaceMethodSymbolT {
                 interface_method_symbol_rcref,
@@ -526,7 +506,6 @@ impl SymbolTable {
                     interface_method_symbol_rcref: Rc::clone(interface_method_symbol_rcref),
                 }));
                 self.symbols.insert(name, symbol_type_rcref);
-                ()
             }
             _ => panic!("Fatal error - missing symbol type"),
         }
@@ -553,7 +532,7 @@ impl SymbolTable {
                     let domain_block_scope_symbol = domain_block_symbol_rcref.borrow();
                     let symbol_table = domain_block_scope_symbol.symtab_rcref.borrow();
                     match symbol_table.lookup_local(name) {
-                        Some(a) => return Some(a.clone()),
+                        Some(a) => return Some(a),
                         None => return None,
                     }
                 }
@@ -574,10 +553,7 @@ impl SymbolTable {
             Some(b) => {
                 let c = b.borrow();
                 let d = c.lookup(name, search_scope);
-                return match d {
-                    Some(e) => Some(Rc::clone(&e)),
-                    None => None,
-                };
+                d.map(|e| Rc::clone(&e))
             }
             None => None,
         }
@@ -585,16 +561,13 @@ impl SymbolTable {
 
     pub fn lookup_local(&self, name: &str) -> Option<Rc<RefCell<SymbolType>>> {
         let a = (self.symbols).get(name);
-        match a {
-            Some(aa) => return Some(aa.clone()),
-            None => None,
-        }
+        a.cloned()
     }
 
     pub fn get_parent_symtab(&self) -> Option<Rc<RefCell<SymbolTable>>> {
         //     let x = self.parent_symtab_opt_ref;
         let x = self.parent_symtab_rcref_opt.as_ref()?;
-        let y = Rc::clone(&x);
+        let y = Rc::clone(x);
         Some(y)
     }
 }
@@ -635,25 +608,25 @@ impl Arcanum {
     }
 
     pub fn debug_print_current_symbols(&self, symbol_table_rcref: Rc<RefCell<SymbolTable>>) {
-        Exe::debug_print(&format!("<------------------->"));
+        Exe::debug_print(&"<------------------->".to_string());
         self.do_debug_print_current_symbols(symbol_table_rcref);
-        Exe::debug_print(&format!("<------------------->"));
+        Exe::debug_print(&"<------------------->".to_string());
     }
 
     fn do_debug_print_current_symbols(&self, symbol_table_rcref: Rc<RefCell<SymbolTable>>) {
         let symbol_table = symbol_table_rcref.borrow();
 
-        Exe::debug_print(&format!("---------------------"));
+        Exe::debug_print(&"---------------------".to_string());
         Exe::debug_print(&format!("SymbolTable {}", symbol_table.name));
         for (key, _value) in &symbol_table.symbols {
-            Exe::debug_print(&format!("{}", key));
+            Exe::debug_print(&key.to_string());
         }
 
         match &symbol_table.parent_symtab_rcref_opt {
             Some(parent_symbol_table_rcref) => {
                 self.do_debug_print_current_symbols(parent_symbol_table_rcref.clone());
             }
-            None => return,
+            None => {}
         }
     }
 
@@ -688,17 +661,17 @@ impl Arcanum {
                 match symbol_table.lookup(name, &IdentifierDeclScope::InterfaceBlock) {
                     Some(c) => {
                         let d = c.borrow();
-                        return match &*d {
+                        match &*d {
                             SymbolType::InterfaceMethodSymbolT {
                                 interface_method_symbol_rcref,
-                            } => Some(Rc::clone(&interface_method_symbol_rcref)),
+                            } => Some(Rc::clone(interface_method_symbol_rcref)),
                             _ => None,
-                        };
+                        }
                     }
                     None => None,
                 }
             }
-            None => return None,
+            None => None,
         }
     }
 
@@ -713,17 +686,17 @@ impl Arcanum {
                 match x.lookup(name, &IdentifierDeclScope::ActionsBlock) {
                     Some(c) => {
                         let d = c.borrow();
-                        return match &*d {
+                        match &*d {
                             SymbolType::ActionDeclSymbolT {
                                 action_decl_symbol_rcref: action_symbol_rcref,
-                            } => Some(Rc::clone(&action_symbol_rcref)),
+                            } => Some(Rc::clone(action_symbol_rcref)),
                             _ => None,
-                        };
+                        }
                     }
                     None => None,
                 }
             }
-            None => return None,
+            None => None,
         }
     }
 
@@ -1017,7 +990,7 @@ impl Arcanum {
             Some(e) => {
                 let f = e.borrow();
                 let g = f.get_symbol_table();
-                return Rc::clone(&g);
+                Rc::clone(&g)
             }
             None => panic!("Fatal error - could not get next symbol table."),
         }
@@ -1049,15 +1022,15 @@ impl Arcanum {
 
                         match &*x {
                             SymbolType::StateSymbolT { state_symbol_ref } => {
-                                return Some(Rc::clone(state_symbol_ref))
+                                Some(Rc::clone(state_symbol_ref))
                             }
                             _ => None,
                         }
                     }
-                    _ => return None,
+                    _ => None,
                 }
             }
-            None => return None,
+            None => None,
         }
     }
 
@@ -1159,10 +1132,10 @@ impl Arcanum {
         }
         let system_symbol_rcref = self.system_symbol_opt.as_ref().unwrap();
         let system_symbol = system_symbol_rcref.borrow_mut();
-        match system_symbol.events.get(&cannonical_msg) {
-            Some(x) => Some(Rc::clone(x)),
-            None => None,
-        }
+        system_symbol
+            .events
+            .get(&cannonical_msg)
+            .map(|x| Rc::clone(x))
     }
 
     // pub fn get_event_ret_opt(&mut self, msg:&str, state_name_opt:&Option<String>) -> Option<TypeNode> {
@@ -1225,7 +1198,7 @@ impl SystemSymbol {
         SystemSymbol {
             name: name.clone(),
             symtab_rcref: Rc::new(RefCell::new(SymbolTable::new(
-                String::from(name.clone()),
+                name,
                 None,
                 IdentifierDeclScope::None,
                 true,
@@ -1240,7 +1213,7 @@ impl SystemSymbol {
     }
 
     pub fn set_parent_symtab(&mut self, parent_symtab: &Rc<RefCell<SymbolTable>>) {
-        self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt = Some(Rc::clone(&parent_symtab));
+        self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt = Some(Rc::clone(parent_symtab));
     }
 }
 
@@ -1260,7 +1233,7 @@ impl ScopeSymbol for SystemSymbol {
         if let Some(c) = b {
             let d = c.borrow();
             let e = d.get_symbol_table_for_symbol(symbol_name);
-            return Rc::clone(&e);
+            Rc::clone(&e)
         } else {
             panic!(
                 "Fatal error - could not find symbol {} in system scope.",
@@ -1298,7 +1271,7 @@ impl InterfaceBlockScopeSymbol {
     }
 
     pub fn set_parent_symtab(&mut self, parent_symtab: &Rc<RefCell<SymbolTable>>) {
-        self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt = Some(Rc::clone(&parent_symtab));
+        self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt = Some(Rc::clone(parent_symtab));
     }
 }
 
@@ -1319,7 +1292,7 @@ impl ScopeSymbol for InterfaceBlockScopeSymbol {
         if let Some(symbol_type_rcref) = symbol_type_rcref_opt {
             let symbol_type = symbol_type_rcref.borrow();
             let symbol_table_for_symbol = symbol_type.get_symbol_table_for_symbol(symbol_name);
-            return Rc::clone(&symbol_table_for_symbol);
+            Rc::clone(&symbol_table_for_symbol)
         } else {
             panic!(
                 "Fatal error - could not find symbol {} in interface block scope.",
@@ -1421,12 +1394,12 @@ impl EventSymbol {
         if &symbol_config.enter_msg_symbol == msg {
             is_enter_msg = true;
             msg_name = state_name.as_ref().unwrap().clone();
-            msg_name.push_str(":");
+            msg_name.push(':');
             msg_name.push_str(&symbol_config.enter_msg_symbol);
         } else if &symbol_config.exit_msg_symbol == msg {
             is_exit_msg = true;
             msg_name = state_name.as_ref().unwrap().clone();
-            msg_name.push_str(":");
+            msg_name.push(':');
             msg_name.push_str(&symbol_config.exit_msg_symbol);
         } else {
             msg_name = msg.clone();
@@ -1466,7 +1439,7 @@ impl MachineBlockScopeSymbol {
     }
 
     pub fn set_parent_symtab(&mut self, parent_symtab: &Rc<RefCell<SymbolTable>>) {
-        self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt = Some(Rc::clone(&parent_symtab));
+        self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt = Some(Rc::clone(parent_symtab));
     }
 }
 
@@ -1487,7 +1460,7 @@ impl ScopeSymbol for MachineBlockScopeSymbol {
         if let Some(c) = b {
             let d = c.borrow();
             let e = d.get_symbol_table_for_symbol(symbol_name);
-            return Rc::clone(&e);
+            Rc::clone(&e)
         } else {
             panic!(
                 "Fatal error - could not find symbol {} in machine block scope.",
@@ -1528,7 +1501,7 @@ impl StateSymbol {
     }
 
     pub fn set_parent_symtab(&mut self, parent_symtab: &Rc<RefCell<SymbolTable>>) {
-        self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt = Some(Rc::clone(&parent_symtab));
+        self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt = Some(Rc::clone(parent_symtab));
     }
 
     pub fn set_state_node(&mut self, state_node: Rc<RefCell<StateNode>>) {
@@ -1564,11 +1537,10 @@ impl StateSymbol {
             .push(Rc::clone(&param_symbol_rcref));
 
         // add to symbol table
-        let state_param_symbol = SymbolType::StateParamSymbolT {
-            state_param_symbol_rcref: Rc::clone(&param_symbol_rcref),
-        };
 
-        return state_param_symbol;
+        SymbolType::StateParamSymbolT {
+            state_param_symbol_rcref: Rc::clone(&param_symbol_rcref),
+        }
         // this is wrong? as the param needs to be inserted in the
         // param symbol table maintained in arcanium.
         // TODO: does this symbol table need to be here???
@@ -1649,7 +1621,7 @@ impl StateSymbol {
         if let Some(c) = b {
             let d = c.borrow();
             let e = d.get_symbol_table_for_symbol(symbol_name);
-            return Rc::clone(&e);
+            Rc::clone(&e)
         } else {
             panic!(
                 "Fatal error - could not find symbol {} in state scope.",
@@ -1672,7 +1644,7 @@ impl ParameterSymbol {
         scope: IdentifierDeclScope,
     ) -> ParameterSymbol {
         ParameterSymbol {
-            name: name,
+            name,
             param_type_opt: param_type,
             scope,
         }
@@ -1685,15 +1657,13 @@ impl ParameterSymbol {
         match &self.param_type_opt {
             Some(param_type) => match &other.param_type_opt {
                 Some(other_param_type) => {
-                    return &param_type.get_type_str() == &other_param_type.get_type_str();
+                    &param_type.get_type_str() == &other_param_type.get_type_str()
                 }
-                None => return false,
+                None => false,
             },
             None => match &other.param_type_opt {
-                Some(_) => {
-                    return false;
-                }
-                None => return true,
+                Some(_) => false,
+                None => true,
             },
         }
     }
@@ -1722,7 +1692,7 @@ impl StateParamsScopeSymbol {
         StateParamsScopeSymbol {
             name: name.clone(),
             symtab_rcref: Rc::new(RefCell::new(SymbolTable::new(
-                name.clone(),
+                name,
                 None,
                 IdentifierDeclScope::StateParam,
                 false,
@@ -1736,7 +1706,7 @@ impl StateParamsScopeSymbol {
     }
 
     pub fn set_parent_symtab(&mut self, parent_symtab: &Rc<RefCell<SymbolTable>>) {
-        self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt = Some(Rc::clone(&parent_symtab));
+        self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt = Some(Rc::clone(parent_symtab));
     }
 }
 
@@ -1757,7 +1727,7 @@ impl ScopeSymbol for StateParamsScopeSymbol {
         if let Some(c) = b {
             let d = c.borrow();
             let e = d.get_symbol_table_for_symbol(symbol_name);
-            return Rc::clone(&e);
+            Rc::clone(&e)
         } else {
             panic!(
                 "Fatal error - could not find symbol {} in state parameters scope.",
@@ -1798,7 +1768,7 @@ impl StateLocalScopeSymbol {
 
     pub fn set_parent_symtab(&mut self, parent_symtab: &Rc<RefCell<SymbolTable>>) {
         self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt =
-            Option::Some(Rc::clone(&parent_symtab));
+            Option::Some(Rc::clone(parent_symtab));
     }
 }
 
@@ -1819,7 +1789,7 @@ impl ScopeSymbol for StateLocalScopeSymbol {
         if let Some(c) = b {
             let d = c.borrow();
             let e = d.get_symbol_table_for_symbol(symbol_name);
-            return Rc::clone(&e);
+            Rc::clone(&e)
         } else {
             panic!(
                 "Fatal error - could not find symbol {} in state local scope.",
@@ -1856,7 +1826,7 @@ impl EventHandlerScopeSymbol {
 
     pub fn set_parent_symtab(&mut self, parent_symtab: &Rc<RefCell<SymbolTable>>) {
         self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt =
-            Option::Some(Rc::clone(&parent_symtab));
+            Option::Some(Rc::clone(parent_symtab));
     }
 }
 
@@ -1877,7 +1847,7 @@ impl ScopeSymbol for EventHandlerScopeSymbol {
         if let Some(c) = b {
             let d = c.borrow();
             let e = d.get_symbol_table_for_symbol(symbol_name);
-            return Rc::clone(&e);
+            Rc::clone(&e)
         } else {
             panic!(
                 "Fatal error - could not find symbol {} in event handler scope.",
@@ -1906,7 +1876,7 @@ impl EventHandlerParamsScopeSymbol {
             name: name.clone(),
             event_symbol,
             symtab_rcref: Rc::new(RefCell::new(SymbolTable::new(
-                name.clone(),
+                name,
                 None,
                 IdentifierDeclScope::EventHandlerParam,
                 false,
@@ -1920,7 +1890,7 @@ impl EventHandlerParamsScopeSymbol {
     }
 
     pub fn set_parent_symtab(&mut self, parent_symtab: &Rc<RefCell<SymbolTable>>) {
-        self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt = Some(Rc::clone(&parent_symtab));
+        self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt = Some(Rc::clone(parent_symtab));
     }
 
     pub fn add_parameter(
@@ -1937,11 +1907,10 @@ impl EventHandlerParamsScopeSymbol {
         let param_symbol_rcref = Rc::new(RefCell::new(param_symbol));
 
         // add to symbol table
-        let event_handler_param_symbol = SymbolType::EventHandlerParamSymbolT {
-            event_handler_param_symbol_rcref: Rc::clone(&param_symbol_rcref),
-        };
 
-        return event_handler_param_symbol;
+        SymbolType::EventHandlerParamSymbolT {
+            event_handler_param_symbol_rcref: Rc::clone(&param_symbol_rcref),
+        }
     }
 }
 
@@ -1962,7 +1931,7 @@ impl ScopeSymbol for EventHandlerParamsScopeSymbol {
         if let Some(c) = b {
             let d = c.borrow();
             let e = d.get_symbol_table_for_symbol(symbol_name);
-            return Rc::clone(&e);
+            Rc::clone(&e)
         } else {
             panic!(
                 "Fatal error - could not find symbol {} in event handler params scope.",
@@ -2003,7 +1972,7 @@ impl EventHandlerLocalScopeSymbol {
 
     pub fn set_parent_symtab(&mut self, parent_symtab: &Rc<RefCell<SymbolTable>>) {
         self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt =
-            Option::Some(Rc::clone(&parent_symtab));
+            Option::Some(Rc::clone(parent_symtab));
     }
 }
 
@@ -2025,7 +1994,7 @@ impl ScopeSymbol for EventHandlerLocalScopeSymbol {
         if let Some(c) = b {
             let d = c.borrow();
             let e = d.get_symbol_table_for_symbol(symbol_name);
-            return Rc::clone(&e);
+            Rc::clone(&e)
         } else {
             panic!(
                 "Fatal error - could not find symbol {} in event handler local scope.",
@@ -2050,7 +2019,7 @@ impl ActionsBlockScopeSymbol {
         ActionsBlockScopeSymbol {
             name: name.clone(),
             symtab_rcref: Rc::new(RefCell::new(SymbolTable::new(
-                name.clone(),
+                name,
                 None,
                 IdentifierDeclScope::ActionsBlock,
                 false,
@@ -2059,7 +2028,7 @@ impl ActionsBlockScopeSymbol {
     }
 
     pub fn set_parent_symtab(&mut self, parent_symtab: &Rc<RefCell<SymbolTable>>) {
-        self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt = Some(Rc::clone(&parent_symtab));
+        self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt = Some(Rc::clone(parent_symtab));
     }
 }
 
@@ -2081,7 +2050,7 @@ impl ScopeSymbol for ActionsBlockScopeSymbol {
         if let Some(c) = b {
             let d = c.borrow();
             let e = d.get_symbol_table_for_symbol(symbol_name);
-            return Rc::clone(&e);
+            Rc::clone(&e)
         } else {
             panic!(
                 "Fatal error - could not find symbol {} in actions block scope.",
@@ -2106,7 +2075,7 @@ impl DomainBlockScopeSymbol {
         DomainBlockScopeSymbol {
             name: name.clone(),
             symtab_rcref: Rc::new(RefCell::new(SymbolTable::new(
-                name.clone(),
+                name,
                 None,
                 IdentifierDeclScope::DomainBlock,
                 false,
@@ -2120,7 +2089,7 @@ impl DomainBlockScopeSymbol {
     }
 
     pub fn set_parent_symtab(&mut self, parent_symtab: &Rc<RefCell<SymbolTable>>) {
-        self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt = Some(Rc::clone(&parent_symtab));
+        self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt = Some(Rc::clone(parent_symtab));
     }
 }
 
@@ -2142,7 +2111,7 @@ impl ScopeSymbol for DomainBlockScopeSymbol {
         if let Some(c) = b {
             let d = c.borrow();
             let e = d.get_symbol_table_for_symbol(symbol_name);
-            return Rc::clone(&e);
+            Rc::clone(&e)
         } else {
             panic!(
                 "Fatal error - could not find symbol {} in domain block scope.",

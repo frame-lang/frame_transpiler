@@ -78,7 +78,7 @@ impl Java8Visitor {
     //* --------------------------------------------------------------------- *//
 
     pub fn get_code(&self) -> String {
-        if self.errors.len() > 0 {
+        if !self.errors.is_empty() {
             let mut error_list = String::new();
             for error in &self.errors {
                 error_list.push_str(&error.clone());
@@ -130,7 +130,7 @@ impl Java8Visitor {
             }
         };
 
-        return var_type;
+        var_type
     }
 
     //* --------------------------------------------------------------------- *//
@@ -150,14 +150,14 @@ impl Java8Visitor {
                 let var_type = self.get_variable_type(&*var_symbol);
 
                 if self.visiting_call_chain_literal_variable {
-                    code.push_str("(");
+                    code.push('(');
                 }
                 code.push_str(&format!(
                     "({}) _stateContext_.getStateArg(\"{}\")",
                     var_type, variable_node.id_node.name.lexeme
                 ));
                 if self.visiting_call_chain_literal_variable {
-                    code.push_str(")");
+                    code.push(')');
                 }
             }
             IdentifierDeclScope::StateVar => {
@@ -168,14 +168,14 @@ impl Java8Visitor {
                 let var_type = self.get_variable_type(&*var_symbol);
 
                 if self.visiting_call_chain_literal_variable {
-                    code.push_str("(");
+                    code.push('(');
                 }
                 code.push_str(&format!(
                     "({}) _stateContext_.getStateVar(\"{}\")",
                     var_type, variable_node.id_node.name.lexeme
                 ));
                 if self.visiting_call_chain_literal_variable {
-                    code.push_str(")");
+                    code.push(')');
                 }
             }
             IdentifierDeclScope::EventHandlerParam => {
@@ -186,22 +186,22 @@ impl Java8Visitor {
                 let var_type = self.get_variable_type(&*var_symbol);
 
                 if self.visiting_call_chain_literal_variable {
-                    code.push_str("(");
+                    code.push('(');
                 }
                 code.push_str(&format!(
                     "({}) e._parameters.get(\"{}\")",
                     var_type, variable_node.id_node.name.lexeme
                 ));
                 if self.visiting_call_chain_literal_variable {
-                    code.push_str(")");
+                    code.push(')');
                 }
             }
             IdentifierDeclScope::EventHandlerVar => {
-                code.push_str(&format!("{}", variable_node.id_node.name.lexeme));
+                code.push_str(&variable_node.id_node.name.lexeme.to_string());
             }
             IdentifierDeclScope::None => {
                 // TODO: Explore labeling Variables as "extern" scope
-                code.push_str(&format!("{}", variable_node.id_node.name.lexeme));
+                code.push_str(&variable_node.id_node.name.lexeme.to_string());
             } // Actions?
             _ => self.errors.push("Illegal scope.".to_string()),
         }
@@ -214,7 +214,7 @@ impl Java8Visitor {
     fn format_parameter_list(&mut self, params: &Vec<ParameterNode>) {
         let mut separator = "";
         for param in params {
-            self.add_code(&format!("{}", separator));
+            self.add_code(&separator.to_string());
             let param_type: String = match &param.param_type_opt {
                 Some(ret_type) => ret_type.get_type_str(),
                 None => String::from("<?>"),
@@ -233,8 +233,8 @@ impl Java8Visitor {
     ) {
         let mut separator = "";
         for param in params {
-            self.add_code(&format!("{}", separator));
-            subclass_actions.push_str(&format!("{}", separator));
+            self.add_code(&separator.to_string());
+            subclass_actions.push_str(&separator.to_string());
             let param_type: String = match &param.param_type_opt {
                 Some(ret_type) => ret_type.get_type_str(),
                 None => String::from("<?>"),
@@ -275,7 +275,7 @@ impl Java8Visitor {
     //* --------------------------------------------------------------------- *//
 
     fn add_code(&mut self, s: &str) {
-        self.code.push_str(&*format!("{}", s));
+        self.code.push_str(&*s.to_string());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -293,7 +293,7 @@ impl Java8Visitor {
     //* --------------------------------------------------------------------- *//
 
     fn dent(&self) -> String {
-        return (0..self.dent).map(|_| "    ").collect::<String>();
+        (0..self.dent).map(|_| "    ").collect::<String>()
     }
 
     //* --------------------------------------------------------------------- *//
@@ -371,135 +371,133 @@ impl Java8Visitor {
         self.newline();
         self.add_code("//=============== Machinery and Mechanisms ==============//");
         self.newline();
-        if let Some(_) = system_node.get_first_state() {
+        if system_node.get_first_state().is_some() {
             self.newline();
-            self.add_code(&format!("private FrameState _state_;"));
+            self.add_code(&"private FrameState _state_;".to_string());
             if self.generate_state_context {
                 self.newline();
-                self.add_code(&format!("private StateContext _stateContext_;"));
+                self.add_code(&"private StateContext _stateContext_;".to_string());
             }
             if self.generate_transition_state {
                 self.newline();
                 self.newline();
                 if self.generate_state_context {
                     if self.generate_exit_args {
-                        self.add_code(&format!("private void _transition_(FrameState newState,HashMap<String,Object> exitArgs, StateContext stateContext) {{"));
+                        self.add_code(&"private void _transition_(FrameState newState,HashMap<String,Object> exitArgs, StateContext stateContext) {".to_string());
                     } else {
-                        self.add_code(&format!("private void _transition_(FrameState newState, StateContext stateContext) {{"));
+                        self.add_code(&"private void _transition_(FrameState newState, StateContext stateContext) {".to_string());
                     }
+                } else if self.generate_exit_args {
+                    self.add_code(&"private void _transition_(FrameState newState,HashMap<String,Object> exitArgs) {".to_string());
                 } else {
-                    if self.generate_exit_args {
-                        self.add_code(&format!("private void _transition_(FrameState newState,HashMap<String,Object> exitArgs) {{"));
-                    } else {
-                        self.add_code(&format!(
-                            "private void _transition_(FrameState newState) {{"
-                        ));
-                    }
+                    self.add_code(&"private void _transition_(FrameState newState) {".to_string());
                 }
                 self.indent();
                 self.newline();
                 if self.generate_exit_args {
-                    self.add_code(&format!(
-                        "FrameEvent exitEvent = new FrameEvent(\"<\",exitArgs);"
-                    ));
+                    self.add_code(
+                        &"FrameEvent exitEvent = new FrameEvent(\"<\",exitArgs);".to_string(),
+                    );
                 } else {
-                    self.add_code(&format!(
-                        "FrameEvent exitEvent = new FrameEvent(\"<\",null);"
-                    ));
+                    self.add_code(
+                        &"FrameEvent exitEvent = new FrameEvent(\"<\",null);".to_string(),
+                    );
                 }
                 self.newline();
-                self.add_code(&format!("_state_.call(exitEvent);"));
+                self.add_code(&"_state_.call(exitEvent);".to_string());
                 self.newline();
-                self.add_code(&format!("_state_ = newState;"));
+                self.add_code(&"_state_ = newState;".to_string());
                 self.newline();
                 if self.generate_state_context {
-                    self.add_code(&format!("_stateContext_ = stateContext;"));
+                    self.add_code(&"_stateContext_ = stateContext;".to_string());
                     self.newline();
-                    self.add_code(&format!("FrameEvent enterEvent = new FrameEvent(\">\",_stateContext_.getEnterArgs());"));
+                    self.add_code(&"FrameEvent enterEvent = new FrameEvent(\">\",_stateContext_.getEnterArgs());".to_string());
                     self.newline();
                 } else {
-                    self.add_code(&format!(
-                        "FrameEvent enterEvent = new FrameEvent(\">\",null);"
-                    ));
+                    self.add_code(
+                        &"FrameEvent enterEvent = new FrameEvent(\">\",null);".to_string(),
+                    );
                     self.newline();
                 }
-                self.add_code(&format!("_state_.call(enterEvent);"));
+                self.add_code(&"_state_.call(enterEvent);".to_string());
                 self.outdent();
                 self.newline();
-                self.add_code(&format!("}}"));
+                self.add_code(&"}".to_string());
             }
             if self.generate_state_stack {
                 self.newline();
                 self.newline();
                 if self.generate_state_context {
-                    self.add_code(&format!(
-                        "private Stack<StateContext> _stateStack_ = new Stack<StateContext>();"
-                    ));
+                    self.add_code(
+                        &"private Stack<StateContext> _stateStack_ = new Stack<StateContext>();"
+                            .to_string(),
+                    );
                     self.newline();
                     self.newline();
-                    self.add_code(&format!(
-                        "private void _stateStack_push_(StateContext stateContext) {{"
-                    ));
+                    self.add_code(
+                        &"private void _stateStack_push_(StateContext stateContext) {".to_string(),
+                    );
                     self.indent();
                     self.newline();
-                    self.add_code(&format!("_stateStack_.push(stateContext);"));
+                    self.add_code(&"_stateStack_.push(stateContext);".to_string());
                     self.outdent();
                     self.newline();
-                    self.add_code(&format!("}}"));
+                    self.add_code(&"}".to_string());
                     self.newline();
                     self.newline();
-                    self.add_code(&format!("private StateContext _stateStack_pop_() {{"));
+                    self.add_code(&"private StateContext _stateStack_pop_() {".to_string());
                     self.indent();
                     self.newline();
-                    self.add_code(&format!("return _stateStack_.pop();"));
+                    self.add_code(&"return _stateStack_.pop();".to_string());
                 } else {
-                    self.add_code(&format!(
-                        "private Stack<FrameState> _stateStack_ = new Stack<FrameState>();"
-                    ));
+                    self.add_code(
+                        &"private Stack<FrameState> _stateStack_ = new Stack<FrameState>();"
+                            .to_string(),
+                    );
                     self.newline();
                     self.newline();
-                    self.add_code(&format!(
-                        "private void _stateStack_push_(FrameState state) {{"
-                    ));
+                    self.add_code(
+                        &"private void _stateStack_push_(FrameState state) {".to_string(),
+                    );
                     self.indent();
                     self.newline();
-                    self.add_code(&format!("_stateStack_.push(state);"));
+                    self.add_code(&"_stateStack_.push(state);".to_string());
                     self.outdent();
                     self.newline();
-                    self.add_code(&format!("}}"));
+                    self.add_code(&"}".to_string());
                     self.newline();
                     self.newline();
-                    self.add_code(&format!("private FrameState _stateStack_pop_() {{"));
+                    self.add_code(&"private FrameState _stateStack_pop_() {".to_string());
                     self.indent();
                     self.newline();
-                    self.add_code(&format!("return _stateStack_.pop();"));
+                    self.add_code(&"return _stateStack_.pop();".to_string());
                 }
 
                 self.outdent();
                 self.newline();
-                self.add_code(&format!("}}"));
+                self.add_code(&"}".to_string());
             }
             if self.generate_change_state {
                 self.newline();
                 self.newline();
-                self.add_code(&format!("private void _changeState_(newState) {{"));
+                self.add_code(&"private void _changeState_(newState) {".to_string());
                 self.indent();
                 self.newline();
-                self.add_code(&format!("_state_ = newState;"));
+                self.add_code(&"_state_ = newState;".to_string());
                 self.outdent();
                 self.newline();
-                self.add_code(&format!("}}"));
+                self.add_code(&"}".to_string());
             }
             self.newline();
 
             if self.arcanium.is_serializable() {
                 for line in self.serialize.iter() {
-                    self.code.push_str(&*format!("{}", line));
+                    self.code.push_str(&*line.to_string());
                     self.code.push_str(&*format!("\n{}", self.dent()));
                 }
 
                 for line in self.deserialize.iter() {
-                    self.code.push_str(&*format!("{}", line));
+                    self.code.push_str(&*line.to_string());
                     self.code.push_str(&*format!("\n{}", self.dent()));
                 }
             }
@@ -510,7 +508,7 @@ impl Java8Visitor {
 
     fn generate_subclass(&mut self) {
         for line in self.subclass_code.iter() {
-            self.code.push_str(&*format!("{}", line));
+            self.code.push_str(&*line.to_string());
             self.code.push_str(&*format!("\n{}", self.dent()));
         }
     }
@@ -535,7 +533,7 @@ impl Java8Visitor {
                 let len = &comment.lexeme.len() - 3;
                 self.code
                     .push_str(&*format!("/* {}", &comment.lexeme[3..len]));
-                self.code.push_str(&*format!("*/"));
+                self.code.push_str(&*"*/".to_string());
             }
 
             self.current_comment_idx += 1;
@@ -601,7 +599,7 @@ impl Java8Visitor {
         if self.generate_state_context {
             self.add_code(&format!(
                 "stateContext = new StateContext({});",
-                self.format_target_state_reference(&target_state_name)
+                self.format_target_state_reference(target_state_name)
             ));
             self.newline();
         }
@@ -610,7 +608,7 @@ impl Java8Visitor {
 
         let mut has_exit_args = false;
         if let Some(exit_args) = &transition_statement.exit_args_opt {
-            if exit_args.exprs_t.len() > 0 {
+            if !exit_args.exprs_t.is_empty() {
                 has_exit_args = true;
 
                 // Note - searching for event keyed with "State:<"
@@ -620,7 +618,7 @@ impl Java8Visitor {
                 if let Some(state_name) = &self.current_state_name_opt {
                     msg = state_name.clone();
                 }
-                msg.push_str(":");
+                msg.push(':');
                 msg.push_str(&self.symbol_config.exit_msg_symbol);
 
                 if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt)
@@ -659,10 +657,10 @@ impl Java8Visitor {
                         }
                         None => self
                             .errors
-                            .push(format!("Fatal error: misaligned parameters to arguments.")),
+                            .push("Fatal error: misaligned parameters to arguments.".to_string()),
                     }
                 } else {
-                    self.errors.push(format!("Unknown error."));
+                    self.errors.push("Unknown error.".to_string());
                 }
             }
         }
@@ -679,15 +677,16 @@ impl Java8Visitor {
             // e.g. "S1:>"
 
             let mut msg: String = String::from(target_state_name);
-            msg.push_str(":");
+            msg.push(':');
             msg.push_str(&self.symbol_config.enter_msg_symbol);
 
             if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt) {
                 match &event_sym.borrow().params_opt {
                     Some(event_params) => {
                         if enter_args.exprs_t.len() != event_params.len() {
-                            self.errors
-                                .push(format!("Fatal error: misaligned parameters to arguments."));
+                            self.errors.push(
+                                "Fatal error: misaligned parameters to arguments.".to_string(),
+                            );
                         }
                         let mut param_symbols_it = event_params.iter();
                         for expr_t in &enter_args.exprs_t {
@@ -729,7 +728,7 @@ impl Java8Visitor {
         //
         if let Some(state_args) = target_state_args_opt {
             //            let mut params_copy = Vec::new();
-            if let Some(state_sym) = self.arcanium.get_state(&target_state_name) {
+            if let Some(state_sym) = self.arcanium.get_state(target_state_name) {
                 match &state_sym.borrow().params_opt {
                     Some(event_params) => {
                         let mut param_symbols_it = event_params.iter();
@@ -758,13 +757,13 @@ impl Java8Visitor {
                     None => {}
                 }
             } else {
-                self.errors.push(format!("TODO"));
+                self.errors.push("TODO".to_string());
             }
         } // -- State Arguments --
 
         // -- State Variables --
 
-        let target_state_rcref_opt = self.arcanium.get_state(&target_state_name);
+        let target_state_rcref_opt = self.arcanium.get_state(target_state_name);
 
         match target_state_rcref_opt {
             Some(q) => {
@@ -808,19 +807,17 @@ impl Java8Visitor {
                     self.format_target_state_reference(target_state_name)
                 ));
             }
+        } else if self.generate_exit_args {
+            self.add_code(&format!(
+                "_transition_({},{});",
+                self.format_target_state_reference(target_state_name),
+                exit_args
+            ));
         } else {
-            if self.generate_exit_args {
-                self.add_code(&format!(
-                    "_transition_({},{});",
-                    self.format_target_state_reference(target_state_name),
-                    exit_args
-                ));
-            } else {
-                self.add_code(&format!(
-                    "_transition_({});",
-                    self.format_target_state_reference(target_state_name)
-                ));
-            }
+            self.add_code(&format!(
+                "_transition_({});",
+                self.format_target_state_reference(target_state_name)
+            ));
         }
     }
 
@@ -857,7 +854,7 @@ impl Java8Visitor {
         // -- Exit Arguments --
 
         if let Some(exit_args) = &transition_statement.exit_args_opt {
-            if exit_args.exprs_t.len() > 0 {
+            if !exit_args.exprs_t.is_empty() {
                 // Note - searching for event keyed with "State:<"
                 // e.g. "S1:<"
 
@@ -865,7 +862,7 @@ impl Java8Visitor {
                 if let Some(state_name) = &self.current_state_name_opt {
                     msg = state_name.clone();
                 }
-                msg.push_str(":");
+                msg.push(':');
                 msg.push_str(&self.symbol_config.exit_msg_symbol);
 
                 if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt)
@@ -873,9 +870,9 @@ impl Java8Visitor {
                     match &event_sym.borrow().params_opt {
                         Some(event_params) => {
                             if exit_args.exprs_t.len() != event_params.len() {
-                                self.errors.push(format!(
-                                    "Fatal error: misaligned parameters to arguments."
-                                ));
+                                self.errors.push(
+                                    "Fatal error: misaligned parameters to arguments.".to_string(),
+                                );
                             }
                             let mut param_symbols_it = event_params.iter();
                             self.add_code(
@@ -904,34 +901,32 @@ impl Java8Visitor {
                         }
                         None => self
                             .errors
-                            .push(format!("Fatal error: misaligned parameters to arguments.")),
+                            .push("Fatal error: misaligned parameters to arguments.".to_string()),
                     }
                 } else {
-                    self.errors.push(format!("TODO"));
+                    self.errors.push("TODO".to_string());
                 }
             }
         }
 
         if self.generate_state_context {
-            self.add_code(&format!("stateContext = _stateStack_pop_();"));
+            self.add_code(&"stateContext = _stateStack_pop_();".to_string());
         } else {
-            self.add_code(&format!("FrameState state = _stateStack_pop_();"));
+            self.add_code(&"FrameState state = _stateStack_pop_();".to_string());
         }
         self.newline();
         if self.generate_exit_args {
             if self.generate_state_context {
-                self.add_code(&format!(
-                    "_transition_(stateContext.state,exitArgs,stateContext);"
-                ));
+                self.add_code(
+                    &"_transition_(stateContext.state,exitArgs,stateContext);".to_string(),
+                );
             } else {
-                self.add_code(&format!("_transition_(state,exitArgs);"));
+                self.add_code(&"_transition_(state,exitArgs);".to_string());
             }
+        } else if self.generate_state_context {
+            self.add_code(&"_transition_(stateContext.state,stateContext);".to_string());
         } else {
-            if self.generate_state_context {
-                self.add_code(&format!("_transition_(stateContext.state,stateContext);"));
-            } else {
-                self.add_code(&format!("_transition_(state);"));
-            }
+            self.add_code(&"_transition_(state);".to_string());
         }
     }
 }
@@ -956,7 +951,7 @@ impl AstVisitor for Java8Visitor {
 
         // First state name needed for machinery.
         // Don't generate if there isn't at least one state.
-        match (&system_node).get_first_state() {
+        match system_node.get_first_state() {
             Some(x) => {
                 self.first_state_name = x.borrow().name.clone();
                 self.has_states = true;
@@ -1001,7 +996,7 @@ impl AstVisitor for Java8Visitor {
 
             self.outdent();
             self.newline();
-            self.add_code(&format!("}}"));
+            self.add_code(&"}".to_string());
             self.newline();
         }
 
@@ -1040,7 +1035,7 @@ impl AstVisitor for Java8Visitor {
             domain_block_node.accept(self);
         }
 
-        self.subclass_code.push(format!("}}"));
+        self.subclass_code.push("}".to_string());
         self.subclass_code
             .push("\n********************/".to_string());
 
@@ -1099,10 +1094,13 @@ impl AstVisitor for Java8Visitor {
         &mut self,
         interface_method_call_expr_node: &InterfaceMethodCallExprNode,
     ) -> AstVisitorReturnType {
-        self.add_code(&format!(
-            "{}",
-            interface_method_call_expr_node.identifier.name.lexeme
-        ));
+        self.add_code(
+            &interface_method_call_expr_node
+                .identifier
+                .name
+                .lexeme
+                .to_string(),
+        );
         interface_method_call_expr_node.call_expr_list.accept(self);
 
         // TODO: review this return as I think it is a nop.
@@ -1116,10 +1114,13 @@ impl AstVisitor for Java8Visitor {
         interface_method_call_expr_node: &InterfaceMethodCallExprNode,
         output: &mut String,
     ) -> AstVisitorReturnType {
-        output.push_str(&format!(
-            "{}",
-            interface_method_call_expr_node.identifier.name.lexeme
-        ));
+        output.push_str(
+            &interface_method_call_expr_node
+                .identifier
+                .name
+                .lexeme
+                .to_string(),
+        );
         interface_method_call_expr_node
             .call_expr_list
             .accept_to_string(self, output);
@@ -1176,7 +1177,9 @@ impl AstVisitor for Java8Visitor {
         ));
 
         match &interface_method_node.params {
-            Some(params) => self.format_parameter_list(params).clone(),
+            Some(params) => {
+                self.format_parameter_list(params);
+            }
             None => {}
         }
 
@@ -1207,7 +1210,7 @@ impl AstVisitor for Java8Visitor {
             method_name_or_alias, params_param_code
         ));
         self.newline();
-        self.add_code(&format!("_state_.call(e);"));
+        self.add_code(&"_state_.call(e);".to_string());
 
         match &interface_method_node.return_type_opt {
             Some(return_type) => {
@@ -1222,7 +1225,7 @@ impl AstVisitor for Java8Visitor {
 
         self.outdent();
         self.newline();
-        self.add_code(&format!("}}"));
+        self.add_code(&"}".to_string());
         self.newline();
 
         AstVisitorReturnType::InterfaceMethodNode {}
@@ -1353,7 +1356,7 @@ impl AstVisitor for Java8Visitor {
 
         self.first_event_handler = true; // context for formatting
 
-        if state_node.evt_handlers_rcref.len() > 0 {
+        if !state_node.evt_handlers_rcref.is_empty() {
             for evt_handler_node in &state_node.evt_handlers_rcref {
                 evt_handler_node.as_ref().borrow().accept(self);
             }
@@ -1398,16 +1401,16 @@ impl AstVisitor for Java8Visitor {
             // AnyMessage ( ||* )
             if self.first_event_handler {
                 // This logic is for when there is only the catch all event handler ||*
-                self.add_code(&format!("if (true) {{"));
+                self.add_code(&"if (true) {".to_string());
             } else {
                 // other event handlers preceded ||*
-                self.add_code(&format!("else {{"));
+                self.add_code(&"else {".to_string());
             }
         }
         self.indent();
         if evt_handler_node.event_handler_has_transition && self.generate_state_context {
             self.newline();
-            self.add_code(&format!("StateContext stateContext = null;"));
+            self.add_code(&"StateContext stateContext = null;".to_string());
         }
         self.generate_comment(evt_handler_node.line);
 
@@ -1435,7 +1438,7 @@ impl AstVisitor for Java8Visitor {
         terminator_node.accept(self);
         self.outdent();
         self.newline();
-        self.add_code(&format!("}}"));
+        self.add_code(&"}".to_string());
 
         // this controls formatting here
         self.first_event_handler = false;
@@ -1454,7 +1457,7 @@ impl AstVisitor for Java8Visitor {
         match &evt_handler_terminator_node.terminator_type {
             TerminatorType::Return => match &evt_handler_terminator_node.return_expr_t_opt {
                 Some(expr_t) => {
-                    self.add_code(&format!("e._return = "));
+                    self.add_code(&"e._return = ".to_string());
                     expr_t.accept(self);
                     self.add_code(";");
                     self.newline();
@@ -1479,7 +1482,7 @@ impl AstVisitor for Java8Visitor {
     ) -> AstVisitorReturnType {
         self.newline();
         method_call_statement.call_expr_node.accept(self);
-        self.add_code(&format!(";"));
+        self.add_code(&";".to_string());
 
         AstVisitorReturnType::CallStatementNode {}
     }
@@ -1490,11 +1493,11 @@ impl AstVisitor for Java8Visitor {
         if let Some(call_chain) = &method_call.call_chain {
             for callable in call_chain {
                 callable.callable_accept(self);
-                self.add_code(&format!("."));
+                self.add_code(&".".to_string());
             }
         }
 
-        self.add_code(&format!("{}", method_call.identifier.name.lexeme));
+        self.add_code(&method_call.identifier.name.lexeme.to_string());
 
         method_call.call_expr_list.accept(self);
 
@@ -1513,11 +1516,11 @@ impl AstVisitor for Java8Visitor {
         if let Some(call_chain) = &method_call.call_chain {
             for callable in call_chain {
                 callable.callable_accept(self);
-                output.push_str(&format!("."));
+                output.push_str(&".".to_string());
             }
         }
 
-        output.push_str(&format!("{}", method_call.identifier.name.lexeme));
+        output.push_str(&method_call.identifier.name.lexeme.to_string());
 
         method_call.call_expr_list.accept_to_string(self, output);
 
@@ -1533,15 +1536,15 @@ impl AstVisitor for Java8Visitor {
         call_expr_list: &CallExprListNode,
     ) -> AstVisitorReturnType {
         let mut separator = "";
-        self.add_code(&format!("("));
+        self.add_code(&"(".to_string());
 
         for expr in &call_expr_list.exprs_t {
-            self.add_code(&format!("{}", separator));
+            self.add_code(&separator.to_string());
             expr.accept(self);
             separator = ",";
         }
 
-        self.add_code(&format!(")"));
+        self.add_code(&")".to_string());
 
         AstVisitorReturnType::CallExprListNode {}
     }
@@ -1554,15 +1557,15 @@ impl AstVisitor for Java8Visitor {
         output: &mut String,
     ) -> AstVisitorReturnType {
         let mut separator = "";
-        output.push_str(&format!("("));
+        output.push_str(&"(".to_string());
 
         for expr in &call_expr_list.exprs_t {
-            output.push_str(&format!("{}", separator));
+            output.push_str(&separator.to_string());
             expr.accept_to_string(self, output);
             separator = ",";
         }
 
-        output.push_str(&format!(")"));
+        output.push_str(&")".to_string());
 
         AstVisitorReturnType::CallExprListNode {}
     }
@@ -1574,7 +1577,7 @@ impl AstVisitor for Java8Visitor {
         action_call: &ActionCallExprNode,
     ) -> AstVisitorReturnType {
         let action_name = self.format_action_name(&action_call.identifier.name.lexeme);
-        self.add_code(&format!("{}", action_name));
+        self.add_code(&action_name);
 
         action_call.call_expr_list.accept(self);
 
@@ -1589,7 +1592,7 @@ impl AstVisitor for Java8Visitor {
         output: &mut String,
     ) -> AstVisitorReturnType {
         let action_name = self.format_action_name(&action_call.identifier.name.lexeme);
-        output.push_str(&format!("{}", action_name));
+        output.push_str(&action_name);
 
         action_call.call_expr_list.accept_to_string(self, output);
 
@@ -1604,7 +1607,7 @@ impl AstVisitor for Java8Visitor {
     ) -> AstVisitorReturnType {
         self.newline();
         action_call_stmt_node.action_call_expr_node.accept(self);
-        self.add_code(&format!(";"));
+        self.add_code(&";".to_string());
 
         AstVisitorReturnType::ActionCallStatementNode {}
     }
@@ -1630,7 +1633,7 @@ impl AstVisitor for Java8Visitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_state_ref_node(&mut self, state_ref: &StateRefNode) -> AstVisitorReturnType {
-        self.add_code(&format!("{}", state_ref.name));
+        self.add_code(&state_ref.name.to_string());
 
         AstVisitorReturnType::StateRefNode {}
     }
@@ -1645,9 +1648,9 @@ impl AstVisitor for Java8Visitor {
             StateContextType::StateRef { .. } => {
                 self.generate_state_ref_change_state(change_state_stmt_node)
             }
-            StateContextType::StateStackPop {} => self.errors.push(format!(
-                "Fatal error - change state stack pop not implemented."
-            )),
+            StateContextType::StateStackPop {} => self
+                .errors
+                .push("Fatal error - change state stack pop not implemented.".to_string()),
         };
 
         AstVisitorReturnType::ChangeStateStmtNode {}
@@ -1714,16 +1717,16 @@ impl AstVisitor for Java8Visitor {
             branch_node.expr_t.accept(self);
 
             if branch_node.is_negated {
-                self.add_code(&format!(")"));
+                self.add_code(&")".to_string());
             }
-            self.add_code(&format!(") {{"));
+            self.add_code(&") {".to_string());
             self.indent();
 
             branch_node.accept(self);
 
             self.outdent();
             self.newline();
-            self.add_code(&format!("}}"));
+            self.add_code(&"}".to_string());
 
             if_or_else_if = " else if ";
         }
@@ -1746,7 +1749,7 @@ impl AstVisitor for Java8Visitor {
         method_call_chain_literal_stmt_node
             .call_chain_literal_expr_node
             .accept(self);
-        self.add_code(&format!(";"));
+        self.add_code(&";".to_string());
         AstVisitorReturnType::CallChainLiteralStmtNode {}
     }
 
@@ -1761,7 +1764,7 @@ impl AstVisitor for Java8Visitor {
         let mut separator = "";
 
         for node in &method_call_chain_expression_node.call_chain {
-            self.add_code(&format!("{}", separator));
+            self.add_code(&separator.to_string());
             match &node {
                 CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
                     id_node.accept(self);
@@ -1801,7 +1804,7 @@ impl AstVisitor for Java8Visitor {
         let mut separator = "";
 
         for node in &method_call_chain_expression_node.call_chain {
-            output.push_str(&format!("{}", separator));
+            output.push_str(&separator.to_string());
             match &node {
                 CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
                     id_node.accept_to_string(self, output);
@@ -1842,7 +1845,7 @@ impl AstVisitor for Java8Visitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code(&format!("e._return = "));
+                            self.add_code(&"e._return = ".to_string());
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
@@ -1867,7 +1870,7 @@ impl AstVisitor for Java8Visitor {
         &mut self,
         bool_test_else_branch_node: &BoolTestElseBranchNode,
     ) -> AstVisitorReturnType {
-        self.add_code(&format!(" else {{"));
+        self.add_code(&" else {".to_string());
         self.indent();
 
         self.visit_decl_stmts(&bool_test_else_branch_node.statements);
@@ -1879,7 +1882,7 @@ impl AstVisitor for Java8Visitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code(&format!("e._return = ",));
+                            self.add_code(&"e._return = ".to_string());
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
@@ -1897,7 +1900,7 @@ impl AstVisitor for Java8Visitor {
 
         self.outdent();
         self.newline();
-        self.add_code(&format!("}}"));
+        self.add_code(&"}".to_string());
 
         AstVisitorReturnType::BoolTestElseBranchNode {}
     }
@@ -1930,13 +1933,13 @@ impl AstVisitor for Java8Visitor {
                     if expr_list_node.exprs_t.len() != 1 {
                         // TODO: how to do this better.
                         self.errors
-                            .push(format!("Error - expression list is not testable."));
+                            .push("Error - expression list is not testable.".to_string());
                     }
                     let x = expr_list_node.exprs_t.first().unwrap();
                     x.accept(self);
                 }
 
-                _ => self.errors.push(format!("TODO")),
+                _ => self.errors.push("TODO".to_string()),
             }
 
             // TODO: use accept
@@ -1953,7 +1956,7 @@ impl AstVisitor for Java8Visitor {
                     self.add_code(&format!(" == \"{}\")", match_string));
                     first_match = false;
                 } else {
-                    self.add_code(&format!(" || ("));
+                    self.add_code(&" || (".to_string());
                     match &string_match_test_node.expr_t {
                         ExprType::CallExprT {
                             call_expr_node: method_call_expr_node,
@@ -1965,19 +1968,19 @@ impl AstVisitor for Java8Visitor {
                             call_chain_expr_node,
                         } => call_chain_expr_node.accept(self),
                         ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
-                        _ => self.errors.push(format!("TODO")),
+                        _ => self.errors.push("TODO".to_string()),
                     }
                     self.add_code(&format!(" == \"{}\")", match_string));
                 }
             }
-            self.add_code(&format!(" {{"));
+            self.add_code(&" {".to_string());
             self.indent();
 
             match_branch_node.accept(self);
 
             self.outdent();
             self.newline();
-            self.add_code(&format!("}}"));
+            self.add_code(&"}".to_string());
 
             if_or_else_if = " else if";
         }
@@ -2004,7 +2007,7 @@ impl AstVisitor for Java8Visitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code(&format!("e._return = "));
+                            self.add_code(&"e._return = ".to_string());
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
@@ -2029,7 +2032,7 @@ impl AstVisitor for Java8Visitor {
         &mut self,
         string_match_test_else_branch_node: &StringMatchTestElseBranchNode,
     ) -> AstVisitorReturnType {
-        self.add_code(&format!(" else {{"));
+        self.add_code(&" else {".to_string());
         self.indent();
 
         self.visit_decl_stmts(&string_match_test_else_branch_node.statements);
@@ -2041,7 +2044,7 @@ impl AstVisitor for Java8Visitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code(&format!("e._return = "));
+                            self.add_code(&"e._return = ".to_string());
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
@@ -2059,7 +2062,7 @@ impl AstVisitor for Java8Visitor {
 
         self.outdent();
         self.newline();
-        self.add_code(&format!("}}"));
+        self.add_code(&"}".to_string());
 
         AstVisitorReturnType::StringMatchElseBranchNode {}
     }
@@ -2071,7 +2074,7 @@ impl AstVisitor for Java8Visitor {
         _string_match_test_else_branch_node: &StringMatchTestPatternNode,
     ) -> AstVisitorReturnType {
         // TODO
-        self.errors.push(format!("Not implemented."));
+        self.errors.push("Not implemented.".to_string());
         AstVisitorReturnType::StringMatchTestPatternNode {}
     }
 
@@ -2102,12 +2105,12 @@ impl AstVisitor for Java8Visitor {
                     if expr_list_node.exprs_t.len() != 1 {
                         // TODO: how to do this better.
                         self.errors
-                            .push(format!("Error - expression list is not testable."));
+                            .push("Error - expression list is not testable.".to_string());
                     }
                     let x = expr_list_node.exprs_t.first().unwrap();
                     x.accept(self);
                 }
-                _ => self.errors.push(format!("TODO.")),
+                _ => self.errors.push("TODO.".to_string()),
             }
 
             let mut first_match = true;
@@ -2116,7 +2119,7 @@ impl AstVisitor for Java8Visitor {
                     self.add_code(&format!(" == {})", match_number.match_pattern_number));
                     first_match = false;
                 } else {
-                    self.add_code(&format!(" || ("));
+                    self.add_code(&" || (".to_string());
                     match &number_match_test_node.expr_t {
                         ExprType::CallExprT {
                             call_expr_node: method_call_expr_node,
@@ -2128,20 +2131,20 @@ impl AstVisitor for Java8Visitor {
                             call_chain_expr_node,
                         } => call_chain_expr_node.accept(self),
                         ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
-                        _ => self.errors.push(format!("TODO.")),
+                        _ => self.errors.push("TODO.".to_string()),
                     }
                     self.add_code(&format!(" == {})", match_number.match_pattern_number));
                 }
             }
 
-            self.add_code(&format!(") {{"));
+            self.add_code(&") {".to_string());
             self.indent();
 
             match_branch_node.accept(self);
 
             self.outdent();
             self.newline();
-            self.add_code(&format!("}}"));
+            self.add_code(&"}".to_string());
 
             if_or_else_if = " else if";
         }
@@ -2169,7 +2172,7 @@ impl AstVisitor for Java8Visitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code(&format!("e._return = "));
+                            self.add_code(&"e._return = ".to_string());
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
@@ -2194,7 +2197,7 @@ impl AstVisitor for Java8Visitor {
         &mut self,
         number_match_test_else_branch_node: &NumberMatchTestElseBranchNode,
     ) -> AstVisitorReturnType {
-        self.add_code(&format!(" else {{"));
+        self.add_code(&" else {".to_string());
         self.indent();
 
         self.visit_decl_stmts(&number_match_test_else_branch_node.statements);
@@ -2206,7 +2209,7 @@ impl AstVisitor for Java8Visitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code(&format!("e._return = "));
+                            self.add_code(&"e._return = ".to_string());
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
@@ -2224,7 +2227,7 @@ impl AstVisitor for Java8Visitor {
 
         self.outdent();
         self.newline();
-        self.add_code(&format!("}}"));
+        self.add_code(&"}".to_string());
 
         AstVisitorReturnType::NumberMatchElseBranchNode {}
     }
@@ -2235,7 +2238,7 @@ impl AstVisitor for Java8Visitor {
         &mut self,
         match_pattern_node: &NumberMatchTestPatternNode,
     ) -> AstVisitorReturnType {
-        self.add_code(&format!("{}", match_pattern_node.match_pattern_number));
+        self.add_code(&match_pattern_node.match_pattern_number.to_string());
 
         AstVisitorReturnType::NumberMatchTestPatternNode {}
     }
@@ -2244,13 +2247,13 @@ impl AstVisitor for Java8Visitor {
 
     fn visit_expression_list_node(&mut self, expr_list: &ExprListNode) -> AstVisitorReturnType {
         let mut separator = "";
-        self.add_code(&format!("("));
+        self.add_code(&"(".to_string());
         for expr in &expr_list.exprs_t {
-            self.add_code(&format!("{}", separator));
+            self.add_code(&separator.to_string());
             expr.accept(self);
             separator = ",";
         }
-        self.add_code(&format!(")"));
+        self.add_code(&")".to_string());
 
         AstVisitorReturnType::ParentheticalExpressionNode {}
     }
@@ -2265,13 +2268,13 @@ impl AstVisitor for Java8Visitor {
         //        self.add_code(&format!("{}(e);\n",dispatch_node.target_state_ref.name));
 
         let mut separator = "";
-        output.push_str(&format!("("));
+        output.push_str(&"(".to_string());
         for expr in &expr_list.exprs_t {
-            output.push_str(&format!("{}", separator));
+            output.push_str(&separator.to_string());
             expr.accept_to_string(self, output);
             separator = ",";
         }
-        output.push_str(&format!(")"));
+        output.push_str(&")".to_string());
 
         AstVisitorReturnType::ParentheticalExpressionNode {}
     }
@@ -2283,10 +2286,8 @@ impl AstVisitor for Java8Visitor {
         literal_expression_node: &LiteralExprNode,
     ) -> AstVisitorReturnType {
         match &literal_expression_node.token_t {
-            TokenType::NumberTok => self.add_code(&format!("{}", literal_expression_node.value)),
-            TokenType::SuperStringTok => {
-                self.add_code(&format!("{}", literal_expression_node.value))
-            }
+            TokenType::NumberTok => self.add_code(&literal_expression_node.value.to_string()),
+            TokenType::SuperStringTok => self.add_code(&literal_expression_node.value.to_string()),
             TokenType::StringTok => {
                 self.add_code(&format!("\"{}\"", literal_expression_node.value))
             }
@@ -2296,7 +2297,7 @@ impl AstVisitor for Java8Visitor {
             TokenType::NilTok => self.add_code("null"),
             _ => self
                 .errors
-                .push(format!("TODO: visit_literal_expression_node")),
+                .push("TODO: visit_literal_expression_node".to_string()),
         }
 
         AstVisitorReturnType::ParentheticalExpressionNode {}
@@ -2311,7 +2312,7 @@ impl AstVisitor for Java8Visitor {
     ) -> AstVisitorReturnType {
         // TODO: make a focused enum or the literals
         match &literal_expression_node.token_t {
-            TokenType::NumberTok => output.push_str(&format!("{}", literal_expression_node.value)),
+            TokenType::NumberTok => output.push_str(&literal_expression_node.value.to_string()),
             TokenType::StringTok => {
                 output.push_str(&format!("\"{}\"", literal_expression_node.value));
             }
@@ -2329,7 +2330,7 @@ impl AstVisitor for Java8Visitor {
             }
             _ => self
                 .errors
-                .push(format!("TODO: visit_literal_expression_node_to_string")),
+                .push("TODO: visit_literal_expression_node_to_string".to_string()),
         }
 
         AstVisitorReturnType::ParentheticalExpressionNode {}
@@ -2338,7 +2339,7 @@ impl AstVisitor for Java8Visitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_identifier_node(&mut self, identifier_node: &IdentifierNode) -> AstVisitorReturnType {
-        self.add_code(&format!("{}", identifier_node.name.lexeme));
+        self.add_code(&identifier_node.name.lexeme.to_string());
 
         AstVisitorReturnType::IdentifierNode {}
     }
@@ -2350,7 +2351,7 @@ impl AstVisitor for Java8Visitor {
         identifier_node: &IdentifierNode,
         output: &mut String,
     ) -> AstVisitorReturnType {
-        output.push_str(&format!("{}", identifier_node.name.lexeme));
+        output.push_str(&identifier_node.name.lexeme.to_string());
 
         AstVisitorReturnType::IdentifierNode {}
     }
@@ -2391,16 +2392,16 @@ impl AstVisitor for Java8Visitor {
             StateStackOperationType::Push => {
                 self.newline();
                 if self.generate_state_context {
-                    self.add_code(&format!("_stateStack_push_(_stateContext_);"));
+                    self.add_code(&"_stateStack_push_(_stateContext_);".to_string());
                 } else {
-                    self.add_code(&format!("_stateStack_push_(_state_);"));
+                    self.add_code(&"_stateStack_push_(_state_);".to_string());
                 }
             }
             StateStackOperationType::Pop => {
                 if self.generate_state_context {
-                    self.add_code(&format!("stateContext = _stateStack_pop_()"));
+                    self.add_code(&"stateContext = _stateStack_pop_()".to_string());
                 } else {
-                    self.add_code(&format!("FrameState state = _stateStack_pop_()"));
+                    self.add_code(&"FrameState state = _stateStack_pop_()".to_string());
                 }
             }
         }
@@ -2428,17 +2429,17 @@ impl AstVisitor for Java8Visitor {
         match frame_event_part {
             FrameEventPart::Event {
                 is_reference: _is_reference,
-            } => self.add_code(&format!("e")),
+            } => self.add_code(&"e".to_string()),
             FrameEventPart::Message {
                 is_reference: _is_reference,
-            } => self.add_code(&format!("e._message")),
+            } => self.add_code(&"e._message".to_string()),
             FrameEventPart::Param {
                 param_tok,
                 is_reference: _is_reference,
             } => self.add_code(&format!("e._parameters.get(\"{}\")", param_tok.lexeme)),
             FrameEventPart::Return {
                 is_reference: _is_reference,
-            } => self.add_code(&format!("e._return")),
+            } => self.add_code(&"e._return".to_string()),
         }
 
         AstVisitorReturnType::FrameEventExprType {}
@@ -2456,7 +2457,7 @@ impl AstVisitor for Java8Visitor {
         match frame_event_part {
             FrameEventPart::Event {
                 is_reference: _is_reference,
-            } => output.push_str("e"),
+            } => output.push('e'),
             FrameEventPart::Message {
                 is_reference: _is_reference,
             } => output.push_str("e._message"),
@@ -2490,17 +2491,15 @@ impl AstVisitor for Java8Visitor {
         subclass_code.push_str(&format!("protected {} {}(", action_ret_type, action_name));
 
         match &action_decl_node.params {
-            Some(params) => self
-                .format_actions_parameter_list(params, &mut subclass_code)
-                .clone(),
+            Some(params) => {
+                self.format_actions_parameter_list(params, &mut subclass_code);
+            }
             None => {}
         }
-        subclass_code.push_str(&format!(") {{}}"));
+        subclass_code.push_str(&") {}".to_string());
         self.subclass_code.push(subclass_code);
 
-        self.add_code(&format!(
-            ") {{ throw new UnsupportedOperationException(); }}"
-        ));
+        self.add_code(&") { throw new UnsupportedOperationException(); }".to_string());
 
         AstVisitorReturnType::ActionDeclNode {}
     }
@@ -2617,7 +2616,7 @@ impl AstVisitor for Java8Visitor {
         assignment_expr_node
             .r_value_box
             .accept_to_string(self, output);
-        output.push_str(";");
+        output.push(';');
 
         AstVisitorReturnType::AssignmentExprNode {}
     }
@@ -2768,14 +2767,14 @@ impl AstVisitor for Java8Visitor {
         match operator_type {
             OperatorType::Plus => output.push_str(" + "),
             OperatorType::Minus => output.push_str(" - "),
-            OperatorType::Negated => output.push_str("-"),
+            OperatorType::Negated => output.push('-'),
             OperatorType::Multiply => output.push_str(" * "),
             OperatorType::Divide => output.push_str(" / "),
             OperatorType::Greater => output.push_str(" > "),
             OperatorType::GreaterEqual => output.push_str(" >= "),
             OperatorType::Less => output.push_str(" < "),
             OperatorType::LessEqual => output.push_str(" <= "),
-            OperatorType::Not => output.push_str("!"),
+            OperatorType::Not => output.push('!'),
             OperatorType::EqualEqual => output.push_str(" == "),
             OperatorType::NotEqual => output.push_str(" != "),
             OperatorType::LogicalAnd => output.push_str(" && "),

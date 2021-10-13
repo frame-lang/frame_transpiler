@@ -85,7 +85,7 @@ impl FrameEventReturn {
     #[allow(dead_code)]
     fn get_inc_ret(&self) -> i32 {
         match self {
-            FrameEventReturn::Inc { return_value } => return_value.clone(),
+            FrameEventReturn::Inc { return_value } => *return_value,
             _ => panic!("Invalid return value"),
         }
     }
@@ -412,7 +412,7 @@ impl<'a> Demo<'a> {
         let mut frame_event = FrameEvent::new(FrameMessage::Inc, &frame_args);
         self.handle_event(&mut frame_event);
         match frame_event.ret {
-            FrameEventReturn::Inc { return_value } => return_value.clone(),
+            FrameEventReturn::Inc { return_value } => return_value,
             _ => panic!("Bad return value for inc"),
         }
     }
@@ -437,7 +437,6 @@ impl<'a> Demo<'a> {
                 let next_state_context = Rc::new(StateContext::Foo(RefCell::new(context)));
                 drop(this_state_context);
                 self.transition(exit_args, enter_args, DemoState::Foo, next_state_context);
-                return;
             }
             _ => {}
         }
@@ -449,21 +448,16 @@ impl<'a> Demo<'a> {
         match frame_event.message {
             FrameMessage::Enter => {
                 this_state_context.state_vars.x = frame_event.arguments.foo_enter_args().init;
-                return;
             }
-            FrameMessage::Exit => {
-                return;
-            }
+            FrameMessage::Exit => {}
             FrameMessage::Inc => {
-                this_state_context.state_vars.x =
-                    this_state_context.state_vars.x + frame_event.arguments.inc_args().arg;
+                this_state_context.state_vars.x += frame_event.arguments.inc_args().arg;
                 frame_event.ret = FrameEventReturn::Inc {
                     return_value: this_state_context.state_vars.x,
                 };
-                return;
             }
             FrameMessage::Next => {
-                self.x = self.x + this_state_context.state_vars.x;
+                self.x += this_state_context.state_vars.x;
                 // Start transition
                 let exit_args = FrameEventArgs::FooExit(FooExitArgs {
                     done: this_state_context.state_vars.x,
@@ -476,7 +470,6 @@ impl<'a> Demo<'a> {
                 let next_state_context = Rc::new(StateContext::Bar(RefCell::new(context)));
                 drop(this_state_context);
                 self.transition(exit_args, enter_args, DemoState::Bar, next_state_context);
-                return;
             }
         }
     }
@@ -488,21 +481,16 @@ impl<'a> Demo<'a> {
             FrameMessage::Enter => {
                 this_state_context.state_vars.y = frame_event.arguments.bar_enter_args().start
                     + this_state_context.state_args.tilt;
-                return;
             }
-            FrameMessage::Exit => {
-                return;
-            }
+            FrameMessage::Exit => {}
             FrameMessage::Inc => {
-                this_state_context.state_vars.y =
-                    this_state_context.state_vars.y + frame_event.arguments.inc_args().arg;
+                this_state_context.state_vars.y += frame_event.arguments.inc_args().arg;
                 frame_event.ret = FrameEventReturn::Inc {
                     return_value: this_state_context.state_vars.y,
                 };
-                return;
             }
             FrameMessage::Next => {
-                self.y = self.y + this_state_context.state_vars.y;
+                self.y += this_state_context.state_vars.y;
                 // Start change state
                 let context = FooStateContext {
                     state_vars: FooStateVars { x: 0 },
@@ -510,7 +498,6 @@ impl<'a> Demo<'a> {
                 let next_state_context = Rc::new(StateContext::Foo(RefCell::new(context)));
                 drop(this_state_context);
                 self.change_state(DemoState::Foo, next_state_context);
-                return;
             }
         }
     }
