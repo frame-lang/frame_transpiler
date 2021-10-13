@@ -6,7 +6,7 @@ include!(concat!(env!("OUT_DIR"), "/", "transition_params.rs"));
 
 impl<'a> TransitParams<'a> {
     pub fn log(&mut self, msg: String) {
-        self.tape.push(format!("{}", msg));
+        self.tape.push(msg);
     }
 }
 

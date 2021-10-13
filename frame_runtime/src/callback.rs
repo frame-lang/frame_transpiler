@@ -13,7 +13,7 @@ pub struct CallbackManager<'a> {
 
 impl<'a> CallbackManager<'a> {
     /// Create a new callback manager.
-    pub fn new() -> CallbackManager<'a> {
+    pub fn new() -> Self {
         CallbackManager {
             transition_callbacks: Vec::new(),
         }
@@ -60,6 +60,12 @@ impl<'a> CallbackManager<'a> {
         for c in &mut self.transition_callbacks {
             (**c)(info);
         }
+    }
+}
+
+impl<'a> Default for CallbackManager<'a> {
+    fn default() -> Self {
+        CallbackManager::new()
     }
 }
 

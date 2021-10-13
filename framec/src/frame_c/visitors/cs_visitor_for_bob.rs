@@ -132,7 +132,7 @@ impl CsVisitorForBob {
             },
 
             _ => {
-                &self.errors.push("Unknown scope.".to_string());
+                self.errors.push("Unknown scope.".to_string());
                 return "error".to_string(); // won't get emitted
             }
         };

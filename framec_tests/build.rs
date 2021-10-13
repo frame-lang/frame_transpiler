@@ -37,7 +37,7 @@ fn main() -> Result<()> {
 
             let mut output_file = out.join(stripped_path);
             output_file.set_extension("rs");
-            process_frame(&input_path, &output_file, "rust")?;
+            process_frame(input_path, &output_file, "rust")?;
         }
     }
     Ok(())

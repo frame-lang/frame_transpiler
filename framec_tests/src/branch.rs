@@ -1,5 +1,7 @@
 //! Test conditional expressions and the Boolean branching construct.
 
+#![allow(clippy::nonminimal_bool)]
+
 type Log = Vec<String>;
 include!(concat!(env!("OUT_DIR"), "/", "branch.rs"));
 
