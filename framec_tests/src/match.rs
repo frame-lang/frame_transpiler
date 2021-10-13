@@ -5,7 +5,7 @@
 type Log = Vec<String>;
 include!(concat!(env!("OUT_DIR"), "/", "match.rs"));
 
-impl<'a> Match<'a> {
+impl Match {
     pub fn log(&mut self, msg: String) {
         self.tape.push(msg);
     }

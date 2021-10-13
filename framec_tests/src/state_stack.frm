@@ -1,3 +1,4 @@
+#[feature:codegen.rust.features.runtime_support="true"]
 #StateStack
     -interface-
     to_a

@@ -5,11 +5,8 @@
 //!
 //! This file tests that these operations work correctly. It also tests that
 //! the optional hook methods for each operation are invoked when states are
-//! changed.
-//!
-//! Note that the change-state operation is only partially implemented. It
-//! does not support any features that require a state context (e.g. state
-//! variables and state parameters).
+//! changed, and that transition callbacks registered via the runtime system
+//! are invoked.
 
 type Log = Vec<String>;
 include!(concat!(env!("OUT_DIR"), "/", "transition.rs"));
@@ -25,6 +22,15 @@ impl<'a> Transition<'a> {
     pub fn clear_all(&mut self) {
         self.enters.clear();
         self.exits.clear();
+        self.hooks.clear();
+    }
+    pub fn transition_hook(&mut self, old_state: TransitionState, new_state: TransitionState) {
+        let s = format!("{:?}->{:?}", old_state, new_state);
+        self.hooks.push(s);
+    }
+    pub fn change_state_hook(&mut self, old_state: TransitionState, new_state: TransitionState) {
+        let s = format!("{:?}->>{:?}", old_state, new_state);
+        self.hooks.push(s);
     }
 }
 
@@ -144,5 +150,33 @@ mod tests {
         transits.lock().unwrap().clear();
         sm.transit();
         assert_eq!(*transits.lock().unwrap(), vec!["S3->S4", "S4->>S0"]);
+    }
+
+    #[test]
+    /// Test transition hook method.
+    fn transition_hook() {
+        let mut sm = Transition::new();
+        sm.transit();
+        assert_eq!(sm.hooks, vec!["S0->S1"]);
+        sm.clear_all();
+        sm.transit();
+        assert_eq!(sm.hooks, vec!["S1->S2", "S2->S3"]);
+    }
+
+    #[test]
+    /// Test change-state hook method.
+    fn change_state_hook() {
+        let mut sm = Transition::new();
+        sm.change();
+        assert_eq!(sm.hooks, vec!["S0->>S1"]);
+        sm.clear_all();
+        sm.change();
+        assert_eq!(sm.hooks, vec!["S1->>S2"]);
+        sm.clear_all();
+        sm.change();
+        assert_eq!(sm.hooks, vec!["S2->>S3"]);
+        sm.clear_all();
+        sm.transit();
+        assert_eq!(sm.hooks, vec!["S3->S4", "S4->>S0"]);
     }
 }

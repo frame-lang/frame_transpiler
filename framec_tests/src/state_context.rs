@@ -5,7 +5,7 @@
 type Log = Vec<String>;
 include!(concat!(env!("OUT_DIR"), "/", "state_context.rs"));
 
-impl<'a> StateContextSm<'a> {
+impl StateContextSm {
     pub fn log(&mut self, name: String, val: i32) {
         self.tape.push(format!("{}={}", name, val));
     }

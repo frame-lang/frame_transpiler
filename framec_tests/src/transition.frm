@@ -1,3 +1,5 @@
+#[feature:codegen.rust.features.generate_hook_methods="true"]
+#[feature:codegen.rust.features.runtime_support="true"]
 #Transition
     -interface-
     transit
@@ -49,4 +51,5 @@
     -domain-
     var enters:Log = `vec![]`
     var exits:Log = `vec![]`
+    var hooks:Log = `vec![]`
 ##

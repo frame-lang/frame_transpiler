@@ -1,9 +1,9 @@
 //! Test the coverage of the `follow_rust_naming` feature.
 
 type Log = Vec<i32>;
-include!(concat!(env!("OUT_DIR"), "/", "rust_naming.rs"));
+include!(concat!(env!("OUT_DIR"), "/", "rust_naming_on.rs"));
 
-impl<'a> RustNaming<'a> {
+impl RustNaming {
     pub fn snake_action(&mut self, arg: i32) {
         self.snake_log.push(arg);
     }

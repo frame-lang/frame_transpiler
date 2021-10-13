@@ -1,3 +1,4 @@
+#[feature:codegen.rust.features.generate_action_impl="true"]
 #StateContextSm
     -interface-
     Start

@@ -3,7 +3,7 @@
 type Log = Vec<String>;
 include!(concat!(env!("OUT_DIR"), "/", "event_handler.rs"));
 
-impl<'a> EventHandler<'a> {
+impl EventHandler {
     pub fn log(&mut self, msg: String, val: i32) {
         self.tape.push(format!("{}={}", msg, val));
     }
