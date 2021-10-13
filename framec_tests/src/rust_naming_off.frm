@@ -1,3 +1,4 @@
+#[feature:codegen.rust.features.generate_action_impl="true"]
 #[feature:codegen.rust.features.follow_rust_naming="false"]
 #RustNaming
     -interface-

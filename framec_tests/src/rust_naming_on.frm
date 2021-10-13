@@ -1,3 +1,4 @@
+#[feature:codegen.rust.features.generate_action_impl="true"]
 #RustNaming
     -interface-
     snake_event [snake_param:i32]

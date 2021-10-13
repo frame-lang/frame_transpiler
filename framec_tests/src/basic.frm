@@ -1,3 +1,4 @@
+#[feature:codegen.rust.features.generate_action_impl="true"]
 #[feature:codegen.rust.features.runtime_support="true"]
 #Basic
     -interface-

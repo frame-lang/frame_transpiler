@@ -3059,6 +3059,7 @@ impl AstVisitor for RustVisitor {
         actions_block_node: &ActionsBlockNode,
     ) -> AstVisitorReturnType {
         if self.config.features.generate_action_impl {
+            self.disable_style_warnings();
             self.add_code(&format!(
                 "trait {}{} {{ ",
                 self.action_trait_type_name(),
@@ -3113,6 +3114,8 @@ impl AstVisitor for RustVisitor {
         if self.config.features.generate_action_impl {
             self.newline();
             self.disable_style_warnings();
+            self.add_code("#[allow(unused_variables)]");
+            self.newline();
             self.add_code(&format!(
                 "impl{0} {1}{0} for {2}{0} {{ ",
                 self.lifetime_type_annotation(),
