@@ -336,8 +336,8 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    /// Disable formatting/style warnings.
-    fn disable_style_warnings(&mut self) {
+    /// Disable formatting/style warnings on generated type definitions.
+    fn disable_type_style_warnings(&mut self) {
         if !self.config.features.follow_rust_naming {
             self.add_code("#[allow(clippy::upper_case_acronyms)]");
             self.newline();
@@ -349,6 +349,31 @@ impl RustVisitor {
         self.add_code("#[allow(dead_code)]");
         self.newline();
     }
+
+    /// Disable all formatting/style warnings on generated definitions.
+    fn disable_all_style_warnings(&mut self) {
+        self.add_code("#[allow(clippy::assign_op_pattern)]");
+        self.newline();
+        self.add_code("#[allow(clippy::branches_sharing_code)]");
+        self.newline();
+        self.add_code("#[allow(clippy::clone_on_copy)]");
+        self.newline();
+        self.add_code("#[allow(clippy::double_parens)]");
+        self.newline();
+        self.add_code("#[allow(clippy::match_single_binding)]");
+        self.newline();
+        self.add_code("#[allow(clippy::ptr_arg)]");
+        self.newline();
+        self.add_code("#[allow(clippy::single_match)]");
+        self.newline();
+        self.add_code("#[allow(clippy::wrong_self_convention)]");
+        self.newline();
+        self.add_code("#[allow(unused_variables)]");
+        self.newline();
+        self.disable_type_style_warnings();
+    }
+
+    // /// Disable formatting/style warnings on generated method definitions.
 
     // Formatting helper functions
 
@@ -611,7 +636,7 @@ impl RustVisitor {
             }
             None => {}
         }
-        self.disable_style_warnings();
+        self.disable_type_style_warnings();
         if !traits.is_empty() {
             self.add_code(&format!("#[derive({})]", traits));
             self.newline();
@@ -684,7 +709,7 @@ impl RustVisitor {
                             let args_struct_name = self.format_args_struct_name(&event_type_name);
                             let mut bound_names: Vec<String> = Vec::new();
 
-                            self.disable_style_warnings();
+                            self.disable_type_style_warnings();
                             self.add_code(&format!("struct {} {{", args_struct_name));
                             self.indent();
                             for param in params {
@@ -719,7 +744,7 @@ impl RustVisitor {
         }
 
         // generate the enum type that unions all the arg structs
-        self.disable_style_warnings();
+        self.disable_type_style_warnings();
         self.add_code(&format!(
             "enum {}",
             self.config.code.frame_event_args_type_name
@@ -770,7 +795,7 @@ impl RustVisitor {
         if !has_params.is_empty() {
             // generate methods to conveniently get specific arg structs
             // from a value of the enum type
-            self.disable_style_warnings();
+            self.disable_type_style_warnings();
             self.add_code(&format!(
                 "impl {} {{",
                 self.config.code.frame_event_args_type_name
@@ -823,7 +848,7 @@ impl RustVisitor {
                         has_state_args = true;
                         let mut bound_names: Vec<String> = Vec::new();
 
-                        self.disable_style_warnings();
+                        self.disable_type_style_warnings();
                         self.add_code(&format!("struct {} {{", state_args_struct_name));
                         self.indent();
                         for param in params {
@@ -859,7 +884,7 @@ impl RustVisitor {
                         has_state_vars = true;
                         let mut bound_names: Vec<String> = Vec::new();
 
-                        self.disable_style_warnings();
+                        self.disable_type_style_warnings();
                         self.add_code(&format!("struct {} {{", state_vars_struct_name));
                         self.indent();
                         for var_decl_node in var_decl_nodes {
@@ -889,7 +914,7 @@ impl RustVisitor {
 
                 // generate state context struct for this state
                 let context_struct_name = self.format_state_context_struct_name(&state_node.name);
-                self.disable_style_warnings();
+                self.disable_type_style_warnings();
                 self.add_code(&format!("struct {} {{", context_struct_name));
                 self.indent();
 
@@ -951,7 +976,7 @@ impl RustVisitor {
             }
 
             // generate the enum type that unions all the state context types
-            self.disable_style_warnings();
+            self.disable_type_style_warnings();
             self.add_code(&format!(
                 "enum {} {{",
                 self.config.code.state_context_type_name
@@ -970,7 +995,7 @@ impl RustVisitor {
             self.newline();
             self.newline();
 
-            self.disable_style_warnings();
+            self.disable_type_style_warnings();
             self.add_code(&format!(
                 "impl {} {{",
                 self.config.code.state_context_type_name
@@ -1035,6 +1060,10 @@ impl RustVisitor {
         type_name: &str,
         bound_names: Vec<String>,
     ) {
+        self.add_code("#[allow(clippy::match_single_binding)]");
+        self.newline();
+        self.add_code("#[allow(clippy::single_match)]");
+        self.newline();
         if has_lifetime_annotation {
             self.add_code(&format!(
                 "impl{0} Environment for {1}{0}",
@@ -1047,7 +1076,7 @@ impl RustVisitor {
         self.enter_block();
         self.add_code("fn lookup(&self, name: &str) -> Option<&dyn Any>");
         self.enter_block();
-        self.add_code("match name ");
+        self.add_code("match name");
         self.enter_block();
         for name in bound_names {
             self.add_code(&format!("\"{0}\" => Some(&self.{0}),", name));
@@ -2378,7 +2407,9 @@ impl AstVisitor for RustVisitor {
 
         self.newline();
         self.newline();
-        self.disable_style_warnings();
+        self.add_code("#[allow(clippy::clone_on_copy)]");
+        self.newline();
+        self.disable_type_style_warnings();
         self.add_code(&format!(
             "impl {} {{",
             self.config.code.frame_event_return_type_name
@@ -2422,7 +2453,7 @@ impl AstVisitor for RustVisitor {
 
         self.newline();
         self.newline();
-        self.disable_style_warnings();
+        self.disable_type_style_warnings();
         self.add_code(&format!(
             "pub struct {}{} {{",
             self.config.code.frame_event_type_name,
@@ -2453,7 +2484,7 @@ impl AstVisitor for RustVisitor {
         self.add_code("}");
         self.newline();
         self.newline();
-        self.disable_style_warnings();
+        self.disable_type_style_warnings();
         self.add_code(&format!(
             "impl{0} {1}{0} {{",
             self.lifetime_type_annotation(),
@@ -2529,7 +2560,7 @@ impl AstVisitor for RustVisitor {
         // define state machine struct
         self.add_code("// System Controller ");
         self.newline();
-        self.disable_style_warnings();
+        self.disable_type_style_warnings();
         self.add_code(&format!(
             "pub struct {}{}",
             self.system_type_name(),
@@ -2652,7 +2683,7 @@ impl AstVisitor for RustVisitor {
         }
 
         // add state machine methods
-        self.disable_style_warnings();
+        self.disable_all_style_warnings();
         self.add_code(&format!(
             "impl{0} {1}{0} {{",
             self.lifetime_type_annotation(),
@@ -2748,7 +2779,7 @@ impl AstVisitor for RustVisitor {
         _interface_block_node: &InterfaceBlockNode,
     ) -> AstVisitorReturnType {
         self.newline();
-        self.disable_style_warnings();
+        self.disable_type_style_warnings();
         self.add_code(&format!(
             "enum {} {{",
             self.config.code.frame_event_message_type_name
@@ -2787,7 +2818,7 @@ impl AstVisitor for RustVisitor {
 
         self.newline();
         self.newline();
-        self.disable_style_warnings();
+        self.disable_type_style_warnings();
         self.add_code(&format!(
             "impl std::fmt::Display for {} {{",
             self.config.code.frame_event_message_type_name
@@ -3059,7 +3090,9 @@ impl AstVisitor for RustVisitor {
         actions_block_node: &ActionsBlockNode,
     ) -> AstVisitorReturnType {
         if self.config.features.generate_action_impl {
-            self.disable_style_warnings();
+            self.add_code("#[allow(clippy::ptr_arg)]");
+            self.newline();
+            self.disable_type_style_warnings();
             self.add_code(&format!(
                 "trait {}{} {{ ",
                 self.action_trait_type_name(),
@@ -3113,9 +3146,7 @@ impl AstVisitor for RustVisitor {
     ) -> AstVisitorReturnType {
         if self.config.features.generate_action_impl {
             self.newline();
-            self.disable_style_warnings();
-            self.add_code("#[allow(unused_variables)]");
-            self.newline();
+            self.disable_all_style_warnings();
             self.add_code(&format!(
                 "impl{0} {1}{0} for {2}{0} {{ ",
                 self.lifetime_type_annotation(),
