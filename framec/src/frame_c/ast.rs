@@ -846,6 +846,7 @@ pub enum ExprStmtType {
     },
 }
 
+#[allow(clippy::large_enum_variant)]
 pub enum StatementType {
     ExpressionStmt {
         expr_stmt_t: ExprStmtType,
@@ -868,6 +869,9 @@ pub enum StatementType {
 
 //-----------------------------------------------------//
 
+// TODO: Adding a `Box` around `StmtT`'s argument would decreases the size of
+// `VarDeclT` variant by nearly 400 bytes. However, this impacts every visitor.
+#[allow(clippy::large_enum_variant)]
 pub enum DeclOrStmtType {
     VarDeclT {
         var_decl_t_rc_ref: Rc<RefCell<VariableDeclNode>>,
