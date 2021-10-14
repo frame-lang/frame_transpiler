@@ -100,7 +100,7 @@ impl Exe {
             if syntactic_parser.had_error() {
                 let mut errors = "Terminating with errors.\n".to_string();
                 errors.push_str(&syntactic_parser.get_errors());
-                let run_error = RunError::new(frame_exitcode::PARSE_ERR, &*errors.clone());
+                let run_error = RunError::new(frame_exitcode::PARSE_ERR, &errors);
                 return Err(run_error);
             }
             arcanum = syntactic_parser.get_arcanum();
@@ -112,7 +112,7 @@ impl Exe {
         if semantic_parser.had_error() {
             let mut errors = "Terminating with errors.\n".to_string();
             errors.push_str(&semantic_parser.get_errors());
-            let run_error = RunError::new(frame_exitcode::PARSE_ERR, &*errors.clone());
+            let run_error = RunError::new(frame_exitcode::PARSE_ERR, &errors);
             return Err(run_error);
         }
 

@@ -1517,7 +1517,7 @@ impl<'a> Parser<'a> {
         self.arcanum.exit_parse_scope(); // state block scope (StateBlockScopeSymbol)
 
         let state_node = StateNode::new(
-            state_name.clone(),
+            state_name,
             params_opt,
             vars_opt,
             calls_opt,
@@ -1919,6 +1919,7 @@ impl<'a> Parser<'a> {
     // statements ->
 
     // TODO: need result and optional
+    #[allow(clippy::vec_init_then_push)] // false positive in 1.51, fixed by 1.55
     fn statements(&mut self) -> Vec<DeclOrStmtType> {
         let mut statements = Vec::new();
 

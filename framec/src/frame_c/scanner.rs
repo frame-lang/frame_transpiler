@@ -663,6 +663,7 @@ impl Scanner {
     }
 }
 
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Copy, Clone, Debug, PartialOrd, PartialEq)]
 pub enum TokenType {
     Eof,
