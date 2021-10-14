@@ -1,9 +1,13 @@
+// TODO fix these issues and disable warning suppression
+#![allow(clippy::branches_sharing_code)]
+#![allow(clippy::single_match)]
+#![allow(clippy::ptr_arg)]
 #![allow(non_snake_case)]
 
-use super::super::ast::*;
-use super::super::scanner::{Token, TokenType};
-use super::super::symbol_table::*;
-use super::super::visitors::*;
+use crate::frame_c::ast::*;
+use crate::frame_c::scanner::{Token, TokenType};
+use crate::frame_c::symbol_table::*;
+use crate::frame_c::visitors::*;
 // use yaml_rust::{YamlLoader, Yaml};
 
 pub struct GdScript32Visitor {

@@ -1,9 +1,12 @@
+// TODO fix these issues and disable warning suppression
+#![allow(clippy::branches_sharing_code)]
+#![allow(clippy::single_match)]
+#![allow(clippy::ptr_arg)]
 #![allow(non_snake_case)]
 
 use crate::frame_c::ast::*;
 use crate::frame_c::config::FrameConfig;
 use crate::frame_c::scanner::{Token, TokenType};
-use crate::frame_c::symbol_table::SymbolType::*;
 use crate::frame_c::symbol_table::*;
 use crate::frame_c::visitors::*;
 
@@ -95,31 +98,31 @@ impl CppVisitor {
 
     fn get_variable_type(&self, symbol_type: &SymbolType) -> String {
         let var_type = match &*symbol_type {
-            DomainVariableSymbolT {
+            SymbolType::DomainVariable {
                 domain_variable_symbol_rcref,
             } => match &domain_variable_symbol_rcref.borrow().var_type {
                 Some(x) => x.get_type_str(),
                 None => String::from("<?>"),
             },
-            StateParamSymbolT {
+            SymbolType::StateParam {
                 state_param_symbol_rcref,
             } => match &state_param_symbol_rcref.borrow().param_type_opt {
                 Some(x) => x.get_type_str(),
                 None => String::from("<?>"),
             },
-            StateVariableSymbolT {
+            SymbolType::StateVariable {
                 state_variable_symbol_rcref,
             } => match &state_variable_symbol_rcref.borrow().var_type {
                 Some(x) => x.get_type_str(),
                 None => String::from("<?>"),
             },
-            EventHandlerParamSymbolT {
+            SymbolType::EventHandlerParam {
                 event_handler_param_symbol_rcref,
             } => match &event_handler_param_symbol_rcref.borrow().param_type_opt {
                 Some(x) => x.get_type_str(),
                 None => String::from("<?>"),
             },
-            EventHandlerVariableSymbolT {
+            SymbolType::EventHandlerVariable {
                 event_handler_variable_symbol_rcref,
             } => match &event_handler_variable_symbol_rcref.borrow().var_type {
                 Some(x) => x.get_type_str(),

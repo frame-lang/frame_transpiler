@@ -301,3 +301,9 @@ impl Exe {
         // println!("{}", graphviz_visitor.code);
     }
 }
+
+impl Default for Exe {
+    fn default() -> Self {
+        Exe::new()
+    }
+}

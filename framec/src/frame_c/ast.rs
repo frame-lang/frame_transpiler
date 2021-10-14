@@ -1,3 +1,4 @@
+#![allow(clippy::enum_variant_names)]
 #![allow(non_snake_case)]
 
 use super::scanner::{Token, TokenType};

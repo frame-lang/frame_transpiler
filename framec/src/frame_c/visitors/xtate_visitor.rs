@@ -1,10 +1,9 @@
 #![allow(non_snake_case)]
 
-use super::super::ast::*;
-use super::super::symbol_table::*;
-use super::super::symbol_table::SymbolType::*;
-use super::super::visitors::*;
-use super::super::scanner::{Token,TokenType};
+use crate::frame_c::ast::*;
+use crate::frame_c::symbol_table::*;
+use crate::frame_c::visitors::*;
+use crate::frame_c::scanner::{Token,TokenType};
 
 struct Config {
     state_var_name:String,
@@ -159,30 +158,30 @@ impl XStateVisitor {
 
     fn get_variable_type(&self,symbol_type:&SymbolType) -> String {
         let var_type = match &*symbol_type {
-            DomainVariableSymbolT { domain_variable_symbol_rcref } => {
+            SymbolType::DomainVariable { domain_variable_symbol_rcref } => {
                 match &domain_variable_symbol_rcref.borrow().var_type {
                     Some(x) => String::from(""),
                     None => String::from(""),
                 }
             },
-            StateParamSymbolT { state_param_symbol_rcref } => {
+            SymbolType::StateParam { state_param_symbol_rcref } => {
                 match &state_param_symbol_rcref.borrow().param_type {
                     Some(x) => String::from(""),
                     None => String::from(""),
                 }
             },
-            StateVariableSymbolT { state_variable_symbol_rcref } => {
+            SymbolType::StateVariable { state_variable_symbol_rcref } => {
                 match &state_variable_symbol_rcref.borrow().var_type {
                     Some(x) => String::from(""),
                     None => String::from(""),
                 }                    },
-            EventHandlerParamSymbolT { event_handler_param_symbol_rcref } => {
+            SymbolType::EventHandlerParam { event_handler_param_symbol_rcref } => {
                 match &event_handler_param_symbol_rcref.borrow().param_type {
                     Some(x) => String::from(""),
                     None => String::from(""),
                 }
             },
-            EventHandlerVariableSymbolT { event_handler_variable_symbol_rcref } => {
+            SymbolType::EventHandlerVariable { event_handler_variable_symbol_rcref } => {
                 match &event_handler_variable_symbol_rcref.borrow().var_type {
                     Some(x) => String::from(""),
                     None => String::from(""),

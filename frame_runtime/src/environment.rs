@@ -41,6 +41,7 @@ impl Environment for EmptyEnvironment {
     }
 }
 
+#[allow(clippy::approx_constant)]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -102,7 +103,7 @@ mod tests {
         assert!(opt_y.is_some());
         let opt_bool = opt_y.unwrap().downcast_ref::<bool>();
         assert!(opt_bool.is_some());
-        assert_eq!(*opt_bool.unwrap(), false);
+        assert!(!*opt_bool.unwrap());
 
         let opt_y = args.lookup("z");
         assert!(opt_y.is_some());

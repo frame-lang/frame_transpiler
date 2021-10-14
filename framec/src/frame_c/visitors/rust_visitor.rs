@@ -110,6 +110,7 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    #[allow(clippy::branches_sharing_code)]
     fn parse_event_name(&self, event_name: &str) -> (Option<String>, String) {
         let split = event_name.split(':');
         let vec: Vec<&str> = split.collect();
@@ -248,7 +249,7 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn format_parameter_list(&mut self, params: &Vec<ParameterNode>) {
+    fn format_parameter_list(&mut self, params: &[ParameterNode]) {
         for param in params {
             self.add_code(&", ".to_string());
             let param_type: String = match &param.param_type_opt {
@@ -265,7 +266,7 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn format_actions_parameter_list(&mut self, params: &Vec<ParameterNode>) {
+    fn format_actions_parameter_list(&mut self, params: &[ParameterNode]) {
         for param in params {
             self.add_code(", ");
             let param_type: String = match &param.param_type_opt {
@@ -282,11 +283,11 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn new_var_name(&self, base_name: &String) -> String {
+    fn new_var_name(&self, base_name: &str) -> String {
         format!("new_{}", base_name)
     }
 
-    fn old_var_name(&self, base_name: &String) -> String {
+    fn old_var_name(&self, base_name: &str) -> String {
         format!("old_{}", base_name)
     }
 
@@ -379,8 +380,8 @@ impl RustVisitor {
 
     /// Format a "type-level" name, e.g. a type, trait, or enum variant.
     /// If Rust naming conventions are followed, these are in CamelCase.
-    fn format_type_name(&self, name: &String) -> String {
-        let mut formatted = name.clone();
+    fn format_type_name(&self, name: &str) -> String {
+        let mut formatted = name.to_string();
         if self.config.features.follow_rust_naming {
             formatted = formatted.to_case(Case::UpperCamel);
         }
@@ -389,8 +390,8 @@ impl RustVisitor {
 
     /// Format a "value-level" name, e.g. a function, method, variable.
     /// If Rust naming conventions are followed, these are  in snake_case.
-    fn format_value_name(&self, name: &String) -> String {
-        let mut formatted = name.clone();
+    fn format_value_name(&self, name: &str) -> String {
+        let mut formatted = name.to_string();
         if self.config.features.follow_rust_naming {
             formatted = formatted.to_case(Case::Snake);
         }
@@ -404,7 +405,7 @@ impl RustVisitor {
     // Type/case names
 
     /// Get an event name in a format usable in Rust types and enum cases.
-    fn format_event_type_name(&self, raw_event_name: &String) -> String {
+    fn format_event_type_name(&self, raw_event_name: &str) -> String {
         let (state_name_opt, event_name) = self.parse_event_name(raw_event_name);
         match state_name_opt {
             Some(state_name) => self.format_state_event_type_name(&state_name, &event_name),
@@ -413,7 +414,7 @@ impl RustVisitor {
     }
 
     /// Get the event type name for a given state+event.
-    fn format_state_event_type_name(&self, state_name: &String, event_name: &String) -> String {
+    fn format_state_event_type_name(&self, state_name: &str, event_name: &str) -> String {
         if event_name.eq(&self.config.code.enter_token) {
             self.format_enter_event_type_name(state_name)
         } else if event_name.eq(&self.config.code.exit_token) {
@@ -463,7 +464,7 @@ impl RustVisitor {
 
     // Method names
 
-    fn format_action_name(&mut self, action_name: &String) -> String {
+    fn format_action_name(&mut self, action_name: &str) -> String {
         format!(
             "{}{}{}",
             self.config.code.action_prefix,
@@ -561,7 +562,7 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_decl_stmts(&mut self, decl_stmt_types: &Vec<DeclOrStmtType>) {
+    fn visit_decl_stmts(&mut self, decl_stmt_types: &[DeclOrStmtType]) {
         for decl_stmt_t in decl_stmt_types.iter() {
             match decl_stmt_t {
                 DeclOrStmtType::VarDeclT { var_decl_t_rc_ref } => {
@@ -701,45 +702,35 @@ impl RustVisitor {
 
         // generate an arg struct for all events that have parameters
         for event_name in self.arcanum.get_event_names() {
-            match self.arcanum.get_event(&event_name, &None) {
-                Some(event_sym) => {
-                    match &event_sym.borrow().params_opt {
-                        Some(params) => {
-                            let event_type_name = self.format_event_type_name(&event_name);
-                            let args_struct_name = self.format_args_struct_name(&event_type_name);
-                            let mut bound_names: Vec<String> = Vec::new();
+            if let Some(event_sym) = self.arcanum.get_event(&event_name, &None) {
+                if let Some(params) = &event_sym.borrow().params_opt {
+                    let event_type_name = self.format_event_type_name(&event_name);
+                    let args_struct_name = self.format_args_struct_name(&event_type_name);
+                    let mut bound_names: Vec<String> = Vec::new();
 
-                            self.disable_type_style_warnings();
-                            self.add_code(&format!("struct {} {{", args_struct_name));
-                            self.indent();
-                            for param in params {
-                                let param_name = self.format_value_name(&param.name);
-                                let param_type = match &param.param_type_opt {
-                                    Some(param_type) => param_type.get_type_str(),
-                                    None => "<?>".to_string(),
-                                };
-                                self.newline();
-                                self.add_code(&format!("{}: {},", param_name, param_type));
-                                bound_names.push(param_name);
-                            }
-                            self.exit_block();
-                            self.newline();
-                            self.newline();
-
-                            // generate the env
-                            if self.config.features.runtime_support {
-                                self.generate_environment_impl(
-                                    false,
-                                    &args_struct_name,
-                                    bound_names,
-                                );
-                            }
-                            has_params.insert(event_type_name);
-                        }
-                        None => {}
+                    self.disable_type_style_warnings();
+                    self.add_code(&format!("struct {} {{", args_struct_name));
+                    self.indent();
+                    for param in params {
+                        let param_name = self.format_value_name(&param.name);
+                        let param_type = match &param.param_type_opt {
+                            Some(param_type) => param_type.get_type_str(),
+                            None => "<?>".to_string(),
+                        };
+                        self.newline();
+                        self.add_code(&format!("{}: {},", param_name, param_type));
+                        bound_names.push(param_name);
                     }
+                    self.exit_block();
+                    self.newline();
+                    self.newline();
+
+                    // generate the env
+                    if self.config.features.runtime_support {
+                        self.generate_environment_impl(false, &args_struct_name, bound_names);
+                    }
+                    has_params.insert(event_type_name);
                 }
-                None => {}
             }
         }
 
@@ -1737,7 +1728,7 @@ impl RustVisitor {
     /// arguments were passed.
     fn generate_arguments(
         &mut self,
-        arg_struct_name: &String,
+        arg_struct_name: &str,
         param_names: Vec<&String>,
         arg_exprs: &ExprListNode,
         arg_code: &mut String,
@@ -2580,8 +2571,8 @@ impl AstVisitor for RustVisitor {
 
         // generate state stack variable
         if self.generate_state_stack {
+            self.newline();
             if self.generate_state_context {
-                self.newline();
                 self.add_code(&format!(
                     "{}: Vec<({}, Rc<{}>)>,",
                     self.config.code.state_stack_var_name,
@@ -2589,7 +2580,6 @@ impl AstVisitor for RustVisitor {
                     self.config.code.state_context_type_name
                 ));
             } else {
-                self.newline();
                 self.add_code(&format!(
                     "{}: Vec<{}>,",
                     self.config.code.state_stack_var_name,
@@ -2687,12 +2677,9 @@ impl AstVisitor for RustVisitor {
 
         // First state name needed for machinery.
         // Don't generate if there isn't at least one state.
-        match system_node.get_first_state() {
-            Some(x) => {
-                self.first_state_name = x.borrow().name.clone();
-                self.has_states = true;
-            }
-            None => {}
+        if let Some(first_state) = system_node.get_first_state() {
+            self.first_state_name = first_state.borrow().name.clone();
+            self.has_states = true;
         }
 
         if self.has_states {
@@ -3325,20 +3312,17 @@ impl AstVisitor for RustVisitor {
         self.generate_comment(evt_handler_node.line);
         self.indent();
 
-        match &evt_handler_node.msg_t {
-            MessageType::CustomMessage { .. } => {
-                // Note: this is a bit convoluted as we cant use self.add_code() inside the
-                // if statements as it is a double borrow (sigh).
+        if let MessageType::CustomMessage { .. } = &evt_handler_node.msg_t {
+            // Note: this is a bit convoluted as we cant use self.add_code() inside the
+            // if statements as it is a double borrow (sigh).
 
-                let params_code: Vec<String> = Vec::new();
+            let params_code: Vec<String> = Vec::new();
 
-                // NOW add the code. Sheesh.
-                for param_code in params_code {
-                    self.newline();
-                    self.add_code(&param_code);
-                }
+            // NOW add the code. Sheesh.
+            for param_code in params_code {
+                self.newline();
+                self.add_code(&param_code);
             }
-            _ => {}
         }
 
         // Generate statements

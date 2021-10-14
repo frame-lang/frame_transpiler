@@ -1,12 +1,14 @@
+// TODO fix these issues and disable warning suppression
+#![allow(clippy::branches_sharing_code)]
+#![allow(clippy::single_match)]
+#![allow(clippy::ptr_arg)]
 #![allow(non_snake_case)]
 
-use super::super::ast::*;
-use super::super::symbol_table::*;
-// use super::super::symbol_table::SymbolType::*;
-use super::super::scanner::{Token, TokenType};
-use super::super::visitors::*;
+use crate::frame_c::ast::*;
+use crate::frame_c::scanner::{Token, TokenType};
+use crate::frame_c::symbol_table::*;
 use crate::frame_c::utils::SystemHierarchy;
-// use yaml_rust::{YamlLoader, Yaml};
+use crate::frame_c::visitors::*;
 
 pub struct PlantUmlVisitor {
     compiler_version: String,
