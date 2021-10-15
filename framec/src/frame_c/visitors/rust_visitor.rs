@@ -110,6 +110,7 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    #[allow(unknown_lints)]
     #[allow(clippy::branches_sharing_code)]
     fn parse_event_name(&self, event_name: &str) -> (Option<String>, String) {
         let split = event_name.split(':');

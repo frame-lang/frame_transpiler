@@ -1,5 +1,3 @@
-#![allow(non_snake_case)]
-
 use crate::frame_c::ast::*;
 use crate::frame_c::scanner::Token;
 use crate::frame_c::symbol_table::*;

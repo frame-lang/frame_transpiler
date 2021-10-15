@@ -84,4 +84,3 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: -- --allow clippy::unnecessary_wraps --allow unknown_lints

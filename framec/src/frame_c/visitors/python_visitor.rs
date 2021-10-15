@@ -1,4 +1,5 @@
 // TODO fix these issues and disable warning suppression
+#![allow(unknown_lints)]
 #![allow(clippy::branches_sharing_code)]
 #![allow(clippy::single_match)]
 #![allow(clippy::ptr_arg)]

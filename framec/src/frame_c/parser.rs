@@ -1,3 +1,5 @@
+#![allow(clippy::unnecessary_wraps)]
+
 use super::ast::AssignmentExprNode;
 use super::ast::DeclOrStmtType;
 use super::ast::ExprStmtType::*;
