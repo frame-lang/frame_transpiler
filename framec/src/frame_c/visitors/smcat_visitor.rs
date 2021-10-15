@@ -1,10 +1,8 @@
-#![allow(non_snake_case)]
-
-use super::super::ast::*;
-use super::super::scanner::Token;
-use super::super::symbol_table::*;
-use super::super::visitors::*;
+use crate::frame_c::ast::*;
+use crate::frame_c::scanner::Token;
+use crate::frame_c::symbol_table::*;
 use crate::frame_c::utils::SystemHierarchy;
+use crate::frame_c::visitors::*;
 
 pub struct SmcatVisitor {
     _compiler_version: String,
@@ -78,7 +76,7 @@ impl SmcatVisitor {
         }
 
         for child_node_name in &node.children {
-            let child_node = self.system_hierarchy.get_node(&child_node_name).unwrap();
+            let child_node = self.system_hierarchy.get_node(child_node_name).unwrap();
             self.generate_states(&child_node.name, false, actual_indent, output);
         }
 

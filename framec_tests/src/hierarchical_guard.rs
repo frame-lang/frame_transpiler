@@ -1,5 +1,7 @@
 //! Test guarded transitions in hierarchical state machines.
 
+#![allow(clippy::nonminimal_bool)]
+
 type Log = Vec<String>;
 include!(concat!(env!("OUT_DIR"), "/", "hierarchical_guard.rs"));
 

@@ -1,3 +1,5 @@
+#![allow(clippy::unnecessary_wraps)]
+
 use super::ast::AssignmentExprNode;
 use super::ast::DeclOrStmtType;
 use super::ast::ExprStmtType::*;
@@ -6,9 +8,7 @@ use super::ast::ExprType::*;
 use super::ast::MessageType::{AnyMessage, CustomMessage};
 use super::ast::TerminatorType::{Continue, Return};
 use super::ast::*;
-use super::scanner::TokenType::*;
 use super::scanner::*;
-use super::symbol_table::SymbolType::*;
 use super::symbol_table::*;
 use crate::frame_c::utils::SystemHierarchy;
 use downcast_rs::__std::cell::RefCell;
@@ -82,7 +82,7 @@ impl fmt::Display for ParseError {
 // }
 
 pub struct Parser<'a> {
-    tokens: &'a Vec<Token>,
+    tokens: &'a [Token],
     comments: &'a mut Vec<Token>,
     current: usize,
     current_token: String,
@@ -109,7 +109,7 @@ pub struct Parser<'a> {
 
 impl<'a> Parser<'a> {
     pub(crate) fn new(
-        tokens: &'a Vec<Token>,
+        tokens: &'a [Token],
         comments: &'a mut Vec<Token>,
         is_building_symbol_table: bool,
         arcanum: Arcanum,
@@ -142,7 +142,7 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    pub fn parse<'b>(&'b mut self) -> SystemNode {
+    pub fn parse(&mut self) -> SystemNode {
         self.system()
     }
 
@@ -174,14 +174,14 @@ impl<'a> Parser<'a> {
 
     // Helper functions
 
-    fn match_token(&mut self, token_types: &Vec<TokenType>) -> bool {
+    fn match_token(&mut self, token_types: &[TokenType]) -> bool {
         // cache off comments
-        while self.check(SingleLineCommentTok) || self.check(MultiLineCommentTok) {
+        while self.check(TokenType::SingleLineComment) || self.check(TokenType::MultiLineComment) {
             self.comments.push(self.peek().clone());
             self.advance();
         }
 
-        if self.check(ErrorTok) {
+        if self.check(TokenType::Error) {
             self.error_at_current("Unexpected token.");
             self.advance();
             return false;
@@ -208,7 +208,7 @@ impl<'a> Parser<'a> {
             self.current += 1;
             self.current_tok_ref = &self.tokens[self.current];
             self.current_token = self.peek().lexeme.clone();
-            self.processed_tokens.push_str(" ");
+            self.processed_tokens.push(' ');
             self.processed_tokens.push_str(&self.peek().lexeme.clone());
             //            println!("Current token = {:?}",self.peek());
         }
@@ -224,16 +224,13 @@ impl<'a> Parser<'a> {
             return true;
         }
 
-        return false;
+        false
     }
 
     /* --------------------------------------------------------------------- */
 
     fn is_at_end(&self) -> bool {
-        match self.peek().token_type {
-            TokenType::EofTok => true,
-            _ => false,
-        }
+        matches!(self.peek().token_type, TokenType::Eof)
     }
 
     /* --------------------------------------------------------------------- */
@@ -285,8 +282,8 @@ impl<'a> Parser<'a> {
         let mut error_msg = format!("[line {}] Error", token.line);
 
         match token.token_type {
-            TokenType::EofTok => error_msg.push_str(&format!(" at end")),
-            TokenType::ErrorTok => error_msg.push_str(&format!(" at '{}'", token.lexeme)),
+            TokenType::Eof => error_msg.push_str(&" at end".to_string()),
+            TokenType::Error => error_msg.push_str(&format!(" at '{}'", token.lexeme)),
             _ => error_msg.push_str(&format!(" at '{}'", token.lexeme)),
         }
 
@@ -300,7 +297,7 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    fn synchronize(&mut self, sync_tokens: &Vec<TokenType>) -> bool {
+    fn synchronize(&mut self, sync_tokens: &[TokenType]) -> bool {
         self.panic_mode = false;
 
         if self.is_at_end() {
@@ -314,7 +311,7 @@ impl<'a> Parser<'a> {
 
         self.last_sync_token_idx = self.current;
 
-        while self.peek().token_type != TokenType::EofTok {
+        while self.peek().token_type != TokenType::Eof {
             for sync_token in sync_tokens {
                 if *sync_token == self.peek().token_type {
                     return true;
@@ -329,14 +326,14 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    fn follows(&self, token: &Token, follows_vec: &Vec<TokenType>) -> bool {
+    fn follows(&self, token: &Token, follows_vec: &[TokenType]) -> bool {
         for follows_token_type in follows_vec {
             if *follows_token_type == token.token_type {
                 return true;
             }
         }
 
-        let vec_comments = &vec![SingleLineCommentTok, MultiLineCommentTok];
+        let vec_comments = &vec![TokenType::SingleLineComment, TokenType::MultiLineComment];
         for comment_token_type in vec_comments {
             if *comment_token_type == token.token_type {
                 return true;
@@ -355,7 +352,7 @@ impl<'a> Parser<'a> {
         let mut actions_block_node_opt = Option::None;
         let mut domain_block_node_opt = Option::None;
 
-        if self.match_token(&vec![EofTok]) {
+        if self.match_token(&[TokenType::Eof]) {
             self.error_at_current("Empty system.");
             return SystemNode::new(
                 String::from("error"),
@@ -370,14 +367,17 @@ impl<'a> Parser<'a> {
         }
 
         // Parse free-form header ```whatever```
-        if self.match_token(&vec![ThreeTicksTok]) {
-            while self.match_token(&vec![SuperStringTok]) {
+        if self.match_token(&[TokenType::ThreeTicks]) {
+            while self.match_token(&[TokenType::SuperString]) {
                 let tok = self.previous();
                 header.push_str(&*tok.lexeme.clone());
             }
-            if let Err(_) = self.consume(TokenType::ThreeTicksTok, "Expected '```'.") {
+            if self
+                .consume(TokenType::ThreeTicks, "Expected '```'.")
+                .is_err()
+            {
                 self.error_at_current("Expected closing ```.");
-                let sync_tokens = &vec![SystemTok];
+                let sync_tokens = &vec![TokenType::System];
                 self.synchronize(sync_tokens);
             }
         }
@@ -388,19 +388,19 @@ impl<'a> Parser<'a> {
         };
 
         // TODO: Error handling
-        if !self.match_token(&vec![SystemTok]) {
+        if !self.match_token(&[TokenType::System]) {
             self.error_at_current("Expected #.");
-            let sync_tokens = &vec![IdentifierTok];
+            let sync_tokens = &vec![TokenType::Identifier];
             self.synchronize(sync_tokens);
         }
-        if !self.match_token(&vec![IdentifierTok]) {
+        if !self.match_token(&[TokenType::Identifier]) {
             self.error_at_current("Expected system identifer.");
             let sync_tokens = &vec![
-                InterfaceBlockTok,
-                MachineBlockTok,
-                ActionsBlockTok,
-                DomainBlockTok,
-                SystemEndTok,
+                TokenType::InterfaceBlock,
+                TokenType::MachineBlock,
+                TokenType::ActionsBlock,
+                TokenType::DomainBlock,
+                TokenType::SystemEnd,
             ];
             self.synchronize(sync_tokens);
         }
@@ -416,12 +416,12 @@ impl<'a> Parser<'a> {
             let x = Rc::new(RefCell::new(system_symbol));
             // TODO: it would be better to find some way to bake the identifier scope into the SystemScope type
             self.arcanum
-                .enter_scope(ParseScopeType::SystemScope { system_symbol: x });
+                .enter_scope(ParseScopeType::System { system_symbol: x });
         } else {
             self.arcanum.set_parse_scope(&system_name);
         }
 
-        if self.match_token(&vec![InterfaceBlockTok]) {
+        if self.match_token(&[TokenType::InterfaceBlock]) {
             self.arcanum
                 .debug_print_current_symbols(self.arcanum.get_current_symtab());
             let x = self.interface_block();
@@ -430,7 +430,7 @@ impl<'a> Parser<'a> {
                 .debug_print_current_symbols(self.arcanum.get_current_symtab());
         }
 
-        if self.match_token(&vec![MachineBlockTok]) {
+        if self.match_token(&[TokenType::MachineBlock]) {
             self.arcanum
                 .debug_print_current_symbols(self.arcanum.get_current_symtab());
             machine_block_node_opt = Option::Some(self.machine_block());
@@ -438,11 +438,11 @@ impl<'a> Parser<'a> {
                 .debug_print_current_symbols(self.arcanum.get_current_symtab());
         }
 
-        if self.match_token(&vec![ActionsBlockTok]) {
+        if self.match_token(&[TokenType::ActionsBlock]) {
             actions_block_node_opt = Option::Some(self.actions_block());
         }
 
-        if self.match_token(&vec![DomainBlockTok]) {
+        if self.match_token(&[TokenType::DomainBlock]) {
             self.arcanum
                 .debug_print_current_symbols(self.arcanum.get_current_symtab());
             domain_block_node_opt = Option::Some(self.domain_block());
@@ -450,7 +450,7 @@ impl<'a> Parser<'a> {
                 .debug_print_current_symbols(self.arcanum.get_current_symtab());
         }
 
-        if !self.match_token(&vec![SystemEndTok]) {
+        if !self.match_token(&[TokenType::SystemEnd]) {
             self.error_at_current("Expected ##.");
         }
 
@@ -476,13 +476,13 @@ impl<'a> Parser<'a> {
         let mut attributes: HashMap<String, AttributeNode> = HashMap::new();
 
         loop {
-            if self.match_token(&vec![InnerAttributeTok]) {
+            if self.match_token(&[TokenType::InnerAttribute]) {
                 // not supported yet
                 let parse_error = ParseError::new(
                     "Found '#![' token - inner attribute syntax not currently supported.",
                 );
                 return Err(parse_error);
-            } else if self.match_token(&vec![OuterAttributeTok]) {
+            } else if self.match_token(&[TokenType::OuterAttribute]) {
                 let attribute_node = match self.attribute() {
                     Ok(attribute_node) => attribute_node,
                     Err(err) => {
@@ -490,7 +490,7 @@ impl<'a> Parser<'a> {
                     }
                 };
                 attributes.insert(attribute_node.name.clone(), attribute_node);
-                if let Err(parse_error) = self.consume(RBracketTok, "Expected ']'.") {
+                if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
                     return Err(parse_error);
                 }
             } else {
@@ -498,7 +498,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        if attributes.len() == 0 {
+        if attributes.is_empty() {
             Ok(None)
         } else {
             Ok(Some(attributes))
@@ -510,32 +510,32 @@ impl<'a> Parser<'a> {
     fn attribute(&mut self) -> Result<AttributeNode, ParseError> {
         // attribute name: identifier (identifier | : | .)*
         let mut name;
-        if self.match_token(&vec![IdentifierTok]) {
+        if self.match_token(&[TokenType::Identifier]) {
             name = self.previous().lexeme.clone();
         } else {
             self.error_at_current("Expected attribute name.");
             let parse_error = ParseError::new("TODO");
             return Err(parse_error);
         }
-        while self.match_token(&vec![IdentifierTok, ColonTok, DotTok]) {
+        while self.match_token(&[TokenType::Identifier, TokenType::Colon, TokenType::Dot]) {
             name.push_str(&self.previous().lexeme.clone());
         }
 
         // equals
-        if let Err(err) = self.consume(TokenType::EqualsTok, "Expected '='") {
+        if let Err(err) = self.consume(TokenType::Equals, "Expected '='") {
             return Err(err);
         }
 
         // attribute value: string
         let value;
-        if self.match_token(&vec![StringTok]) {
+        if self.match_token(&[TokenType::String]) {
             value = self.previous().lexeme.clone();
         } else {
             self.error_at_current("Expected attribute value.");
             let parse_error = ParseError::new("TODO");
             return Err(parse_error);
         }
-        return Ok(AttributeNode::new(name, value));
+        Ok(AttributeNode::new(name, value))
     }
 
     /* --------------------------------------------------------------------- */
@@ -543,10 +543,9 @@ impl<'a> Parser<'a> {
     fn interface_block(&mut self) -> InterfaceBlockNode {
         if self.is_building_symbol_table {
             let interface_symbol = Rc::new(RefCell::new(InterfaceBlockScopeSymbol::new()));
-            self.arcanum
-                .enter_scope(ParseScopeType::InterfaceBlockScope {
-                    interface_block_scope_symbol_rcref: interface_symbol,
-                });
+            self.arcanum.enter_scope(ParseScopeType::InterfaceBlock {
+                interface_block_scope_symbol_rcref: interface_symbol,
+            });
         } else {
             self.arcanum
                 .set_parse_scope(InterfaceBlockScopeSymbol::scope_name());
@@ -560,18 +559,18 @@ impl<'a> Parser<'a> {
         // NOTE: this loop peeks() ahead and then interface_method() consumes
         // the identifier. Not sure if this is the best way.
 
-        while self.match_token(&vec![TokenType::IdentifierTok]) {
+        while self.match_token(&[TokenType::Identifier]) {
             match self.interface_method() {
                 Ok(interface_method_node) => {
                     interface_methods.push(interface_method_node);
                 }
                 Err(_parse_error) => {
                     let sync_tokens = &vec![
-                        IdentifierTok,
-                        MachineBlockTok,
-                        ActionsBlockTok,
-                        DomainBlockTok,
-                        SystemEndTok,
+                        TokenType::Identifier,
+                        TokenType::MachineBlock,
+                        TokenType::ActionsBlock,
+                        TokenType::DomainBlock,
+                        TokenType::SystemEnd,
                     ];
                     self.synchronize(sync_tokens);
                 }
@@ -597,7 +596,7 @@ impl<'a> Parser<'a> {
         let mut return_type_opt: Option<TypeNode> = Option::None;
         let mut alias_opt: Option<MessageNode> = Option::None;
 
-        if self.match_token(&vec![TokenType::LBracketTok]) {
+        if self.match_token(&[TokenType::LBracket]) {
             match self.parameters() {
                 Ok(Some(parameters)) => params_opt = Some(parameters),
                 Ok(None) => return Err(ParseError::new("TODO")),
@@ -606,7 +605,7 @@ impl<'a> Parser<'a> {
         }
 
         // Parse return type
-        if self.match_token(&vec![TokenType::ColonTok]) {
+        if self.match_token(&[TokenType::Colon]) {
             match self.type_decl() {
                 Ok(type_node) => return_type_opt = Some(type_node),
                 Err(parse_error) => return Err(parse_error),
@@ -614,10 +613,10 @@ impl<'a> Parser<'a> {
         }
 
         // Parse alias
-        if self.match_token(&vec![TokenType::AtTok]) {
-            if let Err(_) = self.consume(TokenType::LParenTok, "Expected '('") {
+        if self.match_token(&[TokenType::At]) {
+            if self.consume(TokenType::LParen, "Expected '('").is_err() {
                 self.error_at_current("Expected '('.");
-                let sync_tokens = &vec![PipeTok];
+                let sync_tokens = &vec![TokenType::Pipe];
                 self.synchronize(sync_tokens);
             }
 
@@ -626,24 +625,24 @@ impl<'a> Parser<'a> {
                 Ok(AnyMessage { .. }) => {
                     self.error_at_previous("Expected message, found '||*");
                     let sync_tokens = &vec![
-                        RParenTok,
-                        MachineBlockTok,
-                        ActionsBlockTok,
-                        DomainBlockTok,
-                        SystemEndTok,
+                        TokenType::RParen,
+                        TokenType::MachineBlock,
+                        TokenType::ActionsBlock,
+                        TokenType::DomainBlock,
+                        TokenType::SystemEnd,
                     ];
                     self.synchronize(sync_tokens);
                 }
                 Err(err) => return Err(err),
             }
 
-            if let Err(_) = self.consume(TokenType::RParenTok, "Expected ')'") {
+            if self.consume(TokenType::RParen, "Expected ')'").is_err() {
                 let sync_tokens = &vec![
-                    IdentifierTok,
-                    MachineBlockTok,
-                    ActionsBlockTok,
-                    DomainBlockTok,
-                    SystemEndTok,
+                    TokenType::Identifier,
+                    TokenType::MachineBlock,
+                    TokenType::ActionsBlock,
+                    TokenType::DomainBlock,
+                    TokenType::SystemEnd,
                 ];
                 self.synchronize(sync_tokens);
             }
@@ -705,14 +704,14 @@ impl<'a> Parser<'a> {
         let interface_method_rcref = Rc::new(RefCell::new(interface_method_node));
 
         if self.is_building_symbol_table {
-            let mut interface_method_symbol = InterfaceMethodSymbol::new(name.clone());
+            let mut interface_method_symbol = InterfaceMethodSymbol::new(name);
             // TODO: note what is being done. We are linking to the AST node generated in the syntax pass.
             // This AST tree is otherwise disposed of. This may be fine but feels wrong. Alternatively
             // we could copy this information out of the node and into the symbol.
             interface_method_symbol.set_ast_node(Rc::clone(&interface_method_rcref));
             let interface_method_symbol_rcref = Rc::new(RefCell::new(interface_method_symbol));
-            let interface_method_symbol_t = InterfaceMethodSymbolT {
-                interface_method_symbol_rcref: interface_method_symbol_rcref.clone(),
+            let interface_method_symbol_t = SymbolType::InterfaceMethod {
+                interface_method_symbol_rcref,
             };
             // TODO: just insert into arcanum directly
             self.arcanum
@@ -731,15 +730,15 @@ impl<'a> Parser<'a> {
     fn type_decl(&mut self) -> Result<TypeNode, ParseError> {
         let mut is_reference = false;
 
-        if self.match_token(&vec![TokenType::SuperStringTok]) {
+        if self.match_token(&[TokenType::SuperString]) {
             let id = self.previous();
             let type_str = id.lexeme.clone();
             Ok(TypeNode::new(true, false, type_str))
         } else {
-            if self.match_token(&vec![TokenType::AndTok]) {
+            if self.match_token(&[TokenType::And]) {
                 is_reference = true
             }
-            if !self.match_token(&vec![TokenType::IdentifierTok]) {
+            if !self.match_token(&[TokenType::Identifier]) {
                 self.error_at_current("Expected return type name.");
                 return Err(ParseError::new("TODO"));
             }
@@ -758,33 +757,38 @@ impl<'a> Parser<'a> {
     fn message(&mut self) -> Result<MessageType, ParseError> {
         let message_node;
 
-        if self.peek().token_type == AtTok {
-            if let Err(parse_error) = self.consume(AtTok, "Expected '@'.") {
+        if self.peek().token_type == TokenType::At {
+            if let Err(parse_error) = self.consume(TokenType::At, "Expected '@'.") {
                 return Err(parse_error);
             }
         }
-        if self.match_token(&vec![AnyMessageTok]) {
+        if self.match_token(&[TokenType::AnyMessage]) {
             let tok = self.previous();
 
             return Ok(MessageType::AnyMessage { line: tok.line });
         }
-        if !self.match_token(&vec![TokenType::PipeTok]) {
+        if !self.match_token(&[TokenType::Pipe]) {
             self.error_at_previous("Expected '|'.");
             return Err(ParseError::new("TODO"));
         }
 
         let tt = self.peek().token_type;
         match tt {
-            IdentifierTok | StringTok | GTTok | GTx2Tok | GTx3Tok | LTTok | LTx2Tok | LTx3Tok => {
-                message_node = self.create_message_node(tt)
-            }
+            TokenType::Identifier
+            | TokenType::String
+            | TokenType::GT
+            | TokenType::GTx2
+            | TokenType::GTx3
+            | TokenType::LT
+            | TokenType::LTx2
+            | TokenType::LTx3 => message_node = self.create_message_node(tt),
             _ => {
                 self.error_at_current("Expected '|'");
                 return Err(ParseError::new("TODO"));
             }
         }
 
-        if let Err(parse_error) = self.consume(TokenType::PipeTok, "Expected '|'.") {
+        if let Err(parse_error) = self.consume(TokenType::Pipe, "Expected '|'.") {
             return Err(parse_error);
         }
 
@@ -794,7 +798,7 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     fn create_message_node(&mut self, token_type: TokenType) -> MessageNode {
-        self.match_token(&vec![token_type]);
+        self.match_token(&[token_type]);
         let id = self.previous();
         let name = id.lexeme.clone();
 
@@ -810,7 +814,7 @@ impl<'a> Parser<'a> {
     fn parameters(&mut self) -> Result<Option<Vec<ParameterNode>>, ParseError> {
         let mut parameters: Vec<ParameterNode> = Vec::new();
 
-        while !self.match_token(&vec![TokenType::RBracketTok]) {
+        while !self.match_token(&[TokenType::RBracket]) {
             match self.parameter() {
                 Ok(parameter_opt) => match parameter_opt {
                     Some(parameter_node) => {
@@ -822,27 +826,30 @@ impl<'a> Parser<'a> {
                 },
                 Err(_parse_error) => {
                     let sync_tokens = &vec![
-                        IdentifierTok,
-                        ColonTok,
-                        RBracketTok,
-                        MachineBlockTok,
-                        ActionsBlockTok,
-                        DomainBlockTok,
-                        SystemEndTok,
+                        TokenType::Identifier,
+                        TokenType::Colon,
+                        TokenType::RBracket,
+                        TokenType::MachineBlock,
+                        TokenType::ActionsBlock,
+                        TokenType::DomainBlock,
+                        TokenType::SystemEnd,
                     ];
                     self.synchronize(sync_tokens);
-                    if !self.follows(self.peek(), &vec![IdentifierTok, ColonTok, RBracketTok]) {
+                    if !self.follows(
+                        self.peek(),
+                        &[TokenType::Identifier, TokenType::Colon, TokenType::RBracket],
+                    ) {
                         break;
                     }
                 }
             }
         }
 
-        if parameters.len() > 0 {
+        if !parameters.is_empty() {
             return Ok(Some(parameters));
         }
 
-        return Ok(None);
+        Ok(None)
     }
 
     /* --------------------------------------------------------------------- */
@@ -850,7 +857,7 @@ impl<'a> Parser<'a> {
     // parameter -> param_name ( ':' param_type )?
 
     fn parameter(&mut self) -> Result<Option<ParameterNode>, ParseError> {
-        if !self.match_token(&vec![TokenType::IdentifierTok]) {
+        if !self.match_token(&[TokenType::Identifier]) {
             self.error_at_current("Expected parameter name.");
             return Err(ParseError::new("TODO"));
         }
@@ -860,7 +867,7 @@ impl<'a> Parser<'a> {
 
         let mut param_type_opt: Option<TypeNode> = None;
 
-        if self.match_token(&vec![TokenType::ColonTok]) {
+        if self.match_token(&[TokenType::Colon]) {
             match self.type_decl() {
                 Ok(type_node) => param_type_opt = Some(type_node),
                 Err(parse_error) => return Err(parse_error),
@@ -882,7 +889,7 @@ impl<'a> Parser<'a> {
     fn machine_block(&mut self) -> MachineBlockNode {
         if self.is_building_symbol_table {
             let machine_symbol = Rc::new(RefCell::new(MachineBlockScopeSymbol::new()));
-            self.arcanum.enter_scope(ParseScopeType::MachineBlockScope {
+            self.arcanum.enter_scope(ParseScopeType::MachineBlock {
                 machine_scope_symbol_rcref: machine_symbol,
             });
         } else {
@@ -892,18 +899,22 @@ impl<'a> Parser<'a> {
 
         let mut states = Vec::new();
 
-        while self.match_token(&vec![TokenType::StateTok]) {
+        while self.match_token(&[TokenType::State]) {
             match self.state() {
                 Ok(state_rcref) => {
                     states.push(state_rcref);
                 }
                 Err(_) => {
                     self.error_at_current("Error parsing Machine Block.");
-                    let sync_tokens = &vec![StateTok];
+                    let sync_tokens = &vec![TokenType::State];
                     if self.synchronize(sync_tokens) {
                         continue;
                     } else {
-                        let sync_tokens = &vec![ActionsBlockTok, DomainBlockTok, SystemEndTok];
+                        let sync_tokens = &vec![
+                            TokenType::ActionsBlock,
+                            TokenType::DomainBlock,
+                            TokenType::SystemEnd,
+                        ];
                         self.synchronize(sync_tokens);
                         break;
                     }
@@ -922,17 +933,16 @@ impl<'a> Parser<'a> {
     fn actions_block(&mut self) -> ActionsBlockNode {
         if self.is_building_symbol_table {
             let actions_block_scope_symbol = Rc::new(RefCell::new(ActionsBlockScopeSymbol::new()));
-            self.arcanum.enter_scope(ParseScopeType::ActionsBlockScope {
+            self.arcanum.enter_scope(ParseScopeType::ActionsBlock {
                 actions_block_scope_symbol_rcref: actions_block_scope_symbol,
             });
         }
 
         let mut actions = Vec::new();
 
-        while self.match_token(&vec![IdentifierTok]) {
-            match self.action_decl() {
-                Ok(action_decl_node) => actions.push(action_decl_node),
-                Err(_) => {}
+        while self.match_token(&[TokenType::Identifier]) {
+            if let Ok(action_decl_node) = self.action_decl() {
+                actions.push(action_decl_node);
             }
         }
 
@@ -950,7 +960,7 @@ impl<'a> Parser<'a> {
 
         let mut params: Option<Vec<ParameterNode>> = Option::None;
 
-        if self.match_token(&vec![LBracketTok]) {
+        if self.match_token(&[TokenType::LBracket]) {
             params = match self.parameters() {
                 Ok(Some(parameters)) => Some(parameters),
                 Ok(None) => None,
@@ -960,7 +970,7 @@ impl<'a> Parser<'a> {
 
         let mut type_opt: Option<TypeNode> = None;
 
-        if self.match_token(&vec![ColonTok]) {
+        if self.match_token(&[TokenType::Colon]) {
             match self.type_decl() {
                 Ok(type_node) => type_opt = Some(type_node),
                 Err(parse_error) => return Err(parse_error),
@@ -969,13 +979,13 @@ impl<'a> Parser<'a> {
 
         let mut code_opt: Option<String> = None;
 
-        if self.match_token(&vec![OpenBraceTok]) {
-            if self.match_token(&vec![SuperStringTok]) {
+        if self.match_token(&[TokenType::OpenBrace]) {
+            if self.match_token(&[TokenType::SuperString]) {
                 let token = self.previous();
                 code_opt = Some(token.lexeme.clone());
             }
 
-            if let Err(parse_error) = self.consume(CloseBraceTok, "Expected '}'.") {
+            if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
                 return Err(parse_error);
             }
         }
@@ -984,14 +994,14 @@ impl<'a> Parser<'a> {
         let action_decl_rcref = Rc::new(RefCell::new(action_decl_node));
 
         if self.is_building_symbol_table {
-            let s = action_name.clone();
+            let s = action_name;
             let mut action_decl_symbol = ActionDeclSymbol::new(s);
             // TODO: note what is being done. We are linking to the AST node generated in the syntax pass.
             // This AST tree is otherwise disposed of. This may be fine but feels wrong. Alternatively
             // we could copy this information out of the node and into the symbol.
             action_decl_symbol.set_ast_node(Rc::clone(&action_decl_rcref));
             let action_decl_symbol_rcref = Rc::new(RefCell::new(action_decl_symbol));
-            let action_decl_symbol_t = ActionDeclSymbolT {
+            let action_decl_symbol_t = SymbolType::ActionDecl {
                 action_decl_symbol_rcref,
             };
             // TODO: just insert into arcanum directly
@@ -1010,27 +1020,25 @@ impl<'a> Parser<'a> {
 
     // TODO: Return result
     fn domain_block(&mut self) -> DomainBlockNode {
+        self.arcanum
+            .debug_print_current_symbols(self.arcanum.get_current_symtab());
         if self.is_building_symbol_table {
-            self.arcanum
-                .debug_print_current_symbols(self.arcanum.get_current_symtab());
             let domain_symbol = Rc::new(RefCell::new(DomainBlockScopeSymbol::new()));
-            self.arcanum.enter_scope(ParseScopeType::DomainBlockScope {
+            self.arcanum.enter_scope(ParseScopeType::DomainBlock {
                 domain_block_scope_symbol_rcref: domain_symbol,
             });
         } else {
-            self.arcanum
-                .debug_print_current_symbols(self.arcanum.get_current_symtab());
             self.arcanum
                 .set_parse_scope(DomainBlockScopeSymbol::scope_name());
         }
 
         let mut domain_variables = Vec::new();
 
-        while self.match_token(&vec![VarTok, ConstTok]) {
+        while self.match_token(&[TokenType::Var, TokenType::Const]) {
             match self.variable_decl(IdentifierDeclScope::DomainBlock) {
                 Ok(domain_variable_node) => domain_variables.push(domain_variable_node),
                 Err(_parse_err) => {
-                    let sync_tokens = &vec![VarTok, ConstTok, SystemEndTok];
+                    let sync_tokens = &vec![TokenType::Var, TokenType::Const, TokenType::SystemEnd];
                     self.synchronize(sync_tokens);
                 }
             }
@@ -1050,12 +1058,12 @@ impl<'a> Parser<'a> {
         identifier_decl_scope: IdentifierDeclScope,
     ) -> Result<Rc<RefCell<VariableDeclNode>>, ParseError> {
         let is_constant = match self.previous().token_type {
-            VarTok => false,
-            ConstTok => true,
+            TokenType::Var => false,
+            TokenType::Const => true,
             _ => return Err(ParseError::new("TODO")),
         };
 
-        let name = match self.match_token(&vec![IdentifierTok]) {
+        let name = match self.match_token(&[TokenType::Identifier]) {
             false => {
                 self.error_at_current("Expected declaration identifier");
                 return Err(ParseError::new("TODO"));
@@ -1065,7 +1073,7 @@ impl<'a> Parser<'a> {
 
         let mut type_node_opt: Option<TypeNode> = None;
 
-        if self.match_token(&vec![ColonTok]) {
+        if self.match_token(&[TokenType::Colon]) {
             match self.type_decl() {
                 Ok(type_node) => type_node_opt = Some(type_node),
                 Err(parse_error) => return Err(parse_error),
@@ -1074,7 +1082,7 @@ impl<'a> Parser<'a> {
 
         let initializer_expr_t_opt;
 
-        if self.match_token(&vec![EqualsTok]) {
+        if self.match_token(&[TokenType::Equals]) {
             match self.equality() {
                 Ok(Some(LiteralExprT {literal_expr_node}))
                     => initializer_expr_t_opt = Some(LiteralExprT {literal_expr_node}),
@@ -1117,16 +1125,16 @@ impl<'a> Parser<'a> {
             // syntactic pass
             // add variable to current symbol table
             let scope = self.arcanum.get_current_identifier_scope();
-            let variable_symbol = VariableSymbol::new(name.clone(), type_node_opt, scope);
+            let variable_symbol = VariableSymbol::new(name, type_node_opt, scope);
             let variable_symbol_rcref = Rc::new(RefCell::new(variable_symbol));
             let variable_symbol_t = match identifier_decl_scope {
-                IdentifierDeclScope::DomainBlock => SymbolType::DomainVariableSymbolT {
+                IdentifierDeclScope::DomainBlock => SymbolType::DomainVariable {
                     domain_variable_symbol_rcref: variable_symbol_rcref,
                 },
-                IdentifierDeclScope::StateVar => SymbolType::StateVariableSymbolT {
+                IdentifierDeclScope::StateVar => SymbolType::StateVariable {
                     state_variable_symbol_rcref: variable_symbol_rcref,
                 },
-                IdentifierDeclScope::EventHandlerVar => SymbolType::EventHandlerVariableSymbolT {
+                IdentifierDeclScope::EventHandlerVar => SymbolType::EventHandlerVariable {
                     event_handler_variable_symbol_rcref: variable_symbol_rcref,
                 },
                 _ => return Err(ParseError::new("Unrecognized variable scope.")),
@@ -1150,20 +1158,20 @@ impl<'a> Parser<'a> {
             let y = x.unwrap();
             let z = y.borrow();
             match &*z {
-                DomainVariableSymbolT {
+                SymbolType::DomainVariable {
                     domain_variable_symbol_rcref,
                 } => {
                     domain_variable_symbol_rcref.borrow_mut().ast_node =
                         Some(variable_decl_node_rcref.clone());
                 }
-                StateVariableSymbolT {
+                SymbolType::StateVariable {
                     state_variable_symbol_rcref,
                 } => {
                     //                    let a = state_variable_symbol_rcref.borrow();
                     state_variable_symbol_rcref.borrow_mut().ast_node =
                         Some(variable_decl_node_rcref.clone());
                 }
-                EventHandlerVariableSymbolT {
+                SymbolType::EventHandlerVariable {
                     event_handler_variable_symbol_rcref,
                 } => {
                     event_handler_variable_symbol_rcref.borrow_mut().ast_node =
@@ -1186,10 +1194,15 @@ impl<'a> Parser<'a> {
         let line = self.previous().line;
 
         // TODO
-        if !self.match_token(&vec![TokenType::IdentifierTok]) {
+        if !self.match_token(&[TokenType::Identifier]) {
             // error message and synchronize
             self.error_at_current("Expected state name.");
-            let sync_tokens = &vec![StateTok, ActionsBlockTok, DomainBlockTok, SystemEndTok];
+            let sync_tokens = &vec![
+                TokenType::State,
+                TokenType::ActionsBlock,
+                TokenType::DomainBlock,
+                TokenType::SystemEnd,
+            ];
             self.synchronize(sync_tokens);
 
             let state_node = StateNode::new(
@@ -1218,7 +1231,7 @@ impl<'a> Parser<'a> {
             }
             let state_symbol = StateSymbol::new(&state_name, self.arcanum.get_current_symtab());
             state_symbol_rcref = Rc::new(RefCell::new(state_symbol));
-            self.arcanum.enter_scope(ParseScopeType::StateScope {
+            self.arcanum.enter_scope(ParseScopeType::State {
                 state_symbol: state_symbol_rcref.clone(),
             });
         } else {
@@ -1230,7 +1243,7 @@ impl<'a> Parser<'a> {
         //   let params:Option<Vec<ParameterNode>>
         let mut pop_state_params_scope = false;
         let mut params_opt = None;
-        if self.match_token(&vec![TokenType::LBracketTok]) {
+        if self.match_token(&[TokenType::LBracket]) {
             // generate StateContext mechanism for state parameter support
             self.generate_state_context = true;
             match self.parameters() {
@@ -1242,7 +1255,7 @@ impl<'a> Parser<'a> {
                                 let state_params_scope_symbol = StateParamsScopeSymbol::new();
                                 let state_params_scope_symbol_rcref =
                                     Rc::new(RefCell::new(state_params_scope_symbol));
-                                self.arcanum.enter_scope(ParseScopeType::StateParamsScope {
+                                self.arcanum.enter_scope(ParseScopeType::StateParams {
                                     state_params_scope_symbol_rcref,
                                 });
                                 for param in &parameters {
@@ -1277,10 +1290,10 @@ impl<'a> Parser<'a> {
 
         // Dispatch clause.
         // '=>' '$' state_id
-        if self.match_token(&vec![TokenType::DispatchTok]) {
-            match self.consume(TokenType::StateTok, "Expected '$'") {
+        if self.match_token(&[TokenType::Dispatch]) {
+            match self.consume(TokenType::State, "Expected '$'") {
                 Ok(_) => {
-                    if self.match_token(&vec![TokenType::IdentifierTok]) {
+                    if self.match_token(&[TokenType::Identifier]) {
                         let id = self.previous();
                         let target_state_name = id.lexeme.clone();
 
@@ -1289,11 +1302,11 @@ impl<'a> Parser<'a> {
                     } else {
                         self.error_at_current("Expected dispatch target state identifier.");
                         let sync_tokens = &vec![
-                            PipeTok,
-                            StateTok,
-                            ActionsBlockTok,
-                            DomainBlockTok,
-                            SystemEndTok,
+                            TokenType::Pipe,
+                            TokenType::State,
+                            TokenType::ActionsBlock,
+                            TokenType::DomainBlock,
+                            TokenType::SystemEnd,
                         ];
                         self.synchronize(sync_tokens);
                     }
@@ -1301,11 +1314,11 @@ impl<'a> Parser<'a> {
                 Err(_) => {
                     // synchronize to next event handler, state, remaining blocks or the end token
                     let sync_tokens = &vec![
-                        PipeTok,
-                        StateTok,
-                        ActionsBlockTok,
-                        DomainBlockTok,
-                        SystemEndTok,
+                        TokenType::Pipe,
+                        TokenType::State,
+                        TokenType::ActionsBlock,
+                        TokenType::DomainBlock,
+                        TokenType::SystemEnd,
                     ];
                     self.synchronize(sync_tokens);
                 }
@@ -1318,7 +1331,7 @@ impl<'a> Parser<'a> {
             Some(dispatch_node) => match &mut self.system_hierarchy_opt {
                 Some(system_hierarchy) => {
                     let target_state_name = dispatch_node.target_state_ref.name.clone();
-                    system_hierarchy.add_node(state_name.clone(), target_state_name.clone());
+                    system_hierarchy.add_node(state_name.clone(), target_state_name);
                 }
                 None => {
                     return Err(ParseError::new("System Hierarchy should always be here."));
@@ -1341,7 +1354,7 @@ impl<'a> Parser<'a> {
         if self.is_building_symbol_table {
             let state_local_scope_struct = StateLocalScopeSymbol::new();
             let state_local_scope_symbol_rcref = Rc::new(RefCell::new(state_local_scope_struct));
-            let state_local_scope = ParseScopeType::StateLocalScope {
+            let state_local_scope = ParseScopeType::StateLocal {
                 state_local_scope_symbol_rcref,
             };
             self.arcanum.enter_scope(state_local_scope);
@@ -1353,7 +1366,7 @@ impl<'a> Parser<'a> {
         // variable decl
         // let v     (mutable)
         // const c   (immutable)
-        while self.match_token(&vec![VarTok, ConstTok]) {
+        while self.match_token(&[TokenType::Var, TokenType::Const]) {
             self.generate_state_context = true;
             match self.variable_decl(IdentifierDeclScope::StateVar) {
                 Ok(variable_node) => {
@@ -1365,7 +1378,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        if vars.len() > 0 {
+        if !vars.is_empty() {
             vars_opt = Some(vars);
         }
 
@@ -1374,7 +1387,7 @@ impl<'a> Parser<'a> {
         let mut calls = Vec::new();
 
         // @TODO - add reference syntax
-        while self.match_token(&vec![IdentifierTok]) {
+        while self.match_token(&[TokenType::Identifier]) {
             match self.variable_or_call_expr(IdentifierDeclScope::None) {
                 // Ok(Some(VariableExprT { var_node: id_node }))
                 //     => {
@@ -1394,7 +1407,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        if calls.len() > 0 {
+        if !calls.is_empty() {
             calls_opt = Some(calls);
         }
 
@@ -1406,7 +1419,7 @@ impl<'a> Parser<'a> {
         let mut exit_event_handler = Option::None;
 
         loop {
-            while self.match_token(&vec![SingleLineCommentTok]) {
+            while self.match_token(&[TokenType::SingleLineComment]) {
                 // consume
                 // @TODO: fix this. see https://app.asana.com/0/1199651557660024/1199953268166075/f
                 // this is a hack because we don't use
@@ -1422,70 +1435,78 @@ impl<'a> Parser<'a> {
                  */
             }
 
-            if self.peek().token_type == AtTok
-                || self.peek().token_type == PipeTok
-                || self.peek().token_type == AnyMessageTok
+            if self.peek().token_type == TokenType::At
+                || self.peek().token_type == TokenType::Pipe
+                || self.peek().token_type == TokenType::AnyMessage
             {
-                while self.peek().token_type == AtTok
-                    || self.peek().token_type == PipeTok
-                    || self.peek().token_type == AnyMessageTok
+                while self.peek().token_type == TokenType::At
+                    || self.peek().token_type == TokenType::Pipe
+                    || self.peek().token_type == TokenType::AnyMessage
                 {
                     match self.event_handler() {
                         Ok(eh_opt) => {
-                            match eh_opt {
-                                Some(eh) => {
-                                    let eh_rcref = Rc::new(RefCell::new(eh));
-                                    // find enter/exit event handlers
-                                    {
-                                        // new scope to make BC happy
-                                        let eh_ref = eh_rcref.as_ref().borrow();
-                                        let evt = eh_ref.event_symbol_rcref.as_ref().borrow();
+                            if let Some(eh) = eh_opt {
+                                let eh_rcref = Rc::new(RefCell::new(eh));
+                                // find enter/exit event handlers
+                                {
+                                    // new scope to make BC happy
+                                    let eh_ref = eh_rcref.as_ref().borrow();
+                                    let evt = eh_ref.event_symbol_rcref.as_ref().borrow();
 
-                                        if evt.is_enter_msg {
-                                            if enter_event_handler.is_some() {
-                                                self.error_at_current(&format!("State ${} has more than one enter event handler.", &state_name));
-                                            } else {
-                                                enter_event_handler = Some(eh_rcref.clone());
-                                            }
-                                        } else if evt.is_exit_msg {
-                                            if exit_event_handler.is_some() {
-                                                self.error_at_current(&format!("State ${} has more than one exit event handler.", &state_name));
-                                            } else {
-                                                exit_event_handler = Some(eh_rcref.clone());
-                                            }
+                                    if evt.is_enter_msg {
+                                        if enter_event_handler.is_some() {
+                                            self.error_at_current(&format!(
+                                                "State ${} has more than one enter event handler.",
+                                                &state_name
+                                            ));
+                                        } else {
+                                            enter_event_handler = Some(eh_rcref.clone());
+                                        }
+                                    } else if evt.is_exit_msg {
+                                        if exit_event_handler.is_some() {
+                                            self.error_at_current(&format!(
+                                                "State ${} has more than one exit event handler.",
+                                                &state_name
+                                            ));
+                                        } else {
+                                            exit_event_handler = Some(eh_rcref.clone());
                                         }
                                     }
-
-                                    evt_handlers.push(eh_rcref);
                                 }
-                                None => {}
+
+                                evt_handlers.push(eh_rcref);
                             }
                         }
                         Err(_) => {
                             let sync_tokens = &vec![
-                                PipeTok,
-                                StateTok,
-                                ActionsBlockTok,
-                                DomainBlockTok,
-                                SystemEndTok,
+                                TokenType::Pipe,
+                                TokenType::State,
+                                TokenType::ActionsBlock,
+                                TokenType::DomainBlock,
+                                TokenType::SystemEnd,
                             ];
                             self.synchronize(sync_tokens);
                         }
                     }
                 }
             } else {
-                let follows_vec = &vec![StateTok, ActionsBlockTok, DomainBlockTok, SystemEndTok];
+                let follows_vec = &vec![
+                    TokenType::State,
+                    TokenType::ActionsBlock,
+                    TokenType::DomainBlock,
+                    TokenType::SystemEnd,
+                ];
                 if self.follows(self.peek(), follows_vec) {
                     // next token is expected
                     break;
                 } else {
                     self.error_at_current("Unexpected token in event handler message");
                     let sync_tokens = &vec![
-                        PipeTok,
-                        AnyMessageTok,
-                        StateTok,
-                        ActionsBlockTok,
-                        DomainBlockTok,
+                        TokenType::Pipe,
+                        TokenType::AnyMessage,
+                        TokenType::State,
+                        TokenType::ActionsBlock,
+                        TokenType::DomainBlock,
                     ];
                     if !self.synchronize(sync_tokens) {
                         return Err(ParseError::new("TODO"));
@@ -1498,7 +1519,7 @@ impl<'a> Parser<'a> {
         self.arcanum.exit_parse_scope(); // state block scope (StateBlockScopeSymbol)
 
         let state_node = StateNode::new(
-            state_name.clone(),
+            state_name,
             params_opt,
             vars_opt,
             calls_opt,
@@ -1594,7 +1615,7 @@ impl<'a> Parser<'a> {
             let event_handler_symbol =
                 EventHandlerScopeSymbol::new(&msg, Rc::clone(&event_symbol_rcref));
             let event_handler_scope_symbol_rcref = Rc::new(RefCell::new(event_handler_symbol));
-            self.arcanum.enter_scope(ParseScopeType::EventHandlerScope {
+            self.arcanum.enter_scope(ParseScopeType::EventHandler {
                 event_handler_scope_symbol_rcref,
             });
         } else {
@@ -1605,7 +1626,7 @@ impl<'a> Parser<'a> {
         let mut pop_params_scope = false;
 
         // Parse event handler parameters
-        if self.match_token(&vec![TokenType::LBracketTok]) {
+        if self.match_token(&[TokenType::LBracket]) {
             if msg == self.arcanum.symbol_config.enter_msg_symbol {
                 self.generate_state_context = true;
             }
@@ -1643,7 +1664,7 @@ impl<'a> Parser<'a> {
                             EventHandlerParamsScopeSymbol::new(event_symbol_rcref);
                         let event_handler_params_scope_symbol_rcref =
                             Rc::new(RefCell::new(event_handler_params_scope_struct));
-                        let event_handler_params_scope = ParseScopeType::EventHandlerParamsScope {
+                        let event_handler_params_scope = ParseScopeType::EventHandlerParams {
                             event_handler_params_scope_symbol_rcref,
                         };
                         self.arcanum.enter_scope(event_handler_params_scope);
@@ -1697,12 +1718,12 @@ impl<'a> Parser<'a> {
                                                     );
 
                                                     let sync_tokens = &vec![
-                                                        PipeTok,
-                                                        CaretTok,
-                                                        StateTok,
-                                                        ActionsBlockTok,
-                                                        DomainBlockTok,
-                                                        SystemEndTok,
+                                                        TokenType::Pipe,
+                                                        TokenType::Caret,
+                                                        TokenType::State,
+                                                        TokenType::ActionsBlock,
+                                                        TokenType::DomainBlock,
+                                                        TokenType::SystemEnd,
                                                     ];
                                                     self.synchronize(sync_tokens);
                                                 }
@@ -1750,11 +1771,8 @@ impl<'a> Parser<'a> {
                                 }
                             }
                         }
-                        match event_symbol_params_opt {
-                            Some(parameter_symbols) => {
-                                event_symbol_rcref.borrow_mut().params_opt = Some(parameter_symbols)
-                            }
-                            None => {}
+                        if let Some(parameter_symbols) = event_symbol_params_opt {
+                            event_symbol_rcref.borrow_mut().params_opt = Some(parameter_symbols)
                         }
                     } else {
                         // leave these comments to show how to debug scope errors.
@@ -1770,7 +1788,7 @@ impl<'a> Parser<'a> {
         }
 
         // Parse return type
-        if self.match_token(&vec![TokenType::ColonTok]) {
+        if self.match_token(&[TokenType::Colon]) {
             let return_type_opt;
             match self.type_decl() {
                 Ok(type_node) => return_type_opt = Some(type_node),
@@ -1791,7 +1809,7 @@ impl<'a> Parser<'a> {
             let event_handler_local_scope_struct = EventHandlerLocalScopeSymbol::new();
             let event_handler_local_scope_symbol_rcref =
                 Rc::new(RefCell::new(event_handler_local_scope_struct));
-            let event_handler_local_scope = ParseScopeType::EventHandlerLocalScope {
+            let event_handler_local_scope = ParseScopeType::EventHandlerLocal {
                 event_handler_local_scope_symbol_rcref,
             };
             self.arcanum.enter_scope(event_handler_local_scope);
@@ -1808,11 +1826,11 @@ impl<'a> Parser<'a> {
             Err(_parse_error) => {
                 // TODO: this vec keeps the parser from hanging. don't know why
                 let sync_tokens = &vec![
-                    PipeTok,
-                    StateTok,
-                    ActionsBlockTok,
-                    DomainBlockTok,
-                    SystemEndTok,
+                    TokenType::Pipe,
+                    TokenType::State,
+                    TokenType::ActionsBlock,
+                    TokenType::DomainBlock,
+                    TokenType::SystemEnd,
                 ];
                 self.synchronize(sync_tokens);
                 // create "dummy" node to keep processing
@@ -1844,7 +1862,7 @@ impl<'a> Parser<'a> {
         }
 
         Ok(Some(EventHandlerNode::new(
-            st_name.clone(),
+            st_name,
             message_type,
             statements,
             terminator_node,
@@ -1869,8 +1887,8 @@ impl<'a> Parser<'a> {
         //     None => None,
         // };
 
-        if self.match_token(&vec![TokenType::CaretTok]) {
-            if self.match_token(&vec![TokenType::LParenTok]) {
+        if self.match_token(&[TokenType::Caret]) {
+            if self.match_token(&[TokenType::LParen]) {
                 let expr_t = match self.unary_expression() {
                     Ok(Some(expr_t)) => expr_t,
                     _ => {
@@ -1879,7 +1897,7 @@ impl<'a> Parser<'a> {
                     }
                 };
 
-                if let Err(parse_error) = self.consume(RParenTok, "Expected ')'.") {
+                if let Err(parse_error) = self.consume(TokenType::RParen, "Expected ')'.") {
                     return Err(parse_error);
                 }
                 Ok(TerminatorExpr::new(
@@ -1890,11 +1908,11 @@ impl<'a> Parser<'a> {
             } else {
                 Ok(TerminatorExpr::new(Return, None, self.previous().line))
             }
-        } else if self.match_token(&vec![TokenType::ElseContinueTok]) {
+        } else if self.match_token(&[TokenType::ElseContinue]) {
             Ok(TerminatorExpr::new(Continue, None, self.previous().line))
         } else {
             self.error_at_current("Expected event handler terminator.");
-            return Err(ParseError::new("TODO"));
+            Err(ParseError::new("TODO"))
         }
     }
 
@@ -1903,6 +1921,7 @@ impl<'a> Parser<'a> {
     // statements ->
 
     // TODO: need result and optional
+    #[allow(clippy::vec_init_then_push)] // false positive in 1.51, fixed by 1.55
     fn statements(&mut self) -> Vec<DeclOrStmtType> {
         let mut statements = Vec::new();
 
@@ -1941,19 +1960,19 @@ impl<'a> Parser<'a> {
                 },
                 Err(_err) => {
                     let sync_tokens = &vec![
-                        IdentifierTok,
-                        LParenTok,
-                        CaretTok,
-                        GTTok,
-                        SystemTok,
-                        StateTok,
-                        PipePipeTok,
-                        DotTok,
-                        ColonTok,
-                        PipeTok,
-                        ActionsBlockTok,
-                        DomainBlockTok,
-                        SystemEndTok,
+                        TokenType::Identifier,
+                        TokenType::LParen,
+                        TokenType::Caret,
+                        TokenType::GT,
+                        TokenType::System,
+                        TokenType::State,
+                        TokenType::PipePipe,
+                        TokenType::Dot,
+                        TokenType::Colon,
+                        TokenType::Pipe,
+                        TokenType::ActionsBlock,
+                        TokenType::DomainBlock,
+                        TokenType::SystemEnd,
                     ];
                     self.synchronize(sync_tokens);
                 }
@@ -1966,7 +1985,7 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     fn decl_or_stmt(&mut self) -> Result<Option<DeclOrStmtType>, ParseError> {
-        if self.match_token(&vec![VarTok, ConstTok]) {
+        if self.match_token(&[TokenType::Var, TokenType::Const]) {
             match self.variable_decl(IdentifierDeclScope::EventHandlerVar) {
                 Ok(var_decl_t_rc_ref) => {
                     return Ok(Some(DeclOrStmtType::VarDeclT { var_decl_t_rc_ref }));
@@ -1996,12 +2015,12 @@ impl<'a> Parser<'a> {
             Ok(et_opt) => expr_t_opt = et_opt,
             Err(_) => {
                 let sync_tokens = &vec![
-                    IdentifierTok,
-                    PipeTok,
-                    StateTok,
-                    ActionsBlockTok,
-                    DomainBlockTok,
-                    SystemEndTok,
+                    TokenType::Identifier,
+                    TokenType::Pipe,
+                    TokenType::State,
+                    TokenType::ActionsBlock,
+                    TokenType::DomainBlock,
+                    TokenType::SystemEnd,
                 ];
                 self.synchronize(sync_tokens);
             }
@@ -2011,7 +2030,7 @@ impl<'a> Parser<'a> {
             Some(expr_t) => {
                 if self.is_bool_test() {
                     if !self.is_testable_expression(&expr_t) {
-                        self.error_at_current(&format!("Not a testable expression."));
+                        self.error_at_current(&"Not a testable expression.".to_string());
                         return Err(ParseError::new("TODO"));
                     }
                     let result = self.bool_test(expr_t);
@@ -2029,7 +2048,7 @@ impl<'a> Parser<'a> {
                     };
                 } else if self.is_string_match_test() {
                     if !self.is_testable_expression(&expr_t) {
-                        self.error_at_current(&format!("Not a testable expression."));
+                        self.error_at_current(&"Not a testable expression.".to_string());
                         return Err(ParseError::new("TODO"));
                     }
                     let result = self.string_match_test(expr_t);
@@ -2049,7 +2068,7 @@ impl<'a> Parser<'a> {
                     };
                 } else if self.is_number_match_test() {
                     if !self.is_testable_expression(&expr_t) {
-                        self.error_at_current(&format!("Not a testable expression."));
+                        self.error_at_current(&"Not a testable expression.".to_string());
                         return Err(ParseError::new("TODO"));
                     }
                     let result = self.number_match_test(expr_t);
@@ -2072,7 +2091,7 @@ impl<'a> Parser<'a> {
                 match expr_t {
                     ExprListT { expr_list_node } => {
                         // path for transitions w/ an exit params group
-                        if self.match_token(&vec![TokenType::TransitionTok]) {
+                        if self.match_token(&[TokenType::Transition]) {
                             match self.transition(Some(expr_list_node)) {
                                 Ok(Some(stmt_t)) => return Ok(Some(stmt_t)),
                                 Ok(None) => return Err(ParseError::new("TODO")),
@@ -2160,7 +2179,7 @@ impl<'a> Parser<'a> {
             }
             None => {
                 // This path is for transitions w/o an exit params group
-                if self.match_token(&vec![TransitionTok]) {
+                if self.match_token(&[TokenType::Transition]) {
                     match self.transition(None) {
                         Ok(Some(transition)) => return Ok(Some(transition)),
                         Ok(_) => return Err(ParseError::new("TODO")),
@@ -2170,7 +2189,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        if self.match_token(&vec![ChangeStateTok]) {
+        if self.match_token(&[TokenType::ChangeState]) {
             return match self.change_state() {
                 Ok(Some(state_context_t)) => Ok(Some(state_context_t)),
                 Ok(None) => Err(ParseError::new("TODO")),
@@ -2199,7 +2218,7 @@ impl<'a> Parser<'a> {
                 }
 
                 let first_expr_t = expr_list_node.exprs_t.first().unwrap();
-                return self.is_testable_expression(first_expr_t);
+                self.is_testable_expression(first_expr_t)
             }
             _ => true,
         }
@@ -2208,20 +2227,20 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     fn is_bool_test(&self) -> bool {
-        self.peek().token_type == TokenType::BoolTestTrueTok
-            || self.peek().token_type == TokenType::BoolTestFalseTok
+        self.peek().token_type == TokenType::BoolTestTrue
+            || self.peek().token_type == TokenType::BoolTestFalse
     }
 
     /* --------------------------------------------------------------------- */
 
     fn is_string_match_test(&self) -> bool {
-        self.peek().token_type == TokenType::StringTestTok
+        self.peek().token_type == TokenType::StringTest
     }
 
     /* --------------------------------------------------------------------- */
 
     fn is_number_match_test(&self) -> bool {
-        self.peek().token_type == TokenType::NumberTestTok
+        self.peek().token_type == TokenType::NumberTest
     }
 
     /* --------------------------------------------------------------------- */
@@ -2241,11 +2260,11 @@ impl<'a> Parser<'a> {
         let is_negated: bool;
 
         // '?'
-        if self.match_token(&vec![BoolTestTrueTok]) {
+        if self.match_token(&[TokenType::BoolTestTrue]) {
             is_negated = false;
 
         // ?!
-        } else if self.match_token(&vec![BoolTestFalseTok]) {
+        } else if self.match_token(&[TokenType::BoolTestFalse]) {
             is_negated = true;
         } else {
             return Err(ParseError::new("TODO"));
@@ -2261,7 +2280,7 @@ impl<'a> Parser<'a> {
 
         conditional_branches.push(first_branch_node);
 
-        while self.match_token(&vec![ElseContinueTok]) {
+        while self.match_token(&[TokenType::ElseContinue]) {
             match self.bool_test_else_continue_branch() {
                 Ok(branch_node) => {
                     conditional_branches.push(branch_node);
@@ -2272,7 +2291,7 @@ impl<'a> Parser<'a> {
 
         // (':' bool_test_else_branch)?
         let mut bool_test_else_node_opt: Option<BoolTestElseBranchNode> = None;
-        if self.match_token(&vec![ColonTok]) {
+        if self.match_token(&[TokenType::Colon]) {
             bool_test_else_node_opt = Option::from(match self.bool_test_else_branch() {
                 Ok(statements_t_opt) => statements_t_opt,
                 Err(parse_error) => return Err(parse_error),
@@ -2280,14 +2299,16 @@ impl<'a> Parser<'a> {
         }
 
         // '::'
-        if let Err(parse_error) = self.consume(TestTerminatorTok, "Expected TestTerminator.") {
+        if let Err(parse_error) =
+            self.consume(TokenType::TestTerminator, "Expected TestTerminator.")
+        {
             return Err(parse_error);
         }
 
-        return Ok(BoolTestNode::new(
+        Ok(BoolTestNode::new(
             conditional_branches,
             bool_test_else_node_opt,
-        ));
+        ))
     }
 
     /* --------------------------------------------------------------------- */
@@ -2314,11 +2335,11 @@ impl<'a> Parser<'a> {
         let is_negated: bool;
 
         // '?'
-        if self.match_token(&vec![BoolTestTrueTok]) {
+        if self.match_token(&[TokenType::BoolTestTrue]) {
             is_negated = false;
 
         // ?!
-        } else if self.match_token(&vec![BoolTestFalseTok]) {
+        } else if self.match_token(&[TokenType::BoolTestFalse]) {
             is_negated = true;
         } else {
             return Err(ParseError::new("TODO"));
@@ -2338,7 +2359,7 @@ impl<'a> Parser<'a> {
     ) -> Result<BoolTestConditionalBranchNode, ParseError> {
         let statements = self.statements();
         let result = self.branch_terminator();
-        return match result {
+        match result {
             Ok(branch_terminator_expr_opt) => Ok(BoolTestConditionalBranchNode::new(
                 is_negated,
                 expr_t,
@@ -2346,7 +2367,7 @@ impl<'a> Parser<'a> {
                 branch_terminator_expr_opt,
             )),
             Err(parse_error) => Err(parse_error),
-        };
+        }
     }
 
     /* --------------------------------------------------------------------- */
@@ -2356,13 +2377,13 @@ impl<'a> Parser<'a> {
     fn bool_test_else_branch(&mut self) -> Result<BoolTestElseBranchNode, ParseError> {
         let statements = self.statements();
         let result = self.branch_terminator();
-        return match result {
+        match result {
             Ok(branch_terminator_expr_opt) => Ok(BoolTestElseBranchNode::new(
                 statements,
                 branch_terminator_expr_opt,
             )),
             Err(parse_error) => Err(parse_error),
-        };
+        }
     }
 
     /* --------------------------------------------------------------------- */
@@ -2371,8 +2392,8 @@ impl<'a> Parser<'a> {
 
     // TODO: explore returning a TerminatorType rather than node
     fn branch_terminator(&mut self) -> Result<Option<TerminatorExpr>, ParseError> {
-        if self.match_token(&vec![TokenType::CaretTok]) {
-            if self.match_token(&vec![TokenType::LParenTok]) {
+        if self.match_token(&[TokenType::Caret]) {
+            if self.match_token(&[TokenType::LParen]) {
                 let expr_t = match self.unary_expression() {
                     Ok(Some(expr_t)) => expr_t,
                     _ => {
@@ -2381,7 +2402,7 @@ impl<'a> Parser<'a> {
                     }
                 };
 
-                if let Err(parse_error) = self.consume(RParenTok, "Expected ')'.") {
+                if let Err(parse_error) = self.consume(TokenType::RParen, "Expected ')'.") {
                     return Err(parse_error);
                 }
                 return Ok(Some(TerminatorExpr::new(
@@ -2396,14 +2417,14 @@ impl<'a> Parser<'a> {
                     self.previous().line,
                 )));
             }
-        } else if self.match_token(&vec![TokenType::GTTok]) {
+        } else if self.match_token(&[TokenType::GT]) {
             return Ok(Some(TerminatorExpr::new(
                 Continue,
                 None,
                 self.previous().line,
             )));
         } else {
-            return Ok(None);
+            Ok(None)
         }
     }
 
@@ -2421,7 +2442,7 @@ impl<'a> Parser<'a> {
     // string_match_test -> '?~'  ('/' match_string ('|' match_string)* '/' (statement* branch_terminator?) ':>')+ ':' (statement* branch_terminator?) '::'
 
     fn string_match_test(&mut self, expr_t: ExprType) -> Result<StringMatchTestNode, ParseError> {
-        if let Err(parse_error) = self.consume(StringTestTok, "Expected '?~'.") {
+        if let Err(parse_error) = self.consume(TokenType::StringTest, "Expected '?~'.") {
             return Err(parse_error);
         }
 
@@ -2434,7 +2455,7 @@ impl<'a> Parser<'a> {
 
         conditional_branches.push(first_branch_node);
 
-        while self.match_token(&vec![ElseContinueTok]) {
+        while self.match_token(&[TokenType::ElseContinue]) {
             match self.string_match_test_match_branch() {
                 Ok(branch_node) => {
                     conditional_branches.push(branch_node);
@@ -2445,7 +2466,7 @@ impl<'a> Parser<'a> {
 
         // (':' match_test_else_branch)?
         let mut else_branch_opt: Option<StringMatchTestElseBranchNode> = None;
-        if self.match_token(&vec![ColonTok]) {
+        if self.match_token(&[TokenType::Colon]) {
             else_branch_opt = Option::from(match self.string_match_test_else_branch() {
                 Ok(statements_t_opt) => statements_t_opt,
                 Err(parse_error) => return Err(parse_error),
@@ -2453,15 +2474,17 @@ impl<'a> Parser<'a> {
         }
 
         // '::'
-        if let Err(parse_error) = self.consume(TestTerminatorTok, "Expected TestTerminator.") {
+        if let Err(parse_error) =
+            self.consume(TokenType::TestTerminator, "Expected TestTerminator.")
+        {
             return Err(parse_error);
         }
 
-        return Ok(StringMatchTestNode::new(
+        Ok(StringMatchTestNode::new(
             expr_t,
             conditional_branches,
             else_branch_opt,
-        ));
+        ))
     }
 
     /* --------------------------------------------------------------------- */
@@ -2471,13 +2494,13 @@ impl<'a> Parser<'a> {
     fn string_match_test_match_branch(
         &mut self,
     ) -> Result<StringMatchTestMatchBranchNode, ParseError> {
-        if let Err(parse_error) = self.consume(ForwardSlashTok, "Expected '/'.") {
+        if let Err(parse_error) = self.consume(TokenType::ForwardSlash, "Expected '/'.") {
             return Err(parse_error);
         }
 
         let mut match_strings: Vec<String> = Vec::new();
 
-        if !self.match_token(&vec![MatchStringTok]) {
+        if !self.match_token(&[TokenType::MatchString]) {
             return Err(ParseError::new("TODO"));
         }
 
@@ -2486,8 +2509,8 @@ impl<'a> Parser<'a> {
         let match_pattern_string = match_string_tok.lexeme.clone();
         match_strings.push(match_pattern_string);
 
-        while self.match_token(&vec![PipeTok]) {
-            if !self.match_token(&vec![MatchStringTok]) {
+        while self.match_token(&[TokenType::Pipe]) {
+            if !self.match_token(&[TokenType::MatchString]) {
                 return Err(ParseError::new("TODO"));
             }
 
@@ -2499,20 +2522,20 @@ impl<'a> Parser<'a> {
 
         let string_match_pattern_node = StringMatchTestPatternNode::new(match_strings);
 
-        if let Err(parse_error) = self.consume(ForwardSlashTok, "Expected '/'.") {
+        if let Err(parse_error) = self.consume(TokenType::ForwardSlash, "Expected '/'.") {
             return Err(parse_error);
         }
 
         let statements = self.statements();
         let result = self.branch_terminator();
-        return match result {
+        match result {
             Ok(branch_terminator_t_opt) => Ok(StringMatchTestMatchBranchNode::new(
                 string_match_pattern_node,
                 statements,
                 branch_terminator_t_opt,
             )),
             Err(parse_error) => Err(parse_error),
-        };
+        }
     }
 
     /* --------------------------------------------------------------------- */
@@ -2524,13 +2547,13 @@ impl<'a> Parser<'a> {
     ) -> Result<StringMatchTestElseBranchNode, ParseError> {
         let statements = self.statements();
         let result = self.branch_terminator();
-        return match result {
+        match result {
             Ok(branch_terminator_opt) => Ok(StringMatchTestElseBranchNode::new(
                 statements,
                 branch_terminator_opt,
             )),
             Err(parse_error) => Err(parse_error),
-        };
+        }
     }
 
     /* --------------------------------------------------------------------- */
@@ -2552,7 +2575,7 @@ impl<'a> Parser<'a> {
             Err(parse_error) => return Err(parse_error),
         };
 
-        if self.match_token(&vec![TokenType::EqualsTok]) {
+        if self.match_token(&[TokenType::Equals]) {
             // this changes the tokens generated for expression lists
             // like (a) and (a b c)
             self.is_parsing_rhs = true;
@@ -2591,7 +2614,7 @@ impl<'a> Parser<'a> {
             Err(parse_error) => return Err(parse_error),
         };
 
-        while self.match_token(&vec![TokenType::BangEqualTok, TokenType::EqualEqualTok]) {
+        while self.match_token(&[TokenType::BangEqual, TokenType::EqualEqual]) {
             //           let line = self.previous().line;
             let operator_token = self.previous();
             let op_type = OperatorType::get_operator_type(&operator_token.token_type);
@@ -2617,11 +2640,11 @@ impl<'a> Parser<'a> {
             Err(parse_error) => return Err(parse_error),
         };
 
-        while self.match_token(&vec![
-            TokenType::GTTok,
-            TokenType::GreaterEqualTok,
-            TokenType::LTTok,
-            TokenType::LessEqualTok,
+        while self.match_token(&[
+            TokenType::GT,
+            TokenType::GreaterEqual,
+            TokenType::LT,
+            TokenType::LessEqual,
         ]) {
             let operator_token = self.previous();
             let op_type = OperatorType::get_operator_type(&operator_token.token_type);
@@ -2647,7 +2670,7 @@ impl<'a> Parser<'a> {
             Err(parse_error) => return Err(parse_error),
         };
 
-        while self.match_token(&vec![TokenType::DashTok, TokenType::PlusTok]) {
+        while self.match_token(&[TokenType::Dash, TokenType::Plus]) {
             let operator_token = self.previous();
             let op_type = OperatorType::get_operator_type(&operator_token.token_type);
             let r_value = match self.factor() {
@@ -2672,7 +2695,7 @@ impl<'a> Parser<'a> {
             Err(parse_error) => return Err(parse_error),
         };
 
-        while self.match_token(&vec![TokenType::ForwardSlashTok, TokenType::StarTok]) {
+        while self.match_token(&[TokenType::ForwardSlash, TokenType::Star]) {
             let operator_token = self.previous();
             let op_type = OperatorType::get_operator_type(&operator_token.token_type);
             let r_value = match self.logical_xor() {
@@ -2697,7 +2720,7 @@ impl<'a> Parser<'a> {
             Err(parse_error) => return Err(parse_error),
         };
 
-        while self.match_token(&vec![TokenType::LogicalXorTok]) {
+        while self.match_token(&[TokenType::LogicalXor]) {
             let operator_token = self.previous();
             let op_type = OperatorType::get_operator_type(&operator_token.token_type);
             let r_value = match self.logical_or() {
@@ -2722,7 +2745,7 @@ impl<'a> Parser<'a> {
             Err(parse_error) => return Err(parse_error),
         };
 
-        while self.match_token(&vec![TokenType::PipePipeTok]) {
+        while self.match_token(&[TokenType::PipePipe]) {
             let operator_token = self.previous();
             let op_type = OperatorType::get_operator_type(&operator_token.token_type);
             let r_value = match self.logical_and() {
@@ -2747,7 +2770,7 @@ impl<'a> Parser<'a> {
             Err(parse_error) => return Err(parse_error),
         };
 
-        while self.match_token(&vec![TokenType::LogicalAndTok]) {
+        while self.match_token(&[TokenType::LogicalAnd]) {
             let operator_token = self.previous();
             let op_type = OperatorType::get_operator_type(&operator_token.token_type);
             let r_value = match self.unary_expression() {
@@ -2768,7 +2791,7 @@ impl<'a> Parser<'a> {
     // unary_expression -> TODO
 
     fn unary_expression(&mut self) -> Result<Option<ExprType>, ParseError> {
-        if self.match_token(&vec![BangTok, DashTok]) {
+        if self.match_token(&[TokenType::Bang, TokenType::Dash]) {
             let token = self.previous();
             let mut operator_type = OperatorType::get_operator_type(&token.token_type);
             if operator_type == OperatorType::Minus {
@@ -2788,7 +2811,7 @@ impl<'a> Parser<'a> {
         }
 
         // '(' ')' | '(' expr+ ')'
-        if self.match_token(&vec![LParenTok]) {
+        if self.match_token(&[TokenType::LParen]) {
             match self.expr_list() {
                 Ok(Some(ExprListT {
                     expr_list_node: expr_node,
@@ -2806,15 +2829,15 @@ impl<'a> Parser<'a> {
         let mut scope = IdentifierDeclScope::None;
 
         //        let mut scope_override = false;
-        if self.match_token(&vec![SystemTok]) {
-            if let Err(parse_error) = self.consume(DotTok, "Expected '.'.") {
+        if self.match_token(&[TokenType::System]) {
+            if let Err(parse_error) = self.consume(TokenType::Dot, "Expected '.'.") {
                 return Err(parse_error); // TODO
             }
             scope = IdentifierDeclScope::DomainBlock;
         //           scope_override = true;
-        } else if self.match_token(&vec![StateTok]) {
-            if self.match_token(&vec![LBracketTok]) {
-                return if self.match_token(&vec![IdentifierTok]) {
+        } else if self.match_token(&[TokenType::State]) {
+            if self.match_token(&[TokenType::LBracket]) {
+                return if self.match_token(&[TokenType::Identifier]) {
                     //                    let id = self.previous().lexeme.clone();
                     let id_node = IdentifierNode::new(
                         self.previous().clone(),
@@ -2824,13 +2847,11 @@ impl<'a> Parser<'a> {
                         self.previous().line,
                     );
                     let var_scope = id_node.scope.clone();
-                    let symbol_type_rcref_opt = self
-                        .arcanum
-                        .lookup(&id_node.name.lexeme, &var_scope)
-                        .clone();
+                    let symbol_type_rcref_opt =
+                        self.arcanum.lookup(&id_node.name.lexeme, &var_scope);
 
                     let var_node = VariableNode::new(id_node, var_scope, symbol_type_rcref_opt);
-                    if let Err(parse_error) = self.consume(RBracketTok, "Expected ']'.") {
+                    if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
                         return Err(parse_error); // TODO
                     }
                     Ok(Some(VariableExprT { var_node }))
@@ -2838,8 +2859,8 @@ impl<'a> Parser<'a> {
                     self.error_at_current("Expected identifier.");
                     Err(ParseError::new("TODO")) // TODO
                 };
-            } else if self.match_token(&vec![DotTok]) {
-                return if self.match_token(&vec![IdentifierTok]) {
+            } else if self.match_token(&[TokenType::Dot]) {
+                return if self.match_token(&[TokenType::Identifier]) {
                     let id_node = IdentifierNode::new(
                         self.previous().clone(),
                         None,
@@ -2848,10 +2869,8 @@ impl<'a> Parser<'a> {
                         self.previous().line,
                     );
                     let var_scope = id_node.scope.clone();
-                    let symbol_type_rcref_opt = self
-                        .arcanum
-                        .lookup(&id_node.name.lexeme, &var_scope)
-                        .clone();
+                    let symbol_type_rcref_opt =
+                        self.arcanum.lookup(&id_node.name.lexeme, &var_scope);
                     let var_node = VariableNode::new(id_node, var_scope, symbol_type_rcref_opt);
                     Ok(Some(VariableExprT { var_node }))
                 } else {
@@ -2862,11 +2881,11 @@ impl<'a> Parser<'a> {
                 self.error_at_current("Unexpected token.");
                 return Err(ParseError::new("TODO"));
             }
-        } else if self.match_token(&vec![PipePipeLBracketTok]) {
-            //           if self.match_token(&vec![LBracketTok]) {
+        } else if self.match_token(&[TokenType::PipePipeLBracket]) {
+            //           if self.match_token(&[TokenType::LBracket]) {
             let id_node;
             let var_node;
-            if self.match_token(&vec![IdentifierTok]) {
+            if self.match_token(&[TokenType::Identifier]) {
                 id_node = IdentifierNode::new(
                     self.previous().clone(),
                     None,
@@ -2875,22 +2894,19 @@ impl<'a> Parser<'a> {
                     self.previous().line,
                 );
                 let var_scope = id_node.scope.clone();
-                let symbol_type_rcref_opt = self
-                    .arcanum
-                    .lookup(&id_node.name.lexeme, &var_scope)
-                    .clone();
+                let symbol_type_rcref_opt = self.arcanum.lookup(&id_node.name.lexeme, &var_scope);
                 var_node = VariableNode::new(id_node, var_scope, symbol_type_rcref_opt);
             } else {
                 self.error_at_current("Expected identifier.");
                 return Err(ParseError::new("TODO"));
             }
-            if let Err(parse_error) = self.consume(RBracketTok, "Expected ']'.") {
+            if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
                 return Err(parse_error);
             }
             return Ok(Some(VariableExprT { var_node }));
-        } else if self.match_token(&vec![PipePipeDotTok]) {
+        } else if self.match_token(&[TokenType::PipePipeDot]) {
             let id_node;
-            if self.match_token(&vec![IdentifierTok]) {
+            if self.match_token(&[TokenType::Identifier]) {
                 let id_tok = self.previous().clone();
                 id_node = IdentifierNode::new(
                     id_tok,
@@ -2905,10 +2921,7 @@ impl<'a> Parser<'a> {
             }
 
             let var_scope = id_node.scope.clone();
-            let symbol_type_rcref_opt = self
-                .arcanum
-                .lookup(&id_node.name.lexeme, &var_scope)
-                .clone();
+            let symbol_type_rcref_opt = self.arcanum.lookup(&id_node.name.lexeme, &var_scope);
             let var_node = VariableNode::new(id_node, var_scope, symbol_type_rcref_opt);
             return Ok(Some(VariableExprT { var_node }));
         } else {
@@ -2922,12 +2935,12 @@ impl<'a> Parser<'a> {
         // deal w/ references. We can basically put & in front
         // of a wide range of syntax it doesn't apply to.
         let mut is_reference = false;
-        if self.match_token(&vec![AndTok]) {
+        if self.match_token(&[TokenType::And]) {
             is_reference = true;
         }
 
         // TODO: I think only identifier is allowed?
-        if self.match_token(&vec![IdentifierTok]) {
+        if self.match_token(&[TokenType::Identifier]) {
             match self.variable_or_call_expr(scope) {
                 Ok(Some(VariableExprT { mut var_node })) => {
                     var_node.id_node.is_reference = is_reference;
@@ -3002,17 +3015,17 @@ impl<'a> Parser<'a> {
     //
 
     fn stack_operation(&mut self) -> Result<Option<StateStackOperationNode>, ParseError> {
-        if self.match_token(&vec![StateStackOperationPushTok]) {
+        if self.match_token(&[TokenType::StateStackOperationPush]) {
             self.generate_state_stack = true;
             let ssot = StateStackOperationNode::new(StateStackOperationType::Push);
             return Ok(Some(ssot));
-        } else if self.match_token(&vec![StateStackOperationPopTok]) {
+        } else if self.match_token(&[TokenType::StateStackOperationPop]) {
             self.generate_state_stack = true;
             let ssot = StateStackOperationNode::new(StateStackOperationType::Pop);
             return Ok(Some(ssot));
         }
 
-        return Ok(None);
+        Ok(None)
     }
 
     /* --------------------------------------------------------------------- */
@@ -3026,21 +3039,21 @@ impl<'a> Parser<'a> {
         &mut self,
         is_reference: bool,
     ) -> Result<Option<FrameEventPart>, ParseError> {
-        if !self.match_token(&vec![AtTok]) {
+        if !self.match_token(&[TokenType::At]) {
             return Ok(None);
         }
 
         // '@' '||'
-        if self.match_token(&vec![PipePipeTok]) {
+        if self.match_token(&[TokenType::PipePipe]) {
             return Ok(Some(FrameEventPart::Message { is_reference }));
         }
 
         // '@' '[' identifier ']'
-        if self.match_token(&vec![LBracketTok]) {
-            if self.match_token(&vec![IdentifierTok]) {
+        if self.match_token(&[TokenType::LBracket]) {
+            if self.match_token(&[TokenType::Identifier]) {
                 let id_tok = self.previous().clone();
 
-                if let Err(parse_error) = self.consume(RBracketTok, "Expected ']'.") {
+                if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
                     return Err(parse_error);
                 }
                 return Ok(Some(FrameEventPart::Param {
@@ -3054,7 +3067,7 @@ impl<'a> Parser<'a> {
         }
 
         // '@' '^'
-        if self.match_token(&vec![CaretTok]) {
+        if self.match_token(&[TokenType::Caret]) {
             return Ok(Some(FrameEventPart::Return { is_reference }));
         }
 
@@ -3069,7 +3082,7 @@ impl<'a> Parser<'a> {
     fn expr_list(&mut self) -> Result<Option<ExprType>, ParseError> {
         let mut expressions: Vec<ExprType> = Vec::new();
 
-        while !self.match_token(&vec![RParenTok]) {
+        while !self.match_token(&[TokenType::RParen]) {
             match self.expression() {
                 Ok(Some(expression)) => {
                     expressions.push(expression);
@@ -3112,7 +3125,7 @@ impl<'a> Parser<'a> {
         let mut is_first_node = true;
         loop {
             // test for method call
-            if self.match_token(&vec![LParenTok]) {
+            if self.match_token(&[TokenType::LParen]) {
                 let r = self.method_call(id_node);
                 match r {
                     Ok(method_call_expr_node) => {
@@ -3193,11 +3206,11 @@ impl<'a> Parser<'a> {
             }
 
             // end of chain if no  '.'
-            if !self.match_token(&vec![DotTok]) {
+            if !self.match_token(&[TokenType::Dot]) {
                 break;
             }
 
-            if self.match_token(&vec![IdentifierTok]) {
+            if self.match_token(&[TokenType::Identifier]) {
                 id_node = IdentifierNode::new(
                     self.previous().clone(),
                     None,
@@ -3212,9 +3225,9 @@ impl<'a> Parser<'a> {
         }
 
         let call_chain_literal_expr_node = CallChainLiteralExprNode::new(call_chain);
-        return Ok(Some(CallChainLiteralExprT {
+        Ok(Some(CallChainLiteralExprT {
             call_chain_expr_node: call_chain_literal_expr_node,
-        }));
+        }))
     }
 
     /* --------------------------------------------------------------------- */
@@ -3229,33 +3242,32 @@ impl<'a> Parser<'a> {
         // find the variable in the arcanum
         symbol_type_rcref_opt = self
             .arcanum
-            .lookup(&identifier_node.name.lexeme, &explicit_scope)
-            .clone();
+            .lookup(&identifier_node.name.lexeme, explicit_scope);
         match &symbol_type_rcref_opt {
             Some(symbol_type_rcref) => {
                 let symbol_type = symbol_type_rcref.borrow();
                 match &*symbol_type {
-                    DomainVariableSymbolT {
+                    SymbolType::DomainVariable {
                         domain_variable_symbol_rcref,
                     } => {
                         scope = domain_variable_symbol_rcref.borrow().scope.clone();
                     }
-                    StateParamSymbolT {
+                    SymbolType::StateParam {
                         state_param_symbol_rcref,
                     } => {
                         scope = state_param_symbol_rcref.borrow().scope.clone();
                     }
-                    StateVariableSymbolT {
+                    SymbolType::StateVariable {
                         state_variable_symbol_rcref,
                     } => {
                         scope = state_variable_symbol_rcref.borrow().scope.clone();
                     }
-                    EventHandlerVariableSymbolT {
+                    SymbolType::EventHandlerVariable {
                         event_handler_variable_symbol_rcref,
                     } => {
                         scope = event_handler_variable_symbol_rcref.borrow().scope.clone();
                     }
-                    EventHandlerParamSymbolT {
+                    SymbolType::EventHandlerParam {
                         event_handler_param_symbol_rcref,
                     } => {
                         scope = event_handler_param_symbol_rcref.borrow().scope.clone();
@@ -3268,15 +3280,16 @@ impl<'a> Parser<'a> {
             None => {}
         };
 
-        if !self.is_building_symbol_table {
-            if *explicit_scope != IdentifierDeclScope::None && *explicit_scope != scope {
-                let msg = &format!(
-                    "Identifier {} - invalid scope identifier.",
-                    identifier_node.name.lexeme
-                );
-                self.error_at_current(msg);
-                return Err(ParseError::new(msg));
-            }
+        if !self.is_building_symbol_table
+            && *explicit_scope != IdentifierDeclScope::None
+            && *explicit_scope != scope
+        {
+            let msg = &format!(
+                "Identifier {} - invalid scope identifier.",
+                identifier_node.name.lexeme
+            );
+            self.error_at_current(msg);
+            return Err(ParseError::new(msg));
         }
 
         Ok(scope)
@@ -3301,7 +3314,7 @@ impl<'a> Parser<'a> {
 
         let method_call_expr_node = CallExprNode::new(identifer_node, call_expr_list_node, None);
         //        let method_call_expression_type = ExpressionType::MethodCallExprType {method_call_expr_node};
-        return Ok(method_call_expr_node);
+        Ok(method_call_expr_node)
     }
 
     /* --------------------------------------------------------------------- */
@@ -3311,17 +3324,17 @@ impl<'a> Parser<'a> {
     fn literal_expr(&mut self) -> Result<Option<LiteralExprNode>, ParseError> {
         // TODO: move this vec to the scanner
         let literal_tokens = vec![
-            SuperStringTok,
-            StringTok,
-            NumberTok,
-            TrueTok,
-            FalseTok,
-            NullTok,
-            NilTok,
+            TokenType::SuperString,
+            TokenType::String,
+            TokenType::Number,
+            TokenType::True,
+            TokenType::False,
+            TokenType::Null,
+            TokenType::Nil,
         ];
 
         for literal_tok in literal_tokens {
-            if self.match_token(&vec![literal_tok]) {
+            if self.match_token(&[literal_tok]) {
                 return Ok(Some(LiteralExprNode::new(
                     literal_tok,
                     self.previous().lexeme.clone(),
@@ -3340,15 +3353,15 @@ impl<'a> Parser<'a> {
         &mut self,
         enter_args_opt: Option<ExprListNode>,
     ) -> Result<Option<StateContextType>, ParseError> {
-        if self.match_token(&vec![TokenType::StateStackOperationPopTok]) {
+        if self.match_token(&[TokenType::StateStackOperationPop]) {
             Ok(Some(StateContextType::StateStackPop {}))
         } else {
             // parse state ref e.g. '$S1'
-            if !self.match_token(&vec![TokenType::StateTok]) {
+            if !self.match_token(&[TokenType::State]) {
                 return Err(ParseError::new("Missing $"));
             }
 
-            if !self.match_token(&vec![TokenType::IdentifierTok]) {
+            if !self.match_token(&[TokenType::Identifier]) {
                 return Err(ParseError::new("Missing state identifier"));
             }
 
@@ -3358,7 +3371,7 @@ impl<'a> Parser<'a> {
             // parse optional state ref expression list
             // '(' ')' | '(' expr ')'
             let mut state_ref_args_opt = None;
-            if self.match_token(&vec![LParenTok]) {
+            if self.match_token(&[TokenType::LParen]) {
                 match self.expr_list() {
                     Ok(Some(ExprListT { expr_list_node })) => {
                         state_ref_args_opt = Some(expr_list_node)
@@ -3394,7 +3407,7 @@ impl<'a> Parser<'a> {
         let mut transition_label: Option<String> = None;
 
         // enterArgs: '(' ')' | '(' expr ')'
-        if self.match_token(&vec![LParenTok]) {
+        if self.match_token(&[TokenType::LParen]) {
             // need enter args generated
             self.generate_enter_args = true;
             match self.expr_list() {
@@ -3406,7 +3419,7 @@ impl<'a> Parser<'a> {
         }
 
         // transition label string
-        if self.match_token(&vec![StringTok]) {
+        if self.match_token(&[TokenType::String]) {
             transition_label = Some(self.previous().lexeme.clone());
         }
 
@@ -3421,13 +3434,13 @@ impl<'a> Parser<'a> {
         // top of the event handler.
         self.event_handler_has_transition = true;
 
-        return Ok(Some(StatementType::TransitionStmt {
+        Ok(Some(StatementType::TransitionStmt {
             transition_statement: TransitionStatementNode {
                 target_state_context_t: state_context_t,
                 exit_args_opt,
                 label_opt: transition_label,
             },
-        }));
+        }))
     }
 
     /* --------------------------------------------------------------------- */
@@ -3440,7 +3453,7 @@ impl<'a> Parser<'a> {
         let mut label_opt: Option<String> = None;
 
         // change_state label string
-        if self.match_token(&vec![StringTok]) {
+        if self.match_token(&[TokenType::String]) {
             label_opt = Some(self.previous().lexeme.clone());
         }
 
@@ -3451,12 +3464,12 @@ impl<'a> Parser<'a> {
             Err(parse_error) => return Err(parse_error),
         }
 
-        return Ok(Some(StatementType::ChangeStateStmt {
+        Ok(Some(StatementType::ChangeStateStmt {
             change_state_stmt: ChangeStateStatementNode {
                 state_context_t,
                 label_opt,
             },
-        }));
+        }))
     }
 
     /* --------------------------------------------------------------------- */
@@ -3464,7 +3477,7 @@ impl<'a> Parser<'a> {
     // match_number_test -> '?#'  ('/' match_number_pattern  ('|' match_number_pattern)* '/' (statement* branch_terminator?) ':>')+ ':' (statement* branch_terminator?) '::'
 
     fn number_match_test(&mut self, expr_t: ExprType) -> Result<NumberMatchTestNode, ParseError> {
-        if let Err(parse_error) = self.consume(NumberTestTok, "Expected '?#'.") {
+        if let Err(parse_error) = self.consume(TokenType::NumberTest, "Expected '?#'.") {
             return Err(parse_error);
         }
 
@@ -3477,7 +3490,7 @@ impl<'a> Parser<'a> {
 
         conditional_branches.push(first_branch_node);
 
-        while self.match_token(&vec![ElseContinueTok]) {
+        while self.match_token(&[TokenType::ElseContinue]) {
             match self.number_match_test_match_branch() {
                 Ok(branch_node) => {
                     conditional_branches.push(branch_node);
@@ -3488,7 +3501,7 @@ impl<'a> Parser<'a> {
 
         // (':' match_test_else_branch)?
         let mut else_branch_opt: Option<NumberMatchTestElseBranchNode> = None;
-        if self.match_token(&vec![ColonTok]) {
+        if self.match_token(&[TokenType::Colon]) {
             else_branch_opt = Option::from(match self.number_match_test_else_branch() {
                 Ok(statements_t_opt) => statements_t_opt,
                 Err(parse_error) => return Err(parse_error),
@@ -3496,15 +3509,17 @@ impl<'a> Parser<'a> {
         }
 
         // '::'
-        if let Err(parse_error) = self.consume(TestTerminatorTok, "Expected TestTerminator.") {
+        if let Err(parse_error) =
+            self.consume(TokenType::TestTerminator, "Expected TestTerminator.")
+        {
             return Err(parse_error);
         }
 
-        return Ok(NumberMatchTestNode::new(
+        Ok(NumberMatchTestNode::new(
             expr_t,
             conditional_branches,
             else_branch_opt,
-        ));
+        ))
     }
 
     /* --------------------------------------------------------------------- */
@@ -3514,13 +3529,13 @@ impl<'a> Parser<'a> {
     fn number_match_test_match_branch(
         &mut self,
     ) -> Result<NumberMatchTestMatchBranchNode, ParseError> {
-        if let Err(parse_error) = self.consume(ForwardSlashTok, "Expected '/'.") {
+        if let Err(parse_error) = self.consume(TokenType::ForwardSlash, "Expected '/'.") {
             return Err(parse_error);
         }
 
         let mut match_numbers = Vec::new();
 
-        if !self.match_token(&vec![NumberTok]) {
+        if !self.match_token(&[TokenType::Number]) {
             return Err(ParseError::new("TODO"));
         }
 
@@ -3530,8 +3545,8 @@ impl<'a> Parser<'a> {
         let number_match_pattern_node = NumberMatchTestPatternNode::new(match_pattern_number);
         match_numbers.push(number_match_pattern_node);
 
-        while self.match_token(&vec![PipeTok]) {
-            if !self.match_token(&vec![NumberTok]) {
+        while self.match_token(&[TokenType::Pipe]) {
+            if !self.match_token(&[TokenType::Number]) {
                 return Err(ParseError::new("TODO"));
             }
 
@@ -3542,19 +3557,19 @@ impl<'a> Parser<'a> {
             match_numbers.push(number_match_pattern_node);
         }
 
-        if let Err(parse_error) = self.consume(ForwardSlashTok, "Expected '/'.") {
+        if let Err(parse_error) = self.consume(TokenType::ForwardSlash, "Expected '/'.") {
             return Err(parse_error);
         }
         let statements = self.statements();
         let result = self.branch_terminator();
-        return match result {
+        match result {
             Ok(branch_terminator_t_opt) => Ok(NumberMatchTestMatchBranchNode::new(
                 match_numbers,
                 statements,
                 branch_terminator_t_opt,
             )),
             Err(parse_error) => Err(parse_error),
-        };
+        }
     }
 
     /* --------------------------------------------------------------------- */
@@ -3566,12 +3581,12 @@ impl<'a> Parser<'a> {
     ) -> Result<NumberMatchTestElseBranchNode, ParseError> {
         let statements = self.statements();
         let result = self.branch_terminator();
-        return match result {
+        match result {
             Ok(branch_terminator_opt) => Ok(NumberMatchTestElseBranchNode::new(
                 statements,
                 branch_terminator_opt,
             )),
             Err(parse_error) => Err(parse_error),
-        };
+        }
     }
 }

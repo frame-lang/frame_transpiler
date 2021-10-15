@@ -1,3 +1,4 @@
+#![allow(clippy::enum_variant_names)]
 #![allow(non_snake_case)]
 
 use super::scanner::{Token, TokenType};
@@ -557,7 +558,7 @@ impl EventHandlerNode {
             state_name,
             msg_t,
             statements,
-            terminator_node: terminator_node,
+            terminator_node,
             event_symbol_rcref,
             event_handler_has_transition,
             line,
@@ -845,6 +846,7 @@ pub enum ExprStmtType {
     },
 }
 
+#[allow(clippy::large_enum_variant)]
 pub enum StatementType {
     ExpressionStmt {
         expr_stmt_t: ExprStmtType,
@@ -867,6 +869,9 @@ pub enum StatementType {
 
 //-----------------------------------------------------//
 
+// TODO: Adding a `Box` around `StmtT`'s argument would decreases the size of
+// `VarDeclT` variant by nearly 400 bytes. However, this impacts every visitor.
+#[allow(clippy::large_enum_variant)]
 pub enum DeclOrStmtType {
     VarDeclT {
         var_decl_t_rc_ref: Rc<RefCell<VariableDeclNode>>,
@@ -1224,20 +1229,20 @@ impl NodeElement for OperatorType {
 impl OperatorType {
     pub fn get_operator_type(token_type: &TokenType) -> OperatorType {
         match token_type {
-            TokenType::PlusTok => Plus,
-            TokenType::DashTok => Minus,
-            TokenType::StarTok => Multiply,
-            TokenType::ForwardSlashTok => Divide,
-            TokenType::GTTok => Greater,
-            TokenType::GreaterEqualTok => GreaterEqual,
-            TokenType::LTTok => OperatorType::Less,
-            TokenType::LessEqualTok => LessEqual,
-            TokenType::BangTok => OperatorType::Not,
-            TokenType::EqualEqualTok => OperatorType::EqualEqual,
-            TokenType::BangEqualTok => OperatorType::NotEqual,
-            TokenType::LogicalAndTok => OperatorType::LogicalAnd,
-            TokenType::PipePipeTok => OperatorType::LogicalOr,
-            TokenType::LogicalXorTok => OperatorType::LogicalXor,
+            TokenType::Plus => Plus,
+            TokenType::Dash => Minus,
+            TokenType::Star => Multiply,
+            TokenType::ForwardSlash => Divide,
+            TokenType::GT => Greater,
+            TokenType::GreaterEqual => GreaterEqual,
+            TokenType::LT => OperatorType::Less,
+            TokenType::LessEqual => LessEqual,
+            TokenType::Bang => OperatorType::Not,
+            TokenType::EqualEqual => OperatorType::EqualEqual,
+            TokenType::BangEqual => OperatorType::NotEqual,
+            TokenType::LogicalAnd => OperatorType::LogicalAnd,
+            TokenType::PipePipe => OperatorType::LogicalOr,
+            TokenType::LogicalXor => OperatorType::LogicalXor,
             _ => panic!("Invalid token for operator."),
         }
     }

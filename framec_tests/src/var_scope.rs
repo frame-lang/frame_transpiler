@@ -12,6 +12,8 @@
 //! This module tests that variable shadowing and the disambiguation sigils
 //! work as expected.
 
+#![allow(clippy::redundant_clone)]
+
 type Log = Vec<String>;
 include!(concat!(env!("OUT_DIR"), "/", "var_scope.rs"));
 

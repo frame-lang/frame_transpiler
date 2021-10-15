@@ -1,10 +1,9 @@
 #![allow(non_snake_case)]
 
-use super::super::ast::*;
-use super::super::symbol_table::*;
-use super::super::symbol_table::SymbolType::*;
-use super::super::visitors::*;
-use super::super::scanner::{Token,TokenType};
+use crate::frame_c::ast::*;
+use crate::frame_c::symbol_table::*;
+use crate::frame_c::visitors::*;
+use crate::frame_c::scanner::{Token,TokenType};
 
 struct Config {
     state_var_name:String,
@@ -159,30 +158,30 @@ impl XStateVisitor {
 
     fn get_variable_type(&self,symbol_type:&SymbolType) -> String {
         let var_type = match &*symbol_type {
-            DomainVariableSymbolT { domain_variable_symbol_rcref } => {
+            SymbolType::DomainVariable { domain_variable_symbol_rcref } => {
                 match &domain_variable_symbol_rcref.borrow().var_type {
                     Some(x) => String::from(""),
                     None => String::from(""),
                 }
             },
-            StateParamSymbolT { state_param_symbol_rcref } => {
+            SymbolType::StateParam { state_param_symbol_rcref } => {
                 match &state_param_symbol_rcref.borrow().param_type {
                     Some(x) => String::from(""),
                     None => String::from(""),
                 }
             },
-            StateVariableSymbolT { state_variable_symbol_rcref } => {
+            SymbolType::StateVariable { state_variable_symbol_rcref } => {
                 match &state_variable_symbol_rcref.borrow().var_type {
                     Some(x) => String::from(""),
                     None => String::from(""),
                 }                    },
-            EventHandlerParamSymbolT { event_handler_param_symbol_rcref } => {
+            SymbolType::EventHandlerParam { event_handler_param_symbol_rcref } => {
                 match &event_handler_param_symbol_rcref.borrow().param_type {
                     Some(x) => String::from(""),
                     None => String::from(""),
                 }
             },
-            EventHandlerVariableSymbolT { event_handler_variable_symbol_rcref } => {
+            SymbolType::EventHandlerVariable { event_handler_variable_symbol_rcref } => {
                 match &event_handler_variable_symbol_rcref.borrow().var_type {
                     Some(x) => String::from(""),
                     None => String::from(""),
@@ -522,7 +521,7 @@ impl XStateVisitor {
         while self.current_comment_idx < self.comments.len() &&
             line >= self.comments[self.current_comment_idx].line {
             let comment = &self.comments[self.current_comment_idx];
-            if comment.token_type == TokenType::SingleLineCommentTok {
+            if comment.token_type == TokenType::SingleLineComment {
                 self.code.push_str(&*format!("  // {}",&comment.lexeme[3..]));
                 self.code.push_str(&*format!("\n{}",(0..self.dent).map(|_| "\t").collect::<String>()));
 
@@ -1991,19 +1990,19 @@ impl AstVisitor for XStateVisitor {
     fn visit_literal_expression_node(&mut self, literal_expression_node: &LiteralExprNode) -> AstVisitorReturnType {
 
         match &literal_expression_node.token_t {
-            TokenType::NumberTok
+            TokenType::Number
             => self.add_code(&format!("{}", literal_expression_node.value)),
-            TokenType::SuperStringTok
+            TokenType::SuperString
             => self.add_code(&format!("{}", literal_expression_node.value)),
-            TokenType::StringTok
+            TokenType::String
             => self.add_code(&format!("\"{}\"", literal_expression_node.value)),
-            TokenType::TrueTok
+            TokenType::True
             => self.add_code("true"),
-            TokenType::FalseTok
+            TokenType::False
             => self.add_code("false"),
-            TokenType::NullTok
+            TokenType::Null
             => self.add_code("null"),
-            TokenType::NilTok
+            TokenType::Nil
             => self.add_code("null"),
             _ => panic!("TODO"),
         }
@@ -2017,22 +2016,22 @@ impl AstVisitor for XStateVisitor {
 
         // TODO: make a focused enum or the literals
         match &literal_expression_node.token_t {
-            TokenType::NumberTok => {
+            TokenType::Number => {
                 output.push_str(&format!("{}", literal_expression_node.value))
             },
-            TokenType::StringTok => {
+            TokenType::String => {
                 output.push_str(&format!("\"{}\"", literal_expression_node.value));
             },
-            TokenType::TrueTok => {
+            TokenType::True => {
                 output.push_str("true");
             },
-            TokenType::FalseTok => {
+            TokenType::False => {
                 output.push_str("false");
             },
-            TokenType::NilTok => {
+            TokenType::Nil => {
                 output.push_str("null");
             },
-            TokenType::NullTok => {
+            TokenType::Null => {
                 output.push_str("null");
             },
             _ => panic!("TODO"),

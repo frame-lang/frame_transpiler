@@ -6,7 +6,7 @@ include!(concat!(env!("OUT_DIR"), "/", "transition_params.rs"));
 
 impl<'a> TransitParams<'a> {
     pub fn log(&mut self, msg: String) {
-        self.tape.push(format!("{}", msg));
+        self.tape.push(msg);
     }
 }
 
@@ -74,12 +74,12 @@ mod tests {
         let mut sm = TransitParams::new();
         sm.callback_manager().add_transition_callback(|info| {
             let mut entry = String::new();
-            info.exit_arguments.lookup("msg").map(|any| {
+            if let Some(any) = info.exit_arguments.lookup("msg") {
                 entry.push_str(&format!("msg: {}, ", any.downcast_ref::<String>().unwrap()));
-            });
-            info.exit_arguments.lookup("val").map(|any| {
+            }
+            if let Some(any) = info.exit_arguments.lookup("val") {
                 entry.push_str(&format!("val: {}, ", any.downcast_ref::<bool>().unwrap()));
-            });
+            }
             entry.push_str(&format!(
                 "{}{}{}",
                 info.old_state.name(),
@@ -89,12 +89,12 @@ mod tests {
                 },
                 info.new_state.name(),
             ));
-            info.enter_arguments.lookup("msg").map(|any| {
+            if let Some(any) = info.enter_arguments.lookup("msg") {
                 entry.push_str(&format!(", msg: {}", any.downcast_ref::<String>().unwrap()));
-            });
-            info.enter_arguments.lookup("val").map(|any| {
+            }
+            if let Some(any) = info.enter_arguments.lookup("val") {
                 entry.push_str(&format!(", val: {}", any.downcast_ref::<i16>().unwrap()));
-            });
+            }
             *out.lock().unwrap() = entry;
         });
         sm.next();

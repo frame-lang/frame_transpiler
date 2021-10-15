@@ -28,6 +28,12 @@ impl SymbolConfig {
     }
 }
 
+impl Default for SymbolConfig {
+    fn default() -> Self {
+        SymbolConfig::new()
+    }
+}
+
 pub trait Symbol {
     fn get_name(&self) -> String;
 }
@@ -38,101 +44,101 @@ pub trait ScopeSymbol {
 }
 
 pub enum ParseScopeType {
-    SystemScope {
+    System {
         system_symbol: Rc<RefCell<SystemSymbol>>,
     },
-    InterfaceBlockScope {
+    InterfaceBlock {
         interface_block_scope_symbol_rcref: Rc<RefCell<InterfaceBlockScopeSymbol>>,
     },
     // TODO:
     // InterfaceMethodDeclScope,
-    MachineBlockScope {
+    MachineBlock {
         machine_scope_symbol_rcref: Rc<RefCell<MachineBlockScopeSymbol>>,
     },
-    ActionsBlockScope {
+    ActionsBlock {
         actions_block_scope_symbol_rcref: Rc<RefCell<ActionsBlockScopeSymbol>>,
     },
-    DomainBlockScope {
+    DomainBlock {
         domain_block_scope_symbol_rcref: Rc<RefCell<DomainBlockScopeSymbol>>,
     },
-    StateScope {
+    State {
         state_symbol: Rc<RefCell<StateSymbol>>,
     },
-    StateParamsScope {
+    StateParams {
         state_params_scope_symbol_rcref: Rc<RefCell<StateParamsScopeSymbol>>,
     },
-    StateLocalScope {
+    StateLocal {
         state_local_scope_symbol_rcref: Rc<RefCell<StateLocalScopeSymbol>>,
     },
-    EventHandlerScope {
+    EventHandler {
         event_handler_scope_symbol_rcref: Rc<RefCell<EventHandlerScopeSymbol>>,
     },
-    EventHandlerParamsScope {
+    EventHandlerParams {
         event_handler_params_scope_symbol_rcref: Rc<RefCell<EventHandlerParamsScopeSymbol>>,
     },
-    EventHandlerLocalScope {
+    EventHandlerLocal {
         event_handler_local_scope_symbol_rcref: Rc<RefCell<EventHandlerLocalScopeSymbol>>,
     },
 }
 
 // This is what gets stored in the symbol tables
 pub enum SymbolType {
-    SystemSymbolT {
+    System {
         system_symbol_ref: Rc<RefCell<SystemSymbol>>,
     },
     #[allow(dead_code)] // not dead. weird
-    InterfaceBlockSymbolT {
+    InterfaceBlock {
         interface_block_symbol_rcref: Rc<RefCell<InterfaceBlockScopeSymbol>>,
     },
     // TODO: Add InterfaceMethod
-    InterfaceMethodSymbolT {
+    InterfaceMethod {
         interface_method_symbol_rcref: Rc<RefCell<InterfaceMethodSymbol>>,
     },
-    MachineBlockScopeSymbolT {
+    MachineBlockScope {
         machine_block_symbol_rcref: Rc<RefCell<MachineBlockScopeSymbol>>,
     },
-    ActionsBlockScopeSymbolT {
+    ActionsBlockScope {
         actions_block_symbol_rcref: Rc<RefCell<ActionsBlockScopeSymbol>>,
     },
-    ActionDeclSymbolT {
+    ActionDecl {
         action_decl_symbol_rcref: Rc<RefCell<ActionDeclSymbol>>,
     },
-    DomainBlockScopeSymbolT {
+    DomainBlockScope {
         domain_block_symbol_rcref: Rc<RefCell<DomainBlockScopeSymbol>>,
     },
-    StateSymbolT {
+    State {
         state_symbol_ref: Rc<RefCell<StateSymbol>>,
     },
-    StateParamsScopeSymbolT {
+    StateParamsScope {
         state_params_scope_rcref: Rc<RefCell<StateParamsScopeSymbol>>,
     },
-    StateLocalScopeSymbolT {
+    StateLocalScope {
         state_local_scope_struct_rcref: Rc<RefCell<StateLocalScopeSymbol>>,
     },
-    EventHandlerScopeSymbolT {
+    EventHandlerScope {
         event_handler_scope_symbol: Rc<RefCell<EventHandlerScopeSymbol>>,
     },
-    EventHandlerParamsScopeSymbolT {
+    EventHandlerParamsScope {
         event_handler_params_scope_symbol_rcref: Rc<RefCell<EventHandlerParamsScopeSymbol>>,
     },
-    EventHandlerLocalScopeSymbolT {
+    EventHandlerLocalScope {
         event_handler_local_scope_rcref: Rc<RefCell<EventHandlerLocalScopeSymbol>>,
     },
 
     // Variable Symbol types
-    DomainVariableSymbolT {
+    DomainVariable {
         domain_variable_symbol_rcref: Rc<RefCell<VariableSymbol>>,
     },
-    StateParamSymbolT {
+    StateParam {
         state_param_symbol_rcref: Rc<RefCell<ParameterSymbol>>,
     },
-    StateVariableSymbolT {
+    StateVariable {
         state_variable_symbol_rcref: Rc<RefCell<VariableSymbol>>,
     },
-    EventHandlerParamSymbolT {
+    EventHandlerParam {
         event_handler_param_symbol_rcref: Rc<RefCell<ParameterSymbol>>,
     },
-    EventHandlerVariableSymbolT {
+    EventHandlerVariable {
         event_handler_variable_symbol_rcref: Rc<RefCell<VariableSymbol>>,
     },
 }
@@ -140,56 +146,54 @@ pub enum SymbolType {
 impl Symbol for SymbolType {
     fn get_name(&self) -> String {
         match self {
-            SymbolType::SystemSymbolT { system_symbol_ref } => {
-                system_symbol_ref.borrow().get_name()
-            }
-            SymbolType::InterfaceBlockSymbolT {
+            SymbolType::System { system_symbol_ref } => system_symbol_ref.borrow().get_name(),
+            SymbolType::InterfaceBlock {
                 interface_block_symbol_rcref,
             } => interface_block_symbol_rcref.borrow().get_name(),
-            SymbolType::InterfaceMethodSymbolT {
+            SymbolType::InterfaceMethod {
                 interface_method_symbol_rcref,
             } => interface_method_symbol_rcref.borrow().get_name(),
-            SymbolType::MachineBlockScopeSymbolT {
+            SymbolType::MachineBlockScope {
                 machine_block_symbol_rcref,
             } => machine_block_symbol_rcref.borrow().get_name(),
-            SymbolType::ActionsBlockScopeSymbolT {
+            SymbolType::ActionsBlockScope {
                 actions_block_symbol_rcref,
             } => actions_block_symbol_rcref.borrow().get_name(),
-            SymbolType::DomainBlockScopeSymbolT {
+            SymbolType::DomainBlockScope {
                 domain_block_symbol_rcref,
             } => domain_block_symbol_rcref.borrow().get_name(),
-            SymbolType::StateSymbolT { state_symbol_ref } => state_symbol_ref.borrow().get_name(),
-            SymbolType::StateParamsScopeSymbolT {
+            SymbolType::State { state_symbol_ref } => state_symbol_ref.borrow().get_name(),
+            SymbolType::StateParamsScope {
                 state_params_scope_rcref,
             } => state_params_scope_rcref.borrow().get_name(),
-            SymbolType::StateLocalScopeSymbolT {
+            SymbolType::StateLocalScope {
                 state_local_scope_struct_rcref: state_block_scope_struct_rcref,
             } => state_block_scope_struct_rcref.borrow().get_name(),
-            SymbolType::DomainVariableSymbolT {
+            SymbolType::DomainVariable {
                 domain_variable_symbol_rcref,
             } => domain_variable_symbol_rcref.borrow().get_name(),
-            SymbolType::StateVariableSymbolT {
+            SymbolType::StateVariable {
                 state_variable_symbol_rcref,
             } => state_variable_symbol_rcref.borrow().get_name(),
-            SymbolType::EventHandlerScopeSymbolT {
+            SymbolType::EventHandlerScope {
                 event_handler_scope_symbol,
             } => event_handler_scope_symbol.borrow().get_name(),
-            SymbolType::EventHandlerParamsScopeSymbolT {
+            SymbolType::EventHandlerParamsScope {
                 event_handler_params_scope_symbol_rcref,
             } => event_handler_params_scope_symbol_rcref.borrow().get_name(),
-            SymbolType::EventHandlerParamSymbolT {
+            SymbolType::EventHandlerParam {
                 event_handler_param_symbol_rcref,
             } => event_handler_param_symbol_rcref.borrow().get_name(),
-            SymbolType::EventHandlerVariableSymbolT {
+            SymbolType::EventHandlerVariable {
                 event_handler_variable_symbol_rcref,
             } => event_handler_variable_symbol_rcref.borrow().get_name(),
-            SymbolType::ActionDeclSymbolT {
+            SymbolType::ActionDecl {
                 action_decl_symbol_rcref,
             } => action_decl_symbol_rcref.borrow().get_name(),
-            SymbolType::StateParamSymbolT {
+            SymbolType::StateParam {
                 state_param_symbol_rcref,
             } => state_param_symbol_rcref.borrow().get_name(),
-            SymbolType::EventHandlerLocalScopeSymbolT {
+            SymbolType::EventHandlerLocalScope {
                 event_handler_local_scope_rcref,
             } => event_handler_local_scope_rcref.borrow().get_name(),
         }
@@ -199,51 +203,49 @@ impl Symbol for SymbolType {
 impl ScopeSymbol for SymbolType {
     fn get_symbol_table(&self) -> Rc<RefCell<SymbolTable>> {
         match self {
-            SymbolType::SystemSymbolT { system_symbol_ref } => {
+            SymbolType::System { system_symbol_ref } => {
                 system_symbol_ref.borrow().get_symbol_table()
             }
-            SymbolType::InterfaceBlockSymbolT {
+            SymbolType::InterfaceBlock {
                 interface_block_symbol_rcref,
             } => interface_block_symbol_rcref.borrow().get_symbol_table(),
-            SymbolType::MachineBlockScopeSymbolT {
+            SymbolType::MachineBlockScope {
                 machine_block_symbol_rcref,
             } => machine_block_symbol_rcref.borrow().get_symbol_table(),
-            SymbolType::ActionsBlockScopeSymbolT {
+            SymbolType::ActionsBlockScope {
                 actions_block_symbol_rcref,
             } => actions_block_symbol_rcref.borrow().get_symbol_table(),
-            SymbolType::ActionDeclSymbolT { .. } => {
+            SymbolType::ActionDecl { .. } => {
                 panic!("Fatal error - action decl symbol does not have a symbol table.")
             }
             // action_decl_symbol_rcref.borrow().get_symbol_table(),
-            SymbolType::DomainBlockScopeSymbolT {
+            SymbolType::DomainBlockScope {
                 domain_block_symbol_rcref,
             } => domain_block_symbol_rcref.borrow().get_symbol_table(),
-            SymbolType::DomainVariableSymbolT { .. } => {
+            SymbolType::DomainVariable { .. } => {
                 panic!("Fatal error - domain variable symbol does not have a symbol table.")
             }
             //                => domain_variable_symbol_rcref.borrow().get_symbol_table(),
-            SymbolType::StateSymbolT { state_symbol_ref } => {
-                state_symbol_ref.borrow().get_symbol_table()
-            }
-            SymbolType::StateParamsScopeSymbolT {
+            SymbolType::State { state_symbol_ref } => state_symbol_ref.borrow().get_symbol_table(),
+            SymbolType::StateParamsScope {
                 state_params_scope_rcref,
             } => state_params_scope_rcref.borrow().get_symbol_table(),
-            SymbolType::StateParamSymbolT { .. } => {
+            SymbolType::StateParam { .. } => {
                 panic!("Fatal error - state param symbol does not have a symbol table.")
             }
             //state_param_symbol_rcref.borrow().get_symbol_table(),
-            SymbolType::StateLocalScopeSymbolT {
+            SymbolType::StateLocalScope {
                 state_local_scope_struct_rcref,
             } => state_local_scope_struct_rcref.borrow().get_symbol_table(),
-            SymbolType::EventHandlerScopeSymbolT {
+            SymbolType::EventHandlerScope {
                 event_handler_scope_symbol,
             } => event_handler_scope_symbol.borrow().get_symbol_table(),
-            SymbolType::EventHandlerParamsScopeSymbolT {
+            SymbolType::EventHandlerParamsScope {
                 event_handler_params_scope_symbol_rcref,
             } => event_handler_params_scope_symbol_rcref
                 .borrow()
                 .get_symbol_table(),
-            SymbolType::EventHandlerLocalScopeSymbolT {
+            SymbolType::EventHandlerLocalScope {
                 event_handler_local_scope_rcref,
             } => event_handler_local_scope_rcref.borrow().get_symbol_table(),
             _ => panic!("TODO"),
@@ -252,38 +254,38 @@ impl ScopeSymbol for SymbolType {
 
     fn get_symbol_table_for_symbol(&self, symbol_name: &str) -> Rc<RefCell<SymbolTable>> {
         match self {
-            SymbolType::SystemSymbolT { system_symbol_ref } => system_symbol_ref
+            SymbolType::System { system_symbol_ref } => system_symbol_ref
                 .borrow()
                 .get_symbol_table_for_symbol(symbol_name),
-            SymbolType::MachineBlockScopeSymbolT {
+            SymbolType::MachineBlockScope {
                 machine_block_symbol_rcref: machine_symbol_ref,
             } => machine_symbol_ref
                 .borrow()
                 .get_symbol_table_for_symbol(symbol_name),
-            SymbolType::DomainBlockScopeSymbolT {
+            SymbolType::DomainBlockScope {
                 domain_block_symbol_rcref: domain_symbol_ref,
             } => domain_symbol_ref
                 .borrow()
                 .get_symbol_table_for_symbol(symbol_name),
-            SymbolType::StateSymbolT { state_symbol_ref } => state_symbol_ref
+            SymbolType::State { state_symbol_ref } => state_symbol_ref
                 .borrow()
                 .get_symbol_table_for_symbol(symbol_name),
-            SymbolType::StateParamsScopeSymbolT {
+            SymbolType::StateParamsScope {
                 state_params_scope_rcref,
             } => state_params_scope_rcref
                 .borrow()
                 .get_symbol_table_for_symbol(symbol_name),
-            SymbolType::StateLocalScopeSymbolT {
+            SymbolType::StateLocalScope {
                 state_local_scope_struct_rcref: state_block_scope_struct_rcref,
             } => state_block_scope_struct_rcref
                 .borrow()
                 .get_symbol_table_for_symbol(symbol_name),
-            SymbolType::EventHandlerParamsScopeSymbolT {
+            SymbolType::EventHandlerParamsScope {
                 event_handler_params_scope_symbol_rcref: event_handler_params_symbol_rcref,
             } => event_handler_params_symbol_rcref
                 .borrow()
                 .get_symbol_table_for_symbol(symbol_name),
-            SymbolType::EventHandlerLocalScopeSymbolT {
+            SymbolType::EventHandlerLocalScope {
                 event_handler_local_scope_rcref: event_handler_block_scope_struct_rcref,
             } => event_handler_block_scope_struct_rcref
                 .borrow()
@@ -319,214 +321,193 @@ impl SymbolTable {
 
     pub fn insert_parse_scope(&mut self, scope_t: ParseScopeType) {
         match scope_t {
-            ParseScopeType::SystemScope { system_symbol } => {
+            ParseScopeType::System { system_symbol } => {
                 let name = system_symbol.borrow().name.clone();
-                let st_ref = Rc::new(RefCell::new(SymbolType::SystemSymbolT {
+                let st_ref = Rc::new(RefCell::new(SymbolType::System {
                     system_symbol_ref: system_symbol,
                 }));
                 self.symbols.insert(name, st_ref);
-                ()
             }
-            ParseScopeType::InterfaceBlockScope {
+            ParseScopeType::InterfaceBlock {
                 interface_block_scope_symbol_rcref,
             } => {
                 let name = interface_block_scope_symbol_rcref.borrow().name.clone();
-                let st_ref = Rc::new(RefCell::new(SymbolType::InterfaceBlockSymbolT {
+                let st_ref = Rc::new(RefCell::new(SymbolType::InterfaceBlock {
                     interface_block_symbol_rcref: interface_block_scope_symbol_rcref,
                 }));
                 self.symbols.insert(name, st_ref);
-                ()
             }
-            ParseScopeType::MachineBlockScope {
+            ParseScopeType::MachineBlock {
                 machine_scope_symbol_rcref: machine_symbol,
             } => {
                 let name = machine_symbol.borrow().name.clone();
-                let st_ref = Rc::new(RefCell::new(SymbolType::MachineBlockScopeSymbolT {
+                let st_ref = Rc::new(RefCell::new(SymbolType::MachineBlockScope {
                     machine_block_symbol_rcref: machine_symbol,
                 }));
                 self.symbols.insert(name, st_ref);
-                ()
             }
-            ParseScopeType::StateScope { state_symbol } => {
+            ParseScopeType::State { state_symbol } => {
                 let name = state_symbol.borrow().name.clone();
-                let st_ref = Rc::new(RefCell::new(SymbolType::StateSymbolT {
+                let st_ref = Rc::new(RefCell::new(SymbolType::State {
                     state_symbol_ref: state_symbol,
                 }));
                 self.symbols.insert(name, st_ref);
-                ()
             }
-            ParseScopeType::StateParamsScope {
+            ParseScopeType::StateParams {
                 state_params_scope_symbol_rcref: state_params_scope,
             } => {
                 let name = state_params_scope.borrow().name.clone();
-                let st_ref = Rc::new(RefCell::new(SymbolType::StateParamsScopeSymbolT {
+                let st_ref = Rc::new(RefCell::new(SymbolType::StateParamsScope {
                     state_params_scope_rcref: state_params_scope,
                 }));
                 self.symbols.insert(name, st_ref);
-                ()
             }
-            ParseScopeType::StateLocalScope {
+            ParseScopeType::StateLocal {
                 state_local_scope_symbol_rcref: state_block_scope_symbol_rcref,
             } => {
                 let name = state_block_scope_symbol_rcref.borrow().name.clone();
-                let st_ref = Rc::new(RefCell::new(SymbolType::StateLocalScopeSymbolT {
+                let st_ref = Rc::new(RefCell::new(SymbolType::StateLocalScope {
                     state_local_scope_struct_rcref: state_block_scope_symbol_rcref,
                 }));
                 self.symbols.insert(name, st_ref);
-                ()
             }
-            ParseScopeType::EventHandlerScope {
+            ParseScopeType::EventHandler {
                 event_handler_scope_symbol_rcref,
             } => {
                 let name = event_handler_scope_symbol_rcref.borrow().name.clone();
-                let st_ref = Rc::new(RefCell::new(SymbolType::EventHandlerScopeSymbolT {
+                let st_ref = Rc::new(RefCell::new(SymbolType::EventHandlerScope {
                     event_handler_scope_symbol: event_handler_scope_symbol_rcref,
                 }));
                 self.symbols.insert(name, st_ref);
-                ()
             }
-            ParseScopeType::EventHandlerParamsScope {
+            ParseScopeType::EventHandlerParams {
                 event_handler_params_scope_symbol_rcref,
             } => {
                 let name = event_handler_params_scope_symbol_rcref
                     .borrow()
                     .name
                     .clone();
-                let st_ref = Rc::new(RefCell::new(SymbolType::EventHandlerParamsScopeSymbolT {
-                    event_handler_params_scope_symbol_rcref:
-                        event_handler_params_scope_symbol_rcref,
+                let st_ref = Rc::new(RefCell::new(SymbolType::EventHandlerParamsScope {
+                    event_handler_params_scope_symbol_rcref,
                 }));
                 self.symbols.insert(name, st_ref);
-                ()
             }
-            ParseScopeType::EventHandlerLocalScope {
+            ParseScopeType::EventHandlerLocal {
                 event_handler_local_scope_symbol_rcref: event_handler_block_scope_symbol_rcref,
             } => {
                 let name = event_handler_block_scope_symbol_rcref.borrow().name.clone();
-                let st_ref = Rc::new(RefCell::new(SymbolType::EventHandlerLocalScopeSymbolT {
+                let st_ref = Rc::new(RefCell::new(SymbolType::EventHandlerLocalScope {
                     event_handler_local_scope_rcref: event_handler_block_scope_symbol_rcref,
                 }));
                 self.symbols.insert(name, st_ref);
-                ()
             }
-            ParseScopeType::ActionsBlockScope {
+            ParseScopeType::ActionsBlock {
                 actions_block_scope_symbol_rcref: actions_block_scope_symbol,
             } => {
                 let name = actions_block_scope_symbol.borrow().name.clone();
-                let st_ref = Rc::new(RefCell::new(SymbolType::ActionsBlockScopeSymbolT {
+                let st_ref = Rc::new(RefCell::new(SymbolType::ActionsBlockScope {
                     actions_block_symbol_rcref: actions_block_scope_symbol,
                 }));
                 self.symbols.insert(name, st_ref);
-                ()
             }
-            ParseScopeType::DomainBlockScope {
+            ParseScopeType::DomainBlock {
                 domain_block_scope_symbol_rcref: domain_symbol,
             } => {
                 let name = domain_symbol.borrow().name.clone();
-                let st_ref = Rc::new(RefCell::new(SymbolType::DomainBlockScopeSymbolT {
+                let st_ref = Rc::new(RefCell::new(SymbolType::DomainBlockScope {
                     domain_block_symbol_rcref: domain_symbol,
                 }));
                 self.symbols.insert(name, st_ref);
-                ()
             }
         }
     }
 
     pub fn insert_symbol(&mut self, symbol_t: &SymbolType) {
         match symbol_t {
-            SymbolType::DomainVariableSymbolT {
+            SymbolType::DomainVariable {
                 domain_variable_symbol_rcref,
             } => {
                 let name = domain_variable_symbol_rcref.borrow().name.clone();
-                let st_ref = Rc::new(RefCell::new(SymbolType::DomainVariableSymbolT {
+                let st_ref = Rc::new(RefCell::new(SymbolType::DomainVariable {
                     domain_variable_symbol_rcref: Rc::clone(domain_variable_symbol_rcref),
                 }));
                 self.symbols.insert(name, st_ref);
-                ()
             }
-            SymbolType::StateParamSymbolT {
+            SymbolType::StateParam {
                 state_param_symbol_rcref,
             } => {
                 let name = state_param_symbol_rcref.borrow().name.clone();
-                let st_ref = Rc::new(RefCell::new(SymbolType::StateParamSymbolT {
+                let st_ref = Rc::new(RefCell::new(SymbolType::StateParam {
                     state_param_symbol_rcref: Rc::clone(state_param_symbol_rcref),
                 }));
                 self.symbols.insert(name, st_ref);
-                ()
             }
-            SymbolType::StateLocalScopeSymbolT {
+            SymbolType::StateLocalScope {
                 state_local_scope_struct_rcref,
             } => {
                 let name = state_local_scope_struct_rcref.borrow().name.clone();
-                let st_ref = Rc::new(RefCell::new(SymbolType::StateLocalScopeSymbolT {
+                let st_ref = Rc::new(RefCell::new(SymbolType::StateLocalScope {
                     state_local_scope_struct_rcref: Rc::clone(state_local_scope_struct_rcref),
                 }));
                 self.symbols.insert(name, st_ref);
-                ()
             }
-            SymbolType::StateVariableSymbolT {
+            SymbolType::StateVariable {
                 state_variable_symbol_rcref,
             } => {
                 let name = state_variable_symbol_rcref.borrow().name.clone();
-                let st_ref = Rc::new(RefCell::new(SymbolType::StateVariableSymbolT {
+                let st_ref = Rc::new(RefCell::new(SymbolType::StateVariable {
                     state_variable_symbol_rcref: Rc::clone(state_variable_symbol_rcref),
                 }));
                 self.symbols.insert(name, st_ref);
-                ()
             }
-            SymbolType::EventHandlerParamSymbolT {
+            SymbolType::EventHandlerParam {
                 event_handler_param_symbol_rcref,
             } => {
                 let name = event_handler_param_symbol_rcref.borrow().name.clone();
-                let st_ref = Rc::new(RefCell::new(SymbolType::EventHandlerParamSymbolT {
+                let st_ref = Rc::new(RefCell::new(SymbolType::EventHandlerParam {
                     event_handler_param_symbol_rcref: Rc::clone(event_handler_param_symbol_rcref),
                 }));
                 self.symbols.insert(name, st_ref);
-                ()
             }
-            SymbolType::EventHandlerLocalScopeSymbolT {
+            SymbolType::EventHandlerLocalScope {
                 event_handler_local_scope_rcref,
             } => {
                 let name = event_handler_local_scope_rcref.borrow().name.clone();
-                let st_ref = Rc::new(RefCell::new(SymbolType::EventHandlerLocalScopeSymbolT {
+                let st_ref = Rc::new(RefCell::new(SymbolType::EventHandlerLocalScope {
                     event_handler_local_scope_rcref: Rc::clone(event_handler_local_scope_rcref),
                 }));
                 self.symbols.insert(name, st_ref);
-                ()
             }
-            SymbolType::EventHandlerVariableSymbolT {
+            SymbolType::EventHandlerVariable {
                 event_handler_variable_symbol_rcref,
             } => {
                 let name = event_handler_variable_symbol_rcref.borrow().name.clone();
-                let st_ref = Rc::new(RefCell::new(SymbolType::EventHandlerVariableSymbolT {
+                let st_ref = Rc::new(RefCell::new(SymbolType::EventHandlerVariable {
                     event_handler_variable_symbol_rcref: Rc::clone(
                         event_handler_variable_symbol_rcref,
                     ),
                 }));
                 self.symbols.insert(name, st_ref);
-                ()
             }
             // TODO: Currently actions are just declared.
             // When actions have bodies then this should become a scope symbol.
-            SymbolType::ActionDeclSymbolT {
+            SymbolType::ActionDecl {
                 action_decl_symbol_rcref,
             } => {
                 let name = action_decl_symbol_rcref.borrow().name.clone();
-                let symbol_type_rcref = Rc::new(RefCell::new(SymbolType::ActionDeclSymbolT {
+                let symbol_type_rcref = Rc::new(RefCell::new(SymbolType::ActionDecl {
                     action_decl_symbol_rcref: Rc::clone(action_decl_symbol_rcref),
                 }));
                 self.symbols.insert(name, symbol_type_rcref);
-                ()
             }
-            SymbolType::InterfaceMethodSymbolT {
+            SymbolType::InterfaceMethod {
                 interface_method_symbol_rcref,
             } => {
                 let name = interface_method_symbol_rcref.borrow().name.clone();
-                let symbol_type_rcref = Rc::new(RefCell::new(SymbolType::InterfaceMethodSymbolT {
+                let symbol_type_rcref = Rc::new(RefCell::new(SymbolType::InterfaceMethod {
                     interface_method_symbol_rcref: Rc::clone(interface_method_symbol_rcref),
                 }));
                 self.symbols.insert(name, symbol_type_rcref);
-                ()
             }
             _ => panic!("Fatal error - missing symbol type"),
         }
@@ -547,13 +528,13 @@ impl SymbolTable {
             };
             let y = x.borrow();
             match &*y {
-                SymbolType::DomainBlockScopeSymbolT {
+                SymbolType::DomainBlockScope {
                     domain_block_symbol_rcref,
                 } => {
                     let domain_block_scope_symbol = domain_block_symbol_rcref.borrow();
                     let symbol_table = domain_block_scope_symbol.symtab_rcref.borrow();
                     match symbol_table.lookup_local(name) {
-                        Some(a) => return Some(a.clone()),
+                        Some(a) => return Some(a),
                         None => return None,
                     }
                 }
@@ -563,10 +544,8 @@ impl SymbolTable {
 
         if *search_scope == IdentifierDeclScope::None || *search_scope == self.identifier_decl_scope
         {
-            let a = (self.symbols).get(name);
-            match a {
-                Some(aa) => return Some(Rc::clone(aa)),
-                None => {}
+            if let Some(aa) = self.symbols.get(name) {
+                return Some(Rc::clone(aa));
             }
         }
 
@@ -574,10 +553,7 @@ impl SymbolTable {
             Some(b) => {
                 let c = b.borrow();
                 let d = c.lookup(name, search_scope);
-                return match d {
-                    Some(e) => Some(Rc::clone(&e)),
-                    None => None,
-                };
+                d.map(|e| Rc::clone(&e))
             }
             None => None,
         }
@@ -585,16 +561,13 @@ impl SymbolTable {
 
     pub fn lookup_local(&self, name: &str) -> Option<Rc<RefCell<SymbolType>>> {
         let a = (self.symbols).get(name);
-        match a {
-            Some(aa) => return Some(aa.clone()),
-            None => None,
-        }
+        a.cloned()
     }
 
     pub fn get_parent_symtab(&self) -> Option<Rc<RefCell<SymbolTable>>> {
         //     let x = self.parent_symtab_opt_ref;
         let x = self.parent_symtab_rcref_opt.as_ref()?;
-        let y = Rc::clone(&x);
+        let y = Rc::clone(x);
         Some(y)
     }
 }
@@ -635,25 +608,22 @@ impl Arcanum {
     }
 
     pub fn debug_print_current_symbols(&self, symbol_table_rcref: Rc<RefCell<SymbolTable>>) {
-        Exe::debug_print(&format!("<------------------->"));
+        Exe::debug_print(&"<------------------->".to_string());
         self.do_debug_print_current_symbols(symbol_table_rcref);
-        Exe::debug_print(&format!("<------------------->"));
+        Exe::debug_print(&"<------------------->".to_string());
     }
 
     fn do_debug_print_current_symbols(&self, symbol_table_rcref: Rc<RefCell<SymbolTable>>) {
         let symbol_table = symbol_table_rcref.borrow();
 
-        Exe::debug_print(&format!("---------------------"));
+        Exe::debug_print(&"---------------------".to_string());
         Exe::debug_print(&format!("SymbolTable {}", symbol_table.name));
-        for (key, _value) in &symbol_table.symbols {
-            Exe::debug_print(&format!("{}", key));
+        for key in symbol_table.symbols.keys() {
+            Exe::debug_print(&key.to_string());
         }
 
-        match &symbol_table.parent_symtab_rcref_opt {
-            Some(parent_symbol_table_rcref) => {
-                self.do_debug_print_current_symbols(parent_symbol_table_rcref.clone());
-            }
-            None => return,
+        if let Some(parent_symbol_table_rcref) = &symbol_table.parent_symtab_rcref_opt {
+            self.do_debug_print_current_symbols(parent_symbol_table_rcref.clone());
         }
     }
 
@@ -688,22 +658,23 @@ impl Arcanum {
                 match symbol_table.lookup(name, &IdentifierDeclScope::InterfaceBlock) {
                     Some(c) => {
                         let d = c.borrow();
-                        return match &*d {
-                            SymbolType::InterfaceMethodSymbolT {
+                        match &*d {
+                            SymbolType::InterfaceMethod {
                                 interface_method_symbol_rcref,
-                            } => Some(Rc::clone(&interface_method_symbol_rcref)),
+                            } => Some(Rc::clone(interface_method_symbol_rcref)),
                             _ => None,
-                        };
+                        }
                     }
                     None => None,
                 }
             }
-            None => return None,
+            None => None,
         }
     }
 
     // Actions are only declared in the -actions- block.
     // Get -actions-block- symtab from the system symbol and lookup.
+    #[allow(clippy::many_single_char_names)] // TODO
     pub fn lookup_action(&self, name: &str) -> Option<Rc<RefCell<ActionDeclSymbol>>> {
         let a = &self.system_symbol_opt.as_ref().unwrap();
         match &a.borrow().actions_block_symbol_opt {
@@ -713,17 +684,17 @@ impl Arcanum {
                 match x.lookup(name, &IdentifierDeclScope::ActionsBlock) {
                     Some(c) => {
                         let d = c.borrow();
-                        return match &*d {
-                            SymbolType::ActionDeclSymbolT {
+                        match &*d {
+                            SymbolType::ActionDecl {
                                 action_decl_symbol_rcref: action_symbol_rcref,
-                            } => Some(Rc::clone(&action_symbol_rcref)),
+                            } => Some(Rc::clone(action_symbol_rcref)),
                             _ => None,
-                        };
+                        }
                     }
                     None => None,
                 }
             }
-            None => return None,
+            None => None,
         }
     }
 
@@ -732,7 +703,7 @@ impl Arcanum {
     pub fn enter_scope(&mut self, scope_t: ParseScopeType) {
         // do scope specific actions
         match &scope_t {
-            ParseScopeType::SystemScope {
+            ParseScopeType::System {
                 system_symbol: system_symbol_rcref,
             } => {
                 // set parent symbol table
@@ -754,7 +725,7 @@ impl Arcanum {
                 // clone the Rc for the symbol table
                 self.current_symtab = Rc::clone(&system_symbol_symtab_rcref);
             }
-            ParseScopeType::InterfaceBlockScope {
+            ParseScopeType::InterfaceBlock {
                 interface_block_scope_symbol_rcref,
             } => {
                 // Attach MachineSymbol to SystemSymbol
@@ -781,7 +752,7 @@ impl Arcanum {
                 // clone the Rc for the symbol table
                 self.current_symtab = Rc::clone(&interface_scope_symbol_symtab_rcref);
             }
-            ParseScopeType::MachineBlockScope {
+            ParseScopeType::MachineBlock {
                 machine_scope_symbol_rcref: machine_symbol_rcref,
             } => {
                 // Attach MachineSymbol to SystemSymbol
@@ -806,7 +777,7 @@ impl Arcanum {
                 // clone the Rc for the symbol table
                 self.current_symtab = Rc::clone(&machine_symbol_symtab_rcref);
             }
-            ParseScopeType::StateScope {
+            ParseScopeType::State {
                 state_symbol: state_symbol_rcref,
             } => {
                 // clone the Rc for the symbol table
@@ -825,7 +796,7 @@ impl Arcanum {
                 // update current symbol table to new state's symbol table
                 self.current_symtab = Rc::clone(&state_symbol_symtab_rcref);
             }
-            ParseScopeType::StateParamsScope {
+            ParseScopeType::StateParams {
                 state_params_scope_symbol_rcref: state_params_rcref,
             } => {
                 // clone the Rc for the symbol table
@@ -844,7 +815,7 @@ impl Arcanum {
                 // update current symbol table to new state's symbol table
                 self.current_symtab = Rc::clone(&state_params_symtab_rcref);
             }
-            ParseScopeType::StateLocalScope {
+            ParseScopeType::StateLocal {
                 state_local_scope_symbol_rcref: state_block_rcref,
             } => {
                 // clone the Rc for the symbol table
@@ -863,7 +834,7 @@ impl Arcanum {
                 // update current symbol table to state block symbol table
                 self.current_symtab = Rc::clone(&state_block_symtab_rcref);
             }
-            ParseScopeType::EventHandlerScope {
+            ParseScopeType::EventHandler {
                 event_handler_scope_symbol_rcref,
             } => {
                 // clone the Rc for the symbol table
@@ -882,7 +853,7 @@ impl Arcanum {
                 // update current symbol table to new event_handler's symbol table
                 self.current_symtab = Rc::clone(&event_handler_symbol_symtab_rcref);
             }
-            ParseScopeType::EventHandlerParamsScope {
+            ParseScopeType::EventHandlerParams {
                 event_handler_params_scope_symbol_rcref: event_handler_params_rcref,
             } => {
                 // clone the Rc for the symbol table
@@ -901,7 +872,7 @@ impl Arcanum {
                 // update current symbol table to new event_handler's symbol table
                 self.current_symtab = Rc::clone(&event_handler_params_symtab_rcref);
             }
-            ParseScopeType::EventHandlerLocalScope {
+            ParseScopeType::EventHandlerLocal {
                 event_handler_local_scope_symbol_rcref: event_handler_block_scope_symbol_rcref,
             } => {
                 // clone the Rc for the symbol table
@@ -924,7 +895,7 @@ impl Arcanum {
                 // update current symbol table to new event_handler's symbol table
                 self.current_symtab = Rc::clone(&event_handler_block_scope_symbol_symtab_rcref);
             }
-            ParseScopeType::ActionsBlockScope {
+            ParseScopeType::ActionsBlock {
                 actions_block_scope_symbol_rcref: actions_block_scope_symbol,
             } => {
                 {
@@ -948,7 +919,7 @@ impl Arcanum {
                 self.current_symtab.borrow_mut().insert_parse_scope(scope_t);
                 self.current_symtab = Rc::clone(&actions_block_symbol_symtab_rcref);
             }
-            ParseScopeType::DomainBlockScope {
+            ParseScopeType::DomainBlock {
                 domain_block_scope_symbol_rcref,
             } => {
                 // clone the Rc for the symbol table
@@ -1005,6 +976,7 @@ impl Arcanum {
         ));
     }
 
+    #[allow(clippy::many_single_char_names)] // TODO
     fn get_next_symbol_table(
         &self,
         scope_name: &str,
@@ -1017,7 +989,7 @@ impl Arcanum {
             Some(e) => {
                 let f = e.borrow();
                 let g = f.get_symbol_table();
-                return Rc::clone(&g);
+                Rc::clone(&g)
             }
             None => panic!("Fatal error - could not get next symbol table."),
         }
@@ -1048,16 +1020,16 @@ impl Arcanum {
                         let x = symbol_t_ref.borrow();
 
                         match &*x {
-                            SymbolType::StateSymbolT { state_symbol_ref } => {
-                                return Some(Rc::clone(state_symbol_ref))
+                            SymbolType::State { state_symbol_ref } => {
+                                Some(Rc::clone(state_symbol_ref))
                             }
                             _ => None,
                         }
                     }
-                    _ => return None,
+                    _ => None,
                 }
             }
-            None => return None,
+            None => None,
         }
     }
 
@@ -1113,7 +1085,7 @@ impl Arcanum {
     // exists or returns the message name itself.
 
     #[allow(dead_code)]
-    pub fn get_msg_from_interface_name(&self, interface_name: &String) -> String {
+    pub fn get_msg_from_interface_name(&self, interface_name: &str) -> String {
         let system_symbol_rcref = self.system_symbol_opt.as_ref().unwrap();
         let system_symbol = system_symbol_rcref.borrow();
         for (_k, v) in system_symbol.events.iter() {
@@ -1159,10 +1131,10 @@ impl Arcanum {
         }
         let system_symbol_rcref = self.system_symbol_opt.as_ref().unwrap();
         let system_symbol = system_symbol_rcref.borrow_mut();
-        match system_symbol.events.get(&cannonical_msg) {
-            Some(x) => Some(Rc::clone(x)),
-            None => None,
-        }
+        system_symbol
+            .events
+            .get(&cannonical_msg)
+            .map(|x| Rc::clone(x))
     }
 
     // pub fn get_event_ret_opt(&mut self, msg:&str, state_name_opt:&Option<String>) -> Option<TypeNode> {
@@ -1197,10 +1169,10 @@ impl Arcanum {
     // TODO: implement this for all symbol types!
     fn get_symbol_table_for_type(&self, symbol_t: &SymbolType) -> Rc<RefCell<SymbolTable>> {
         match symbol_t {
-            SymbolType::StateParamSymbolT {
+            SymbolType::StateParam {
                 state_param_symbol_rcref: _state_param_symbol_rcref,
             } => Rc::clone(&self.current_symtab),
-            SymbolType::EventHandlerParamSymbolT {
+            SymbolType::EventHandlerParam {
                 event_handler_param_symbol_rcref: _event_handler_param_symbol_rcref,
             } => Rc::clone(&self.current_symtab),
             _ => panic!("TODO"),
@@ -1225,7 +1197,7 @@ impl SystemSymbol {
         SystemSymbol {
             name: name.clone(),
             symtab_rcref: Rc::new(RefCell::new(SymbolTable::new(
-                String::from(name.clone()),
+                name,
                 None,
                 IdentifierDeclScope::None,
                 true,
@@ -1240,7 +1212,7 @@ impl SystemSymbol {
     }
 
     pub fn set_parent_symtab(&mut self, parent_symtab: &Rc<RefCell<SymbolTable>>) {
-        self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt = Some(Rc::clone(&parent_symtab));
+        self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt = Some(Rc::clone(parent_symtab));
     }
 }
 
@@ -1260,7 +1232,7 @@ impl ScopeSymbol for SystemSymbol {
         if let Some(c) = b {
             let d = c.borrow();
             let e = d.get_symbol_table_for_symbol(symbol_name);
-            return Rc::clone(&e);
+            Rc::clone(&e)
         } else {
             panic!(
                 "Fatal error - could not find symbol {} in system scope.",
@@ -1298,7 +1270,13 @@ impl InterfaceBlockScopeSymbol {
     }
 
     pub fn set_parent_symtab(&mut self, parent_symtab: &Rc<RefCell<SymbolTable>>) {
-        self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt = Some(Rc::clone(&parent_symtab));
+        self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt = Some(Rc::clone(parent_symtab));
+    }
+}
+
+impl Default for InterfaceBlockScopeSymbol {
+    fn default() -> Self {
+        InterfaceBlockScopeSymbol::new()
     }
 }
 
@@ -1319,7 +1297,7 @@ impl ScopeSymbol for InterfaceBlockScopeSymbol {
         if let Some(symbol_type_rcref) = symbol_type_rcref_opt {
             let symbol_type = symbol_type_rcref.borrow();
             let symbol_table_for_symbol = symbol_type.get_symbol_table_for_symbol(symbol_name);
-            return Rc::clone(&symbol_table_for_symbol);
+            Rc::clone(&symbol_table_for_symbol)
         } else {
             panic!(
                 "Fatal error - could not find symbol {} in interface block scope.",
@@ -1387,7 +1365,7 @@ pub struct EventSymbol {
 impl EventSymbol {
     pub fn new(
         symbol_config: &SymbolConfig,
-        msg: &String,
+        msg: &str,
         interface_name_opt: Option<String>,
         params_opt: Option<Vec<ParameterSymbol>>,
         ret_type_opt: Option<TypeNode>,
@@ -1413,23 +1391,23 @@ impl EventSymbol {
     pub fn get_event_msg(
         symbol_config: &SymbolConfig,
         state_name: &Option<String>,
-        msg: &String,
+        msg: &str,
     ) -> (String, bool, bool) {
         let mut msg_name: String;
         let mut is_enter_msg = false;
         let mut is_exit_msg = false;
-        if &symbol_config.enter_msg_symbol == msg {
+        if symbol_config.enter_msg_symbol == msg {
             is_enter_msg = true;
             msg_name = state_name.as_ref().unwrap().clone();
-            msg_name.push_str(":");
+            msg_name.push(':');
             msg_name.push_str(&symbol_config.enter_msg_symbol);
-        } else if &symbol_config.exit_msg_symbol == msg {
+        } else if symbol_config.exit_msg_symbol == msg {
             is_exit_msg = true;
             msg_name = state_name.as_ref().unwrap().clone();
-            msg_name.push_str(":");
+            msg_name.push(':');
             msg_name.push_str(&symbol_config.exit_msg_symbol);
         } else {
-            msg_name = msg.clone();
+            msg_name = msg.to_string();
         }
 
         (msg_name, is_enter_msg, is_exit_msg)
@@ -1466,7 +1444,13 @@ impl MachineBlockScopeSymbol {
     }
 
     pub fn set_parent_symtab(&mut self, parent_symtab: &Rc<RefCell<SymbolTable>>) {
-        self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt = Some(Rc::clone(&parent_symtab));
+        self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt = Some(Rc::clone(parent_symtab));
+    }
+}
+
+impl Default for MachineBlockScopeSymbol {
+    fn default() -> Self {
+        MachineBlockScopeSymbol::new()
     }
 }
 
@@ -1487,7 +1471,7 @@ impl ScopeSymbol for MachineBlockScopeSymbol {
         if let Some(c) = b {
             let d = c.borrow();
             let e = d.get_symbol_table_for_symbol(symbol_name);
-            return Rc::clone(&e);
+            Rc::clone(&e)
         } else {
             panic!(
                 "Fatal error - could not find symbol {} in machine block scope.",
@@ -1510,15 +1494,15 @@ pub struct StateSymbol {
 }
 
 impl StateSymbol {
-    pub fn new(state_name: &String, parent_symtab: Rc<RefCell<SymbolTable>>) -> StateSymbol {
+    pub fn new(state_name: &str, parent_symtab: Rc<RefCell<SymbolTable>>) -> StateSymbol {
         let st_rcref = SymbolTable::new(
-            state_name.clone(),
+            state_name.to_string(),
             Some(Rc::clone(&parent_symtab)),
             IdentifierDeclScope::None,
             false,
         );
         StateSymbol {
-            name: state_name.clone(),
+            name: state_name.to_string(),
             params_opt: None,
             event_handlers_opt: None,
             symtab_rcref: Rc::new(RefCell::new(st_rcref)),
@@ -1528,7 +1512,7 @@ impl StateSymbol {
     }
 
     pub fn set_parent_symtab(&mut self, parent_symtab: &Rc<RefCell<SymbolTable>>) {
-        self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt = Some(Rc::clone(&parent_symtab));
+        self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt = Some(Rc::clone(parent_symtab));
     }
 
     pub fn set_state_node(&mut self, state_node: Rc<RefCell<StateNode>>) {
@@ -1564,11 +1548,10 @@ impl StateSymbol {
             .push(Rc::clone(&param_symbol_rcref));
 
         // add to symbol table
-        let state_param_symbol = SymbolType::StateParamSymbolT {
-            state_param_symbol_rcref: Rc::clone(&param_symbol_rcref),
-        };
 
-        return state_param_symbol;
+        SymbolType::StateParam {
+            state_param_symbol_rcref: Rc::clone(&param_symbol_rcref),
+        }
         // this is wrong? as the param needs to be inserted in the
         // param symbol table maintained in arcanium.
         // TODO: does this symbol table need to be here???
@@ -1599,7 +1582,7 @@ impl StateSymbol {
     //         Some(r) => {
     //             let s = r.borrow();
     //             match &*s {
-    //                 SymbolType::StateParamsScopeSymbolT {state_params_scope_rcref} => {
+    //                 SymbolType::StateParamsScope {state_params_scope_rcref} => {
     //                    Some(Rc::clone(state_params_scope_rcref))
     //                 },
     //                 _ => None,
@@ -1621,7 +1604,7 @@ impl StateSymbol {
     //                 Some(g) => {
     //                     let h = g.borrow();
     //                     match &*h {
-    //                         SymbolType::StateLocalScopeSymbolT { state_local_scope_struct_rcref }
+    //                         SymbolType::StateLocalScope { state_local_scope_struct_rcref }
     //                         => {
     //                             Some(Rc::clone(state_local_scope_struct_rcref))
     //                         },
@@ -1649,7 +1632,7 @@ impl StateSymbol {
         if let Some(c) = b {
             let d = c.borrow();
             let e = d.get_symbol_table_for_symbol(symbol_name);
-            return Rc::clone(&e);
+            Rc::clone(&e)
         } else {
             panic!(
                 "Fatal error - could not find symbol {} in state scope.",
@@ -1672,7 +1655,7 @@ impl ParameterSymbol {
         scope: IdentifierDeclScope,
     ) -> ParameterSymbol {
         ParameterSymbol {
-            name: name,
+            name,
             param_type_opt: param_type,
             scope,
         }
@@ -1685,16 +1668,11 @@ impl ParameterSymbol {
         match &self.param_type_opt {
             Some(param_type) => match &other.param_type_opt {
                 Some(other_param_type) => {
-                    return &param_type.get_type_str() == &other_param_type.get_type_str();
+                    param_type.get_type_str() == other_param_type.get_type_str()
                 }
-                None => return false,
+                None => false,
             },
-            None => match &other.param_type_opt {
-                Some(_) => {
-                    return false;
-                }
-                None => return true,
-            },
+            None => other.param_type_opt.is_none(),
         }
     }
 }
@@ -1722,7 +1700,7 @@ impl StateParamsScopeSymbol {
         StateParamsScopeSymbol {
             name: name.clone(),
             symtab_rcref: Rc::new(RefCell::new(SymbolTable::new(
-                name.clone(),
+                name,
                 None,
                 IdentifierDeclScope::StateParam,
                 false,
@@ -1736,7 +1714,13 @@ impl StateParamsScopeSymbol {
     }
 
     pub fn set_parent_symtab(&mut self, parent_symtab: &Rc<RefCell<SymbolTable>>) {
-        self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt = Some(Rc::clone(&parent_symtab));
+        self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt = Some(Rc::clone(parent_symtab));
+    }
+}
+
+impl Default for StateParamsScopeSymbol {
+    fn default() -> Self {
+        StateParamsScopeSymbol::new()
     }
 }
 
@@ -1757,7 +1741,7 @@ impl ScopeSymbol for StateParamsScopeSymbol {
         if let Some(c) = b {
             let d = c.borrow();
             let e = d.get_symbol_table_for_symbol(symbol_name);
-            return Rc::clone(&e);
+            Rc::clone(&e)
         } else {
             panic!(
                 "Fatal error - could not find symbol {} in state parameters scope.",
@@ -1798,7 +1782,13 @@ impl StateLocalScopeSymbol {
 
     pub fn set_parent_symtab(&mut self, parent_symtab: &Rc<RefCell<SymbolTable>>) {
         self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt =
-            Option::Some(Rc::clone(&parent_symtab));
+            Option::Some(Rc::clone(parent_symtab));
+    }
+}
+
+impl Default for StateLocalScopeSymbol {
+    fn default() -> Self {
+        StateLocalScopeSymbol::new()
     }
 }
 
@@ -1819,7 +1809,7 @@ impl ScopeSymbol for StateLocalScopeSymbol {
         if let Some(c) = b {
             let d = c.borrow();
             let e = d.get_symbol_table_for_symbol(symbol_name);
-            return Rc::clone(&e);
+            Rc::clone(&e)
         } else {
             panic!(
                 "Fatal error - could not find symbol {} in state local scope.",
@@ -1839,14 +1829,14 @@ pub struct EventHandlerScopeSymbol {
 
 impl EventHandlerScopeSymbol {
     pub fn new(
-        name: &String,
+        name: &str,
         event_symbol_rcref: Rc<RefCell<EventSymbol>>,
     ) -> EventHandlerScopeSymbol {
         EventHandlerScopeSymbol {
-            name: name.clone(),
+            name: name.to_string(),
             event_symbol_rcref,
             symtab_rcref: Rc::new(RefCell::new(SymbolTable::new(
-                name.clone(),
+                name.to_string(),
                 None,
                 IdentifierDeclScope::None,
                 false,
@@ -1856,7 +1846,7 @@ impl EventHandlerScopeSymbol {
 
     pub fn set_parent_symtab(&mut self, parent_symtab: &Rc<RefCell<SymbolTable>>) {
         self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt =
-            Option::Some(Rc::clone(&parent_symtab));
+            Option::Some(Rc::clone(parent_symtab));
     }
 }
 
@@ -1877,7 +1867,7 @@ impl ScopeSymbol for EventHandlerScopeSymbol {
         if let Some(c) = b {
             let d = c.borrow();
             let e = d.get_symbol_table_for_symbol(symbol_name);
-            return Rc::clone(&e);
+            Rc::clone(&e)
         } else {
             panic!(
                 "Fatal error - could not find symbol {} in event handler scope.",
@@ -1906,7 +1896,7 @@ impl EventHandlerParamsScopeSymbol {
             name: name.clone(),
             event_symbol,
             symtab_rcref: Rc::new(RefCell::new(SymbolTable::new(
-                name.clone(),
+                name,
                 None,
                 IdentifierDeclScope::EventHandlerParam,
                 false,
@@ -1920,7 +1910,7 @@ impl EventHandlerParamsScopeSymbol {
     }
 
     pub fn set_parent_symtab(&mut self, parent_symtab: &Rc<RefCell<SymbolTable>>) {
-        self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt = Some(Rc::clone(&parent_symtab));
+        self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt = Some(Rc::clone(parent_symtab));
     }
 
     pub fn add_parameter(
@@ -1937,11 +1927,10 @@ impl EventHandlerParamsScopeSymbol {
         let param_symbol_rcref = Rc::new(RefCell::new(param_symbol));
 
         // add to symbol table
-        let event_handler_param_symbol = SymbolType::EventHandlerParamSymbolT {
-            event_handler_param_symbol_rcref: Rc::clone(&param_symbol_rcref),
-        };
 
-        return event_handler_param_symbol;
+        SymbolType::EventHandlerParam {
+            event_handler_param_symbol_rcref: Rc::clone(&param_symbol_rcref),
+        }
     }
 }
 
@@ -1962,7 +1951,7 @@ impl ScopeSymbol for EventHandlerParamsScopeSymbol {
         if let Some(c) = b {
             let d = c.borrow();
             let e = d.get_symbol_table_for_symbol(symbol_name);
-            return Rc::clone(&e);
+            Rc::clone(&e)
         } else {
             panic!(
                 "Fatal error - could not find symbol {} in event handler params scope.",
@@ -2003,7 +1992,13 @@ impl EventHandlerLocalScopeSymbol {
 
     pub fn set_parent_symtab(&mut self, parent_symtab: &Rc<RefCell<SymbolTable>>) {
         self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt =
-            Option::Some(Rc::clone(&parent_symtab));
+            Option::Some(Rc::clone(parent_symtab));
+    }
+}
+
+impl Default for EventHandlerLocalScopeSymbol {
+    fn default() -> Self {
+        EventHandlerLocalScopeSymbol::new()
     }
 }
 
@@ -2025,7 +2020,7 @@ impl ScopeSymbol for EventHandlerLocalScopeSymbol {
         if let Some(c) = b {
             let d = c.borrow();
             let e = d.get_symbol_table_for_symbol(symbol_name);
-            return Rc::clone(&e);
+            Rc::clone(&e)
         } else {
             panic!(
                 "Fatal error - could not find symbol {} in event handler local scope.",
@@ -2050,7 +2045,7 @@ impl ActionsBlockScopeSymbol {
         ActionsBlockScopeSymbol {
             name: name.clone(),
             symtab_rcref: Rc::new(RefCell::new(SymbolTable::new(
-                name.clone(),
+                name,
                 None,
                 IdentifierDeclScope::ActionsBlock,
                 false,
@@ -2059,7 +2054,13 @@ impl ActionsBlockScopeSymbol {
     }
 
     pub fn set_parent_symtab(&mut self, parent_symtab: &Rc<RefCell<SymbolTable>>) {
-        self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt = Some(Rc::clone(&parent_symtab));
+        self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt = Some(Rc::clone(parent_symtab));
+    }
+}
+
+impl Default for ActionsBlockScopeSymbol {
+    fn default() -> Self {
+        ActionsBlockScopeSymbol::new()
     }
 }
 
@@ -2081,7 +2082,7 @@ impl ScopeSymbol for ActionsBlockScopeSymbol {
         if let Some(c) = b {
             let d = c.borrow();
             let e = d.get_symbol_table_for_symbol(symbol_name);
-            return Rc::clone(&e);
+            Rc::clone(&e)
         } else {
             panic!(
                 "Fatal error - could not find symbol {} in actions block scope.",
@@ -2106,7 +2107,7 @@ impl DomainBlockScopeSymbol {
         DomainBlockScopeSymbol {
             name: name.clone(),
             symtab_rcref: Rc::new(RefCell::new(SymbolTable::new(
-                name.clone(),
+                name,
                 None,
                 IdentifierDeclScope::DomainBlock,
                 false,
@@ -2120,7 +2121,13 @@ impl DomainBlockScopeSymbol {
     }
 
     pub fn set_parent_symtab(&mut self, parent_symtab: &Rc<RefCell<SymbolTable>>) {
-        self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt = Some(Rc::clone(&parent_symtab));
+        self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt = Some(Rc::clone(parent_symtab));
+    }
+}
+
+impl Default for DomainBlockScopeSymbol {
+    fn default() -> Self {
+        DomainBlockScopeSymbol::new()
     }
 }
 
@@ -2142,7 +2149,7 @@ impl ScopeSymbol for DomainBlockScopeSymbol {
         if let Some(c) = b {
             let d = c.borrow();
             let e = d.get_symbol_table_for_symbol(symbol_name);
-            return Rc::clone(&e);
+            Rc::clone(&e)
         } else {
             panic!(
                 "Fatal error - could not find symbol {} in domain block scope.",
