@@ -16,7 +16,7 @@ UML and other modeling specifications promote a visual-first paradigm. However t
 
 With Frame, anyone with a text editor can quickly sketch out a system design concept - notepad is just fine!
 
-.. |code| literalinclude:: code.frm
+
 
 
 .. |codeblk1| code-block:: 
@@ -44,7 +44,7 @@ With Frame, anyone with a text editor can quickly sketch out a system design con
 ======
 table
 ====== 
-|img1| 
+.. |code| literalinclude:: code.frm
 =====
 
 Contents
