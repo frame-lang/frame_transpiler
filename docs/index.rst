@@ -16,8 +16,8 @@ UML and other modeling specifications promote a visual-first paradigm. However t
 
 With Frame, anyone with a text editor can quickly sketch out a system design concept - notepad is just fine!
 
-..  code-block:: 
-  :linenos:
+.. |codeblk1| code-block:: 
+
    #Lamp
 
        -interface-
@@ -36,7 +36,18 @@ With Frame, anyone with a text editor can quickly sketch out a system design con
 
 .. |img1| image:: https://www.plantuml.com/plantuml/png/SoWkIImgAStDuG8oIb8L_DFI5AgvQc6yF30dMYjMGLVN3YJ91SGWDaZAIa5DsT38nBgaj2ZFFm_2vWAAGvMYo0FvK0KEgNafGFi0
 
-|img1|
+|codeblk1| |img1|
+
+=====  =====  ======
+   Inputs     Output
+------------  ------
+  A      B    A or B
+=====  =====  ======
+False  False  False
+True   False  True
+False  True   True
+True   True   True
+=====  =====  ======
 
 Contents
 --------
