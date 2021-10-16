@@ -45,7 +45,7 @@ With Frame, anyone with a text editor can quickly sketch out a system design con
 code                                   image
 ======                                 =====
 .. |code| literalinclude:: code.frm    |img1|
-=====
+=====                                  =====
 
 Contents
 --------
