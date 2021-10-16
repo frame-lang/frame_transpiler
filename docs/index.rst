@@ -38,16 +38,10 @@ With Frame, anyone with a text editor can quickly sketch out a system design con
 
 |codeblk1| |img1|
 
-=====  =====  ======
-   Inputs     Output
-------------  ------
-  A      B    A or B
-=====  =====  ======
-False  False  False
-True   False  True
-False  True   True
-True   True   True
-=====  =====  ======
+======
+====== 
+|img1| 
+=====
 
 Contents
 --------
