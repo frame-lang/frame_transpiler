@@ -37,22 +37,19 @@ With Frame, anyone with a text editor can quickly sketch out a system design con
            |turnOff| -> $Off ^
    ##
 
+.. |code1| literalinclude:: code.frm
 .. |img1| image:: https://www.plantuml.com/plantuml/png/SoWkIImgAStDuG8oIb8L_DFI5AgvQc6yF30dMYjMGLVN3YJ91SGWDaZAIa5DsT38nBgaj2ZFFm_2vWAAGvMYo0FvK0KEgNafGFi0
 
 
 
-======                                 =====
-code                                   image
-======                                 =====
- Mycode                                my image
-=====                                  =====
+======    =====
+code      image
+======    =====
+|code1|   |img1|
+=====     =====
 
 after table
-
-
-.. |code| literalinclude:: code.frm
-
-|img1|
+ 
 
 Contents
 --------
