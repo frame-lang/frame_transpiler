@@ -1,6 +1,5 @@
-.. code-block:: 
 
-    #Test
-        -machine-
-        $S1
-    ##
+#Test
+    -machine-
+    $S1
+##
