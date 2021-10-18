@@ -9,14 +9,18 @@ pub struct Cli {
     /// Path to configuration file.
     #[structopt(short, long)]
     config: Option<PathBuf>,
+
     /// Generate a default config.yaml file and exit.
     #[structopt(short, long)]
     generate_config: bool,
+
     /// Path to frame specification file.
-    #[structopt(parse(from_os_str))]
-    path: PathBuf,
+    #[structopt(parse(from_os_str), required_unless = "generate-config")]
+    path: Option<PathBuf>,
+
     /// Target language.
-    language: String,
+    #[structopt(required_unless = "generate-config")]
+    language: Option<String>,
 }
 
 impl Cli {
@@ -24,8 +28,8 @@ impl Cli {
         Cli {
             config,
             generate_config: false,
-            path,
-            language,
+            path: Some(path),
+            language: Some(language),
         }
     }
 }
@@ -52,7 +56,7 @@ pub fn run_with(args: Cli) {
     }
 
     // run the compiler and print output to stdout
-    match exe.run_file(&args.config, &args.path, args.language) {
+    match exe.run_file(&args.config, &args.path.unwrap(), args.language.unwrap()) {
         Ok(code) => {
             println!("{}", code);
         }
