@@ -703,7 +703,7 @@ impl AstVisitor for GraphVizVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_system_node(&mut self, system_node: &SystemNode) -> AstVisitorReturnType {
+    fn visit_system_node(&mut self, system_node: &SystemNode) {
         self.system_name = system_node.name.clone();
         self.add_code(&format!("digraph {} {{", system_node.name));
         self.newline();
@@ -748,50 +748,44 @@ impl AstVisitor for GraphVizVisitor {
         self.newline();
 
 
-        AstVisitorReturnType::SystemNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_interface_block_node(&mut self, interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
-        AstVisitorReturnType::InterfaceBlockNode {}
+    fn visit_interface_block_node(&mut self, interface_block_node: &InterfaceBlockNode) {
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_interface_method_node(&mut self, interface_method_node: &InterfaceMethodNode) -> AstVisitorReturnType {
+    fn visit_interface_method_node(&mut self, interface_method_node: &InterfaceMethodNode) {
 
-        AstVisitorReturnType::InterfaceMethodNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_machine_block_node(&mut self, machine_block_node: &MachineBlockNode) -> AstVisitorReturnType {
+    fn visit_machine_block_node(&mut self, machine_block_node: &MachineBlockNode) {
 
         for state_node_rcref in &machine_block_node.states {
             state_node_rcref.borrow().accept(self);
         }
 
-        AstVisitorReturnType::MachineBlockNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_actions_block_node(&mut self, actions_block_node: &ActionsBlockNode) -> AstVisitorReturnType {
+    fn visit_actions_block_node(&mut self, actions_block_node: &ActionsBlockNode) {
 
-        AstVisitorReturnType::ActionBlockNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_domain_block_node(&mut self, domain_block_node: &DomainBlockNode) -> AstVisitorReturnType {
+    fn visit_domain_block_node(&mut self, domain_block_node: &DomainBlockNode) {
 
-        AstVisitorReturnType::DomainBlockNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_state_node(&mut self, state_node: &StateNode) -> AstVisitorReturnType {
+    fn visit_state_node(&mut self, state_node: &StateNode) {
 
         self.current_state_name_opt = Some(state_node.name.clone());
 
@@ -819,12 +813,11 @@ impl AstVisitor for GraphVizVisitor {
 
 
         self.current_state_name_opt = None;
-        AstVisitorReturnType::StateNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_event_handler_node(&mut self, evt_handler_node: &EventHandlerNode) -> AstVisitorReturnType {
+    fn visit_event_handler_node(&mut self, evt_handler_node: &EventHandlerNode) {
 
         // Generate statements
         for statement in evt_handler_node.statements.iter() {
@@ -867,30 +860,27 @@ impl AstVisitor for GraphVizVisitor {
 
 
 
-        AstVisitorReturnType::EventHandlerNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_event_handler_terminator_node(&mut self, evt_handler_terminator_node: &EventHandlerTerminatorNode) -> AstVisitorReturnType {
+    fn visit_event_handler_terminator_node(&mut self, evt_handler_terminator_node: &EventHandlerTerminatorNode) {
 
 
-        AstVisitorReturnType::EventHandlerTerminatorNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_statement_node(&mut self, method_call_statement: &CallStmtNode) -> AstVisitorReturnType {
+    fn visit_call_statement_node(&mut self, method_call_statement: &CallStmtNode) {
         self.newline();
         method_call_statement.call_expr_node.accept(self);
         self.add_code(&format!(";"));
 
-        AstVisitorReturnType::CallStatementNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_expression_node(&mut self, method_call: &CallExprNode) -> AstVisitorReturnType {
+    fn visit_call_expression_node(&mut self, method_call: &CallExprNode) {
 
         if let Some(call_chain) = &method_call.call_chain {
 
@@ -907,12 +897,11 @@ impl AstVisitor for GraphVizVisitor {
         self.add_code(&format!(")"));
 
 
-        AstVisitorReturnType::CallExpressionNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_expression_node_to_string(&mut self, method_call: &CallExprNode, output:&mut String) -> AstVisitorReturnType {
+    fn visit_call_expression_node_to_string(&mut self, method_call: &CallExprNode, output:&mut String) {
 
         if let Some(call_chain) = &method_call.call_chain {
 
@@ -928,12 +917,11 @@ impl AstVisitor for GraphVizVisitor {
 
         output.push_str(&format!(")"));
 
-        AstVisitorReturnType::CallExpressionNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_call_expression_node(&mut self, action_call: &ActionCallExprNode) -> AstVisitorReturnType {
+    fn visit_action_call_expression_node(&mut self, action_call: &ActionCallExprNode) {
 
         self.add_code(&format!("{}(", action_call.identifier.name.lexeme));
 
@@ -941,12 +929,11 @@ impl AstVisitor for GraphVizVisitor {
 
         self.add_code(&format!(")"));
 
-        AstVisitorReturnType::ActionCallExpressionNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_call_expression_node_to_string(&mut self, action_call: &ActionCallExprNode, output:&mut String) -> AstVisitorReturnType {
+    fn visit_action_call_expression_node_to_string(&mut self, action_call: &ActionCallExprNode, output:&mut String) {
 
         output.push_str(&format!("{}(", action_call.identifier.name.lexeme));
 
@@ -954,22 +941,20 @@ impl AstVisitor for GraphVizVisitor {
 
         output.push_str(&format!(")"));
 
-        AstVisitorReturnType::ActionCallExpressionNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_call_statement_node(&mut self, action_call_stmt_node: &ActionCallStmtNode) -> AstVisitorReturnType {
+    fn visit_action_call_statement_node(&mut self, action_call_stmt_node: &ActionCallStmtNode) {
         self.newline();
         action_call_stmt_node.action_call_expr_node.accept(self);
         self.add_code(&format!(";"));
 
-        AstVisitorReturnType::ActionCallStatementNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_transition_statement_node(&mut self, transition_statement: &TransitionStatementNode) -> AstVisitorReturnType {
+    fn visit_transition_statement_node(&mut self, transition_statement: &TransitionStatementNode) {
 
         match &transition_statement.target_state_context_t {
             StateContextType::StateRef { state_context_node}
@@ -978,21 +963,19 @@ impl AstVisitor for GraphVizVisitor {
             => self.generate_state_stack_pop_transition(transition_statement),
         };
 
-        AstVisitorReturnType::CallStatementNode {}
     }
 
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_state_ref_node(&mut self, state_ref: &StateRefNode) -> AstVisitorReturnType {
+    fn visit_state_ref_node(&mut self, state_ref: &StateRefNode) {
         self.add_code(&format!("{}", state_ref.name));
 
-        AstVisitorReturnType::StateRefNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_change_state_statement_node(&mut self, change_state_stmt_node:&ChangeStateStatementNode) -> AstVisitorReturnType {
+    fn visit_change_state_statement_node(&mut self, change_state_stmt_node:&ChangeStateStatementNode) {
 
         match &change_state_stmt_node.state_context_t {
             StateContextType::StateRef { state_context_node}
@@ -1001,33 +984,30 @@ impl AstVisitor for GraphVizVisitor {
             => panic!("TODO - not implemented"),
         };
 
-        AstVisitorReturnType::ChangeStateStmtNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
     // TODO: ??
-    fn visit_parameter_node(&mut self, parameter_node: &ParameterNode) -> AstVisitorReturnType {
+    fn visit_parameter_node(&mut self, parameter_node: &ParameterNode) {
 
         // self.add_code(&format!("{}",parameter_node.name));
 
-        AstVisitorReturnType::ParameterNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_dispatch_node(&mut self, dispatch_node: &DispatchNode) -> AstVisitorReturnType {
+    fn visit_dispatch_node(&mut self, dispatch_node: &DispatchNode) {
         self.newline();
 //        self.add_code(&format!("_s{}_(e);", dispatch_node.target_state_ref.name));
         self.generate_comment(dispatch_node.line);
         self.newline();
 
-        AstVisitorReturnType::DispatchNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_test_statement_node(&mut self, test_stmt_node: &TestStatementNode) -> AstVisitorReturnType {
+    fn visit_test_statement_node(&mut self, test_stmt_node: &TestStatementNode) {
 
         match &test_stmt_node.test_t {
             TestType::BoolTest {bool_test_node}  => {
@@ -1041,12 +1021,11 @@ impl AstVisitor for GraphVizVisitor {
             },
         }
 
-        AstVisitorReturnType::TestStatementNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_bool_test_node(&mut self, bool_test_node:&BoolTestNode) -> AstVisitorReturnType {
+    fn visit_bool_test_node(&mut self, bool_test_node:&BoolTestNode) {
 
         let mut if_or_else_if = "if ";
 
@@ -1079,22 +1058,20 @@ impl AstVisitor for GraphVizVisitor {
             bool_test_else_branch_node.accept(self);
         }
 
-        AstVisitorReturnType::BoolTestNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_chain_literal_statement_node(&mut self, method_call_chain_literal_stmt_node:&CallChainLiteralStmtNode) -> AstVisitorReturnType {
+    fn visit_call_chain_literal_statement_node(&mut self, method_call_chain_literal_stmt_node:&CallChainLiteralStmtNode) {
 
         self.newline();
         method_call_chain_literal_stmt_node.call_chain_literal_expr_node.accept(self);
         self.add_code(&format!(";"));
-        AstVisitorReturnType::CallChainLiteralStmtNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_chain_literal_expr_node(&mut self, method_call_chain_expression_node: &CallChainLiteralExprNode) -> AstVisitorReturnType {
+    fn visit_call_chain_literal_expr_node(&mut self, method_call_chain_expression_node: &CallChainLiteralExprNode) {
         // TODO: maybe put this in an AST node
 
         let mut separator = "";
@@ -1113,20 +1090,18 @@ impl AstVisitor for GraphVizVisitor {
             separator = ".";
         }
 
-        AstVisitorReturnType::CallChainLiteralExprNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_chain_literal_expr_node_to_string(&mut self, method_call_chain_expression_node:&CallChainLiteralExprNode, output:&mut String) -> AstVisitorReturnType {
+    fn visit_call_chain_literal_expr_node_to_string(&mut self, method_call_chain_expression_node:&CallChainLiteralExprNode, output:&mut String) {
         panic!("TODO");
-        AstVisitorReturnType::CallChainLiteralExprNode {}
     }
 
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_bool_test_conditional_branch_node(&mut self, bool_test_true_branch_node:&BoolTestConditionalBranchNode) -> AstVisitorReturnType {
+    fn visit_bool_test_conditional_branch_node(&mut self, bool_test_true_branch_node:&BoolTestConditionalBranchNode) {
 
         self.visit_statements(&bool_test_true_branch_node.statements);
 
@@ -1147,12 +1122,11 @@ impl AstVisitor for GraphVizVisitor {
             None => {}
         }
 
-        AstVisitorReturnType::BoolTestConditionalBranchNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_bool_test_else_branch_node(&mut self, bool_test_else_branch_node:&BoolTestElseBranchNode) -> AstVisitorReturnType {
+    fn visit_bool_test_else_branch_node(&mut self, bool_test_else_branch_node:&BoolTestElseBranchNode) {
 
         self.add_code(&format!(" else {{"));
         self.indent();
@@ -1180,12 +1154,11 @@ impl AstVisitor for GraphVizVisitor {
         self.newline();
         self.add_code(&format!("}}"));
 
-        AstVisitorReturnType::BoolTestElseBranchNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_string_match_test_node(&mut self, string_match_test_node:&StringMatchTestNode) -> AstVisitorReturnType {
+    fn visit_string_match_test_node(&mut self, string_match_test_node:&StringMatchTestNode) {
 
         let mut if_or_else_if = "if";
 
@@ -1248,12 +1221,11 @@ impl AstVisitor for GraphVizVisitor {
             string_match_else_branch_node.accept(self);
         }
 
-        AstVisitorReturnType::StringMatchTestNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_string_match_test_match_branch_node(&mut self, string_match_test_match_branch_node:&StringMatchTestMatchBranchNode) -> AstVisitorReturnType {
+    fn visit_string_match_test_match_branch_node(&mut self, string_match_test_match_branch_node:&StringMatchTestMatchBranchNode) {
 
         self.visit_statements(&string_match_test_match_branch_node.statements);
 
@@ -1274,12 +1246,11 @@ impl AstVisitor for GraphVizVisitor {
             None => {}
         }
 
-        AstVisitorReturnType::StringMatchTestMatchBranchNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_string_match_test_else_branch_node(&mut self, string_match_test_else_branch_node:&StringMatchTestElseBranchNode) -> AstVisitorReturnType {
+    fn visit_string_match_test_else_branch_node(&mut self, string_match_test_else_branch_node:&StringMatchTestElseBranchNode) {
 
         self.add_code(&format!(" else {{"));
         self.indent();
@@ -1307,21 +1278,19 @@ impl AstVisitor for GraphVizVisitor {
         self.newline();
         self.add_code(&format!("}}"));
 
-        AstVisitorReturnType::StringMatchElseBranchNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_string_match_test_pattern_node(&mut self, string_match_test_else_branch_node:&StringMatchTestPatternNode) -> AstVisitorReturnType {
+    fn visit_string_match_test_pattern_node(&mut self, string_match_test_else_branch_node:&StringMatchTestPatternNode) {
 
         // TODO
         panic!("todo");
-//        AstVisitorReturnType::StringMatchTestPatternNode {}
     }
 
     //-----------------------------------------------------//
 
-    fn visit_number_match_test_node(&mut self, number_match_test_node:&NumberMatchTestNode) -> AstVisitorReturnType {
+    fn visit_number_match_test_node(&mut self, number_match_test_node:&NumberMatchTestNode) {
 
         let mut if_or_else_if = "if";
 
@@ -1381,12 +1350,11 @@ impl AstVisitor for GraphVizVisitor {
         }
 
 
-        AstVisitorReturnType::NumberMatchTestNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_number_match_test_match_branch_node(&mut self, number_match_test_match_branch_node:&NumberMatchTestMatchBranchNode) -> AstVisitorReturnType {
+    fn visit_number_match_test_match_branch_node(&mut self, number_match_test_match_branch_node:&NumberMatchTestMatchBranchNode) {
 
         self.visit_statements(&number_match_test_match_branch_node.statements);
 
@@ -1407,12 +1375,11 @@ impl AstVisitor for GraphVizVisitor {
             None => {}
         }
 
-        AstVisitorReturnType::NumberMatchTestMatchBranchNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_number_match_test_else_branch_node(&mut self, number_match_test_else_branch_node:&NumberMatchTestElseBranchNode) -> AstVisitorReturnType {
+    fn visit_number_match_test_else_branch_node(&mut self, number_match_test_else_branch_node:&NumberMatchTestElseBranchNode) {
 
         self.add_code(&format!(" else {{"));
         self.indent();
@@ -1440,20 +1407,18 @@ impl AstVisitor for GraphVizVisitor {
         self.newline();
         self.add_code(&format!("}}"));
 
-        AstVisitorReturnType::NumberMatchElseBranchNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_number_match_test_pattern_node(&mut self, match_pattern_node:&NumberMatchTestPatternNode) -> AstVisitorReturnType {
+    fn visit_number_match_test_pattern_node(&mut self, match_pattern_node:&NumberMatchTestPatternNode) {
         self.add_code(&format!("{}", match_pattern_node.match_pattern_number));
 
-        AstVisitorReturnType::NumberMatchTestPatternNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_expression_list_node(&mut self, expr_list: &ExprListNode) -> AstVisitorReturnType {
+    fn visit_expression_list_node(&mut self, expr_list: &ExprListNode) {
 
         let mut separator = "";
         for expr in &expr_list.exprs_t {
@@ -1463,12 +1428,11 @@ impl AstVisitor for GraphVizVisitor {
             separator = ",";
         }
 
-        AstVisitorReturnType::ParentheticalExpressionNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_expression_list_node_to_string(&mut self, expr_list: &ExprListNode, output:&mut String) -> AstVisitorReturnType {
+    fn visit_expression_list_node_to_string(&mut self, expr_list: &ExprListNode, output:&mut String) {
 
 //        self.add_code(&format!("{}(e);\n",dispatch_node.target_state_ref.name));
 
@@ -1480,12 +1444,11 @@ impl AstVisitor for GraphVizVisitor {
             separator = ",";
         }
 
-        AstVisitorReturnType::ParentheticalExpressionNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_literal_expression_node(&mut self, literal_expression_node: &LiteralExprNode) -> AstVisitorReturnType {
+    fn visit_literal_expression_node(&mut self, literal_expression_node: &LiteralExprNode) {
 
         match &literal_expression_node.token_t {
             TokenType::Number
@@ -1503,12 +1466,11 @@ impl AstVisitor for GraphVizVisitor {
             _ => panic!("TODO"),
         }
 
-        AstVisitorReturnType::ParentheticalExpressionNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_literal_expression_node_to_string(&mut self, literal_expression_node: &LiteralExprNode, output:&mut String) -> AstVisitorReturnType {
+    fn visit_literal_expression_node_to_string(&mut self, literal_expression_node: &LiteralExprNode, output:&mut String) {
 
         // TODO: make a focused enum or the literals
         match &literal_expression_node.token_t {
@@ -1533,12 +1495,11 @@ impl AstVisitor for GraphVizVisitor {
             _ => panic!("TODO"),
         }
 
-        AstVisitorReturnType::ParentheticalExpressionNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_identifier_node(&mut self, identifier_node: &IdentifierNode) -> AstVisitorReturnType {
+    fn visit_identifier_node(&mut self, identifier_node: &IdentifierNode) {
 
         panic!("Unexpected use of identifier.");
 //         match &identifier_node.scope {
@@ -1559,12 +1520,11 @@ impl AstVisitor for GraphVizVisitor {
 //             },
 //         }
 
-        AstVisitorReturnType::IdentifierNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_identifier_node_to_string(&mut self, identifier_node: &IdentifierNode, output:&mut String) -> AstVisitorReturnType {
+    fn visit_identifier_node_to_string(&mut self, identifier_node: &IdentifierNode, output:&mut String) {
 
         panic!("Unexpected use of identifier.");
 
@@ -1586,21 +1546,19 @@ impl AstVisitor for GraphVizVisitor {
         //     },
         // }
 
-        AstVisitorReturnType::IdentifierNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_state_stack_operation_node(&mut self, state_stack_operation_node:&StateStackOperationNode) -> AstVisitorReturnType {
+    fn visit_state_stack_operation_node(&mut self, state_stack_operation_node:&StateStackOperationNode) {
 
 //        self.add_code(&format!("{}",identifier_node.name.lexeme));
 
-        AstVisitorReturnType::StateStackOperationNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_state_stack_operation_statement_node(&mut self, state_stack_op_statement_node:&StateStackOperationStatementNode) -> AstVisitorReturnType {
+    fn visit_state_stack_operation_statement_node(&mut self, state_stack_op_statement_node:&StateStackOperationStatementNode) {
 
 //        self.add_code(&format!("{}",identifier_node.name.lexeme));
 
@@ -1615,21 +1573,19 @@ impl AstVisitor for GraphVizVisitor {
                 self.add_code(&format!("let stateContext = _stateStack_pop_()"));
             }
         }
-        AstVisitorReturnType::StateStackOperationStatementNode {}
     }
     //* --------------------------------------------------------------------- *//
 
-    fn visit_state_context_node(&mut self, state_context_node:&StateContextNode) -> AstVisitorReturnType {
+    fn visit_state_context_node(&mut self, state_context_node:&StateContextNode) {
 
         // TODO
 //        self.add_code(&format!("{}",identifier_node.name.lexeme));
 
-        AstVisitorReturnType::StateContextNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_frame_event_part(&mut self, frame_event_part:&FrameEventPart) -> AstVisitorReturnType {
+    fn visit_frame_event_part(&mut self, frame_event_part:&FrameEventPart) {
 
 //        self.add_code(&format!("{}",identifier_node.name.lexeme));
 
@@ -1641,14 +1597,13 @@ impl AstVisitor for GraphVizVisitor {
             FrameEventPart::Return => self.add_code(&format!("e._return")),
         }
 
-        AstVisitorReturnType::FrameEventExprType {}
     }
 
 
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_decl_node(&mut self, action_decl_node: &ActionDeclNode) -> AstVisitorReturnType {
+    fn visit_action_decl_node(&mut self, action_decl_node: &ActionDeclNode) {
 
         self.newline();
         let action_ret_type:String = match &action_decl_node.type_opt {
@@ -1667,12 +1622,11 @@ impl AstVisitor for GraphVizVisitor {
 
         self.add_code(&format!(") {{}}"));
 
-        AstVisitorReturnType::ActionDeclNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_variable_decl_node(&mut self, variable_decl_node: &VariableDeclNode) -> AstVisitorReturnType {
+    fn visit_variable_decl_node(&mut self, variable_decl_node: &VariableDeclNode) {
 
         let var_type = match &variable_decl_node.type_opt {
             Some(x) => x.clone(),
@@ -1684,43 +1638,39 @@ impl AstVisitor for GraphVizVisitor {
         var_init_expr.accept_to_string(self, &mut code);
         self.add_code( &format!("{} {} = {};",var_type,var_name, code));
 
-        AstVisitorReturnType::VariableDeclNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_variable_expr_node(&mut self, variable_node: &VariableNode) -> AstVisitorReturnType {
+    fn visit_variable_expr_node(&mut self, variable_node: &VariableNode) {
         let code = self.format_variable_expr(variable_node);
         self.add_code(&code);
 
-        AstVisitorReturnType::AssignmentExprNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_variable_expr_node_to_string(&mut self, variable_node: &VariableNode, output:&mut String) -> AstVisitorReturnType {
+    fn visit_variable_expr_node_to_string(&mut self, variable_node: &VariableNode, output:&mut String) {
         let code = self.format_variable_expr(variable_node);
         output.push_str(&code);
 
-        AstVisitorReturnType::AssignmentExprNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_variable_stmt_node(&mut self, variable_stmt_node: &VariableStmtNode) -> AstVisitorReturnType {
+    fn visit_variable_stmt_node(&mut self, variable_stmt_node: &VariableStmtNode) {
         // TODO: what is this line about?
         self.generate_comment(variable_stmt_node.get_line());
         self.newline();
         let code = self.format_variable_expr(&variable_stmt_node.var_node);
         self.add_code(&code);
 
-        AstVisitorReturnType::AssignmentExprNode {}
     }
 
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_assignment_expr_node(&mut self, assignment_expr_node: &AssignmentExprNode) -> AstVisitorReturnType {
+    fn visit_assignment_expr_node(&mut self, assignment_expr_node: &AssignmentExprNode) {
 
         self.generate_comment(assignment_expr_node.line);
         self.newline();
@@ -1729,17 +1679,15 @@ impl AstVisitor for GraphVizVisitor {
         assignment_expr_node.r_value_box.accept(self);
         self.add_code(";");
 
-        AstVisitorReturnType::AssignmentExprNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_assignment_statement_node(&mut self, assignment_stmt_node: &AssignmentStmtNode) -> AstVisitorReturnType {
+    fn visit_assignment_statement_node(&mut self, assignment_stmt_node: &AssignmentStmtNode) {
 
         self.generate_comment(assignment_stmt_node.get_line());
         assignment_stmt_node.assignment_expr_node.accept(self);
 
-        AstVisitorReturnType::AssignmentExprNode {}
     }
 }
 
