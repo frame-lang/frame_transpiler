@@ -2857,10 +2857,6 @@ impl AstVisitor for RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_interface_parameters(&mut self, _interface_block_node: &InterfaceBlockNode) {}
-
-    //* --------------------------------------------------------------------- *//
-
     fn visit_interface_method_call_expression_node(
         &mut self,
         interface_method_call_expr_node: &InterfaceMethodCallExprNode,

@@ -295,29 +295,6 @@ impl AstVisitor for SmcatVisitor {
         panic!("visit_interface_parameters() not valid for target language.");
     }
 
-    fn visit_interface_method_call_expression_node(
-        &mut self,
-        _interface_method_call_expr_node: &InterfaceMethodCallExprNode,
-    ) {
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_interface_method_call_expression_node_to_string(
-        &mut self,
-        _interface_method_call_expr_node: &InterfaceMethodCallExprNode,
-        _output: &mut String,
-    ) {
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_interface_block_node(&mut self, _interface_block_node: &InterfaceBlockNode) {}
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_interface_method_node(&mut self, _interface_method_node: &InterfaceMethodNode) {}
-
     //* --------------------------------------------------------------------- *//
 
     fn visit_machine_block_node(&mut self, machine_block_node: &MachineBlockNode) {
@@ -334,10 +311,6 @@ impl AstVisitor for SmcatVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_actions_block_node(&mut self, _actions_block_node: &ActionsBlockNode) {}
-
-    //* --------------------------------------------------------------------- *//
-
     fn visit_action_node_rust_trait(&mut self, _: &ActionsBlockNode) {
         panic!("Error - visit_action_node_rust_trait() not implemented.");
     }
@@ -347,10 +320,6 @@ impl AstVisitor for SmcatVisitor {
     fn visit_actions_node_rust_impl(&mut self, _: &ActionsBlockNode) {
         panic!("Error - visit_actions_node_rust_impl() not implemented.");
     }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_domain_block_node(&mut self, _domain_block_node: &DomainBlockNode) {}
 
     //* --------------------------------------------------------------------- *//
 
@@ -406,57 +375,6 @@ impl AstVisitor for SmcatVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_event_handler_terminator_node(
-        &mut self,
-        _evt_handler_terminator_node: &TerminatorExpr,
-    ) {
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_call_statement_node(&mut self, _method_call_statement: &CallStmtNode) {}
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_call_expression_node(&mut self, _method_call: &CallExprNode) {}
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_call_expression_node_to_string(
-        &mut self,
-        _method_call: &CallExprNode,
-        _output: &mut String,
-    ) {
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_action_call_expression_node(&mut self, _action_call: &ActionCallExprNode) {}
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_action_call_expression_node_to_string(
-        &mut self,
-        _action_call: &ActionCallExprNode,
-        _output: &mut String,
-    ) {
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_call_expr_list_node(&mut self, _call_expr_list: &CallExprListNode) {}
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_call_expr_list_node_to_string(
-        &mut self,
-        _call_expr_list: &CallExprListNode,
-        _output: &mut String,
-    ) {
-    }
-
-    //* --------------------------------------------------------------------- *//
-
     fn visit_action_call_statement_node(&mut self, _action_call_stmt_node: &ActionCallStmtNode) {}
 
     //* --------------------------------------------------------------------- *//
@@ -494,14 +412,6 @@ impl AstVisitor for SmcatVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_parameter_node(&mut self, _parameter_node: &ParameterNode) {}
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_dispatch_node(&mut self, _dispatch_node: &DispatchNode) {}
-
-    //* --------------------------------------------------------------------- *//
-
     fn visit_test_statement_node(&mut self, test_stmt_node: &TestStatementNode) {
         match &test_stmt_node.test_t {
             TestType::BoolTest { bool_test_node } => {
@@ -532,22 +442,6 @@ impl AstVisitor for SmcatVisitor {
         if let Some(bool_test_else_branch_node) = &bool_test_node.else_branch_node_opt {
             bool_test_else_branch_node.accept(self);
         }
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_call_chain_literal_statement_node(
-        &mut self,
-        _method_call_chain_literal_stmt_node: &CallChainLiteralStmtNode,
-    ) {
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_call_chain_literal_expr_node(
-        &mut self,
-        _method_call_chain_expression_node: &CallChainLiteralExprNode,
-    ) {
     }
 
     //* --------------------------------------------------------------------- *//
@@ -699,184 +593,5 @@ impl AstVisitor for SmcatVisitor {
         number_match_test_else_branch_node: &NumberMatchTestElseBranchNode,
     ) {
         self.visit_decl_stmts(&number_match_test_else_branch_node.statements);
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_number_match_test_pattern_node(
-        &mut self,
-        _match_pattern_node: &NumberMatchTestPatternNode,
-    ) {
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_expression_list_node(&mut self, _expr_list: &ExprListNode) {}
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_expression_list_node_to_string(
-        &mut self,
-        _expr_list: &ExprListNode,
-        _output: &mut String,
-    ) {
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_literal_expression_node(&mut self, _literal_expression_node: &LiteralExprNode) {}
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_literal_expression_node_to_string(
-        &mut self,
-        _literal_expression_node: &LiteralExprNode,
-        _output: &mut String,
-    ) {
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_identifier_node(&mut self, _identifier_node: &IdentifierNode) {}
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_identifier_node_to_string(
-        &mut self,
-        _identifier_node: &IdentifierNode,
-        _output: &mut String,
-    ) {
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_state_stack_operation_node(
-        &mut self,
-        _state_stack_operation_node: &StateStackOperationNode,
-    ) {
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_state_stack_operation_node_to_string(
-        &mut self,
-        _state_stack_operation_node: &StateStackOperationNode,
-        _output: &mut String,
-    ) {
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_state_stack_operation_statement_node(
-        &mut self,
-        _state_stack_op_statement_node: &StateStackOperationStatementNode,
-    ) {
-    }
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_state_context_node(&mut self, _state_context_node: &StateContextNode) {}
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_frame_event_part(&mut self, _frame_event_part: &FrameEventPart) {}
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_frame_event_part_to_string(
-        &mut self,
-        _frame_event_part: &FrameEventPart,
-        _output: &mut String,
-    ) {
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_action_decl_node(&mut self, _action_decl_node: &ActionNode) {}
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_action_impl_node(&mut self, _action_decl_node: &ActionNode) {
-        panic!("visit_action_impl_node() not implemented.");
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_domain_variable_decl_node(&mut self, _variable_decl_node: &VariableDeclNode) {}
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_variable_decl_node(&mut self, _variable_decl_node: &VariableDeclNode) {}
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_variable_expr_node(&mut self, _variable_node: &VariableNode) {}
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_variable_expr_node_to_string(
-        &mut self,
-        _variable_node: &VariableNode,
-        _output: &mut String,
-    ) {
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_variable_stmt_node(&mut self, _variable_stmt_node: &VariableStmtNode) {}
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_assignment_expr_node(&mut self, _assignment_expr_node: &AssignmentExprNode) {}
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_assignment_expr_node_to_string(
-        &mut self,
-        _assignment_expr_node: &AssignmentExprNode,
-        _output: &mut String,
-    ) {
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_assignment_statement_node(&mut self, _assignment_stmt_node: &AssignmentStmtNode) {}
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_unary_expr_node(&mut self, _unary_expr_node: &UnaryExprNode) {}
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_unary_expr_node_to_string(
-        &mut self,
-        _unary_expr_node: &UnaryExprNode,
-        _output: &mut String,
-    ) {
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_binary_expr_node(&mut self, _binary_expr_node: &BinaryExprNode) {}
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_binary_expr_node_to_string(
-        &mut self,
-        _binary_expr_node: &BinaryExprNode,
-        _output: &mut String,
-    ) {
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_operator_type(&mut self, _operator_type: &OperatorType) {}
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_operator_type_to_string(
-        &mut self,
-        _operator_type: &OperatorType,
-        _output: &mut String,
-    ) {
     }
 }
