@@ -193,13 +193,21 @@ impl Provider for FrameConfig {
 /// Make `AttributeNode` a `Provider`. An attribute may contain zero or one
 /// configuration settings.
 ///
-/// Attributes setting Boolean configuration options are prefixed with
-/// `feature:` while String configuration options are prefixed with `code:`.
-/// The rest of the attribute name is a path of field names to the relevant
-/// attribute.
+/// The format of an attribute name is `[full.path.to.attribute]:[type]`, where
+/// the path is the sequence of field names starting from the `FrameConfig`
+/// struct to access the attribute value, and the type is one of currently
+/// supported attribute types:
 ///
-/// For example, to set the Rust backend's `runtime_support` feature, the
-/// attribute must be named `feature:codegen.rust.features.runtime_support`.
+///  * `bool`, corresponding to Rust's `bool` type
+///  * `int`, corresponding to Rust's `i32` type
+///  * `str`, corresponding to Rust's `String` type
+///
+/// For example, to enable the Rust backend's boolean `runtime_support` feature,
+/// the following attribute statement would be used.
+///
+/// ```text
+/// #[codegen.rust.features.runtime_support:bool="true"]
+/// ```
 impl Provider for AttributeNode {
     fn metadata(&self) -> Metadata {
         Metadata::named("AttributeNode")
@@ -209,8 +217,8 @@ impl Provider for AttributeNode {
         let attr_name = &self.name;
         let config_path;
         let config_value;
-        if let Some(path) = attr_name.strip_prefix("feature:") {
-            // this attribute is a boolean feature option
+        if let Some(path) = attr_name.strip_suffix(":bool") {
+            // this attribute is a boolean option
             config_path = path;
             match self.value.parse::<bool>() {
                 Ok(value) => {
@@ -223,8 +231,22 @@ impl Provider for AttributeNode {
                     )));
                 }
             }
-        } else if let Some(path) = attr_name.strip_prefix("code:") {
-            // this attribute is a string (codegen related) config option
+        } else if let Some(path) = attr_name.strip_suffix(":int") {
+            // this attribute is an integer option
+            config_path = path;
+            match self.value.parse::<i32>() {
+                Ok(value) => {
+                    config_value = Value::from(value);
+                }
+                Err(err) => {
+                    return Err(Error::from(format!(
+                        "Error parsing integer feature option: {:?}",
+                        err
+                    )));
+                }
+            }
+        } else if let Some(path) = attr_name.strip_suffix(":str") {
+            // this attribute is a string config option
             config_path = path;
             config_value = Value::from(self.value.clone());
         } else {

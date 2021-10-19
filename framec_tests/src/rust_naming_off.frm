@@ -1,5 +1,5 @@
-#[feature:codegen.rust.features.generate_action_impl="true"]
-#[feature:codegen.rust.features.follow_rust_naming="false"]
+#[codegen.rust.features.generate_action_impl:bool="true"]
+#[codegen.rust.features.follow_rust_naming:bool="false"]
 #RustNaming
     -interface-
     snake_event [snake_param:i32]

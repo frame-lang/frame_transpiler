@@ -1,5 +1,5 @@
-#[feature:codegen.rust.features.generate_action_impl="true"]
-#[feature:codegen.rust.features.runtime_support="true"]
+#[codegen.rust.features.generate_action_impl:bool="true"]
+#[codegen.rust.features.runtime_support:bool="true"]
 #Basic
     -interface-
     A
