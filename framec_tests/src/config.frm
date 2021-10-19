@@ -1,7 +1,7 @@
-#[feature:codegen.rust.features.generate_hook_methods="true"]
-#[code:codegen.rust.code.state_enum_suffix="Nation"]
-#[code:codegen.rust.code.state_var_name="nation"]
-#[code:codegen.rust.code.transition_hook_method_name="oh_its_a_transition"]
+#[codegen.rust.features.generate_hook_methods:bool="true"]
+#[codegen.rust.code.state_enum_suffix:str="Nation"]
+#[codegen.rust.code.state_var_name:str="nation"]
+#[codegen.rust.code.transition_hook_method_name:str="oh_its_a_transition"]
 #Config
     -interface-
     Next
