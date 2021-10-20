@@ -241,13 +241,10 @@ impl Exe {
             visitor.run(&system_node);
             output = visitor.get_code();
         } else if output_format == "plantuml" {
-            // let x = (&semantic_parser).get_arcanum();
-            // semantic_parser = semantic_parser.into_inner();
-            // let y = (&semantic_parser).get_system_hierarchy();
-            let (x, y) = semantic_parser.get_all();
+            let (arcanum, system_hierarchy) = semantic_parser.get_all();
             let mut visitor = PlantUmlVisitor::new(
-                x,
-                y,
+                arcanum,
+                system_hierarchy,
                 generate_state_context,
                 generate_state_stack,
                 generate_change_state,
@@ -273,8 +270,11 @@ impl Exe {
             visitor.run(&system_node);
             output = visitor.get_code();
         } else if output_format == "smcat" {
-            let (x, y) = semantic_parser.get_all();
-            let mut visitor = SmcatVisitor::new(x, y, FRAMEC_VERSION, comments);
+            let mut visitor = SmcatVisitor::new(
+                FRAMEC_VERSION,
+                config,
+                semantic_parser.get_system_hierarchy(),
+            );
             visitor.run(&system_node);
             output = visitor.get_code();
         // } else if output_format == "xstate" {

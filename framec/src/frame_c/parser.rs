@@ -154,6 +154,12 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
+    pub fn get_system_hierarchy(self) -> SystemHierarchy {
+        self.system_hierarchy_opt.unwrap()
+    }
+
+    /* --------------------------------------------------------------------- */
+
     pub fn get_all(self) -> (Arcanum, SystemHierarchy) {
         (self.arcanum, self.system_hierarchy_opt.unwrap())
     }
