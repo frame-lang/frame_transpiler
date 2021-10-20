@@ -351,6 +351,9 @@ impl MachineBlockNode {
     pub fn new(states: Vec<Rc<RefCell<StateNode>>>) -> MachineBlockNode {
         MachineBlockNode { states }
     }
+    pub fn get_first_state(&self) -> Option<&Rc<RefCell<StateNode>>> {
+        self.states.get(0)
+    }
 }
 
 impl NodeElement for MachineBlockNode {

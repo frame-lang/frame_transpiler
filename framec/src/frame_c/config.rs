@@ -188,13 +188,13 @@ pub struct SmcatFeatures {}
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SmcatCode {
     /// Style settings for nodes that do not have any children.
-    simple_state_node_style: String,
+    pub simple_state_node_style: String,
     /// Style settings for nodes that have sub-states as children.
-    parent_state_node_style: String,
+    pub parent_state_node_style: String,
     /// Style settings for "change-state" transitions.
-    change_state_edge_style: String,
+    pub change_state_edge_style: String,
     /// Style settings for standard transitions.
-    transition_edge_style: String,
+    pub transition_edge_style: String,
 }
 
 impl FrameConfig {

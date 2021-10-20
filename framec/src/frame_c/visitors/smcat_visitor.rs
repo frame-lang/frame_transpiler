@@ -1,128 +1,80 @@
 use crate::frame_c::ast::*;
-use crate::frame_c::scanner::Token;
-use crate::frame_c::symbol_table::*;
+use crate::frame_c::config::{FrameConfig, SmcatConfig};
 use crate::frame_c::utils::SystemHierarchy;
 use crate::frame_c::visitors::*;
 
+fn indent_str(indent: usize) -> String {
+    "  ".repeat(indent)
+}
+
+fn format_styling(style: &str) -> String {
+    if style.is_empty() {
+        String::new()
+    } else {
+        format!("[{}] ", style)
+    }
+}
+
 pub struct SmcatVisitor {
-    _compiler_version: String,
-    pub code: String,
-    pub dent: usize,
-    pub current_state_name_opt: Option<String>,
-    current_event_ret_type: String,
-    arcanium: Arcanum,
-    symbol_config: SymbolConfig,
-    first_event_handler: bool,
-    system_name: String,
-    first_state_name: String,
-    states: String,
-    transitions: String,
+    _compiler_version: &'static str,
+    config: SmcatConfig,
     system_hierarchy: SystemHierarchy,
-    event_handler_msg: String,
+    current_state: Option<String>,
+    transition_msg: String,
+    code: String,
 }
 
 impl SmcatVisitor {
-    //* --------------------------------------------------------------------- *//
-
     pub fn new(
-        arcanium: Arcanum,
+        compiler_version: &'static str,
+        config: FrameConfig,
         system_hierarchy: SystemHierarchy,
-        compiler_version: &str,
-        _comments: Vec<Token>,
     ) -> SmcatVisitor {
+        let smcat_config = config.codegen.smcat;
         SmcatVisitor {
-            _compiler_version: compiler_version.to_string(),
-            code: String::from(""),
-            dent: 0,
-            current_state_name_opt: None,
-            current_event_ret_type: String::new(),
-            arcanium,
-            symbol_config: SymbolConfig::new(),
-            first_event_handler: true,
-            system_name: String::new(),
-            first_state_name: String::new(),
-            states: String::new(),
-            transitions: String::new(),
+            _compiler_version: compiler_version,
+            config: smcat_config,
             system_hierarchy,
-            event_handler_msg: String::new(),
+            current_state: None,
+            transition_msg: String::new(),
+            code: String::from(""),
         }
     }
-
-    //* --------------------------------------------------------------------- *//
-
-    pub fn get_code(&self) -> String {
-        self.code.clone()
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn generate_states(
-        &self,
-        node_name: &str,
-        is_system_node: bool,
-        indent: usize,
-        output: &mut String,
-    ) {
-        let mut actual_indent = indent;
-        let node = self.system_hierarchy.get_node(node_name).unwrap();
-        let has_children = !(&node.children.is_empty());
-        if !is_system_node {
-            actual_indent += 1;
-            if has_children {
-                output.push_str(&format!("{}{} {{\n", self.specifiy_dent(indent), node_name));
-            } else {
-                output.push_str(&format!("{}{}, \n", self.specifiy_dent(indent), node_name));
-            }
-        }
-
-        for child_node_name in &node.children {
-            let child_node = self.system_hierarchy.get_node(child_node_name).unwrap();
-            self.generate_states(&child_node.name, false, actual_indent, output);
-        }
-
-        // change last coma to semicolon
-        if has_children {
-            if let Some(location) = output.rfind(',') {
-                output.replace_range(location..location + 1, ";")
-            }
-        }
-
-        if !is_system_node && has_children {
-            output.push_str(&format!("{}}},\n", self.specifiy_dent(indent)));
-        }
-    }
-
-    //* --------------------------------------------------------------------- *//
 
     pub fn run(&mut self, system_node: &SystemNode) {
         system_node.accept(self);
     }
 
-    //* --------------------------------------------------------------------- *//
-
     fn add_code(&mut self, s: &str) {
         self.code.push_str(s);
     }
 
-    //* --------------------------------------------------------------------- *//
-
-    fn newline(&mut self) {
-        self.code.push_str(&*format!("\n{}", self.dent()));
+    pub fn get_code(&self) -> String {
+        self.code.clone()
     }
 
-    //* --------------------------------------------------------------------- *//
+    fn generate_states(&self, node_name: &str, indent: usize, output: &mut String) {
+        let node = self.system_hierarchy.get_node(node_name).unwrap();
+        let mut child_iter = node.children.iter().peekable();
+        let indent_str = indent_str(indent);
 
-    fn dent(&self) -> String {
-        (0..self.dent).map(|_| "    ").collect::<String>()
+        // add state
+        output.push_str(&format!("{}{}", indent_str, node_name));
+
+        // add children
+        let has_children = child_iter.peek().is_some();
+        if has_children {
+            output.push_str(" {\n");
+        }
+        while let Some(child_name) = child_iter.next() {
+            let last_child = child_iter.peek().is_none();
+            self.generate_states(child_name, indent + 1, output);
+            output.push_str(&format!("{}\n", if last_child { ";" } else { "," }));
+        }
+        if has_children {
+            output.push_str(&format!("{}}}", indent_str));
+        }
     }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn specifiy_dent(&self, dent: usize) -> String {
-        (0..dent).map(|_| "    ").collect::<String>()
-    }
-
-    //* --------------------------------------------------------------------- *//
 
     fn visit_decl_stmts(&mut self, decl_stmt_types: &[DeclOrStmtType]) {
         for decl_stmt_t in decl_stmt_types.iter() {
@@ -130,7 +82,8 @@ impl SmcatVisitor {
                 DeclOrStmtType::VarDeclT { .. } => {}
                 DeclOrStmtType::StmtT { stmt_t } => {
                     match stmt_t {
-                        StatementType::ExpressionStmt { expr_stmt_t: _ } => {}
+                        // TODO: do we need to worry about directly invoked handlers?
+                        StatementType::ExpressionStmt { .. } => {}
                         StatementType::TransitionStmt {
                             transition_statement,
                         } => {
@@ -147,95 +100,67 @@ impl SmcatVisitor {
                         StatementType::ChangeStateStmt { change_state_stmt } => {
                             change_state_stmt.accept(self);
                         }
-                        StatementType::NoStmt => {
-                            // TODO
-                            panic!("todo");
-                        }
+                        StatementType::NoStmt => {}
                     }
                 }
             }
         }
     }
 
-    //* --------------------------------------------------------------------- *//
-
-    fn generate_state_ref_change_state(
-        &mut self,
-        change_state_stmt_node: &ChangeStateStatementNode,
-    ) {
-        let target_state_name = match &change_state_stmt_node.state_context_t {
+    fn generate_state_ref_change_state(&mut self, change_state_stmt: &ChangeStateStatementNode) {
+        let source_state = self.current_state.as_ref().unwrap().clone();
+        let target_state = match &change_state_stmt.state_context_t {
             StateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_node.name
             }
-            _ => panic!("TODO"),
+            StateContextType::StateStackPop {} => {
+                panic!("TODO")
+            }
         };
-
-        let mut current_state: String = "??".to_string();
-        if let Some(state_name) = &self.current_state_name_opt {
-            current_state = state_name.clone();
-        }
-
-        let label = match &change_state_stmt_node.label_opt {
+        let label = match &change_state_stmt.label_opt {
             Some(label) => {
                 format!("{};", label.clone())
             }
             None => {
-                format!("{};", self.event_handler_msg.clone())
+                format!("{};", self.transition_msg.clone())
             }
         };
-
-        let transition_code = &format!(
-            "{} => {} [color=\"grey\"] : {}\n",
-            current_state,
-            self.format_target_state_name(target_state_name),
+        self.add_code(&format!(
+            "{} => {} {}: {}\n",
+            source_state,
+            target_state,
+            format_styling(&self.config.code.change_state_edge_style),
             label
-        );
-        self.transitions.push_str(transition_code);
+        ));
     }
 
-    //* --------------------------------------------------------------------- *//
-
-    fn generate_state_ref_transition(&mut self, transition_statement: &TransitionStatementNode) {
-        let target_state_name = match &transition_statement.target_state_context_t {
+    fn generate_state_ref_transition(&mut self, transition_stmt: &TransitionStatementNode) {
+        let source_state = self.current_state.as_ref().unwrap().clone();
+        let target_state = match &transition_stmt.target_state_context_t {
             StateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_node.name
             }
-            _ => panic!("TODO"),
+            StateContextType::StateStackPop {} => {
+                panic!("TODO")
+            }
         };
-
-        let _state_ref_code = self.format_target_state_name(target_state_name);
-
-        match &transition_statement.label_opt {
-            Some(_label) => {}
-            None => {}
-        }
-
-        let mut current_state: String = "??".to_string();
-        if let Some(state_name) = &self.current_state_name_opt {
-            current_state = state_name.clone();
-        }
-
-        let label = match &transition_statement.label_opt {
-            Some(label) => label.clone(),
-            None => self.event_handler_msg.clone(),
+        let label = match &transition_stmt.label_opt {
+            Some(label) => {
+                format!("{};", label.clone())
+            }
+            None => {
+                format!("{};", self.transition_msg.clone())
+            }
         };
-
-        let transition_code = &format!(
-            "{} => {} : {};\n",
-            current_state,
-            self.format_target_state_name(target_state_name),
+        self.add_code(&format!(
+            "{} => {} {}: {}\n",
+            source_state,
+            target_state,
+            format_styling(&self.config.code.transition_edge_style),
             label
-        );
-        self.transitions.push_str(transition_code);
+        ));
     }
 
-    //* --------------------------------------------------------------------- *//
-
-    fn format_target_state_name(&self, state_name: &str) -> String {
-        state_name.to_string()
-    }
-
-    //* --------------------------------------------------------------------- *//
     // TODO: Review if this is correct handling. At least with regular statecharts,
     // each state with children can have a separate history that's used to determine
     // initial child state on reentry to parent state
@@ -245,93 +170,64 @@ impl SmcatVisitor {
     ) {
         let label = match &transition_statement.label_opt {
             Some(label) => label,
-            None => &self.event_handler_msg,
+            None => &self.transition_msg,
         };
         // .deephistory suffix overrides target state label with H* and sets shape to
         // circle
-        self.transitions.push_str(&format!(
+        let transition = &format!(
             "{} => H*.deephistory : {};\n",
-            &self.current_state_name_opt.as_ref().unwrap(),
+            &self.current_state.as_ref().unwrap(),
             label
-        ));
+        );
+        self.add_code(transition);
     }
 }
 
-//* --------------------------------------------------------------------- *//
-
 impl AstVisitor for SmcatVisitor {
-    //* --------------------------------------------------------------------- *//
-
     fn visit_system_node(&mut self, system_node: &SystemNode) {
-        self.system_name = system_node.name.clone();
-
-        // First state name needed for machinery.
-        // Don't generate if there isn't at least one state.
-        if let Some(first_state) = system_node.get_first_state() {
-            self.first_state_name = first_state.borrow().name.clone();
+        // Generate the pointer to the initial state
+        if system_node.get_first_state().is_some() {
             self.add_code("initial,\n");
-            self.transitions
-                .push_str(&format!("initial => \"{}\";\n", self.first_state_name));
         }
-
+        // Generate the rest of the state machine
         if let Some(machine_block_node) = &system_node.machine_block_node_opt {
             machine_block_node.accept(self);
         }
-
-        self.add_code(&self.states.clone());
-        self.newline();
-        self.add_code(&self.transitions.clone());
     }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_frame_messages_enum(&mut self, _interface_block_node: &InterfaceBlockNode) {
-        panic!("Error - visit_frame_messages_enum() only used in Rust.");
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_interface_parameters(&mut self, _interface_block_node: &InterfaceBlockNode) {
-        panic!("visit_interface_parameters() not valid for target language.");
-    }
-
-    //* --------------------------------------------------------------------- *//
 
     fn visit_machine_block_node(&mut self, machine_block_node: &MachineBlockNode) {
         let mut output = String::new();
-        let sys_name = self.system_name.clone();
-        let _system_node = self.system_hierarchy.get_system_node().unwrap();
-        self.generate_states(&sys_name, true, 0, &mut output);
-        self.states = output;
-
+        let system_name = &self.system_hierarchy.system_name;
+        let system_node = self.system_hierarchy.get_node(system_name).unwrap();
+        let mut state_iter = system_node.children.iter().peekable();
+        while let Some(state_name) = state_iter.next() {
+            let last_state = state_iter.peek().is_none();
+            self.generate_states(state_name, 0, &mut output);
+            output.push_str(&format!("{}\n", if last_state { ";" } else { "," }));
+        }
+        output.push('\n');
+        self.add_code(&output);
+        if let Some(first_state) = machine_block_node.get_first_state() {
+            self.add_code(&format!(
+                "initial => {};\n",
+                first_state.borrow().name.clone()
+            ));
+        }
         for state_node_rcref in &machine_block_node.states {
             state_node_rcref.borrow().accept(self);
         }
     }
 
-    //* --------------------------------------------------------------------- *//
-
     fn visit_action_node_rust_trait(&mut self, _: &ActionsBlockNode) {
         panic!("Error - visit_action_node_rust_trait() not implemented.");
     }
-
-    //* --------------------------------------------------------------------- *//
 
     fn visit_actions_node_rust_impl(&mut self, _: &ActionsBlockNode) {
         panic!("Error - visit_actions_node_rust_impl() not implemented.");
     }
 
-    //* --------------------------------------------------------------------- *//
-
     fn visit_state_node(&mut self, state_node: &StateNode) {
-        self.current_state_name_opt = Some(state_node.name.clone());
-
-        let _state_symbol = match self.arcanium.get_state(&state_node.name) {
-            Some(state_symbol) => state_symbol,
-            None => panic!("TODO"),
-        };
-
-        self.first_event_handler = true; // context for formatting
+        self.current_state = Some(state_node.name.clone());
 
         if !state_node.evt_handlers_rcref.is_empty() {
             for evt_handler_node in &state_node.evt_handlers_rcref {
@@ -344,40 +240,22 @@ impl AstVisitor for SmcatVisitor {
             None => {}
         }
 
-        self.current_state_name_opt = None;
+        self.current_state = None;
     }
 
-    //* --------------------------------------------------------------------- *//
-
     fn visit_event_handler_node(&mut self, evt_handler_node: &EventHandlerNode) {
-        self.current_event_ret_type = evt_handler_node.get_event_ret_type();
         if let MessageType::CustomMessage { message_node } = &evt_handler_node.msg_t {
-            self.event_handler_msg = format!("|{}|", message_node.name);
+            self.transition_msg = message_node.name.clone();
         } else {
             // AnyMessage ( ||* )
-            self.event_handler_msg = "||*".to_string();
-        }
-        if let MessageType::CustomMessage { message_node } = &evt_handler_node.msg_t {
-            let (_msg, _, _) = EventSymbol::get_event_msg(
-                &self.symbol_config,
-                &Some(evt_handler_node.state_name.clone()),
-                &message_node.name,
-            );
+            self.transition_msg = "||*".to_string();
         }
 
         // Generate statements
         self.visit_decl_stmts(&evt_handler_node.statements);
-
-        // this controls formatting here
-        self.first_event_handler = false;
-        self.current_event_ret_type = String::new();
     }
 
-    //* --------------------------------------------------------------------- *//
-
     fn visit_action_call_statement_node(&mut self, _action_call_stmt_node: &ActionCallStmtNode) {}
-
-    //* --------------------------------------------------------------------- *//
 
     fn visit_transition_statement_node(&mut self, transition_statement: &TransitionStatementNode) {
         match &transition_statement.target_state_context_t {
@@ -390,13 +268,9 @@ impl AstVisitor for SmcatVisitor {
         };
     }
 
-    //* --------------------------------------------------------------------- *//
-
     fn visit_state_ref_node(&mut self, state_ref: &StateRefNode) {
         self.add_code(&state_ref.name);
     }
-
-    //* --------------------------------------------------------------------- *//
 
     fn visit_change_state_statement_node(
         &mut self,
@@ -406,11 +280,12 @@ impl AstVisitor for SmcatVisitor {
             StateContextType::StateRef { .. } => {
                 self.generate_state_ref_change_state(change_state_stmt_node)
             }
-            StateContextType::StateStackPop {} => panic!("TODO - not implemented"),
+            StateContextType::StateStackPop {} => {
+                // self.generate_state_stack_pop_change_state(transition_statement)
+                panic!("change-state to state-stack pop not implemented");
+            }
         };
     }
-
-    //* --------------------------------------------------------------------- *//
 
     fn visit_test_statement_node(&mut self, test_stmt_node: &TestStatementNode) {
         match &test_stmt_node.test_t {
@@ -430,8 +305,6 @@ impl AstVisitor for SmcatVisitor {
         }
     }
 
-    //* --------------------------------------------------------------------- *//
-
     fn visit_bool_test_node(&mut self, bool_test_node: &BoolTestNode) {
         for branch_node in &bool_test_node.conditional_branch_nodes {
             branch_node.expr_t.accept(self);
@@ -444,8 +317,6 @@ impl AstVisitor for SmcatVisitor {
         }
     }
 
-    //* --------------------------------------------------------------------- *//
-
     fn visit_call_chain_literal_expr_node_to_string(
         &mut self,
         _method_call_chain_expression_node: &CallChainLiteralExprNode,
@@ -454,8 +325,6 @@ impl AstVisitor for SmcatVisitor {
         panic!("TODO");
     }
 
-    //* --------------------------------------------------------------------- *//
-
     fn visit_bool_test_conditional_branch_node(
         &mut self,
         bool_test_true_branch_node: &BoolTestConditionalBranchNode,
@@ -463,16 +332,12 @@ impl AstVisitor for SmcatVisitor {
         self.visit_decl_stmts(&bool_test_true_branch_node.statements);
     }
 
-    //* --------------------------------------------------------------------- *//
-
     fn visit_bool_test_else_branch_node(
         &mut self,
         bool_test_else_branch_node: &BoolTestElseBranchNode,
     ) {
         self.visit_decl_stmts(&bool_test_else_branch_node.statements);
     }
-
-    //* --------------------------------------------------------------------- *//
 
     // Used in event string matching transitions
     fn visit_string_match_test_node(&mut self, string_match_test_node: &StringMatchTestNode) {
@@ -502,8 +367,6 @@ impl AstVisitor for SmcatVisitor {
         }
     }
 
-    //* --------------------------------------------------------------------- *//
-
     fn visit_string_match_test_match_branch_node(
         &mut self,
         string_match_test_match_branch_node: &StringMatchTestMatchBranchNode,
@@ -511,16 +374,12 @@ impl AstVisitor for SmcatVisitor {
         self.visit_decl_stmts(&string_match_test_match_branch_node.statements);
     }
 
-    //* --------------------------------------------------------------------- *//
-
     fn visit_string_match_test_else_branch_node(
         &mut self,
         string_match_test_else_branch_node: &StringMatchTestElseBranchNode,
     ) {
         self.visit_decl_stmts(&string_match_test_else_branch_node.statements);
     }
-
-    //* --------------------------------------------------------------------- *//
 
     fn visit_string_match_test_pattern_node(
         &mut self,
@@ -577,16 +436,12 @@ impl AstVisitor for SmcatVisitor {
         }
     }
 
-    //* --------------------------------------------------------------------- *//
-
     fn visit_number_match_test_match_branch_node(
         &mut self,
         number_match_test_match_branch_node: &NumberMatchTestMatchBranchNode,
     ) {
         self.visit_decl_stmts(&number_match_test_match_branch_node.statements);
     }
-
-    //* --------------------------------------------------------------------- *//
 
     fn visit_number_match_test_else_branch_node(
         &mut self,
