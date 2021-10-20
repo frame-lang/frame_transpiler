@@ -53,6 +53,7 @@ impl FrameConfig {
 pub struct CodeGenConfig {
     pub common: CommonConfig,
     pub rust: RustConfig,
+    pub smcat: SmcatConfig,
 }
 
 /// Code generation options shared among all backends.
@@ -166,6 +167,34 @@ pub struct RustCode {
 
     pub callback_manager_var_name: String,
     pub state_cell_var_name: String,
+}
+
+/// Code generation options specific to the Smcat backend.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SmcatConfig {
+    pub features: SmcatFeatures,
+    pub code: SmcatCode,
+}
+
+/// Code generation features specific to the Smcat backend.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SmcatFeatures {}
+
+/// Style options for generated code specific to the Smcat backend.
+///
+/// See the sections "colors and line width", "classes", and "overriding the
+/// type of a state" in the smcat README:
+/// <https://github.com/sverweij/state-machine-cat/blob/develop/README.md>
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SmcatCode {
+    /// Style settings for nodes that do not have any children.
+    simple_state_node_style: String,
+    /// Style settings for nodes that have sub-states as children.
+    parent_state_node_style: String,
+    /// Style settings for "change-state" transitions.
+    change_state_edge_style: String,
+    /// Style settings for standard transitions.
+    transition_edge_style: String,
 }
 
 impl FrameConfig {
@@ -288,7 +317,7 @@ impl Provider for SystemNode {
 // Defaults
 
 impl Default for FrameConfig {
-    fn default() -> FrameConfig {
+    fn default() -> Self {
         FrameConfig {
             codegen: CodeGenConfig::default(),
         }
@@ -296,16 +325,17 @@ impl Default for FrameConfig {
 }
 
 impl Default for CodeGenConfig {
-    fn default() -> CodeGenConfig {
+    fn default() -> Self {
         CodeGenConfig {
             common: CommonConfig::default(),
             rust: RustConfig::default(),
+            smcat: SmcatConfig::default(),
         }
     }
 }
 
 impl Default for CommonConfig {
-    fn default() -> CommonConfig {
+    fn default() -> Self {
         CommonConfig {
             features: CommonFeatures::default(),
             code: CommonCode::default(),
@@ -314,19 +344,19 @@ impl Default for CommonConfig {
 }
 
 impl Default for CommonFeatures {
-    fn default() -> CommonFeatures {
+    fn default() -> Self {
         CommonFeatures {}
     }
 }
 
 impl Default for CommonCode {
-    fn default() -> CommonCode {
+    fn default() -> Self {
         CommonCode {}
     }
 }
 
 impl Default for RustConfig {
-    fn default() -> RustConfig {
+    fn default() -> Self {
         RustConfig {
             features: RustFeatures::default(),
             code: RustCode::default(),
@@ -335,7 +365,7 @@ impl Default for RustConfig {
 }
 
 impl Default for RustFeatures {
-    fn default() -> RustFeatures {
+    fn default() -> Self {
         RustFeatures {
             follow_rust_naming: true,
             generate_action_impl: true,
@@ -346,7 +376,7 @@ impl Default for RustFeatures {
 }
 
 impl Default for RustCode {
-    fn default() -> RustCode {
+    fn default() -> Self {
         RustCode {
             action_prefix: String::from(""),
             action_suffix: String::from(""),
@@ -405,6 +435,32 @@ impl Default for RustCode {
 
             callback_manager_var_name: String::from("callback_manager"),
             state_cell_var_name: String::from("state_cell"),
+        }
+    }
+}
+
+impl Default for SmcatConfig {
+    fn default() -> Self {
+        SmcatConfig {
+            features: SmcatFeatures::default(),
+            code: SmcatCode::default(),
+        }
+    }
+}
+
+impl Default for SmcatFeatures {
+    fn default() -> Self {
+        SmcatFeatures {}
+    }
+}
+
+impl Default for SmcatCode {
+    fn default() -> Self {
+        SmcatCode {
+            simple_state_node_style: String::from("class=\"state simple\""),
+            parent_state_node_style: String::from("class=\"state parent\""),
+            change_state_edge_style: String::from("class=\"edge change-state\""),
+            transition_edge_style: String::from("class=\"edge transition\""),
         }
     }
 }
