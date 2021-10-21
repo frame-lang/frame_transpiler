@@ -2,16 +2,16 @@
 //! callbacks that notify clients of events within a running state machine.
 
 use crate::environment::{Environment, EMPTY};
-use crate::state::State;
-use crate::transition::{TransitionInfo, TransitionKind};
+use crate::state::ActiveState;
+use crate::transition::{TransitionEvent, TransitionKind};
 use std::cell::Ref;
 
 /// Callback manager.
-pub struct CallbackManager<'a> {
-    transition_callbacks: Vec<Box<dyn FnMut(&TransitionInfo) + Send + 'a>>,
+pub struct CallbackManager<'c> {
+    transition_callbacks: Vec<Box<dyn FnMut(&TransitionEvent) + Send + 'c>>,
 }
 
-impl<'a> CallbackManager<'a> {
+impl<'c, 't> CallbackManager<'c> {
     /// Create a new callback manager.
     pub fn new() -> Self {
         CallbackManager {
@@ -20,13 +20,17 @@ impl<'a> CallbackManager<'a> {
     }
 
     /// Register a callback to be called on each transition.
-    pub fn add_transition_callback(&mut self, callback: impl FnMut(&TransitionInfo) + Send + 'a) {
+    pub fn add_transition_callback(&mut self, callback: impl FnMut(&TransitionEvent) + Send + 'c) {
         self.transition_callbacks.push(Box::new(callback));
     }
 
     /// Invoke all the transition callbacks for a change-state transition.
-    pub fn change_state(&mut self, old_state: Ref<dyn State>, new_state: Ref<dyn State>) {
-        let info = TransitionInfo {
+    pub fn change_state(
+        &mut self,
+        old_state: Ref<'t, dyn ActiveState<'t>>,
+        new_state: Ref<'t, dyn ActiveState<'t>>,
+    ) {
+        let info = TransitionEvent {
             kind: TransitionKind::ChangeState,
             old_state,
             new_state,
@@ -40,12 +44,12 @@ impl<'a> CallbackManager<'a> {
     /// arguments.
     pub fn transition(
         &mut self,
-        old_state: Ref<dyn State>,
-        new_state: Ref<dyn State>,
-        exit_arguments: &dyn Environment,
-        enter_arguments: &dyn Environment,
+        old_state: Ref<'t, dyn ActiveState<'t>>,
+        new_state: Ref<'t, dyn ActiveState<'t>>,
+        exit_arguments: &'t dyn Environment,
+        enter_arguments: &'t dyn Environment,
     ) {
-        let info = TransitionInfo {
+        let info = TransitionEvent {
             kind: TransitionKind::Transition,
             old_state,
             new_state,
@@ -56,14 +60,14 @@ impl<'a> CallbackManager<'a> {
     }
 
     /// Invoke all the transition callbacks.
-    fn call_transition_callbacks(&mut self, info: &TransitionInfo) {
+    fn call_transition_callbacks(&mut self, info: &TransitionEvent<'t>) {
         for c in &mut self.transition_callbacks {
             (**c)(info);
         }
     }
 }
 
-impl<'a> Default for CallbackManager<'a> {
+impl<'c> Default for CallbackManager<'c> {
     fn default() -> Self {
         CallbackManager::new()
     }
@@ -72,7 +76,7 @@ impl<'a> Default for CallbackManager<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
+    use crate::state::{State, StateInfo};
     use std::cell::RefCell;
     use std::sync::Mutex;
 
@@ -81,13 +85,19 @@ mod tests {
         B,
     }
 
-    impl State for TestState {
+    impl<'a> State<'a> for TestState {
         fn name(&self) -> &'static str {
             match self {
                 TestState::A => "A",
                 TestState::B => "B",
             }
         }
+        fn info(&self) -> StateInfo<'a> {
+            StateInfo::default()
+        }
+    }
+
+    impl<'a> ActiveState<'a> for TestState {
         fn state_arguments(&self) -> &dyn Environment {
             EMPTY
         }

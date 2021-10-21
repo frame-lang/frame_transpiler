@@ -52,7 +52,8 @@
 use frame_runtime::callback::CallbackManager;
 use frame_runtime::environment::{Environment, EMPTY};
 use frame_runtime::machine::StateMachine;
-use frame_runtime::state::State;
+use frame_runtime::state::{ActiveState, State, StateInfo};
+use frame_runtime::transition::{TransitionInfo, TransitionKind};
 use std::any::Any;
 use std::cell::{Ref, RefCell};
 use std::rc::Rc;
@@ -239,10 +240,60 @@ impl FrameEventArgs {
 
 struct InitStateContext {}
 
-impl State for InitStateContext {
+impl<'a> State<'a> for DemoState {
     fn name(&self) -> &'static str {
-        "Init"
+        match self {
+            DemoState::Init => "Init",
+            DemoState::Foo => "Foo",
+            DemoState::Bar => "Bar",
+        }
     }
+    fn info(&self) -> StateInfo<'a> {
+        match self {
+            DemoState::Init => StateInfo {
+                parent: None,
+                children: Vec::new(),
+                transitions: vec![TransitionInfo {
+                    kind: TransitionKind::Transition,
+                    message: ">",
+                    label: "",
+                    target: &DemoState::Foo,
+                }],
+            },
+            DemoState::Foo => StateInfo {
+                parent: None,
+                children: Vec::new(),
+                transitions: vec![TransitionInfo {
+                    kind: TransitionKind::Transition,
+                    message: "next",
+                    label: "",
+                    target: &DemoState::Bar,
+                }],
+            },
+            DemoState::Bar => StateInfo {
+                parent: None,
+                children: Vec::new(),
+                transitions: vec![TransitionInfo {
+                    kind: TransitionKind::ChangeState,
+                    message: "next",
+                    label: "",
+                    target: &DemoState::Foo,
+                }],
+            },
+        }
+    }
+}
+
+impl<'a> State<'a> for InitStateContext {
+    fn name(&self) -> &'static str {
+        DemoState::Init.name()
+    }
+    fn info(&self) -> StateInfo<'a> {
+        DemoState::Init.info()
+    }
+}
+
+impl<'a> ActiveState<'a> for InitStateContext {
     fn state_arguments(&self) -> &dyn Environment {
         EMPTY
     }
@@ -268,10 +319,16 @@ struct FooStateContext {
     state_vars: FooStateVars,
 }
 
-impl State for FooStateContext {
+impl<'a> State<'a> for FooStateContext {
     fn name(&self) -> &'static str {
-        "Foo"
+        DemoState::Foo.name()
     }
+    fn info(&self) -> StateInfo<'a> {
+        DemoState::Foo.info()
+    }
+}
+
+impl<'a> ActiveState<'a> for FooStateContext {
     fn state_arguments(&self) -> &dyn Environment {
         EMPTY
     }
@@ -311,10 +368,16 @@ struct BarStateContext {
     state_vars: BarStateVars,
 }
 
-impl State for BarStateContext {
+impl<'a> State<'a> for BarStateContext {
     fn name(&self) -> &'static str {
-        "Bar"
+        DemoState::Bar.name()
     }
+    fn info(&self) -> StateInfo<'a> {
+        DemoState::Bar.info()
+    }
+}
+
+impl<'a> ActiveState<'a> for BarStateContext {
     fn state_arguments(&self) -> &dyn Environment {
         &self.state_args
     }
@@ -329,12 +392,12 @@ enum StateContext {
     Bar(RefCell<BarStateContext>),
 }
 
-impl StateContext {
-    fn as_runtime_state(&self) -> Ref<dyn State> {
+impl<'a> StateContext {
+    fn as_runtime_state(&self) -> Ref<dyn ActiveState<'a>> {
         match self {
-            StateContext::Init(context) => Ref::map(context.borrow(), |c| c as &dyn State),
-            StateContext::Foo(context) => Ref::map(context.borrow(), |c| c as &dyn State),
-            StateContext::Bar(context) => Ref::map(context.borrow(), |c| c as &dyn State),
+            StateContext::Init(context) => Ref::map(context.borrow(), |c| c as &dyn ActiveState),
+            StateContext::Foo(context) => Ref::map(context.borrow(), |c| c as &dyn ActiveState),
+            StateContext::Bar(context) => Ref::map(context.borrow(), |c| c as &dyn ActiveState),
         }
     }
     fn init_context(&self) -> &RefCell<InitStateContext> {
@@ -376,7 +439,10 @@ impl<'a> Environment for Demo<'a> {
 }
 
 impl<'a> StateMachine<'a> for Demo<'a> {
-    fn current_state(&self) -> Ref<dyn State> {
+    fn states(&self) -> &[&dyn State<'a>] {
+        &[&DemoState::Init, &DemoState::Foo, &DemoState::Bar]
+    }
+    fn current_state(&self) -> Ref<dyn ActiveState<'a>> {
         self.state_context.as_ref().as_runtime_state()
     }
     fn domain_variables(&self) -> &dyn Environment {
@@ -423,6 +489,7 @@ impl<'a> Demo<'a> {
         self.handle_event(&mut frame_event);
     }
 
+    #[allow(clippy::single_match)]
     fn init_handler(&mut self, frame_event: &mut FrameEvent) {
         let state_context_clone = Rc::clone(&self.state_context);
         let this_state_context = state_context_clone.init_context().borrow_mut();
@@ -552,6 +619,12 @@ impl<'a> Demo<'a> {
         // call change-state callbacks
         self.callback_manager
             .change_state(old_runtime_state, new_runtime_state);
+    }
+}
+
+impl<'a> Default for Demo<'a> {
+    fn default() -> Self {
+        Demo::new()
     }
 }
 

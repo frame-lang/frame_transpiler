@@ -2,15 +2,18 @@
 
 use crate::callback::CallbackManager;
 use crate::environment::Environment;
-use crate::state::State;
+use crate::state::{ActiveState, State};
 use std::cell::Ref;
 
 /// An interface to a running state machine that supports inspecting its
 /// current state and variables, and registering callbacks to be notified of
 /// various events.
 pub trait StateMachine<'a> {
-    /// The current state of this machine.
-    fn current_state(&self) -> Ref<dyn State>;
+    /// All of the states in this machine.
+    fn states(&self) -> &[&dyn State<'a>];
+
+    /// The currently active state of this machine.
+    fn current_state(&self) -> Ref<dyn ActiveState<'a>>;
 
     /// The domain variables associated with this machine.
     fn domain_variables(&self) -> &dyn Environment;
@@ -29,6 +32,7 @@ pub trait StateMachine<'a> {
 mod tests {
     use super::*;
     use crate::environment::EMPTY;
+    use crate::state::StateInfo;
     use std::any::Any;
     use std::cell::RefCell;
     use std::sync::Mutex;
@@ -39,13 +43,19 @@ mod tests {
         B,
     }
 
-    impl State for TestState {
+    impl<'a> State<'a> for TestState {
         fn name(&self) -> &'static str {
             match self {
                 TestState::A => "A",
                 TestState::B => "B",
             }
         }
+        fn info(&self) -> StateInfo<'a> {
+            StateInfo::default()
+        }
+    }
+
+    impl<'a> ActiveState<'a> for TestState {
         fn state_arguments(&self) -> &dyn Environment {
             EMPTY
         }
@@ -67,8 +77,11 @@ mod tests {
     }
 
     impl<'a> StateMachine<'a> for TestMachine<'a> {
-        fn current_state(&self) -> Ref<dyn State> {
-            Ref::map(self.state_cell.borrow(), |s| s as &dyn State)
+        fn states(&self) -> &'a [&'a dyn State<'a>] {
+            &[&TestState::A, &TestState::B]
+        }
+        fn current_state(&self) -> Ref<dyn ActiveState<'a>> {
+            Ref::map(self.state_cell.borrow(), |s| s as &dyn ActiveState)
         }
         fn domain_variables(&self) -> &dyn Environment {
             self
