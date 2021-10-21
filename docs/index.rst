@@ -39,9 +39,10 @@ With Frame, anyone with a text editor can quickly sketch out a system design con
 
 The true power of Frame, however, is realized by the ability to generate both documentation and code from Frame specification documents:
 
-UML
-___
-.. |img1| image:: https://www.plantuml.com/plantuml/png/SoWkIImgAStDuG8oIb8L_DFI5AgvQc6yF30dMYjMGLVN3YJ91SGWDaZAIa5DsT38nBgaj2ZFFm_2vWAAGvMYo0FvK0KEgNafGFi0
+``UML``
+
+
+.. image:: https://www.plantuml.com/plantuml/png/SoWkIImgAStDuG8oIb8L_DFI5AgvQc6yF30dMYjMGLVN3YJ91SGWDaZAIa5DsT38nBgaj2ZFFm_2vWAAGvMYo0FvK0KEgNafGFi0
 
 ..  code-block:: C#
 
