@@ -19,7 +19,7 @@ With Frame, anyone with a text editor can quickly sketch out a system design con
 
 
 
-.. |codeblk1| code-block:: 
+..  code-block:: 
 
    #Lamp
 
@@ -37,19 +37,63 @@ With Frame, anyone with a text editor can quickly sketch out a system design con
            |turnOff| -> $Off ^
    ##
 
-.. |code1| literalinclude:: code.frm
+The true power of Frame, however, is realized by the ability to generate both documentation and code from Frame specification documents:
+
+UML
+___
 .. |img1| image:: https://www.plantuml.com/plantuml/png/SoWkIImgAStDuG8oIb8L_DFI5AgvQc6yF30dMYjMGLVN3YJ91SGWDaZAIa5DsT38nBgaj2ZFFm_2vWAAGvMYo0FvK0KEgNafGFi0
 
+..  code-block:: C#
+
+    public partial class Lamp {
+        public Lamp() {
+
+            _state_ = _sOff_;
+        }
+
+        //===================== Interface Block ===================//
+
+        public void turnOn() {
+            FrameEvent e = new FrameEvent("turnOn",null);
+            _state_(e);
+        }
+
+        public void turnOff() {
+            FrameEvent e = new FrameEvent("turnOff",null);
+            _state_(e);
+        }
 
 
-======    =====
-code      image
-======    =====
-|code1|   |img1|
-=====     =====
+        //===================== Machine Block ===================//
 
-after table
- 
+        private void _sOff_(FrameEvent e) {
+            if (e.Msg.Equals("turnOn")) {
+                _transition_(_sOn_);
+                return;
+            }
+        }
+
+        private void _sOn_(FrameEvent e) {
+            if (e.Msg.Equals("turnOff")) {
+                _transition_(_sOff_);
+                return;
+            }
+        }
+
+        //=========== Machinery and Mechanisms ===========//
+
+        private delegate void FrameState(FrameEvent e);
+        private FrameState _state_;
+
+        private void _transition_(FrameState newState) {
+            FrameEvent exitEvent = new FrameEvent("<",null);
+            _state_(exitEvent);
+            _state_ = newState;
+            FrameEvent enterEvent = new FrameEvent(">",null);
+            _state_(enterEvent);
+        }
+
+    }
 
 Contents
 --------
