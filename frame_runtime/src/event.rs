@@ -9,7 +9,7 @@ use std::cell::Ref;
 /// An event indicating a transition between two states.
 pub struct TransitionEvent<'a> {
     /// Information about the transition statement that triggered this event.
-    pub info: &'static TransitionInfo,
+    pub info: &'a TransitionInfo,
 
     /// The source state instance immediately before the transition.
     pub old_state: Ref<'a, dyn StateInstance>,
@@ -46,7 +46,7 @@ impl<'c, 't> CallbackManager<'c> {
     /// callbacks.
     pub fn transition(
         &mut self,
-        info: &'static TransitionInfo,
+        info: &'t TransitionInfo,
         old_state: Ref<'t, dyn StateInstance>,
         new_state: Ref<'t, dyn StateInstance>,
         exit_arguments: &'t dyn Environment,
@@ -75,54 +75,102 @@ impl<'c> Default for CallbackManager<'c> {
 mod tests {
     use super::*;
     use crate::env::EMPTY;
-    use crate::info::*;
+    use crate::info::{MachineInfo, StateInfo};
     use std::cell::RefCell;
     use std::sync::Mutex;
 
-    const MACHINE_INFO: &MachineInfo = &MachineInfo {
-        name: "Test",
-        variables: vec![],
-        states: vec![
-            StateInfo {
-                machine: &MACHINE_INFO,
-                name: "A",
-                parent: None,
-                parameters: vec![],
-                variables: vec![],
-                handlers: vec![&MACHINE_INFO.events[0]],
-            },
-            StateInfo {
-                machine: &MACHINE_INFO,
-                name: "B",
-                parent: None,
-                parameters: vec![],
-                variables: vec![],
-                handlers: vec![&MACHINE_INFO.events[0]],
-            },
-        ],
-        events: vec![MethodInfo {
-            name: "next",
-            parameters: vec![],
-            return_type: None,
-        }],
-        actions: vec![],
-        transitions: vec![
-            TransitionInfo {
-                kind: TransitionKind::Transition,
-                event: &MACHINE_INFO.events[0],
-                label: "",
-                source: &MACHINE_INFO.states[0],
-                target: &MACHINE_INFO.states[1],
-            },
-            TransitionInfo {
-                kind: TransitionKind::ChangeState,
-                event: &MACHINE_INFO.events[0],
-                label: "",
-                source: &MACHINE_INFO.states[1],
-                target: &MACHINE_INFO.states[0],
-            },
-        ],
-    };
+    mod info {
+        use crate::info::*;
+
+        pub struct Machine {}
+        pub struct StateA {}
+        pub struct StateB {}
+        pub const MACHINE: &Machine = &Machine {};
+        pub const STATE_A: &StateA = &StateA {};
+        pub const STATE_B: &StateB = &StateB {};
+
+        impl MachineInfo for Machine {
+            fn name(&self) -> &'static str {
+                "TestMachine"
+            }
+            fn variables(&self) -> Vec<NameInfo> {
+                vec![]
+            }
+            fn states(&self) -> Vec<&dyn StateInfo> {
+                vec![STATE_A, STATE_B]
+            }
+            fn events(&self) -> Vec<MethodInfo> {
+                vec![MethodInfo {
+                    name: "next",
+                    parameters: vec![],
+                    return_type: None,
+                }]
+            }
+            fn actions(&self) -> Vec<MethodInfo> {
+                vec![]
+            }
+            fn transitions(&self) -> Vec<TransitionInfo> {
+                vec![
+                    TransitionInfo {
+                        kind: TransitionKind::Transition,
+                        event: MACHINE.events()[0].clone(),
+                        label: "",
+                        source: MACHINE.states()[0],
+                        target: MACHINE.states()[1],
+                    },
+                    TransitionInfo {
+                        kind: TransitionKind::ChangeState,
+                        event: MACHINE.events()[0].clone(),
+                        label: "",
+                        source: MACHINE.states()[1],
+                        target: MACHINE.states()[0],
+                    },
+                ]
+            }
+        }
+
+        impl StateInfo for StateA {
+            fn machine(&self) -> &dyn MachineInfo {
+                MACHINE
+            }
+            fn name(&self) -> &'static str {
+                "A"
+            }
+            fn parent(&self) -> Option<&dyn StateInfo> {
+                None
+            }
+            fn parameters(&self) -> Vec<NameInfo> {
+                vec![]
+            }
+            fn variables(&self) -> Vec<NameInfo> {
+                vec![]
+            }
+            fn handlers(&self) -> Vec<MethodInfo> {
+                vec![MACHINE.events()[0].clone()]
+            }
+        }
+
+        impl StateInfo for StateB {
+            fn machine(&self) -> &dyn MachineInfo {
+                MACHINE
+            }
+            fn name(&self) -> &'static str {
+                "B"
+            }
+            fn parent(&self) -> Option<&dyn StateInfo> {
+                None
+            }
+            fn parameters(&self) -> Vec<NameInfo> {
+                vec![]
+            }
+            fn variables(&self) -> Vec<NameInfo> {
+                vec![]
+            }
+            fn handlers(&self) -> Vec<MethodInfo> {
+                vec![MACHINE.events()[1].clone()]
+            }
+        }
+    }
 
     #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
     enum TestState {
@@ -131,10 +179,10 @@ mod tests {
     }
 
     impl StateInstance for TestState {
-        fn info(&self) -> &StateInfo {
+        fn info(&self) -> &'static dyn StateInfo {
             match self {
-                TestState::A => &MACHINE_INFO.states[0],
-                TestState::B => &MACHINE_INFO.states[1],
+                TestState::A => info::STATE_A,
+                TestState::B => info::STATE_B,
             }
         }
     }
@@ -148,13 +196,13 @@ mod tests {
             tape_mutex
                 .lock()
                 .unwrap()
-                .push(format!("old: {}", e.old_state.info().name))
+                .push(format!("old: {}", e.old_state.info().name()))
         });
         cm.add_transition_callback(|e| {
             tape_mutex
                 .lock()
                 .unwrap()
-                .push(format!("new: {}", e.new_state.info().name))
+                .push(format!("new: {}", e.new_state.info().name()))
         });
         cm.add_transition_callback(|e| {
             tape_mutex
@@ -166,7 +214,7 @@ mod tests {
         let a_rc = RefCell::new(TestState::A);
         let b_rc = RefCell::new(TestState::B);
         cm.transition(
-            &MACHINE_INFO.transitions[0],
+            &info::MACHINE.transitions()[0],
             a_rc.borrow(),
             b_rc.borrow(),
             EMPTY,
@@ -179,7 +227,7 @@ mod tests {
         tape_mutex.lock().unwrap().clear();
 
         cm.transition(
-            &MACHINE_INFO.transitions[1],
+            &info::MACHINE.transitions()[1],
             b_rc.borrow(),
             a_rc.borrow(),
             EMPTY,

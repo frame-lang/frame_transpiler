@@ -29,96 +29,90 @@ pub struct MethodInfo {
 }
 
 /// Static information about a state machine.
-#[derive(Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
-pub struct MachineInfo {
+pub trait MachineInfo {
     /// The system name for this state machine.
-    pub name: &'static str,
+    fn name(&self) -> &'static str;
 
     /// The variables declared in this machine's `domain` block.
-    pub variables: Vec<NameInfo>,
+    fn variables(&self) -> Vec<NameInfo>;
 
     /// The states declared in this machine's `machine` block.
-    pub states: Vec<StateInfo>,
+    fn states(&self) -> Vec<&dyn StateInfo>;
 
     /// The signatures of events declared in this machine's `interface` block.
-    pub events: Vec<MethodInfo>,
+    fn events(&self) -> Vec<MethodInfo>;
 
     /// The signatures of actions declared in this machine's `actions` block.
-    pub actions: Vec<MethodInfo>,
+    fn actions(&self) -> Vec<MethodInfo>;
 
     /// All of the possible transitions between states in this machine.
-    pub transitions: Vec<TransitionInfo>,
-}
+    fn transitions(&self) -> Vec<TransitionInfo>;
 
-impl MachineInfo {
     /// Get a state within this machine by name.
-    pub fn get_state(&self, name: &str) -> Option<&StateInfo> {
-        self.states.iter().find(|s| name == s.name)
+    fn get_state(&self, name: &str) -> Option<&dyn StateInfo> {
+        self.states().into_iter().find(|s| name == s.name())
     }
 
     /// Get the signature corresponding to the named event.
-    pub fn get_event(&self, name: &str) -> Option<&MethodInfo> {
-        self.events.iter().find(|m| name == m.name)
+    fn get_event(&self, name: &str) -> Option<MethodInfo> {
+        self.events().into_iter().find(|m| name == m.name)
     }
 
     /// Get the signature corresponding to the named action.
-    pub fn get_action(&self, name: &str) -> Option<&MethodInfo> {
-        self.actions.iter().find(|m| name == m.name)
+    fn get_action(&self, name: &str) -> Option<MethodInfo> {
+        self.actions().into_iter().find(|m| name == m.name)
     }
 }
 
 /// Static information about a single state.
-#[derive(Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
-pub struct StateInfo {
+pub trait StateInfo {
     /// The machine this state is contained in.
-    pub machine: &'static MachineInfo,
+    fn machine(&self) -> &dyn MachineInfo;
 
     /// The name of this state.
-    pub name: &'static str,
+    fn name(&self) -> &'static str;
 
     /// The parent of this state, if any.
-    pub parent: Option<&'static StateInfo>,
+    fn parent(&self) -> Option<&dyn StateInfo>;
 
     /// The state parameters declared for this state, which will be bound to arguments on
     /// transition.
-    pub parameters: Vec<NameInfo>,
+    fn parameters(&self) -> Vec<NameInfo>;
 
     /// The state variables declared for this state, which can be read and assigned from event
     /// handlers.
-    pub variables: Vec<NameInfo>,
+    fn variables(&self) -> Vec<NameInfo>;
 
     /// The events that this state handles.
-    pub handlers: Vec<&'static MethodInfo>,
-}
+    fn handlers(&self) -> Vec<MethodInfo>;
 
-impl StateInfo {
     /// The children of this state, if any.
-    pub fn children(&self) -> Vec<&StateInfo> {
-        self.machine
-            .states
-            .iter()
-            .filter(|s| match s.parent {
-                Some(p) => self.name == p.name,
+    fn children(&self) -> Vec<&dyn StateInfo> {
+        self.machine()
+            .states()
+            .into_iter()
+            .filter(|s| match s.parent() {
+                Some(p) => self.name() == p.name(),
                 None => false,
             })
             .collect()
     }
 
     /// All transitions in the machine with this state as the `target`.
-    pub fn incoming_transitions(&self) -> Vec<&TransitionInfo> {
-        self.machine
-            .transitions
-            .iter()
-            .filter(|t| self.name == t.target.name)
+    fn incoming_transitions(&self) -> Vec<TransitionInfo> {
+        self.machine()
+            .transitions()
+            .into_iter()
+            .filter(|t| self.name() == t.target.name())
             .collect()
     }
 
     /// All transitions in the machine with this state as the `source`.
-    pub fn outgoing_transitions(&self) -> Vec<&TransitionInfo> {
-        self.machine
-            .transitions
-            .iter()
-            .filter(|t| self.name == t.source.name)
+    fn outgoing_transitions(&self) -> Vec<TransitionInfo> {
+        self.machine()
+            .transitions()
+            .into_iter()
+            .filter(|t| self.name() == t.source.name())
             .collect()
     }
 }
@@ -134,22 +128,21 @@ pub enum TransitionKind {
 /// transition statement in the Frame specification. When a transition is executed at runtime, an
 /// `event::TransitionEvent` is produced, which links to the `TransitionInfo` for the statement
 /// that triggered it.
-#[derive(Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub struct TransitionInfo {
     /// Whether this is a standard or change-state transition.
     pub kind: TransitionKind,
 
     /// The event that this transition may be triggered by.
-    pub event: &'static MethodInfo,
+    pub event: MethodInfo,
 
     /// The label associated with this transition.
     pub label: &'static str,
 
     /// The source state of this transition.
-    pub source: &'static StateInfo,
+    pub source: &'static dyn StateInfo,
 
     /// The target state of this transition.
-    pub target: &'static StateInfo,
+    pub target: &'static dyn StateInfo,
 }
 
 impl TransitionInfo {

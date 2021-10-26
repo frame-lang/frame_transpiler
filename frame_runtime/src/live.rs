@@ -10,7 +10,7 @@ use std::cell::Ref;
 pub trait MachineInstance<'a> {
     /// Static nformation about the state machine declaration that gave rise to this machine
     /// instance.
-    fn info(&self) -> &MachineInfo;
+    fn info(&self) -> &'static dyn MachineInfo;
 
     /// The currently active state of this machine.
     fn state(&self) -> Ref<dyn StateInstance>;
@@ -31,7 +31,7 @@ pub trait MachineInstance<'a> {
 /// transition.
 pub trait StateInstance {
     /// Static information about the state declaration that gave rise to this state instance.
-    fn info(&self) -> &StateInfo;
+    fn info(&self) -> &'static dyn StateInfo;
 
     /// Environment containing the values of the state arguments passed to this state on
     /// transition. The names and types of the parameters these arguments are bound to can be found
@@ -56,53 +56,102 @@ pub trait StateInstance {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::info::{MachineInfo, StateInfo};
     use std::cell::RefCell;
     use std::sync::Mutex;
 
-    const MACHINE_INFO: MachineInfo = MachineInfo {
-        name: "Test",
-        variables: vec![],
-        states: vec![
-            StateInfo {
-                machine: &MACHINE_INFO,
-                name: "A",
-                parent: None,
-                parameters: vec![],
-                variables: vec![],
-                handlers: vec![&MACHINE_INFO.events[0]],
-            },
-            StateInfo {
-                machine: &MACHINE_INFO,
-                name: "B",
-                parent: None,
-                parameters: vec![],
-                variables: vec![],
-                handlers: vec![&MACHINE_INFO.events[0]],
-            },
-        ],
-        events: vec![MethodInfo {
-            name: "next",
-            parameters: vec![],
-            return_type: None,
-        }],
-        actions: vec![],
-        transitions: vec![
-            TransitionInfo {
-                kind: TransitionKind::Transition,
-                event: &MACHINE_INFO.events[0],
-                label: "",
-                source: &MACHINE_INFO.states[0],
-                target: &MACHINE_INFO.states[1],
-            },
-            TransitionInfo {
-                kind: TransitionKind::Transition,
-                event: &MACHINE_INFO.events[0],
-                label: "",
-                source: &MACHINE_INFO.states[1],
-                target: &MACHINE_INFO.states[0],
-            },
-        ],
-    };
+    mod info {
+        use crate::info::*;
+
+        pub struct Machine {}
+        pub struct StateA {}
+        pub struct StateB {}
+        pub const MACHINE: &Machine = &Machine {};
+        pub const STATE_A: &StateA = &StateA {};
+        pub const STATE_B: &StateB = &StateB {};
+
+        impl MachineInfo for Machine {
+            fn name(&self) -> &'static str {
+                "TestMachine"
+            }
+            fn variables(&self) -> Vec<NameInfo> {
+                vec![]
+            }
+            fn states(&self) -> Vec<&dyn StateInfo> {
+                vec![STATE_A, STATE_B]
+            }
+            fn events(&self) -> Vec<MethodInfo> {
+                vec![MethodInfo {
+                    name: "next",
+                    parameters: vec![],
+                    return_type: None,
+                }]
+            }
+            fn actions(&self) -> Vec<MethodInfo> {
+                vec![]
+            }
+            fn transitions(&self) -> Vec<TransitionInfo> {
+                vec![
+                    TransitionInfo {
+                        kind: TransitionKind::Transition,
+                        event: MACHINE.events()[0].clone(),
+                        label: "",
+                        source: MACHINE.states()[0],
+                        target: MACHINE.states()[1],
+                    },
+                    TransitionInfo {
+                        kind: TransitionKind::ChangeState,
+                        event: MACHINE.events()[0].clone(),
+                        label: "",
+                        source: MACHINE.states()[1],
+                        target: MACHINE.states()[0],
+                    },
+                ]
+            }
+        }
+
+        impl StateInfo for StateA {
+            fn machine(&self) -> &dyn MachineInfo {
+                MACHINE
+            }
+            fn name(&self) -> &'static str {
+                "A"
+            }
+            fn parent(&self) -> Option<&dyn StateInfo> {
+                None
+            }
+            fn parameters(&self) -> Vec<NameInfo> {
+                vec![]
+            }
+            fn variables(&self) -> Vec<NameInfo> {
+                vec![]
+            }
+            fn handlers(&self) -> Vec<MethodInfo> {
+                vec![MACHINE.events()[0].clone()]
+            }
+        }
+
+        impl StateInfo for StateB {
+            fn machine(&self) -> &dyn MachineInfo {
+                MACHINE
+            }
+            fn name(&self) -> &'static str {
+                "B"
+            }
+            fn parent(&self) -> Option<&dyn StateInfo> {
+                None
+            }
+            fn parameters(&self) -> Vec<NameInfo> {
+                vec![]
+            }
+            fn variables(&self) -> Vec<NameInfo> {
+                vec![]
+            }
+            fn handlers(&self) -> Vec<MethodInfo> {
+                vec![MACHINE.events()[1].clone()]
+            }
+        }
+    }
 
     #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
     enum TestState {
@@ -111,10 +160,10 @@ mod tests {
     }
 
     impl StateInstance for TestState {
-        fn info(&self) -> &StateInfo {
+        fn info(&self) -> &'static dyn StateInfo {
             match self {
-                TestState::A => &MACHINE_INFO.states[0],
-                TestState::B => &MACHINE_INFO.states[1],
+                TestState::A => info::STATE_A,
+                TestState::B => info::STATE_B,
             }
         }
     }
@@ -126,8 +175,8 @@ mod tests {
     }
 
     impl<'a> MachineInstance<'a> for TestMachine<'a> {
-        fn info(&self) -> &MachineInfo {
-            &MACHINE_INFO
+        fn info(&self) -> &'static dyn MachineInfo {
+            info::MACHINE
         }
         fn state(&self) -> Ref<dyn StateInstance> {
             Ref::map(self.state_cell.borrow(), |s| s as &dyn StateInstance)
@@ -148,19 +197,19 @@ mod tests {
 
         pub fn next(&mut self) {
             match self.state {
-                TestState::A => self.transition(&MACHINE_INFO.transitions[0], TestState::B),
-                TestState::B => self.transition(&MACHINE_INFO.transitions[1], TestState::A),
+                TestState::A => self.transition(&info::MACHINE.transitions()[0], TestState::B),
+                TestState::B => self.transition(&info::MACHINE.transitions()[1], TestState::A),
             }
         }
 
-        pub fn transition(&mut self, info: &'static TransitionInfo, new_state: TestState) {
+        pub fn transition(&mut self, transition_info: &TransitionInfo, new_state: TestState) {
             let old_state_cell = RefCell::new(self.state);
             let old_runtime_state = old_state_cell.borrow();
             self.state = new_state;
             self.state_cell = RefCell::new(new_state);
             let new_runtime_state = self.state_cell.borrow();
             self.callback_manager.transition(
-                info,
+                transition_info,
                 old_runtime_state,
                 new_runtime_state,
                 EMPTY,
@@ -171,20 +220,23 @@ mod tests {
 
     #[test]
     fn static_info() {
-        let mut sm = TestMachine::new();
-        assert_eq!("TestMachine", sm.info().name);
-        assert_eq!(2, sm.info().states.len());
-        assert_eq!(0, sm.info().variables.len());
+        let sm = TestMachine::new();
+        assert_eq!("TestMachine", sm.info().name());
+        assert_eq!(0, sm.info().variables().len());
+        assert_eq!(2, sm.info().states().len());
+        assert_eq!(1, sm.info().events().len());
+        assert_eq!(0, sm.info().actions().len());
+        assert_eq!(2, sm.info().transitions().len());
     }
 
     #[test]
     fn current_state() {
         let mut sm = TestMachine::new();
-        assert_eq!("A", sm.state().info().name);
+        assert_eq!("A", sm.state().info().name());
         sm.next();
-        assert_eq!("B", sm.state().info().name);
+        assert_eq!("B", sm.state().info().name());
         sm.next();
-        assert_eq!("A", sm.state().info().name);
+        assert_eq!("A", sm.state().info().name());
     }
 
     #[test]
@@ -192,16 +244,20 @@ mod tests {
         let tape: Vec<String> = Vec::new();
         let tape_mutex = Mutex::new(tape);
         let mut sm = TestMachine::new();
-        sm.callback_manager().add_transition_callback(|i| {
+        sm.callback_manager().add_transition_callback(|e| {
             tape_mutex.lock().unwrap().push(format!(
-                "{}->{}",
-                i.old_state.info().name,
-                i.new_state.info().name
+                "{}{}{}",
+                e.old_state.info().name(),
+                match e.info.kind {
+                    TransitionKind::ChangeState => "->>",
+                    TransitionKind::Transition => "->",
+                },
+                e.new_state.info().name()
             ));
         });
         sm.next();
         sm.next();
         sm.next();
-        assert_eq!(*tape_mutex.lock().unwrap(), vec!["A->B", "B->A", "A->B"]);
+        assert_eq!(*tape_mutex.lock().unwrap(), vec!["A->B", "B->>A", "A->B"]);
     }
 }
