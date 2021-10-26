@@ -58,6 +58,7 @@ mod tests {
     use super::*;
     use crate::info::{MachineInfo, StateInfo};
     use std::cell::RefCell;
+    use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Mutex;
 
     mod info {
@@ -259,5 +260,24 @@ mod tests {
         sm.next();
         sm.next();
         assert_eq!(*tape_mutex.lock().unwrap(), vec!["A->B", "B->>A", "A->B"]);
+    }
+
+    #[test]
+    fn transition_static_info_agrees() {
+        let agree = AtomicBool::new(false);
+        let mut sm = TestMachine::new();
+        sm.callback_manager().add_transition_callback(|e| {
+            agree.store(
+                e.info.source.name() == e.old_state.info().name()
+                    && e.info.target.name() == e.new_state.info().name(),
+                Ordering::Relaxed,
+            );
+        });
+        sm.next();
+        assert!(agree.load(Ordering::Relaxed));
+        sm.next();
+        assert!(agree.load(Ordering::Relaxed));
+        sm.next();
+        assert!(agree.load(Ordering::Relaxed));
     }
 }

@@ -53,6 +53,7 @@ use frame_runtime::*;
 use std::any::Any;
 use std::cell::{Ref, RefCell};
 use std::rc::Rc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 
 mod info {
@@ -69,10 +70,19 @@ mod info {
 
     impl MachineInfo for Machine {
         fn name(&self) -> &'static str {
-            "TestMachine"
+            "Demo"
         }
         fn variables(&self) -> Vec<NameInfo> {
-            vec![]
+            vec![
+                NameInfo {
+                    name: "x",
+                    vtype: "i32",
+                },
+                NameInfo {
+                    name: "y",
+                    vtype: "i32",
+                },
+            ]
         }
         fn states(&self) -> Vec<&dyn StateInfo> {
             vec![STATE_INIT, STATE_FOO, STATE_BAR]
@@ -787,6 +797,82 @@ fn lookup_i32(env: &(impl Environment + ?Sized), name: &str) -> i32 {
 }
 
 #[test]
+fn machine_info() {
+    let sm = Demo::new();
+    assert_eq!("Demo", sm.info().name());
+    assert_eq!(2, sm.info().variables().len());
+    assert_eq!(3, sm.info().states().len());
+    assert_eq!(2, sm.info().events().len());
+    assert_eq!(0, sm.info().actions().len());
+    assert_eq!(3, sm.info().transitions().len());
+}
+
+#[test]
+fn domain_variable_info() {
+    let sm = Demo::new();
+    let x = sm.info().get_variable("x");
+    let y = sm.info().get_variable("y");
+    let z = sm.info().get_variable("z");
+    assert!(x.is_some());
+    assert!(y.is_some());
+    assert!(z.is_none());
+    assert_eq!("i32", x.unwrap().vtype);
+    assert_eq!("i32", y.unwrap().vtype);
+}
+
+#[test]
+#[allow(clippy::blacklisted_name)]
+fn state_info() {
+    let sm = Demo::new();
+    let init = sm.info().get_state("Init");
+    let foo = sm.info().get_state("Foo");
+    let bar = sm.info().get_state("Bar");
+    let baz = sm.info().get_state("Baz");
+    assert!(init.is_some());
+    assert!(foo.is_some());
+    assert!(bar.is_some());
+    assert!(baz.is_none());
+    assert_eq!(1, init.unwrap().handlers().len());
+    assert_eq!(4, foo.unwrap().handlers().len());
+    assert_eq!(4, bar.unwrap().handlers().len());
+    assert_eq!(0, init.unwrap().variables().len());
+    assert_eq!(1, foo.unwrap().variables().len());
+    assert_eq!(1, bar.unwrap().variables().len());
+    assert_eq!(0, init.unwrap().parameters().len());
+    assert_eq!(0, foo.unwrap().parameters().len());
+    assert_eq!(1, bar.unwrap().parameters().len());
+}
+
+#[test]
+#[allow(clippy::blacklisted_name)]
+fn transition_info() {
+    let sm = Demo::new();
+    let foo = sm.info().get_state("Foo").unwrap();
+    let incoming = foo.incoming_transitions();
+    let outgoing = foo.outgoing_transitions();
+    assert_eq!(2, incoming.len());
+    assert_eq!(1, outgoing.len());
+
+    assert_eq!(">", incoming[0].event.name);
+    assert_eq!("Init", incoming[0].source.name());
+    assert_eq!("Foo", incoming[0].target.name());
+    assert!(incoming[0].is_transition());
+    assert!(!incoming[0].is_change_state());
+
+    assert_eq!("next", incoming[1].event.name);
+    assert_eq!("Bar", incoming[1].source.name());
+    assert_eq!("Foo", incoming[1].target.name());
+    assert!(!incoming[1].is_transition());
+    assert!(incoming[1].is_change_state());
+
+    assert_eq!("next", outgoing[0].event.name);
+    assert_eq!("Foo", outgoing[0].source.name());
+    assert_eq!("Bar", outgoing[0].target.name());
+    assert!(outgoing[0].is_transition());
+    assert!(!outgoing[0].is_change_state());
+}
+
+#[test]
 fn current_state() {
     let mut sm = Demo::new();
     assert_eq!("Foo", sm.state().info().name());
@@ -893,6 +979,25 @@ fn transition_callbacks() {
     tape_mutex.lock().unwrap().clear();
     sm.next();
     assert_eq!(*tape_mutex.lock().unwrap(), vec!["kind: Transition", "old: Foo", "new: Bar"]);
+}
+
+#[test]
+fn transition_static_info_agrees() {
+    let agree = AtomicBool::new(false);
+    let mut sm = Demo::new();
+    sm.callback_manager().add_transition_callback(|e| {
+        agree.store(
+            e.info.source.name() == e.old_state.info().name()
+                && e.info.target.name() == e.new_state.info().name(),
+            Ordering::Relaxed,
+        );
+    });
+    sm.next();
+    assert!(agree.load(Ordering::Relaxed));
+    sm.next();
+    assert!(agree.load(Ordering::Relaxed));
+    sm.next();
+    assert!(agree.load(Ordering::Relaxed));
 }
 
 #[test]

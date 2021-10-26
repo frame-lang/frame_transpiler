@@ -48,6 +48,11 @@ pub trait MachineInfo {
     /// All of the possible transitions between states in this machine.
     fn transitions(&self) -> Vec<TransitionInfo>;
 
+    /// Get a domain variable declaration by name.
+    fn get_variable(&self, name: &str) -> Option<NameInfo> {
+        self.variables().into_iter().find(|n| name == n.name)
+    }
+
     /// Get a state within this machine by name.
     fn get_state(&self, name: &str) -> Option<&dyn StateInfo> {
         self.states().into_iter().find(|s| name == s.name())
