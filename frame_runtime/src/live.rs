@@ -100,12 +100,12 @@ mod tests {
                         return_type: None,
                     },
                     MethodInfo {
-                        name: "A:<",
+                        name: "B:>",
                         parameters: vec![],
                         return_type: None,
                     },
                     MethodInfo {
-                        name: "B:>",
+                        name: "A:<",
                         parameters: vec![],
                         return_type: None,
                     },

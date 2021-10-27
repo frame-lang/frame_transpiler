@@ -87,6 +87,12 @@ mod info {
         fn states(&self) -> Vec<&dyn StateInfo> {
             vec![STATE_INIT, STATE_FOO, STATE_BAR]
         }
+        fn interface(&self) -> Vec<MethodInfo> {
+            vec![MACHINE.events()[0].clone(), MACHINE.events()[1].clone()]
+        }
+        fn actions(&self) -> Vec<MethodInfo> {
+            vec![]
+        }
         fn events(&self) -> Vec<MethodInfo> {
             vec![
                 MethodInfo {
@@ -103,19 +109,30 @@ mod info {
                     return_type: None,
                 },
                 MethodInfo {
-                    name: "Init:>",
-                    parameters: vec![],
-                    return_type: None,
-                },
-                MethodInfo {
-                    name: "Init:<",
-                    parameters: vec![],
+                    name: "Bar:>",
+                    parameters: vec![NameInfo {
+                        name: "start",
+                        vtype: "i32",
+                    }],
                     return_type: None,
                 },
                 MethodInfo {
                     name: "Foo:>",
                     parameters: vec![NameInfo {
                         name: "init",
+                        vtype: "i32",
+                    }],
+                    return_type: None,
+                },
+                MethodInfo {
+                    name: "Init:>",
+                    parameters: vec![],
+                    return_type: None,
+                },
+                MethodInfo {
+                    name: "Bar:<",
+                    parameters: vec![NameInfo {
+                        name: "end",
                         vtype: "i32",
                     }],
                     return_type: None,
@@ -129,28 +146,11 @@ mod info {
                     return_type: None,
                 },
                 MethodInfo {
-                    name: "Bar:>",
-                    parameters: vec![NameInfo {
-                        name: "start",
-                        vtype: "i32",
-                    }],
-                    return_type: None,
-                },
-                MethodInfo {
-                    name: "Bar:<",
-                    parameters: vec![NameInfo {
-                        name: "end",
-                        vtype: "i32",
-                    }],
+                    name: "Init:<",
+                    parameters: vec![],
                     return_type: None,
                 },
             ]
-        }
-        fn interface(&self) -> Vec<MethodInfo> {
-            vec![MACHINE.events()[0].clone(), MACHINE.events()[1].clone()]
-        }
-        fn actions(&self) -> Vec<MethodInfo> {
-            vec![]
         }
         fn transitions(&self) -> Vec<TransitionInfo> {
             vec![
