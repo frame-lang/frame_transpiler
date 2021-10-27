@@ -81,15 +81,40 @@ mod tests {
             fn states(&self) -> Vec<&dyn StateInfo> {
                 vec![STATE_A, STATE_B]
             }
-            fn events(&self) -> Vec<MethodInfo> {
-                vec![MethodInfo {
-                    name: "next",
-                    parameters: vec![],
-                    return_type: None,
-                }]
+            fn interface(&self) -> Vec<MethodInfo> {
+                vec![MACHINE.events()[0].clone()]
             }
             fn actions(&self) -> Vec<MethodInfo> {
                 vec![]
+            }
+            fn events(&self) -> Vec<MethodInfo> {
+                vec![
+                    MethodInfo {
+                        name: "next",
+                        parameters: vec![],
+                        return_type: None,
+                    },
+                    MethodInfo {
+                        name: "A:>",
+                        parameters: vec![],
+                        return_type: None,
+                    },
+                    MethodInfo {
+                        name: "A:<",
+                        parameters: vec![],
+                        return_type: None,
+                    },
+                    MethodInfo {
+                        name: "B:>",
+                        parameters: vec![],
+                        return_type: None,
+                    },
+                    MethodInfo {
+                        name: "B:<",
+                        parameters: vec![],
+                        return_type: None,
+                    },
+                ]
             }
             fn transitions(&self) -> Vec<TransitionInfo> {
                 vec![
@@ -149,7 +174,7 @@ mod tests {
                 vec![]
             }
             fn handlers(&self) -> Vec<MethodInfo> {
-                vec![MACHINE.events()[1].clone()]
+                vec![MACHINE.events()[0].clone()]
             }
         }
     }
@@ -225,8 +250,9 @@ mod tests {
         assert_eq!("TestMachine", sm.info().name());
         assert_eq!(0, sm.info().variables().len());
         assert_eq!(2, sm.info().states().len());
-        assert_eq!(1, sm.info().events().len());
+        assert_eq!(1, sm.info().interface().len());
         assert_eq!(0, sm.info().actions().len());
+        assert_eq!(5, sm.info().events().len());
         assert_eq!(2, sm.info().transitions().len());
     }
 

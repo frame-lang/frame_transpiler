@@ -40,10 +40,14 @@ pub trait MachineInfo {
     fn states(&self) -> Vec<&dyn StateInfo>;
 
     /// The signatures of events declared in this machine's `interface` block.
-    fn events(&self) -> Vec<MethodInfo>;
+    fn interface(&self) -> Vec<MethodInfo>;
 
     /// The signatures of actions declared in this machine's `actions` block.
     fn actions(&self) -> Vec<MethodInfo>;
+
+    /// The signatures of all events that can occur in this machine. This includes events declared
+    /// in this machine's `interface` block, as well as the enter/exit events for each state.
+    fn events(&self) -> Vec<MethodInfo>;
 
     /// All of the possible transitions between states in this machine.
     fn transitions(&self) -> Vec<TransitionInfo>;

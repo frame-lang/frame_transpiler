@@ -102,7 +102,52 @@ mod info {
                     parameters: vec![],
                     return_type: None,
                 },
+                MethodInfo {
+                    name: "Init:>",
+                    parameters: vec![],
+                    return_type: None,
+                },
+                MethodInfo {
+                    name: "Init:<",
+                    parameters: vec![],
+                    return_type: None,
+                },
+                MethodInfo {
+                    name: "Foo:>",
+                    parameters: vec![NameInfo {
+                        name: "init",
+                        vtype: "i32",
+                    }],
+                    return_type: None,
+                },
+                MethodInfo {
+                    name: "Foo:<",
+                    parameters: vec![NameInfo {
+                        name: "done",
+                        vtype: "i32",
+                    }],
+                    return_type: None,
+                },
+                MethodInfo {
+                    name: "Bar:>",
+                    parameters: vec![NameInfo {
+                        name: "start",
+                        vtype: "i32",
+                    }],
+                    return_type: None,
+                },
+                MethodInfo {
+                    name: "Bar:<",
+                    parameters: vec![NameInfo {
+                        name: "end",
+                        vtype: "i32",
+                    }],
+                    return_type: None,
+                },
             ]
+        }
+        fn interface(&self) -> Vec<MethodInfo> {
+            vec![MACHINE.events()[0].clone(), MACHINE.events()[1].clone()]
         }
         fn actions(&self) -> Vec<MethodInfo> {
             vec![]
@@ -111,7 +156,7 @@ mod info {
             vec![
                 TransitionInfo {
                     kind: TransitionKind::Transition,
-                    event: STATE_INIT.handlers()[0].clone(),
+                    event: MACHINE.events()[2].clone(),
                     label: "",
                     source: MACHINE.states()[0],
                     target: MACHINE.states()[1],
@@ -180,22 +225,8 @@ mod info {
         }
         fn handlers(&self) -> Vec<MethodInfo> {
             vec![
-                MethodInfo {
-                    name: ">",
-                    parameters: vec![NameInfo {
-                        name: "init",
-                        vtype: "i32",
-                    }],
-                    return_type: None,
-                },
-                MethodInfo {
-                    name: "<",
-                    parameters: vec![NameInfo {
-                        name: "done",
-                        vtype: "i32",
-                    }],
-                    return_type: None,
-                },
+                MACHINE.events()[4].clone(),
+                MACHINE.events()[5].clone(),
                 MACHINE.events()[0].clone(),
                 MACHINE.events()[1].clone(),
             ]
@@ -226,22 +257,8 @@ mod info {
         }
         fn handlers(&self) -> Vec<MethodInfo> {
             vec![
-                MethodInfo {
-                    name: ">",
-                    parameters: vec![NameInfo {
-                        name: "start",
-                        vtype: "i32",
-                    }],
-                    return_type: None,
-                },
-                MethodInfo {
-                    name: "<",
-                    parameters: vec![NameInfo {
-                        name: "end",
-                        vtype: "i32",
-                    }],
-                    return_type: None,
-                },
+                MACHINE.events()[6].clone(),
+                MACHINE.events()[7].clone(),
                 MACHINE.events()[0].clone(),
                 MACHINE.events()[1].clone(),
             ]
@@ -802,8 +819,9 @@ fn machine_info() {
     assert_eq!("Demo", sm.info().name());
     assert_eq!(2, sm.info().variables().len());
     assert_eq!(3, sm.info().states().len());
-    assert_eq!(2, sm.info().events().len());
+    assert_eq!(2, sm.info().interface().len());
     assert_eq!(0, sm.info().actions().len());
+    assert_eq!(8, sm.info().events().len());
     assert_eq!(3, sm.info().transitions().len());
 }
 
@@ -853,7 +871,7 @@ fn transition_info() {
     assert_eq!(2, incoming.len());
     assert_eq!(1, outgoing.len());
 
-    assert_eq!(">", incoming[0].event.name);
+    assert_eq!("Init:>", incoming[0].event.name);
     assert_eq!("Init", incoming[0].source.name());
     assert_eq!("Foo", incoming[0].target.name());
     assert!(incoming[0].is_transition());
