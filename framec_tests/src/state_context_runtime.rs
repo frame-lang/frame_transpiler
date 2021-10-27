@@ -1,13 +1,13 @@
 //! Tests the interaction of several features (state variables, state parameters, event parameters,
 //! event variables, return values) that are implemented via state contexts, with the runtime
-//! system disabled.
+//! system enabled.
 //!
-//! This is the same state machine as `state_context_runtime.rs` but with `runtime_support=false`.
+//! This is the same state machine as `state_context.rs` but with `runtime_support=true`.
 
 type Log = Vec<String>;
-include!(concat!(env!("OUT_DIR"), "/", "state_context.rs"));
+include!(concat!(env!("OUT_DIR"), "/", "state_context_runtime.rs"));
 
-impl StateContextSm {
+impl<'a> StateContextSm<'a> {
     pub fn log(&mut self, name: String, val: i32) {
         self.tape.push(format!("{}={}", name, val));
     }
@@ -77,4 +77,6 @@ mod tests {
         assert_eq!(sm.state, StateContextSmState::Init);
         assert_eq!(sm.tape, vec!["z=1", "tmp=127", "w=0"]);
     }
+
+    // TODO add runtime support tests
 }
