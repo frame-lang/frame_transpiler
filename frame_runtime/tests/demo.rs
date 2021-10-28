@@ -156,7 +156,7 @@ mod info {
             vec![
                 TransitionInfo {
                     kind: TransitionKind::Transition,
-                    event: MACHINE.events()[2].clone(),
+                    event: MACHINE.events()[4].clone(),
                     label: "",
                     source: MACHINE.states()[0],
                     target: MACHINE.states()[1],

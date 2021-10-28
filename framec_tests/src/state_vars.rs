@@ -3,7 +3,7 @@ include!(concat!(env!("OUT_DIR"), "/", "state_vars.rs"));
 #[cfg(test)]
 mod tests {
     use super::*;
-    use frame_runtime::environment::Environment;
+    use frame_runtime::Environment;
 
     #[test]
     fn single_variable() {
@@ -61,28 +61,28 @@ mod tests {
     #[test]
     /// Tests that state variables behave as expected when accessed via the
     /// runtime interface.
-    fn runtime_state_variables() {
+    fn runtime_variables() {
         let mut sm = StateVars::new();
-        assert_eq!(lookup_u32(sm.current_state().state_variables(), "x"), 0);
-        assert!(sm.current_state().state_variables().lookup("y").is_none());
-        assert!(sm.current_state().state_variables().lookup("z").is_none());
+        assert_eq!(lookup_u32(sm.state().variables(), "x"), 0);
+        assert!(sm.state().variables().lookup("y").is_none());
+        assert!(sm.state().variables().lookup("z").is_none());
         sm.x(); // increment x
         sm.x(); // increment x
-        assert_eq!(lookup_u32(sm.current_state().state_variables(), "x"), 2);
+        assert_eq!(lookup_u32(sm.state().variables(), "x"), 2);
         sm.z(); // transition to B
         sm.z(); // increment z
         sm.y(); // increment y
         sm.z(); // increment z
-        assert!(sm.current_state().state_variables().lookup("x").is_none());
-        assert_eq!(lookup_u32(sm.current_state().state_variables(), "y"), 11);
-        assert_eq!(lookup_u32(sm.current_state().state_variables(), "z"), 102);
+        assert!(sm.state().variables().lookup("x").is_none());
+        assert_eq!(lookup_u32(sm.state().variables(), "y"), 11);
+        assert_eq!(lookup_u32(sm.state().variables(), "z"), 102);
         sm.x(); // transition to A
-        assert_eq!(lookup_u32(sm.current_state().state_variables(), "x"), 0);
-        assert!(sm.current_state().state_variables().lookup("y").is_none());
-        assert!(sm.current_state().state_variables().lookup("z").is_none());
+        assert_eq!(lookup_u32(sm.state().variables(), "x"), 0);
+        assert!(sm.state().variables().lookup("y").is_none());
+        assert!(sm.state().variables().lookup("z").is_none());
         sm.y(); // transition to B
-        assert!(sm.current_state().state_variables().lookup("x").is_none());
-        assert_eq!(lookup_u32(sm.current_state().state_variables(), "y"), 10);
-        assert_eq!(lookup_u32(sm.current_state().state_variables(), "z"), 100);
+        assert!(sm.state().variables().lookup("x").is_none());
+        assert_eq!(lookup_u32(sm.state().variables(), "y"), 10);
+        assert_eq!(lookup_u32(sm.state().variables(), "z"), 100);
     }
 }

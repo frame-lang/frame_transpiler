@@ -51,11 +51,11 @@ mod tests {
     /// Test that we can access the current state via the runtime interface.
     fn runtime_current_state() {
         let mut sm = Basic::new();
-        assert_eq!(sm.current_state().name(), "S0");
+        assert_eq!(sm.state().info().name(), "S0");
         sm.a();
-        assert_eq!(sm.current_state().name(), "S1");
+        assert_eq!(sm.state().info().name(), "S1");
         sm.b();
-        assert_eq!(sm.current_state().name(), "S0");
+        assert_eq!(sm.state().info().name(), "S0");
     }
 
     #[test]
@@ -65,13 +65,13 @@ mod tests {
         sm.a();
         sm.b();
         let entry_log: &Log = sm
-            .domain_variables()
+            .variables()
             .lookup("entry_log")
             .unwrap()
             .downcast_ref()
             .unwrap();
         let exit_log: &Log = sm
-            .domain_variables()
+            .variables()
             .lookup("exit_log")
             .unwrap()
             .downcast_ref()

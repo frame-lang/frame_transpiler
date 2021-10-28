@@ -170,6 +170,7 @@ pub struct RustCode {
     pub machine_info_struct_name: String,
     pub state_info_const_prefix: String,
     pub state_info_struct_prefix: String,
+    pub transition_info_arg_name: String,
     pub callback_manager_var_name: String,
     pub state_cell_var_name: String,
 }
@@ -443,6 +444,7 @@ impl Default for RustCode {
             machine_info_struct_name: String::from("Machine"),
             state_info_const_prefix: String::from("STATE_"),
             state_info_struct_prefix: String::from("State"),
+            transition_info_arg_name: String::from("transition_info"),
             callback_manager_var_name: String::from("callback_manager"),
             state_cell_var_name: String::from("state_cell"),
         }

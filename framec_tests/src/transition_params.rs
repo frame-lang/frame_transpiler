@@ -13,7 +13,7 @@ impl<'a> TransitParams<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use frame_runtime::transition::*;
+    use frame_runtime::*;
     use std::sync::Mutex;
 
     #[test]
@@ -67,32 +67,32 @@ mod tests {
         assert_eq!(sm.tape, vec!["true", "bye B", "hi again A"]);
     }
 
-    #[test]
     /// Test that transition callbacks get event arguments.
+    #[test]
     fn callbacks_get_event_args() {
         let out = Mutex::new(String::new());
         let mut sm = TransitParams::new();
-        sm.callback_manager().add_transition_callback(|info| {
+        sm.callback_manager().add_transition_callback(|event| {
             let mut entry = String::new();
-            if let Some(any) = info.exit_arguments.lookup("msg") {
+            if let Some(any) = event.exit_arguments.lookup("msg") {
                 entry.push_str(&format!("msg: {}, ", any.downcast_ref::<String>().unwrap()));
             }
-            if let Some(any) = info.exit_arguments.lookup("val") {
+            if let Some(any) = event.exit_arguments.lookup("val") {
                 entry.push_str(&format!("val: {}, ", any.downcast_ref::<bool>().unwrap()));
             }
             entry.push_str(&format!(
                 "{}{}{}",
-                info.old_state.name(),
-                match info.kind {
+                event.old_state.info().name(),
+                match event.info.kind {
                     TransitionKind::ChangeState => "->>",
                     TransitionKind::Transition => "->",
                 },
-                info.new_state.name(),
+                event.new_state.info().name(),
             ));
-            if let Some(any) = info.enter_arguments.lookup("msg") {
+            if let Some(any) = event.enter_arguments.lookup("msg") {
                 entry.push_str(&format!(", msg: {}", any.downcast_ref::<String>().unwrap()));
             }
-            if let Some(any) = info.enter_arguments.lookup("val") {
+            if let Some(any) = event.enter_arguments.lookup("val") {
                 entry.push_str(&format!(", val: {}", any.downcast_ref::<i16>().unwrap()));
             }
             *out.lock().unwrap() = entry;
