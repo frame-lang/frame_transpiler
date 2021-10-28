@@ -483,7 +483,11 @@ impl RustVisitor {
     }
 
     fn format_state_info_name(&self, state_name: &str) -> String {
-        format!("STATE_{}", state_name.to_case(Case::ScreamingSnake))
+        format!(
+            "{}{}",
+            self.config.code.state_info_const_prefix,
+            state_name.to_case(Case::ScreamingSnake)
+        )
     }
 
     // Method names
@@ -694,13 +698,22 @@ impl RustVisitor {
     #[allow(unused_variables)]
     fn generate_machine_info(&mut self, system_node: &SystemNode, event_names: &[String]) {
         // generate struct and constant
-        self.add_code("pub struct Machine {}");
+        self.add_code(&format!(
+            "pub struct {} {{}}",
+            self.config.code.machine_info_struct_name
+        ));
         self.newline();
-        self.add_code("pub const MACHINE: &Machine = &Machine {};");
+        self.add_code(&format!(
+            "pub const {0}: &{1} = &{1} {{}};",
+            self.config.code.machine_info_const_name, self.config.code.machine_info_struct_name,
+        ));
         self.newline();
 
         // generate the trait implementation
-        self.add_code("impl MachineInfo for Machine");
+        self.add_code(&format!(
+            "impl MachineInfo for {}",
+            self.config.code.machine_info_struct_name,
+        ));
         self.enter_block();
 
         // name()
@@ -771,7 +784,10 @@ impl RustVisitor {
                     break;
                 } else {
                     self.newline();
-                    self.add_code(&format!("MACHINE.events()[{}].clone(),", idx));
+                    self.add_code(&format!(
+                        "{}.events()[{}].clone(),",
+                        self.config.code.machine_info_const_name, idx
+                    ));
                     idx += 1;
                 }
             }
@@ -913,7 +929,11 @@ impl RustVisitor {
     #[allow(unused_variables)]
     fn generate_state_info(&mut self, state_node: Ref<StateNode>, event_names: &[String]) {
         let state_name = state_node.name.clone();
-        let state_struct_name = format!("State{}", self.format_type_name(&state_name));
+        let state_struct_name = format!(
+            "{}{}",
+            self.config.code.state_info_struct_prefix,
+            self.format_type_name(&state_name)
+        );
         let state_symbol_rcref = self.arcanum.get_state(&state_name).unwrap();
         let state_symbol = state_symbol_rcref.borrow();
         // let state_symtab = state_symbol.symtab_rcref.borrow();
@@ -937,7 +957,7 @@ impl RustVisitor {
         // machine()
         self.add_code("fn machine(&self) -> &dyn MachineInfo");
         self.enter_block();
-        self.add_code("MACHINE");
+        self.add_code(&self.config.code.machine_info_const_name.to_string());
         self.exit_block();
         self.newline();
 
@@ -953,8 +973,8 @@ impl RustVisitor {
         self.enter_block();
         if let Some(dispatch_node) = &state_node.dispatch_opt {
             self.add_code(&format!(
-                "MACHINE.get_state(\"{}\")",
-                dispatch_node.target_state_ref.name
+                "{}.get_state(\"{}\")",
+                self.config.code.machine_info_const_name, dispatch_node.target_state_ref.name
             ));
         } else {
             self.add_code("None");
@@ -1021,7 +1041,8 @@ impl RustVisitor {
                 let name = node_rcref.borrow().event_symbol_rcref.borrow().msg.clone();
                 self.newline();
                 self.add_code(&format!(
-                    "MACHINE.events()[{}],",
+                    "{}.events()[{}],",
+                    self.config.code.machine_info_const_name,
                     event_names.iter().position(|n| n == &name).unwrap()
                 ));
             }
@@ -1092,9 +1113,10 @@ impl RustVisitor {
                     let state_name = &state.borrow().name;
                     self.newline();
                     self.add_code(&format!(
-                        "{}::{} => info::{},",
+                        "{}::{} => {}::{},",
                         state_enum_type,
                         self.format_type_name(state_name),
+                        self.config.code.runtime_info_module_name,
                         self.format_state_info_name(state_name),
                     ));
                 }
@@ -1350,7 +1372,8 @@ impl RustVisitor {
                     self.add_code("fn info(&self) -> &'static dyn StateInfo");
                     self.enter_block();
                     self.add_code(&format!(
-                        "info::{}",
+                        "{}::{}",
+                        self.config.code.runtime_info_module_name,
                         self.format_state_info_name(&state_node.name)
                     ));
                     self.exit_block();
@@ -3042,7 +3065,10 @@ impl AstVisitor for RustVisitor {
 
             self.add_code("fn info(&self) -> &'static dyn MachineInfo");
             self.enter_block();
-            self.add_code("info::MACHINE");
+            self.add_code(&format!(
+                "{}::{}",
+                self.config.code.runtime_info_module_name, self.config.code.machine_info_const_name,
+            ));
             self.exit_block();
             self.newline();
 

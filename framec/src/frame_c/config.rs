@@ -165,6 +165,11 @@ pub struct RustCode {
     pub state_stack_push_method_name: String,
     pub state_stack_pop_method_name: String,
 
+    pub runtime_info_module_name: String,
+    pub machine_info_const_name: String,
+    pub machine_info_struct_name: String,
+    pub state_info_const_prefix: String,
+    pub state_info_struct_prefix: String,
     pub callback_manager_var_name: String,
     pub state_cell_var_name: String,
 }
@@ -433,6 +438,11 @@ impl Default for RustCode {
             state_stack_push_method_name: String::from("state_stack_push"),
             state_stack_pop_method_name: String::from("state_stack_pop"),
 
+            runtime_info_module_name: String::from("runtime_info"),
+            machine_info_const_name: String::from("MACHINE"),
+            machine_info_struct_name: String::from("Machine"),
+            state_info_const_prefix: String::from("STATE_"),
+            state_info_struct_prefix: String::from("State"),
             callback_manager_var_name: String::from("callback_manager"),
             state_cell_var_name: String::from("state_cell"),
         }
