@@ -3,7 +3,7 @@
 type Log = Vec<String>;
 include!(concat!(env!("OUT_DIR"), "/", "hierarchical.rs"));
 
-impl Hierarchical {
+impl<'a> Hierarchical<'a> {
     pub fn enter(&mut self, msg: String) {
         self.enters.push(msg);
     }
@@ -223,4 +223,6 @@ mod tests {
         assert_eq!(sm.enters, vec!["T"]);
         assert_eq!(sm.tape, vec!["S2.C"]);
     }
+
+    // TODO add some runtime tests, esp. lookup parent
 }

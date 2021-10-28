@@ -1059,6 +1059,21 @@ impl Arcanum {
         ret
     }
 
+    /// Get all action names from the action block.
+    pub fn get_action_names(&self) -> Vec<String> {
+        let system_symbol_rcref = self.system_symbol_opt.as_ref().unwrap();
+        let system_symbol = system_symbol_rcref.borrow();
+        let mut result = Vec::new();
+        if let Some(action_block_rcref) = &system_symbol.actions_block_symbol_opt {
+            let action_block = action_block_rcref.borrow();
+            let action_symbol_table = action_block.symtab_rcref.borrow();
+            for action in action_symbol_table.symbols.keys() {
+                result.push(action.clone());
+            }
+        }
+        result
+    }
+
     /* --------------------------------------------------------------------- */
 
     // This method preferentially gets the interface name for a message if it
