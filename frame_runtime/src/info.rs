@@ -95,6 +95,11 @@ pub trait StateInfo {
     /// The events that this state handles.
     fn handlers(&self) -> Vec<MethodInfo>;
 
+    /// Is this the special state-stack pop state?
+    fn is_state_stack_pop(&self) -> bool {
+        false
+    }
+
     /// The children of this state, if any.
     fn children(&self) -> Vec<&dyn StateInfo> {
         self.machine()

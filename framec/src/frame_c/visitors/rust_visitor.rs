@@ -15,7 +15,7 @@ struct TransitionInfo {
     event_name: String,
     label: String,
     source_name: String,
-    target_name: String,
+    target_name: Option<String>,
 }
 
 pub struct RustVisitor {
@@ -503,7 +503,7 @@ impl RustVisitor {
         )
     }
 
-    fn format_state_info_name(&self, state_name: &str) -> String {
+    fn format_state_info_const_name(&self, state_name: &str) -> String {
         format!(
             "{}{}",
             self.config.code.state_info_const_prefix,
@@ -697,6 +697,11 @@ impl RustVisitor {
         self.newline();
         self.newline();
         self.generate_machine_info(system_node, &event_names);
+        if self.generate_state_stack {
+            self.newline();
+            self.newline();
+            self.generate_state_stack_pop_info();
+        }
         if let Some(machine_block_node) = &system_node.machine_block_node_opt {
             for state in &machine_block_node.states {
                 self.newline();
@@ -782,7 +787,7 @@ impl RustVisitor {
                 self.newline();
                 self.add_code(&format!(
                     "{},",
-                    self.format_state_info_name(&state.borrow().name)
+                    self.format_state_info_const_name(&state.borrow().name)
                 ));
             }
             self.outdent();
@@ -970,8 +975,14 @@ impl RustVisitor {
                 ));
                 self.newline();
                 self.add_code(&format!(
-                    "target: {}.get_state(\"{}\").unwrap(),",
-                    self.config.code.machine_info_const_name, transition.target_name
+                    "target: {},",
+                    match &transition.target_name {
+                        Some(name) => format!(
+                            "{}.get_state(\"{}\").unwrap()",
+                            self.config.code.machine_info_const_name, name
+                        ),
+                        None => self.config.code.state_stack_pop_info_const_name.clone(),
+                    }
                 ));
                 self.exit_block();
                 self.add_code(",");
@@ -986,8 +997,88 @@ impl RustVisitor {
         self.exit_block();
     }
 
+    /// Generate a special state to use as the target in state-stack pop transitions. The
+    /// implementation for this state returns a generic name and empty values for the parent,
+    /// paremeters, variables, and handlers. In actuality, a popped state may have a parent,
+    /// variables, and handlers, and it certainly has a name, however, none of these are known
+    /// statically.
+    fn generate_state_stack_pop_info(&mut self) {
+        // generate struct and constant
+        self.add_code(&format!(
+            "pub struct {} {{}}",
+            self.config.code.state_stack_pop_info_struct_name
+        ));
+        self.newline();
+        self.add_code(&format!(
+            "pub const {0}: &{1} = &{1} {{}};",
+            self.config.code.state_stack_pop_info_const_name,
+            self.config.code.state_stack_pop_info_struct_name
+        ));
+        self.newline();
+
+        // generate the trait implementation
+        self.add_code(&format!(
+            "impl StateInfo for {}",
+            self.config.code.state_stack_pop_info_struct_name
+        ));
+        self.enter_block();
+
+        // machine()
+        self.add_code("fn machine(&self) -> &dyn MachineInfo");
+        self.enter_block();
+        self.add_code(&self.config.code.machine_info_const_name.to_string());
+        self.exit_block();
+        self.newline();
+
+        // name()
+        self.add_code("fn name(&self) -> &'static str");
+        self.enter_block();
+        self.add_code(&format!(
+            "\"{}\"",
+            self.config.code.state_stack_pop_info_name
+        ));
+        self.exit_block();
+        self.newline();
+
+        // parent()
+        self.add_code("fn parent(&self) -> Option<&dyn StateInfo>");
+        self.enter_block();
+        self.add_code("None");
+        self.exit_block();
+        self.newline();
+
+        // parameters()
+        self.add_code("fn parameters(&self) -> Vec<NameInfo>");
+        self.enter_block();
+        self.add_code("vec![]");
+        self.exit_block();
+        self.newline();
+
+        // variables()
+        self.add_code("fn variables(&self) -> Vec<NameInfo>");
+        self.enter_block();
+        self.add_code("vec![]");
+        self.exit_block();
+        self.newline();
+
+        // handlers()
+        self.add_code("fn handlers(&self) -> Vec<MethodInfo>");
+        self.enter_block();
+        self.add_code("vec![]");
+        self.exit_block();
+        self.newline();
+
+        // is_state_stack_pop()
+        self.add_code("fn is_state_stack_pop(&self) -> bool");
+        self.enter_block();
+        self.add_code("true");
+        self.exit_block();
+
+        // end impl block
+        self.exit_block();
+    }
+
     /// Generate the implementation of `StateInfo` for the given state.
-    #[allow(unused_variables)]
     fn generate_state_info(&mut self, state_node: Ref<StateNode>, event_names: &[String]) {
         let state_name = state_node.name.clone();
         let state_struct_name = format!(
@@ -1006,7 +1097,7 @@ impl RustVisitor {
         self.newline();
         self.add_code(&format!(
             "pub const {0}: &{1} = &{1} {{}};",
-            self.format_state_info_name(&state_name),
+            self.format_state_info_const_name(&state_name),
             state_struct_name,
         ));
         self.newline();
@@ -1178,7 +1269,7 @@ impl RustVisitor {
                         state_enum_type,
                         self.format_type_name(state_name),
                         self.config.code.runtime_info_module_name,
-                        self.format_state_info_name(state_name),
+                        self.format_state_info_const_name(state_name),
                     ));
                 }
             }
@@ -1435,7 +1526,7 @@ impl RustVisitor {
                     self.add_code(&format!(
                         "{}::{}",
                         self.config.code.runtime_info_module_name,
-                        self.format_state_info_name(&state_node.name)
+                        self.format_state_info_const_name(&state_node.name)
                     ));
                     self.exit_block();
 
@@ -2578,7 +2669,7 @@ impl RustVisitor {
             event_name,
             label,
             source_name: source_state_name.to_string(),
-            target_name: target_state_name.to_string(),
+            target_name: Some(target_state_name.to_string()),
         });
 
         // call the change-state method
@@ -2716,7 +2807,7 @@ impl RustVisitor {
             event_name,
             label,
             source_name: source_state_name.to_string(),
-            target_name: target_state_name.to_string(),
+            target_name: Some(target_state_name.to_string()),
         });
 
         // call the transition method
@@ -2763,16 +2854,26 @@ impl RustVisitor {
         self.newline();
         self.add_code("// Start change state");
 
-        // print the change-state label, if provided
-        match &change_state_stmt.label_opt {
-            Some(label) => {
-                self.newline();
-                self.add_code(&format!("// {}", label));
-            }
-            None => {}
+        // get the transition label, and print it if provided
+        let mut label = String::new();
+        if let Some(s) = &change_state_stmt.label_opt {
+            label.push_str(s);
+            self.newline();
+            self.add_code(&format!("// {}", s));
         }
 
-        // pop the state/context and pass to change-state method
+        // remember this transition
+        let source_state_name = self.current_state_name_opt.as_ref().unwrap();
+        let event_name = self.get_qualified_event_name(source_state_name, &self.current_message);
+        self.transitions.push(TransitionInfo {
+            is_change_state: true,
+            event_name,
+            label,
+            source_name: source_state_name.to_string(),
+            target_name: None,
+        });
+
+        // pop the state/context
         self.newline();
         if self.generate_state_context {
             self.add_code(&format!(
@@ -2784,22 +2885,32 @@ impl RustVisitor {
                 "let (next_state, next_state_context) = self.{}();",
                 self.config.code.state_stack_pop_method_name
             ));
-            self.newline();
-            self.add_code(&format!(
-                "self.{}(next_state, next_state_context);",
-                self.config.code.change_state_method_name
-            ));
         } else {
             self.add_code(&format!(
                 "let next_state = self.{}();",
                 self.config.code.state_stack_pop_method_name
             ));
-            self.newline();
+        }
+
+        // call the change-state method
+        self.newline();
+        self.add_code(&format!(
+            "self.{}(",
+            self.config.code.change_state_method_name
+        ));
+        if self.config.features.runtime_support {
             self.add_code(&format!(
-                "self.{}(next_state);",
-                self.config.code.change_state_method_name
+                "&{}::{}.transitions()[{}], ",
+                self.config.code.runtime_info_module_name,
+                self.config.code.machine_info_const_name,
+                self.transitions.len() - 1,
             ));
         }
+        self.add_code("next_state");
+        if self.generate_state_context {
+            self.add_code(", next_state_context");
+        }
+        self.add_code(");");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2809,23 +2920,30 @@ impl RustVisitor {
     // support it. On a pop transition, the state that is being changed to is
     // not known statically, so the programmer does not know how many arguments
     // to pass. State variables are supported, however.
-    fn generate_state_stack_pop_transition(
-        &mut self,
-        transition_statement: &TransitionStatementNode,
-    ) {
+    fn generate_state_stack_pop_transition(&mut self, transition_stmt: &TransitionStatementNode) {
         self.newline();
         self.add_code("// Start transition");
 
-        // print the transition label, if provided
-        match &transition_statement.label_opt {
-            Some(label) => {
-                self.newline();
-                self.add_code(&format!("// {}", label));
-            }
-            None => {}
+        // get the transition label, and print it if provided
+        let mut label = String::new();
+        if let Some(s) = &transition_stmt.label_opt {
+            label.push_str(s);
+            self.newline();
+            self.add_code(&format!("// {}", s));
         }
 
-        // pop the state/context and pass to transition method
+        // remember this transition
+        let source_state_name = self.current_state_name_opt.as_ref().unwrap();
+        let event_name = self.get_qualified_event_name(source_state_name, &self.current_message);
+        self.transitions.push(TransitionInfo {
+            is_change_state: false,
+            event_name,
+            label,
+            source_name: source_state_name.to_string(),
+            target_name: None,
+        });
+
+        // pop the state/context
         self.newline();
         if self.generate_state_context {
             self.add_code(&format!(
@@ -2837,22 +2955,32 @@ impl RustVisitor {
                 "let (next_state, next_state_context) = self.{}();",
                 self.config.code.state_stack_pop_method_name
             ));
-            self.newline();
-            self.add_code(&format!(
-                "self.{}(next_state, next_state_context);",
-                self.config.code.transition_method_name
-            ));
         } else {
             self.add_code(&format!(
                 "let next_state = self.{}();",
                 self.config.code.state_stack_pop_method_name
             ));
-            self.newline();
+        }
+
+        // call the transition method
+        self.newline();
+        self.add_code(&format!(
+            "self.{}(",
+            self.config.code.transition_method_name
+        ));
+        if self.config.features.runtime_support {
             self.add_code(&format!(
-                "self.{}(next_state);",
-                self.config.code.transition_method_name
+                "&{}::{}.transitions()[{}], ",
+                self.config.code.runtime_info_module_name,
+                self.config.code.machine_info_const_name,
+                self.transitions.len() - 1,
             ));
         }
+        self.add_code("next_state");
+        if self.generate_state_context {
+            self.add_code(", next_state_context");
+        }
+        self.add_code(");");
     }
 }
 

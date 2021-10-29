@@ -1,5 +1,5 @@
-//! Tests the basic functionality of the state stack feature. This test case
-//! does not include any features that require a state context.
+//! Tests the basic functionality of the state stack feature. This test case does not include any
+//! features that require a state context.
 
 type Log = Vec<String>;
 include!(concat!(env!("OUT_DIR"), "/", "state_stack.rs"));
@@ -13,11 +13,11 @@ impl<'a> StateStack<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use frame_runtime::transition::*;
+    use frame_runtime::*;
     use std::sync::Mutex;
 
-    #[test]
     /// Test that a pop restores a pushed state.
+    #[test]
     fn push_pop() {
         let mut sm = StateStack::new();
         assert_eq!(sm.state, StateStackState::A);
@@ -28,9 +28,8 @@ mod tests {
         assert_eq!(sm.state, StateStackState::A);
     }
 
+    /// Test that multiple states can be pushed and subsequently restored by pops, LIFO style.
     #[test]
-    /// Test that multiple states can be pushed and subsequently restored by
-    /// pops, LIFO style.
     fn multiple_push_pops() {
         let mut sm = StateStack::new();
         assert_eq!(sm.state, StateStackState::A);
@@ -74,8 +73,8 @@ mod tests {
         assert_eq!(sm.state, StateStackState::A);
     }
 
-    #[test]
     /// Test that pop transitions trigger enter/exit events.
+    #[test]
     fn pop_transition_events() {
         let mut sm = StateStack::new();
         sm.to_b();
@@ -97,8 +96,8 @@ mod tests {
         assert_eq!(sm.tape, vec!["C:<", "A:>", "A:<", "B:>"]);
     }
 
-    #[test]
     /// Test that pop change-states do not trigger enter/exit events.
+    #[test]
     fn pop_change_state_no_events() {
         let mut sm = StateStack::new();
         sm.to_b();
@@ -119,20 +118,20 @@ mod tests {
         assert_eq!(sm.tape, vec!["C:<", "A:>"]);
     }
 
-    #[test]
     /// Test that pop transitions and change-states trigger callbacks.
+    #[test]
     fn pop_transition_callbacks() {
         let out = Mutex::new(String::new());
         let mut sm = StateStack::new();
-        sm.callback_manager().add_transition_callback(|info| {
+        sm.callback_manager().add_transition_callback(|event| {
             *out.lock().unwrap() = format!(
                 "{}{}{}",
-                info.old_state.name(),
-                match info.kind {
+                event.old_state.info().name(),
+                match event.info.kind {
                     TransitionKind::ChangeState => "->>",
                     TransitionKind::Transition => "->",
                 },
-                info.new_state.name(),
+                event.new_state.info().name(),
             );
         });
         sm.to_c();
