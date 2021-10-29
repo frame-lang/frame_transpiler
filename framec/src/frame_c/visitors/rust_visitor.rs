@@ -3347,6 +3347,23 @@ impl AstVisitor for RustVisitor {
             self.has_states = true;
         }
 
+        // generate static link to machine info
+        if self.config.features.runtime_support {
+            self.newline();
+            self.newline();
+            self.add_code(&format!(
+                "pub fn {}() -> &'static dyn MachineInfo",
+                self.config.code.machine_info_function_name,
+            ));
+            self.enter_block();
+            self.add_code(&format!(
+                "{}::{}",
+                self.config.code.runtime_info_module_name, self.config.code.machine_info_const_name,
+            ));
+            self.exit_block();
+        }
+
+        // generate constructor and initialize method
         if self.has_states {
             self.newline();
             self.newline();
