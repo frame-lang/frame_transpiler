@@ -62,7 +62,8 @@ pub trait MachineInfo {
         self.states().into_iter().find(|s| name == s.name())
     }
 
-    /// Get the signature corresponding to the named event.
+    /// Get the signature corresponding to the named event. You can use this method to get
+    /// the signatures of both interface events and enter/exit events.
     fn get_event(&self, name: &str) -> Option<MethodInfo> {
         self.events().into_iter().find(|m| name == m.name)
     }
@@ -100,6 +101,18 @@ pub trait StateInfo {
         false
     }
 
+    /// The sequence of ancestors for this state. The first element in the returned vector will be
+    /// the immediate parent of this state, the next will be the parent's parent, and so on.
+    fn ancestors(&self) -> Vec<&dyn StateInfo> {
+        let mut result = Vec::new();
+        let mut parent_opt = self.parent();
+        while let Some(parent) = parent_opt {
+            result.push(parent);
+            parent_opt = parent.parent();
+        }
+        result
+    }
+
     /// The children of this state, if any.
     fn children(&self) -> Vec<&dyn StateInfo> {
         self.machine()
@@ -110,6 +123,21 @@ pub trait StateInfo {
                 None => false,
             })
             .collect()
+    }
+
+    /// Get a state parameter declaration by name.
+    fn get_parameter(&self, name: &str) -> Option<NameInfo> {
+        self.parameters().into_iter().find(|n| name == n.name)
+    }
+
+    /// Get a state variable declaration by name.
+    fn get_variable(&self, name: &str) -> Option<NameInfo> {
+        self.variables().into_iter().find(|n| name == n.name)
+    }
+
+    /// Get the signature of an event handler associated with this state by name.
+    fn get_handler(&self, name: &str) -> Option<MethodInfo> {
+        self.handlers().into_iter().find(|m| name == m.name)
     }
 
     /// All transitions in the machine with this state as the `target`.
