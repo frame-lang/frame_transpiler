@@ -27,7 +27,7 @@
             ^
 
         |Start|
-            -> (3 w) $Foo
+            -> (3 w) "transition 1" $Foo
             ^
 
     $Foo
@@ -57,12 +57,12 @@
 
         |Next| [arg:i32]
             var tmp = arg * 10  --- FIXME: Swapping this to 10 * arg causes a parse error!
-            (10) -> (tmp) $Bar(x)
+            (10) -> (tmp) "transition 2" $Bar(x)
             ^
 
         |Change| [arg:i32]
             var tmp = x + arg
-            ->> $Bar(tmp)
+            ->> "change-state 1" $Bar(tmp)
             ^
 
     $Bar [y:i32]
@@ -89,7 +89,7 @@
         |Change| [arg:i32]
             var tmp = y + z + arg
             log("tmp" tmp)
-            ->> $Init
+            ->> "change-state 2" $Init
             ^
 
     -actions-

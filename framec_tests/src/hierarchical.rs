@@ -19,9 +19,8 @@ impl<'a> Hierarchical<'a> {
 mod tests {
     use super::*;
 
+    /// Test that a continue (`:>`) in a child enter handler calls the parent enter handler.
     #[test]
-    /// Test that a continue (`:>`) in a child enter handler calls the parent
-    /// enter handler.
     fn enter_continue() {
         let mut sm = Hierarchical::new();
         sm.enters.clear();
@@ -32,9 +31,8 @@ mod tests {
         assert_eq!(sm.enters, vec!["S2", "S0", "S"]);
     }
 
+    /// Test that a continue (`:>`) in a child exit handler calls the parent exit handler.
     #[test]
-    /// Test that a continue (`:>`) in a child exit handler calls the parent
-    /// exit handler.
     fn exit_continue() {
         let mut sm = Hierarchical::new();
         sm.a();
@@ -46,9 +44,8 @@ mod tests {
         assert_eq!(sm.exits, vec!["S2", "S0", "S"]);
     }
 
+    /// Test that a return (`^`) in a child enter handler *does not* call the parent enter handler.
     #[test]
-    /// Test that a return (`^`) in a child enter handler *does not* call the
-    /// parent enter handler.
     fn enter_return() {
         let mut sm = Hierarchical::new();
         sm.enters.clear();
@@ -63,9 +60,8 @@ mod tests {
         assert_eq!(sm.enters, vec!["S3", "S1"]);
     }
 
+    /// Test that a return (`^`) in a child exit handler *does not* call the parent exit handler.
     #[test]
-    /// Test that a return (`^`) in a child exit handler *does not* call the
-    /// parent exit handler.
     fn exit_return() {
         let mut sm = Hierarchical::new();
         sm.b();
@@ -83,10 +79,9 @@ mod tests {
         assert_eq!(sm.exits, vec!["S3", "S1"]);
     }
 
+    /// Test that location in a hierarchical state is represented correctly. In this test, all
+    /// state transitions are performed by the immediately matching handler.
     #[test]
-    /// Test that location in a hierarchical state is represented correctly.
-    /// In this test, all state transitions are performed by the immediately
-    /// matching handler.
     fn current_state_simple() {
         let mut sm = Hierarchical::new();
         assert_eq!(sm.state, HierarchicalState::S);
@@ -100,10 +95,10 @@ mod tests {
         assert_eq!(sm.state, HierarchicalState::S2);
     }
 
+    /// Test that location in a hierarchical state is represented correctly. In this test, several
+    /// state transitions propagate message handling to parents, either by implicit fall-through or
+    /// explicit continues.
     #[test]
-    /// Test that location in a hierarchical state is represented correctly.
-    /// In this test, several state transitions propagate message handling to
-    /// parents, either by implicit fall-through or explicit continues.
     fn current_state_with_propagation() {
         let mut sm = Hierarchical::new();
         assert_eq!(sm.state, HierarchicalState::S);
@@ -123,9 +118,9 @@ mod tests {
         assert_eq!(sm.state, HierarchicalState::S1);
     }
 
+    /// Test that a handler in a child overrides the parent handler if the child handler ends with
+    /// a return.
     #[test]
-    /// Test that a handler in a child overrides the parent handler if the
-    /// child handler ends with a return.
     fn override_parent_handler() {
         let mut sm = Hierarchical::new();
         sm.a();
@@ -140,9 +135,9 @@ mod tests {
         assert_eq!(sm.tape, vec!["S3.B"]);
     }
 
+    /// Test that a handler in a child propagates control to the parent handler if the child
+    /// handler ends with a continue.
     #[test]
-    /// Test that a handler in a child propagates control to the parent
-    /// handler if the child handler ends with a continue.
     fn before_parent_handler() {
         let mut sm = Hierarchical::new();
         sm.a();
@@ -172,9 +167,8 @@ mod tests {
         assert_eq!(sm.enters, vec!["S1"]);
     }
 
+    /// Test that missing event handlers in children automatically propagate to parents.
     #[test]
-    /// Test that missing event handlers in children automatically propagate
-    /// to parents.
     fn defer_to_parent_handler() {
         let mut sm = Hierarchical::new();
         sm.b();
@@ -192,9 +186,9 @@ mod tests {
         assert_eq!(sm.tape, vec!["S.A"]);
     }
 
+    /// Test that propagating control to a parent handler that doesn't handle the current message
+    /// is a no-op.
     #[test]
-    /// Test that propagating control to a parent handler that doesn't handle
-    /// the current message is a no-op.
     fn before_missing_handler() {
         let mut sm = Hierarchical::new();
         sm.b();
@@ -209,8 +203,8 @@ mod tests {
         assert!(sm.enters.is_empty());
     }
 
-    #[test]
     /// Test that a continue after a transition statement is ignored.
+    #[test]
     fn continue_after_transition_ignored() {
         let mut sm = Hierarchical::new();
         sm.a();
@@ -224,5 +218,129 @@ mod tests {
         assert_eq!(sm.tape, vec!["S2.C"]);
     }
 
-    // TODO add some runtime tests, esp. lookup parent
+    /// Test that the state names from the runtime interface are correct.
+    #[test]
+    fn state_names() {
+        let sm = Hierarchical::new();
+        let states = sm.info().states();
+        assert_eq!(states.len(), 7);
+        assert!(states.iter().any(|s| s.name() == "I"));
+        assert!(states.iter().any(|s| s.name() == "S"));
+        assert!(states.iter().any(|s| s.name() == "S0"));
+        assert!(states.iter().any(|s| s.name() == "S1"));
+        assert!(states.iter().any(|s| s.name() == "S2"));
+        assert!(states.iter().any(|s| s.name() == "S3"));
+        assert!(states.iter().any(|s| s.name() == "T"));
+        assert!(!states.iter().any(|s| s.name() == "A"));
+    }
+
+    /// Test that states have the right parents via the runtime interface.
+    #[test]
+    fn state_parents() {
+        let info = Hierarchical::machine_info();
+        let i = info.get_state("I").unwrap();
+        let s = info.get_state("S").unwrap();
+        let s0 = info.get_state("S0").unwrap();
+        let s1 = info.get_state("S1").unwrap();
+        let s2 = info.get_state("S2").unwrap();
+        let s3 = info.get_state("S3").unwrap();
+        let t = info.get_state("T").unwrap();
+        assert!(i.parent().is_none());
+        assert!(s.parent().is_none());
+        assert!(s0.parent().is_some());
+        assert!(s1.parent().is_some());
+        assert!(s2.parent().is_some());
+        assert!(s3.parent().is_some());
+        assert!(t.parent().is_none());
+        assert_eq!(s0.parent().unwrap().name(), "S");
+        assert_eq!(s1.parent().unwrap().name(), "S");
+        assert_eq!(s2.parent().unwrap().name(), "S0");
+        assert_eq!(s3.parent().unwrap().name(), "S1");
+    }
+
+    /// Test that states have the right ancestors via the runtime interface.
+    #[test]
+    fn state_ancestors() {
+        let info = Hierarchical::machine_info();
+        let i = info.get_state("I").unwrap();
+        let s = info.get_state("S").unwrap();
+        let s0 = info.get_state("S0").unwrap();
+        let s1 = info.get_state("S1").unwrap();
+        let s2 = info.get_state("S2").unwrap();
+        let s3 = info.get_state("S3").unwrap();
+        let t = info.get_state("T").unwrap();
+        assert_eq!(i.ancestors().len(), 0);
+        assert_eq!(s.ancestors().len(), 0);
+        assert_eq!(s0.ancestors().len(), 1);
+        assert_eq!(s1.ancestors().len(), 1);
+        assert_eq!(s2.ancestors().len(), 2);
+        assert_eq!(s3.ancestors().len(), 2);
+        assert_eq!(t.ancestors().len(), 0);
+        assert_eq!(
+            s0.ancestors()
+                .iter()
+                .map(|c| c.name())
+                .collect::<Vec<&str>>(),
+            vec!["S"]
+        );
+        assert_eq!(
+            s1.ancestors()
+                .iter()
+                .map(|c| c.name())
+                .collect::<Vec<&str>>(),
+            vec!["S"]
+        );
+        assert_eq!(
+            s2.ancestors()
+                .iter()
+                .map(|c| c.name())
+                .collect::<Vec<&str>>(),
+            vec!["S0", "S"]
+        );
+        assert_eq!(
+            s3.ancestors()
+                .iter()
+                .map(|c| c.name())
+                .collect::<Vec<&str>>(),
+            vec!["S1", "S"]
+        );
+    }
+
+    /// Test that states have the right children via the runtime interface.
+    #[test]
+    fn state_children() {
+        let info = Hierarchical::machine_info();
+        let i = info.get_state("I").unwrap();
+        let s = info.get_state("S").unwrap();
+        let s0 = info.get_state("S0").unwrap();
+        let s1 = info.get_state("S1").unwrap();
+        let s2 = info.get_state("S2").unwrap();
+        let s3 = info.get_state("S3").unwrap();
+        let t = info.get_state("T").unwrap();
+        assert_eq!(i.children().len(), 0);
+        assert_eq!(s.children().len(), 2);
+        assert_eq!(s0.children().len(), 1);
+        assert_eq!(s1.children().len(), 1);
+        assert_eq!(s2.children().len(), 0);
+        assert_eq!(s3.children().len(), 0);
+        assert_eq!(t.children().len(), 0);
+        assert_eq!(
+            s.children().iter().map(|c| c.name()).collect::<Vec<&str>>(),
+            vec!["S0", "S1"]
+        );
+        assert_eq!(
+            s0.children()
+                .iter()
+                .map(|c| c.name())
+                .collect::<Vec<&str>>(),
+            vec!["S2"]
+        );
+        assert_eq!(
+            s1.children()
+                .iter()
+                .map(|c| c.name())
+                .collect::<Vec<&str>>(),
+            vec!["S3"]
+        );
+    }
 }
