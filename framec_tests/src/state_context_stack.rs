@@ -178,6 +178,76 @@ mod tests {
         assert_eq!(sm.value(), 2);
     }
 
+    /// Test that push stores a snapshot of the current values of state variables. Any changes to
+    /// state variables after a push should not be reflected after that state is popped.
+    #[test]
+    fn push_stores_state_variable_snapshot() {
+        let mut sm = StateContextStack::new();
+        sm.inc();
+        sm.inc();
+        sm.push();
+        assert_eq!(sm.state, StateContextStackState::A);
+        assert_eq!(sm.value(), 2);
+        sm.inc();
+        sm.inc();
+        assert_eq!(sm.value(), 4);
+
+        sm.to_b();
+        sm.inc();
+        sm.push();
+        assert_eq!(sm.state, StateContextStackState::B);
+        assert_eq!(sm.value(), 5);
+        sm.inc();
+        sm.inc();
+        assert_eq!(sm.value(), 15);
+
+        sm.to_c();
+        sm.inc();
+        sm.inc();
+        sm.inc();
+        sm.push();
+        assert_eq!(sm.state, StateContextStackState::C);
+        assert_eq!(sm.value(), 30);
+        sm.inc();
+        assert_eq!(sm.value(), 40);
+
+        sm.to_a();
+        sm.inc();
+        assert_eq!(sm.state, StateContextStackState::A);
+        assert_eq!(sm.value(), 1);
+
+        sm.pop();
+        assert_eq!(sm.state, StateContextStackState::C);
+        assert_eq!(sm.value(), 30);
+
+        sm.pop();
+        assert_eq!(sm.state, StateContextStackState::B);
+        assert_eq!(sm.value(), 5);
+
+        sm.to_a();
+        sm.inc();
+        sm.inc();
+        sm.inc();
+        sm.push();
+        assert_eq!(sm.state, StateContextStackState::A);
+        assert_eq!(sm.value(), 3);
+        sm.inc();
+        assert_eq!(sm.value(), 4);
+
+        sm.to_c();
+        sm.inc();
+        assert_eq!(sm.state, StateContextStackState::C);
+        assert_eq!(sm.value(), 10);
+
+        sm.pop();
+        assert_eq!(sm.state, StateContextStackState::A);
+        assert_eq!(sm.value(), 3);
+
+        sm.pop();
+        assert_eq!(sm.state, StateContextStackState::A);
+        assert_eq!(sm.value(), 2);
+    }
+
     /// Test that pop transitions and change-states with state contexts trigger callbacks.
     #[test]
     fn pop_transition_callbacks() {
@@ -288,7 +358,6 @@ mod tests {
     /// Test that the values of state variables accessed via the runtime interface are correct
     /// after a pop transition.
     #[test]
-    #[ignore]
     fn runtime_state_after_pop() {
         let mut sm = StateContextStack::new();
         sm.inc();
