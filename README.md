@@ -1,5 +1,5 @@
 
-# Frame Language Transpiler v0.5.1
+# Frame Language Transpiler v0.7.0
 
 
 Hi! So very glad you are interested in Frame. Frame system design markdown language for software architects and engineers. It is an easy to learn textual language for defining system specifications that can generate both UML documentation as well as code in 7 langauges. 
@@ -11,14 +11,9 @@ This project contains the code for building the Frame Language Transpiler - the 
 
 ## New in this release
 
-This release brings a slew of features focused on Rust, Frame's newest language. All of these new capabilites are only implemented in Rust, but will be rolled out to other languages as they gain users and build a community.
+Frame now has a full-featured runtime interface in Rust!
 
-1. Configurable code generation 
-2. Rust formatting improvements 
-3. Code conforms more closely to rustfmt guidelines.
-4. Added introspection - codegen to discover the current state
-5. Added interface call syntax iface() - call the interface from event handlers.
-6. Rust Transition hook - inject a call to al trait function to log transition data.
+For details, see the [Release Notes](https://github.com/frame-lang/frame_transpiler/releases).
 
 
 ## Resources
