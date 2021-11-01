@@ -165,6 +165,16 @@ pub struct RustCode {
     pub state_stack_push_method_name: String,
     pub state_stack_pop_method_name: String,
 
+    pub runtime_info_module_name: String,
+    pub machine_info_const_name: String,
+    pub machine_info_struct_name: String,
+    pub machine_info_function_name: String,
+    pub state_info_const_prefix: String,
+    pub state_info_struct_prefix: String,
+    pub state_stack_pop_info_const_name: String,
+    pub state_stack_pop_info_struct_name: String,
+    pub state_stack_pop_info_name: String,
+    pub transition_info_arg_name: String,
     pub callback_manager_var_name: String,
     pub state_cell_var_name: String,
 }
@@ -433,6 +443,16 @@ impl Default for RustCode {
             state_stack_push_method_name: String::from("state_stack_push"),
             state_stack_pop_method_name: String::from("state_stack_pop"),
 
+            runtime_info_module_name: String::from("runtime_info"),
+            machine_info_const_name: String::from("MACHINE"),
+            machine_info_struct_name: String::from("Machine"),
+            machine_info_function_name: String::from("machine_info"),
+            state_info_const_prefix: String::from("STATE_"),
+            state_info_struct_prefix: String::from("State"),
+            state_stack_pop_info_const_name: String::from("STATE_STACK_POP"),
+            state_stack_pop_info_struct_name: String::from("StateStackPop"),
+            state_stack_pop_info_name: String::from("$$[-]"),
+            transition_info_arg_name: String::from("transition_info"),
             callback_manager_var_name: String::from("callback_manager"),
             state_cell_var_name: String::from("state_cell"),
         }

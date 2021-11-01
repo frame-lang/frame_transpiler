@@ -51,34 +51,33 @@ mod tests {
         }
     }
 
+    /// Tests that state arguments behave as expected when accessed via the runtime interface.
     #[test]
     #[rustfmt::skip]
-    /// Tests that state arguments behave as expected when accessed via the
-    /// runtime interface.
     fn runtime_state_arguments() {
         let mut sm = StateParams::new();
-        assert!(sm.current_state().state_arguments().lookup("val").is_none());
-        assert!(sm.current_state().state_arguments().lookup("left").is_none());
-        assert!(sm.current_state().state_arguments().lookup("right").is_none());
+        assert!(sm.state().arguments().lookup("val").is_none());
+        assert!(sm.state().arguments().lookup("left").is_none());
+        assert!(sm.state().arguments().lookup("right").is_none());
         sm.next(); // val=1
-        assert_eq!(lookup_u32(sm.current_state().state_arguments(), "val"), 1);
-        assert!(sm.current_state().state_arguments().lookup("left").is_none());
-        assert!(sm.current_state().state_arguments().lookup("right").is_none());
+        assert_eq!(lookup_u32(sm.state().arguments(), "val"), 1);
+        assert!(sm.state().arguments().lookup("left").is_none());
+        assert!(sm.state().arguments().lookup("right").is_none());
         sm.next(); // left=1, right=2
-        assert!(sm.current_state().state_arguments().lookup("val").is_none());
-        assert_eq!(lookup_u32(sm.current_state().state_arguments(), "left"), 1);
-        assert_eq!(lookup_u32(sm.current_state().state_arguments(), "right"), 2);
+        assert!(sm.state().arguments().lookup("val").is_none());
+        assert_eq!(lookup_u32(sm.state().arguments(), "left"), 1);
+        assert_eq!(lookup_u32(sm.state().arguments(), "right"), 2);
         sm.next(); // val=3
-        assert_eq!(lookup_u32(sm.current_state().state_arguments(), "val"), 3);
-        assert!(sm.current_state().state_arguments().lookup("left").is_none());
-        assert!(sm.current_state().state_arguments().lookup("right").is_none());
+        assert_eq!(lookup_u32(sm.state().arguments(), "val"), 3);
+        assert!(sm.state().arguments().lookup("left").is_none());
+        assert!(sm.state().arguments().lookup("right").is_none());
         sm.prev(); // left=4, right=3
-        assert!(sm.current_state().state_arguments().lookup("val").is_none());
-        assert_eq!(lookup_u32(sm.current_state().state_arguments(), "left"), 4);
-        assert_eq!(lookup_u32(sm.current_state().state_arguments(), "right"), 3);
+        assert!(sm.state().arguments().lookup("val").is_none());
+        assert_eq!(lookup_u32(sm.state().arguments(), "left"), 4);
+        assert_eq!(lookup_u32(sm.state().arguments(), "right"), 3);
         sm.prev(); // val=12
-        assert_eq!(lookup_u32(sm.current_state().state_arguments(), "val"), 12);
-        assert!(sm.current_state().state_arguments().lookup("left").is_none());
-        assert!(sm.current_state().state_arguments().lookup("right").is_none());
+        assert_eq!(lookup_u32(sm.state().arguments(), "val"), 12);
+        assert!(sm.state().arguments().lookup("left").is_none());
+        assert!(sm.state().arguments().lookup("right").is_none());
     }
 }

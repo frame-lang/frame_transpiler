@@ -49,14 +49,222 @@
 //! ##
 //! ```
 
-use frame_runtime::callback::CallbackManager;
-use frame_runtime::environment::{Environment, EMPTY};
-use frame_runtime::machine::StateMachine;
-use frame_runtime::state::State;
+use frame_runtime::*;
 use std::any::Any;
 use std::cell::{Ref, RefCell};
 use std::rc::Rc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
+
+mod info {
+    use frame_runtime::info::*;
+
+    pub struct Machine {}
+    pub struct StateInit {}
+    pub struct StateFoo {}
+    pub struct StateBar {}
+    pub const MACHINE: &Machine = &Machine {};
+    pub const STATE_INIT: &StateInit = &StateInit {};
+    pub const STATE_FOO: &StateFoo = &StateFoo {};
+    pub const STATE_BAR: &StateBar = &StateBar {};
+
+    impl MachineInfo for Machine {
+        fn name(&self) -> &'static str {
+            "Demo"
+        }
+        fn variables(&self) -> Vec<NameInfo> {
+            vec![
+                NameInfo {
+                    name: "x",
+                    vtype: "i32",
+                },
+                NameInfo {
+                    name: "y",
+                    vtype: "i32",
+                },
+            ]
+        }
+        fn states(&self) -> Vec<&dyn StateInfo> {
+            vec![STATE_INIT, STATE_FOO, STATE_BAR]
+        }
+        fn interface(&self) -> Vec<MethodInfo> {
+            vec![MACHINE.events()[0].clone(), MACHINE.events()[1].clone()]
+        }
+        fn actions(&self) -> Vec<MethodInfo> {
+            vec![]
+        }
+        fn events(&self) -> Vec<MethodInfo> {
+            vec![
+                MethodInfo {
+                    name: "inc",
+                    parameters: vec![NameInfo {
+                        name: "arg",
+                        vtype: "i32",
+                    }],
+                    return_type: Some("i32"),
+                },
+                MethodInfo {
+                    name: "next",
+                    parameters: vec![],
+                    return_type: None,
+                },
+                MethodInfo {
+                    name: "Bar:>",
+                    parameters: vec![NameInfo {
+                        name: "start",
+                        vtype: "i32",
+                    }],
+                    return_type: None,
+                },
+                MethodInfo {
+                    name: "Foo:>",
+                    parameters: vec![NameInfo {
+                        name: "init",
+                        vtype: "i32",
+                    }],
+                    return_type: None,
+                },
+                MethodInfo {
+                    name: "Init:>",
+                    parameters: vec![],
+                    return_type: None,
+                },
+                MethodInfo {
+                    name: "Bar:<",
+                    parameters: vec![NameInfo {
+                        name: "end",
+                        vtype: "i32",
+                    }],
+                    return_type: None,
+                },
+                MethodInfo {
+                    name: "Foo:<",
+                    parameters: vec![NameInfo {
+                        name: "done",
+                        vtype: "i32",
+                    }],
+                    return_type: None,
+                },
+                MethodInfo {
+                    name: "Init:<",
+                    parameters: vec![],
+                    return_type: None,
+                },
+            ]
+        }
+        fn transitions(&self) -> Vec<TransitionInfo> {
+            vec![
+                TransitionInfo {
+                    kind: TransitionKind::Transition,
+                    event: MACHINE.events()[4].clone(),
+                    label: "",
+                    source: MACHINE.states()[0],
+                    target: MACHINE.states()[1],
+                },
+                TransitionInfo {
+                    kind: TransitionKind::Transition,
+                    event: MACHINE.events()[1].clone(),
+                    label: "",
+                    source: MACHINE.states()[1],
+                    target: MACHINE.states()[2],
+                },
+                TransitionInfo {
+                    kind: TransitionKind::ChangeState,
+                    event: MACHINE.events()[1].clone(),
+                    label: "",
+                    source: MACHINE.states()[2],
+                    target: MACHINE.states()[1],
+                },
+            ]
+        }
+    }
+
+    impl StateInfo for StateInit {
+        fn machine(&self) -> &dyn MachineInfo {
+            MACHINE
+        }
+        fn name(&self) -> &'static str {
+            "Init"
+        }
+        fn parent(&self) -> Option<&dyn StateInfo> {
+            None
+        }
+        fn parameters(&self) -> Vec<NameInfo> {
+            vec![]
+        }
+        fn variables(&self) -> Vec<NameInfo> {
+            vec![]
+        }
+        fn handlers(&self) -> Vec<MethodInfo> {
+            vec![MethodInfo {
+                name: ">",
+                parameters: vec![],
+                return_type: None,
+            }]
+        }
+    }
+
+    impl StateInfo for StateFoo {
+        fn machine(&self) -> &dyn MachineInfo {
+            MACHINE
+        }
+        fn name(&self) -> &'static str {
+            "Foo"
+        }
+        fn parent(&self) -> Option<&dyn StateInfo> {
+            None
+        }
+        fn parameters(&self) -> Vec<NameInfo> {
+            vec![]
+        }
+        fn variables(&self) -> Vec<NameInfo> {
+            vec![NameInfo {
+                name: "x",
+                vtype: "i32",
+            }]
+        }
+        fn handlers(&self) -> Vec<MethodInfo> {
+            vec![
+                MACHINE.events()[4].clone(),
+                MACHINE.events()[5].clone(),
+                MACHINE.events()[0].clone(),
+                MACHINE.events()[1].clone(),
+            ]
+        }
+    }
+
+    impl StateInfo for StateBar {
+        fn machine(&self) -> &dyn MachineInfo {
+            MACHINE
+        }
+        fn name(&self) -> &'static str {
+            "Bar"
+        }
+        fn parent(&self) -> Option<&dyn StateInfo> {
+            None
+        }
+        fn parameters(&self) -> Vec<NameInfo> {
+            vec![NameInfo {
+                name: "tilt",
+                vtype: "i32",
+            }]
+        }
+        fn variables(&self) -> Vec<NameInfo> {
+            vec![NameInfo {
+                name: "y",
+                vtype: "i32",
+            }]
+        }
+        fn handlers(&self) -> Vec<MethodInfo> {
+            vec![
+                MACHINE.events()[6].clone(),
+                MACHINE.events()[7].clone(),
+                MACHINE.events()[0].clone(),
+                MACHINE.events()[1].clone(),
+            ]
+        }
+    }
+}
 
 enum FrameMessage {
     Enter,
@@ -239,15 +447,19 @@ impl FrameEventArgs {
 
 struct InitStateContext {}
 
-impl State for InitStateContext {
-    fn name(&self) -> &'static str {
-        "Init"
+impl StateInstance for DemoState {
+    fn info(&self) -> &'static dyn StateInfo {
+        match self {
+            DemoState::Init => info::STATE_INIT,
+            DemoState::Foo => info::STATE_FOO,
+            DemoState::Bar => info::STATE_BAR,
+        }
     }
-    fn state_arguments(&self) -> &dyn Environment {
-        EMPTY
-    }
-    fn state_variables(&self) -> &dyn Environment {
-        EMPTY
+}
+
+impl StateInstance for InitStateContext {
+    fn info(&self) -> &'static dyn StateInfo {
+        info::STATE_INIT
     }
 }
 
@@ -268,14 +480,11 @@ struct FooStateContext {
     state_vars: FooStateVars,
 }
 
-impl State for FooStateContext {
-    fn name(&self) -> &'static str {
-        "Foo"
+impl StateInstance for FooStateContext {
+    fn info(&self) -> &'static dyn StateInfo {
+        info::STATE_FOO
     }
-    fn state_arguments(&self) -> &dyn Environment {
-        EMPTY
-    }
-    fn state_variables(&self) -> &dyn Environment {
+    fn variables(&self) -> &dyn Environment {
         &self.state_vars
     }
 }
@@ -311,14 +520,14 @@ struct BarStateContext {
     state_vars: BarStateVars,
 }
 
-impl State for BarStateContext {
-    fn name(&self) -> &'static str {
-        "Bar"
+impl StateInstance for BarStateContext {
+    fn info(&self) -> &'static dyn StateInfo {
+        info::STATE_BAR
     }
-    fn state_arguments(&self) -> &dyn Environment {
+    fn arguments(&self) -> &dyn Environment {
         &self.state_args
     }
-    fn state_variables(&self) -> &dyn Environment {
+    fn variables(&self) -> &dyn Environment {
         &self.state_vars
     }
 }
@@ -330,11 +539,11 @@ enum StateContext {
 }
 
 impl StateContext {
-    fn as_runtime_state(&self) -> Ref<dyn State> {
+    fn as_state_instance(&self) -> Ref<dyn StateInstance> {
         match self {
-            StateContext::Init(context) => Ref::map(context.borrow(), |c| c as &dyn State),
-            StateContext::Foo(context) => Ref::map(context.borrow(), |c| c as &dyn State),
-            StateContext::Bar(context) => Ref::map(context.borrow(), |c| c as &dyn State),
+            StateContext::Init(context) => Ref::map(context.borrow(), |c| c as &dyn StateInstance),
+            StateContext::Foo(context) => Ref::map(context.borrow(), |c| c as &dyn StateInstance),
+            StateContext::Bar(context) => Ref::map(context.borrow(), |c| c as &dyn StateInstance),
         }
     }
     fn init_context(&self) -> &RefCell<InitStateContext> {
@@ -375,11 +584,14 @@ impl<'a> Environment for Demo<'a> {
     }
 }
 
-impl<'a> StateMachine<'a> for Demo<'a> {
-    fn current_state(&self) -> Ref<dyn State> {
-        self.state_context.as_ref().as_runtime_state()
+impl<'a> MachineInstance<'a> for Demo<'a> {
+    fn info(&self) -> &'static dyn MachineInfo {
+        info::MACHINE
     }
-    fn domain_variables(&self) -> &dyn Environment {
+    fn state(&self) -> Ref<dyn StateInstance> {
+        self.state_context.as_ref().as_state_instance()
+    }
+    fn variables(&self) -> &dyn Environment {
         self
     }
     fn callback_manager(&mut self) -> &mut CallbackManager<'a> {
@@ -423,6 +635,7 @@ impl<'a> Demo<'a> {
         self.handle_event(&mut frame_event);
     }
 
+    #[allow(clippy::single_match)]
     fn init_handler(&mut self, frame_event: &mut FrameEvent) {
         let state_context_clone = Rc::clone(&self.state_context);
         let this_state_context = state_context_clone.init_context().borrow_mut();
@@ -436,7 +649,13 @@ impl<'a> Demo<'a> {
                 };
                 let next_state_context = Rc::new(StateContext::Foo(RefCell::new(context)));
                 drop(this_state_context);
-                self.transition(exit_args, enter_args, DemoState::Foo, next_state_context);
+                self.transition(
+                    &info::MACHINE.transitions()[0],
+                    exit_args,
+                    enter_args,
+                    DemoState::Foo,
+                    next_state_context,
+                );
             }
             _ => {}
         }
@@ -469,7 +688,13 @@ impl<'a> Demo<'a> {
                 };
                 let next_state_context = Rc::new(StateContext::Bar(RefCell::new(context)));
                 drop(this_state_context);
-                self.transition(exit_args, enter_args, DemoState::Bar, next_state_context);
+                self.transition(
+                    &info::MACHINE.transitions()[1],
+                    exit_args,
+                    enter_args,
+                    DemoState::Bar,
+                    next_state_context,
+                );
             }
         }
     }
@@ -497,7 +722,11 @@ impl<'a> Demo<'a> {
                 };
                 let next_state_context = Rc::new(StateContext::Foo(RefCell::new(context)));
                 drop(this_state_context);
-                self.change_state(DemoState::Foo, next_state_context);
+                self.change_state(
+                    &info::MACHINE.transitions()[2],
+                    DemoState::Foo,
+                    next_state_context,
+                );
             }
         }
     }
@@ -512,6 +741,7 @@ impl<'a> Demo<'a> {
 
     fn transition(
         &mut self,
+        transition_info: &TransitionInfo,
         exit_args: FrameEventArgs,
         enter_args: FrameEventArgs,
         new_state: DemoState,
@@ -523,15 +753,16 @@ impl<'a> Demo<'a> {
 
         // update state
         let old_state_context = Rc::clone(&self.state_context);
-        let old_runtime_state = old_state_context.as_ref().as_runtime_state();
+        let old_state_instance = old_state_context.as_ref().as_state_instance();
         self.state = new_state;
         self.state_context = Rc::clone(&new_state_context);
-        let new_runtime_state = new_state_context.as_runtime_state();
+        let new_state_instance = new_state_context.as_state_instance();
 
         // call transition callbacks
         self.callback_manager.transition(
-            old_runtime_state,
-            new_runtime_state,
+            transition_info,
+            old_state_instance,
+            new_state_instance,
             &exit_args,
             &enter_args,
         );
@@ -541,17 +772,33 @@ impl<'a> Demo<'a> {
         self.handle_event(&mut enter_event);
     }
 
-    fn change_state(&mut self, new_state: DemoState, new_state_context: Rc<StateContext>) {
+    fn change_state(
+        &mut self,
+        transition_info: &TransitionInfo,
+        new_state: DemoState,
+        new_state_context: Rc<StateContext>,
+    ) {
         // update state
         let old_state_context = Rc::clone(&self.state_context);
-        let old_runtime_state = old_state_context.as_ref().as_runtime_state();
+        let old_state_instance = old_state_context.as_ref().as_state_instance();
         self.state = new_state;
         self.state_context = Rc::clone(&new_state_context);
-        let new_runtime_state = new_state_context.as_runtime_state();
+        let new_state_instance = new_state_context.as_state_instance();
 
         // call change-state callbacks
-        self.callback_manager
-            .change_state(old_runtime_state, new_runtime_state);
+        self.callback_manager.transition(
+            transition_info,
+            old_state_instance,
+            new_state_instance,
+            EMPTY,
+            EMPTY,
+        );
+    }
+}
+
+impl<'a> Default for Demo<'a> {
+    fn default() -> Self {
+        Demo::new()
     }
 }
 
@@ -567,80 +814,157 @@ fn lookup_i32(env: &(impl Environment + ?Sized), name: &str) -> i32 {
 }
 
 #[test]
-fn current_state() {
-    let mut sm = Demo::new();
-    assert_eq!("Foo", sm.current_state().name());
-    sm.inc(3);
-    assert_eq!("Foo", sm.current_state().name());
-    sm.next();
-    assert_eq!("Bar", sm.current_state().name());
-    sm.inc(4);
-    assert_eq!("Bar", sm.current_state().name());
-    sm.next();
-    assert_eq!("Foo", sm.current_state().name());
+fn machine_info() {
+    let sm = Demo::new();
+    assert_eq!("Demo", sm.info().name());
+    assert_eq!(2, sm.info().variables().len());
+    assert_eq!(3, sm.info().states().len());
+    assert_eq!(2, sm.info().interface().len());
+    assert_eq!(0, sm.info().actions().len());
+    assert_eq!(8, sm.info().events().len());
+    assert_eq!(3, sm.info().transitions().len());
 }
 
 #[test]
-fn domain_variables() {
+fn domain_variable_info() {
+    let sm = Demo::new();
+    let x = sm.info().get_variable("x");
+    let y = sm.info().get_variable("y");
+    let z = sm.info().get_variable("z");
+    assert!(x.is_some());
+    assert!(y.is_some());
+    assert!(z.is_none());
+    assert_eq!("i32", x.unwrap().vtype);
+    assert_eq!("i32", y.unwrap().vtype);
+}
+
+#[test]
+#[allow(clippy::blacklisted_name)]
+fn state_info() {
+    let sm = Demo::new();
+    let init = sm.info().get_state("Init");
+    let foo = sm.info().get_state("Foo");
+    let bar = sm.info().get_state("Bar");
+    let baz = sm.info().get_state("Baz");
+    assert!(init.is_some());
+    assert!(foo.is_some());
+    assert!(bar.is_some());
+    assert!(baz.is_none());
+    assert_eq!(1, init.unwrap().handlers().len());
+    assert_eq!(4, foo.unwrap().handlers().len());
+    assert_eq!(4, bar.unwrap().handlers().len());
+    assert_eq!(0, init.unwrap().variables().len());
+    assert_eq!(1, foo.unwrap().variables().len());
+    assert_eq!(1, bar.unwrap().variables().len());
+    assert_eq!(0, init.unwrap().parameters().len());
+    assert_eq!(0, foo.unwrap().parameters().len());
+    assert_eq!(1, bar.unwrap().parameters().len());
+}
+
+#[test]
+#[allow(clippy::blacklisted_name)]
+fn transition_info() {
+    let sm = Demo::new();
+    let foo = sm.info().get_state("Foo").unwrap();
+    let incoming = foo.incoming_transitions();
+    let outgoing = foo.outgoing_transitions();
+    assert_eq!(2, incoming.len());
+    assert_eq!(1, outgoing.len());
+
+    assert_eq!("Init:>", incoming[0].event.name);
+    assert_eq!("Init", incoming[0].source.name());
+    assert_eq!("Foo", incoming[0].target.name());
+    assert!(incoming[0].is_transition());
+    assert!(!incoming[0].is_change_state());
+
+    assert_eq!("next", incoming[1].event.name);
+    assert_eq!("Bar", incoming[1].source.name());
+    assert_eq!("Foo", incoming[1].target.name());
+    assert!(!incoming[1].is_transition());
+    assert!(incoming[1].is_change_state());
+
+    assert_eq!("next", outgoing[0].event.name);
+    assert_eq!("Foo", outgoing[0].source.name());
+    assert_eq!("Bar", outgoing[0].target.name());
+    assert!(outgoing[0].is_transition());
+    assert!(!outgoing[0].is_change_state());
+}
+
+#[test]
+fn current_state() {
     let mut sm = Demo::new();
-    assert_eq!(0, lookup_i32(sm.domain_variables(), "x"));
-    assert_eq!(0, lookup_i32(sm.domain_variables(), "y"));
-    assert!(sm.domain_variables().lookup("z").is_none());
-    assert!(sm.domain_variables().lookup("arg").is_none());
-    assert!(sm.domain_variables().lookup("inc").is_none());
+    assert_eq!("Foo", sm.state().info().name());
+    sm.inc(3);
+    assert_eq!("Foo", sm.state().info().name());
+    sm.next();
+    assert_eq!("Bar", sm.state().info().name());
+    sm.inc(4);
+    assert_eq!("Bar", sm.state().info().name());
+    sm.next();
+    assert_eq!("Foo", sm.state().info().name());
+}
+
+#[test]
+fn variables() {
+    let mut sm = Demo::new();
+    assert_eq!(0, lookup_i32(sm.variables(), "x"));
+    assert_eq!(0, lookup_i32(sm.variables(), "y"));
+    assert!(sm.variables().lookup("z").is_none());
+    assert!(sm.variables().lookup("arg").is_none());
+    assert!(sm.variables().lookup("inc").is_none());
     sm.inc(3);
     sm.inc(4);
-    assert_eq!(0, lookup_i32(sm.domain_variables(), "x"));
-    assert_eq!(0, lookup_i32(sm.domain_variables(), "y"));
+    assert_eq!(0, lookup_i32(sm.variables(), "x"));
+    assert_eq!(0, lookup_i32(sm.variables(), "y"));
     sm.next();
-    assert_eq!(9, lookup_i32(sm.domain_variables(), "x"));
-    assert_eq!(0, lookup_i32(sm.domain_variables(), "y"));
+    assert_eq!(9, lookup_i32(sm.variables(), "x"));
+    assert_eq!(0, lookup_i32(sm.variables(), "y"));
     sm.inc(5);
     sm.inc(6);
-    assert_eq!(9, lookup_i32(sm.domain_variables(), "x"));
-    assert_eq!(0, lookup_i32(sm.domain_variables(), "y"));
+    assert_eq!(9, lookup_i32(sm.variables(), "x"));
+    assert_eq!(0, lookup_i32(sm.variables(), "y"));
     sm.next();
-    assert_eq!(9, lookup_i32(sm.domain_variables(), "x"));
-    assert_eq!(18, lookup_i32(sm.domain_variables(), "y"));
+    assert_eq!(9, lookup_i32(sm.variables(), "x"));
+    assert_eq!(18, lookup_i32(sm.variables(), "y"));
     sm.inc(7);
     sm.next();
-    assert_eq!(16, lookup_i32(sm.domain_variables(), "x"));
-    assert_eq!(18, lookup_i32(sm.domain_variables(), "y"));
+    assert_eq!(16, lookup_i32(sm.variables(), "x"));
+    assert_eq!(18, lookup_i32(sm.variables(), "y"));
 }
 
 #[test]
 fn state_variables() {
     let mut sm = Demo::new();
-    assert_eq!(2, lookup_i32(sm.current_state().state_variables(), "x"));
-    assert!(sm.current_state().state_variables().lookup("y").is_none());
+    assert_eq!(2, lookup_i32(sm.state().variables(), "x"));
+    assert!(sm.state().variables().lookup("y").is_none());
     sm.inc(3);
     sm.inc(4);
-    assert_eq!(9, lookup_i32(sm.current_state().state_variables(), "x"));
+    assert_eq!(9, lookup_i32(sm.state().variables(), "x"));
     sm.next();
-    assert_eq!(7, lookup_i32(sm.current_state().state_variables(), "y"));
-    assert!(sm.current_state().state_variables().lookup("x").is_none());
+    assert_eq!(7, lookup_i32(sm.state().variables(), "y"));
+    assert!(sm.state().variables().lookup("x").is_none());
     sm.inc(5);
     sm.inc(6);
-    assert_eq!(18, lookup_i32(sm.current_state().state_variables(), "y"));
+    assert_eq!(18, lookup_i32(sm.state().variables(), "y"));
     sm.next();
-    assert_eq!(0, lookup_i32(sm.current_state().state_variables(), "x"));
+    assert_eq!(0, lookup_i32(sm.state().variables(), "x"));
     sm.inc(7);
-    assert_eq!(7, lookup_i32(sm.current_state().state_variables(), "x"));
+    assert_eq!(7, lookup_i32(sm.state().variables(), "x"));
 }
 
 #[test]
 #[rustfmt::skip]
 fn state_arguments() {
     let mut sm = Demo::new();
-    assert!(sm.current_state().state_arguments().lookup("x").is_none());
-    assert!(sm.current_state().state_arguments().lookup("y").is_none());
-    assert!(sm.current_state().state_arguments().lookup("tilt").is_none());
+    assert!(sm.state().arguments().lookup("x").is_none());
+    assert!(sm.state().arguments().lookup("y").is_none());
+    assert!(sm.state().arguments().lookup("tilt").is_none());
     sm.next();
-    assert!(sm.current_state().state_arguments().lookup("x").is_none());
-    assert!(sm.current_state().state_arguments().lookup("y").is_none());
-    assert_eq!(4, lookup_i32(sm.current_state().state_arguments(), "tilt"));
+    assert!(sm.state().arguments().lookup("x").is_none());
+    assert!(sm.state().arguments().lookup("y").is_none());
+    assert_eq!(4, lookup_i32(sm.state().arguments(), "tilt"));
     sm.next();
-    assert!(sm.current_state().state_arguments().lookup("tilt").is_none());
+    assert!(sm.state().arguments().lookup("tilt").is_none());
 }
 
 #[test]
@@ -649,21 +973,21 @@ fn transition_callbacks() {
     let tape: Vec<String> = Vec::new();
     let tape_mutex = Mutex::new(tape);
     let mut sm = Demo::new();
-    sm.callback_manager().add_transition_callback(|i| {
+    sm.callback_manager().add_transition_callback(|e| {
         tape_mutex
             .lock()
             .unwrap()
-            .push(format!("kind: {:?}", i.kind));
+            .push(format!("kind: {:?}", e.info.kind));
     });
-    sm.callback_manager().add_transition_callback(|i| {
+    sm.callback_manager().add_transition_callback(|e| {
         tape_mutex
             .lock()
             .unwrap()
-            .push(format!("old: {}", i.old_state.name()));
+            .push(format!("old: {}", e.old_state.info().name()));
         tape_mutex
             .lock()
             .unwrap()
-            .push(format!("new: {}", i.new_state.name()));
+            .push(format!("new: {}", e.new_state.info().name()));
     });
     sm.next();
     assert_eq!(*tape_mutex.lock().unwrap(), vec!["kind: Transition", "old: Foo", "new: Bar"]);
@@ -673,6 +997,25 @@ fn transition_callbacks() {
     tape_mutex.lock().unwrap().clear();
     sm.next();
     assert_eq!(*tape_mutex.lock().unwrap(), vec!["kind: Transition", "old: Foo", "new: Bar"]);
+}
+
+#[test]
+fn transition_static_info_agrees() {
+    let agree = AtomicBool::new(false);
+    let mut sm = Demo::new();
+    sm.callback_manager().add_transition_callback(|e| {
+        agree.store(
+            e.info.source.name() == e.old_state.info().name()
+                && e.info.target.name() == e.new_state.info().name(),
+            Ordering::Relaxed,
+        );
+    });
+    sm.next();
+    assert!(agree.load(Ordering::Relaxed));
+    sm.next();
+    assert!(agree.load(Ordering::Relaxed));
+    sm.next();
+    assert!(agree.load(Ordering::Relaxed));
 }
 
 #[test]

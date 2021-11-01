@@ -1,4 +1,6 @@
 use convert_case::{Case, Casing};
+use std::cell::Ref;
+use std::cmp::Ordering;
 use std::collections::HashSet;
 
 use crate::frame_c::ast::*;
@@ -7,26 +9,24 @@ use crate::frame_c::scanner::{Token, TokenType};
 use crate::frame_c::symbol_table::*;
 use crate::frame_c::visitors::*;
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct TransitionInfo {
+    is_change_state: bool,
+    event_name: String,
+    label: String,
+    source_name: String,
+    target_name: Option<String>,
+}
+
 pub struct RustVisitor {
-    config: RustConfig,
+    // general config and system info
     compiler_version: String,
-    code: String,
-    dent: usize,
-    current_state_name_opt: Option<String>,
-    current_event_ret_type: String,
-    arcanum: Arcanum,
+    config: RustConfig,
     symbol_config: SymbolConfig,
-    comments: Vec<Token>,
-    current_comment_idx: usize,
-    system_name: String,
-    first_state_name: String,
-    serialize: Vec<String>,
-    deserialize: Vec<String>,
-    warnings: Vec<String>,
+    arcanum: Arcanum,
+
+    // what do we need to generate?
     has_states: bool,
-    errors: Vec<String>,
-    visiting_call_chain_literal_variable: bool,
-    this_branch_transitioned: bool,
     generate_enter_args: bool,
     generate_exit_args: bool,
     generate_state_context: bool,
@@ -35,42 +35,53 @@ pub struct RustVisitor {
     generate_transition_state: bool,
     generate_change_state_hook: bool,
     generate_transition_hook: bool,
+
+    // static info about the state machine
+    system_name: String,
+    first_state_name: String,
+
+    // keeping track of traversal context
+    current_state_name_opt: Option<String>,
     current_message: String,
+    current_event_ret_type: String,
+    this_branch_transitioned: bool,
+    transitions: Vec<TransitionInfo>,
+    visiting_call_chain_literal_variable: bool,
+
+    // code and other outputs
+    code: String,
+    dent: usize,
+    serialize: Vec<String>,
+    deserialize: Vec<String>,
+    errors: Vec<String>,
+    warnings: Vec<String>,
+
+    // comments from the spec to be inserted in generated code
+    // (don't really understand how these work, see `generate_comment()`)
+    comments: Vec<Token>,
+    current_comment_idx: usize,
 }
 
 impl RustVisitor {
     pub fn new(
-        arcanum: Arcanum,
+        compiler_version: &str,
         config: FrameConfig,
+        arcanum: Arcanum,
         generate_enter_args: bool,
         generate_exit_args: bool,
         generate_state_context: bool,
         generate_state_stack: bool,
         generate_change_state: bool,
         generate_transition_state: bool,
-        compiler_version: &str,
         comments: Vec<Token>,
     ) -> RustVisitor {
         let rust_config = config.codegen.rust;
         RustVisitor {
             compiler_version: compiler_version.to_string(),
-            code: String::from(""),
-            dent: 0,
-            current_state_name_opt: None,
-            current_event_ret_type: String::new(),
-            arcanum,
             symbol_config: SymbolConfig::new(),
-            comments,
-            current_comment_idx: 0,
-            system_name: String::new(),
-            first_state_name: String::new(),
-            serialize: Vec::new(),
-            deserialize: Vec::new(),
+            arcanum,
+
             has_states: false,
-            errors: Vec::new(),
-            warnings: Vec::new(),
-            visiting_call_chain_literal_variable: false,
-            this_branch_transitioned: false,
             generate_enter_args,
             generate_exit_args,
             generate_state_context,
@@ -81,7 +92,27 @@ impl RustVisitor {
                 && generate_change_state,
             generate_transition_hook: rust_config.features.generate_hook_methods
                 && generate_transition_state,
+
+            system_name: String::new(),
+            first_state_name: String::new(),
+
+            current_state_name_opt: None,
             current_message: String::new(),
+            current_event_ret_type: String::new(),
+            this_branch_transitioned: false,
+            transitions: Vec::new(),
+            visiting_call_chain_literal_variable: false,
+
+            code: String::from(""),
+            dent: 0,
+            serialize: Vec::new(),
+            deserialize: Vec::new(),
+            errors: Vec::new(),
+            warnings: Vec::new(),
+
+            comments,
+            current_comment_idx: 0,
+
             config: rust_config,
         }
     }
@@ -91,7 +122,6 @@ impl RustVisitor {
     /// Enter/exit messages are formatted "stateName:>" or "stateName:<".
     pub fn is_enter_or_exit_message(&self, msg: &str) -> bool {
         let split = msg.split(':');
-
         split.count() == 2
     }
 
@@ -109,6 +139,16 @@ impl RustVisitor {
     }
 
     //* --------------------------------------------------------------------- *//
+
+    fn get_qualified_event_name(&self, state_name: &str, event_name: &str) -> String {
+        let mut result = String::new();
+        if event_name == ">" || event_name == "<" {
+            result.push_str(state_name);
+            result.push(':');
+        }
+        result.push_str(event_name);
+        result
+    }
 
     #[allow(unknown_lints)]
     #[allow(clippy::branches_sharing_code)]
@@ -463,6 +503,14 @@ impl RustVisitor {
         )
     }
 
+    fn format_state_info_const_name(&self, state_name: &str) -> String {
+        format!(
+            "{}{}",
+            self.config.code.state_info_const_prefix,
+            state_name.to_case(Case::ScreamingSnake)
+        )
+    }
+
     // Method names
 
     fn format_action_name(&mut self, action_name: &str) -> String {
@@ -619,6 +667,549 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    /// Generate a sub-module containing all of the static info used by the runtime interface.
+    fn generate_runtime_info(&mut self, system_node: &SystemNode) {
+        // sorted list of event names: interface methods first, then enter events, then exit
+        // events. this keeps the generated code tidy. as a very minor concern, we have to find the
+        // position of event names where transitions occur when generating the `*Info` instances;
+        // this ordering moves events likely to contain transitions to the front
+        let mut event_names = self.arcanum.get_event_names();
+        event_names.sort_by(|n1, n2| {
+            let e1_rcref = self.arcanum.get_event(n1, &None).unwrap();
+            let e2_rcref = self.arcanum.get_event(n2, &None).unwrap();
+            let e1 = e1_rcref.borrow();
+            let e2 = e2_rcref.borrow();
+            let e1_kind = e1.is_enter_msg as u8 + e1.is_exit_msg as u8 * 2;
+            let e2_kind = e2.is_enter_msg as u8 + e2.is_exit_msg as u8 * 2;
+            match e1_kind.cmp(&e2_kind) {
+                Ordering::Equal => e1.msg.cmp(&e2.msg),
+                order => order,
+            }
+        });
+
+        // generate sub-module containing info definitions
+        self.add_code(&format!(
+            "mod {}",
+            self.config.code.runtime_info_module_name
+        ));
+        self.enter_block();
+        self.add_code("use frame_runtime::info::*;");
+        self.newline();
+        self.newline();
+        self.generate_machine_info(system_node, &event_names);
+        if self.generate_state_stack {
+            self.newline();
+            self.newline();
+            self.generate_state_stack_pop_info();
+        }
+        if let Some(machine_block_node) = &system_node.machine_block_node_opt {
+            for state in &machine_block_node.states {
+                self.newline();
+                self.newline();
+                self.generate_state_info(state.borrow(), &event_names);
+            }
+        }
+        self.exit_block();
+    }
+
+    /// Generate a single `NameInfo` value.
+    fn generate_name_info(&mut self, name: &str, vtype: &str) {
+        self.add_code("NameInfo");
+        self.enter_block();
+        self.add_code(&format!("name: \"{}\",", name));
+        self.newline();
+        self.add_code(&format!("vtype: \"{}\",", vtype));
+        self.exit_block();
+        self.add_code(",");
+    }
+
+    /// Generate the implementation of `MachineInfo` for this state machine.
+    #[allow(unused_variables)]
+    fn generate_machine_info(&mut self, system_node: &SystemNode, event_names: &[String]) {
+        // generate struct and constant
+        self.add_code(&format!(
+            "pub struct {} {{}}",
+            self.config.code.machine_info_struct_name
+        ));
+        self.newline();
+        self.add_code(&format!(
+            "pub const {0}: &{1} = &{1} {{}};",
+            self.config.code.machine_info_const_name, self.config.code.machine_info_struct_name,
+        ));
+        self.newline();
+
+        // generate the trait implementation
+        self.add_code(&format!(
+            "impl MachineInfo for {}",
+            self.config.code.machine_info_struct_name,
+        ));
+        self.enter_block();
+
+        // name()
+        self.add_code("fn name(&self) -> &'static str");
+        self.enter_block();
+        self.add_code(&format!("\"{}\"", self.system_name));
+        self.exit_block();
+        self.newline();
+
+        // variables()
+        self.add_code("fn variables(&self) -> Vec<NameInfo>");
+        self.enter_block();
+        self.add_code("vec![");
+        if let Some(domain_block_node) = &system_node.domain_block_node_opt {
+            self.indent();
+            for var_rcref in &domain_block_node.member_variables {
+                let var_name = var_rcref.borrow().name.clone();
+                let var_type = var_rcref
+                    .borrow()
+                    .type_opt
+                    .as_ref()
+                    .unwrap()
+                    .get_type_str()
+                    .clone();
+                self.newline();
+                self.generate_name_info(&var_name, &var_type);
+            }
+            self.outdent();
+            self.newline();
+        }
+        self.add_code("]");
+        self.exit_block();
+        self.newline();
+
+        // states()
+        self.add_code("fn states(&self) -> Vec<&dyn StateInfo>");
+        self.enter_block();
+        self.add_code("vec![");
+        if let Some(machine_block_node) = &system_node.machine_block_node_opt {
+            self.indent();
+            for state in &machine_block_node.states {
+                self.newline();
+                self.add_code(&format!(
+                    "{},",
+                    self.format_state_info_const_name(&state.borrow().name)
+                ));
+            }
+            self.outdent();
+            self.newline();
+        }
+        self.add_code("]");
+        self.exit_block();
+        self.newline();
+
+        // interface()
+        self.add_code("fn interface(&self) -> Vec<MethodInfo>");
+        self.enter_block();
+        self.add_code("vec![");
+        if !event_names.is_empty() {
+            self.indent();
+            let mut idx = 0;
+            for event_name in event_names {
+                let event_rcref = self.arcanum.get_event(event_name, &None).unwrap();
+                let event = event_rcref.borrow();
+                if event.is_enter_msg || event.is_exit_msg {
+                    // interface methods are sorted to be first,
+                    // so if we see an enter/exit event we're done
+                    break;
+                } else {
+                    self.newline();
+                    self.add_code(&format!(
+                        "{}.events()[{}].clone(),",
+                        self.config.code.machine_info_const_name, idx
+                    ));
+                    idx += 1;
+                }
+            }
+            self.outdent();
+            self.newline();
+        }
+        self.add_code("]");
+        self.exit_block();
+        self.newline();
+
+        // actions()
+        self.add_code("fn actions(&self) -> Vec<MethodInfo>");
+        self.enter_block();
+        self.add_code("vec![");
+        let mut action_names = self.arcanum.get_action_names();
+        action_names.sort();
+        if !action_names.is_empty() {
+            self.indent();
+            for action_name in action_names {
+                self.newline();
+                self.add_code("MethodInfo");
+                self.enter_block();
+                let action_decl_rcref = self.arcanum.lookup_action(&action_name).unwrap();
+                let action_decl = action_decl_rcref.borrow();
+                if let Some(action_rcref) = &action_decl.ast_node {
+                    let action = action_rcref.borrow();
+                    self.add_code(&format!("name: \"{}\",", action.name));
+                    self.newline();
+                    self.add_code("parameters: vec![");
+                    if let Some(params) = &action.params {
+                        if !params.is_empty() {
+                            self.indent();
+                            for param in params {
+                                self.newline();
+                                let param_name = param.param_name.clone();
+                                let param_type = param
+                                    .param_type_opt
+                                    .as_ref()
+                                    .unwrap()
+                                    .get_type_str()
+                                    .clone();
+                                self.generate_name_info(&param_name, &param_type);
+                            }
+                            self.outdent();
+                            self.newline();
+                        }
+                    }
+                    self.add_code("],");
+                    self.newline();
+                    self.add_code(&format!(
+                        "return_type: {},",
+                        match &action.type_opt {
+                            Some(type_node) => format!("Some(\"{}\")", type_node.get_type_str()),
+                            None => "None".to_string(),
+                        }
+                    ));
+                } else {
+                    self.add_code(&format!("name: \"{}\",", action_decl.name));
+                    self.newline();
+                    self.add_code("parameters: vec![],");
+                    self.newline();
+                    self.add_code("return_type: None,");
+                }
+                self.exit_block();
+                self.add_code(",");
+            }
+            self.outdent();
+            self.newline();
+        }
+        self.add_code("]");
+        self.exit_block();
+        self.newline();
+
+        // events()
+        self.add_code("fn events(&self) -> Vec<MethodInfo>");
+        self.enter_block();
+        self.add_code("vec![");
+        if !event_names.is_empty() {
+            self.indent();
+            for event_name in event_names {
+                let event_rcref = self.arcanum.get_event(event_name, &None).unwrap();
+                let event = event_rcref.borrow();
+                self.newline();
+                self.add_code("MethodInfo");
+                self.enter_block();
+                self.add_code(&format!("name: \"{}\",", event.msg));
+                self.newline();
+                self.add_code("parameters: vec![");
+                if let Some(params) = &event.params_opt {
+                    if !params.is_empty() {
+                        self.indent();
+                        for param in params {
+                            self.newline();
+                            let param_name = param.name.clone();
+                            let param_type = param
+                                .param_type_opt
+                                .as_ref()
+                                .unwrap()
+                                .get_type_str()
+                                .clone();
+                            self.generate_name_info(&param_name, &param_type);
+                        }
+                        self.outdent();
+                        self.newline();
+                    }
+                }
+                self.add_code("],");
+                self.newline();
+                self.add_code(&format!(
+                    "return_type: {},",
+                    match &event.ret_type_opt {
+                        Some(type_node) => format!("Some(\"{}\")", type_node.get_type_str()),
+                        None => "None".to_string(),
+                    }
+                ));
+                self.exit_block();
+                self.add_code(",");
+            }
+            self.outdent();
+            self.newline();
+        }
+        self.add_code("]");
+        self.exit_block();
+        self.newline();
+
+        // transitions()
+        self.add_code("fn transitions(&self) -> Vec<TransitionInfo>");
+        self.enter_block();
+        self.add_code("vec![");
+        if !self.transitions.is_empty() {
+            self.indent();
+            let transitions = self.transitions.clone();
+            for transition in transitions {
+                self.newline();
+                self.add_code("TransitionInfo");
+                self.enter_block();
+                self.add_code(&format!(
+                    "kind: TransitionKind::{},",
+                    if transition.is_change_state {
+                        "ChangeState"
+                    } else {
+                        "Transition"
+                    }
+                ));
+                self.newline();
+                self.add_code(&format!(
+                    "event: {}.get_event(\"{}\").unwrap(),",
+                    self.config.code.machine_info_const_name, transition.event_name
+                ));
+                self.newline();
+                self.add_code(&format!("label: \"{}\",", transition.label));
+                self.newline();
+                self.add_code(&format!(
+                    "source: {}.get_state(\"{}\").unwrap(),",
+                    self.config.code.machine_info_const_name, transition.source_name
+                ));
+                self.newline();
+                self.add_code(&format!(
+                    "target: {},",
+                    match &transition.target_name {
+                        Some(name) => format!(
+                            "{}.get_state(\"{}\").unwrap()",
+                            self.config.code.machine_info_const_name, name
+                        ),
+                        None => self.config.code.state_stack_pop_info_const_name.clone(),
+                    }
+                ));
+                self.exit_block();
+                self.add_code(",");
+            }
+            self.outdent();
+            self.newline();
+        }
+        self.add_code("]");
+        self.exit_block();
+
+        // end impl block
+        self.exit_block();
+    }
+
+    /// Generate a special state to use as the target in state-stack pop transitions. The
+    /// implementation for this state returns a generic name and empty values for the parent,
+    /// paremeters, variables, and handlers. In actuality, a popped state may have a parent,
+    /// variables, and handlers, and it certainly has a name, however, none of these are known
+    /// statically.
+    fn generate_state_stack_pop_info(&mut self) {
+        // generate struct and constant
+        self.add_code(&format!(
+            "pub struct {} {{}}",
+            self.config.code.state_stack_pop_info_struct_name
+        ));
+        self.newline();
+        self.add_code(&format!(
+            "pub const {0}: &{1} = &{1} {{}};",
+            self.config.code.state_stack_pop_info_const_name,
+            self.config.code.state_stack_pop_info_struct_name
+        ));
+        self.newline();
+
+        // generate the trait implementation
+        self.add_code(&format!(
+            "impl StateInfo for {}",
+            self.config.code.state_stack_pop_info_struct_name
+        ));
+        self.enter_block();
+
+        // machine()
+        self.add_code("fn machine(&self) -> &dyn MachineInfo");
+        self.enter_block();
+        self.add_code(&self.config.code.machine_info_const_name.to_string());
+        self.exit_block();
+        self.newline();
+
+        // name()
+        self.add_code("fn name(&self) -> &'static str");
+        self.enter_block();
+        self.add_code(&format!(
+            "\"{}\"",
+            self.config.code.state_stack_pop_info_name
+        ));
+        self.exit_block();
+        self.newline();
+
+        // parent()
+        self.add_code("fn parent(&self) -> Option<&dyn StateInfo>");
+        self.enter_block();
+        self.add_code("None");
+        self.exit_block();
+        self.newline();
+
+        // parameters()
+        self.add_code("fn parameters(&self) -> Vec<NameInfo>");
+        self.enter_block();
+        self.add_code("vec![]");
+        self.exit_block();
+        self.newline();
+
+        // variables()
+        self.add_code("fn variables(&self) -> Vec<NameInfo>");
+        self.enter_block();
+        self.add_code("vec![]");
+        self.exit_block();
+        self.newline();
+
+        // handlers()
+        self.add_code("fn handlers(&self) -> Vec<MethodInfo>");
+        self.enter_block();
+        self.add_code("vec![]");
+        self.exit_block();
+        self.newline();
+
+        // is_stack_pop()
+        self.add_code("fn is_stack_pop(&self) -> bool");
+        self.enter_block();
+        self.add_code("true");
+        self.exit_block();
+
+        // end impl block
+        self.exit_block();
+    }
+
+    /// Generate the implementation of `StateInfo` for the given state.
+    fn generate_state_info(&mut self, state_node: Ref<StateNode>, event_names: &[String]) {
+        let state_name = state_node.name.clone();
+        let state_struct_name = format!(
+            "{}{}",
+            self.config.code.state_info_struct_prefix,
+            self.format_type_name(&state_name)
+        );
+        let state_symbol_rcref = self.arcanum.get_state(&state_name).unwrap();
+        let state_symbol = state_symbol_rcref.borrow();
+        // let state_symtab = state_symbol.symtab_rcref.borrow();
+        let state_node_rcref = state_symbol.state_node.as_ref().unwrap();
+        let state_node = state_node_rcref.borrow();
+
+        // generate struct and constant
+        self.add_code(&format!("pub struct {} {{}}", state_struct_name));
+        self.newline();
+        self.add_code(&format!(
+            "pub const {0}: &{1} = &{1} {{}};",
+            self.format_state_info_const_name(&state_name),
+            state_struct_name,
+        ));
+        self.newline();
+
+        // generate the trait implementation
+        self.add_code(&format!("impl StateInfo for {}", state_struct_name));
+        self.enter_block();
+
+        // machine()
+        self.add_code("fn machine(&self) -> &dyn MachineInfo");
+        self.enter_block();
+        self.add_code(&self.config.code.machine_info_const_name.to_string());
+        self.exit_block();
+        self.newline();
+
+        // name()
+        self.add_code("fn name(&self) -> &'static str");
+        self.enter_block();
+        self.add_code(&format!("\"{}\"", state_name));
+        self.exit_block();
+        self.newline();
+
+        // parent()
+        self.add_code("fn parent(&self) -> Option<&dyn StateInfo>");
+        self.enter_block();
+        if let Some(dispatch_node) = &state_node.dispatch_opt {
+            self.add_code(&format!(
+                "{}.get_state(\"{}\")",
+                self.config.code.machine_info_const_name, dispatch_node.target_state_ref.name
+            ));
+        } else {
+            self.add_code("None");
+        }
+        self.exit_block();
+        self.newline();
+
+        // parameters()
+        self.add_code("fn parameters(&self) -> Vec<NameInfo>");
+        self.enter_block();
+        self.add_code("vec![");
+        if let Some(params) = &state_node.params_opt {
+            if !params.is_empty() {
+                self.indent();
+                for param in params {
+                    self.newline();
+                    let param_name = param.param_name.clone();
+                    let param_type = param
+                        .param_type_opt
+                        .as_ref()
+                        .unwrap()
+                        .get_type_str()
+                        .clone();
+                    self.generate_name_info(&param_name, &param_type);
+                }
+                self.outdent();
+                self.newline();
+            }
+        }
+        self.add_code("]");
+        self.exit_block();
+        self.newline();
+
+        // variables()
+        self.add_code("fn variables(&self) -> Vec<NameInfo>");
+        self.enter_block();
+        self.add_code("vec![");
+        if let Some(var_rcrefs) = &state_node.vars_opt {
+            if !var_rcrefs.is_empty() {
+                self.indent();
+                for var_rcref in var_rcrefs {
+                    let var = var_rcref.borrow();
+                    self.newline();
+                    let var_name = var.name.clone();
+                    let var_type = var.type_opt.as_ref().unwrap().get_type_str().clone();
+                    self.generate_name_info(&var_name, &var_type);
+                }
+                self.outdent();
+                self.newline();
+            }
+        }
+        self.add_code("]");
+        self.exit_block();
+        self.newline();
+
+        // handlers()
+        self.add_code("fn handlers(&self) -> Vec<MethodInfo>");
+        self.enter_block();
+        self.add_code("vec![");
+        let handler_nodes = &state_node.evt_handlers_rcref;
+        if !handler_nodes.is_empty() {
+            self.indent();
+            for node_rcref in handler_nodes {
+                let name = node_rcref.borrow().event_symbol_rcref.borrow().msg.clone();
+                self.newline();
+                self.add_code(&format!(
+                    "{}.events()[{}].clone(),",
+                    self.config.code.machine_info_const_name,
+                    event_names.iter().position(|n| n == &name).unwrap()
+                ));
+            }
+            self.outdent();
+            self.newline();
+        }
+        self.add_code("]");
+        self.exit_block();
+
+        // end impl block
+        self.exit_block();
+    }
+
+    //* --------------------------------------------------------------------- *//
+
     /// Generate an enum type that enumerates the states of the machine.
     fn generate_state_enum(&mut self, system_node: &SystemNode) {
         // add derived traits
@@ -662,34 +1253,29 @@ impl RustVisitor {
         if self.config.features.runtime_support && !self.generate_state_context {
             self.newline();
             self.newline();
-            self.add_code(&format!("impl State for {}", state_enum_type));
+            self.add_code(&format!("impl StateInstance for {}", state_enum_type));
             self.enter_block();
 
-            self.add_code("fn name(&self) -> &'static str");
+            self.add_code("fn info(&self) -> &'static dyn StateInfo");
             self.enter_block();
-            self.add_code("match *self {");
+            self.add_code("match self {");
             self.indent();
             if let Some(machine_block_node) = &system_node.machine_block_node_opt {
                 for state in &machine_block_node.states {
                     let state_name = &state.borrow().name;
                     self.newline();
                     self.add_code(&format!(
-                        "{}::{} => \"{}\",",
+                        "{}::{} => {}::{},",
                         state_enum_type,
                         self.format_type_name(state_name),
-                        state_name
+                        self.config.code.runtime_info_module_name,
+                        self.format_state_info_const_name(state_name),
                     ));
                 }
-            } else {
-                self.add_code("\"\"");
             }
             self.exit_block();
             self.exit_block();
 
-            self.newline();
-            self.add_code("fn state_arguments(&self) -> &dyn Environment { EMPTY }");
-            self.newline();
-            self.add_code("fn state_variables(&self) -> &dyn Environment { EMPTY }");
             self.exit_block();
         }
     }
@@ -932,34 +1518,33 @@ impl RustVisitor {
 
                 // generate implementation of runtime state
                 if self.config.features.runtime_support {
-                    self.add_code(&format!("impl State for {}", context_struct_name));
+                    self.add_code(&format!("impl StateInstance for {}", context_struct_name));
                     self.enter_block();
 
-                    self.add_code("fn name(&self) -> &'static str");
+                    self.add_code("fn info(&self) -> &'static dyn StateInfo");
                     self.enter_block();
-                    self.add_code(&format!("\"{}\"", &state_node.name));
+                    self.add_code(&format!(
+                        "{}::{}",
+                        self.config.code.runtime_info_module_name,
+                        self.format_state_info_const_name(&state_node.name)
+                    ));
                     self.exit_block();
-                    self.newline();
 
-                    self.add_code("fn state_arguments(&self) -> &dyn Environment");
-                    self.enter_block();
                     if has_state_args {
+                        self.newline();
+                        self.add_code("fn arguments(&self) -> &dyn Environment");
+                        self.enter_block();
                         self.add_code(&format!("&self.{}", self.config.code.state_args_var_name));
-                    } else {
-                        self.add_code("EMPTY");
+                        self.exit_block();
                     }
-                    self.exit_block();
-                    self.newline();
 
-                    self.add_code("fn state_variables(&self) -> &dyn Environment");
-                    self.enter_block();
                     if has_state_vars {
+                        self.newline();
+                        self.add_code("fn variables(&self) -> &dyn Environment");
+                        self.enter_block();
                         self.add_code(&format!("&self.{}", self.config.code.state_vars_var_name));
-                    } else {
-                        self.add_code("EMPTY");
+                        self.exit_block();
                     }
-                    self.exit_block();
-                    self.newline();
 
                     self.exit_block();
                     self.newline();
@@ -997,7 +1582,7 @@ impl RustVisitor {
             // generate method to get the state context as a runtime state
             if self.config.features.runtime_support {
                 self.newline();
-                self.add_code("fn as_runtime_state(&self) -> Ref<dyn State>");
+                self.add_code("fn as_state_instance(&self) -> Ref<dyn StateInstance>");
                 self.enter_block();
                 self.add_code("match self {");
                 self.indent();
@@ -1005,7 +1590,7 @@ impl RustVisitor {
                     let state_node = state.borrow();
                     self.newline();
                     self.add_code(&format!(
-                        "{}::{}(context) => Ref::map(context.borrow(), |c| c as &dyn State),",
+                        "{}::{}(context) => Ref::map(context.borrow(), |c| c as &dyn StateInstance),",
                         self.config.code.state_context_type_name,
                         self.format_type_name(&state_node.name)
                     ));
@@ -1269,62 +1854,65 @@ impl RustVisitor {
         let new_state_var = self.new_var_name(&self.config.code.state_var_name);
 
         // generate method signature
-        if self.generate_state_context {
+        self.add_code(&format!(
+            "fn {}(&mut self, ",
+            self.config.code.change_state_method_name,
+        ));
+        if self.config.features.runtime_support {
             self.add_code(&format!(
-                "fn {}(&mut self, {}: {}, {}: Rc<{}>) {{",
-                self.config.code.change_state_method_name,
-                new_state_var,
-                self.state_enum_type_name(),
-                new_state_context_var,
-                self.config.code.state_context_type_name
-            ));
-        } else {
-            self.add_code(&format!(
-                "fn {}(&mut self, {}: {}) {{",
-                self.config.code.change_state_method_name,
-                new_state_var,
-                self.state_enum_type_name()
+                "{}: &TransitionInfo, ",
+                self.config.code.transition_info_arg_name
             ));
         }
-        self.indent();
+        self.add_code(&format!(
+            "{}: {}",
+            new_state_var,
+            self.state_enum_type_name(),
+        ));
+        if self.generate_state_context {
+            self.add_code(&format!(
+                ", {}: Rc<{}>",
+                new_state_context_var, self.config.code.state_context_type_name
+            ));
+        }
+        self.add_code(")");
+        self.enter_block();
 
         // save old state
         if self.generate_change_state_hook {
-            self.newline();
             self.add_code(&format!(
                 "let {} = self.{};",
                 old_state_var, self.config.code.state_var_name
             ));
+            self.newline();
         }
         if self.config.features.runtime_support {
             if self.generate_state_context {
-                self.newline();
                 self.add_code(&format!(
                     "let {} = Rc::clone(&self.{});",
                     old_state_context_var, self.config.code.state_context_var_name
                 ));
                 self.newline();
                 self.add_code(&format!(
-                    "let old_runtime_state = {}.as_ref().as_runtime_state();",
+                    "let old_state_instance = {}.as_ref().as_state_instance();",
                     old_state_context_var
                 ));
             } else {
                 let old_state_cell_name = self.old_var_name(&self.config.code.state_cell_var_name);
-                self.newline();
                 self.add_code(&format!(
                     "let {} = RefCell::new(self.{});",
                     old_state_cell_name, self.config.code.state_var_name
                 ));
                 self.newline();
                 self.add_code(&format!(
-                    "let old_runtime_state = {}.borrow();",
+                    "let old_state_instance = {}.borrow();",
                     old_state_cell_name
                 ));
             }
+            self.newline();
         }
 
         // update state
-        self.newline();
         self.add_code(&format!(
             "self.{} = {};",
             self.config.code.state_var_name, new_state_var
@@ -1357,33 +1945,37 @@ impl RustVisitor {
             self.newline();
             if self.generate_state_context {
                 self.add_code(&format!(
-                    "let new_runtime_state = {}.as_runtime_state();",
+                    "let new_state_instance = {}.as_state_instance();",
                     new_state_context_var
                 ));
             } else {
                 self.add_code(&format!(
-                    "let new_runtime_state = self.{}.borrow();",
+                    "let new_state_instance = self.{}.borrow();",
                     self.config.code.state_cell_var_name
                 ));
             }
             self.newline();
             self.add_code(&format!(
-                "self.{}.change_state(",
+                "self.{}.transition(",
                 self.config.code.callback_manager_var_name
             ));
             self.indent();
             self.newline();
-            self.add_code("old_runtime_state,");
+            self.add_code(&format!("{},", self.config.code.transition_info_arg_name));
             self.newline();
-            self.add_code("new_runtime_state,");
+            self.add_code("old_state_instance,");
+            self.newline();
+            self.add_code("new_state_instance,");
+            self.newline();
+            self.add_code("EMPTY,");
+            self.newline();
+            self.add_code("EMPTY,");
             self.outdent();
             self.newline();
             self.add_code(");");
         }
 
-        self.outdent();
-        self.newline();
-        self.add_code("}");
+        self.exit_block();
         self.newline();
     }
 
@@ -1401,6 +1993,12 @@ impl RustVisitor {
             "fn {}(&mut self, ",
             self.config.code.transition_method_name
         ));
+        if self.config.features.runtime_support {
+            self.add_code(&format!(
+                "{}: &TransitionInfo, ",
+                self.config.code.transition_info_arg_name
+            ));
+        }
         if self.generate_exit_args {
             self.add_code(&format!(
                 "{}: {}, ",
@@ -1465,7 +2063,7 @@ impl RustVisitor {
                 ));
                 self.newline();
                 self.add_code(&format!(
-                    "let old_runtime_state = {}.as_ref().as_runtime_state();",
+                    "let old_state_instance = {}.as_ref().as_state_instance();",
                     old_state_context_var
                 ));
             } else {
@@ -1477,7 +2075,7 @@ impl RustVisitor {
                 ));
                 self.newline();
                 self.add_code(&format!(
-                    "let old_runtime_state = {}.borrow();",
+                    "let old_state_instance = {}.borrow();",
                     old_state_cell_name
                 ));
             }
@@ -1517,12 +2115,12 @@ impl RustVisitor {
             self.newline();
             if self.generate_state_context {
                 self.add_code(&format!(
-                    "let new_runtime_state = {}.as_runtime_state();",
+                    "let new_state_instance = {}.as_state_instance();",
                     new_state_context_var
                 ));
             } else {
                 self.add_code(&format!(
-                    "let new_runtime_state = self.{}.borrow();",
+                    "let new_state_instance = self.{}.borrow();",
                     self.config.code.state_cell_var_name
                 ));
             }
@@ -1533,9 +2131,11 @@ impl RustVisitor {
             ));
             self.indent();
             self.newline();
-            self.add_code("old_runtime_state,");
+            self.add_code(&format!("{},", self.config.code.transition_info_arg_name));
             self.newline();
-            self.add_code("new_runtime_state,");
+            self.add_code("old_state_instance,");
+            self.newline();
+            self.add_code("new_state_instance,");
             self.newline();
             if self.generate_exit_args {
                 self.add_code(&format!("&{},", self.config.code.exit_args_member_name));
@@ -1573,20 +2173,18 @@ impl RustVisitor {
             "self.{}(&mut enter_event);",
             &self.config.code.handle_event_method_name
         ));
-        self.outdent();
-        self.newline();
-        self.add_code("}");
+
+        self.exit_block();
         self.newline();
     }
 
     /// Generate state stack methods.
     fn generate_state_stack_methods(&mut self) {
         self.add_code(&format!(
-            "fn {}(&mut self) {{",
+            "fn {}(&mut self)",
             self.config.code.state_stack_push_method_name
         ));
-        self.indent();
-        self.newline();
+        self.enter_block();
         if self.generate_state_context {
             self.add_code(&format!(
                 "self.{}.push((self.{}, Rc::clone(&self.{})));",
@@ -1600,42 +2198,36 @@ impl RustVisitor {
                 self.config.code.state_stack_var_name, self.config.code.state_var_name
             ));
         }
-        self.outdent();
-        self.newline();
-        self.add_code(&"}".to_string());
+        self.exit_block();
+
         self.newline();
         self.newline();
         if self.generate_state_context {
             self.add_code(&format!(
-                "fn {}(&mut self) -> ({}, Rc<{}>) {{",
+                "fn {}(&mut self) -> ({}, Rc<{}>)",
                 self.config.code.state_stack_pop_method_name,
                 self.state_enum_type_name(),
                 self.config.code.state_context_type_name
             ));
         } else {
             self.add_code(&format!(
-                "fn {}(&mut self) -> {} {{",
+                "fn {}(&mut self) -> {}",
                 self.config.code.state_stack_pop_method_name,
                 self.state_enum_type_name()
             ));
         }
-        self.indent();
-        self.newline();
+        self.enter_block();
         self.add_code(&format!(
-            "match self.{}.pop() {{",
+            "match self.{}.pop()",
             self.config.code.state_stack_var_name
         ));
-        self.indent();
-        self.newline();
+        self.enter_block();
         self.add_code("Some(elem) => elem,");
         self.newline();
         self.add_code("None => panic!(\"Error: attempted to pop when history stack is empty.\")");
-        self.outdent();
-        self.newline();
-        self.add_code("}");
-        self.outdent();
-        self.newline();
-        self.add_code("}");
+        self.exit_block();
+
+        self.exit_block();
         self.newline();
     }
 
@@ -2019,15 +2611,15 @@ impl RustVisitor {
             }
         };
 
-        // print the change-state label, if provided
-        match &change_state_stmt.label_opt {
-            Some(label) => {
-                self.newline();
-                self.add_code(&format!("// {}", label));
-            }
-            None => {}
+        // get the transition label, and print it if provided
+        let mut label = String::new();
+        if let Some(s) = &change_state_stmt.label_opt {
+            label.push_str(s);
+            self.newline();
+            self.add_code(&format!("// {}", s));
         }
 
+        // indent to generate parts of context at the right indentation level
         self.indent();
 
         // generate state arguments
@@ -2050,6 +2642,7 @@ impl RustVisitor {
         let mut state_vars_code = String::new();
         let has_state_vars = self.generate_state_variables(target_state_name, &mut state_vars_code);
 
+        // end indent for parts of context
         self.outdent();
 
         // generate new state context
@@ -2068,23 +2661,40 @@ impl RustVisitor {
             ));
         }
 
+        // remember this transition
+        let source_state_name = self.current_state_name_opt.as_ref().unwrap();
+        let event_name = self.get_qualified_event_name(source_state_name, &self.current_message);
+        self.transitions.push(TransitionInfo {
+            is_change_state: true,
+            event_name,
+            label,
+            source_name: source_state_name.to_string(),
+            target_name: Some(target_state_name.to_string()),
+        });
+
         // call the change-state method
         self.newline();
-        if self.generate_state_context {
+        self.add_code(&format!(
+            "self.{}(",
+            self.config.code.change_state_method_name
+        ));
+        if self.config.features.runtime_support {
             self.add_code(&format!(
-                "self.{}({}::{}, next_state_context);",
-                self.config.code.change_state_method_name,
-                self.state_enum_type_name(),
-                self.format_type_name(&target_state_name.to_string())
-            ));
-        } else {
-            self.add_code(&format!(
-                "self.{}({}::{});",
-                self.config.code.change_state_method_name,
-                self.state_enum_type_name(),
-                self.format_type_name(&target_state_name.to_string())
+                "&{}::{}.transitions()[{}], ",
+                self.config.code.runtime_info_module_name,
+                self.config.code.machine_info_const_name,
+                self.transitions.len() - 1,
             ));
         }
+        self.add_code(&format!(
+            "{}::{}",
+            self.state_enum_type_name(),
+            self.format_type_name(&target_state_name.to_string())
+        ));
+        if self.generate_state_context {
+            self.add_code(", next_state_context");
+        }
+        self.add_code(");");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2104,13 +2714,12 @@ impl RustVisitor {
             }
         };
 
-        // print the transition label, if provided
-        match &transition_stmt.label_opt {
-            Some(label) => {
-                self.newline();
-                self.add_code(&format!("// {}", label));
-            }
-            None => {}
+        // get the transition label, and print it if provided
+        let mut label = String::new();
+        if let Some(s) = &transition_stmt.label_opt {
+            label.push_str(s);
+            self.newline();
+            self.add_code(&format!("// {}", s));
         }
 
         // generate exit arguments
@@ -2190,12 +2799,31 @@ impl RustVisitor {
             ));
         }
 
+        // remember this transition
+        let source_state_name = self.current_state_name_opt.as_ref().unwrap();
+        let event_name = self.get_qualified_event_name(source_state_name, &self.current_message);
+        self.transitions.push(TransitionInfo {
+            is_change_state: false,
+            event_name,
+            label,
+            source_name: source_state_name.to_string(),
+            target_name: Some(target_state_name.to_string()),
+        });
+
         // call the transition method
         self.newline();
         self.add_code(&format!(
             "self.{}(",
             self.config.code.transition_method_name
         ));
+        if self.config.features.runtime_support {
+            self.add_code(&format!(
+                "&{}::{}.transitions()[{}], ",
+                self.config.code.runtime_info_module_name,
+                self.config.code.machine_info_const_name,
+                self.transitions.len() - 1,
+            ));
+        }
         if self.generate_exit_args {
             self.add_code(&format!("{}, ", self.config.code.exit_args_member_name));
         }
@@ -2226,16 +2854,26 @@ impl RustVisitor {
         self.newline();
         self.add_code("// Start change state");
 
-        // print the change-state label, if provided
-        match &change_state_stmt.label_opt {
-            Some(label) => {
-                self.newline();
-                self.add_code(&format!("// {}", label));
-            }
-            None => {}
+        // get the transition label, and print it if provided
+        let mut label = String::new();
+        if let Some(s) = &change_state_stmt.label_opt {
+            label.push_str(s);
+            self.newline();
+            self.add_code(&format!("// {}", s));
         }
 
-        // pop the state/context and pass to change-state method
+        // remember this transition
+        let source_state_name = self.current_state_name_opt.as_ref().unwrap();
+        let event_name = self.get_qualified_event_name(source_state_name, &self.current_message);
+        self.transitions.push(TransitionInfo {
+            is_change_state: true,
+            event_name,
+            label,
+            source_name: source_state_name.to_string(),
+            target_name: None,
+        });
+
+        // pop the state/context
         self.newline();
         if self.generate_state_context {
             self.add_code(&format!(
@@ -2247,22 +2885,32 @@ impl RustVisitor {
                 "let (next_state, next_state_context) = self.{}();",
                 self.config.code.state_stack_pop_method_name
             ));
-            self.newline();
-            self.add_code(&format!(
-                "self.{}(next_state, next_state_context);",
-                self.config.code.change_state_method_name
-            ));
         } else {
             self.add_code(&format!(
                 "let next_state = self.{}();",
                 self.config.code.state_stack_pop_method_name
             ));
-            self.newline();
+        }
+
+        // call the change-state method
+        self.newline();
+        self.add_code(&format!(
+            "self.{}(",
+            self.config.code.change_state_method_name
+        ));
+        if self.config.features.runtime_support {
             self.add_code(&format!(
-                "self.{}(next_state);",
-                self.config.code.change_state_method_name
+                "&{}::{}.transitions()[{}], ",
+                self.config.code.runtime_info_module_name,
+                self.config.code.machine_info_const_name,
+                self.transitions.len() - 1,
             ));
         }
+        self.add_code("next_state");
+        if self.generate_state_context {
+            self.add_code(", next_state_context");
+        }
+        self.add_code(");");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2272,23 +2920,30 @@ impl RustVisitor {
     // support it. On a pop transition, the state that is being changed to is
     // not known statically, so the programmer does not know how many arguments
     // to pass. State variables are supported, however.
-    fn generate_state_stack_pop_transition(
-        &mut self,
-        transition_statement: &TransitionStatementNode,
-    ) {
+    fn generate_state_stack_pop_transition(&mut self, transition_stmt: &TransitionStatementNode) {
         self.newline();
         self.add_code("// Start transition");
 
-        // print the transition label, if provided
-        match &transition_statement.label_opt {
-            Some(label) => {
-                self.newline();
-                self.add_code(&format!("// {}", label));
-            }
-            None => {}
+        // get the transition label, and print it if provided
+        let mut label = String::new();
+        if let Some(s) = &transition_stmt.label_opt {
+            label.push_str(s);
+            self.newline();
+            self.add_code(&format!("// {}", s));
         }
 
-        // pop the state/context and pass to transition method
+        // remember this transition
+        let source_state_name = self.current_state_name_opt.as_ref().unwrap();
+        let event_name = self.get_qualified_event_name(source_state_name, &self.current_message);
+        self.transitions.push(TransitionInfo {
+            is_change_state: false,
+            event_name,
+            label,
+            source_name: source_state_name.to_string(),
+            target_name: None,
+        });
+
+        // pop the state/context
         self.newline();
         if self.generate_state_context {
             self.add_code(&format!(
@@ -2300,22 +2955,32 @@ impl RustVisitor {
                 "let (next_state, next_state_context) = self.{}();",
                 self.config.code.state_stack_pop_method_name
             ));
-            self.newline();
-            self.add_code(&format!(
-                "self.{}(next_state, next_state_context);",
-                self.config.code.transition_method_name
-            ));
         } else {
             self.add_code(&format!(
                 "let next_state = self.{}();",
                 self.config.code.state_stack_pop_method_name
             ));
-            self.newline();
+        }
+
+        // call the transition method
+        self.newline();
+        self.add_code(&format!(
+            "self.{}(",
+            self.config.code.transition_method_name
+        ));
+        if self.config.features.runtime_support {
             self.add_code(&format!(
-                "self.{}(next_state);",
-                self.config.code.transition_method_name
+                "&{}::{}.transitions()[{}], ",
+                self.config.code.runtime_info_module_name,
+                self.config.code.machine_info_const_name,
+                self.transitions.len() - 1,
             ));
         }
+        self.add_code("next_state");
+        if self.generate_state_context {
+            self.add_code(", next_state_context");
+        }
+        self.add_code(");");
     }
 }
 
@@ -2343,17 +3008,7 @@ impl AstVisitor for RustVisitor {
             self.newline();
             self.add_code("use std::any::Any;");
             self.newline();
-            self.add_code("use frame_runtime::callback::CallbackManager;");
-            self.newline();
-            self.add_code("#[allow(unused_imports)]");
-            self.newline();
-            self.add_code("use frame_runtime::environment::{Environment, EMPTY};");
-            self.newline();
-            self.add_code("use frame_runtime::machine::StateMachine;");
-            self.newline();
-            self.add_code("#[allow(unused_imports)]");
-            self.newline();
-            self.add_code("use frame_runtime::state::State;");
+            self.add_code("use frame_runtime::*;");
             self.newline();
         }
 
@@ -2626,29 +3281,38 @@ impl AstVisitor for RustVisitor {
             self.generate_environment_impl(true, &self.system_type_name(), domain_vars);
 
             self.add_code(&format!(
-                "impl{0} StateMachine{0} for {1}{0}",
+                "impl{0} MachineInstance{0} for {1}{0}",
                 self.lifetime_type_annotation(),
                 self.system_type_name()
             ));
             self.enter_block();
 
-            self.add_code("fn current_state(&self) -> Ref<dyn State>");
+            self.add_code("fn info(&self) -> &'static dyn MachineInfo");
+            self.enter_block();
+            self.add_code(&format!(
+                "{}::{}",
+                self.config.code.runtime_info_module_name, self.config.code.machine_info_const_name,
+            ));
+            self.exit_block();
+            self.newline();
+
+            self.add_code("fn state(&self) -> Ref<dyn StateInstance>");
             self.enter_block();
             if self.generate_state_context {
                 self.add_code(&format!(
-                    "self.{}.as_ref().as_runtime_state()",
+                    "self.{}.as_ref().as_state_instance()",
                     self.config.code.state_context_var_name
                 ));
             } else {
                 self.add_code(&format!(
-                    "Ref::map(self.{}.borrow(), |s| s as &dyn State)",
+                    "Ref::map(self.{}.borrow(), |s| s as &dyn StateInstance)",
                     self.config.code.state_cell_var_name
                 ));
             }
             self.exit_block();
             self.newline();
 
-            self.add_code("fn domain_variables(&self) -> &dyn Environment");
+            self.add_code("fn variables(&self) -> &dyn Environment");
             self.enter_block();
             self.add_code("self");
             self.exit_block();
@@ -2683,6 +3347,23 @@ impl AstVisitor for RustVisitor {
             self.has_states = true;
         }
 
+        // generate static link to machine info
+        if self.config.features.runtime_support {
+            self.newline();
+            self.newline();
+            self.add_code(&format!(
+                "pub fn {}() -> &'static dyn MachineInfo",
+                self.config.code.machine_info_function_name,
+            ));
+            self.enter_block();
+            self.add_code(&format!(
+                "{}::{}",
+                self.config.code.runtime_info_module_name, self.config.code.machine_info_const_name,
+            ));
+            self.exit_block();
+        }
+
+        // generate constructor and initialize method
         if self.has_states {
             self.newline();
             self.newline();
@@ -2737,6 +3418,13 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.add_code("} // end system controller");
         self.newline();
+
+        // Generate runtime info module used by implementations of the runtime interface
+        if self.config.features.runtime_support {
+            self.newline();
+            self.generate_runtime_info(system_node);
+            self.newline();
+        }
 
         if let Some(actions_block_node) = &system_node.actions_block_node_opt {
             actions_block_node.accept_rust_impl(self);
@@ -4430,7 +5118,7 @@ impl AstVisitor for RustVisitor {
     fn visit_domain_variable_decl_node(&mut self, variable_decl_node: &VariableDeclNode) {
         let var_type = match &variable_decl_node.type_opt {
             Some(x) => x.get_type_str(),
-            None => String::from("<?>"),
+            None => String::from("<?>"), // TODO this should generate an error instead
         };
         let var_name = self.format_value_name(&variable_decl_node.name);
         self.newline();
