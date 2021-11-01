@@ -1068,8 +1068,8 @@ impl RustVisitor {
         self.exit_block();
         self.newline();
 
-        // is_state_stack_pop()
-        self.add_code("fn is_state_stack_pop(&self) -> bool");
+        // is_stack_pop()
+        self.add_code("fn is_stack_pop(&self) -> bool");
         self.enter_block();
         self.add_code("true");
         self.exit_block();

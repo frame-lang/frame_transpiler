@@ -96,8 +96,11 @@ pub trait StateInfo {
     /// The events that this state handles.
     fn handlers(&self) -> Vec<MethodInfo>;
 
-    /// Is this the special state-stack pop state?
-    fn is_state_stack_pop(&self) -> bool {
+    /// Is this the special state-stack pop transition target state? This method will return
+    /// `false` for any active state. However, a dummy `StateInfo` with this value set to `true`
+    /// will be used in place of a specific state in stack-pop transitions, that is, transitions
+    /// of the form `-> $$[-]` or `->> $$[-]`.
+    fn is_stack_pop(&self) -> bool {
         false
     }
 
