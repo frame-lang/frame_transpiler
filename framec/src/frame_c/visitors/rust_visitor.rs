@@ -1463,6 +1463,10 @@ impl RustVisitor {
                         let mut bound_names: Vec<String> = Vec::new();
 
                         self.disable_type_style_warnings();
+                        if self.generate_state_stack {
+                            self.add_code("#[derive(Clone)]");
+                            self.newline();
+                        }
                         self.add_code(&format!("struct {} {{", state_vars_struct_name));
                         self.indent();
                         for var_decl_node in var_decl_nodes {
@@ -1493,6 +1497,10 @@ impl RustVisitor {
                 // generate state context struct for this state
                 let context_struct_name = self.format_state_context_struct_name(&state_node.name);
                 self.disable_type_style_warnings();
+                if self.generate_state_stack {
+                    self.add_code("#[derive(Clone)]");
+                    self.newline();
+                }
                 self.add_code(&format!("struct {} {{", context_struct_name));
                 self.indent();
 
@@ -1554,6 +1562,10 @@ impl RustVisitor {
 
             // generate the enum type that unions all the state context types
             self.disable_type_style_warnings();
+            if self.generate_state_stack {
+                self.add_code("#[derive(Clone)]");
+                self.newline();
+            }
             self.add_code(&format!(
                 "enum {} {{",
                 self.config.code.state_context_type_name
@@ -2187,7 +2199,7 @@ impl RustVisitor {
         self.enter_block();
         if self.generate_state_context {
             self.add_code(&format!(
-                "self.{}.push((self.{}, Rc::clone(&self.{})));",
+                "self.{}.push((self.{}, (*self.{}).clone()));",
                 self.config.code.state_stack_var_name,
                 self.config.code.state_var_name,
                 self.config.code.state_context_var_name
@@ -2204,7 +2216,7 @@ impl RustVisitor {
         self.newline();
         if self.generate_state_context {
             self.add_code(&format!(
-                "fn {}(&mut self) -> ({}, Rc<{}>)",
+                "fn {}(&mut self) -> ({}, {})",
                 self.config.code.state_stack_pop_method_name,
                 self.state_enum_type_name(),
                 self.config.code.state_context_type_name
@@ -2552,8 +2564,25 @@ impl RustVisitor {
         has_vars
     }
 
-    /// Generate code that initializes a new state context value stored in a
-    /// local variable named `next_state_context`.
+    /// Generate a new local mutable variable named `this_state_context` containing the current
+    /// state context.
+    fn generate_this_state_context(&mut self) {
+        let state_name = &self.current_state_name_opt.as_ref().unwrap().clone();
+        self.add_code(&format!(
+            "let {0}_clone = Rc::clone(&self.{0});",
+            self.config.code.state_context_var_name
+        ));
+        self.newline();
+        self.add_code(&format!(
+            "let mut {} = {}_clone.{}().borrow_mut();",
+            self.config.code.this_state_context_var_name,
+            self.config.code.state_context_var_name,
+            self.format_state_context_method_name(state_name)
+        ));
+    }
+
+    /// Generate code that initializes a new state context value stored in a local variable named
+    /// `next_state_context`.
     fn generate_next_state_context(
         &mut self,
         target_state_name: &str,
@@ -2882,9 +2911,11 @@ impl RustVisitor {
             ));
             self.newline();
             self.add_code(&format!(
-                "let (next_state, next_state_context) = self.{}();",
+                "let (next_state, popped_state_context) = self.{}();",
                 self.config.code.state_stack_pop_method_name
             ));
+            self.newline();
+            self.add_code("let next_state_context = Rc::new(popped_state_context);");
         } else {
             self.add_code(&format!(
                 "let next_state = self.{}();",
@@ -2952,9 +2983,11 @@ impl RustVisitor {
             ));
             self.newline();
             self.add_code(&format!(
-                "let (next_state, next_state_context) = self.{}();",
+                "let (next_state, popped_state_context) = self.{}();",
                 self.config.code.state_stack_pop_method_name
             ));
+            self.newline();
+            self.add_code("let next_state_context = Rc::new(popped_state_context);");
         } else {
             self.add_code(&format!(
                 "let next_state = self.{}();",
@@ -2994,6 +3027,10 @@ impl AstVisitor for RustVisitor {
         self.add_code(&format!("// {}", self.compiler_version));
         self.newline();
         self.add_code(&system_node.header);
+        self.newline();
+        self.add_code("#[allow(unused_imports)]");
+        self.newline();
+        self.add_code("use std::borrow::Borrow;");
         self.newline();
         self.add_code("#[allow(unused_imports)]");
         self.newline();
@@ -3230,7 +3267,7 @@ impl AstVisitor for RustVisitor {
             self.newline();
             if self.generate_state_context {
                 self.add_code(&format!(
-                    "{}: Vec<({}, Rc<{}>)>,",
+                    "{}: Vec<({}, {})>,",
                     self.config.code.state_stack_var_name,
                     self.state_enum_type_name(),
                     self.config.code.state_context_type_name
@@ -3862,20 +3899,9 @@ impl AstVisitor for RustVisitor {
             self.config.code.frame_event_type_name
         ));
         self.indent();
-        let state_name = &self.current_state_name_opt.as_ref().unwrap().clone();
         if self.generate_state_context {
             self.newline();
-            self.add_code(&format!(
-                "let {0}_clone = Rc::clone(&self.{0});",
-                self.config.code.state_context_var_name
-            ));
-            self.newline();
-            self.add_code(&format!(
-                "let mut {} = {}_clone.{}().borrow_mut();",
-                self.config.code.this_state_context_var_name,
-                self.config.code.state_context_var_name,
-                self.format_state_context_method_name(state_name)
-            ));
+            self.generate_this_state_context();
         }
 
         // @TODO
@@ -4914,10 +4940,21 @@ impl AstVisitor for RustVisitor {
         {
             StateStackOperationType::Push => {
                 self.newline();
+                if self.generate_state_context {
+                    self.add_code(&format!(
+                        "drop({});",
+                        self.config.code.this_state_context_var_name
+                    ));
+                    self.newline();
+                }
                 self.add_code(&format!(
                     "self.{}();",
                     self.config.code.state_stack_push_method_name
                 ));
+                if self.generate_state_context {
+                    self.newline();
+                    self.generate_this_state_context();
+                }
             }
             StateStackOperationType::Pop => {
                 if self.generate_state_context {
