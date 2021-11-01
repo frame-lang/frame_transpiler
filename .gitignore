@@ -5,6 +5,5 @@
 *.idea
 *.iml
 
-config.yaml
-framec_tests/config.yaml
+./config.yaml
 target

@@ -1,5 +1,6 @@
 [workspace]
 members = [
     "framec",
+    "frame_runtime",
     "framec_tests",
 ]

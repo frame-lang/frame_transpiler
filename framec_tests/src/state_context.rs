@@ -1,6 +1,8 @@
-//! Tests the interaction of several features (state variables, state
-//! parameters, event parameters, event variables, return values) that are
-//! implemented via state contexts.
+//! Tests the interaction of several features (state variables, state parameters, event parameters,
+//! event variables, return values) that are implemented via state contexts, with the runtime
+//! system disabled.
+//!
+//! This is the same state machine as `state_context_runtime.rs` but with `runtime_support=false`.
 
 type Log = Vec<String>;
 include!(concat!(env!("OUT_DIR"), "/", "state_context.rs"));

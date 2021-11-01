@@ -1,3 +1,4 @@
+#[codegen.rust.features.runtime_support:bool="true"]
 #TransitParams
     -interface-
     Next

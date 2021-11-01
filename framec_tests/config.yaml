@@ -1,0 +1,4 @@
+codegen:
+  rust:
+    features:
+      generate_action_impl: false

@@ -1,3 +1,5 @@
+#[codegen.rust.features.generate_action_impl:bool="true"]
+#[codegen.rust.features.runtime_support:bool="true"]
 #Basic
     -interface-
     A
@@ -7,12 +9,12 @@
     $S0
         |>| entered("S0") ^
         |<| left("S0") ^
-        |A| -> $S1 ^
+        |A| -> "ooh" $S1 ^
 
     $S1
         |>| entered("S1") ^
         |<| left("S1") ^
-        |B| -> $S0 ^
+        |B| -> "aah" $S0 ^
 
     -actions-
     entered[msg:&String]

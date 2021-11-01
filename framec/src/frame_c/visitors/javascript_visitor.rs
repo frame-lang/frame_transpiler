@@ -1,10 +1,14 @@
+// TODO fix these issues and disable warning suppression
+#![allow(unknown_lints)]
+#![allow(clippy::branches_sharing_code)]
+#![allow(clippy::single_match)]
+#![allow(clippy::ptr_arg)]
 #![allow(non_snake_case)]
 
-use super::super::ast::*;
-use super::super::scanner::{Token, TokenType};
-use super::super::symbol_table::SymbolType::*;
-use super::super::symbol_table::*;
-use super::super::visitors::*;
+use crate::frame_c::ast::*;
+use crate::frame_c::scanner::{Token, TokenType};
+use crate::frame_c::symbol_table::*;
+use crate::frame_c::visitors::*;
 // use yaml_rust::{YamlLoader, Yaml};
 
 pub struct JavaScriptVisitor {
@@ -83,7 +87,7 @@ impl JavaScriptVisitor {
     //* --------------------------------------------------------------------- *//
 
     pub fn get_code(&self) -> String {
-        if self.errors.len() > 0 {
+        if !self.errors.is_empty() {
             let mut error_list = String::new();
             for error in &self.errors {
                 error_list.push_str(&error.clone());
@@ -98,31 +102,31 @@ impl JavaScriptVisitor {
 
     fn get_variable_type(&self, symbol_type: &SymbolType) -> String {
         let var_type = match &*symbol_type {
-            DomainVariableSymbolT {
+            SymbolType::DomainVariable {
                 domain_variable_symbol_rcref,
             } => match &domain_variable_symbol_rcref.borrow().var_type {
                 Some(_x) => String::from(""),
                 None => String::from(""),
             },
-            StateParamSymbolT {
+            SymbolType::StateParam {
                 state_param_symbol_rcref,
             } => match &state_param_symbol_rcref.borrow().param_type_opt {
                 Some(_x) => String::from(""),
                 None => String::from(""),
             },
-            StateVariableSymbolT {
+            SymbolType::StateVariable {
                 state_variable_symbol_rcref,
             } => match &state_variable_symbol_rcref.borrow().var_type {
                 Some(_x) => String::from(""),
                 None => String::from(""),
             },
-            EventHandlerParamSymbolT {
+            SymbolType::EventHandlerParam {
                 event_handler_param_symbol_rcref,
             } => match &event_handler_param_symbol_rcref.borrow().param_type_opt {
                 Some(_x) => String::from(""),
                 None => String::from(""),
             },
-            EventHandlerVariableSymbolT {
+            SymbolType::EventHandlerVariable {
                 event_handler_variable_symbol_rcref,
             } => match &event_handler_variable_symbol_rcref.borrow().var_type {
                 Some(_x) => String::from(""),
@@ -132,7 +136,7 @@ impl JavaScriptVisitor {
             _ => panic!("TODO"),
         };
 
-        return var_type;
+        var_type
     }
 
     //* --------------------------------------------------------------------- *//
@@ -152,14 +156,14 @@ impl JavaScriptVisitor {
                 let _var_type = self.get_variable_type(&*var_symbol);
 
                 if self.visiting_call_chain_literal_variable {
-                    code.push_str("(");
+                    code.push('(');
                 }
                 code.push_str(&format!(
                     "_stateContext_.getStateArg(\"{}\")",
                     variable_node.id_node.name.lexeme
                 ));
                 if self.visiting_call_chain_literal_variable {
-                    code.push_str(")");
+                    code.push(')');
                 }
             }
             IdentifierDeclScope::StateVar => {
@@ -170,14 +174,14 @@ impl JavaScriptVisitor {
                 let _var_type = self.get_variable_type(&*var_symbol);
 
                 if self.visiting_call_chain_literal_variable {
-                    code.push_str("(");
+                    code.push('(');
                 }
                 code.push_str(&format!(
                     " _stateContext_.getStateVar(\"{}\")",
                     variable_node.id_node.name.lexeme
                 ));
                 if self.visiting_call_chain_literal_variable {
-                    code.push_str(")");
+                    code.push(')');
                 }
             }
             IdentifierDeclScope::EventHandlerParam => {
@@ -188,22 +192,22 @@ impl JavaScriptVisitor {
                 let _var_type = self.get_variable_type(&*var_symbol);
 
                 if self.visiting_call_chain_literal_variable {
-                    code.push_str("(");
+                    code.push('(');
                 }
                 code.push_str(&format!(
                     "e._parameters[\"{}\"]",
                     variable_node.id_node.name.lexeme
                 ));
                 if self.visiting_call_chain_literal_variable {
-                    code.push_str(")");
+                    code.push(')');
                 }
             }
             IdentifierDeclScope::EventHandlerVar => {
-                code.push_str(&format!("{}", variable_node.id_node.name.lexeme));
+                code.push_str(&variable_node.id_node.name.lexeme.to_string());
             }
             IdentifierDeclScope::None => {
                 // TODO: Explore labeling Variables as "extern" scope
-                code.push_str(&format!("{}", variable_node.id_node.name.lexeme));
+                code.push_str(&variable_node.id_node.name.lexeme.to_string());
             } // Actions?
             _ => panic!("Illegal scope."),
         }
@@ -237,7 +241,7 @@ impl JavaScriptVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn add_code(&mut self, s: &str) {
-        self.code.push_str(&*format!("{}", s));
+        self.code.push_str(&*s.to_string());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -255,7 +259,7 @@ impl JavaScriptVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn dent(&self) -> String {
-        return (0..self.dent).map(|_| "    ").collect::<String>();
+        (0..self.dent).map(|_| "    ").collect::<String>()
     }
 
     //* --------------------------------------------------------------------- *//
@@ -333,12 +337,12 @@ impl JavaScriptVisitor {
         self.newline();
         self.add_code("//=============== Machinery and Mechanisms ==============//");
         self.newline();
-        if let Some(_) = system_node.get_first_state() {
+        if system_node.get_first_state().is_some() {
             self.newline();
             self.add_code(&format!("let _state_ = _s{}_;", self.first_state_name));
             if self.generate_state_context {
                 self.newline();
-                self.add_code(&format!("let _stateContext_ = StateContext(_state_);"));
+                self.add_code(&"let _stateContext_ = StateContext(_state_);".to_string());
                 self.newline();
                 if self.has_states {
                     if let Some(state_symbol_rcref) =
@@ -374,95 +378,93 @@ impl JavaScriptVisitor {
                 self.newline();
                 if self.generate_state_context {
                     if self.generate_exit_args {
-                        self.add_code(&format!(
-                            "let _transition_ = function(newState,exitArgs, stateContext) {{"
-                        ));
+                        self.add_code(
+                            &"let _transition_ = function(newState,exitArgs, stateContext) {"
+                                .to_string(),
+                        );
                     } else {
-                        self.add_code(&format!(
-                            "let _transition_ = function(newState, stateContext) {{"
-                        ));
+                        self.add_code(
+                            &"let _transition_ = function(newState, stateContext) {".to_string(),
+                        );
                     }
+                } else if self.generate_exit_args {
+                    self.add_code(&"let _transition_ = function(newState,exitArgs) {".to_string());
                 } else {
-                    if self.generate_exit_args {
-                        self.add_code(&format!(
-                            "let _transition_ = function(newState,exitArgs) {{"
-                        ));
-                    } else {
-                        self.add_code(&format!("let _transition_ = function(newState) {{"));
-                    }
+                    self.add_code(&"let _transition_ = function(newState) {".to_string());
                 }
                 self.indent();
                 self.newline();
                 if self.generate_exit_args {
-                    self.add_code(&format!("let exitEvent = FrameEvent(\"<\",exitArgs);"));
+                    self.add_code(&"let exitEvent = FrameEvent(\"<\",exitArgs);".to_string());
                 } else {
-                    self.add_code(&format!("let exitEvent = FrameEvent(\"<\",null);"));
+                    self.add_code(&"let exitEvent = FrameEvent(\"<\",null);".to_string());
                 }
                 self.newline();
-                self.add_code(&format!("_state_(exitEvent);"));
+                self.add_code(&"_state_(exitEvent);".to_string());
                 self.newline();
-                self.add_code(&format!("_state_ = newState;"));
+                self.add_code(&"_state_ = newState;".to_string());
                 self.newline();
                 if self.generate_state_context {
-                    self.add_code(&format!("_stateContext_ = stateContext;"));
+                    self.add_code(&"_stateContext_ = stateContext;".to_string());
                     self.newline();
-                    self.add_code(&format!(
-                        "let enterEvent = FrameEvent(\">\",_stateContext_.getEnterArgs());"
-                    ));
+                    self.add_code(
+                        &"let enterEvent = FrameEvent(\">\",_stateContext_.getEnterArgs());"
+                            .to_string(),
+                    );
                     self.newline();
                 } else {
-                    self.add_code(&format!("let enterEvent = FrameEvent(\">\",null);"));
+                    self.add_code(&"let enterEvent = FrameEvent(\">\",null);".to_string());
                     self.newline();
                 }
-                self.add_code(&format!("_state_(enterEvent);"));
+                self.add_code(&"_state_(enterEvent);".to_string());
                 self.outdent();
                 self.newline();
-                self.add_code(&format!("}}"));
+                self.add_code(&"}".to_string());
             }
             if self.generate_state_stack {
                 self.newline();
                 self.newline();
-                self.add_code(&format!("let _stateStack_ = [];"));
+                self.add_code(&"let _stateStack_ = [];".to_string());
                 self.newline();
                 self.newline();
-                self.add_code(&format!("let  _stateStack_push_ = function (stateData) {{"));
+                self.add_code(&"let  _stateStack_push_ = function (stateData) {".to_string());
                 self.indent();
                 self.newline();
-                self.add_code(&format!("_stateStack_.push(stateData);"));
+                self.add_code(&"_stateStack_.push(stateData);".to_string());
                 self.outdent();
                 self.newline();
-                self.add_code(&format!("}}"));
+                self.add_code(&"}".to_string());
                 self.newline();
                 self.newline();
-                self.add_code(&format!("let _stateStack_pop_ = function() {{"));
+                self.add_code(&"let _stateStack_pop_ = function() {".to_string());
                 self.indent();
                 self.newline();
-                self.add_code(&format!("return _stateStack_.pop();"));
+                self.add_code(&"return _stateStack_.pop();".to_string());
                 self.outdent();
                 self.newline();
-                self.add_code(&format!("}}"));
+                self.add_code(&"}".to_string());
             }
             if self.generate_change_state {
                 self.newline();
                 self.newline();
-                self.add_code(&format!("let _changeState_ = function(newState) {{"));
+                self.add_code(&"let _changeState_ = function(newState) {".to_string());
                 self.indent();
                 self.newline();
-                self.add_code(&format!("_state_ = newState;"));
+                self.add_code(&"_state_ = newState;".to_string());
                 self.outdent();
                 self.newline();
-                self.add_code(&format!("}}"));
+                self.add_code(&"}".to_string());
             }
 
             if self.arcanium.is_serializable() {
                 self.newline();
                 for line in self.serialize.iter() {
-                    self.code.push_str(&*format!("{}", line));
+                    self.code.push_str(&*line.to_string());
                     self.code.push_str(&*format!("\n{}", self.dent()));
                 }
 
                 for line in self.deserialize.iter() {
-                    self.code.push_str(&*format!("{}", line));
+                    self.code.push_str(&*line.to_string());
                     self.code.push_str(&*format!("\n{}", self.dent()));
                 }
             }
@@ -473,7 +475,7 @@ impl JavaScriptVisitor {
 
     fn generate_subclass(&mut self) {
         for line in self.subclass_code.iter() {
-            self.code.push_str(&*format!("{}", line));
+            self.code.push_str(&*line.to_string());
             self.code.push_str(&*format!("\n{}", self.dent()));
         }
     }
@@ -487,7 +489,7 @@ impl JavaScriptVisitor {
             && line >= self.comments[self.current_comment_idx].line
         {
             let comment = &self.comments[self.current_comment_idx];
-            if comment.token_type == TokenType::SingleLineCommentTok {
+            if comment.token_type == TokenType::SingleLineComment {
                 self.code
                     .push_str(&*format!("  // {}", &comment.lexeme[3..]));
                 self.code.push_str(&*format!(
@@ -498,7 +500,7 @@ impl JavaScriptVisitor {
                 let len = &comment.lexeme.len() - 3;
                 self.code
                     .push_str(&*format!("/* {}", &comment.lexeme[3..len]));
-                self.code.push_str(&*format!("*/"));
+                self.code.push_str(&*"*/".to_string());
             }
 
             self.current_comment_idx += 1;
@@ -545,7 +547,7 @@ impl JavaScriptVisitor {
             }
         };
 
-        let state_ref_code = format!("{}", self.format_target_state_name(target_state_name));
+        let state_ref_code = self.format_target_state_name(target_state_name);
 
         self.newline();
         match &transition_statement.label_opt {
@@ -565,7 +567,7 @@ impl JavaScriptVisitor {
 
         let mut has_exit_args = false;
         if let Some(exit_args) = &transition_statement.exit_args_opt {
-            if exit_args.exprs_t.len() > 0 {
+            if !exit_args.exprs_t.is_empty() {
                 has_exit_args = true;
 
                 // Note - searching for event keyed with "State:<"
@@ -575,7 +577,7 @@ impl JavaScriptVisitor {
                 if let Some(state_name) = &self.current_state_name_opt {
                     msg = state_name.clone();
                 }
-                msg.push_str(":");
+                msg.push(':');
                 msg.push_str(&self.symbol_config.exit_msg_symbol);
 
                 if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt)
@@ -632,7 +634,7 @@ impl JavaScriptVisitor {
             // e.g. "S1:>"
 
             let mut msg: String = String::from(target_state_name);
-            msg.push_str(":");
+            msg.push(':');
             msg.push_str(&self.symbol_config.enter_msg_symbol);
 
             if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt) {
@@ -682,7 +684,7 @@ impl JavaScriptVisitor {
         //
         if let Some(state_args) = target_state_args_opt {
             //            let mut params_copy = Vec::new();
-            if let Some(state_sym) = self.arcanium.get_state(&target_state_name) {
+            if let Some(state_sym) = self.arcanium.get_state(target_state_name) {
                 match &state_sym.borrow().params_opt {
                     Some(event_params) => {
                         let mut param_symbols_it = event_params.iter();
@@ -721,7 +723,7 @@ impl JavaScriptVisitor {
 
         // -- State Variables --
 
-        let target_state_rcref_opt = self.arcanium.get_state(&target_state_name);
+        let target_state_rcref_opt = self.arcanium.get_state(target_state_name);
 
         match target_state_rcref_opt {
             Some(q) => {
@@ -768,19 +770,17 @@ impl JavaScriptVisitor {
                     self.format_target_state_name(target_state_name)
                 ));
             }
+        } else if self.generate_exit_args {
+            self.add_code(&format!(
+                "_transition_({},{});",
+                self.format_target_state_name(target_state_name),
+                exit_args
+            ));
         } else {
-            if self.generate_exit_args {
-                self.add_code(&format!(
-                    "_transition_({},{});",
-                    self.format_target_state_name(target_state_name),
-                    exit_args
-                ));
-            } else {
-                self.add_code(&format!(
-                    "_transition_({});",
-                    self.format_target_state_name(target_state_name)
-                ));
-            }
+            self.add_code(&format!(
+                "_transition_({});",
+                self.format_target_state_name(target_state_name)
+            ));
         }
     }
 
@@ -811,7 +811,7 @@ impl JavaScriptVisitor {
         // -- Exit Arguments --
 
         if let Some(exit_args) = &transition_statement.exit_args_opt {
-            if exit_args.exprs_t.len() > 0 {
+            if !exit_args.exprs_t.is_empty() {
                 // Note - searching for event keyed with "State:<"
                 // e.g. "S1:<"
 
@@ -819,7 +819,7 @@ impl JavaScriptVisitor {
                 if let Some(state_name) = &self.current_state_name_opt {
                     msg = state_name.clone();
                 }
-                msg.push_str(":");
+                msg.push(':');
                 msg.push_str(&self.symbol_config.exit_msg_symbol);
 
                 if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt)
@@ -864,25 +864,23 @@ impl JavaScriptVisitor {
             }
         }
         if self.generate_state_context {
-            self.add_code(&format!("let stateContext = _stateStack_pop();"));
+            self.add_code(&"let stateContext = _stateStack_pop();".to_string());
         } else {
-            self.add_code(&format!("let state = _stateStack_pop_();"));
+            self.add_code(&"let state = _stateStack_pop_();".to_string());
         }
         self.newline();
         if self.generate_exit_args {
             if self.generate_state_context {
-                self.add_code(&format!(
-                    "_transition_(stateContext.state,exitArgs,stateContext);"
-                ));
+                self.add_code(
+                    &"_transition_(stateContext.state,exitArgs,stateContext);".to_string(),
+                );
             } else {
-                self.add_code(&format!("_transition_(state,exitArgs);"));
+                self.add_code(&"_transition_(state,exitArgs);".to_string());
             }
+        } else if self.generate_state_context {
+            self.add_code(&"_transition_(stateContext.state,stateContext);".to_string());
         } else {
-            if self.generate_state_context {
-                self.add_code(&format!("_transition_(stateContext.state,stateContext);"));
-            } else {
-                self.add_code(&format!("_transition_(state);"));
-            }
+            self.add_code(&"_transition_(state);".to_string());
         }
     }
 }
@@ -892,7 +890,7 @@ impl JavaScriptVisitor {
 impl AstVisitor for JavaScriptVisitor {
     //* --------------------------------------------------------------------- *//
 
-    fn visit_system_node(&mut self, system_node: &SystemNode) -> AstVisitorReturnType {
+    fn visit_system_node(&mut self, system_node: &SystemNode) {
         self.system_name = system_node.name.clone();
         self.add_code(&format!("// {}", self.compiler_version));
         self.newline();
@@ -905,14 +903,14 @@ impl AstVisitor for JavaScriptVisitor {
         self.indent();
         self.newline();
         self.newline();
-        self.add_code(&format!("let that = {{}};"));
+        self.add_code(&"let that = {};".to_string());
         self.newline();
         self.add_code(&format!("that.constructor = {};", system_node.name));
         self.newline();
 
         // First state name needed for machinery.
         // Don't generate if there isn't at least one state.
-        match (&system_node).get_first_state() {
+        match system_node.get_first_state() {
             Some(x) => {
                 self.first_state_name = x.borrow().name.clone();
                 self.has_states = true;
@@ -955,8 +953,8 @@ impl AstVisitor for JavaScriptVisitor {
             domain_block_node.accept(self);
         }
 
-        self.subclass_code.push(format!("\treturn that;"));
-        self.subclass_code.push(format!("}};"));
+        self.subclass_code.push("\treturn that;".to_string());
+        self.subclass_code.push("};".to_string());
         self.subclass_code.push("********************/".to_string());
 
         self.serialize.push("".to_string());
@@ -987,30 +985,18 @@ impl AstVisitor for JavaScriptVisitor {
         self.newline();
 
         self.generate_subclass();
-
-        AstVisitorReturnType::SystemNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_frame_messages_enum(
-        &mut self,
-        _interface_block_node: &InterfaceBlockNode,
-    ) -> AstVisitorReturnType {
+    fn visit_frame_messages_enum(&mut self, _interface_block_node: &InterfaceBlockNode) {
         panic!("Error - visit_frame_messages_enum() only used in Rust.");
-
-        // AstVisitorReturnType::InterfaceBlockNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_interface_parameters(
-        &mut self,
-        _interface_block_node: &InterfaceBlockNode,
-    ) -> AstVisitorReturnType {
+    fn visit_interface_parameters(&mut self, _interface_block_node: &InterfaceBlockNode) {
         panic!("visit_interface_parameters() not valid for target language.");
-
-        // AstVisitorReturnType::InterfaceBlockNode {}
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1018,7 +1004,7 @@ impl AstVisitor for JavaScriptVisitor {
     fn visit_interface_method_call_expression_node(
         &mut self,
         interface_method_call_expr_node: &InterfaceMethodCallExprNode,
-    ) -> AstVisitorReturnType {
+    ) {
         self.add_code(&format!(
             "that.{}",
             interface_method_call_expr_node.identifier.name.lexeme
@@ -1026,7 +1012,6 @@ impl AstVisitor for JavaScriptVisitor {
         interface_method_call_expr_node.call_expr_list.accept(self);
 
         // TODO: review this return as I think it is a nop.
-        AstVisitorReturnType::InterfaceMethodCallExpressionNode {}
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1035,7 +1020,7 @@ impl AstVisitor for JavaScriptVisitor {
         &mut self,
         interface_method_call_expr_node: &InterfaceMethodCallExprNode,
         output: &mut String,
-    ) -> AstVisitorReturnType {
+    ) {
         output.push_str(&format!(
             "that.{}",
             interface_method_call_expr_node.identifier.name.lexeme
@@ -1045,15 +1030,11 @@ impl AstVisitor for JavaScriptVisitor {
             .accept_to_string(self, output);
 
         // TODO: review this return as I think it is a nop.
-        AstVisitorReturnType::InterfaceMethodCallExpressionNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_interface_block_node(
-        &mut self,
-        interface_block_node: &InterfaceBlockNode,
-    ) -> AstVisitorReturnType {
+    fn visit_interface_block_node(&mut self, interface_block_node: &InterfaceBlockNode) {
         self.newline();
         self.add_code("//===================== Interface Block ===================//");
         self.newline();
@@ -1062,15 +1043,11 @@ impl AstVisitor for JavaScriptVisitor {
             let interface_method_node = interface_method_node_rcref.borrow();
             interface_method_node.accept(self);
         }
-        AstVisitorReturnType::InterfaceBlockNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_interface_method_node(
-        &mut self,
-        interface_method_node: &InterfaceMethodNode,
-    ) -> AstVisitorReturnType {
+    fn visit_interface_method_node(&mut self, interface_method_node: &InterfaceMethodNode) {
         let mut call_params = String::new();
         let mut send_params = String::new();
 
@@ -1122,30 +1099,25 @@ impl AstVisitor for JavaScriptVisitor {
             ));
         }
         self.newline();
-        self.add_code(&format!("_state_(e);"));
+        self.add_code(&"_state_(e);".to_string());
 
         match &interface_method_node.return_type_opt {
             Some(_return_type) => {
                 self.newline();
-                self.add_code(&format!("return e._return;"));
+                self.add_code(&"return e._return;".to_string());
             }
             None => {}
         }
 
         self.outdent();
         self.newline();
-        self.add_code(&format!("}}"));
+        self.add_code(&"}".to_string());
         self.newline();
-
-        AstVisitorReturnType::InterfaceMethodNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_machine_block_node(
-        &mut self,
-        machine_block_node: &MachineBlockNode,
-    ) -> AstVisitorReturnType {
+    fn visit_machine_block_node(&mut self, machine_block_node: &MachineBlockNode) {
         self.newline();
         self.add_code("//===================== Machine Block ===================//");
 
@@ -1171,16 +1143,11 @@ impl AstVisitor for JavaScriptVisitor {
 
         self.deserialize.push("\t}".to_string());
         self.deserialize.push("".to_string());
-
-        AstVisitorReturnType::MachineBlockNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_actions_block_node(
-        &mut self,
-        actions_block_node: &ActionsBlockNode,
-    ) -> AstVisitorReturnType {
+    fn visit_actions_block_node(&mut self, actions_block_node: &ActionsBlockNode) {
         self.newline();
         self.newline();
         self.add_code("//===================== Actions Block ===================//");
@@ -1190,32 +1157,23 @@ impl AstVisitor for JavaScriptVisitor {
             let action_decl_node = action_decl_node_rcref.borrow();
             action_decl_node.accept(self);
         }
-
-        AstVisitorReturnType::ActionBlockNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_node_rust_trait(&mut self, _: &ActionsBlockNode) -> AstVisitorReturnType {
+    fn visit_action_node_rust_trait(&mut self, _: &ActionsBlockNode) {
         panic!("Error - visit_action_node_rust_trait() not implemented.");
-
-        // AstVisitorReturnType::ActionBlockNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_actions_node_rust_impl(&mut self, _: &ActionsBlockNode) -> AstVisitorReturnType {
+    fn visit_actions_node_rust_impl(&mut self, _: &ActionsBlockNode) {
         panic!("Error - visit_actions_node_rust_impl() not implemented.");
-
-        // AstVisitorReturnType::ActionBlockNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_domain_block_node(
-        &mut self,
-        domain_block_node: &DomainBlockNode,
-    ) -> AstVisitorReturnType {
+    fn visit_domain_block_node(&mut self, domain_block_node: &DomainBlockNode) {
         self.newline();
         self.newline();
         self.add_code("//===================== Domain Block ===================//");
@@ -1225,13 +1183,11 @@ impl AstVisitor for JavaScriptVisitor {
             let variable_decl_node = variable_decl_node_rcref.borrow();
             variable_decl_node.accept(self);
         }
-
-        AstVisitorReturnType::DomainBlockNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_state_node(&mut self, state_node: &StateNode) -> AstVisitorReturnType {
+    fn visit_state_node(&mut self, state_node: &StateNode) {
         self.generate_comment(state_node.line);
         self.current_state_name_opt = Some(state_node.name.clone());
         self.newline();
@@ -1265,7 +1221,7 @@ impl AstVisitor for JavaScriptVisitor {
 
         self.first_event_handler = true; // context for formatting
 
-        if state_node.evt_handlers_rcref.len() > 0 {
+        if !state_node.evt_handlers_rcref.is_empty() {
             for evt_handler_node in &state_node.evt_handlers_rcref {
                 evt_handler_node.as_ref().borrow().accept(self);
             }
@@ -1283,15 +1239,11 @@ impl AstVisitor for JavaScriptVisitor {
         self.add_code("}");
 
         self.current_state_name_opt = None;
-        AstVisitorReturnType::StateNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_event_handler_node(
-        &mut self,
-        evt_handler_node: &EventHandlerNode,
-    ) -> AstVisitorReturnType {
+    fn visit_event_handler_node(&mut self, evt_handler_node: &EventHandlerNode) {
         self.newline();
         self.generate_comment(evt_handler_node.line);
         //        let mut generate_final_close_paren = true;
@@ -1308,10 +1260,10 @@ impl AstVisitor for JavaScriptVisitor {
             // AnyMessage ( ||* )
             if self.first_event_handler {
                 // This logic is for when there is only the catch all event handler ||*
-                self.add_code(&format!("if (true) {{"));
+                self.add_code(&"if (true) {".to_string());
             } else {
                 // other event handlers preceded ||*
-                self.add_code(&format!("else {{"));
+                self.add_code(&"else {".to_string());
             }
         }
         self.generate_comment(evt_handler_node.line);
@@ -1319,7 +1271,7 @@ impl AstVisitor for JavaScriptVisitor {
         self.indent();
         if evt_handler_node.event_handler_has_transition && self.generate_state_context {
             self.newline();
-            self.add_code(&format!("let stateContext = null;"));
+            self.add_code(&"let stateContext = null;".to_string());
         }
 
         match &evt_handler_node.msg_t {
@@ -1360,12 +1312,10 @@ impl AstVisitor for JavaScriptVisitor {
         terminator_node.accept(self);
         self.outdent();
         self.newline();
-        self.add_code(&format!("}}"));
+        self.add_code(&"}".to_string());
 
         // this controls formatting here
         self.first_event_handler = false;
-
-        AstVisitorReturnType::EventHandlerNode {}
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1373,12 +1323,12 @@ impl AstVisitor for JavaScriptVisitor {
     fn visit_event_handler_terminator_node(
         &mut self,
         evt_handler_terminator_node: &TerminatorExpr,
-    ) -> AstVisitorReturnType {
+    ) {
         self.newline();
         match &evt_handler_terminator_node.terminator_type {
             TerminatorType::Return => match &evt_handler_terminator_node.return_expr_t_opt {
                 Some(expr_t) => {
-                    self.add_code(&format!("e._return = "));
+                    self.add_code(&"e._return = ".to_string());
                     expr_t.accept(self);
                     self.newline();
                     self.add_code("return;");
@@ -1390,40 +1340,31 @@ impl AstVisitor for JavaScriptVisitor {
                 // self.add_code("break;")
             }
         }
-
-        AstVisitorReturnType::EventHandlerTerminatorNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_statement_node(
-        &mut self,
-        method_call_statement: &CallStmtNode,
-    ) -> AstVisitorReturnType {
+    fn visit_call_statement_node(&mut self, method_call_statement: &CallStmtNode) {
         self.newline();
         method_call_statement.call_expr_node.accept(self);
-        self.add_code(&format!(";"));
-
-        AstVisitorReturnType::CallStatementNode {}
+        self.add_code(&";".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_expression_node(&mut self, method_call: &CallExprNode) -> AstVisitorReturnType {
+    fn visit_call_expression_node(&mut self, method_call: &CallExprNode) {
         if let Some(call_chain) = &method_call.call_chain {
             for callable in call_chain {
                 callable.callable_accept(self);
-                self.add_code(&format!("."));
+                self.add_code(&".".to_string());
             }
         }
 
-        self.add_code(&format!("{}", method_call.identifier.name.lexeme));
+        self.add_code(&method_call.identifier.name.lexeme.to_string());
 
         method_call.call_expr_list.accept(self);
 
         self.add_code(&format!(""));
-
-        AstVisitorReturnType::CallExpressionNode {}
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1432,41 +1373,34 @@ impl AstVisitor for JavaScriptVisitor {
         &mut self,
         method_call: &CallExprNode,
         output: &mut String,
-    ) -> AstVisitorReturnType {
+    ) {
         if let Some(call_chain) = &method_call.call_chain {
             for callable in call_chain {
                 callable.callable_accept(self);
-                output.push_str(&format!("."));
+                output.push_str(&".".to_string());
             }
         }
 
-        output.push_str(&format!("{}", method_call.identifier.name.lexeme));
+        output.push_str(&method_call.identifier.name.lexeme.to_string());
 
         method_call.call_expr_list.accept_to_string(self, output);
 
         output.push_str(&format!(""));
-
-        AstVisitorReturnType::CallExpressionNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_expr_list_node(
-        &mut self,
-        call_expr_list: &CallExprListNode,
-    ) -> AstVisitorReturnType {
+    fn visit_call_expr_list_node(&mut self, call_expr_list: &CallExprListNode) {
         let mut separator = "";
-        self.add_code(&format!("("));
+        self.add_code(&"(".to_string());
 
         for expr in &call_expr_list.exprs_t {
-            self.add_code(&format!("{}", separator));
+            self.add_code(&separator.to_string());
             expr.accept(self);
             separator = ",";
         }
 
-        self.add_code(&format!(")"));
-
-        AstVisitorReturnType::CallExprListNode {}
+        self.add_code(&")".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1475,34 +1409,27 @@ impl AstVisitor for JavaScriptVisitor {
         &mut self,
         call_expr_list: &CallExprListNode,
         output: &mut String,
-    ) -> AstVisitorReturnType {
+    ) {
         let mut separator = "";
-        output.push_str(&format!("("));
+        output.push_str(&"(".to_string());
 
         for expr in &call_expr_list.exprs_t {
-            output.push_str(&format!("{}", separator));
+            output.push_str(&separator.to_string());
             expr.accept_to_string(self, output);
             separator = ",";
         }
 
-        output.push_str(&format!(")"));
-
-        AstVisitorReturnType::CallExprListNode {}
+        output.push_str(&")".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_call_expression_node(
-        &mut self,
-        action_call: &ActionCallExprNode,
-    ) -> AstVisitorReturnType {
+    fn visit_action_call_expression_node(&mut self, action_call: &ActionCallExprNode) {
         let action_name = self.format_action_name(&action_call.identifier.name.lexeme);
-        self.add_code(&format!("{}", action_name));
+        self.add_code(&action_name);
         action_call.call_expr_list.accept(self);
 
         self.add_code(&format!(""));
-
-        AstVisitorReturnType::ActionCallExpressionNode {}
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1511,33 +1438,23 @@ impl AstVisitor for JavaScriptVisitor {
         &mut self,
         action_call: &ActionCallExprNode,
         output: &mut String,
-    ) -> AstVisitorReturnType {
+    ) {
         let action_name = self.format_action_name(&action_call.identifier.name.lexeme);
-        output.push_str(&format!("{}", action_name));
+        output.push_str(&action_name);
         action_call.call_expr_list.accept_to_string(self, output);
-
-        AstVisitorReturnType::ActionCallExpressionNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_call_statement_node(
-        &mut self,
-        action_call_stmt_node: &ActionCallStmtNode,
-    ) -> AstVisitorReturnType {
+    fn visit_action_call_statement_node(&mut self, action_call_stmt_node: &ActionCallStmtNode) {
         self.newline();
         action_call_stmt_node.action_call_expr_node.accept(self);
-        self.add_code(&format!(";"));
-
-        AstVisitorReturnType::ActionCallStatementNode {}
+        self.add_code(&";".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_transition_statement_node(
-        &mut self,
-        transition_statement: &TransitionStatementNode,
-    ) -> AstVisitorReturnType {
+    fn visit_transition_statement_node(&mut self, transition_statement: &TransitionStatementNode) {
         match &transition_statement.target_state_context_t {
             StateContextType::StateRef { .. } => {
                 self.generate_state_ref_transition(transition_statement)
@@ -1546,16 +1463,12 @@ impl AstVisitor for JavaScriptVisitor {
                 self.generate_state_stack_pop_transition(transition_statement)
             }
         };
-
-        AstVisitorReturnType::CallStatementNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_state_ref_node(&mut self, state_ref: &StateRefNode) -> AstVisitorReturnType {
-        self.add_code(&format!("{}", state_ref.name));
-
-        AstVisitorReturnType::StateRefNode {}
+    fn visit_state_ref_node(&mut self, state_ref: &StateRefNode) {
+        self.add_code(&state_ref.name.to_string());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1563,43 +1476,34 @@ impl AstVisitor for JavaScriptVisitor {
     fn visit_change_state_statement_node(
         &mut self,
         change_state_stmt_node: &ChangeStateStatementNode,
-    ) -> AstVisitorReturnType {
+    ) {
         match &change_state_stmt_node.state_context_t {
             StateContextType::StateRef { .. } => {
                 self.generate_state_ref_change_state(change_state_stmt_node)
             }
             StateContextType::StateStackPop {} => panic!("TODO - not implemented"),
         };
-
-        AstVisitorReturnType::ChangeStateStmtNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
     // TODO: ??
-    fn visit_parameter_node(&mut self, _parameter_node: &ParameterNode) -> AstVisitorReturnType {
+    fn visit_parameter_node(&mut self, _parameter_node: &ParameterNode) {
         // self.add_code(&format!("{}",parameter_node.name));
-
-        AstVisitorReturnType::ParameterNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_dispatch_node(&mut self, dispatch_node: &DispatchNode) -> AstVisitorReturnType {
+    fn visit_dispatch_node(&mut self, dispatch_node: &DispatchNode) {
         self.newline();
         self.add_code(&format!("_s{}_(e);", dispatch_node.target_state_ref.name));
         self.generate_comment(dispatch_node.line);
         self.newline();
-
-        AstVisitorReturnType::DispatchNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_test_statement_node(
-        &mut self,
-        test_stmt_node: &TestStatementNode,
-    ) -> AstVisitorReturnType {
+    fn visit_test_statement_node(&mut self, test_stmt_node: &TestStatementNode) {
         match &test_stmt_node.test_t {
             TestType::BoolTest { bool_test_node } => {
                 bool_test_node.accept(self);
@@ -1615,13 +1519,11 @@ impl AstVisitor for JavaScriptVisitor {
                 number_match_test_node.accept(self);
             }
         }
-
-        AstVisitorReturnType::TestStatementNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_bool_test_node(&mut self, bool_test_node: &BoolTestNode) -> AstVisitorReturnType {
+    fn visit_bool_test_node(&mut self, bool_test_node: &BoolTestNode) {
         let mut if_or_else_if = "if ";
 
         self.newline();
@@ -1635,16 +1537,16 @@ impl AstVisitor for JavaScriptVisitor {
             branch_node.expr_t.accept(self);
 
             if branch_node.is_negated {
-                self.add_code(&format!(")"));
+                self.add_code(&")".to_string());
             }
-            self.add_code(&format!(") {{"));
+            self.add_code(&") {".to_string());
             self.indent();
 
             branch_node.accept(self);
 
             self.outdent();
             self.newline();
-            self.add_code(&format!("}}"));
+            self.add_code(&"}".to_string());
 
             if_or_else_if = " else if ";
         }
@@ -1653,8 +1555,6 @@ impl AstVisitor for JavaScriptVisitor {
         if let Some(bool_test_else_branch_node) = &bool_test_node.else_branch_node_opt {
             bool_test_else_branch_node.accept(self);
         }
-
-        AstVisitorReturnType::BoolTestNode {}
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1662,13 +1562,12 @@ impl AstVisitor for JavaScriptVisitor {
     fn visit_call_chain_literal_statement_node(
         &mut self,
         method_call_chain_literal_stmt_node: &CallChainLiteralStmtNode,
-    ) -> AstVisitorReturnType {
+    ) {
         self.newline();
         method_call_chain_literal_stmt_node
             .call_chain_literal_expr_node
             .accept(self);
-        self.add_code(&format!(";"));
-        AstVisitorReturnType::CallChainLiteralStmtNode {}
+        self.add_code(&";".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1676,13 +1575,13 @@ impl AstVisitor for JavaScriptVisitor {
     fn visit_call_chain_literal_expr_node(
         &mut self,
         method_call_chain_expression_node: &CallChainLiteralExprNode,
-    ) -> AstVisitorReturnType {
+    ) {
         // TODO: maybe put this in an AST node
 
         let mut separator = "";
 
         for node in &method_call_chain_expression_node.call_chain {
-            self.add_code(&format!("{}", separator));
+            self.add_code(&separator.to_string());
             match &node {
                 CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
                     id_node.accept(self);
@@ -1708,8 +1607,6 @@ impl AstVisitor for JavaScriptVisitor {
             }
             separator = ".";
         }
-
-        AstVisitorReturnType::CallChainLiteralExprNode {}
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1718,11 +1615,11 @@ impl AstVisitor for JavaScriptVisitor {
         &mut self,
         method_call_chain_expression_node: &CallChainLiteralExprNode,
         output: &mut String,
-    ) -> AstVisitorReturnType {
+    ) {
         let mut separator = "";
 
         for node in &method_call_chain_expression_node.call_chain {
-            output.push_str(&format!("{}", separator));
+            output.push_str(&separator.to_string());
             match &node {
                 CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
                     id_node.accept_to_string(self, output);
@@ -1746,7 +1643,6 @@ impl AstVisitor for JavaScriptVisitor {
             }
             separator = ".";
         }
-        AstVisitorReturnType::CallChainLiteralExprNode {}
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1754,7 +1650,7 @@ impl AstVisitor for JavaScriptVisitor {
     fn visit_bool_test_conditional_branch_node(
         &mut self,
         bool_test_true_branch_node: &BoolTestConditionalBranchNode,
-    ) -> AstVisitorReturnType {
+    ) {
         self.visit_decl_stmts(&bool_test_true_branch_node.statements);
 
         match &bool_test_true_branch_node.branch_terminator_expr_opt {
@@ -1763,7 +1659,7 @@ impl AstVisitor for JavaScriptVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code(&format!("e._return = "));
+                            self.add_code(&"e._return = ".to_string());
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
@@ -1778,8 +1674,6 @@ impl AstVisitor for JavaScriptVisitor {
             }
             None => {}
         }
-
-        AstVisitorReturnType::BoolTestConditionalBranchNode {}
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1787,8 +1681,8 @@ impl AstVisitor for JavaScriptVisitor {
     fn visit_bool_test_else_branch_node(
         &mut self,
         bool_test_else_branch_node: &BoolTestElseBranchNode,
-    ) -> AstVisitorReturnType {
-        self.add_code(&format!(" else {{"));
+    ) {
+        self.add_code(&" else {".to_string());
         self.indent();
 
         self.visit_decl_stmts(&bool_test_else_branch_node.statements);
@@ -1800,7 +1694,7 @@ impl AstVisitor for JavaScriptVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code(&format!("e._return = ",));
+                            self.add_code(&"e._return = ".to_string());
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
@@ -1818,17 +1712,12 @@ impl AstVisitor for JavaScriptVisitor {
 
         self.outdent();
         self.newline();
-        self.add_code(&format!("}}"));
-
-        AstVisitorReturnType::BoolTestElseBranchNode {}
+        self.add_code(&"}".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_string_match_test_node(
-        &mut self,
-        string_match_test_node: &StringMatchTestNode,
-    ) -> AstVisitorReturnType {
+    fn visit_string_match_test_node(&mut self, string_match_test_node: &StringMatchTestNode) {
         let mut if_or_else_if = "if";
 
         self.newline();
@@ -1865,7 +1754,7 @@ impl AstVisitor for JavaScriptVisitor {
                     self.add_code(&format!(" == \"{}\")", match_string));
                     first_match = false;
                 } else {
-                    self.add_code(&format!(" || ("));
+                    self.add_code(&" || (".to_string());
                     match &string_match_test_node.expr_t {
                         ExprType::CallExprT {
                             call_expr_node: method_call_expr_node,
@@ -1882,14 +1771,14 @@ impl AstVisitor for JavaScriptVisitor {
                     self.add_code(&format!(" == \"{}\")", match_string));
                 }
             }
-            self.add_code(&format!(") {{"));
+            self.add_code(&") {".to_string());
             self.indent();
 
             match_branch_node.accept(self);
 
             self.outdent();
             self.newline();
-            self.add_code(&format!("}}"));
+            self.add_code(&"}".to_string());
 
             if_or_else_if = " else if";
         }
@@ -1898,8 +1787,6 @@ impl AstVisitor for JavaScriptVisitor {
         if let Some(string_match_else_branch_node) = &string_match_test_node.else_branch_node_opt {
             string_match_else_branch_node.accept(self);
         }
-
-        AstVisitorReturnType::StringMatchTestNode {}
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1907,7 +1794,7 @@ impl AstVisitor for JavaScriptVisitor {
     fn visit_string_match_test_match_branch_node(
         &mut self,
         string_match_test_match_branch_node: &StringMatchTestMatchBranchNode,
-    ) -> AstVisitorReturnType {
+    ) {
         //        self.indent();
         self.visit_decl_stmts(&string_match_test_match_branch_node.statements);
 
@@ -1918,7 +1805,7 @@ impl AstVisitor for JavaScriptVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code(&format!("e._return = "));
+                            self.add_code(&"e._return = ".to_string());
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
@@ -1933,8 +1820,6 @@ impl AstVisitor for JavaScriptVisitor {
             }
             None => {}
         }
-
-        AstVisitorReturnType::StringMatchTestMatchBranchNode {}
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1942,8 +1827,8 @@ impl AstVisitor for JavaScriptVisitor {
     fn visit_string_match_test_else_branch_node(
         &mut self,
         string_match_test_else_branch_node: &StringMatchTestElseBranchNode,
-    ) -> AstVisitorReturnType {
-        self.add_code(&format!(" else {{"));
+    ) {
+        self.add_code(&" else {".to_string());
         self.indent();
 
         self.visit_decl_stmts(&string_match_test_else_branch_node.statements);
@@ -1955,7 +1840,7 @@ impl AstVisitor for JavaScriptVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code(&format!("e._return = ",));
+                            self.add_code(&"e._return = ".to_string());
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
@@ -1973,9 +1858,7 @@ impl AstVisitor for JavaScriptVisitor {
 
         self.outdent();
         self.newline();
-        self.add_code(&format!("}}"));
-
-        AstVisitorReturnType::StringMatchElseBranchNode {}
+        self.add_code(&"}".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1983,18 +1866,14 @@ impl AstVisitor for JavaScriptVisitor {
     fn visit_string_match_test_pattern_node(
         &mut self,
         _string_match_test_else_branch_node: &StringMatchTestPatternNode,
-    ) -> AstVisitorReturnType {
+    ) {
         // TODO
         panic!("todo");
-        //        AstVisitorReturnType::StringMatchTestPatternNode {}
     }
 
     //-----------------------------------------------------//
 
-    fn visit_number_match_test_node(
-        &mut self,
-        number_match_test_node: &NumberMatchTestNode,
-    ) -> AstVisitorReturnType {
+    fn visit_number_match_test_node(&mut self, number_match_test_node: &NumberMatchTestNode) {
         let mut if_or_else_if = "if";
 
         self.newline();
@@ -2020,7 +1899,7 @@ impl AstVisitor for JavaScriptVisitor {
                     self.add_code(&format!(" == {})", match_number.match_pattern_number));
                     first_match = false;
                 } else {
-                    self.add_code(&format!(" || ("));
+                    self.add_code(&" || (".to_string());
                     match &number_match_test_node.expr_t {
                         ExprType::CallExprT {
                             call_expr_node: method_call_expr_node,
@@ -2038,14 +1917,14 @@ impl AstVisitor for JavaScriptVisitor {
                 }
             }
 
-            self.add_code(&format!(") {{"));
+            self.add_code(&") {".to_string());
             self.indent();
 
             match_branch_node.accept(self);
 
             self.outdent();
             self.newline();
-            self.add_code(&format!("}}"));
+            self.add_code(&"}".to_string());
 
             //           self.indent();
 
@@ -2056,8 +1935,6 @@ impl AstVisitor for JavaScriptVisitor {
         if let Some(number_match_else_branch_node) = &number_match_test_node.else_branch_node_opt {
             number_match_else_branch_node.accept(self);
         }
-
-        AstVisitorReturnType::NumberMatchTestNode {}
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2065,7 +1942,7 @@ impl AstVisitor for JavaScriptVisitor {
     fn visit_number_match_test_match_branch_node(
         &mut self,
         number_match_test_match_branch_node: &NumberMatchTestMatchBranchNode,
-    ) -> AstVisitorReturnType {
+    ) {
         self.visit_decl_stmts(&number_match_test_match_branch_node.statements);
 
         // TODO - factor this out to work w/ other terminator code.
@@ -2075,7 +1952,7 @@ impl AstVisitor for JavaScriptVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code(&format!("e._return = "));
+                            self.add_code(&"e._return = ".to_string());
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
@@ -2090,8 +1967,6 @@ impl AstVisitor for JavaScriptVisitor {
             }
             None => {}
         }
-
-        AstVisitorReturnType::NumberMatchTestMatchBranchNode {}
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2099,8 +1974,8 @@ impl AstVisitor for JavaScriptVisitor {
     fn visit_number_match_test_else_branch_node(
         &mut self,
         number_match_test_else_branch_node: &NumberMatchTestElseBranchNode,
-    ) -> AstVisitorReturnType {
-        self.add_code(&format!(" else {{"));
+    ) {
+        self.add_code(&" else {".to_string());
         self.indent();
 
         self.visit_decl_stmts(&number_match_test_else_branch_node.statements);
@@ -2112,7 +1987,7 @@ impl AstVisitor for JavaScriptVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code(&format!("e._return = "));
+                            self.add_code(&"e._return = ".to_string());
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
@@ -2130,9 +2005,7 @@ impl AstVisitor for JavaScriptVisitor {
 
         self.outdent();
         self.newline();
-        self.add_code(&format!("}}"));
-
-        AstVisitorReturnType::NumberMatchElseBranchNode {}
+        self.add_code(&"}".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2140,25 +2013,21 @@ impl AstVisitor for JavaScriptVisitor {
     fn visit_number_match_test_pattern_node(
         &mut self,
         match_pattern_node: &NumberMatchTestPatternNode,
-    ) -> AstVisitorReturnType {
-        self.add_code(&format!("{}", match_pattern_node.match_pattern_number));
-
-        AstVisitorReturnType::NumberMatchTestPatternNode {}
+    ) {
+        self.add_code(&match_pattern_node.match_pattern_number.to_string());
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_expression_list_node(&mut self, expr_list: &ExprListNode) -> AstVisitorReturnType {
+    fn visit_expression_list_node(&mut self, expr_list: &ExprListNode) {
         let mut separator = "";
-        self.add_code(&format!("("));
+        self.add_code(&"(".to_string());
         for expr in &expr_list.exprs_t {
-            self.add_code(&format!("{}", separator));
+            self.add_code(&separator.to_string());
             expr.accept(self);
             separator = ",";
         }
-        self.add_code(&format!(")"));
-
-        AstVisitorReturnType::ParentheticalExpressionNode {}
+        self.add_code(&")".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2167,43 +2036,32 @@ impl AstVisitor for JavaScriptVisitor {
         &mut self,
         expr_list: &ExprListNode,
         output: &mut String,
-    ) -> AstVisitorReturnType {
+    ) {
         //        self.add_code(&format!("{}(e);\n",dispatch_node.target_state_ref.name));
 
         let mut separator = "";
-        output.push_str(&format!("("));
+        output.push_str(&"(".to_string());
         for expr in &expr_list.exprs_t {
-            output.push_str(&format!("{}", separator));
+            output.push_str(&separator.to_string());
             expr.accept_to_string(self, output);
             separator = ",";
         }
-        output.push_str(&format!(")"));
-
-        AstVisitorReturnType::ParentheticalExpressionNode {}
+        output.push_str(&")".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_literal_expression_node(
-        &mut self,
-        literal_expression_node: &LiteralExprNode,
-    ) -> AstVisitorReturnType {
+    fn visit_literal_expression_node(&mut self, literal_expression_node: &LiteralExprNode) {
         match &literal_expression_node.token_t {
-            TokenType::NumberTok => self.add_code(&format!("{}", literal_expression_node.value)),
-            TokenType::SuperStringTok => {
-                self.add_code(&format!("{}", literal_expression_node.value))
-            }
-            TokenType::StringTok => {
-                self.add_code(&format!("\"{}\"", literal_expression_node.value))
-            }
-            TokenType::TrueTok => self.add_code("true"),
-            TokenType::FalseTok => self.add_code("false"),
-            TokenType::NullTok => self.add_code("null"),
-            TokenType::NilTok => self.add_code("null"),
+            TokenType::Number => self.add_code(&literal_expression_node.value.to_string()),
+            TokenType::SuperString => self.add_code(&literal_expression_node.value.to_string()),
+            TokenType::String => self.add_code(&format!("\"{}\"", literal_expression_node.value)),
+            TokenType::True => self.add_code("true"),
+            TokenType::False => self.add_code("false"),
+            TokenType::Null => self.add_code("null"),
+            TokenType::Nil => self.add_code("null"),
             _ => panic!("TODO"),
         }
-
-        AstVisitorReturnType::ParentheticalExpressionNode {}
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2212,37 +2070,33 @@ impl AstVisitor for JavaScriptVisitor {
         &mut self,
         literal_expression_node: &LiteralExprNode,
         output: &mut String,
-    ) -> AstVisitorReturnType {
+    ) {
         // TODO: make a focused enum or the literals
         match &literal_expression_node.token_t {
-            TokenType::NumberTok => output.push_str(&format!("{}", literal_expression_node.value)),
-            TokenType::StringTok => {
+            TokenType::Number => output.push_str(&literal_expression_node.value.to_string()),
+            TokenType::String => {
                 output.push_str(&format!("\"{}\"", literal_expression_node.value));
             }
-            TokenType::TrueTok => {
+            TokenType::True => {
                 output.push_str("true");
             }
-            TokenType::FalseTok => {
+            TokenType::False => {
                 output.push_str("false");
             }
-            TokenType::NilTok => {
+            TokenType::Nil => {
                 output.push_str("null");
             }
-            TokenType::NullTok => {
+            TokenType::Null => {
                 output.push_str("null");
             }
             _ => panic!("TODO"),
         }
-
-        AstVisitorReturnType::ParentheticalExpressionNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_identifier_node(&mut self, identifier_node: &IdentifierNode) -> AstVisitorReturnType {
-        self.add_code(&format!("{}", identifier_node.name.lexeme));
-
-        AstVisitorReturnType::IdentifierNode {}
+    fn visit_identifier_node(&mut self, identifier_node: &IdentifierNode) {
+        self.add_code(&identifier_node.name.lexeme.to_string());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2251,10 +2105,8 @@ impl AstVisitor for JavaScriptVisitor {
         &mut self,
         identifier_node: &IdentifierNode,
         output: &mut String,
-    ) -> AstVisitorReturnType {
-        output.push_str(&format!("{}", identifier_node.name.lexeme));
-
-        AstVisitorReturnType::IdentifierNode {}
+    ) {
+        output.push_str(&identifier_node.name.lexeme.to_string());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2262,10 +2114,8 @@ impl AstVisitor for JavaScriptVisitor {
     fn visit_state_stack_operation_node(
         &mut self,
         _state_stack_operation_node: &StateStackOperationNode,
-    ) -> AstVisitorReturnType {
+    ) {
         //        self.add_code(&format!("{}",identifier_node.name.lexeme));
-
-        AstVisitorReturnType::StateStackOperationNode {}
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2274,10 +2124,8 @@ impl AstVisitor for JavaScriptVisitor {
         &mut self,
         _state_stack_operation_node: &StateStackOperationNode,
         _output: &mut String,
-    ) -> AstVisitorReturnType {
+    ) {
         //        self.add_code(&format!("{}",identifier_node.name.lexeme));
-
-        AstVisitorReturnType::StateStackOperationNode {}
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2285,7 +2133,7 @@ impl AstVisitor for JavaScriptVisitor {
     fn visit_state_stack_operation_statement_node(
         &mut self,
         state_stack_op_statement_node: &StateStackOperationStatementNode,
-    ) -> AstVisitorReturnType {
+    ) {
         //        self.add_code(&format!("{}",identifier_node.name.lexeme));
 
         //       panic!("TODO: how is this used?");
@@ -2297,57 +2145,46 @@ impl AstVisitor for JavaScriptVisitor {
             StateStackOperationType::Push => {
                 self.newline();
                 if self.generate_state_context {
-                    self.add_code(&format!("_stateStack_push_(_stateContext_);"));
+                    self.add_code(&"_stateStack_push_(_stateContext_);".to_string());
                 } else {
-                    self.add_code(&format!("_stateStack_push_(_state_);"));
+                    self.add_code(&"_stateStack_push_(_state_);".to_string());
                 }
             }
             StateStackOperationType::Pop => {
                 if self.generate_state_context {
-                    self.add_code(&format!("let stateContext = _stateStack_pop_()"));
+                    self.add_code(&"let stateContext = _stateStack_pop_()".to_string());
                 } else {
-                    self.add_code(&format!("FrameState state = _stateStack_pop_()"));
+                    self.add_code(&"FrameState state = _stateStack_pop_()".to_string());
                 }
             }
         }
-        AstVisitorReturnType::StateStackOperationStatementNode {}
     }
     //* --------------------------------------------------------------------- *//
 
-    fn visit_state_context_node(
-        &mut self,
-        _state_context_node: &StateContextNode,
-    ) -> AstVisitorReturnType {
+    fn visit_state_context_node(&mut self, _state_context_node: &StateContextNode) {
         // TODO
         //        self.add_code(&format!("{}",identifier_node.name.lexeme));
-
-        AstVisitorReturnType::StateContextNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_frame_event_part(
-        &mut self,
-        frame_event_part: &FrameEventPart,
-    ) -> AstVisitorReturnType {
+    fn visit_frame_event_part(&mut self, frame_event_part: &FrameEventPart) {
         // TODO: make this code generate from settings
         match frame_event_part {
             FrameEventPart::Event {
                 is_reference: _is_reference,
-            } => self.add_code(&format!("e")),
+            } => self.add_code(&"e".to_string()),
             FrameEventPart::Message {
                 is_reference: _is_reference,
-            } => self.add_code(&format!("e._message")),
+            } => self.add_code(&"e._message".to_string()),
             FrameEventPart::Param {
                 param_tok,
                 is_reference: _is_reference,
             } => self.add_code(&format!("e._parameters[\"{}\"]", param_tok.lexeme)),
             FrameEventPart::Return {
                 is_reference: _is_reference,
-            } => self.add_code(&format!("e._return")),
+            } => self.add_code(&"e._return".to_string()),
         }
-
-        AstVisitorReturnType::FrameEventExprType {}
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2356,12 +2193,12 @@ impl AstVisitor for JavaScriptVisitor {
         &mut self,
         frame_event_part: &FrameEventPart,
         output: &mut String,
-    ) -> AstVisitorReturnType {
+    ) {
         // TODO: make this code generate from settings
         match frame_event_part {
             FrameEventPart::Event {
                 is_reference: _is_reference,
-            } => output.push_str("e"),
+            } => output.push('e'),
             FrameEventPart::Message {
                 is_reference: _is_reference,
             } => output.push_str("e._message"),
@@ -2373,13 +2210,11 @@ impl AstVisitor for JavaScriptVisitor {
                 is_reference: _is_reference,
             } => output.push_str("e._return"),
         }
-
-        AstVisitorReturnType::FrameEventExprType {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_decl_node(&mut self, action_decl_node: &ActionNode) -> AstVisitorReturnType {
+    fn visit_action_decl_node(&mut self, action_decl_node: &ActionNode) {
         let mut subclass_code = String::new();
 
         self.newline();
@@ -2390,46 +2225,34 @@ impl AstVisitor for JavaScriptVisitor {
         let mut separator = "";
         if let Some(params) = &action_decl_node.params {
             for param in params {
-                self.add_code(&format!("{}", separator));
-                subclass_code.push_str(&format!("{}", separator));
+                self.add_code(&separator.to_string());
+                subclass_code.push_str(&separator.to_string());
                 separator = ",";
-                self.add_code(&format!("{}", param.param_name));
-                subclass_code.push_str(&format!("{}", param.param_name));
+                self.add_code(&param.param_name.to_string());
+                subclass_code.push_str(&param.param_name.to_string());
             }
         }
-        subclass_code.push_str(&format!(") {{}}"));
+        subclass_code.push_str(&") {}".to_string());
         self.subclass_code.push(subclass_code);
 
-        self.add_code(&format!(
-            ") {{ throw new Error('Action not implemented.'); }}"
-        ));
-
-        AstVisitorReturnType::ActionDeclNode {}
+        self.add_code(&") { throw new Error('Action not implemented.'); }".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_impl_node(&mut self, _action_decl_node: &ActionNode) -> AstVisitorReturnType {
+    fn visit_action_impl_node(&mut self, _action_decl_node: &ActionNode) {
         panic!("visit_action_impl_node() not implemented.");
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_domain_variable_decl_node(
-        &mut self,
-        variable_decl_node: &VariableDeclNode,
-    ) -> AstVisitorReturnType {
+    fn visit_domain_variable_decl_node(&mut self, variable_decl_node: &VariableDeclNode) {
         self.visit_variable_decl_node(variable_decl_node);
-
-        AstVisitorReturnType::VariableDeclNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_variable_decl_node(
-        &mut self,
-        variable_decl_node: &VariableDeclNode,
-    ) -> AstVisitorReturnType {
+    fn visit_variable_decl_node(&mut self, variable_decl_node: &VariableDeclNode) {
         let var_name = &variable_decl_node.name;
         let var_init_expr = &variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
         self.newline();
@@ -2449,17 +2272,13 @@ impl AstVisitor for JavaScriptVisitor {
             .push(format!("\tbag.domain[\"{}\"] = {};", var_name, var_name));
         self.deserialize
             .push(format!("\t{} = bag.domain[\"{}\"];", var_name, var_name));
-
-        AstVisitorReturnType::VariableDeclNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_variable_expr_node(&mut self, variable_node: &VariableNode) -> AstVisitorReturnType {
+    fn visit_variable_expr_node(&mut self, variable_node: &VariableNode) {
         let code = self.format_variable_expr(variable_node);
         self.add_code(&code);
-
-        AstVisitorReturnType::AssignmentExprNode {}
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2468,19 +2287,14 @@ impl AstVisitor for JavaScriptVisitor {
         &mut self,
         variable_node: &VariableNode,
         output: &mut String,
-    ) -> AstVisitorReturnType {
+    ) {
         let code = self.format_variable_expr(variable_node);
         output.push_str(&code);
-
-        AstVisitorReturnType::AssignmentExprNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_variable_stmt_node(
-        &mut self,
-        variable_stmt_node: &VariableStmtNode,
-    ) -> AstVisitorReturnType {
+    fn visit_variable_stmt_node(&mut self, variable_stmt_node: &VariableStmtNode) {
         // TODO: what is this line about?
         self.generate_comment(variable_stmt_node.get_line());
         self.newline();
@@ -2488,24 +2302,17 @@ impl AstVisitor for JavaScriptVisitor {
             "{};",
             variable_stmt_node.var_node.id_node.name.lexeme
         ));
-
-        AstVisitorReturnType::AssignmentExprNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_assignment_expr_node(
-        &mut self,
-        assignment_expr_node: &AssignmentExprNode,
-    ) -> AstVisitorReturnType {
+    fn visit_assignment_expr_node(&mut self, assignment_expr_node: &AssignmentExprNode) {
         self.generate_comment(assignment_expr_node.line);
         self.newline();
         assignment_expr_node.l_value_box.accept(self);
         self.add_code(" = ");
         assignment_expr_node.r_value_box.accept(self);
         self.add_code(";");
-
-        AstVisitorReturnType::AssignmentExprNode {}
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2514,7 +2321,7 @@ impl AstVisitor for JavaScriptVisitor {
         &mut self,
         assignment_expr_node: &AssignmentExprNode,
         output: &mut String,
-    ) -> AstVisitorReturnType {
+    ) {
         self.generate_comment(assignment_expr_node.line);
         self.newline();
         self.newline_to_string(output);
@@ -2525,32 +2332,23 @@ impl AstVisitor for JavaScriptVisitor {
         assignment_expr_node
             .r_value_box
             .accept_to_string(self, output);
-        output.push_str(";");
-
-        AstVisitorReturnType::AssignmentExprNode {}
+        output.push(';');
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_assignment_statement_node(
-        &mut self,
-        assignment_stmt_node: &AssignmentStmtNode,
-    ) -> AstVisitorReturnType {
+    fn visit_assignment_statement_node(&mut self, assignment_stmt_node: &AssignmentStmtNode) {
         self.generate_comment(assignment_stmt_node.get_line());
         assignment_stmt_node.assignment_expr_node.accept(self);
-
-        AstVisitorReturnType::AssignmentExprNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_unary_expr_node(&mut self, unary_expr_node: &UnaryExprNode) -> AstVisitorReturnType {
+    fn visit_unary_expr_node(&mut self, unary_expr_node: &UnaryExprNode) {
         // TODO
         //       self.generate_comment(assignment_expr_node.line);
         unary_expr_node.operator.accept(self);
         unary_expr_node.right_rcref.borrow().accept(self);
-
-        AstVisitorReturnType::UnaryExprNode {}
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2559,7 +2357,7 @@ impl AstVisitor for JavaScriptVisitor {
         &mut self,
         unary_expr_node: &UnaryExprNode,
         output: &mut String,
-    ) -> AstVisitorReturnType {
+    ) {
         // TODO
         //       self.generate_comment(assignment_expr_node.line);
         unary_expr_node.operator.accept_to_string(self, output);
@@ -2567,16 +2365,11 @@ impl AstVisitor for JavaScriptVisitor {
             .right_rcref
             .borrow()
             .accept_to_string(self, output);
-
-        AstVisitorReturnType::UnaryExprNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_binary_expr_node(
-        &mut self,
-        binary_expr_node: &BinaryExprNode,
-    ) -> AstVisitorReturnType {
+    fn visit_binary_expr_node(&mut self, binary_expr_node: &BinaryExprNode) {
         // TODO
         //       self.generate_comment(assignment_expr_node.line);
         if binary_expr_node.operator == OperatorType::LogicalXor {
@@ -2594,8 +2387,6 @@ impl AstVisitor for JavaScriptVisitor {
             binary_expr_node.operator.accept(self);
             binary_expr_node.right_rcref.borrow().accept(self);
         }
-
-        AstVisitorReturnType::BinaryExprNode {}
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2604,7 +2395,7 @@ impl AstVisitor for JavaScriptVisitor {
         &mut self,
         binary_expr_node: &BinaryExprNode,
         output: &mut String,
-    ) -> AstVisitorReturnType {
+    ) {
         if binary_expr_node.operator == OperatorType::LogicalXor {
             output.push_str("((");
             binary_expr_node
@@ -2638,13 +2429,11 @@ impl AstVisitor for JavaScriptVisitor {
                 .borrow()
                 .accept_to_string(self, output);
         }
-
-        AstVisitorReturnType::BinaryExprNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_operator_type(&mut self, operator_type: &OperatorType) -> AstVisitorReturnType {
+    fn visit_operator_type(&mut self, operator_type: &OperatorType) {
         match operator_type {
             OperatorType::Plus => self.add_code(" + "),
             OperatorType::Minus => self.add_code(" - "),
@@ -2662,35 +2451,27 @@ impl AstVisitor for JavaScriptVisitor {
             OperatorType::LogicalOr => self.add_code(" || "),
             OperatorType::LogicalXor => self.add_code(""),
         }
-
-        AstVisitorReturnType::BinaryExprNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_operator_type_to_string(
-        &mut self,
-        operator_type: &OperatorType,
-        output: &mut String,
-    ) -> AstVisitorReturnType {
+    fn visit_operator_type_to_string(&mut self, operator_type: &OperatorType, output: &mut String) {
         match operator_type {
             OperatorType::Plus => output.push_str(" + "),
             OperatorType::Minus => output.push_str(" - "),
-            OperatorType::Negated => output.push_str("-"),
+            OperatorType::Negated => output.push('-'),
             OperatorType::Multiply => output.push_str(" * "),
             OperatorType::Divide => output.push_str(" / "),
             OperatorType::Greater => output.push_str(" > "),
             OperatorType::GreaterEqual => output.push_str(" >= "),
             OperatorType::Less => output.push_str(" < "),
             OperatorType::LessEqual => output.push_str(" <= "),
-            OperatorType::Not => output.push_str("!"),
+            OperatorType::Not => output.push('!'),
             OperatorType::EqualEqual => output.push_str(" == "),
             OperatorType::NotEqual => output.push_str(" != "),
             OperatorType::LogicalAnd => output.push_str(" && "),
             OperatorType::LogicalOr => output.push_str(" || "),
             OperatorType::LogicalXor => output.push_str(""),
         }
-
-        AstVisitorReturnType::BinaryExprNode {}
     }
 }

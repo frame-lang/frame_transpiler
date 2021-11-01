@@ -4,15 +4,17 @@
 type Log = Vec<String>;
 include!(concat!(env!("OUT_DIR"), "/", "transition_params.rs"));
 
-impl TransitParams {
+impl<'a> TransitParams<'a> {
     pub fn log(&mut self, msg: String) {
-        self.tape.push(format!("{}", msg));
+        self.tape.push(msg);
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use frame_runtime::*;
+    use std::sync::Mutex;
 
     #[test]
     fn enter() {
@@ -63,5 +65,50 @@ mod tests {
         sm.next();
         assert_eq!(sm.state, TransitParamsState::A);
         assert_eq!(sm.tape, vec!["true", "bye B", "hi again A"]);
+    }
+
+    /// Test that transition callbacks get event arguments.
+    #[test]
+    fn callbacks_get_event_args() {
+        let out = Mutex::new(String::new());
+        let mut sm = TransitParams::new();
+        sm.callback_manager().add_transition_callback(|event| {
+            let mut entry = String::new();
+            if let Some(any) = event.exit_arguments.lookup("msg") {
+                entry.push_str(&format!("msg: {}, ", any.downcast_ref::<String>().unwrap()));
+            }
+            if let Some(any) = event.exit_arguments.lookup("val") {
+                entry.push_str(&format!("val: {}, ", any.downcast_ref::<bool>().unwrap()));
+            }
+            entry.push_str(&format!(
+                "{}{}{}",
+                event.old_state.info().name(),
+                match event.info.kind {
+                    TransitionKind::ChangeState => "->>",
+                    TransitionKind::Transition => "->",
+                },
+                event.new_state.info().name(),
+            ));
+            if let Some(any) = event.enter_arguments.lookup("msg") {
+                entry.push_str(&format!(", msg: {}", any.downcast_ref::<String>().unwrap()));
+            }
+            if let Some(any) = event.enter_arguments.lookup("val") {
+                entry.push_str(&format!(", val: {}", any.downcast_ref::<i16>().unwrap()));
+            }
+            *out.lock().unwrap() = entry;
+        });
+        sm.next();
+        assert_eq!(*out.lock().unwrap(), "Init->A, msg: hi A");
+        sm.next();
+        assert_eq!(*out.lock().unwrap(), "A->B, msg: hi B, val: 42");
+        sm.next();
+        assert_eq!(
+            *out.lock().unwrap(),
+            "msg: bye B, val: true, B->A, msg: hi again A"
+        );
+        sm.change();
+        assert_eq!(*out.lock().unwrap(), "A->>B");
+        sm.change();
+        assert_eq!(*out.lock().unwrap(), "B->>A");
     }
 }

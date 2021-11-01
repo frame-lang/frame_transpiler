@@ -1,6 +1,7 @@
-use super::parser::*;
-use super::scanner::*;
-use super::symbol_table::*;
+use crate::frame_c::config::FrameConfig;
+use crate::frame_c::parser::*;
+use crate::frame_c::scanner::*;
+use crate::frame_c::symbol_table::*;
 use crate::frame_c::utils::{frame_exitcode, RunError};
 use crate::frame_c::visitors::cpp_visitor::CppVisitor;
 use crate::frame_c::visitors::cs_visitor::CsVisitor;
@@ -13,16 +14,13 @@ use crate::frame_c::visitors::python_visitor::PythonVisitor;
 use crate::frame_c::visitors::rust_visitor::RustVisitor;
 use crate::frame_c::visitors::smcat_visitor::SmcatVisitor;
 use exitcode::USAGE;
-extern crate yaml_rust;
-use self::yaml_rust::Yaml;
 use std::fs;
-use yaml_rust::YamlLoader;
-//use crate::frame_c::visitors::xtate_visitor::XStateVisitor;
+use std::path::{Path, PathBuf};
 
 /* --------------------------------------------------------------------- */
 
 static IS_DEBUG: bool = false;
-static FRAMEC_VERSION: &str = "emitted from framec_v0.6.0";
+static FRAMEC_VERSION: &str = "emitted from framec_v0.7.0";
 
 /* --------------------------------------------------------------------- */
 
@@ -45,55 +43,31 @@ impl Exe {
 
     /* --------------------------------------------------------------------- */
 
-    // Detect if config.yaml file is present in transpiler folder
-    // and load it if so. Otherwise create it from internal
-    // default_config.yaml file.
-
-    fn load_or_create_config_file(&self) -> Result<Yaml, RunError> {
-        // try to read the external config.yaml file
-        let config_yaml = match fs::read_to_string("config.yaml") {
-            Ok(value) => value,
-            Err(_err) => {
-                // doesn't exist. load internal default config
-                let default_config_yaml = include_str!("default_config.yaml");
-                // now write to disk to create the default external config file
-                match fs::write("config.yaml", default_config_yaml) {
-                    // success - just return the contents of the default
-                    Ok(_) => default_config_yaml.to_string(),
-                    Err(err) => {
-                        // error - couldn't write file
-                        let error_msg = format!("Error writing config.yaml: {}", err);
-                        let run_error =
-                            RunError::new(frame_exitcode::DEFAULT_CONFIG_ERR, &*error_msg);
-                        return Err(run_error);
-                    }
-                }
+    pub fn run_file(
+        &self,
+        config_path: &Option<PathBuf>,
+        input_path: &Path,
+        output_format: String,
+    ) -> Result<String, RunError> {
+        match fs::read_to_string(input_path) {
+            Ok(content) => {
+                Exe::debug_print(&(&content).to_string());
+                self.run(config_path, content, output_format)
             }
-        };
-
-        // parse config yaml
-        let config_result = YamlLoader::load_from_str(config_yaml.as_str());
-        match config_result {
-            Ok(config_yaml_vec) => Ok(config_yaml_vec[0].clone()),
-            Err(scan_error) => {
-                let error_msg = format!(
-                    "Error parsing default_config.yaml: {}",
-                    scan_error.to_string()
-                );
-                let run_error = RunError::new(frame_exitcode::DEFAULT_CONFIG_ERR, &*error_msg);
-                return Err(run_error);
+            Err(err) => {
+                let error_msg = format!("Error reading input file: {}", err);
+                let run_error = RunError::new(exitcode::NOINPUT, &*error_msg);
+                Err(run_error)
             }
         }
     }
 
-    /* --------------------------------------------------------------------- */
-
-    pub fn run(&self, contents: String, mut output_format: String) -> Result<String, RunError> {
-        let config_yaml = match self.load_or_create_config_file() {
-            Ok(config_yaml) => config_yaml,
-            Err(err) => return Err(err),
-        };
-
+    pub fn run(
+        &self,
+        config_path: &Option<PathBuf>,
+        content: String,
+        mut output_format: String,
+    ) -> Result<String, RunError> {
         // NOTE!!! There is a bug w/ the CLion debugger when a variable (maybe just String type)
         // isn't initialized under some circumstances. Basically the debugger
         // stops debugging or doesn't step and it looks like it hangs. To avoid
@@ -105,11 +79,11 @@ impl Exe {
         // let mut output= String::new();
 
         let output;
-        let scanner = Scanner::new(contents);
+        let scanner = Scanner::new(content);
 
         let (has_errors, errors, tokens) = scanner.scan_tokens();
         if has_errors {
-            let run_error = RunError::new(frame_exitcode::PARSE_ERR, &*errors.clone());
+            let run_error = RunError::new(frame_exitcode::PARSE_ERR, &*errors);
             return Err(run_error);
         }
 
@@ -126,7 +100,7 @@ impl Exe {
             if syntactic_parser.had_error() {
                 let mut errors = "Terminating with errors.\n".to_string();
                 errors.push_str(&syntactic_parser.get_errors());
-                let run_error = RunError::new(frame_exitcode::PARSE_ERR, &*errors.clone());
+                let run_error = RunError::new(frame_exitcode::PARSE_ERR, &errors);
                 return Err(run_error);
             }
             arcanum = syntactic_parser.get_arcanum();
@@ -138,15 +112,33 @@ impl Exe {
         if semantic_parser.had_error() {
             let mut errors = "Terminating with errors.\n".to_string();
             errors.push_str(&semantic_parser.get_errors());
-            let run_error = RunError::new(frame_exitcode::PARSE_ERR, &*errors.clone());
+            let run_error = RunError::new(frame_exitcode::PARSE_ERR, &errors);
             return Err(run_error);
         }
 
+        let generate_enter_args = semantic_parser.generate_enter_args;
         let generate_exit_args = semantic_parser.generate_exit_args;
         let generate_state_context = semantic_parser.generate_state_context;
         let generate_state_stack = semantic_parser.generate_state_stack;
         let generate_change_state = semantic_parser.generate_change_state;
         let generate_transition_state = semantic_parser.generate_transition_state;
+
+        // check for local config.yaml if no path specified
+        let mut local_config_path = config_path;
+        let config_yaml = PathBuf::from("config.yaml");
+        let some_config_yaml = Some(config_yaml.clone());
+        if local_config_path.is_none() && config_yaml.exists() {
+            local_config_path = &some_config_yaml;
+        }
+
+        // load configuration
+        let config = match FrameConfig::load(local_config_path, &system_node) {
+            Ok(cfg) => cfg,
+            Err(err) => {
+                let run_error = RunError::new(frame_exitcode::CONFIG_ERR, &err.to_string());
+                return Err(run_error);
+            }
+        };
 
         match &system_node.attributes_opt {
             Some(attributes) => {
@@ -160,7 +152,7 @@ impl Exe {
             let mut visitor = JavaScriptVisitor::new(
                 semantic_parser.get_arcanum(),
                 generate_exit_args,
-                generate_state_context,
+                generate_enter_args || generate_state_context,
                 generate_state_stack,
                 generate_change_state,
                 generate_transition_state,
@@ -172,9 +164,9 @@ impl Exe {
         } else if output_format == "cpp" {
             let mut visitor = CppVisitor::new(
                 semantic_parser.get_arcanum(),
-                &config_yaml,
+                config,
                 generate_exit_args,
-                generate_state_context,
+                generate_enter_args || generate_state_context,
                 generate_state_stack,
                 generate_change_state,
                 generate_transition_state,
@@ -187,7 +179,7 @@ impl Exe {
             let mut visitor = CsVisitorForBob::new(
                 semantic_parser.get_arcanum(),
                 generate_exit_args,
-                generate_state_context,
+                generate_enter_args || generate_state_context,
                 generate_state_stack,
                 generate_change_state,
                 generate_transition_state,
@@ -200,7 +192,7 @@ impl Exe {
             let mut visitor = CsVisitor::new(
                 semantic_parser.get_arcanum(),
                 generate_exit_args,
-                generate_state_context,
+                generate_enter_args || generate_state_context,
                 generate_state_stack,
                 generate_change_state,
                 generate_transition_state,
@@ -213,7 +205,7 @@ impl Exe {
             let mut visitor = GdScript32Visitor::new(
                 semantic_parser.get_arcanum(),
                 generate_exit_args,
-                generate_state_context,
+                generate_enter_args || generate_state_context,
                 generate_state_stack,
                 generate_change_state,
                 generate_transition_state,
@@ -226,7 +218,7 @@ impl Exe {
             let mut visitor = Java8Visitor::new(
                 semantic_parser.get_arcanum(),
                 generate_exit_args,
-                generate_state_context,
+                generate_enter_args || generate_state_context,
                 generate_state_stack,
                 generate_change_state,
                 generate_transition_state,
@@ -239,7 +231,7 @@ impl Exe {
             let mut visitor = PythonVisitor::new(
                 semantic_parser.get_arcanum(),
                 generate_exit_args,
-                generate_state_context,
+                generate_enter_args || generate_state_context,
                 generate_state_stack,
                 generate_change_state,
                 generate_transition_state,
@@ -249,13 +241,10 @@ impl Exe {
             visitor.run(&system_node);
             output = visitor.get_code();
         } else if output_format == "plantuml" {
-            // let x = (&semantic_parser).get_arcanum();
-            // semantic_parser = semantic_parser.into_inner();
-            // let y = (&semantic_parser).get_system_hierarchy();
-            let (x, y) = semantic_parser.get_all();
+            let (arcanum, system_hierarchy) = semantic_parser.get_all();
             let mut visitor = PlantUmlVisitor::new(
-                x,
-                y, //       , _generate_exit_args
+                arcanum,
+                system_hierarchy,
                 generate_state_context,
                 generate_state_stack,
                 generate_change_state,
@@ -267,21 +256,25 @@ impl Exe {
             output = visitor.get_code();
         } else if output_format == "rust" {
             let mut visitor = RustVisitor::new(
+                FRAMEC_VERSION,
+                config,
                 semantic_parser.get_arcanum(),
-                &config_yaml,
+                generate_enter_args,
                 generate_exit_args,
                 generate_state_context,
                 generate_state_stack,
                 generate_change_state,
                 generate_transition_state,
-                FRAMEC_VERSION,
                 comments,
             );
             visitor.run(&system_node);
             output = visitor.get_code();
         } else if output_format == "smcat" {
-            let (x, y) = semantic_parser.get_all();
-            let mut visitor = SmcatVisitor::new(x, y, FRAMEC_VERSION, comments);
+            let mut visitor = SmcatVisitor::new(
+                FRAMEC_VERSION,
+                config,
+                semantic_parser.get_system_hierarchy(),
+            );
             visitor.run(&system_node);
             output = visitor.get_code();
         // } else if output_format == "xstate" {
@@ -306,5 +299,11 @@ impl Exe {
         // let mut graphviz_visitor = GraphVizVisitor::new(semantic_parser.get_arcanum(), comments);
         // graphviz_visitor.run(&system_node);
         // println!("{}", graphviz_visitor.code);
+    }
+}
+
+impl Default for Exe {
+    fn default() -> Self {
+        Exe::new()
     }
 }

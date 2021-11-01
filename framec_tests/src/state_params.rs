@@ -1,7 +1,7 @@
 type Log = Vec<String>;
 include!(concat!(env!("OUT_DIR"), "/", "state_params.rs"));
 
-impl StateParams {
+impl<'a> StateParams<'a> {
     pub fn got_param(&mut self, name: String, val: u32) {
         self.param_log.push(format!("{}={}", name, val));
     }
@@ -40,5 +40,44 @@ mod tests {
         sm.prev(); // val=12
         sm.log();
         assert_eq!(sm.param_log, vec!["val=3", "left=4", "right=3", "val=12"]);
+    }
+
+    /// Helper function to lookup a `u32` value in an environment.
+    /// Returns `u32::MAX` if the lookup fails for any reason.
+    fn lookup_u32(env: &(impl Environment + ?Sized), name: &str) -> u32 {
+        match env.lookup(name) {
+            None => u32::MAX,
+            Some(any) => *any.downcast_ref().unwrap_or(&u32::MAX),
+        }
+    }
+
+    /// Tests that state arguments behave as expected when accessed via the runtime interface.
+    #[test]
+    #[rustfmt::skip]
+    fn runtime_state_arguments() {
+        let mut sm = StateParams::new();
+        assert!(sm.state().arguments().lookup("val").is_none());
+        assert!(sm.state().arguments().lookup("left").is_none());
+        assert!(sm.state().arguments().lookup("right").is_none());
+        sm.next(); // val=1
+        assert_eq!(lookup_u32(sm.state().arguments(), "val"), 1);
+        assert!(sm.state().arguments().lookup("left").is_none());
+        assert!(sm.state().arguments().lookup("right").is_none());
+        sm.next(); // left=1, right=2
+        assert!(sm.state().arguments().lookup("val").is_none());
+        assert_eq!(lookup_u32(sm.state().arguments(), "left"), 1);
+        assert_eq!(lookup_u32(sm.state().arguments(), "right"), 2);
+        sm.next(); // val=3
+        assert_eq!(lookup_u32(sm.state().arguments(), "val"), 3);
+        assert!(sm.state().arguments().lookup("left").is_none());
+        assert!(sm.state().arguments().lookup("right").is_none());
+        sm.prev(); // left=4, right=3
+        assert!(sm.state().arguments().lookup("val").is_none());
+        assert_eq!(lookup_u32(sm.state().arguments(), "left"), 4);
+        assert_eq!(lookup_u32(sm.state().arguments(), "right"), 3);
+        sm.prev(); // val=12
+        assert_eq!(lookup_u32(sm.state().arguments(), "val"), 12);
+        assert!(sm.state().arguments().lookup("left").is_none());
+        assert!(sm.state().arguments().lookup("right").is_none());
     }
 }

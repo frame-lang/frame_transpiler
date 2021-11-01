@@ -1,5 +1,7 @@
 extern crate exitcode;
 use std::collections::HashMap;
+use std::error::Error;
+use std::fmt;
 
 pub struct Node {
     pub name: String,
@@ -16,12 +18,12 @@ impl Node {
         }
     }
 
-    pub fn add_child(&mut self, child_name: &String) {
+    pub fn add_child(&mut self, child_name: &str) {
         //       let child_name_debug = child_name.clone();
-        self.children.push(child_name.clone());
+        self.children.push(child_name.to_string());
     }
 
-    pub fn remove_child(&mut self, child_name: &String) {
+    pub fn remove_child(&mut self, child_name: &str) {
         //        let child_name_debug = child_name.clone();
         let index = self
             .children
@@ -47,7 +49,7 @@ impl SystemHierarchy {
     }
 
     pub fn add_node(&mut self, node_name: String, parent_node_name_original: String) {
-        let parent_node_name = parent_node_name_original.clone();
+        let parent_node_name = parent_node_name_original;
 
         match self.index.get_mut(&node_name) {
             Some(_index_node) => {
@@ -59,7 +61,7 @@ impl SystemHierarchy {
             }
         }
 
-        if parent_node_name != "" {
+        if !parent_node_name.is_empty() {
             match self.index.get_mut(&parent_node_name) {
                 Some(_index_parent_node) => {
                     // found parent node in index
@@ -78,7 +80,7 @@ impl SystemHierarchy {
         self.set_parent(&node_name, &parent_node_name);
     }
 
-    fn set_parent(&mut self, node_name: &String, new_parent_name: &String) {
+    fn set_parent(&mut self, node_name: &str, new_parent_name: &str) {
         // let node_name_debug = node_name.clone();
         // let new_parent_name_debug = new_parent_name.clone();
 
@@ -90,20 +92,15 @@ impl SystemHierarchy {
         match self.index.get_mut(node_name) {
             Some(node) => {
                 current_parent_name = node.parent_name.clone();
-                node.parent_name = new_parent_name.clone();
+                node.parent_name = new_parent_name.to_string();
             }
             None => {
                 panic!();
             }
         }
 
-        match self.index.get_mut(&current_parent_name) {
-            Some(current_parent_node) => {
-                current_parent_node.remove_child(node_name);
-            }
-            None => {
-                // no parent to remove from.
-            }
+        if let Some(current_parent_node) = self.index.get_mut(&current_parent_name) {
+            current_parent_node.remove_child(node_name);
         }
 
         let mut attach_to_system = false;
@@ -138,7 +135,15 @@ pub(crate) mod frame_exitcode {
 
     /// Framepiler parse error exit
     pub const PARSE_ERR: FrameExitCode = 1;
-    pub const DEFAULT_CONFIG_ERR: FrameExitCode = 2;
+    pub const CONFIG_ERR: FrameExitCode = 2;
+
+    pub fn as_string(code: FrameExitCode) -> String {
+        match code {
+            PARSE_ERR => "Frame parse error".to_string(),
+            CONFIG_ERR => "Configuration error".to_string(),
+            _ => format!("Unknown error code {}", code),
+        }
+    }
 }
 
 pub struct RunError {
@@ -152,5 +157,33 @@ impl RunError {
             code,
             error: String::from(msg),
         }
+    }
+}
+
+impl fmt::Display for RunError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}: {}",
+            frame_exitcode::as_string(self.code),
+            self.error
+        )
+    }
+}
+
+impl fmt::Debug for RunError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}: {}",
+            frame_exitcode::as_string(self.code),
+            self.error
+        )
+    }
+}
+
+impl Error for RunError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        None
     }
 }

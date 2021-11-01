@@ -1,10 +1,9 @@
 #![allow(non_snake_case)]
 
-use super::super::ast::*;
-use super::super::symbol_table::*;
-use super::super::symbol_table::SymbolType::*;
-use super::super::visitors::*;
-use super::super::scanner::{Token,TokenType};
+use crate::frame_c::ast::*;
+use crate::frame_c::symbol_table::*;
+use crate::frame_c::visitors::*;
+use crate::frame_c::scanner::{Token,TokenType};
 
 struct Config {
     state_var_name:String,
@@ -159,30 +158,30 @@ impl XStateVisitor {
 
     fn get_variable_type(&self,symbol_type:&SymbolType) -> String {
         let var_type = match &*symbol_type {
-            DomainVariableSymbolT { domain_variable_symbol_rcref } => {
+            SymbolType::DomainVariable { domain_variable_symbol_rcref } => {
                 match &domain_variable_symbol_rcref.borrow().var_type {
                     Some(x) => String::from(""),
                     None => String::from(""),
                 }
             },
-            StateParamSymbolT { state_param_symbol_rcref } => {
+            SymbolType::StateParam { state_param_symbol_rcref } => {
                 match &state_param_symbol_rcref.borrow().param_type {
                     Some(x) => String::from(""),
                     None => String::from(""),
                 }
             },
-            StateVariableSymbolT { state_variable_symbol_rcref } => {
+            SymbolType::StateVariable { state_variable_symbol_rcref } => {
                 match &state_variable_symbol_rcref.borrow().var_type {
                     Some(x) => String::from(""),
                     None => String::from(""),
                 }                    },
-            EventHandlerParamSymbolT { event_handler_param_symbol_rcref } => {
+            SymbolType::EventHandlerParam { event_handler_param_symbol_rcref } => {
                 match &event_handler_param_symbol_rcref.borrow().param_type {
                     Some(x) => String::from(""),
                     None => String::from(""),
                 }
             },
-            EventHandlerVariableSymbolT { event_handler_variable_symbol_rcref } => {
+            SymbolType::EventHandlerVariable { event_handler_variable_symbol_rcref } => {
                 match &event_handler_variable_symbol_rcref.borrow().var_type {
                     Some(x) => String::from(""),
                     None => String::from(""),
@@ -522,7 +521,7 @@ impl XStateVisitor {
         while self.current_comment_idx < self.comments.len() &&
             line >= self.comments[self.current_comment_idx].line {
             let comment = &self.comments[self.current_comment_idx];
-            if comment.token_type == TokenType::SingleLineCommentTok {
+            if comment.token_type == TokenType::SingleLineComment {
                 self.code.push_str(&*format!("  // {}",&comment.lexeme[3..]));
                 self.code.push_str(&*format!("\n{}",(0..self.dent).map(|_| "\t").collect::<String>()));
 
@@ -884,7 +883,7 @@ impl AstVisitor for XStateVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_system_node(&mut self, system_node: &SystemNode) -> AstVisitorReturnType {
+    fn visit_system_node(&mut self, system_node: &SystemNode) {
         self.system_name = system_node.name.clone();
         self.add_code(&format!("// {}",self.compiler_version));
         self.newline();
@@ -960,28 +959,25 @@ impl AstVisitor for XStateVisitor {
 
         self.generate_subclass();
 
-        AstVisitorReturnType::SystemNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_frame_messages_enum(&mut self, interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
+    fn visit_frame_messages_enum(&mut self, interface_block_node: &InterfaceBlockNode) {
         panic!("Error - visit_frame_messages_enum() only used in Rust.");
 
-        // AstVisitorReturnType::InterfaceBlockNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_interface_parameters(&mut self, interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
+    fn visit_interface_parameters(&mut self, interface_block_node: &InterfaceBlockNode) {
         panic!("visit_interface_parameters() not valid for target language.");
 
-        // AstVisitorReturnType::InterfaceBlockNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_interface_block_node(&mut self, interface_block_node: &InterfaceBlockNode) -> AstVisitorReturnType {
+    fn visit_interface_block_node(&mut self, interface_block_node: &InterfaceBlockNode) {
         self.newline();
         self.add_code("//===================== Interface Block ===================//");
         self.newline();
@@ -990,12 +986,11 @@ impl AstVisitor for XStateVisitor {
             interface_method_node.accept(self);
         }
 
-        AstVisitorReturnType::InterfaceBlockNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_interface_method_node(&mut self, interface_method_node: &InterfaceMethodNode) -> AstVisitorReturnType {
+    fn visit_interface_method_node(&mut self, interface_method_node: &InterfaceMethodNode) {
         let mut call_params = String::new();
         let mut send_params = String::new();
 
@@ -1051,12 +1046,11 @@ impl AstVisitor for XStateVisitor {
         self.add_code(&format!("}}"));
         self.newline();
 
-        AstVisitorReturnType::InterfaceMethodNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_machine_block_node(&mut self, machine_block_node: &MachineBlockNode) -> AstVisitorReturnType {
+    fn visit_machine_block_node(&mut self, machine_block_node: &MachineBlockNode) {
         self.newline();
         self.add_code("states: {");
         self.indent();
@@ -1089,12 +1083,11 @@ impl AstVisitor for XStateVisitor {
         self.newline();
         self.add_code("},");
 
-        AstVisitorReturnType::MachineBlockNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_actions_block_node(&mut self, actions_block_node: &ActionsBlockNode) -> AstVisitorReturnType {
+    fn visit_actions_block_node(&mut self, actions_block_node: &ActionsBlockNode) {
         self.newline();
         self.newline();
         self.add_code("//===================== Actions Block ===================//");
@@ -1105,28 +1098,25 @@ impl AstVisitor for XStateVisitor {
             action_decl_node.accept(self);
         }
 
-        AstVisitorReturnType::ActionBlockNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_node_rust_trait(&mut self, _: &ActionsBlockNode) -> AstVisitorReturnType {
+    fn visit_action_node_rust_trait(&mut self, _: &ActionsBlockNode) {
         panic!("Error - visit_action_node_rust_trait() not implemented.");
 
-        // AstVisitorReturnType::ActionBlockNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_actions_node_rust_impl(&mut self, _: &ActionsBlockNode) -> AstVisitorReturnType {
+    fn visit_actions_node_rust_impl(&mut self, _: &ActionsBlockNode) {
         panic!("Error - visit_actions_node_rust_impl() not implemented.");
 
-        // AstVisitorReturnType::ActionBlockNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_domain_block_node(&mut self, domain_block_node: &DomainBlockNode) -> AstVisitorReturnType {
+    fn visit_domain_block_node(&mut self, domain_block_node: &DomainBlockNode) {
         self.newline();
         self.newline();
         self.add_code("//===================== Domain Block ===================//");
@@ -1138,12 +1128,11 @@ impl AstVisitor for XStateVisitor {
             variable_decl_node.accept(self);
         }
 
-        AstVisitorReturnType::DomainBlockNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_state_node(&mut self, state_node: &StateNode) -> AstVisitorReturnType {
+    fn visit_state_node(&mut self, state_node: &StateNode) {
 
         self.generate_comment(state_node.line);
         self.current_state_name_opt = Some(state_node.name.clone());
@@ -1189,12 +1178,11 @@ impl AstVisitor for XStateVisitor {
         self.add_code("}");
 
         self.current_state_name_opt = None;
-        AstVisitorReturnType::StateNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_event_handler_node(&mut self, evt_handler_node: &EventHandlerNode) -> AstVisitorReturnType {
+    fn visit_event_handler_node(&mut self, evt_handler_node: &EventHandlerNode) {
         self.newline();
         self.generate_comment(evt_handler_node.line);
 //        let mut generate_final_close_paren = true;
@@ -1232,12 +1220,11 @@ impl AstVisitor for XStateVisitor {
             panic!("AnyMessage (||*) not supported for XState.")
         }
 
-        AstVisitorReturnType::EventHandlerNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_event_handler_terminator_node(&mut self, evt_handler_terminator_node: &TerminatorExpr) -> AstVisitorReturnType {
+    fn visit_event_handler_terminator_node(&mut self, evt_handler_terminator_node: &TerminatorExpr) {
         self.newline();
         match &evt_handler_terminator_node.terminator_type {
             TerminatorType::Return => {
@@ -1258,22 +1245,20 @@ impl AstVisitor for XStateVisitor {
             },
         }
 
-        AstVisitorReturnType::EventHandlerTerminatorNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_statement_node(&mut self, method_call_statement: &CallStmtNode) -> AstVisitorReturnType {
+    fn visit_call_statement_node(&mut self, method_call_statement: &CallStmtNode) {
         self.newline();
         method_call_statement.call_expr_node.accept(self);
         self.add_code(&format!(";"));
 
-        AstVisitorReturnType::CallStatementNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_expression_node(&mut self, method_call: &CallExprNode) -> AstVisitorReturnType {
+    fn visit_call_expression_node(&mut self, method_call: &CallExprNode) {
 
         if let Some(call_chain) = &method_call.call_chain {
 
@@ -1290,12 +1275,11 @@ impl AstVisitor for XStateVisitor {
         self.add_code(&format!(""));
 
 
-        AstVisitorReturnType::CallExpressionNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_expression_node_to_string(&mut self, method_call: &CallExprNode, output:&mut String) -> AstVisitorReturnType {
+    fn visit_call_expression_node_to_string(&mut self, method_call: &CallExprNode, output:&mut String) {
 
         if let Some(call_chain) = &method_call.call_chain {
 
@@ -1311,12 +1295,11 @@ impl AstVisitor for XStateVisitor {
 
         output.push_str(&format!(""));
 
-        AstVisitorReturnType::CallExpressionNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_expr_list_node(&mut self, call_expr_list: &CallExprListNode) -> AstVisitorReturnType {
+    fn visit_call_expr_list_node(&mut self, call_expr_list: &CallExprListNode) {
 
         let mut separator = "";
         self.add_code(&format!("("));
@@ -1330,12 +1313,11 @@ impl AstVisitor for XStateVisitor {
 
         self.add_code(&format!(")"));
 
-        AstVisitorReturnType::CallExprListNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_expr_list_node_to_string(&mut self, call_expr_list: &CallExprListNode, output:&mut String) -> AstVisitorReturnType {
+    fn visit_call_expr_list_node_to_string(&mut self, call_expr_list: &CallExprListNode, output:&mut String) {
 
         let mut separator = "";
         output.push_str(&format!("("));
@@ -1349,12 +1331,11 @@ impl AstVisitor for XStateVisitor {
 
         output.push_str(&format!(")"));
 
-        AstVisitorReturnType::CallExprListNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_call_expression_node(&mut self, action_call: &ActionCallExprNode) -> AstVisitorReturnType {
+    fn visit_action_call_expression_node(&mut self, action_call: &ActionCallExprNode) {
 
         let action_name = self.format_action_name(&action_call.identifier.name.lexeme);
         self.add_code(&format!("{}", action_name));
@@ -1363,34 +1344,31 @@ impl AstVisitor for XStateVisitor {
 
         self.add_code(&format!(""));
 
-        AstVisitorReturnType::ActionCallExpressionNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_call_expression_node_to_string(&mut self, action_call: &ActionCallExprNode, output:&mut String) -> AstVisitorReturnType {
+    fn visit_action_call_expression_node_to_string(&mut self, action_call: &ActionCallExprNode, output:&mut String) {
 
         let action_name = self.format_action_name(&action_call.identifier.name.lexeme);
         output.push_str(&format!("{}",action_name));
 
         action_call.call_expr_list.accept_to_string(self, output);
 
-        AstVisitorReturnType::ActionCallExpressionNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_call_statement_node(&mut self, action_call_stmt_node: &ActionCallStmtNode) -> AstVisitorReturnType {
+    fn visit_action_call_statement_node(&mut self, action_call_stmt_node: &ActionCallStmtNode) {
         self.newline();
         action_call_stmt_node.action_call_expr_node.accept(self);
         self.add_code(&format!(";"));
 
-        AstVisitorReturnType::ActionCallStatementNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_transition_statement_node(&mut self, transition_statement: &TransitionStatementNode) -> AstVisitorReturnType {
+    fn visit_transition_statement_node(&mut self, transition_statement: &TransitionStatementNode) {
 
         match &transition_statement.target_state_context_t {
             StateContextType::StateRef { state_context_node}
@@ -1399,21 +1377,19 @@ impl AstVisitor for XStateVisitor {
             => self.generate_state_stack_pop_transition(transition_statement),
         };
 
-        AstVisitorReturnType::CallStatementNode {}
     }
 
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_state_ref_node(&mut self, state_ref: &StateRefNode) -> AstVisitorReturnType {
+    fn visit_state_ref_node(&mut self, state_ref: &StateRefNode) {
         self.add_code(&format!("{}", state_ref.name));
 
-        AstVisitorReturnType::StateRefNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_change_state_statement_node(&mut self, change_state_stmt_node:&ChangeStateStatementNode) -> AstVisitorReturnType {
+    fn visit_change_state_statement_node(&mut self, change_state_stmt_node:&ChangeStateStatementNode) {
 
         match &change_state_stmt_node.state_context_t {
             StateContextType::StateRef { state_context_node}
@@ -1422,33 +1398,30 @@ impl AstVisitor for XStateVisitor {
             => panic!("TODO - not implemented"),
         };
 
-        AstVisitorReturnType::ChangeStateStmtNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
     // TODO: ??
-    fn visit_parameter_node(&mut self, parameter_node: &ParameterNode) -> AstVisitorReturnType {
+    fn visit_parameter_node(&mut self, parameter_node: &ParameterNode) {
 
         // self.add_code(&format!("{}",parameter_node.name));
 
-        AstVisitorReturnType::ParameterNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_dispatch_node(&mut self, dispatch_node: &DispatchNode) -> AstVisitorReturnType {
+    fn visit_dispatch_node(&mut self, dispatch_node: &DispatchNode) {
         self.newline();
         self.add_code(&format!("_s{}_(e);", dispatch_node.target_state_ref.name));
         self.generate_comment(dispatch_node.line);
         self.newline();
 
-        AstVisitorReturnType::DispatchNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_test_statement_node(&mut self, test_stmt_node: &TestStatementNode) -> AstVisitorReturnType {
+    fn visit_test_statement_node(&mut self, test_stmt_node: &TestStatementNode) {
 
         match &test_stmt_node.test_t {
             TestType::BoolTest {bool_test_node}  => {
@@ -1462,12 +1435,11 @@ impl AstVisitor for XStateVisitor {
             },
         }
 
-        AstVisitorReturnType::TestStatementNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_bool_test_node(&mut self, bool_test_node:&BoolTestNode) -> AstVisitorReturnType {
+    fn visit_bool_test_node(&mut self, bool_test_node:&BoolTestNode) {
 
         let mut if_or_else_if = "if ";
 
@@ -1500,22 +1472,20 @@ impl AstVisitor for XStateVisitor {
             bool_test_else_branch_node.accept(self);
         }
 
-        AstVisitorReturnType::BoolTestNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_chain_literal_statement_node(&mut self, method_call_chain_literal_stmt_node:&CallChainLiteralStmtNode) -> AstVisitorReturnType {
+    fn visit_call_chain_literal_statement_node(&mut self, method_call_chain_literal_stmt_node:&CallChainLiteralStmtNode) {
 
         self.newline();
         method_call_chain_literal_stmt_node.call_chain_literal_expr_node.accept(self);
         self.add_code(&format!(";"));
-        AstVisitorReturnType::CallChainLiteralStmtNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_chain_literal_expr_node(&mut self, method_call_chain_expression_node: &CallChainLiteralExprNode) -> AstVisitorReturnType {
+    fn visit_call_chain_literal_expr_node(&mut self, method_call_chain_expression_node: &CallChainLiteralExprNode) {
         // TODO: maybe put this in an AST node
 
         let mut separator = "";
@@ -1541,12 +1511,11 @@ impl AstVisitor for XStateVisitor {
             separator = ".";
         }
 
-        AstVisitorReturnType::CallChainLiteralExprNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_chain_literal_expr_node_to_string(&mut self, method_call_chain_expression_node:&CallChainLiteralExprNode, output:&mut String) -> AstVisitorReturnType {
+    fn visit_call_chain_literal_expr_node_to_string(&mut self, method_call_chain_expression_node:&CallChainLiteralExprNode, output:&mut String) {
         let mut separator = "";
 
         for node in &method_call_chain_expression_node.call_chain {
@@ -1567,13 +1536,12 @@ impl AstVisitor for XStateVisitor {
             }
             separator = ".";
         }
-        AstVisitorReturnType::CallChainLiteralExprNode {}
     }
 
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_bool_test_conditional_branch_node(&mut self, bool_test_true_branch_node:&BoolTestConditionalBranchNode) -> AstVisitorReturnType {
+    fn visit_bool_test_conditional_branch_node(&mut self, bool_test_true_branch_node:&BoolTestConditionalBranchNode) {
 
         self.visit_decl_stmts(&bool_test_true_branch_node.statements);
 
@@ -1601,12 +1569,11 @@ impl AstVisitor for XStateVisitor {
             None => {}
         }
 
-        AstVisitorReturnType::BoolTestConditionalBranchNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_bool_test_else_branch_node(&mut self, bool_test_else_branch_node:&BoolTestElseBranchNode) -> AstVisitorReturnType {
+    fn visit_bool_test_else_branch_node(&mut self, bool_test_else_branch_node:&BoolTestElseBranchNode) {
 
         self.add_code(&format!(" else {{"));
         self.indent();
@@ -1642,12 +1609,11 @@ impl AstVisitor for XStateVisitor {
         self.newline();
         self.add_code(&format!("}}"));
 
-        AstVisitorReturnType::BoolTestElseBranchNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_string_match_test_node(&mut self, string_match_test_node:&StringMatchTestNode) -> AstVisitorReturnType {
+    fn visit_string_match_test_node(&mut self, string_match_test_node:&StringMatchTestNode) {
 
         let mut if_or_else_if = "if";
 
@@ -1710,12 +1676,11 @@ impl AstVisitor for XStateVisitor {
             string_match_else_branch_node.accept(self);
         }
 
-        AstVisitorReturnType::StringMatchTestNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_string_match_test_match_branch_node(&mut self, string_match_test_match_branch_node:&StringMatchTestMatchBranchNode) -> AstVisitorReturnType {
+    fn visit_string_match_test_match_branch_node(&mut self, string_match_test_match_branch_node:&StringMatchTestMatchBranchNode) {
 
 //        self.indent();
         self.visit_decl_stmts(&string_match_test_match_branch_node.statements);
@@ -1746,12 +1711,11 @@ impl AstVisitor for XStateVisitor {
             None => {}
         }
 
-        AstVisitorReturnType::StringMatchTestMatchBranchNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_string_match_test_else_branch_node(&mut self, string_match_test_else_branch_node:&StringMatchTestElseBranchNode) -> AstVisitorReturnType {
+    fn visit_string_match_test_else_branch_node(&mut self, string_match_test_else_branch_node:&StringMatchTestElseBranchNode) {
 
         self.add_code(&format!(" else {{"));
         self.indent();
@@ -1788,21 +1752,19 @@ impl AstVisitor for XStateVisitor {
         self.newline();
         self.add_code(&format!("}}"));
 
-        AstVisitorReturnType::StringMatchElseBranchNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_string_match_test_pattern_node(&mut self, string_match_test_else_branch_node:&StringMatchTestPatternNode) -> AstVisitorReturnType {
+    fn visit_string_match_test_pattern_node(&mut self, string_match_test_else_branch_node:&StringMatchTestPatternNode) {
 
         // TODO
         panic!("todo");
-//        AstVisitorReturnType::StringMatchTestPatternNode {}
     }
 
     //-----------------------------------------------------//
 
-    fn visit_number_match_test_node(&mut self, number_match_test_node:&NumberMatchTestNode) -> AstVisitorReturnType {
+    fn visit_number_match_test_node(&mut self, number_match_test_node:&NumberMatchTestNode) {
 
         let mut if_or_else_if = "if";
 
@@ -1862,12 +1824,11 @@ impl AstVisitor for XStateVisitor {
         }
 
 
-        AstVisitorReturnType::NumberMatchTestNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_number_match_test_match_branch_node(&mut self, number_match_test_match_branch_node:&NumberMatchTestMatchBranchNode) -> AstVisitorReturnType {
+    fn visit_number_match_test_match_branch_node(&mut self, number_match_test_match_branch_node:&NumberMatchTestMatchBranchNode) {
 
         self.visit_decl_stmts(&number_match_test_match_branch_node.statements);
 
@@ -1897,12 +1858,11 @@ impl AstVisitor for XStateVisitor {
             None => {}
         }
 
-        AstVisitorReturnType::NumberMatchTestMatchBranchNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_number_match_test_else_branch_node(&mut self, number_match_test_else_branch_node:&NumberMatchTestElseBranchNode) -> AstVisitorReturnType {
+    fn visit_number_match_test_else_branch_node(&mut self, number_match_test_else_branch_node:&NumberMatchTestElseBranchNode) {
 
         self.add_code(&format!(" else {{"));
         self.indent();
@@ -1939,20 +1899,18 @@ impl AstVisitor for XStateVisitor {
         self.newline();
         self.add_code(&format!("}}"));
 
-        AstVisitorReturnType::NumberMatchElseBranchNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_number_match_test_pattern_node(&mut self, match_pattern_node:&NumberMatchTestPatternNode) -> AstVisitorReturnType {
+    fn visit_number_match_test_pattern_node(&mut self, match_pattern_node:&NumberMatchTestPatternNode) {
         self.add_code(&format!("{}", match_pattern_node.match_pattern_number));
 
-        AstVisitorReturnType::NumberMatchTestPatternNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_expression_list_node(&mut self, expr_list: &ExprListNode) -> AstVisitorReturnType {
+    fn visit_expression_list_node(&mut self, expr_list: &ExprListNode) {
 
         let mut separator = "";
         self.add_code(&format!("("));
@@ -1964,12 +1922,11 @@ impl AstVisitor for XStateVisitor {
         }
         self.add_code(&format!(")"));
 
-        AstVisitorReturnType::ParentheticalExpressionNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_expression_list_node_to_string(&mut self, expr_list: &ExprListNode, output:&mut String) -> AstVisitorReturnType {
+    fn visit_expression_list_node_to_string(&mut self, expr_list: &ExprListNode, output:&mut String) {
 
 //        self.add_code(&format!("{}(e);\n",dispatch_node.target_state_ref.name));
 
@@ -1983,103 +1940,96 @@ impl AstVisitor for XStateVisitor {
         }
         output.push_str(&format!(")"));
 
-        AstVisitorReturnType::ParentheticalExpressionNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_literal_expression_node(&mut self, literal_expression_node: &LiteralExprNode) -> AstVisitorReturnType {
+    fn visit_literal_expression_node(&mut self, literal_expression_node: &LiteralExprNode) {
 
         match &literal_expression_node.token_t {
-            TokenType::NumberTok
+            TokenType::Number
             => self.add_code(&format!("{}", literal_expression_node.value)),
-            TokenType::SuperStringTok
+            TokenType::SuperString
             => self.add_code(&format!("{}", literal_expression_node.value)),
-            TokenType::StringTok
+            TokenType::String
             => self.add_code(&format!("\"{}\"", literal_expression_node.value)),
-            TokenType::TrueTok
+            TokenType::True
             => self.add_code("true"),
-            TokenType::FalseTok
+            TokenType::False
             => self.add_code("false"),
-            TokenType::NullTok
+            TokenType::Null
             => self.add_code("null"),
-            TokenType::NilTok
+            TokenType::Nil
             => self.add_code("null"),
             _ => panic!("TODO"),
         }
 
-        AstVisitorReturnType::ParentheticalExpressionNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_literal_expression_node_to_string(&mut self, literal_expression_node: &LiteralExprNode, output:&mut String) -> AstVisitorReturnType {
+    fn visit_literal_expression_node_to_string(&mut self, literal_expression_node: &LiteralExprNode, output:&mut String) {
 
         // TODO: make a focused enum or the literals
         match &literal_expression_node.token_t {
-            TokenType::NumberTok => {
+            TokenType::Number => {
                 output.push_str(&format!("{}", literal_expression_node.value))
             },
-            TokenType::StringTok => {
+            TokenType::String => {
                 output.push_str(&format!("\"{}\"", literal_expression_node.value));
             },
-            TokenType::TrueTok => {
+            TokenType::True => {
                 output.push_str("true");
             },
-            TokenType::FalseTok => {
+            TokenType::False => {
                 output.push_str("false");
             },
-            TokenType::NilTok => {
+            TokenType::Nil => {
                 output.push_str("null");
             },
-            TokenType::NullTok => {
+            TokenType::Null => {
                 output.push_str("null");
             },
             _ => panic!("TODO"),
         }
 
-        AstVisitorReturnType::ParentheticalExpressionNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_identifier_node(&mut self, identifier_node: &IdentifierNode) -> AstVisitorReturnType {
+    fn visit_identifier_node(&mut self, identifier_node: &IdentifierNode) {
 
         self.add_code(&format!("{}",identifier_node.name.lexeme));
 
-        AstVisitorReturnType::IdentifierNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_identifier_node_to_string(&mut self, identifier_node: &IdentifierNode, output:&mut String) -> AstVisitorReturnType {
+    fn visit_identifier_node_to_string(&mut self, identifier_node: &IdentifierNode, output:&mut String) {
 
         output.push_str(&format!("{}",identifier_node.name.lexeme));
 
-        AstVisitorReturnType::IdentifierNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_state_stack_operation_node(&mut self, state_stack_operation_node:&StateStackOperationNode) -> AstVisitorReturnType {
+    fn visit_state_stack_operation_node(&mut self, state_stack_operation_node:&StateStackOperationNode) {
 
 //        self.add_code(&format!("{}",identifier_node.name.lexeme));
 
-        AstVisitorReturnType::StateStackOperationNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_state_stack_operation_node_to_string(&mut self, state_stack_operation_node:&StateStackOperationNode, output:&mut String) -> AstVisitorReturnType {
+    fn visit_state_stack_operation_node_to_string(&mut self, state_stack_operation_node:&StateStackOperationNode, output:&mut String) {
 
 //        self.add_code(&format!("{}",identifier_node.name.lexeme));
 
-        AstVisitorReturnType::StateStackOperationNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 //
-    fn visit_state_stack_operation_statement_node(&mut self, state_stack_op_statement_node:&StateStackOperationStatementNode) -> AstVisitorReturnType {
+    fn visit_state_stack_operation_statement_node(&mut self, state_stack_op_statement_node:&StateStackOperationStatementNode) {
 
 //        self.add_code(&format!("{}",identifier_node.name.lexeme));
 
@@ -2102,21 +2052,19 @@ impl AstVisitor for XStateVisitor {
                 }
             }
         }
-        AstVisitorReturnType::StateStackOperationStatementNode {}
     }
     //* --------------------------------------------------------------------- *//
 
-    fn visit_state_context_node(&mut self, state_context_node:&StateContextNode) -> AstVisitorReturnType {
+    fn visit_state_context_node(&mut self, state_context_node:&StateContextNode) {
 
         // TODO
 //        self.add_code(&format!("{}",identifier_node.name.lexeme));
 
-        AstVisitorReturnType::StateContextNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_frame_event_part(&mut self, frame_event_part:&FrameEventPart) -> AstVisitorReturnType {
+    fn visit_frame_event_part(&mut self, frame_event_part:&FrameEventPart) {
 
         // TODO: make this code generate from settings
         match frame_event_part {
@@ -2126,12 +2074,11 @@ impl AstVisitor for XStateVisitor {
             FrameEventPart::Return => self.add_code(&format!("e._return")),
         }
 
-        AstVisitorReturnType::FrameEventExprType {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_frame_event_part_to_string(&mut self, frame_event_part:&FrameEventPart, output:&mut String) -> AstVisitorReturnType {
+    fn visit_frame_event_part_to_string(&mut self, frame_event_part:&FrameEventPart, output:&mut String) {
 
         // TODO: make this code generate from settings
         match frame_event_part {
@@ -2141,12 +2088,11 @@ impl AstVisitor for XStateVisitor {
             FrameEventPart::Return => output.push_str("e._return"),
         }
 
-        AstVisitorReturnType::FrameEventExprType {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_decl_node(&mut self, action_decl_node: &ActionNode) -> AstVisitorReturnType {
+    fn visit_action_decl_node(&mut self, action_decl_node: &ActionNode) {
 
         let mut subclass_code = String::new();
 
@@ -2171,28 +2117,26 @@ impl AstVisitor for XStateVisitor {
 
         self.add_code(&format!(") {{ throw new Error('Action not implemented.'); }}"));
 
-        AstVisitorReturnType::ActionDeclNode {}
     }
 
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_impl_node(&mut self, action_decl_node: &ActionNode) -> AstVisitorReturnType {
+    fn visit_action_impl_node(&mut self, action_decl_node: &ActionNode) {
         panic!("visit_action_impl_node() not implemented.");
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_domain_variable_decl_node(&mut self, variable_decl_node: &VariableDeclNode) -> AstVisitorReturnType {
+    fn visit_domain_variable_decl_node(&mut self, variable_decl_node: &VariableDeclNode) {
 
         self.visit_variable_decl_node(variable_decl_node);
 
-        AstVisitorReturnType::VariableDeclNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_variable_decl_node(&mut self, variable_decl_node: &VariableDeclNode) -> AstVisitorReturnType {
+    fn visit_variable_decl_node(&mut self, variable_decl_node: &VariableDeclNode) {
 
         let var_name =  &variable_decl_node.name;
         let var_init_expr = &variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
@@ -2212,41 +2156,37 @@ impl AstVisitor for XStateVisitor {
         self.serialize.push(format!("\tbag.domain[\"{}\"] = {};",var_name,var_name));
         self.deserialize.push(format!("\t{} = bag.domain[\"{}\"];",var_name,var_name));
 
-        AstVisitorReturnType::VariableDeclNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_variable_expr_node(&mut self, variable_node: &VariableNode) -> AstVisitorReturnType {
+    fn visit_variable_expr_node(&mut self, variable_node: &VariableNode) {
         let code = self.format_variable_expr(variable_node);
         self.add_code(&code);
 
-        AstVisitorReturnType::AssignmentExprNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_variable_expr_node_to_string(&mut self, variable_node: &VariableNode, output:&mut String) -> AstVisitorReturnType {
+    fn visit_variable_expr_node_to_string(&mut self, variable_node: &VariableNode, output:&mut String) {
         let code = self.format_variable_expr(variable_node);
         output.push_str(&code);
 
-        AstVisitorReturnType::AssignmentExprNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_variable_stmt_node(&mut self, variable_stmt_node: &VariableStmtNode) -> AstVisitorReturnType {
+    fn visit_variable_stmt_node(&mut self, variable_stmt_node: &VariableStmtNode) {
         // TODO: what is this line about?
         self.generate_comment(variable_stmt_node.get_line());
         self.newline();
         self.add_code(&format!("{};",variable_stmt_node.var_node.id_node.name.lexeme));
 
-        AstVisitorReturnType::AssignmentExprNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_assignment_expr_node(&mut self, assignment_expr_node: &AssignmentExprNode) -> AstVisitorReturnType {
+    fn visit_assignment_expr_node(&mut self, assignment_expr_node: &AssignmentExprNode) {
 
         self.generate_comment(assignment_expr_node.line);
         self.newline();
@@ -2255,12 +2195,11 @@ impl AstVisitor for XStateVisitor {
         assignment_expr_node.r_value_box.accept(self);
         self.add_code(";");
 
-        AstVisitorReturnType::AssignmentExprNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_assignment_expr_node_to_string(&mut self, assignment_expr_node: &AssignmentExprNode, output:&mut String) -> AstVisitorReturnType {
+    fn visit_assignment_expr_node_to_string(&mut self, assignment_expr_node: &AssignmentExprNode, output:&mut String) {
 
         self.generate_comment(assignment_expr_node.line);
         self.newline();
@@ -2270,47 +2209,43 @@ impl AstVisitor for XStateVisitor {
         assignment_expr_node.r_value_box.accept_to_string(self, output);
         output.push_str(";");
 
-        AstVisitorReturnType::AssignmentExprNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_assignment_statement_node(&mut self, assignment_stmt_node: &AssignmentStmtNode) -> AstVisitorReturnType {
+    fn visit_assignment_statement_node(&mut self, assignment_stmt_node: &AssignmentStmtNode) {
 
         self.generate_comment(assignment_stmt_node.get_line());
         assignment_stmt_node.assignment_expr_node.accept(self);
 
-        AstVisitorReturnType::AssignmentExprNode {}
     }
 
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_unary_expr_node(&mut self, unary_expr_node: &UnaryExprNode) -> AstVisitorReturnType {
+    fn visit_unary_expr_node(&mut self, unary_expr_node: &UnaryExprNode) {
 
         // TODO
         //       self.generate_comment(assignment_expr_node.line);
         unary_expr_node.operator.accept(self);
         unary_expr_node.right_rcref.borrow().accept(self);
 
-        AstVisitorReturnType::UnaryExprNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_unary_expr_node_to_string(&mut self, unary_expr_node: &UnaryExprNode, output:&mut String) -> AstVisitorReturnType {
+    fn visit_unary_expr_node_to_string(&mut self, unary_expr_node: &UnaryExprNode, output:&mut String) {
 
         // TODO
         //       self.generate_comment(assignment_expr_node.line);
         unary_expr_node.operator.accept_to_string(self, output);
         unary_expr_node.right_rcref.borrow().accept_to_string(self,output);
 
-        AstVisitorReturnType::UnaryExprNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_binary_expr_node(&mut self, binary_expr_node: &BinaryExprNode) -> AstVisitorReturnType {
+    fn visit_binary_expr_node(&mut self, binary_expr_node: &BinaryExprNode) {
 
         // TODO
         //       self.generate_comment(assignment_expr_node.line);
@@ -2330,12 +2265,11 @@ impl AstVisitor for XStateVisitor {
             binary_expr_node.right_rcref.borrow().accept(self);
         }
 
-        AstVisitorReturnType::BinaryExprNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_binary_expr_node_to_string(&mut self, binary_expr_node: &BinaryExprNode, output:&mut String) -> AstVisitorReturnType {
+    fn visit_binary_expr_node_to_string(&mut self, binary_expr_node: &BinaryExprNode, output:&mut String) {
 
         if binary_expr_node.operator == OperatorType::LogicalXor {
             output.push_str("((");
@@ -2354,13 +2288,12 @@ impl AstVisitor for XStateVisitor {
             binary_expr_node.right_rcref.borrow().accept_to_string(self,output);
         }
 
-        AstVisitorReturnType::BinaryExprNode {}
     }
 
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_operator_type(&mut self, operator_type: &OperatorType) -> AstVisitorReturnType {
+    fn visit_operator_type(&mut self, operator_type: &OperatorType) {
 
         match operator_type {
             OperatorType::Plus => self.add_code(" + "),
@@ -2380,12 +2313,11 @@ impl AstVisitor for XStateVisitor {
             OperatorType::LogicalXor => self.add_code(""),
         }
 
-        AstVisitorReturnType::BinaryExprNode {}
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_operator_type_to_string(&mut self, operator_type: &OperatorType, output:&mut String) -> AstVisitorReturnType {
+    fn visit_operator_type_to_string(&mut self, operator_type: &OperatorType, output:&mut String) {
 
         match operator_type {
             OperatorType::Plus => output.push_str(" + "),
@@ -2405,7 +2337,6 @@ impl AstVisitor for XStateVisitor {
             OperatorType::LogicalXor => output.push_str(""),
         }
 
-        AstVisitorReturnType::BinaryExprNode {}
     }
 }
 
