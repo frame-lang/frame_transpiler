@@ -35,9 +35,26 @@ fn main() -> Result<()> {
             };
             create_dir_all(output_dir)?;
 
-            let mut output_file = out.join(stripped_path);
-            output_file.set_extension("rs");
-            process_frame(input_path, &output_file, "rust")?;
+            let mut rust_output_path = out.join(stripped_path);
+            let mut smcat_output_path = rust_output_path.clone();
+            rust_output_path.set_extension("rs");
+            smcat_output_path.set_extension("smcat");
+            process_frame(input_path, &rust_output_path, "rust")?;
+            let smcat_catch = std::panic::catch_unwind(|| {
+                let smcat_result = process_frame(input_path, &smcat_output_path, "smcat");
+                if let Err(err) = smcat_result {
+                    eprintln!(
+                        "smcat generation for {:?} returned an error: {:?}",
+                        input_path, err
+                    );
+                }
+            });
+            if let Err(cause) = smcat_catch {
+                eprintln!(
+                    "smcat generation for {:?} panicked: {:?}",
+                    input_path, cause
+                );
+            }
         }
     }
     Ok(())
