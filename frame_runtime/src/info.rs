@@ -52,6 +52,24 @@ pub trait MachineInfo {
     /// All of the possible transitions between states in this machine.
     fn transitions(&self) -> Vec<TransitionInfo>;
 
+    /// The initial state of the machine, which is is the first state listed in the `machine` block.
+    /// Returns `None` if the machine has no states.
+    fn initial_state(&self) -> Option<&dyn StateInfo> {
+        if self.states().is_empty() {
+            None
+        } else {
+            Some(self.states()[0])
+        }
+    }
+
+    /// The top-level states are those which are not children of another state.
+    fn top_level_states(&self) -> Vec<&dyn StateInfo> {
+        self.states()
+            .into_iter()
+            .filter(|s| s.parent().is_none())
+            .collect()
+    }
+
     /// Get a domain variable declaration by name.
     fn get_variable(&self, name: &str) -> Option<NameInfo> {
         self.variables().into_iter().find(|n| name == n.name)

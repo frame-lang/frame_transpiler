@@ -233,6 +233,26 @@ mod tests {
         assert!(states.iter().any(|s| s.name() == "T"));
         assert!(!states.iter().any(|s| s.name() == "A"));
     }
+    
+    /// Test that the initial state from the runtime interface is correct.
+    #[test]
+    fn initial_state() {
+        let info = Hierarchical::machine_info();
+        let init = info.initial_state();
+        assert!(init.is_some());
+        assert_eq!(init.unwrap().name(), "I");
+    }
+
+    /// Test that the top-level states from the runtime interface is correct.
+    #[test]
+    fn top_level_states() {
+        let info = Hierarchical::machine_info();
+        let states = info.top_level_states();
+        assert_eq!(states.len(), 3);
+        assert!(states.iter().any(|s| s.name() == "I"));
+        assert!(states.iter().any(|s| s.name() == "S"));
+        assert!(states.iter().any(|s| s.name() == "T"));
+    }
 
     /// Test that states have the right parents via the runtime interface.
     #[test]
