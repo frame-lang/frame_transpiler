@@ -119,6 +119,7 @@ mod tests {
             fn transitions(&self) -> Vec<TransitionInfo> {
                 vec![
                     TransitionInfo {
+                        id: 0,
                         kind: TransitionKind::Transition,
                         event: MACHINE.events()[0].clone(),
                         label: "",
@@ -126,6 +127,7 @@ mod tests {
                         target: MACHINE.states()[1],
                     },
                     TransitionInfo {
+                        id: 1,
                         kind: TransitionKind::ChangeState,
                         event: MACHINE.events()[0].clone(),
                         label: "",
@@ -286,6 +288,20 @@ mod tests {
         sm.next();
         sm.next();
         assert_eq!(*tape_mutex.lock().unwrap(), vec!["A->B", "B->>A", "A->B"]);
+    }
+
+    #[test]
+    fn transition_info_id() {
+        let tape: Vec<usize> = Vec::new();
+        let tape_mutex = Mutex::new(tape);
+        let mut sm = TestMachine::new();
+        sm.callback_manager().add_transition_callback(|e| {
+            tape_mutex.lock().unwrap().push(e.info.id);
+        });
+        sm.next();
+        sm.next();
+        sm.next();
+        assert_eq!(*tape_mutex.lock().unwrap(), vec![0, 1, 0]);
     }
 
     #[test]

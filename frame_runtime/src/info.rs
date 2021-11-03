@@ -97,7 +97,7 @@ pub trait StateInfo {
     /// The machine this state is contained in.
     fn machine(&self) -> &dyn MachineInfo;
 
-    /// The name of this state.
+    /// The unique name of this state.
     fn name(&self) -> &'static str;
 
     /// The parent of this state, if any.
@@ -192,6 +192,11 @@ pub enum TransitionKind {
 /// `event::TransitionEvent` is produced, which links to the `TransitionInfo` for the statement
 /// that triggered it.
 pub struct TransitionInfo {
+    /// A unique ID for this transition, within the current state machine. This ID corresponds to
+    /// the index of the transition in the vector returned by the `transitions()` method of the
+    /// machine it's contained in.
+    pub id: usize,
+
     /// Whether this is a standard or change-state transition.
     pub kind: TransitionKind,
 

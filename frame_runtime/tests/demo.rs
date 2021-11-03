@@ -155,6 +155,7 @@ mod info {
         fn transitions(&self) -> Vec<TransitionInfo> {
             vec![
                 TransitionInfo {
+                    id: 0,
                     kind: TransitionKind::Transition,
                     event: MACHINE.events()[4].clone(),
                     label: "",
@@ -162,6 +163,7 @@ mod info {
                     target: MACHINE.states()[1],
                 },
                 TransitionInfo {
+                    id: 1,
                     kind: TransitionKind::Transition,
                     event: MACHINE.events()[1].clone(),
                     label: "",
@@ -169,6 +171,7 @@ mod info {
                     target: MACHINE.states()[2],
                 },
                 TransitionInfo {
+                    id: 2,
                     kind: TransitionKind::ChangeState,
                     event: MACHINE.events()[1].clone(),
                     label: "",
@@ -997,6 +1000,21 @@ fn transition_callbacks() {
     tape_mutex.lock().unwrap().clear();
     sm.next();
     assert_eq!(*tape_mutex.lock().unwrap(), vec!["kind: Transition", "old: Foo", "new: Bar"]);
+}
+
+#[test]
+fn transition_info_id() {
+    let tape: Vec<usize> = Vec::new();
+    let tape_mutex = Mutex::new(tape);
+    let mut sm = Demo::new();
+    sm.callback_manager().add_transition_callback(|e| {
+        tape_mutex.lock().unwrap().push(e.info.id);
+    });
+    sm.next();
+    sm.inc(5);
+    sm.next();
+    sm.next();
+    assert_eq!(*tape_mutex.lock().unwrap(), vec![1, 2, 1]);
 }
 
 #[test]

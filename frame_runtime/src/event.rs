@@ -137,6 +137,7 @@ mod tests {
             fn transitions(&self) -> Vec<TransitionInfo> {
                 vec![
                     TransitionInfo {
+                        id: 0,
                         kind: TransitionKind::Transition,
                         event: MACHINE.events()[0].clone(),
                         label: "",
@@ -144,6 +145,7 @@ mod tests {
                         target: MACHINE.states()[1],
                     },
                     TransitionInfo {
+                        id: 1,
                         kind: TransitionKind::ChangeState,
                         event: MACHINE.events()[0].clone(),
                         label: "",
