@@ -233,7 +233,7 @@ mod tests {
         assert!(states.iter().any(|s| s.name() == "T"));
         assert!(!states.iter().any(|s| s.name() == "A"));
     }
-    
+
     /// Test that the initial state from the runtime interface is correct.
     #[test]
     fn initial_state() {

@@ -949,8 +949,7 @@ impl RustVisitor {
         if !self.transitions.is_empty() {
             self.indent();
             let transitions = self.transitions.clone();
-            let mut index = 0;
-            for transition in transitions {
+            for (index, transition) in transitions.into_iter().enumerate() {
                 self.newline();
                 self.add_code("TransitionInfo");
                 self.enter_block();
@@ -989,7 +988,6 @@ impl RustVisitor {
                 ));
                 self.exit_block();
                 self.add_code(",");
-                index += 1;
             }
             self.outdent();
             self.newline();
