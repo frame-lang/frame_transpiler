@@ -949,10 +949,12 @@ impl RustVisitor {
         if !self.transitions.is_empty() {
             self.indent();
             let transitions = self.transitions.clone();
-            for transition in transitions {
+            for (index, transition) in transitions.into_iter().enumerate() {
                 self.newline();
                 self.add_code("TransitionInfo");
                 self.enter_block();
+                self.add_code(&format!("id: {},", index));
+                self.newline();
                 self.add_code(&format!(
                     "kind: TransitionKind::{},",
                     if transition.is_change_state {

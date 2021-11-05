@@ -156,8 +156,8 @@ mod tests {
     fn change_state_callback() {
         let transits = Mutex::new(Vec::new());
         let mut sm = Transition::new();
-        sm.callback_manager().add_transition_callback(|i| {
-            log_transits(&transits, i);
+        sm.callback_manager().add_transition_callback(|e| {
+            log_transits(&transits, e);
         });
         sm.change();
         assert_eq!(*transits.lock().unwrap(), vec!["S0->>S1"]);
@@ -170,6 +170,26 @@ mod tests {
         transits.lock().unwrap().clear();
         sm.transit();
         assert_eq!(*transits.lock().unwrap(), vec!["S3->S4", "S4->>S0"]);
+    }
+
+    /// Test that transition IDs are correct.
+    #[test]
+    fn transition_ids() {
+        let ids = Mutex::new(Vec::new());
+        let mut sm = Transition::new();
+        sm.callback_manager().add_transition_callback(|e| {
+            ids.lock().unwrap().push(e.info.id);
+        });
+        sm.transit();
+        sm.transit();
+        sm.transit();
+        assert_eq!(*ids.lock().unwrap(), vec![0, 2, 4, 7, 9]);
+        ids.lock().unwrap().clear();
+        sm.change();
+        sm.change();
+        sm.change();
+        sm.change();
+        assert_eq!(*ids.lock().unwrap(), vec![1, 3, 6, 8]);
     }
 
     /// Test transition hook method.

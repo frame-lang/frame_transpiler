@@ -68,6 +68,15 @@ mod tests {
         assert!(states.iter().any(|s| s.name() == "S1"));
     }
 
+    /// Test that the name of the initial state from the runtime interface is correct.
+    #[test]
+    fn initial_state_name() {
+        let info = Basic::machine_info();
+        let init = info.initial_state();
+        assert!(init.is_some());
+        assert_eq!(init.unwrap().name(), "S0");
+    }
+
     /// Test that the interface names from the runtime interface are correct.
     #[test]
     fn interface_names() {

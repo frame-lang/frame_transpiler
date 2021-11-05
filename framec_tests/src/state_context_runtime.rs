@@ -102,6 +102,15 @@ mod tests {
         assert!(states.iter().any(|s| s.name() == "Bar"));
     }
 
+    /// Test that the name of the initial state from the runtime interface is correct.
+    #[test]
+    fn initial_state_name() {
+        let info = StateContextSm::machine_info();
+        let init = info.initial_state();
+        assert!(init.is_some());
+        assert_eq!(init.unwrap().name(), "Init");
+    }
+
     /// Test that the state variable declarations from the runtime interface are correct.
     #[test]
     #[allow(clippy::blacklisted_name)]

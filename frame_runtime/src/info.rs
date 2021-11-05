@@ -52,6 +52,24 @@ pub trait MachineInfo {
     /// All of the possible transitions between states in this machine.
     fn transitions(&self) -> Vec<TransitionInfo>;
 
+    /// The initial state of the machine, which is is the first state listed in the `machine` block.
+    /// Returns `None` if the machine has no states.
+    fn initial_state(&self) -> Option<&dyn StateInfo> {
+        if self.states().is_empty() {
+            None
+        } else {
+            Some(self.states()[0])
+        }
+    }
+
+    /// The top-level states are those which are not children of another state.
+    fn top_level_states(&self) -> Vec<&dyn StateInfo> {
+        self.states()
+            .into_iter()
+            .filter(|s| s.parent().is_none())
+            .collect()
+    }
+
     /// Get a domain variable declaration by name.
     fn get_variable(&self, name: &str) -> Option<NameInfo> {
         self.variables().into_iter().find(|n| name == n.name)
@@ -79,7 +97,7 @@ pub trait StateInfo {
     /// The machine this state is contained in.
     fn machine(&self) -> &dyn MachineInfo;
 
-    /// The name of this state.
+    /// The unique name of this state.
     fn name(&self) -> &'static str;
 
     /// The parent of this state, if any.
@@ -174,6 +192,11 @@ pub enum TransitionKind {
 /// `event::TransitionEvent` is produced, which links to the `TransitionInfo` for the statement
 /// that triggered it.
 pub struct TransitionInfo {
+    /// A unique ID for this transition, within the current state machine. This ID corresponds to
+    /// the index of the transition in the vector returned by the `transitions()` method of the
+    /// machine it's contained in.
+    pub id: usize,
+
     /// Whether this is a standard or change-state transition.
     pub kind: TransitionKind,
 
