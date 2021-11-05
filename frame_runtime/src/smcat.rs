@@ -258,7 +258,6 @@ impl Renderer {
     ) {
         let mut state_iter = states.iter().peekable();
         while let Some(state) = state_iter.next() {
-            println!("active: {:?}", active);
             let style = self.style.node(*state, active == Some(state.name()));
             let children = state.children();
             output.push_str(&"  ".repeat(indent));
