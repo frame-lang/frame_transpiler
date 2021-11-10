@@ -24,9 +24,7 @@ mod tests {
 
     #[test]
     /// Test that the generated file compiles.
-    fn follow_rust_naming_compiles() {
-        assert!(true);
-    }
+    fn follow_rust_naming_compiles() {}
 
     #[test]
     /// Test that the generated state machine works and that events are

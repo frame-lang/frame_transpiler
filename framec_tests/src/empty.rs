@@ -4,7 +4,5 @@ include!(concat!(env!("OUT_DIR"), "/", "empty.rs"));
 mod tests {
 
     #[test]
-    fn empty_state_machine_compiles() {
-        assert!(true);
-    }
+    fn empty_state_machine_compiles() {}
 }
