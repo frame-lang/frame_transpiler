@@ -9,3 +9,4 @@ edition = "2018"
 crate-type = ["rlib"]
 
 [dependencies]
+once_cell = "1.8.0"

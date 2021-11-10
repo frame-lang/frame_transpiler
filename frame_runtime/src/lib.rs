@@ -30,7 +30,7 @@ pub mod env;
 pub mod event;
 pub mod info;
 pub mod live;
-pub mod smcat;
+// pub mod smcat;
 
 pub use env::*;
 pub use event::*;
