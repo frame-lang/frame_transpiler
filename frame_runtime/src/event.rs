@@ -1,5 +1,6 @@
-//! This module provides infrastructure to support registering and invoking callbacks that notify
-//! clients of events within a running state machine.
+//! The event monitor maintains a history of previous Frame events and transitions, and enables
+//! registering callbacks that will be automatically invoked whenever an event or transition occurs
+//! in a running state machine.
 
 use crate::live::*;
 use std::collections::VecDeque;
@@ -15,13 +16,14 @@ impl<'a, F> EventCallback<'a> for F where F: FnMut(Rc<dyn MethodInstance>) + Sen
 pub trait TransitionCallback<'a>: FnMut(&TransitionInstance) + Send + 'a {}
 impl<'a, F> TransitionCallback<'a> for F where F: FnMut(&TransitionInstance) + Send + 'a {}
 
-/// Event monitor.
+/// The event monitor.
 pub struct EventMonitor<'a> {
-    events_capacity: Option<usize>,
-    transitions_capacity: Option<usize>,
-    events: VecDeque<Rc<dyn MethodInstance>>,
-    transitions: VecDeque<TransitionInstance>,
-    event_callbacks: Vec<Box<dyn EventCallback<'a>>>,
+    event_history_capacity: Option<usize>,
+    transition_history_capacity: Option<usize>,
+    event_history: VecDeque<Rc<dyn MethodInstance>>,
+    transition_history: VecDeque<TransitionInstance>,
+    event_sent_callbacks: Vec<Box<dyn EventCallback<'a>>>,
+    event_handled_callbacks: Vec<Box<dyn EventCallback<'a>>>,
     transition_callbacks: Vec<Box<dyn TransitionCallback<'a>>>,
     // event_callbacks: Vec<Box<dyn FnMut(Rc<dyn MethodInstance>) + Send + 'a>>,
     // transition_callbacks: Vec<Box<dyn FnMut(&TransitionInstance) + Send + 'a>>,
@@ -30,36 +32,68 @@ pub struct EventMonitor<'a> {
 impl<'a> EventMonitor<'a> {
     /// Create a new event monitor. The arguments indicate the number of events and transitions to
     /// maintain as history.
-    pub fn new(events_capacity: Option<usize>, transitions_capacity: Option<usize>) -> Self {
+    pub fn new(event_capacity: Option<usize>, transition_capacity: Option<usize>) -> Self {
         EventMonitor {
-            events_capacity,
-            transitions_capacity,
-            events: new_deque(&events_capacity),
-            transitions: new_deque(&transitions_capacity),
-            event_callbacks: Vec::new(),
+            event_history_capacity: event_capacity,
+            transition_history_capacity: transition_capacity,
+            event_history: new_deque(&event_capacity),
+            transition_history: new_deque(&transition_capacity),
+            event_sent_callbacks: Vec::new(),
+            event_handled_callbacks: Vec::new(),
             transition_callbacks: Vec::new(),
         }
     }
 
-    /// Register a callback to be called on each Frame event. Callbacks will be invoked after the
-    /// event has been completely handled. This ensures that the return value of the event, if any,
-    /// is set in the method instance argument.
+    /// Register a callback to be invoked when an event is sent, but before it has been handled.
+    /// Use this when you want the notification order for events to reflect the order that the
+    /// events are triggered, but don't care about the return value of handled events.
     ///
-    /// Note that the argument type here is `impl EventCallback<'a>`, but the trait alias is
-    /// inlined to help Rust infer the argument type when callbacks are defined anonymously.
-    pub fn add_event_callback(
+    /// Note that when an event triggers a transition, callbacks will be invoked for the related
+    /// events in the following order:
+    ///
+    ///  * triggering event
+    ///  * exit event for the old state, if any
+    ///  * enter event for the new state, if any
+    ///
+    /// Note that the argument type for this function is `impl EventCallback<'a>`, but the trait
+    /// alias is inlined to help Rust infer the argument type when callbacks are defined
+    /// anonymously.
+    pub fn add_event_sent_callback(
         &mut self,
         callback: impl FnMut(Rc<dyn MethodInstance>) + Send + 'a,
         // callback: impl EventCallback<'a>,
     ) {
-        self.event_callbacks.push(Box::new(callback));
+        self.event_sent_callbacks.push(Box::new(callback));
+    }
+
+    /// Register a callback to be invoked after an event has been *completely* handled. Use this
+    /// when you want the method instance argument to contain the return value of the event, if
+    /// any.
+    ///
+    /// Note that when an event triggers a transition, callbacks will be invoked for the related
+    /// events in the following order:
+    ///
+    ///  * exit event for the old state, if any
+    ///  * enter event for the new state, if any
+    ///  * triggering event
+    ///
+    /// Note that the argument type for this function is `impl EventCallback<'a>`, but the trait
+    /// alias is inlined to help Rust infer the argument type when callbacks are defined
+    /// anonymously.
+    pub fn add_event_handled_callback(
+        &mut self,
+        callback: impl FnMut(Rc<dyn MethodInstance>) + Send + 'a,
+        // callback: impl EventCallback<'a>,
+    ) {
+        self.event_handled_callbacks.push(Box::new(callback));
     }
 
     /// Register a callback to be called on each transition. Callbacks will be invoked after each
     /// transition completes, including the processing of exit and enter events.
     ///
-    /// Note that the argument type here is `impl TransitionCallback<'a>`, but the trait alias is
-    /// inlined to help Rust infer the argument type when callbacks are defined anonymously.
+    /// Note that the argument type for this function is `impl TransitionCallback<'a>`, but the
+    /// trait alias is inlined to help Rust infer the argument type when callbacks are defined
+    /// anonymously.
     pub fn add_transition_callback(
         &mut self,
         callback: impl FnMut(&TransitionInstance) + Send + 'a,
@@ -68,12 +102,25 @@ impl<'a> EventMonitor<'a> {
         self.transition_callbacks.push(Box::new(callback));
     }
 
-    /// Track that a Frame event occurred, calling any relevant callbacks and saving it to the
+    /// Invoke the event-sent callbacks. This event will not be added to the history until the
+    /// event has been completely handled. Clients shouldn't need to call this method. It will be
+    /// called by code generated by Framec.
+    pub fn event_sent(&mut self, event: Rc<dyn MethodInstance>) {
+        for c in &mut self.event_sent_callbacks {
+            (**c)(event.clone());
+        }
+    }
+
+    /// Track that a Frame event was handled, calling any relevant callbacks and saving it to the
     /// history. Clients shouldn't need to call this method. It will be called by code generated by
     /// Framec.
-    pub fn event_occurred(&mut self, event: Rc<dyn MethodInstance>) {
-        push_to_deque(&self.events_capacity, &mut self.events, event.clone());
-        for c in &mut self.event_callbacks {
+    pub fn event_handled(&mut self, event: Rc<dyn MethodInstance>) {
+        push_to_deque(
+            &self.event_history_capacity,
+            &mut self.event_history,
+            event.clone(),
+        );
+        for c in &mut self.event_handled_callbacks {
             (**c)(event.clone());
         }
     }
@@ -83,8 +130,8 @@ impl<'a> EventMonitor<'a> {
     /// be called by code generated by Framec.
     pub fn transition_occurred(&mut self, transition: TransitionInstance) {
         push_to_deque(
-            &self.transitions_capacity,
-            &mut self.transitions,
+            &self.transition_history_capacity,
+            &mut self.transition_history,
             transition.clone(),
         );
         for c in &mut self.transition_callbacks {
@@ -92,44 +139,44 @@ impl<'a> EventMonitor<'a> {
         }
     }
 
-    /// Get the event history.
+    /// Get the history of handled events.
     pub fn event_history(&self) -> &VecDeque<Rc<dyn MethodInstance>> {
-        &self.events
+        &self.event_history
     }
 
-    /// Get the transition history.
+    /// Get the history of transitions that occurred.
     pub fn transition_history(&self) -> &VecDeque<TransitionInstance> {
-        &self.transitions
+        &self.transition_history
     }
 
     /// Clear the event history.
     pub fn clear_event_history(&mut self) {
-        self.events = new_deque(&self.events_capacity);
+        self.event_history = new_deque(&self.event_history_capacity);
     }
 
     /// Clear the transition history.
     pub fn clear_transition_history(&mut self) {
-        self.transitions = new_deque(&self.transitions_capacity);
+        self.transition_history = new_deque(&self.transition_history_capacity);
     }
 
     /// Set the number of events to maintain in the history. If `None`, the number of elements is
     /// unlimited.
     pub fn set_event_history_capacity(&mut self, capacity: Option<usize>) {
-        resize_deque(&capacity, &mut self.events);
-        self.events_capacity = capacity;
+        resize_deque(&capacity, &mut self.event_history);
+        self.event_history_capacity = capacity;
     }
 
     /// Set the number of transitions to maintain in the history. If `None`, the number of elements
     /// is unlimited.
     pub fn set_transition_history_capacity(&mut self, capacity: Option<usize>) {
-        resize_deque(&capacity, &mut self.transitions);
-        self.transitions_capacity = capacity;
+        resize_deque(&capacity, &mut self.transition_history);
+        self.transition_history_capacity = capacity;
     }
 
     /// Get the most recent transition. This will return `None` if either the state machine has not
     /// transitioned yet or if the capacity of the transition history is set to 0.
     pub fn last_transition(&self) -> Option<&TransitionInstance> {
-        self.transitions.back()
+        self.transition_history.back()
     }
 }
 
@@ -180,6 +227,7 @@ mod tests {
     use crate::env::{Empty, Environment};
     use crate::info::{MethodInfo, StateInfo};
     use std::any::Any;
+    use std::cell::Ref;
     use std::sync::Mutex;
 
     mod info {
@@ -308,27 +356,47 @@ mod tests {
         fn arguments(&self) -> Rc<dyn Environment> {
             Empty::new_rc()
         }
-        fn return_value(&self) -> Option<&dyn Any> {
+        fn return_value(&self) -> Option<Ref<dyn Any>> {
             None
         }
     }
 
     #[test]
-    fn event_callbacks() {
+    fn event_sent_callbacks() {
         let tape: Vec<String> = Vec::new();
         let tape_mutex = Mutex::new(tape);
         let mut em = EventMonitor::default();
-        em.add_event_callback(|e| tape_mutex.lock().unwrap().push(e.info().name.to_string()));
-        em.event_occurred(Rc::new(FrameMessage::Next));
-        em.event_occurred(Rc::new(FrameMessage::Enter(TestState::A)));
-        em.event_occurred(Rc::new(FrameMessage::Enter(TestState::B)));
-        em.event_occurred(Rc::new(FrameMessage::Next));
-        em.event_occurred(Rc::new(FrameMessage::Exit(TestState::A)));
-        em.event_occurred(Rc::new(FrameMessage::Exit(TestState::B)));
-        em.event_occurred(Rc::new(FrameMessage::Next));
+        em.add_event_sent_callback(|e| tape_mutex.lock().unwrap().push(e.info().name.to_string()));
+        em.event_sent(Rc::new(FrameMessage::Next));
+        em.event_sent(Rc::new(FrameMessage::Enter(TestState::A)));
+        em.event_sent(Rc::new(FrameMessage::Enter(TestState::B)));
+        em.event_sent(Rc::new(FrameMessage::Next));
+        em.event_sent(Rc::new(FrameMessage::Exit(TestState::A)));
+        em.event_sent(Rc::new(FrameMessage::Exit(TestState::B)));
+        em.event_sent(Rc::new(FrameMessage::Next));
         assert_eq!(
             *tape_mutex.lock().unwrap(),
             vec!["next", "A:>", "B:>", "next", "A:<", "B:<", "next"]
+        );
+    }
+
+    #[test]
+    fn event_handled_callbacks() {
+        let tape: Vec<String> = Vec::new();
+        let tape_mutex = Mutex::new(tape);
+        let mut em = EventMonitor::default();
+        em.add_event_handled_callback(|e| {
+            tape_mutex.lock().unwrap().push(e.info().name.to_string())
+        });
+        em.event_handled(Rc::new(FrameMessage::Exit(TestState::B)));
+        em.event_handled(Rc::new(FrameMessage::Enter(TestState::A)));
+        em.event_handled(Rc::new(FrameMessage::Next));
+        em.event_handled(Rc::new(FrameMessage::Exit(TestState::A)));
+        em.event_handled(Rc::new(FrameMessage::Enter(TestState::B)));
+        em.event_handled(Rc::new(FrameMessage::Next));
+        assert_eq!(
+            *tape_mutex.lock().unwrap(),
+            vec!["B:<", "A:>", "next", "A:<", "B:>", "next"]
         );
     }
 
@@ -385,9 +453,9 @@ mod tests {
         let mut em = EventMonitor::new(Some(5), Some(1));
         assert!(em.event_history().is_empty());
 
-        em.event_occurred(Rc::new(FrameMessage::Next));
-        em.event_occurred(Rc::new(FrameMessage::Enter(TestState::A)));
-        em.event_occurred(Rc::new(FrameMessage::Enter(TestState::B)));
+        em.event_handled(Rc::new(FrameMessage::Next));
+        em.event_handled(Rc::new(FrameMessage::Enter(TestState::A)));
+        em.event_handled(Rc::new(FrameMessage::Enter(TestState::B)));
         assert_eq!(
             em.event_history()
                 .iter()
@@ -396,10 +464,10 @@ mod tests {
             vec!["next", "A:>", "B:>"]
         );
 
-        em.event_occurred(Rc::new(FrameMessage::Exit(TestState::B)));
-        em.event_occurred(Rc::new(FrameMessage::Next));
-        em.event_occurred(Rc::new(FrameMessage::Exit(TestState::A)));
-        em.event_occurred(Rc::new(FrameMessage::Next));
+        em.event_handled(Rc::new(FrameMessage::Exit(TestState::B)));
+        em.event_handled(Rc::new(FrameMessage::Next));
+        em.event_handled(Rc::new(FrameMessage::Exit(TestState::A)));
+        em.event_handled(Rc::new(FrameMessage::Next));
         assert_eq!(
             em.event_history()
                 .iter()
@@ -411,8 +479,8 @@ mod tests {
         em.clear_event_history();
         assert!(em.event_history().is_empty());
 
-        em.event_occurred(Rc::new(FrameMessage::Enter(TestState::A)));
-        em.event_occurred(Rc::new(FrameMessage::Enter(TestState::B)));
+        em.event_handled(Rc::new(FrameMessage::Enter(TestState::A)));
+        em.event_handled(Rc::new(FrameMessage::Enter(TestState::B)));
         assert_eq!(
             em.event_history()
                 .iter()
@@ -427,9 +495,9 @@ mod tests {
         let mut em = EventMonitor::new(None, Some(1));
         assert!(em.event_history().is_empty());
 
-        em.event_occurred(Rc::new(FrameMessage::Next));
-        em.event_occurred(Rc::new(FrameMessage::Enter(TestState::A)));
-        em.event_occurred(Rc::new(FrameMessage::Enter(TestState::B)));
+        em.event_handled(Rc::new(FrameMessage::Next));
+        em.event_handled(Rc::new(FrameMessage::Enter(TestState::A)));
+        em.event_handled(Rc::new(FrameMessage::Enter(TestState::B)));
         assert_eq!(
             em.event_history()
                 .iter()
@@ -438,10 +506,10 @@ mod tests {
             vec!["next", "A:>", "B:>"]
         );
 
-        em.event_occurred(Rc::new(FrameMessage::Exit(TestState::B)));
-        em.event_occurred(Rc::new(FrameMessage::Next));
-        em.event_occurred(Rc::new(FrameMessage::Exit(TestState::A)));
-        em.event_occurred(Rc::new(FrameMessage::Next));
+        em.event_handled(Rc::new(FrameMessage::Exit(TestState::B)));
+        em.event_handled(Rc::new(FrameMessage::Next));
+        em.event_handled(Rc::new(FrameMessage::Exit(TestState::A)));
+        em.event_handled(Rc::new(FrameMessage::Next));
         assert_eq!(
             em.event_history()
                 .iter()
@@ -453,8 +521,8 @@ mod tests {
         em.clear_event_history();
         assert!(em.event_history().is_empty());
 
-        em.event_occurred(Rc::new(FrameMessage::Enter(TestState::A)));
-        em.event_occurred(Rc::new(FrameMessage::Enter(TestState::B)));
+        em.event_handled(Rc::new(FrameMessage::Enter(TestState::A)));
+        em.event_handled(Rc::new(FrameMessage::Enter(TestState::B)));
         assert_eq!(
             em.event_history()
                 .iter()
@@ -469,9 +537,9 @@ mod tests {
         let mut em = EventMonitor::new(Some(0), Some(1));
         assert!(em.event_history().is_empty());
 
-        em.event_occurred(Rc::new(FrameMessage::Next));
-        em.event_occurred(Rc::new(FrameMessage::Enter(TestState::A)));
-        em.event_occurred(Rc::new(FrameMessage::Enter(TestState::B)));
+        em.event_handled(Rc::new(FrameMessage::Next));
+        em.event_handled(Rc::new(FrameMessage::Enter(TestState::A)));
+        em.event_handled(Rc::new(FrameMessage::Enter(TestState::B)));
         assert!(em.event_history().is_empty());
 
         em.clear_event_history();

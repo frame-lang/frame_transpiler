@@ -4,6 +4,7 @@ use crate::env::{Empty, Environment};
 use crate::event::EventMonitor;
 use crate::info::*;
 use std::any::Any;
+use std::cell::Ref;
 use std::rc::Rc;
 
 /// An interface to a running state machine that supports inspecting its current state and
@@ -64,8 +65,8 @@ pub trait MethodInstance {
         Empty::new_rc()
     }
 
-    /// The return value, whose type can be found at `self.info().return_type`.
-    fn return_value(&self) -> Option<&dyn Any> {
+    /// The return value, if any, whose type can be found at `self.info().return_type`.
+    fn return_value(&self) -> Option<Ref<dyn Any>> {
         None
     }
 }

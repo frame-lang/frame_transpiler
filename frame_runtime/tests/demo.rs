@@ -51,7 +51,7 @@
 
 use frame_runtime::*;
 use std::any::Any;
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
@@ -231,12 +231,16 @@ impl std::fmt::Display for FrameMessage {
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 enum FrameEventReturn {
     None,
     Inc { return_value: i32 },
 }
 
 impl FrameEventReturn {
+    fn is_none(&self) -> bool {
+        matches!(self, FrameEventReturn::None)
+    }
     #[allow(dead_code)]
     fn get_inc_ret(&self) -> i32 {
         match self {
@@ -246,10 +250,11 @@ impl FrameEventReturn {
     }
 }
 
+#[derive(Clone)]
 pub struct FrameEvent {
     message: FrameMessage,
     arguments: Rc<RefCell<FrameEventArgs>>,
-    ret: FrameEventReturn,
+    ret: RefCell<FrameEventReturn>,
 }
 
 impl FrameEvent {
@@ -257,7 +262,7 @@ impl FrameEvent {
         FrameEvent {
             message,
             arguments: Rc::new(RefCell::new(arguments)),
-            ret: FrameEventReturn::None,
+            ret: RefCell::new(FrameEventReturn::None),
         }
     }
 }
@@ -272,10 +277,14 @@ impl MethodInstance for FrameEvent {
     fn arguments(&self) -> Rc<dyn Environment> {
         self.arguments.clone()
     }
-    fn return_value(&self) -> Option<&dyn Any> {
-        match self.ret {
-            FrameEventReturn::None => None,
-            FrameEventReturn::Inc { ref return_value } => Some(return_value),
+    fn return_value(&self) -> Option<Ref<dyn Any>> {
+        if self.ret.borrow().is_none() {
+            None
+        } else {
+            Some(Ref::map(self.ret.borrow(), |r| match r {
+                FrameEventReturn::Inc { ref return_value } => return_value as &dyn Any,
+                FrameEventReturn::None => &() as &dyn Any,
+            }))
         }
     }
 }
@@ -494,13 +503,6 @@ enum StateContext {
 }
 
 impl StateContext {
-    // fn as_state_instance(&self) -> Ref<dyn StateInstance> {
-    //     match self {
-    //         StateContext::Init(context) => Ref::map(context.borrow(), |c| c as &dyn StateInstance),
-    //         StateContext::Foo(context) => Ref::map(context.borrow(), |c| c as &dyn StateInstance),
-    //         StateContext::Bar(context) => Ref::map(context.borrow(), |c| c as &dyn StateInstance),
-    //     }
-    // }
     fn init_context(&self) -> &InitStateContext {
         match self {
             StateContext::Init(context) => context,
@@ -589,7 +591,7 @@ impl<'a> Demo<'a> {
     pub fn new() -> Demo<'a> {
         let context = InitStateContext {};
         let next_state_context = Rc::new(StateContext::Init(context));
-        let event_monitor = EventMonitor::new(Some(3), Some(2));
+        let event_monitor = EventMonitor::new(Some(0), Some(1));
         let domain_vars = Rc::new(RefCell::new(DomainVars { x: 0, y: 0 }));
         let mut machine = Demo {
             state: DemoState::Init,
@@ -608,10 +610,11 @@ impl<'a> Demo<'a> {
         ));
     }
 
+    #[allow(clippy::redundant_clone)]
     pub fn inc(&mut self, arg: i32) -> i32 {
         let frame_args = FrameEventArgs::Inc(IncArgs { arg });
         let frame_event = self.handle_event(FrameEvent::new(FrameMessage::Inc, frame_args));
-        match frame_event.ret {
+        match *frame_event.clone().ret.borrow() {
             FrameEventReturn::Inc { return_value } => return_value,
             _ => panic!("Bad return value for inc"),
         }
@@ -624,7 +627,7 @@ impl<'a> Demo<'a> {
 
     #[allow(clippy::single_match)]
     #[allow(unused_variables)]
-    fn init_handler(&mut self, frame_event: &mut FrameEvent) {
+    fn init_handler(&mut self, frame_event: Rc<FrameEvent>) {
         let state_context_clone = Rc::clone(&self.state_context);
         let this_state_context = state_context_clone.init_context();
         match frame_event.message {
@@ -648,7 +651,7 @@ impl<'a> Demo<'a> {
         }
     }
 
-    fn foo_handler(&mut self, frame_event: &mut FrameEvent) {
+    fn foo_handler(&mut self, frame_event: Rc<FrameEvent>) {
         let state_context_clone = Rc::clone(&self.state_context);
         let this_state_context = state_context_clone.foo_context();
         match frame_event.message {
@@ -660,9 +663,9 @@ impl<'a> Demo<'a> {
             FrameMessage::Inc => {
                 this_state_context.state_vars.borrow_mut().x +=
                     frame_event.arguments.borrow().inc_args().arg;
-                frame_event.ret = FrameEventReturn::Inc {
+                frame_event.ret.replace(FrameEventReturn::Inc {
                     return_value: this_state_context.state_vars.borrow().x,
-                };
+                });
             }
             FrameMessage::Next => {
                 self.domain_vars.borrow_mut().x += this_state_context.state_vars.borrow().x;
@@ -687,7 +690,7 @@ impl<'a> Demo<'a> {
         }
     }
 
-    fn bar_handler(&mut self, frame_event: &mut FrameEvent) {
+    fn bar_handler(&mut self, frame_event: Rc<FrameEvent>) {
         let state_context_clone = Rc::clone(&self.state_context);
         let this_state_context = state_context_clone.bar_context();
         match frame_event.message {
@@ -700,9 +703,9 @@ impl<'a> Demo<'a> {
             FrameMessage::Inc => {
                 this_state_context.state_vars.borrow_mut().y +=
                     frame_event.arguments.borrow().inc_args().arg;
-                frame_event.ret = FrameEventReturn::Inc {
+                frame_event.ret.replace(FrameEventReturn::Inc {
                     return_value: this_state_context.state_vars.borrow().y,
-                };
+                });
             }
             FrameMessage::Next => {
                 self.domain_vars.borrow_mut().y += this_state_context.state_vars.borrow().y;
@@ -720,14 +723,15 @@ impl<'a> Demo<'a> {
         }
     }
 
-    fn handle_event(&mut self, mut frame_event: FrameEvent) -> Rc<FrameEvent> {
-        match self.state {
-            DemoState::Init => self.init_handler(&mut frame_event),
-            DemoState::Foo => self.foo_handler(&mut frame_event),
-            DemoState::Bar => self.bar_handler(&mut frame_event),
-        }
+    fn handle_event(&mut self, frame_event: FrameEvent) -> Rc<FrameEvent> {
         let event_rc = Rc::new(frame_event);
-        self.event_monitor_mut().event_occurred(event_rc.clone());
+        self.event_monitor_mut().event_sent(event_rc.clone());
+        match self.state {
+            DemoState::Init => self.init_handler(event_rc.clone()),
+            DemoState::Foo => self.foo_handler(event_rc.clone()),
+            DemoState::Bar => self.bar_handler(event_rc.clone()),
+        }
+        self.event_monitor_mut().event_handled(event_rc.clone());
         event_rc
     }
 
@@ -941,7 +945,6 @@ fn state_variables() {
 }
 
 #[test]
-#[rustfmt::skip]
 fn state_arguments() {
     let mut sm = Demo::new();
     assert!(sm.state().arguments().lookup("x").is_none());
@@ -956,7 +959,25 @@ fn state_arguments() {
 }
 
 #[test]
-#[rustfmt::skip]
+fn event_sent_callbacks() {
+    let tape: Vec<String> = Vec::new();
+    let tape_mutex = Mutex::new(tape);
+    let mut sm = Demo::new();
+    sm.event_monitor_mut().add_event_sent_callback(|e| {
+        tape_mutex.lock().unwrap().push(e.info().name.to_string());
+    });
+    sm.inc(2);
+    sm.next();
+    sm.inc(3);
+    sm.next();
+    sm.next();
+    assert_eq!(
+        *tape_mutex.lock().unwrap(),
+        vec!["inc", "next", "Foo:<", "Bar:>", "inc", "next", "next", "Foo:<", "Bar:>"]
+    );
+}
+
+#[test]
 fn transition_callbacks() {
     let tape: Vec<String> = Vec::new();
     let tape_mutex = Mutex::new(tape);
@@ -978,13 +999,22 @@ fn transition_callbacks() {
             .push(format!("new: {}", e.new_state.info().name));
     });
     sm.next();
-    assert_eq!(*tape_mutex.lock().unwrap(), vec!["kind: Transition", "old: Foo", "new: Bar"]);
+    assert_eq!(
+        *tape_mutex.lock().unwrap(),
+        vec!["kind: Transition", "old: Foo", "new: Bar"]
+    );
     tape_mutex.lock().unwrap().clear();
     sm.next();
-    assert_eq!(*tape_mutex.lock().unwrap(), vec!["kind: ChangeState", "old: Bar", "new: Foo"]);
+    assert_eq!(
+        *tape_mutex.lock().unwrap(),
+        vec!["kind: ChangeState", "old: Bar", "new: Foo"]
+    );
     tape_mutex.lock().unwrap().clear();
     sm.next();
-    assert_eq!(*tape_mutex.lock().unwrap(), vec!["kind: Transition", "old: Foo", "new: Bar"]);
+    assert_eq!(
+        *tape_mutex.lock().unwrap(),
+        vec!["kind: Transition", "old: Foo", "new: Bar"]
+    );
 }
 
 #[test]
