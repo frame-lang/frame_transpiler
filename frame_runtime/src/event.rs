@@ -177,7 +177,9 @@ fn new_deque<T>(capacity: &Option<usize>) -> VecDeque<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::info::StateInfo;
+    use crate::env::{Empty, Environment};
+    use crate::info::{MethodInfo, StateInfo};
+    use std::any::Any;
     use std::sync::Mutex;
 
     mod info {
@@ -282,8 +284,56 @@ mod tests {
         }
     }
 
+    #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
+    enum FrameMessage {
+        Enter(TestState),
+        Exit(TestState),
+        Next,
+    }
+
+    impl std::fmt::Display for FrameMessage {
+        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            match self {
+                FrameMessage::Enter(s) => write!(f, "{:?}:>", s),
+                FrameMessage::Exit(s) => write!(f, "{:?}:<", s),
+                FrameMessage::Next => write!(f, "next"),
+            }
+        }
+    }
+
+    impl MethodInstance for FrameMessage {
+        fn info(&self) -> &MethodInfo {
+            info::machine().get_event(&self.to_string()).unwrap()
+        }
+        fn arguments(&self) -> Rc<dyn Environment> {
+            Empty::new_rc()
+        }
+        fn return_value(&self) -> Option<&dyn Any> {
+            None
+        }
+    }
+
     #[test]
-    fn callbacks_are_called() {
+    fn event_callbacks() {
+        let tape: Vec<String> = Vec::new();
+        let tape_mutex = Mutex::new(tape);
+        let mut em = EventMonitor::default();
+        em.add_event_callback(|e| tape_mutex.lock().unwrap().push(e.info().name.to_string()));
+        em.event_occurred(Rc::new(FrameMessage::Next));
+        em.event_occurred(Rc::new(FrameMessage::Enter(TestState::A)));
+        em.event_occurred(Rc::new(FrameMessage::Enter(TestState::B)));
+        em.event_occurred(Rc::new(FrameMessage::Next));
+        em.event_occurred(Rc::new(FrameMessage::Exit(TestState::A)));
+        em.event_occurred(Rc::new(FrameMessage::Exit(TestState::B)));
+        em.event_occurred(Rc::new(FrameMessage::Next));
+        assert_eq!(
+            *tape_mutex.lock().unwrap(),
+            vec!["next", "A:>", "B:>", "next", "A:<", "B:<", "next"]
+        );
+    }
+
+    #[test]
+    fn transition_callbacks() {
         let tape: Vec<String> = Vec::new();
         let tape_mutex = Mutex::new(tape);
         let mut em = EventMonitor::default();
@@ -328,5 +378,204 @@ mod tests {
             *tape_mutex.lock().unwrap(),
             vec!["old: B", "new: A", "kind: ChangeState"]
         );
+    }
+
+    #[test]
+    fn event_history_finite() {
+        let mut em = EventMonitor::new(Some(5), Some(1));
+        assert!(em.event_history().is_empty());
+
+        em.event_occurred(Rc::new(FrameMessage::Next));
+        em.event_occurred(Rc::new(FrameMessage::Enter(TestState::A)));
+        em.event_occurred(Rc::new(FrameMessage::Enter(TestState::B)));
+        assert_eq!(
+            em.event_history()
+                .iter()
+                .map(|e| e.info().name)
+                .collect::<Vec<&str>>(),
+            vec!["next", "A:>", "B:>"]
+        );
+
+        em.event_occurred(Rc::new(FrameMessage::Exit(TestState::B)));
+        em.event_occurred(Rc::new(FrameMessage::Next));
+        em.event_occurred(Rc::new(FrameMessage::Exit(TestState::A)));
+        em.event_occurred(Rc::new(FrameMessage::Next));
+        assert_eq!(
+            em.event_history()
+                .iter()
+                .map(|e| e.info().name)
+                .collect::<Vec<&str>>(),
+            vec!["B:>", "B:<", "next", "A:<", "next"]
+        );
+
+        em.clear_event_history();
+        assert!(em.event_history().is_empty());
+
+        em.event_occurred(Rc::new(FrameMessage::Enter(TestState::A)));
+        em.event_occurred(Rc::new(FrameMessage::Enter(TestState::B)));
+        assert_eq!(
+            em.event_history()
+                .iter()
+                .map(|e| e.info().name)
+                .collect::<Vec<&str>>(),
+            vec!["A:>", "B:>"]
+        );
+    }
+
+    #[test]
+    fn event_history_infinite() {
+        let mut em = EventMonitor::new(None, Some(1));
+        assert!(em.event_history().is_empty());
+
+        em.event_occurred(Rc::new(FrameMessage::Next));
+        em.event_occurred(Rc::new(FrameMessage::Enter(TestState::A)));
+        em.event_occurred(Rc::new(FrameMessage::Enter(TestState::B)));
+        assert_eq!(
+            em.event_history()
+                .iter()
+                .map(|e| e.info().name)
+                .collect::<Vec<&str>>(),
+            vec!["next", "A:>", "B:>"]
+        );
+
+        em.event_occurred(Rc::new(FrameMessage::Exit(TestState::B)));
+        em.event_occurred(Rc::new(FrameMessage::Next));
+        em.event_occurred(Rc::new(FrameMessage::Exit(TestState::A)));
+        em.event_occurred(Rc::new(FrameMessage::Next));
+        assert_eq!(
+            em.event_history()
+                .iter()
+                .map(|e| e.info().name)
+                .collect::<Vec<&str>>(),
+            vec!["next", "A:>", "B:>", "B:<", "next", "A:<", "next"]
+        );
+
+        em.clear_event_history();
+        assert!(em.event_history().is_empty());
+
+        em.event_occurred(Rc::new(FrameMessage::Enter(TestState::A)));
+        em.event_occurred(Rc::new(FrameMessage::Enter(TestState::B)));
+        assert_eq!(
+            em.event_history()
+                .iter()
+                .map(|e| e.info().name)
+                .collect::<Vec<&str>>(),
+            vec!["A:>", "B:>"]
+        );
+    }
+
+    #[test]
+    fn event_history_disabled() {
+        let mut em = EventMonitor::new(Some(0), Some(1));
+        assert!(em.event_history().is_empty());
+
+        em.event_occurred(Rc::new(FrameMessage::Next));
+        em.event_occurred(Rc::new(FrameMessage::Enter(TestState::A)));
+        em.event_occurred(Rc::new(FrameMessage::Enter(TestState::B)));
+        assert!(em.event_history().is_empty());
+
+        em.clear_event_history();
+        assert!(em.event_history().is_empty());
+    }
+
+    #[test]
+    fn transition_history_finite() {
+        let mut em = EventMonitor::new(Some(0), Some(3));
+        let a = Rc::new(TestState::A);
+        let b = Rc::new(TestState::B);
+        let a2b =
+            TransitionInstance::change_state(info::machine().transitions[0], a.clone(), b.clone());
+        let b2a = TransitionInstance::change_state(info::machine().transitions[1], b, a);
+
+        assert!(em.last_transition().is_none());
+        assert!(em.transition_history().is_empty());
+
+        em.transition_occurred(a2b.clone());
+        em.transition_occurred(b2a.clone());
+        assert_eq!(em.transition_history().len(), 2);
+
+        let last = em.last_transition().unwrap();
+        let first = em.transition_history().get(0).unwrap();
+        assert_eq!(last.info.id, 1);
+        assert_eq!(last.old_state.info().name, "B");
+        assert_eq!(last.new_state.info().name, "A");
+        assert_eq!(first.info.id, 0);
+        assert_eq!(first.old_state.info().name, "A");
+        assert_eq!(first.new_state.info().name, "B");
+
+        em.transition_occurred(b2a.clone());
+        em.transition_occurred(a2b.clone());
+        assert_eq!(em.transition_history().len(), 3);
+        assert_eq!(em.last_transition().unwrap().info.id, 0);
+        assert_eq!(em.transition_history().get(1).unwrap().info.id, 1);
+        assert_eq!(em.transition_history().get(0).unwrap().info.id, 1);
+
+        em.clear_transition_history();
+        assert!(em.transition_history().is_empty());
+        em.transition_occurred(b2a);
+        em.transition_occurred(a2b);
+        assert_eq!(em.transition_history().len(), 2);
+    }
+
+    #[test]
+    fn transition_history_infinite() {
+        let mut em = EventMonitor::new(Some(0), None);
+        let a = Rc::new(TestState::A);
+        let b = Rc::new(TestState::B);
+        let a2b =
+            TransitionInstance::change_state(info::machine().transitions[0], a.clone(), b.clone());
+        let b2a = TransitionInstance::change_state(info::machine().transitions[1], b, a);
+
+        assert!(em.last_transition().is_none());
+        assert!(em.transition_history().is_empty());
+
+        em.transition_occurred(a2b.clone());
+        em.transition_occurred(b2a.clone());
+        assert_eq!(em.transition_history().len(), 2);
+
+        let last = em.last_transition().unwrap();
+        let first = em.transition_history().get(0).unwrap();
+        assert_eq!(last.info.id, 1);
+        assert_eq!(last.old_state.info().name, "B");
+        assert_eq!(last.new_state.info().name, "A");
+        assert_eq!(first.info.id, 0);
+        assert_eq!(first.old_state.info().name, "A");
+        assert_eq!(first.new_state.info().name, "B");
+
+        em.transition_occurred(b2a.clone());
+        em.transition_occurred(a2b.clone());
+        assert_eq!(em.transition_history().len(), 4);
+        assert_eq!(em.last_transition().unwrap().info.id, 0);
+        assert_eq!(em.transition_history().get(2).unwrap().info.id, 1);
+        assert_eq!(em.transition_history().get(1).unwrap().info.id, 1);
+        assert_eq!(em.transition_history().get(0).unwrap().info.id, 0);
+
+        em.clear_transition_history();
+        assert!(em.transition_history().is_empty());
+        em.transition_occurred(b2a);
+        em.transition_occurred(a2b);
+        assert_eq!(em.transition_history().len(), 2);
+    }
+
+    #[test]
+    fn transition_history_disabled() {
+        let mut em = EventMonitor::new(Some(0), Some(0));
+        let a = Rc::new(TestState::A);
+        let b = Rc::new(TestState::B);
+        let a2b =
+            TransitionInstance::change_state(info::machine().transitions[0], a.clone(), b.clone());
+        let b2a = TransitionInstance::change_state(info::machine().transitions[1], b, a);
+
+        assert!(em.last_transition().is_none());
+        assert!(em.transition_history().is_empty());
+
+        em.transition_occurred(a2b);
+        em.transition_occurred(b2a);
+        assert!(em.last_transition().is_none());
+        assert!(em.transition_history().is_empty());
+
+        em.clear_transition_history();
+        assert!(em.last_transition().is_none());
+        assert!(em.transition_history().is_empty());
     }
 }

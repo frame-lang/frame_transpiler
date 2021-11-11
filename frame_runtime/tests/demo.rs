@@ -208,6 +208,7 @@ mod info {
     ];
 }
 
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
 enum FrameMessage {
     Enter(DemoState),
     Exit(DemoState),
