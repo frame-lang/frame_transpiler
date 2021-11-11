@@ -978,6 +978,76 @@ fn event_sent_callbacks() {
 }
 
 #[test]
+fn event_handled_callbacks() {
+    let tape: Vec<String> = Vec::new();
+    let tape_mutex = Mutex::new(tape);
+    let mut sm = Demo::new();
+    sm.event_monitor_mut().add_event_handled_callback(|e| {
+        tape_mutex.lock().unwrap().push(e.info().name.to_string());
+    });
+    sm.inc(2);
+    sm.next();
+    sm.inc(3);
+    sm.next();
+    sm.next();
+    assert_eq!(
+        *tape_mutex.lock().unwrap(),
+        vec!["inc", "Foo:<", "Bar:>", "next", "inc", "next", "Foo:<", "Bar:>", "next"]
+    );
+}
+
+#[test]
+fn event_sent_arguments() {
+    let tape: Vec<String> = Vec::new();
+    let tape_mutex = Mutex::new(tape);
+    let mut sm = Demo::new();
+    sm.event_monitor_mut().add_event_sent_callback(|e| {
+        for param in e.info().parameters {
+            let name = param.name;
+            let val = lookup_i32(e.arguments(), name);
+            tape_mutex.lock().unwrap().push(format!("{}={}", name, val));
+        }
+    });
+    sm.inc(5);
+    sm.next(); // transition done=7, start=3
+    sm.inc(6);
+    sm.next(); // change-state
+    sm.inc(7);
+    sm.next(); // transition done=7, start=3
+    assert_eq!(
+        *tape_mutex.lock().unwrap(),
+        vec!["arg=5", "done=7", "start=3", "arg=6", "arg=7", "done=7", "start=3"]
+    );
+}
+
+#[test]
+fn event_handled_return() {
+    let tape: Vec<i32> = Vec::new();
+    let tape_mutex = Mutex::new(tape);
+    let mut sm = Demo::new();
+    sm.event_monitor_mut().add_event_handled_callback(|e| {
+        let val = match e.return_value() {
+            None => -1,
+            Some(any) => *any.downcast_ref().unwrap_or(&-100),
+        };
+        tape_mutex.lock().unwrap().push(val);
+    });
+    sm.inc(3); // 5
+    sm.inc(5); // 10
+    sm.next(); // transition
+    sm.inc(5); // 12
+    sm.inc(7); // 19
+    sm.next(); // change-state
+    sm.inc(3); // 3
+    sm.inc(5); // 8
+    sm.next(); // transition
+    assert_eq!(
+        *tape_mutex.lock().unwrap(),
+        vec![5, 10, -1, -1, -1, 12, 19, -1, 3, 8, -1, -1, -1]
+    );
+}
+
+#[test]
 fn transition_callbacks() {
     let tape: Vec<String> = Vec::new();
     let tape_mutex = Mutex::new(tape);
