@@ -91,6 +91,32 @@ pub struct TransitionInstance {
     pub enter_event: Option<Rc<dyn MethodInstance>>,
 }
 
+impl TransitionInstance {
+    pub fn new(
+        info: &'static TransitionInfo,
+        old_state: Rc<dyn StateInstance>,
+        new_state: Rc<dyn StateInstance>,
+        exit_event: Option<Rc<dyn MethodInstance>>,
+        enter_event: Option<Rc<dyn MethodInstance>>,
+    ) -> TransitionInstance {
+        TransitionInstance {
+            info,
+            old_state,
+            new_state,
+            exit_event,
+            enter_event,
+        }
+    }
+
+    pub fn change_state(
+        info: &'static TransitionInfo,
+        old_state: Rc<dyn StateInstance>,
+        new_state: Rc<dyn StateInstance>,
+    ) -> TransitionInstance {
+        TransitionInstance::new(info, old_state, new_state, None, None)
+    }
+}
+
 /// The example below illustrates the implementation of the runtime interface for a basic state
 /// machine without state variables or arguments. This case requires different treatment from a
 /// more featureful state machine since runtime states are realized differently depending on
@@ -250,13 +276,14 @@ mod tests {
             let old_state_rc = self.state_rc.clone();
             self.state = new_state;
             self.state_rc = Rc::new(new_state);
-            self.event_monitor.transition_occurred(
-                transition_info,
-                old_state_rc,
-                self.state_rc.clone(),
-                None,
-                None,
-            );
+            self.event_monitor
+                .transition_occurred(TransitionInstance::new(
+                    transition_info,
+                    old_state_rc,
+                    self.state_rc.clone(),
+                    None,
+                    None,
+                ));
         }
     }
 

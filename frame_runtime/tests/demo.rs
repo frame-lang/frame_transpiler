@@ -601,14 +601,15 @@ impl<'a> Demo<'a> {
     }
 
     fn initialize(&mut self) {
-        let mut e = FrameEvent::new(FrameMessage::Enter(self.state), FrameEventArgs::None);
-        self.handle_event(&mut e);
+        self.handle_event(FrameEvent::new(
+            FrameMessage::Enter(self.state),
+            FrameEventArgs::None,
+        ));
     }
 
     pub fn inc(&mut self, arg: i32) -> i32 {
         let frame_args = FrameEventArgs::Inc(IncArgs { arg });
-        let mut frame_event = FrameEvent::new(FrameMessage::Inc, frame_args);
-        self.handle_event(&mut frame_event);
+        let frame_event = self.handle_event(FrameEvent::new(FrameMessage::Inc, frame_args));
         match frame_event.ret {
             FrameEventReturn::Inc { return_value } => return_value,
             _ => panic!("Bad return value for inc"),
@@ -617,8 +618,7 @@ impl<'a> Demo<'a> {
 
     pub fn next(&mut self) {
         let frame_args = FrameEventArgs::None;
-        let mut frame_event = FrameEvent::new(FrameMessage::Next, frame_args);
-        self.handle_event(&mut frame_event);
+        self.handle_event(FrameEvent::new(FrameMessage::Next, frame_args));
     }
 
     #[allow(clippy::single_match)]
@@ -719,12 +719,15 @@ impl<'a> Demo<'a> {
         }
     }
 
-    fn handle_event(&mut self, frame_event: &mut FrameEvent) {
+    fn handle_event(&mut self, mut frame_event: FrameEvent) -> Rc<FrameEvent> {
         match self.state {
-            DemoState::Init => self.init_handler(frame_event),
-            DemoState::Foo => self.foo_handler(frame_event),
-            DemoState::Bar => self.bar_handler(frame_event),
+            DemoState::Init => self.init_handler(&mut frame_event),
+            DemoState::Foo => self.foo_handler(&mut frame_event),
+            DemoState::Bar => self.bar_handler(&mut frame_event),
         }
+        let event_rc = Rc::new(frame_event);
+        self.event_monitor_mut().event_occurred(event_rc.clone());
+        event_rc
     }
 
     fn transition(
@@ -736,8 +739,8 @@ impl<'a> Demo<'a> {
         new_state_context: Rc<StateContext>,
     ) {
         // exit event for old state
-        let mut exit_event = FrameEvent::new(FrameMessage::Exit(self.state), exit_args);
-        self.handle_event(&mut exit_event);
+        let exit_event =
+            self.handle_event(FrameEvent::new(FrameMessage::Exit(self.state), exit_args));
 
         // update state
         let old_state_context = self.state_context.clone();
@@ -745,17 +748,18 @@ impl<'a> Demo<'a> {
         self.state_context = new_state_context.clone();
 
         // enter event for new state
-        let mut enter_event = FrameEvent::new(FrameMessage::Enter(self.state), enter_args);
-        self.handle_event(&mut enter_event);
+        let enter_event =
+            self.handle_event(FrameEvent::new(FrameMessage::Enter(self.state), enter_args));
 
         // call transition callbacks
-        self.event_monitor.transition_occurred(
-            transition_info,
-            old_state_context,
-            new_state_context,
-            Some(Rc::new(exit_event)),
-            Some(Rc::new(enter_event)),
-        );
+        self.event_monitor
+            .transition_occurred(TransitionInstance::new(
+                transition_info,
+                old_state_context,
+                new_state_context,
+                Some(exit_event),
+                Some(enter_event),
+            ));
     }
 
     fn change_state(
@@ -770,13 +774,12 @@ impl<'a> Demo<'a> {
         self.state_context = new_state_context.clone();
 
         // call change-state callbacks
-        self.event_monitor.transition_occurred(
-            transition_info,
-            old_state_context,
-            new_state_context,
-            None,
-            None,
-        );
+        self.event_monitor
+            .transition_occurred(TransitionInstance::change_state(
+                transition_info,
+                old_state_context,
+                new_state_context,
+            ));
     }
 }
 
