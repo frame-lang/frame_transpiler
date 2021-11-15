@@ -628,8 +628,7 @@ impl<'a> Demo<'a> {
     #[allow(clippy::single_match)]
     #[allow(unused_variables)]
     fn init_handler(&mut self, frame_event: Rc<FrameEvent>) {
-        let state_context_clone = Rc::clone(&self.state_context);
-        let this_state_context = state_context_clone.init_context();
+        let this_state_context = self.state_context.init_context();
         match frame_event.message {
             FrameMessage::Enter(_) => {
                 // Start transition
@@ -652,8 +651,7 @@ impl<'a> Demo<'a> {
     }
 
     fn foo_handler(&mut self, frame_event: Rc<FrameEvent>) {
-        let state_context_clone = Rc::clone(&self.state_context);
-        let this_state_context = state_context_clone.foo_context();
+        let this_state_context = self.state_context.foo_context();
         match frame_event.message {
             FrameMessage::Enter(_) => {
                 this_state_context.state_vars.borrow_mut().x =
@@ -691,8 +689,7 @@ impl<'a> Demo<'a> {
     }
 
     fn bar_handler(&mut self, frame_event: Rc<FrameEvent>) {
-        let state_context_clone = Rc::clone(&self.state_context);
-        let this_state_context = state_context_clone.bar_context();
+        let this_state_context = self.state_context.bar_context();
         match frame_event.message {
             FrameMessage::Enter(_) => {
                 this_state_context.state_vars.borrow_mut().y =

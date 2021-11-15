@@ -25,8 +25,6 @@ pub struct EventMonitor<'a> {
     event_sent_callbacks: Vec<Box<dyn EventCallback<'a>>>,
     event_handled_callbacks: Vec<Box<dyn EventCallback<'a>>>,
     transition_callbacks: Vec<Box<dyn TransitionCallback<'a>>>,
-    // event_callbacks: Vec<Box<dyn FnMut(Rc<dyn MethodInstance>) + Send + 'a>>,
-    // transition_callbacks: Vec<Box<dyn FnMut(&TransitionInstance) + Send + 'a>>,
 }
 
 impl<'a> EventMonitor<'a> {
