@@ -19,9 +19,7 @@ pub trait MachineInstance<'a> {
 
     /// Environment containing the current values of the domain variables associated with this
     /// machine. The variable names can be obtained from `variable_declarations`.
-    fn variables(&self) -> Rc<dyn Environment> {
-        Empty::new_rc()
-    }
+    fn variables(&self) -> &dyn Environment;
 
     /// Get an immutable reference to this machine's event monitor, suitable for querying the
     /// transition/event history.
@@ -238,12 +236,24 @@ mod tests {
         event_monitor: EventMonitor<'a>,
     }
 
+    impl<'a> Environment for TestMachine<'a> {
+        fn is_empty(&self) -> bool {
+            true
+        }
+        fn lookup(&self, _name: &str) -> Option<&dyn Any> {
+            None
+        }
+    }
+
     impl<'a> MachineInstance<'a> for TestMachine<'a> {
         fn info(&self) -> &'static MachineInfo {
             info::machine()
         }
         fn state(&self) -> Rc<dyn StateInstance> {
             self.state_rc.clone()
+        }
+        fn variables(&self) -> &dyn Environment {
+            self
         }
         fn event_monitor(&self) -> &EventMonitor<'a> {
             &self.event_monitor

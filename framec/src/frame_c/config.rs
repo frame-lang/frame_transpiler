@@ -139,9 +139,6 @@ pub struct RustCode {
     pub state_handler_name_prefix: String,
     pub state_handler_name_suffix: String,
 
-    pub domain_vars_var_name: String,
-    pub domain_vars_struct_name: String,
-
     pub state_var_name: String,
     pub state_args_suffix: String,
     pub state_args_var_name: String,
@@ -439,9 +436,6 @@ impl Default for RustCode {
 
             state_handler_name_prefix: String::from(""),
             state_handler_name_suffix: String::from("_handler"),
-
-            domain_vars_var_name: String::from("domain_vars"),
-            domain_vars_struct_name: String::from("DomainVars"),
 
             state_var_name: String::from("state"),
             state_args_suffix: String::from("StateArgs"),

@@ -547,12 +547,15 @@ impl StateInstance for StateContext {
     }
 }
 
-struct DomainVars {
+pub struct Demo<'a> {
+    state: DemoState,
+    state_context: Rc<StateContext>,
+    event_monitor: EventMonitor<'a>,
     x: i32,
     y: i32,
 }
 
-impl Environment for DomainVars {
+impl<'a> Environment for Demo<'a> {
     fn lookup(&self, name: &str) -> Option<&dyn Any> {
         match name {
             "x" => Some(&self.x),
@@ -562,13 +565,6 @@ impl Environment for DomainVars {
     }
 }
 
-pub struct Demo<'a> {
-    state: DemoState,
-    state_context: Rc<StateContext>,
-    event_monitor: EventMonitor<'a>,
-    domain_vars: Rc<RefCell<DomainVars>>,
-}
-
 impl<'a> MachineInstance<'a> for Demo<'a> {
     fn info(&self) -> &'static MachineInfo {
         info::machine()
@@ -576,8 +572,8 @@ impl<'a> MachineInstance<'a> for Demo<'a> {
     fn state(&self) -> Rc<dyn StateInstance> {
         self.state_context.clone()
     }
-    fn variables(&self) -> Rc<dyn Environment> {
-        self.domain_vars.clone()
+    fn variables(&self) -> &dyn Environment {
+        self
     }
     fn event_monitor(&self) -> &EventMonitor<'a> {
         &self.event_monitor
@@ -592,12 +588,12 @@ impl<'a> Demo<'a> {
         let context = InitStateContext {};
         let next_state_context = Rc::new(StateContext::Init(context));
         let event_monitor = EventMonitor::new(Some(0), Some(1));
-        let domain_vars = Rc::new(RefCell::new(DomainVars { x: 0, y: 0 }));
         let mut machine = Demo {
             state: DemoState::Init,
             state_context: next_state_context,
             event_monitor,
-            domain_vars,
+            x: 0,
+            y: 0,
         };
         machine.initialize();
         machine
@@ -666,7 +662,7 @@ impl<'a> Demo<'a> {
                 });
             }
             FrameMessage::Next => {
-                self.domain_vars.borrow_mut().x += this_state_context.state_vars.borrow().x;
+                self.x += this_state_context.state_vars.borrow().x;
                 // Start transition
                 let exit_args = FrameEventArgs::FooExit(FooExitArgs {
                     done: this_state_context.state_vars.borrow().x,
@@ -705,7 +701,7 @@ impl<'a> Demo<'a> {
                 });
             }
             FrameMessage::Next => {
-                self.domain_vars.borrow_mut().y += this_state_context.state_vars.borrow().y;
+                self.y += this_state_context.state_vars.borrow().y;
                 // Start change state
                 let context = FooStateContext {
                     state_vars: Rc::new(RefCell::new(FooStateVars { x: 0 })),
@@ -795,7 +791,7 @@ impl<'a> Default for Demo<'a> {
 
 /// Helper function to lookup an `i32` value in an environment.
 /// Returns -1 if the lookup fails for any reason.
-fn lookup_i32(env: Rc<dyn Environment>, name: &str) -> i32 {
+fn lookup_i32(env: &dyn Environment, name: &str) -> i32 {
     match env.lookup(name) {
         None => -1,
         Some(any) => *any.downcast_ref().unwrap_or(&-1),
@@ -896,7 +892,6 @@ fn current_state() {
 #[test]
 fn variables() {
     let mut sm = Demo::new();
-    assert_eq!(0, lookup_i32(sm.variables(), "x"));
     assert_eq!(0, lookup_i32(sm.variables(), "y"));
     assert!(sm.variables().lookup("z").is_none());
     assert!(sm.variables().lookup("arg").is_none());
@@ -924,21 +919,21 @@ fn variables() {
 #[test]
 fn state_variables() {
     let mut sm = Demo::new();
-    assert_eq!(2, lookup_i32(sm.state().variables(), "x"));
+    assert_eq!(2, lookup_i32(sm.state().variables().as_ref(), "x"));
     assert!(sm.state().variables().lookup("y").is_none());
     sm.inc(3);
     sm.inc(4);
-    assert_eq!(9, lookup_i32(sm.state().variables(), "x"));
+    assert_eq!(9, lookup_i32(sm.state().variables().as_ref(), "x"));
     sm.next();
-    assert_eq!(7, lookup_i32(sm.state().variables(), "y"));
+    assert_eq!(7, lookup_i32(sm.state().variables().as_ref(), "y"));
     assert!(sm.state().variables().lookup("x").is_none());
     sm.inc(5);
     sm.inc(6);
-    assert_eq!(18, lookup_i32(sm.state().variables(), "y"));
+    assert_eq!(18, lookup_i32(sm.state().variables().as_ref(), "y"));
     sm.next();
-    assert_eq!(0, lookup_i32(sm.state().variables(), "x"));
+    assert_eq!(0, lookup_i32(sm.state().variables().as_ref(), "x"));
     sm.inc(7);
-    assert_eq!(7, lookup_i32(sm.state().variables(), "x"));
+    assert_eq!(7, lookup_i32(sm.state().variables().as_ref(), "x"));
 }
 
 #[test]
@@ -950,7 +945,7 @@ fn state_arguments() {
     sm.next();
     assert!(sm.state().arguments().lookup("x").is_none());
     assert!(sm.state().arguments().lookup("y").is_none());
-    assert_eq!(4, lookup_i32(sm.state().arguments(), "tilt"));
+    assert_eq!(4, lookup_i32(sm.state().arguments().as_ref(), "tilt"));
     sm.next();
     assert!(sm.state().arguments().lookup("tilt").is_none());
 }
@@ -1001,7 +996,7 @@ fn event_sent_arguments() {
     sm.event_monitor_mut().add_event_sent_callback(|e| {
         for param in e.info().parameters {
             let name = param.name;
-            let val = lookup_i32(e.arguments(), name);
+            let val = lookup_i32(e.arguments().as_ref(), name);
             tape_mutex.lock().unwrap().push(format!("{}={}", name, val));
         }
     });
@@ -1133,10 +1128,10 @@ fn enter_exit_arguments() {
             None => Empty::new_rc(),
         };
         tape_mutex.lock().unwrap().push((
-            lookup_i32(exit.clone(), "done"),
-            lookup_i32(exit, "end"),
-            lookup_i32(enter.clone(), "init"),
-            lookup_i32(enter, "start"),
+            lookup_i32(exit.as_ref(), "done"),
+            lookup_i32(exit.as_ref(), "end"),
+            lookup_i32(enter.as_ref(), "init"),
+            lookup_i32(enter.as_ref(), "start"),
         ));
     });
     sm.inc(10);

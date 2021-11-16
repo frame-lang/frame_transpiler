@@ -201,9 +201,7 @@ impl RustVisitor {
                     code.push('&');
                 }
                 code.push_str(&format!(
-                    "self.{}.{}.{}",
-                    self.config.code.domain_vars_var_name,
-                    borrow,
+                    "self.{}",
                     self.format_value_name(&variable_node.id_node.name.lexeme)
                 ));
             }
@@ -1617,6 +1615,13 @@ impl RustVisitor {
             self.add_code(&format!("impl Environment for {}", type_name));
         }
         self.enter_block();
+        if bound_names.is_empty() {
+            self.add_code("fn is_empty(&self) -> bool");
+            self.enter_block();
+            self.add_code("true");
+            self.exit_block();
+            self.newline();
+        }
         self.add_code("fn lookup(&self, name: &str) -> Option<&dyn Any>");
         self.enter_block();
         self.add_code("match name");
@@ -1704,12 +1709,6 @@ impl RustVisitor {
 
         // initialize domain variables
         if let Some(domain_block_node) = &system_node.domain_block_node_opt {
-            self.newline();
-            self.add_code(&format!(
-                "{}: Rc::new(RefCell::new({} {{",
-                self.config.code.domain_vars_var_name, self.config.code.domain_vars_struct_name,
-            ));
-            self.indent();
             for variable_decl_node_rcref in &domain_block_node.member_variables {
                 let variable_decl_node = variable_decl_node_rcref.borrow();
                 let variable_name = self.format_value_name(&variable_decl_node.name);
@@ -1719,8 +1718,6 @@ impl RustVisitor {
                 self.newline();
                 self.add_code(&format!("{}: {},", variable_name, code));
             }
-            self.exit_block();
-            self.add_code(")),");
         }
 
         self.outdent();
@@ -3124,34 +3121,16 @@ impl AstVisitor for RustVisitor {
             self.newline();
         }
 
-        // define domain variables struct
-        let mut domain_vars: Vec<String> = Vec::new();
-        if let Some(domain_block_node) = &system_node.domain_block_node_opt {
-            domain_block_node.accept(self);
-            domain_vars = domain_block_node
-                .member_variables
-                .iter()
-                .map(|decl_rc| self.format_value_name(&decl_rc.borrow().name))
-                .collect();
-            self.newline();
-            self.newline();
-        }
-        if self.config.features.runtime_support && !domain_vars.is_empty() {
-            let struct_name = self.config.code.domain_vars_struct_name.clone();
-            self.generate_environment_impl(false, &struct_name, &domain_vars);
-            self.newline();
-            self.newline();
-        }
-
         // define state machine struct
+        let machine_struct_name = format!(
+            "{}{}",
+            self.system_type_name(),
+            self.lifetime_type_annotation()
+        );
         self.add_code("// System Controller ");
         self.newline();
         self.disable_type_style_warnings();
-        self.add_code(&format!(
-            "pub struct {}{}",
-            self.system_type_name(),
-            self.lifetime_type_annotation()
-        ));
+        self.add_code(&format!("pub struct {}", machine_struct_name,));
         self.enter_block();
 
         // state variable
@@ -3199,12 +3178,14 @@ impl AstVisitor for RustVisitor {
         }
 
         // domain variables
-        if !domain_vars.is_empty() {
-            self.newline();
-            self.add_code(&format!(
-                "{}: Rc<RefCell<{}>>,",
-                self.config.code.domain_vars_var_name, self.config.code.domain_vars_struct_name,
-            ));
+        let mut domain_vars: Vec<String> = Vec::new();
+        if let Some(domain_block_node) = &system_node.domain_block_node_opt {
+            domain_block_node.accept(self);
+            domain_vars = domain_block_node
+                .member_variables
+                .iter()
+                .map(|decl_rc| self.format_value_name(&decl_rc.borrow().name))
+                .collect();
         }
 
         self.exit_block();
@@ -3213,10 +3194,14 @@ impl AstVisitor for RustVisitor {
 
         // add runtime support
         if self.config.features.runtime_support {
+            self.generate_environment_impl(false, &machine_struct_name, &domain_vars);
+            self.newline();
+            self.newline();
+
             self.add_code(&format!(
-                "impl{0} MachineInstance{0} for {1}{0}",
+                "impl{0} MachineInstance{0} for {1}",
                 self.lifetime_type_annotation(),
-                self.system_type_name()
+                machine_struct_name
             ));
             self.enter_block();
 
@@ -3246,16 +3231,9 @@ impl AstVisitor for RustVisitor {
             self.exit_block();
             self.newline();
 
-            self.add_code("fn variables(&self) -> Rc<Environment>");
+            self.add_code("fn variables(&self) -> &dyn Environment");
             self.enter_block();
-            if domain_vars.is_empty() {
-                self.add_code(&format!(
-                    "self.{}.clone()",
-                    self.config.code.domain_vars_var_name
-                ));
-            } else {
-                self.add_code("Empty::new_rc()");
-            }
+            self.add_code("self");
             self.exit_block();
             self.newline();
 
@@ -3803,16 +3781,10 @@ impl AstVisitor for RustVisitor {
         if !var_nodes.is_empty() {
             self.add_code("//===================== Domain Block ===================//");
             self.newline();
-            self.add_code(&format!(
-                "struct {} {{",
-                self.config.code.domain_vars_struct_name
-            ));
-            self.indent();
             for variable_decl_node_rcref in var_nodes {
                 let variable_decl_node = variable_decl_node_rcref.borrow();
                 variable_decl_node.accept_rust_domain_var_decl(self);
             }
-            self.exit_block();
         }
     }
 
