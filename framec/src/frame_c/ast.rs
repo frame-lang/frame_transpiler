@@ -721,6 +721,26 @@ pub enum ExprType {
     },
 }
 
+impl ExprType {
+    /// Get the name of expression type we're looking at. Useful for debugging.
+    pub fn expr_type_name(&self) -> &'static str {
+        match self {
+            ExprType::AssignmentExprT { .. } => "AssignmentExprT",
+            ExprType::ActionCallExprT { .. } => "ActionCallExprT",
+            ExprType::CallChainLiteralExprT { .. } => "CallChainLiteralExprT",
+            ExprType::CallExprT { .. } => "CallExprT",
+            ExprType::CallExprListT { .. } => "CallExprListT",
+            ExprType::ExprListT { .. } => "ExprListT",
+            ExprType::VariableExprT { .. } => "VariableExprT",
+            ExprType::LiteralExprT { .. } => "LiteralExprT",
+            ExprType::StateStackOperationExprT { .. } => "StateStackOperationExprT",
+            ExprType::FrameEventExprT { .. } => "FrameEventExprT",
+            ExprType::UnaryExprT { .. } => "UnaryExprT",
+            ExprType::BinaryExprT { .. } => "BinaryExprT",
+        }
+    }
+}
+
 impl NodeElement for ExprType {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         match self {
