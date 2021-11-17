@@ -88,18 +88,18 @@ mod tests {
     #[test]
     fn machine_name() {
         let info = StateContextSm::machine_info();
-        assert_eq!(info.name(), "StateContextSm");
+        assert_eq!(info.name, "StateContextSm");
     }
 
     /// Test that the state names from the runtime interface are correct.
     #[test]
     fn state_names() {
         let info = StateContextSm::machine_info();
-        let states = info.states();
+        let states = info.states;
         assert_eq!(states.len(), 3);
-        assert!(states.iter().any(|s| s.name() == "Init"));
-        assert!(states.iter().any(|s| s.name() == "Foo"));
-        assert!(states.iter().any(|s| s.name() == "Bar"));
+        assert!(states.iter().any(|s| s.name == "Init"));
+        assert!(states.iter().any(|s| s.name == "Foo"));
+        assert!(states.iter().any(|s| s.name == "Bar"));
     }
 
     /// Test that the name of the initial state from the runtime interface is correct.
@@ -108,7 +108,7 @@ mod tests {
         let info = StateContextSm::machine_info();
         let init = info.initial_state();
         assert!(init.is_some());
-        assert_eq!(init.unwrap().name(), "Init");
+        assert_eq!(init.unwrap().name, "Init");
     }
 
     /// Test that the state variable declarations from the runtime interface are correct.
@@ -119,9 +119,9 @@ mod tests {
         let init = info.get_state("Init").unwrap();
         let foo = info.get_state("Foo").unwrap();
         let bar = info.get_state("Bar").unwrap();
-        assert_eq!(init.variables().len(), 1);
-        assert_eq!(foo.variables().len(), 1);
-        assert_eq!(bar.variables().len(), 1);
+        assert_eq!(init.variables.len(), 1);
+        assert_eq!(foo.variables.len(), 1);
+        assert_eq!(bar.variables.len(), 1);
 
         let w = init.get_variable("w");
         let x = foo.get_variable("x");
@@ -145,9 +145,9 @@ mod tests {
         let init = info.get_state("Init").unwrap();
         let foo = info.get_state("Foo").unwrap();
         let bar = info.get_state("Bar").unwrap();
-        assert_eq!(init.parameters().len(), 0);
-        assert_eq!(foo.parameters().len(), 0);
-        assert_eq!(bar.parameters().len(), 1);
+        assert_eq!(init.parameters.len(), 0);
+        assert_eq!(foo.parameters.len(), 0);
+        assert_eq!(bar.parameters.len(), 1);
 
         let y = bar.get_parameter("y");
         assert!(y.is_some());
@@ -163,26 +163,26 @@ mod tests {
         let init = info.get_state("Init").unwrap();
         let foo = info.get_state("Foo").unwrap();
         let bar = info.get_state("Bar").unwrap();
-        assert_eq!(init.handlers().len(), 4);
-        assert_eq!(foo.handlers().len(), 6);
-        assert_eq!(bar.handlers().len(), 4);
+        assert_eq!(init.handlers.len(), 4);
+        assert_eq!(foo.handlers.len(), 6);
+        assert_eq!(bar.handlers.len(), 4);
 
-        assert!(init.handlers().iter().any(|m| m.name == "Init:>"));
-        assert!(init.handlers().iter().any(|m| m.name == "Inc"));
-        assert!(init.handlers().iter().any(|m| m.name == "LogState"));
-        assert!(init.handlers().iter().any(|m| m.name == "Start"));
+        assert!(init.handlers.iter().any(|m| m.name == "Init:>"));
+        assert!(init.handlers.iter().any(|m| m.name == "Inc"));
+        assert!(init.handlers.iter().any(|m| m.name == "LogState"));
+        assert!(init.handlers.iter().any(|m| m.name == "Start"));
 
-        assert!(foo.handlers().iter().any(|m| m.name == "Foo:>"));
-        assert!(foo.handlers().iter().any(|m| m.name == "Foo:<"));
-        assert!(foo.handlers().iter().any(|m| m.name == "LogState"));
-        assert!(foo.handlers().iter().any(|m| m.name == "Inc"));
-        assert!(foo.handlers().iter().any(|m| m.name == "Next"));
-        assert!(foo.handlers().iter().any(|m| m.name == "Change"));
+        assert!(foo.handlers.iter().any(|m| m.name == "Foo:>"));
+        assert!(foo.handlers.iter().any(|m| m.name == "Foo:<"));
+        assert!(foo.handlers.iter().any(|m| m.name == "LogState"));
+        assert!(foo.handlers.iter().any(|m| m.name == "Inc"));
+        assert!(foo.handlers.iter().any(|m| m.name == "Next"));
+        assert!(foo.handlers.iter().any(|m| m.name == "Change"));
 
-        assert!(bar.handlers().iter().any(|m| m.name == "Bar:>"));
-        assert!(bar.handlers().iter().any(|m| m.name == "LogState"));
-        assert!(bar.handlers().iter().any(|m| m.name == "Inc"));
-        assert!(bar.handlers().iter().any(|m| m.name == "Change"));
+        assert!(bar.handlers.iter().any(|m| m.name == "Bar:>"));
+        assert!(bar.handlers.iter().any(|m| m.name == "LogState"));
+        assert!(bar.handlers.iter().any(|m| m.name == "Inc"));
+        assert!(bar.handlers.iter().any(|m| m.name == "Change"));
     }
 
     /// Test that the handler signatures from the runtime interface are correct.
@@ -236,7 +236,7 @@ mod tests {
     #[test]
     fn interface_names() {
         let info = StateContextSm::machine_info();
-        let methods = info.interface();
+        let methods = info.interface;
         assert_eq!(methods.len(), 5);
         assert!(methods.iter().any(|m| m.name == "Start"));
         assert!(methods.iter().any(|m| m.name == "LogState"));
@@ -284,7 +284,7 @@ mod tests {
     #[test]
     fn event_names() {
         let info = StateContextSm::machine_info();
-        let methods = info.events();
+        let methods = info.events;
         assert_eq!(methods.len(), 9);
         assert!(methods.iter().any(|m| m.name == "Start"));
         assert!(methods.iter().any(|m| m.name == "LogState"));
@@ -335,7 +335,7 @@ mod tests {
     #[test]
     fn action_names() {
         let info = StateContextSm::machine_info();
-        let methods = info.actions();
+        let methods = info.actions;
         assert_eq!(methods.len(), 1);
         assert!(methods.iter().any(|m| m.name == "log"));
     }
@@ -358,7 +358,7 @@ mod tests {
     #[test]
     fn domain_variable() {
         let info = StateContextSm::machine_info();
-        let names = info.variables();
+        let names = info.variables;
         assert_eq!(names.len(), 1);
 
         let tape = info.get_variable("tape");
@@ -372,7 +372,7 @@ mod tests {
     #[allow(clippy::blacklisted_name)]
     fn state_transitions() {
         let info = StateContextSm::machine_info();
-        assert_eq!(info.transitions().len(), 4);
+        assert_eq!(info.transitions.len(), 4);
 
         let init = info.get_state("Init").unwrap();
         let foo = info.get_state("Foo").unwrap();
@@ -396,26 +396,26 @@ mod tests {
 
         assert!(init_out.is_transition());
         assert_eq!(init_out.label, "transition 1");
-        assert_eq!(init_out.source.name(), "Init");
-        assert_eq!(init_out.target.name(), "Foo");
+        assert_eq!(init_out.source.name, "Init");
+        assert_eq!(init_out.target.name, "Foo");
         assert_eq!(init_out.event.name, "Start");
 
         assert!(foo_out_1.is_transition());
         assert_eq!(foo_out_1.label, "transition 2");
-        assert_eq!(foo_out_1.source.name(), "Foo");
-        assert_eq!(foo_out_1.target.name(), "Bar");
+        assert_eq!(foo_out_1.source.name, "Foo");
+        assert_eq!(foo_out_1.target.name, "Bar");
         assert_eq!(foo_out_1.event.name, "Next");
 
         assert!(foo_out_2.is_change_state());
         assert_eq!(foo_out_2.label, "change-state 1");
-        assert_eq!(foo_out_2.source.name(), "Foo");
-        assert_eq!(foo_out_2.target.name(), "Bar");
+        assert_eq!(foo_out_2.source.name, "Foo");
+        assert_eq!(foo_out_2.target.name, "Bar");
         assert_eq!(foo_out_2.event.name, "Change");
 
         assert!(bar_out.is_change_state());
         assert_eq!(bar_out.label, "change-state 2");
-        assert_eq!(bar_out.source.name(), "Bar");
-        assert_eq!(bar_out.target.name(), "Init");
+        assert_eq!(bar_out.source.name, "Bar");
+        assert_eq!(bar_out.target.name, "Init");
         assert_eq!(bar_out.event.name, "Change");
 
         assert_eq!(init_out.label, foo_in.label);
@@ -428,16 +428,16 @@ mod tests {
     #[test]
     fn runtime_current_state() {
         let mut sm = StateContextSm::new();
-        assert_eq!(sm.state().info().name(), "Init");
+        assert_eq!(sm.state().info().name, "Init");
         sm.start();
-        assert_eq!(sm.state().info().name(), "Foo");
+        assert_eq!(sm.state().info().name, "Foo");
         sm.next(3);
-        assert_eq!(sm.state().info().name(), "Bar");
+        assert_eq!(sm.state().info().name, "Bar");
         sm.change(4);
-        assert_eq!(sm.state().info().name(), "Init");
+        assert_eq!(sm.state().info().name, "Init");
         sm.start();
         sm.change(5);
-        assert_eq!(sm.state().info().name(), "Bar");
+        assert_eq!(sm.state().info().name, "Bar");
     }
 
     /// Test that we can access the values of domain variables via the runtime interface.
@@ -474,64 +474,44 @@ mod tests {
         let mut sm = StateContextSm::new();
         sm.inc();
         {
-            let state = sm.state();
-            let w: &i32 = state
-                .variables()
-                .lookup("w")
-                .unwrap()
-                .downcast_ref()
-                .unwrap();
+            let vars = sm.state().variables();
+            let w: &i32 = vars.lookup("w").unwrap().downcast_ref().unwrap();
             assert_eq!(*w, 4);
-            assert!(state.variables().lookup("a").is_none());
-            assert!(state.variables().lookup("x").is_none());
-            assert!(state.variables().lookup("y").is_none());
-            assert!(state.variables().lookup("z").is_none());
-            assert!(state.variables().lookup("log").is_none());
+            assert!(vars.lookup("a").is_none());
+            assert!(vars.lookup("x").is_none());
+            assert!(vars.lookup("y").is_none());
+            assert!(vars.lookup("z").is_none());
+            assert!(vars.lookup("log").is_none());
         }
         sm.inc();
         {
-            let state = sm.state();
-            let w: &i32 = state
-                .variables()
-                .lookup("w")
-                .unwrap()
-                .downcast_ref()
-                .unwrap();
+            let vars = sm.state().variables();
+            let w: &i32 = vars.lookup("w").unwrap().downcast_ref().unwrap();
             assert_eq!(*w, 5);
         }
         sm.inc();
         sm.start();
         {
-            let state = sm.state();
-            let x: &i32 = state
-                .variables()
-                .lookup("x")
-                .unwrap()
-                .downcast_ref()
-                .unwrap();
+            let vars = sm.state().variables();
+            let x: &i32 = vars.lookup("x").unwrap().downcast_ref().unwrap();
             assert_eq!(*x, 18);
-            assert!(state.variables().lookup("a").is_none());
-            assert!(state.variables().lookup("w").is_none());
-            assert!(state.variables().lookup("y").is_none());
-            assert!(state.variables().lookup("z").is_none());
-            assert!(state.variables().lookup("log").is_none());
+            assert!(vars.lookup("a").is_none());
+            assert!(vars.lookup("w").is_none());
+            assert!(vars.lookup("y").is_none());
+            assert!(vars.lookup("z").is_none());
+            assert!(vars.lookup("log").is_none());
         }
         sm.inc();
         sm.next(10);
         {
-            let state = sm.state();
-            let z: &i32 = state
-                .variables()
-                .lookup("z")
-                .unwrap()
-                .downcast_ref()
-                .unwrap();
+            let vars = sm.state().variables();
+            let z: &i32 = vars.lookup("z").unwrap().downcast_ref().unwrap();
             assert_eq!(*z, 119);
-            assert!(state.variables().lookup("a").is_none());
-            assert!(state.variables().lookup("w").is_none());
-            assert!(state.variables().lookup("x").is_none());
-            assert!(state.variables().lookup("y").is_none());
-            assert!(state.variables().lookup("log").is_none());
+            assert!(vars.lookup("a").is_none());
+            assert!(vars.lookup("w").is_none());
+            assert!(vars.lookup("x").is_none());
+            assert!(vars.lookup("y").is_none());
+            assert!(vars.lookup("log").is_none());
         }
     }
 
@@ -540,32 +520,27 @@ mod tests {
     fn runtime_state_arguments() {
         let mut sm = StateContextSm::new();
         {
-            let state = sm.state();
-            assert!(state.arguments().lookup("a").is_none());
-            assert!(state.arguments().lookup("w").is_none());
-            assert!(state.arguments().lookup("x").is_none());
-            assert!(state.arguments().lookup("y").is_none());
-            assert!(state.arguments().lookup("z").is_none());
-            assert!(state.arguments().lookup("log").is_none());
+            let args = sm.state().arguments();
+            assert!(args.lookup("a").is_none());
+            assert!(args.lookup("w").is_none());
+            assert!(args.lookup("x").is_none());
+            assert!(args.lookup("y").is_none());
+            assert!(args.lookup("z").is_none());
+            assert!(args.lookup("log").is_none());
         }
         sm.inc();
         sm.start();
         sm.inc();
         sm.next(10);
         {
-            let state = sm.state();
-            let y: &i32 = state
-                .arguments()
-                .lookup("y")
-                .unwrap()
-                .downcast_ref()
-                .unwrap();
+            let args = sm.state().arguments();
+            let y: &i32 = args.lookup("y").unwrap().downcast_ref().unwrap();
             assert_eq!(*y, 13);
-            assert!(state.arguments().lookup("a").is_none());
-            assert!(state.arguments().lookup("w").is_none());
-            assert!(state.arguments().lookup("x").is_none());
-            assert!(state.arguments().lookup("z").is_none());
-            assert!(state.arguments().lookup("log").is_none());
+            assert!(args.lookup("a").is_none());
+            assert!(args.lookup("w").is_none());
+            assert!(args.lookup("x").is_none());
+            assert!(args.lookup("z").is_none());
+            assert!(args.lookup("log").is_none());
         }
     }
 }

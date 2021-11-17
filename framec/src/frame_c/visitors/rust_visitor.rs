@@ -1043,7 +1043,7 @@ impl RustVisitor {
         if let Some(dispatch_node) = &state_node.dispatch_opt {
             let parent_info =
                 self.format_state_info_const_name(&dispatch_node.target_state_ref.name);
-            self.add_code(&format!("parent: Some({})", parent_info));
+            self.add_code(&format!("parent: Some({}),", parent_info));
         } else {
             self.add_code("parent: None,");
         }
