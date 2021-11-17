@@ -887,7 +887,6 @@ impl RustVisitor {
             self.newline();
         }
         self.add_code("];");
-        self.newline();
     }
 
     /// Generate the info entries for all of the events. This includes both declared events and
@@ -939,7 +938,6 @@ impl RustVisitor {
             self.newline();
         }
         self.add_code("];");
-        self.newline();
     }
 
     /// Generate the info entries for all of the potential transitions in the state machine.
@@ -1626,10 +1624,6 @@ impl RustVisitor {
                 // generate state context struct for this state
                 let context_struct_name = self.format_state_context_struct_name(&state_node.name);
                 self.disable_type_style_warnings();
-                if self.generate_state_stack {
-                    self.add_code("#[derive(Clone)]");
-                    self.newline();
-                }
                 self.add_code(&format!("struct {} {{", context_struct_name));
                 self.indent();
 
@@ -1651,6 +1645,36 @@ impl RustVisitor {
 
                 self.exit_block();
                 self.newline();
+                self.newline();
+
+                // generate a deep-clone function to save snapshots for state stack
+                if self.generate_state_stack {
+                    self.add_code(&format!("impl {}", context_struct_name));
+                    self.enter_block();
+                    self.add_code(&format!("fn deep_clone(&self) -> {}", context_struct_name));
+                    self.enter_block();
+                    self.add_code(&format!("{} {{", context_struct_name));
+                    self.indent();
+                    if has_state_args {
+                        self.newline();
+                        self.add_code(&format!(
+                            "{0}: Rc::new((*self.{0}).clone())",
+                            self.config.code.state_args_var_name,
+                        ));
+                    }
+                    if has_state_vars {
+                        self.newline();
+                        self.add_code(&format!(
+                            "{0}: Rc::new((*self.{0}).clone())",
+                            self.config.code.state_vars_var_name,
+                        ));
+                    }
+                    self.exit_block();
+                    self.exit_block();
+                    self.exit_block();
+                    self.newline();
+                    self.newline();
+                }
 
                 // generate implementation of runtime state
                 if self.config.features.runtime_support {
@@ -1691,6 +1715,7 @@ impl RustVisitor {
 
                     self.exit_block();
                     self.newline();
+                    self.newline();
                 }
             }
 
@@ -1698,10 +1723,6 @@ impl RustVisitor {
 
             // generate the enum type that unions all the state context types
             self.disable_type_style_warnings();
-            if self.generate_state_stack {
-                self.add_code("#[derive(Clone)]");
-                self.newline();
-            }
             self.add_code(&format!(
                 "enum {} {{",
                 self.config.code.state_context_type_name
@@ -1752,6 +1773,29 @@ impl RustVisitor {
                 self.exit_block();
                 self.exit_block();
             }
+
+            // generate a deep-clone function to save snapshots for state stack
+            if self.generate_state_stack {
+                self.newline();
+                self.add_code(&format!(
+                    "fn deep_clone(&self) -> {}",
+                    self.config.code.state_context_type_name
+                ));
+                self.enter_block();
+                self.add_code("match self {");
+                self.indent();
+                for state_name in &state_names {
+                    self.newline();
+                    self.add_code(&format!(
+                        "{0}::{1}(context) => {0}::{1}(context.deep_clone()),",
+                        self.config.code.state_context_type_name,
+                        self.format_type_name(state_name)
+                    ));
+                }
+                self.exit_block();
+                self.exit_block();
+            }
+
             self.exit_block();
 
             // generate runtime implementation for the enum type
@@ -1778,6 +1822,7 @@ impl RustVisitor {
                 }
                 self.exit_block();
                 self.exit_block();
+                self.newline();
 
                 self.add_code("fn arguments(&self) -> Rc<dyn Environment>");
                 self.enter_block();
@@ -1793,6 +1838,7 @@ impl RustVisitor {
                 }
                 self.exit_block();
                 self.exit_block();
+                self.newline();
 
                 self.add_code("fn variables(&self) -> Rc<dyn Environment>");
                 self.enter_block();
@@ -2352,7 +2398,7 @@ impl RustVisitor {
         self.enter_block();
         if self.generate_state_context {
             self.add_code(&format!(
-                "self.{}.push((self.{}, (*self.{}).clone()));",
+                "self.{}.push((self.{}, (*self.{}).deep_clone()));",
                 self.config.code.state_stack_var_name,
                 self.config.code.state_var_name,
                 self.config.code.state_context_var_name
@@ -3713,6 +3759,7 @@ impl AstVisitor for RustVisitor {
             self.config.code.frame_event_message_type_name,
             event_type_name,
         ));
+        self.newline();
         if interface_method_node.return_type_opt.is_some() {
             self.add_code(&format!(
                 "self.{}({}.clone());",
