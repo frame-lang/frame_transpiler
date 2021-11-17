@@ -1651,10 +1651,10 @@ impl RustVisitor {
                     self.add_code(&format!("impl StateInstance for {}", context_struct_name));
                     self.enter_block();
 
-                    self.add_code("fn info(&self) -> &'static dyn StateInfo");
+                    self.add_code("fn info(&self) -> &'static StateInfo");
                     self.enter_block();
                     self.add_code(&format!(
-                        "{}::{}.states[{}]",
+                        "{}::{}().states[{}]",
                         self.config.code.runtime_info_module_name,
                         self.config.code.machine_info_function_name,
                         state_index,
@@ -1758,7 +1758,7 @@ impl RustVisitor {
                 ));
                 self.enter_block();
 
-                self.add_code("fn info(&self) -> &'static dyn StateInfo");
+                self.add_code("fn info(&self) -> &'static StateInfo");
                 self.enter_block();
                 self.add_code("match self {");
                 self.indent();
@@ -2116,9 +2116,9 @@ impl RustVisitor {
             self.add_code(&format!("{},", self.config.code.transition_info_arg_name));
             self.newline();
             if self.generate_state_context {
-                self.add_code(&old_state_context_var);
+                self.add_code(&format!("{},", old_state_context_var));
                 self.newline();
-                self.add_code(&new_state_context_var);
+                self.add_code(&format!("{},", new_state_context_var));
             } else {
                 self.add_code(&format!("Rc::new({}),", old_state_var));
                 self.newline();
@@ -2288,14 +2288,15 @@ impl RustVisitor {
             self.add_code(&format!("{},", self.config.code.transition_info_arg_name));
             self.newline();
             if self.generate_state_context {
-                self.add_code(&old_state_context_var);
+                self.add_code(&format!("{},", old_state_context_var));
                 self.newline();
-                self.add_code(&new_state_context_var);
+                self.add_code(&format!("{},", new_state_context_var));
             } else {
                 self.add_code(&format!("Rc::new({}),", old_state_var));
                 self.newline();
                 self.add_code(&format!("Rc::new({}),", new_state_var));
             }
+            self.newline();
             if self.generate_exit_args {
                 self.add_code("Some(exit_event),");
             } else {

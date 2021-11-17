@@ -19,6 +19,6 @@ mod basic;
 // mod state_context_stack;
 // mod state_params;
 // mod state_stack;
-// mod state_vars;
+mod state_vars;
 // mod transition;
 // mod transition_params;

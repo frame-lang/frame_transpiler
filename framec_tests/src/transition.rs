@@ -99,11 +99,11 @@ mod tests {
     #[test]
     fn consistent_transition_event() {
         let mut sm = Transition::new();
-        sm.callback_manager().add_transition_callback(|e| {
-            let source_name = e.info.source.name();
-            let target_name = e.info.target.name();
-            let old_name = e.old_state.info().name();
-            let new_name = e.new_state.info().name();
+        sm.event_monitor_mut().add_transition_callback(|e| {
+            let source_name = e.info.source.name;
+            let target_name = e.info.target.name;
+            let old_name = e.old_state.info().name;
+            let new_name = e.new_state.info().name;
             assert_eq!(source_name, old_name);
             assert_eq!(target_name, new_name);
         });
@@ -119,9 +119,9 @@ mod tests {
     }
 
     /// Function to register as a callback to log transitions.
-    fn log_transits(log: &Mutex<Log>, event: &TransitionEvent) {
-        let old_state = event.old_state.info().name();
-        let new_state = event.new_state.info().name();
+    fn log_transits(log: &Mutex<Log>, event: &TransitionInstance) {
+        let old_state = event.old_state.info().name;
+        let new_state = event.new_state.info().name;
         match event.info.kind {
             TransitionKind::ChangeState => {
                 log.lock()
@@ -141,7 +141,7 @@ mod tests {
     fn transition_callback() {
         let transits = Mutex::new(Vec::new());
         let mut sm = Transition::new();
-        sm.callback_manager().add_transition_callback(|e| {
+        sm.event_monitor_mut().add_transition_callback(|e| {
             log_transits(&transits, e);
         });
         sm.transit();
@@ -156,7 +156,7 @@ mod tests {
     fn change_state_callback() {
         let transits = Mutex::new(Vec::new());
         let mut sm = Transition::new();
-        sm.callback_manager().add_transition_callback(|e| {
+        sm.event_monitor_mut().add_transition_callback(|e| {
             log_transits(&transits, e);
         });
         sm.change();
@@ -177,7 +177,7 @@ mod tests {
     fn transition_ids() {
         let ids = Mutex::new(Vec::new());
         let mut sm = Transition::new();
-        sm.callback_manager().add_transition_callback(|e| {
+        sm.event_monitor_mut().add_transition_callback(|e| {
             ids.lock().unwrap().push(e.info.id);
         });
         sm.transit();
