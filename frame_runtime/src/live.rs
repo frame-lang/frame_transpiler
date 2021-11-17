@@ -89,28 +89,52 @@ pub struct TransitionInstance {
 }
 
 impl TransitionInstance {
-    pub fn new(
+    /// Create a transition instance for a standard transition with exit/enter events.
+    pub fn transition(
         info: &'static TransitionInfo,
         old_state: Rc<dyn StateInstance>,
         new_state: Rc<dyn StateInstance>,
-        exit_event: Option<Rc<dyn MethodInstance>>,
-        enter_event: Option<Rc<dyn MethodInstance>>,
+        exit_event: Rc<dyn MethodInstance>,
+        enter_event: Rc<dyn MethodInstance>,
     ) -> TransitionInstance {
         TransitionInstance {
             info,
             old_state,
             new_state,
-            exit_event,
-            enter_event,
+            exit_event: Some(exit_event),
+            enter_event: Some(enter_event),
         }
     }
 
+    /// Create a transition instance for a change-state transition without exit/enter events.
     pub fn change_state(
         info: &'static TransitionInfo,
         old_state: Rc<dyn StateInstance>,
         new_state: Rc<dyn StateInstance>,
     ) -> TransitionInstance {
-        TransitionInstance::new(info, old_state, new_state, None, None)
+        TransitionInstance {
+            info,
+            old_state,
+            new_state,
+            exit_event: None,
+            enter_event: None,
+        }
+    }
+
+    /// Get the arguments from the exit event or an empty environment if there is no exit event.
+    pub fn exit_arguments(&self) -> Rc<dyn Environment> {
+        match &self.exit_event {
+            Some(event) => event.arguments().clone(),
+            None => Empty::new_rc(),
+        }
+    }
+
+    /// Get the arguments from the enter event or an empty environment if there is no enter event.
+    pub fn enter_arguments(&self) -> Rc<dyn Environment> {
+        match &self.enter_event {
+            Some(event) => event.arguments().clone(),
+            None => Empty::new_rc(),
+        }
     }
 }
 
@@ -286,12 +310,10 @@ mod tests {
             self.state = new_state;
             self.state_rc = Rc::new(new_state);
             self.event_monitor
-                .transition_occurred(TransitionInstance::new(
+                .transition_occurred(TransitionInstance::change_state(
                     transition_info,
                     old_state_rc,
                     self.state_rc.clone(),
-                    None,
-                    None,
                 ));
         }
     }

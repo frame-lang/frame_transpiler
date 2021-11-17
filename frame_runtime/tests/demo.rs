@@ -751,12 +751,12 @@ impl<'a> Demo<'a> {
 
         // call transition callbacks
         self.event_monitor
-            .transition_occurred(TransitionInstance::new(
+            .transition_occurred(TransitionInstance::transition(
                 transition_info,
                 old_state_context,
                 new_state_context,
-                Some(exit_event),
-                Some(enter_event.clone()),
+                exit_event,
+                enter_event.clone(),
             ));
 
         // send enter event for new state

@@ -698,7 +698,7 @@ impl RustVisitor {
         self.newline();
         self.generate_event_info(&event_names);
         self.newline();
-        self.generate_transition_info();
+        self.generate_transition_info(&event_names);
         if self.generate_state_stack {
             self.newline();
             self.generate_pop_state_info();
@@ -943,7 +943,7 @@ impl RustVisitor {
     }
 
     /// Generate the info entries for all of the potential transitions in the state machine.
-    fn generate_transition_info(&mut self) {
+    fn generate_transition_info(&mut self, event_names: &[String]) {
         self.add_code("static TRANSITIONS: &[&TransitionInfo] = &[");
         if !self.transitions.is_empty() {
             self.indent();
@@ -963,7 +963,13 @@ impl RustVisitor {
                     }
                 ));
                 self.newline();
-                self.add_code(&format!("event: EVENTS[{}],", index));
+                self.add_code(&format!(
+                    "event: EVENTS[{}],",
+                    event_names
+                        .iter()
+                        .position(|n| n == &transition.event_name)
+                        .unwrap()
+                ));
                 self.newline();
                 self.add_code(&format!("label: \"{}\",", transition.label));
                 self.newline();
@@ -2301,7 +2307,7 @@ impl RustVisitor {
         if self.config.features.runtime_support {
             self.newline();
             self.add_code(&format!(
-                "self.{}.transition_occurred(TransitionInstance::new(",
+                "self.{}.transition_occurred(TransitionInstance::transition(",
                 self.config.code.event_monitor_var_name
             ));
             self.indent();
@@ -2318,9 +2324,9 @@ impl RustVisitor {
                 self.add_code(&format!("Rc::new({}),", new_state_var));
             }
             self.newline();
-            self.add_code("Some(exit_event),");
+            self.add_code("exit_event,");
             self.newline();
-            self.add_code("Some(enter_event.clone()),");
+            self.add_code("enter_event.clone(),");
             self.outdent();
             self.newline();
             self.add_code("));");
