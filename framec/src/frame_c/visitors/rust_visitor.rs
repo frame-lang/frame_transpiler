@@ -188,68 +188,52 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn format_variable_expr(&mut self, variable_node: &VariableNode) -> String {
+    fn format_variable_expr(&mut self, var_node: &VariableNode) -> String {
         let mut code = String::new();
+        let var_name = self.format_value_name(&var_node.id_node.name.lexeme);
         let borrow = if self.in_assignment_lvalue {
             "as_ref().borrow_mut()"
         } else {
             "as_ref().borrow()"
         };
-        match variable_node.scope {
+        match var_node.scope {
             IdentifierDeclScope::DomainBlock => {
-                if variable_node.id_node.is_reference {
-                    code.push('&');
-                }
-                code.push_str(&format!(
-                    "self.{}",
-                    self.format_value_name(&variable_node.id_node.name.lexeme)
-                ));
-            }
-            IdentifierDeclScope::StateParam => {
-                let var_node = variable_node;
-                let var_symbol_rcref_opt = &var_node.symbol_type_rcref_opt;
-                let var_symbol_rcref = var_symbol_rcref_opt.as_ref().unwrap();
-                let _var_symbol = var_symbol_rcref.borrow();
-
-                if self.visiting_call_chain_literal_variable {
-                    code.push('(');
-                }
-
                 if var_node.id_node.is_reference {
                     code.push('&');
                 }
-
+                code.push_str(&format!("self.{}", var_name));
+            }
+            IdentifierDeclScope::StateParam => {
+                if self.visiting_call_chain_literal_variable {
+                    code.push('(');
+                }
+                if var_node.id_node.is_reference {
+                    code.push('&');
+                }
                 code.push_str(&format!(
                     "{}.{}.{}.{}",
                     self.config.code.this_state_context_var_name,
                     self.config.code.state_args_var_name,
                     borrow,
-                    self.format_value_name(&variable_node.id_node.name.lexeme)
+                    var_name,
                 ));
                 if self.visiting_call_chain_literal_variable {
                     code.push(')');
                 }
             }
             IdentifierDeclScope::StateVar => {
-                let var_node = variable_node;
-                let var_symbol_rcref_opt = &var_node.symbol_type_rcref_opt;
-                let var_symbol_rcref = var_symbol_rcref_opt.as_ref().unwrap();
-                let _var_symbol = var_symbol_rcref.borrow();
-
                 if self.visiting_call_chain_literal_variable {
                     code.push('(');
                 }
-
                 if var_node.id_node.is_reference {
                     code.push('&');
                 }
-
                 code.push_str(&format!(
                     "{}.{}.{}.{}",
                     self.config.code.this_state_context_var_name,
                     self.config.code.state_vars_var_name,
                     borrow,
-                    self.format_value_name(&variable_node.id_node.name.lexeme)
+                    var_name,
                 ));
                 if self.visiting_call_chain_literal_variable {
                     code.push(')');
@@ -259,40 +243,38 @@ impl RustVisitor {
                 if self.visiting_call_chain_literal_variable {
                     code.push('(');
                 }
-
-                if variable_node.id_node.is_reference {
+                if var_node.id_node.is_reference {
                     code.push('&');
                 }
-
-                let event_type = self.format_state_event_type_name(
+                let event_type_name = self.format_state_event_type_name(
                     self.current_state_name_opt.as_ref().unwrap(),
                     &self.current_message,
                 );
+                let args_method_name = self.format_args_method_name(&event_type_name);
                 code.push_str(&format!(
                     "{}.{}.{}.{}().{}",
                     self.config.code.frame_event_variable_name,
                     self.config.code.frame_event_args_attribute_name,
                     borrow,
-                    self.format_args_method_name(&event_type),
-                    self.format_value_name(&variable_node.id_node.name.lexeme)
+                    args_method_name,
+                    var_name,
                 ));
-
                 if self.visiting_call_chain_literal_variable {
                     code.push(')');
                 }
             }
             IdentifierDeclScope::EventHandlerVar => {
-                if variable_node.id_node.is_reference {
+                if var_node.id_node.is_reference {
                     code.push('&');
                 }
-                code.push_str(&self.format_value_name(&variable_node.id_node.name.lexeme));
+                code.push_str(&self.format_value_name(&var_node.id_node.name.lexeme));
             }
             IdentifierDeclScope::None => {
                 // TODO: Explore labeling Variables as "extern" scope
-                if variable_node.id_node.is_reference {
+                if var_node.id_node.is_reference {
                     code.push('&');
                 }
-                code.push_str(&self.format_value_name(&variable_node.id_node.name.lexeme));
+                code.push_str(&self.format_value_name(&var_node.id_node.name.lexeme));
             } // Actions?
             _ => self.errors.push("Illegal scope.".to_string()),
         }
@@ -370,14 +352,6 @@ impl RustVisitor {
             self.system_type_name(),
             self.config.code.actions_suffix
         ))
-    }
-
-    fn lifetime_ref_annotation(&self) -> &str {
-        if self.config.features.runtime_support {
-            "&'a "
-        } else {
-            ""
-        }
     }
 
     fn lifetime_type_annotation(&self) -> &str {
@@ -581,8 +555,8 @@ impl RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn newline_to_string(&mut self, output: &mut String) {
-        output.push_str(&*format!("\n{}", self.dent()));
+    fn newline_to_string(&self, output: &mut String) {
+        output.push_str(&format!("\n{}", self.dent()));
     }
 
     //* --------------------------------------------------------------------- *//
@@ -615,6 +589,18 @@ impl RustVisitor {
         self.outdent();
         self.newline();
         self.add_code("}");
+    }
+
+    fn enter_block_to_string(&mut self, output: &mut String) {
+        output.push_str(" {");
+        self.indent();
+        self.newline_to_string(output);
+    }
+
+    fn exit_block_to_string(&mut self, output: &mut String) {
+        self.outdent();
+        self.newline_to_string(output);
+        output.push('}');
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1871,8 +1857,14 @@ impl RustVisitor {
         if self.generate_state_context {
             self.newline();
             self.add_code(&format!(
-                "self.{} = {}.clone();",
-                self.config.code.state_context_var_name, new_state_context_var
+                "self.{} = {}{};",
+                self.config.code.state_context_var_name,
+                new_state_context_var,
+                if self.config.features.runtime_support {
+                    ".clone()"
+                } else {
+                    ""
+                }
             ));
         }
 
@@ -2012,8 +2004,14 @@ impl RustVisitor {
         if self.generate_state_context {
             self.newline();
             self.add_code(&format!(
-                "self.{} = {}.clone();",
-                self.config.code.state_context_var_name, new_state_context_var
+                "self.{} = {}{};",
+                self.config.code.state_context_var_name,
+                new_state_context_var,
+                if self.config.features.runtime_support {
+                    ".clone()"
+                } else {
+                    ""
+                }
             ));
         }
 
@@ -2205,6 +2203,7 @@ impl RustVisitor {
             self.add_code("self.event_monitor_mut().event_handled(event_rc.clone());");
         }
 
+        self.newline();
         self.add_code("event_rc");
         self.exit_block();
         self.newline();
@@ -2476,9 +2475,13 @@ impl RustVisitor {
     fn generate_this_state_context(&mut self) {
         let state_name = &self.current_state_name_opt.as_ref().unwrap().clone();
         self.add_code(&format!(
-            "let {} = self.{}.{}();",
-            self.config.code.this_state_context_var_name,
+            "let state_context_clone = self.{}.clone();",
             self.config.code.state_context_var_name,
+        ));
+        self.newline();
+        self.add_code(&format!(
+            "let {} = state_context_clone.{}();",
+            self.config.code.this_state_context_var_name,
             self.format_state_context_method_name(state_name)
         ));
     }
@@ -2796,7 +2799,6 @@ impl RustVisitor {
         // pop the state/context
         self.newline();
         if self.generate_state_context {
-            self.newline();
             self.add_code(&format!(
                 "let (next_state, popped_state_context) = self.{}();",
                 self.config.code.state_stack_pop_method_name
@@ -3017,16 +3019,15 @@ impl AstVisitor for RustVisitor {
 
         self.add_code("}");
 
+        // FrameEvent struct
         self.newline();
         self.newline();
         self.disable_type_style_warnings();
         self.add_code(&format!(
-            "pub struct {}{} {{",
+            "pub struct {}",
             self.config.code.frame_event_type_name,
-            self.lifetime_type_annotation()
         ));
-        self.indent();
-        self.newline();
+        self.enter_block();
         self.add_code(&format!(
             "{}: {},",
             self.config.code.frame_event_message_attribute_name,
@@ -3034,68 +3035,52 @@ impl AstVisitor for RustVisitor {
         ));
         self.newline();
         self.add_code(&format!(
-            "{}: {}{},",
+            "{}: Rc<RefCell<{}>>,",
             self.config.code.frame_event_args_attribute_name,
-            self.lifetime_ref_annotation(),
             self.config.code.frame_event_args_type_name
         ));
         self.newline();
         self.add_code(&format!(
-            "{}: {},",
+            "{}: RefCell<{}>,",
             self.config.code.frame_event_return_attribute_name,
             self.config.code.frame_event_return_type_name
         ));
-        self.outdent();
-        self.newline();
-        self.add_code("}");
+        self.exit_block();
+
         self.newline();
         self.newline();
         self.disable_type_style_warnings();
+        self.add_code(&format!("impl {}", self.config.code.frame_event_type_name));
+        self.enter_block();
         self.add_code(&format!(
-            "impl{0} {1}{0} {{",
-            self.lifetime_type_annotation(),
-            self.config.code.frame_event_type_name
-        ));
-        self.indent();
-        self.newline();
-        self.add_code(&format!(
-            "fn new({}: {}, {}: {}{}) -> {}{} {{",
+            "fn new({}: {}, {}: {}) -> {}",
             self.config.code.frame_event_message_attribute_name,
             self.config.code.frame_event_message_type_name,
             self.config.code.frame_event_args_attribute_name,
-            self.lifetime_ref_annotation(),
             self.config.code.frame_event_args_type_name,
             self.config.code.frame_event_type_name,
-            self.lifetime_type_annotation()
         ));
-        self.indent();
-        self.newline();
-        self.add_code(&format!("{} {{", self.config.code.frame_event_type_name));
-        self.indent();
-        self.newline();
+        self.enter_block();
+        self.add_code(&self.config.code.frame_event_type_name.to_string());
+        self.enter_block();
         self.add_code(&format!(
             "{},",
             self.config.code.frame_event_message_attribute_name
         ));
         self.newline();
         self.add_code(&format!(
-            "{},",
+            "{0}: Rc::new(RefCell::new({0})),",
             self.config.code.frame_event_args_attribute_name
         ));
         self.newline();
         self.add_code(&format!(
-            "ret: {}::None,",
-            self.config.code.frame_event_return_type_name
+            "{}: RefCell::new({}::None),",
+            self.config.code.frame_event_return_attribute_name,
+            self.config.code.frame_event_return_type_name,
         ));
-        self.outdent();
-        self.newline();
-        self.add_code("}");
-        self.outdent();
-        self.newline();
-        self.add_code("}");
-        self.outdent();
-        self.newline();
-        self.add_code("}");
+        self.exit_block();
+        self.exit_block();
+        self.exit_block();
 
         self.newline();
         self.newline();
@@ -3608,7 +3593,7 @@ impl AstVisitor for RustVisitor {
             ));
             self.newline();
             self.add_code(&format!(
-                "match *{}.clone().{}.borrow()",
+                "let return_value = match *{}.{}.borrow()",
                 self.config.code.frame_event_variable_name,
                 self.config.code.frame_event_return_attribute_name
             ));
@@ -3624,6 +3609,9 @@ impl AstVisitor for RustVisitor {
                 &interface_method_node.name
             ));
             self.exit_block();
+            self.add_code(";");
+            self.newline();
+            self.add_code("return_value");
         } else {
             self.add_code(&format!(
                 "self.{}({}::new({}::{}, frame_args));",
@@ -3929,18 +3917,17 @@ impl AstVisitor for RustVisitor {
                     Some(expr_t) => {
                         self.newline();
                         self.add_code(&format!(
-                            "{}.{} = ",
+                            "{}.{}.replace({}::{}",
                             self.config.code.frame_event_variable_name,
-                            self.config.code.frame_event_return_attribute_name
-                        ));
-                        self.add_code(&format!(
-                            "{}::{} {{ return_value: ",
+                            self.config.code.frame_event_return_attribute_name,
                             self.config.code.frame_event_return_type_name,
-                            self.format_type_name(&self.current_message)
+                            self.format_type_name(&self.current_message),
                         ));
+                        self.enter_block();
+                        self.add_code("return_value: ");
                         expr_t.accept(self);
-
-                        self.add_code(" };");
+                        self.exit_block();
+                        self.add_code(");");
                     }
                     None => {}
                 };
@@ -4204,14 +4191,6 @@ impl AstVisitor for RustVisitor {
             } = &call_chain[0]
             {
                 self.this_branch_transitioned = true;
-                // TODO can this now be removed thanks to changes in state context rep?
-                if self.generate_state_context {
-                    self.add_code(&format!(
-                        "drop({});",
-                        self.config.code.this_state_context_var_name
-                    ));
-                    self.newline();
-                }
                 interface_method_call_expr_node.accept(self);
                 self.add_code(";");
                 self.newline();
@@ -4857,13 +4836,6 @@ impl AstVisitor for RustVisitor {
         {
             StateStackOperationType::Push => {
                 self.newline();
-                if self.generate_state_context {
-                    self.add_code(&format!(
-                        "drop({});",
-                        self.config.code.this_state_context_var_name
-                    ));
-                    self.newline();
-                }
                 self.add_code(&format!(
                     "self.{}();",
                     self.config.code.state_stack_push_method_name
@@ -5133,35 +5105,10 @@ impl AstVisitor for RustVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_assignment_expr_node(&mut self, assignment_expr_node: &AssignmentExprNode) {
-        self.generate_comment(assignment_expr_node.line);
-        self.newline();
-        match &*assignment_expr_node.l_value_box {
-            ExprType::FrameEventExprT { .. } => {
-                self.add_code(&format!(
-                    "{}.{}.replace({}::{}",
-                    self.config.code.frame_event_variable_name,
-                    self.config.code.frame_event_return_attribute_name,
-                    self.config.code.frame_event_return_type_name,
-                    self.format_type_name(&self.current_message),
-                ));
-                self.enter_block();
-                self.add_code("return_value: ");
-                assignment_expr_node.r_value_box.accept(self);
-                self.exit_block();
-                self.add_code(");");
-            }
-            _ => {
-                self.in_assignment_lvalue = true;
-                assignment_expr_node.l_value_box.accept(self);
-                self.in_assignment_lvalue = false;
-                self.add_code(" = ");
-                assignment_expr_node.r_value_box.accept(self);
-                self.add_code(";");
-            }
-        }
+        let mut output = String::new();
+        self.visit_assignment_expr_node_to_string(assignment_expr_node, &mut output);
+        self.add_code(&output);
     }
-
-    //* --------------------------------------------------------------------- *//
 
     fn visit_assignment_expr_node_to_string(
         &mut self,
@@ -5169,18 +5116,55 @@ impl AstVisitor for RustVisitor {
         output: &mut String,
     ) {
         self.generate_comment(assignment_expr_node.line);
-        self.newline();
         self.newline_to_string(output);
-        self.in_assignment_lvalue = true;
-        assignment_expr_node
-            .l_value_box
-            .accept_to_string(self, output);
-        self.in_assignment_lvalue = false;
-        output.push_str(" = ");
-        assignment_expr_node
-            .r_value_box
-            .accept_to_string(self, output);
-        output.push(';');
+        match &*assignment_expr_node.l_value_box {
+            ExprType::FrameEventExprT { .. } => {
+                output.push_str(&format!(
+                    "{}.{}.replace({}::{}",
+                    self.config.code.frame_event_variable_name,
+                    self.config.code.frame_event_return_attribute_name,
+                    self.config.code.frame_event_return_type_name,
+                    self.format_type_name(&self.current_message),
+                ));
+                self.enter_block_to_string(output);
+                output.push_str("return_value: ");
+                assignment_expr_node
+                    .r_value_box
+                    .accept_to_string(self, output);
+                self.exit_block_to_string(output);
+                self.add_code(");");
+            }
+            _ => {
+                let mut lhs = String::new();
+                let mut rhs = String::new();
+                // compute lhs
+                self.in_assignment_lvalue = true;
+                assignment_expr_node
+                    .l_value_box
+                    .accept_to_string(self, &mut lhs);
+                self.in_assignment_lvalue = false;
+                // compute rhs
+                self.indent();
+                assignment_expr_node
+                    .r_value_box
+                    .accept_to_string(self, &mut rhs);
+                self.outdent();
+                // stick em together
+                output.push_str(&format!(
+                    "let {} =",
+                    self.config.code.assignment_temp_var_name,
+                ));
+                self.enter_block_to_string(output);
+                output.push_str(&rhs);
+                self.exit_block_to_string(output);
+                output.push(';');
+                self.newline_to_string(output);
+                output.push_str(&format!(
+                    "{} = {};",
+                    lhs, &self.config.code.assignment_temp_var_name,
+                ));
+            }
+        }
     }
 
     //* --------------------------------------------------------------------- *//

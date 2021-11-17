@@ -136,6 +136,7 @@ pub struct RustCode {
     pub change_state_method_name: String,
     pub transition_method_name: String,
 
+    pub assignment_temp_var_name: String,
     pub state_handler_name_prefix: String,
     pub state_handler_name_suffix: String,
 
@@ -434,6 +435,7 @@ impl Default for RustCode {
             change_state_method_name: String::from("change_state"),
             transition_method_name: String::from("transition"),
 
+            assignment_temp_var_name: String::from("assign_temp"),
             state_handler_name_prefix: String::from(""),
             state_handler_name_suffix: String::from("_handler"),
 
