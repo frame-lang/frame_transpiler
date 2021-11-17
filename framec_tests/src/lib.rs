@@ -13,7 +13,7 @@ mod state_context;
 mod var_scope;
 
 // Tests with runtime_support enabled.
-// mod basic;
+mod basic;
 // mod hierarchical;
 // mod state_context_runtime;
 // mod state_context_stack;

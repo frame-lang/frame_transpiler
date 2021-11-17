@@ -55,17 +55,17 @@ mod tests {
     #[test]
     fn machine_name() {
         let info = Basic::machine_info();
-        assert_eq!(info.name(), "Basic");
+        assert_eq!(info.name, "Basic");
     }
 
     /// Test that the state names from the runtime interface are correct.
     #[test]
     fn state_names() {
         let info = Basic::machine_info();
-        let states = info.states();
+        let states = info.states;
         assert_eq!(states.len(), 2);
-        assert!(states.iter().any(|s| s.name() == "S0"));
-        assert!(states.iter().any(|s| s.name() == "S1"));
+        assert!(states.iter().any(|s| s.name == "S0"));
+        assert!(states.iter().any(|s| s.name == "S1"));
     }
 
     /// Test that the name of the initial state from the runtime interface is correct.
@@ -74,14 +74,14 @@ mod tests {
         let info = Basic::machine_info();
         let init = info.initial_state();
         assert!(init.is_some());
-        assert_eq!(init.unwrap().name(), "S0");
+        assert_eq!(init.unwrap().name, "S0");
     }
 
     /// Test that the interface names from the runtime interface are correct.
     #[test]
     fn interface_names() {
         let info = Basic::machine_info();
-        let methods = info.interface();
+        let methods = info.interface;
         assert_eq!(methods.len(), 2);
         assert!(methods.iter().any(|m| m.name == "A"));
         assert!(methods.iter().any(|m| m.name == "B"));
@@ -91,7 +91,7 @@ mod tests {
     #[test]
     fn event_names() {
         let info = Basic::machine_info();
-        let methods = info.events();
+        let methods = info.events;
         assert_eq!(methods.len(), 6);
         assert!(methods.iter().any(|m| m.name == "A"));
         assert!(methods.iter().any(|m| m.name == "B"));
@@ -107,7 +107,7 @@ mod tests {
     #[test]
     fn action_names() {
         let info = Basic::machine_info();
-        let methods = info.actions();
+        let methods = info.actions;
         assert_eq!(methods.len(), 2);
         assert!(methods.iter().any(|m| m.name == "entered"));
         assert!(methods.iter().any(|m| m.name == "left"));
@@ -137,7 +137,7 @@ mod tests {
     #[test]
     fn domain_variable_names() {
         let info = Basic::machine_info();
-        let names = info.variables();
+        let names = info.variables;
         assert_eq!(names.len(), 2);
         assert!(names.iter().any(|n| n.name == "entry_log"));
         assert!(names.iter().any(|n| n.name == "exit_log"));
@@ -172,26 +172,26 @@ mod tests {
 
         assert!(s0_in.is_transition());
         assert_eq!(s0_in.label, "aah");
-        assert_eq!(s0_in.source.name(), "S1");
-        assert_eq!(s0_in.target.name(), "S0");
+        assert_eq!(s0_in.source.name, "S1");
+        assert_eq!(s0_in.target.name, "S0");
         assert_eq!(s0_in.event.name, "B");
 
         assert!(s0_out.is_transition());
         assert_eq!(s0_out.label, "ooh");
-        assert_eq!(s0_out.source.name(), "S0");
-        assert_eq!(s0_out.target.name(), "S1");
+        assert_eq!(s0_out.source.name, "S0");
+        assert_eq!(s0_out.target.name, "S1");
         assert_eq!(s0_out.event.name, "A");
 
         assert!(s1_in.is_transition());
         assert_eq!(s1_in.label, "ooh");
-        assert_eq!(s1_in.source.name(), "S0");
-        assert_eq!(s1_in.target.name(), "S1");
+        assert_eq!(s1_in.source.name, "S0");
+        assert_eq!(s1_in.target.name, "S1");
         assert_eq!(s1_in.event.name, "A");
 
         assert!(s1_out.is_transition());
         assert_eq!(s1_out.label, "aah");
-        assert_eq!(s1_out.source.name(), "S1");
-        assert_eq!(s1_out.target.name(), "S0");
+        assert_eq!(s1_out.source.name, "S1");
+        assert_eq!(s1_out.target.name, "S0");
         assert_eq!(s1_out.event.name, "B");
     }
 
@@ -199,11 +199,11 @@ mod tests {
     #[test]
     fn runtime_current_state() {
         let mut sm = Basic::new();
-        assert_eq!(sm.state().info().name(), "S0");
+        assert_eq!(sm.state().info().name, "S0");
         sm.a();
-        assert_eq!(sm.state().info().name(), "S1");
+        assert_eq!(sm.state().info().name, "S1");
         sm.b();
-        assert_eq!(sm.state().info().name(), "S0");
+        assert_eq!(sm.state().info().name, "S0");
     }
 
     /// Test that we can access the values of the domain variables via the runtime interface.

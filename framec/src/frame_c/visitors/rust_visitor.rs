@@ -837,7 +837,7 @@ impl RustVisitor {
             self.indent();
             for action_name in action_names {
                 self.newline();
-                self.add_code("MethodInfo");
+                self.add_code("&MethodInfo");
                 self.enter_block();
                 let action_decl_rcref = self.arcanum.lookup_action(&action_name).unwrap();
                 let action_decl = action_decl_rcref.borrow();
@@ -900,7 +900,7 @@ impl RustVisitor {
                 let event_rcref = self.arcanum.get_event(event_name, &None).unwrap();
                 let event = event_rcref.borrow();
                 self.newline();
-                self.add_code("MethodInfo");
+                self.add_code("&MethodInfo");
                 self.enter_block();
                 self.add_code(&format!("name: \"{}\",", event.msg));
                 self.newline();
@@ -950,7 +950,7 @@ impl RustVisitor {
             let transitions = self.transitions.clone();
             for (index, transition) in transitions.into_iter().enumerate() {
                 self.newline();
-                self.add_code("TransitionInfo");
+                self.add_code("&TransitionInfo");
                 self.enter_block();
                 self.add_code(&format!("id: {},", index));
                 self.newline();
@@ -1028,7 +1028,7 @@ impl RustVisitor {
             self.format_state_info_const_name(&state_name),
         ));
         self.enter_block();
-        self.add_code("machine: &MACHINE_CELL,");
+        self.add_code("machine_cell: &MACHINE_CELL,");
         self.newline();
         self.add_code(&format!("name: \"{}\",", state_name));
         self.newline();
@@ -1156,7 +1156,7 @@ impl RustVisitor {
             self.add_code(&format!("impl StateInstance for {}", state_enum_type));
             self.enter_block();
 
-            self.add_code("fn info(&self) -> &'static dyn StateInfo");
+            self.add_code("fn info(&self) -> &'static StateInfo");
             self.enter_block();
             self.add_code("match self {");
             self.indent();
@@ -1176,6 +1176,227 @@ impl RustVisitor {
 
             self.exit_block();
         }
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    /// Generate all of the definitions related to Frame events.
+    fn generate_event_defs(&mut self, system_node: &SystemNode) {
+        // generate args and return types
+        self.generate_event_arg_defs();
+        self.newline();
+        self.newline();
+        self.generate_event_return_defs(system_node);
+        self.newline();
+        self.newline();
+
+        // generate core event type
+        self.disable_type_style_warnings();
+        self.add_code(&format!(
+            "pub struct {}",
+            self.config.code.frame_event_type_name,
+        ));
+        self.enter_block();
+        self.add_code(&format!(
+            "{}: {},",
+            self.config.code.frame_event_message_attribute_name,
+            self.config.code.frame_event_message_type_name
+        ));
+        self.newline();
+        self.add_code(&format!(
+            "{}: Rc<RefCell<{}>>,",
+            self.config.code.frame_event_args_attribute_name,
+            self.config.code.frame_event_args_type_name
+        ));
+        self.newline();
+        self.add_code(&format!(
+            "{}: RefCell<{}>,",
+            self.config.code.frame_event_return_attribute_name,
+            self.config.code.frame_event_return_type_name
+        ));
+        self.exit_block();
+
+        self.newline();
+        self.newline();
+        self.disable_type_style_warnings();
+        self.add_code(&format!("impl {}", self.config.code.frame_event_type_name));
+        self.enter_block();
+        self.add_code(&format!(
+            "fn new({}: {}, {}: {}) -> {}",
+            self.config.code.frame_event_message_attribute_name,
+            self.config.code.frame_event_message_type_name,
+            self.config.code.frame_event_args_attribute_name,
+            self.config.code.frame_event_args_type_name,
+            self.config.code.frame_event_type_name,
+        ));
+        self.enter_block();
+        self.add_code(&self.config.code.frame_event_type_name.to_string());
+        self.enter_block();
+        self.add_code(&format!(
+            "{},",
+            self.config.code.frame_event_message_attribute_name
+        ));
+        self.newline();
+        self.add_code(&format!(
+            "{0}: Rc::new(RefCell::new({0})),",
+            self.config.code.frame_event_args_attribute_name
+        ));
+        self.newline();
+        self.add_code(&format!(
+            "{}: RefCell::new({}::None),",
+            self.config.code.frame_event_return_attribute_name,
+            self.config.code.frame_event_return_type_name,
+        ));
+        self.exit_block();
+        self.exit_block();
+        self.exit_block();
+
+        if self.config.features.runtime_support {
+            self.newline();
+            self.newline();
+            self.add_code(&format!(
+                "impl MethodInstance for {}",
+                self.config.code.frame_event_type_name
+            ));
+            self.enter_block();
+
+            self.add_code("fn info(&self) -> &MethodInfo");
+            self.enter_block();
+            self.add_code("let msg = self.message.to_string();");
+            self.newline();
+            self.add_code(&format!(
+                "{}::{}()",
+                self.config.code.runtime_info_module_name,
+                self.config.code.machine_info_function_name,
+            ));
+            self.indent();
+            self.newline();
+            self.add_code(".get_event(&msg)");
+            self.newline();
+            self.add_code(".unwrap_or_else(|| panic!(\"No runtime info for event: {}\", msg))");
+            self.outdent();
+            self.exit_block(); // fn info
+
+            self.newline();
+            self.add_code("fn arguments(&self) -> Rc<dyn Environment>");
+            self.enter_block();
+            self.add_code(&format!(
+                "self.{}.clone()",
+                self.config.code.frame_event_args_attribute_name,
+            ));
+            self.exit_block(); // fn arguments
+
+            self.newline();
+            self.add_code("fn return_value(&self) -> Option<Ref<dyn Any>>");
+            self.enter_block();
+            self.add_code(&format!(
+                "if self.{}.borrow().is_none()",
+                self.config.code.frame_event_return_attribute_name,
+            ));
+            self.enter_block();
+            self.add_code("None");
+            self.exit_block();
+            self.add_code(" else");
+            self.enter_block();
+            self.add_code(&format!(
+                "Some(Ref::map(self.{}.borrow(), |r| match r",
+                self.config.code.frame_event_return_attribute_name,
+            ));
+            self.enter_block();
+            self.add_code(&format!(
+                "{}::None => &() as &dyn Any,",
+                self.config.code.frame_event_return_type_name,
+            ));
+            if let Some(interface_block_node) = &system_node.interface_block_node_opt {
+                for interface_method_node in &interface_block_node.interface_methods {
+                    let if_name = interface_method_node.borrow().name.clone();
+                    if interface_method_node.borrow().return_type_opt.is_some() {
+                        self.newline();
+                        self.add_code(&format!(
+                            "{}::{} {{ ref return_value }} => return_value as &dyn Any,",
+                            self.config.code.frame_event_return_type_name,
+                            self.format_type_name(&if_name),
+                        ));
+                    }
+                }
+            }
+            self.exit_block();
+            self.add_code("))");
+            self.exit_block();
+            self.exit_block(); // fn return_value
+
+            self.exit_block(); // impl MethodInstance
+        }
+    }
+
+    /// Generate the structs, enum, and supporting definitions related to event return values.
+    fn generate_event_return_defs(&mut self, system_node: &SystemNode) {
+        self.add_code("#[allow(dead_code)]");
+        self.newline();
+        self.add_code(&format!(
+            "enum {}",
+            self.config.code.frame_event_return_type_name
+        ));
+        self.enter_block();
+        self.add_code("None,");
+        if let Some(interface_block_node) = &system_node.interface_block_node_opt {
+            for interface_method_node in &interface_block_node.interface_methods {
+                let if_name = interface_method_node.borrow().name.clone();
+                if let Some(return_type) = &interface_method_node.borrow().return_type_opt {
+                    self.newline();
+                    self.add_code(&format!(
+                        "{} {{ return_value: {} }},",
+                        self.format_type_name(&if_name),
+                        return_type.get_type_str()
+                    ));
+                }
+            }
+        }
+        self.exit_block();
+
+        self.newline();
+        self.newline();
+        self.add_code("#[allow(clippy::clone_on_copy)]");
+        self.newline();
+        self.disable_type_style_warnings();
+        self.add_code(&format!(
+            "impl {}",
+            self.config.code.frame_event_return_type_name
+        ));
+        self.enter_block();
+        self.add_code("fn is_none(&self) -> bool");
+        self.enter_block();
+        self.add_code(&format!(
+            "matches!(self, {}::None)",
+            self.config.code.frame_event_return_type_name
+        ));
+        self.exit_block();
+        if let Some(interface_block_node) = &system_node.interface_block_node_opt {
+            for interface_method_node in &interface_block_node.interface_methods {
+                //let if_name = interface_method_node.name.clone();
+                if let Some(return_type) = &interface_method_node.borrow().return_type_opt {
+                    self.newline();
+                    self.add_code(&format!(
+                        "fn {}(&self) -> {}",
+                        self.format_param_getter(&interface_method_node.borrow().name, "ret"),
+                        return_type.get_type_str()
+                    ));
+                    self.enter_block();
+                    self.add_code(&"match self".to_string());
+                    self.enter_block();
+                    self.add_code(&format!(
+                        "{}::{} {{ return_value }} => return_value.clone(),",
+                        self.config.code.frame_event_return_type_name,
+                        self.format_type_name(&interface_method_node.borrow().name)
+                    ));
+                    self.newline();
+                    self.add_code(&"_ => panic!(\"Invalid return value\"),".to_string());
+                    self.exit_block();
+                    self.exit_block();
+                }
+            }
+        }
+        self.exit_block();
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1245,12 +1466,19 @@ impl RustVisitor {
                 self.config.code.frame_event_args_type_name
             ));
             self.enter_block();
-            self.add_code("fn lookup(&self, name: &str) -> Option<&dyn Any>");
+            self.add_code(&format!(
+                "fn lookup(&self, {}: &str) -> Option<&dyn Any>",
+                if has_params.is_empty() {
+                    "_name"
+                } else {
+                    "name"
+                }
+            ));
             self.enter_block();
             self.add_code("match self");
             self.enter_block();
             self.add_code(&format!(
-                "{}::None => EMPTY.lookup(name),",
+                "{}::None => None,",
                 self.config.code.frame_event_args_type_name
             ));
             for event_type_name in &has_params {
@@ -1263,11 +1491,12 @@ impl RustVisitor {
             self.exit_block();
             self.exit_block();
             self.exit_block();
-            self.newline();
-            self.newline();
         }
 
         if !has_params.is_empty() {
+            self.newline();
+            self.newline();
+
             // generate methods to conveniently get specific arg structs
             // from a value of the enum type
             self.disable_type_style_warnings();
@@ -1301,8 +1530,6 @@ impl RustVisitor {
                 self.exit_block();
             }
             self.exit_block();
-            self.newline();
-            self.newline();
         }
     }
 
@@ -1686,7 +1913,7 @@ impl RustVisitor {
         if self.config.features.runtime_support {
             self.newline();
             self.add_code(&format!(
-                "{}: EventMonitor::new({:?}, {:?});",
+                "{}: EventMonitor::new({:?}, {:?}),",
                 self.config.code.event_monitor_var_name,
                 self.config.runtime.event_history_capacity(),
                 self.config.runtime.transition_history_capacity(),
@@ -1893,9 +2120,9 @@ impl RustVisitor {
                 self.newline();
                 self.add_code(&new_state_context_var);
             } else {
-                self.add_code(&format!("Rc::new({})", old_state_var));
+                self.add_code(&format!("Rc::new({}),", old_state_var));
                 self.newline();
-                self.add_code(&format!("Rc::new({})", new_state_var));
+                self.add_code(&format!("Rc::new({}),", new_state_var));
             }
             self.outdent();
             self.newline();
@@ -2065,9 +2292,9 @@ impl RustVisitor {
                 self.newline();
                 self.add_code(&new_state_context_var);
             } else {
-                self.add_code(&format!("Rc::new({})", old_state_var));
+                self.add_code(&format!("Rc::new({}),", old_state_var));
                 self.newline();
-                self.add_code(&format!("Rc::new({})", new_state_var));
+                self.add_code(&format!("Rc::new({}),", new_state_var));
             }
             if self.generate_exit_args {
                 self.add_code("Some(exit_event),");
@@ -2609,7 +2836,7 @@ impl RustVisitor {
         ));
         if self.config.features.runtime_support {
             self.add_code(&format!(
-                "&{}::{}().transitions[{}], ",
+                "{}::{}().transitions[{}], ",
                 self.config.code.runtime_info_module_name,
                 self.config.code.machine_info_function_name,
                 self.transitions.len() - 1,
@@ -2742,7 +2969,7 @@ impl RustVisitor {
         ));
         if self.config.features.runtime_support {
             self.add_code(&format!(
-                "&{}::{}().transitions[{}], ",
+                "{}::{}().transitions[{}], ",
                 self.config.code.runtime_info_module_name,
                 self.config.code.machine_info_function_name,
                 self.transitions.len() - 1,
@@ -2820,7 +3047,7 @@ impl RustVisitor {
         ));
         if self.config.features.runtime_support {
             self.add_code(&format!(
-                "&{}::{}().transitions[{}], ",
+                "{}::{}().transitions[{}], ",
                 self.config.code.runtime_info_module_name,
                 self.config.code.machine_info_function_name,
                 self.transitions.len() - 1,
@@ -2886,7 +3113,7 @@ impl RustVisitor {
         ));
         if self.config.features.runtime_support {
             self.add_code(&format!(
-                "&{}::{}().transitions[{}], ",
+                "{}::{}().transitions[{}], ",
                 self.config.code.runtime_info_module_name,
                 self.config.code.machine_info_function_name,
                 self.transitions.len() - 1,
@@ -2930,6 +3157,7 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.add_code("use std::rc::Rc;");
         self.newline();
+
         if self.config.features.runtime_support {
             self.add_code("#[allow(unused_imports)]");
             self.newline();
@@ -2944,151 +3172,19 @@ impl AstVisitor for RustVisitor {
             interface_block_node.accept_frame_parameters(self);
         }
 
+        // FrameEvent
         self.newline();
         self.newline();
-        self.add_code("#[allow(dead_code)]");
-        self.newline();
-        self.add_code(&format!(
-            "enum {} {{",
-            self.config.code.frame_event_return_type_name
-        ));
-        self.indent();
-        self.newline();
-        self.add_code("None,");
+        self.generate_event_defs(system_node);
 
-        if let Some(interface_block_node) = &system_node.interface_block_node_opt {
-            for interface_method_node in &interface_block_node.interface_methods {
-                let if_name = interface_method_node.borrow().name.clone();
-                if let Some(return_type) = &interface_method_node.borrow().return_type_opt {
-                    self.newline();
-                    self.add_code(&format!(
-                        "{} {{ return_value: {} }},",
-                        self.format_type_name(&if_name),
-                        return_type.get_type_str()
-                    ));
-                }
-            }
-        }
-        self.outdent();
-        self.newline();
-        self.add_code("}");
-
-        self.newline();
-        self.newline();
-        self.add_code("#[allow(clippy::clone_on_copy)]");
-        self.newline();
-        self.disable_type_style_warnings();
-        self.add_code(&format!(
-            "impl {} {{",
-            self.config.code.frame_event_return_type_name
-        ));
-        if let Some(interface_block_node) = &system_node.interface_block_node_opt {
-            for interface_method_node in &interface_block_node.interface_methods {
-                //let if_name = interface_method_node.name.clone();
-                if let Some(return_type) = &interface_method_node.borrow().return_type_opt {
-                    self.indent();
-                    self.newline();
-                    self.add_code(&format!(
-                        "fn {}(&self) -> {} {{",
-                        self.format_param_getter(&interface_method_node.borrow().name, "ret"),
-                        return_type.get_type_str()
-                    ));
-                    self.indent();
-                    self.newline();
-                    self.add_code(&"match self {".to_string());
-                    self.indent();
-                    self.newline();
-                    self.add_code(&format!(
-                        "{}::{} {{ return_value }} => return_value.clone(),",
-                        self.config.code.frame_event_return_type_name,
-                        self.format_type_name(&interface_method_node.borrow().name)
-                    ));
-                    self.newline();
-                    self.add_code(&"_ => panic!(\"Invalid return value\"),".to_string());
-                    self.outdent();
-                    self.newline();
-                    self.add_code("}");
-                    self.outdent();
-                    self.newline();
-                    self.add_code("}");
-                    self.outdent();
-                    self.newline();
-                }
-            }
-        }
-
-        self.add_code("}");
-
-        // FrameEvent struct
-        self.newline();
-        self.newline();
-        self.disable_type_style_warnings();
-        self.add_code(&format!(
-            "pub struct {}",
-            self.config.code.frame_event_type_name,
-        ));
-        self.enter_block();
-        self.add_code(&format!(
-            "{}: {},",
-            self.config.code.frame_event_message_attribute_name,
-            self.config.code.frame_event_message_type_name
-        ));
-        self.newline();
-        self.add_code(&format!(
-            "{}: Rc<RefCell<{}>>,",
-            self.config.code.frame_event_args_attribute_name,
-            self.config.code.frame_event_args_type_name
-        ));
-        self.newline();
-        self.add_code(&format!(
-            "{}: RefCell<{}>,",
-            self.config.code.frame_event_return_attribute_name,
-            self.config.code.frame_event_return_type_name
-        ));
-        self.exit_block();
-
-        self.newline();
-        self.newline();
-        self.disable_type_style_warnings();
-        self.add_code(&format!("impl {}", self.config.code.frame_event_type_name));
-        self.enter_block();
-        self.add_code(&format!(
-            "fn new({}: {}, {}: {}) -> {}",
-            self.config.code.frame_event_message_attribute_name,
-            self.config.code.frame_event_message_type_name,
-            self.config.code.frame_event_args_attribute_name,
-            self.config.code.frame_event_args_type_name,
-            self.config.code.frame_event_type_name,
-        ));
-        self.enter_block();
-        self.add_code(&self.config.code.frame_event_type_name.to_string());
-        self.enter_block();
-        self.add_code(&format!(
-            "{},",
-            self.config.code.frame_event_message_attribute_name
-        ));
-        self.newline();
-        self.add_code(&format!(
-            "{0}: Rc::new(RefCell::new({0})),",
-            self.config.code.frame_event_args_attribute_name
-        ));
-        self.newline();
-        self.add_code(&format!(
-            "{}: RefCell::new({}::None),",
-            self.config.code.frame_event_return_attribute_name,
-            self.config.code.frame_event_return_type_name,
-        ));
-        self.exit_block();
-        self.exit_block();
-        self.exit_block();
-
+        // state enum
         self.newline();
         self.newline();
         self.generate_state_enum(system_node);
         self.newline();
         self.newline();
-        self.generate_event_arg_defs();
 
+        // state context
         if self.generate_state_context {
             self.generate_state_context_defs(system_node);
         }
@@ -3179,9 +3275,7 @@ impl AstVisitor for RustVisitor {
 
         // add runtime support
         if self.config.features.runtime_support {
-            self.generate_environment_impl(false, &machine_struct_name, &domain_vars);
-            self.newline();
-            self.newline();
+            self.generate_environment_impl(true, &self.system_type_name(), &domain_vars);
 
             self.add_code(&format!(
                 "impl{0} MachineInstance{0} for {1}",
@@ -3258,7 +3352,7 @@ impl AstVisitor for RustVisitor {
             self.newline();
             self.newline();
             self.add_code(&format!(
-                "pub fn {}() -> &'static dyn MachineInfo",
+                "pub fn {}() -> &'static MachineInfo",
                 self.config.code.machine_info_function_name,
             ));
             self.enter_block();
@@ -3767,8 +3861,8 @@ impl AstVisitor for RustVisitor {
     fn visit_domain_block_node(&mut self, domain_block_node: &DomainBlockNode) {
         let var_nodes = &domain_block_node.member_variables;
         if !var_nodes.is_empty() {
-            self.add_code("//===================== Domain Block ===================//");
             self.newline();
+            self.add_code("//===================== Domain Block ===================//");
             for variable_decl_node_rcref in var_nodes {
                 let variable_decl_node = variable_decl_node_rcref.borrow();
                 variable_decl_node.accept_rust_domain_var_decl(self);

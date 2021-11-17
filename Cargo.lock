@@ -136,11 +136,12 @@ dependencies = [
 
 [[package]]
 name = "framec_tests"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "anyhow",
  "frame_runtime",
  "framec",
+ "once_cell",
  "walkdir",
 ]
 
