@@ -1965,8 +1965,8 @@ impl RustVisitor {
         self.enter_block();
 
         self.add_code(&format!(
-            "self.{}({}::new(",
-            self.config.code.handle_event_method_name, self.config.code.frame_event_type_name,
+            "let {} = Rc::new({}::new(",
+            self.config.code.frame_event_variable_name, self.config.code.frame_event_type_name,
         ));
         self.indent();
         self.newline();
@@ -1984,6 +1984,11 @@ impl RustVisitor {
         self.outdent();
         self.newline();
         self.add_code("));");
+
+        self.add_code(&format!(
+            "self.{}({});",
+            self.config.code.handle_event_method_name, self.config.code.frame_event_variable_name,
+        ));
 
         self.exit_block();
     }
@@ -2180,15 +2185,10 @@ impl RustVisitor {
         self.add_code(")");
         self.enter_block();
 
-        // exit event for old state
-        let exit_args = if self.generate_exit_args {
-            self.config.code.exit_args_member_name.to_string()
-        } else {
-            format!("{}::None", self.config.code.frame_event_args_type_name)
-        };
+        // create exit event for old state
         self.add_code(&format!(
-            "let exit_event = self.{}({}::new(",
-            self.config.code.handle_event_method_name, self.config.code.frame_event_type_name,
+            "let exit_event = Rc::new({}::new(",
+            self.config.code.frame_event_type_name,
         ));
         self.indent();
         self.newline();
@@ -2199,10 +2199,29 @@ impl RustVisitor {
             self.config.code.state_var_name,
         ));
         self.newline();
-        self.add_code(&exit_args);
+        if self.generate_exit_args {
+            self.add_code(&format!("{},", self.config.code.exit_args_member_name));
+        } else {
+            self.add_code(&format!(
+                "{}::None,",
+                self.config.code.frame_event_args_type_name
+            ));
+        };
         self.outdent();
         self.newline();
         self.add_code("));");
+
+        // send exit event
+        self.newline();
+        self.add_code(&format!(
+            "self.{}(exit_event{});",
+            self.config.code.handle_event_method_name,
+            if self.config.features.runtime_support {
+                ".clone()"
+            } else {
+                ""
+            }
+        ));
 
         // save old state
         if self.generate_transition_hook
@@ -2251,16 +2270,11 @@ impl RustVisitor {
             ));
         }
 
-        // enter event for new state
+        // create enter event for new state
         self.newline();
-        let enter_args = if self.generate_enter_args {
-            self.config.code.enter_args_member_name.to_string()
-        } else {
-            format!("{}::None", self.config.code.frame_event_args_type_name)
-        };
         self.add_code(&format!(
-            "let enter_event = self.{}({}::new(",
-            self.config.code.handle_event_method_name, self.config.code.frame_event_type_name,
+            "let enter_event = Rc::new({}::new(",
+            self.config.code.frame_event_type_name,
         ));
         self.indent();
         self.newline();
@@ -2271,7 +2285,14 @@ impl RustVisitor {
             self.config.code.state_var_name,
         ));
         self.newline();
-        self.add_code(&enter_args);
+        if self.generate_enter_args {
+            self.add_code(&format!("{},", self.config.code.enter_args_member_name));
+        } else {
+            self.add_code(&format!(
+                "{}::None,",
+                self.config.code.frame_event_args_type_name
+            ));
+        };
         self.outdent();
         self.newline();
         self.add_code("));");
@@ -2297,21 +2318,20 @@ impl RustVisitor {
                 self.add_code(&format!("Rc::new({}),", new_state_var));
             }
             self.newline();
-            if self.generate_exit_args {
-                self.add_code("Some(exit_event),");
-            } else {
-                self.add_code("None,");
-            }
+            self.add_code("Some(exit_event),");
             self.newline();
-            if self.generate_enter_args {
-                self.add_code("Some(enter_event),");
-            } else {
-                self.add_code("None,");
-            }
+            self.add_code("Some(enter_event.clone()),");
             self.outdent();
             self.newline();
             self.add_code("));");
         }
+
+        // send enter event
+        self.newline();
+        self.add_code(&format!(
+            "self.{}(enter_event);",
+            self.config.code.handle_event_method_name,
+        ));
 
         self.exit_block();
         self.newline();
@@ -2392,21 +2412,22 @@ impl RustVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn generate_handle_event(&mut self) {
+        self.add_code("#[allow(clippy::redundant_clone)]");
+        self.newline();
         self.add_code(&format!(
-            "fn {0}(&mut self, {1}: {2}) -> Rc<{2}>",
+            "fn {}(&mut self, {}: Rc<{}>)",
             self.config.code.handle_event_method_name,
             self.config.code.frame_event_variable_name,
             self.config.code.frame_event_type_name,
         ));
         self.enter_block();
-        self.add_code(&format!(
-            "let event_rc = Rc::new({});",
-            self.config.code.frame_event_variable_name,
-        ));
 
         if self.config.features.runtime_support {
             self.newline();
-            self.add_code("self.event_monitor_mut().event_sent(event_rc.clone());");
+            self.add_code(&format!(
+                "self.event_monitor_mut().event_sent({}.clone());",
+                self.config.code.frame_event_variable_name,
+            ));
         }
 
         self.newline();
@@ -2418,21 +2439,23 @@ impl RustVisitor {
         for state_name in &self.state_names.clone() {
             self.newline();
             self.add_code(&format!(
-                "{}::{} => self.{}(event_rc.clone()),",
+                "{}::{} => self.{}({}.clone()),",
                 self.state_enum_type_name(),
                 self.format_type_name(state_name),
                 self.format_state_handler_name(state_name),
+                self.config.code.frame_event_variable_name,
             ));
         }
         self.exit_block();
 
         if self.config.features.runtime_support {
             self.newline();
-            self.add_code("self.event_monitor_mut().event_handled(event_rc.clone());");
+            self.add_code(&format!(
+                "self.event_monitor_mut().event_handled({});",
+                self.config.code.frame_event_variable_name,
+            ));
         }
 
-        self.newline();
-        self.add_code("event_rc");
         self.exit_block();
         self.newline();
     }
@@ -3677,14 +3700,18 @@ impl AstVisitor for RustVisitor {
         }
 
         self.newline();
+        self.add_code(&format!(
+            "let {} = Rc::new({}::new({}::{}, frame_args));",
+            self.config.code.frame_event_variable_name,
+            self.config.code.frame_event_type_name,
+            self.config.code.frame_event_message_type_name,
+            event_type_name,
+        ));
         if interface_method_node.return_type_opt.is_some() {
             self.add_code(&format!(
-                "let {} = self.{}({}::new({}::{}, frame_args));",
-                self.config.code.frame_event_variable_name,
+                "self.{}({}.clone());",
                 self.config.code.handle_event_method_name,
-                self.config.code.frame_event_type_name,
-                self.config.code.frame_event_message_type_name,
-                event_type_name,
+                self.config.code.frame_event_variable_name,
             ));
             self.newline();
             self.add_code(&format!(
@@ -3709,11 +3736,9 @@ impl AstVisitor for RustVisitor {
             self.add_code("return_value");
         } else {
             self.add_code(&format!(
-                "self.{}({}::new({}::{}, frame_args));",
+                "self.{}({});",
                 self.config.code.handle_event_method_name,
-                self.config.code.frame_event_type_name,
-                self.config.code.frame_event_message_type_name,
-                event_type_name,
+                self.config.code.frame_event_variable_name,
             ));
         }
 

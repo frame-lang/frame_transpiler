@@ -86,8 +86,9 @@ impl<'a> EventMonitor<'a> {
         self.event_handled_callbacks.push(Box::new(callback));
     }
 
-    /// Register a callback to be called on each transition. Callbacks will be invoked after each
-    /// transition completes, including the processing of exit and enter events.
+    /// Register a callback to be called on each transition. Callbacks will be invoked after the
+    /// exit event for the old state has been handled, and before the enter event for the new
+    /// state has been sent.
     ///
     /// Note that the argument type for this function is `impl TransitionCallback<'a>`, but the
     /// trait alias is inlined to help Rust infer the argument type when callbacks are defined

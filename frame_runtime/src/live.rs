@@ -81,12 +81,10 @@ pub struct TransitionInstance {
     /// The target state instance immediately after the transition.
     pub new_state: Rc<dyn StateInstance>,
 
-    /// The exit event sent to the source state. Will be `None` if the source state does not have
-    /// an exit event handler.
+    /// The exit event sent to the source state. Will be `None` for a change-state transition.
     pub exit_event: Option<Rc<dyn MethodInstance>>,
 
-    /// The enter event sent to the target state. Will be `None` if the target state does not have
-    /// an enter event handler.
+    /// The enter event sent to the target state. Will be `None` for a change-state transition.
     pub enter_event: Option<Rc<dyn MethodInstance>>,
 }
 
