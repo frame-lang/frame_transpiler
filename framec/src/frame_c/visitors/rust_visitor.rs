@@ -1267,7 +1267,10 @@ impl RustVisitor {
 
             self.add_code("fn info(&self) -> &MethodInfo");
             self.enter_block();
-            self.add_code("let msg = self.message.to_string();");
+            self.add_code(&format!(
+                "let msg = self.{}.to_string();",
+                self.config.code.frame_event_message_attribute_name,
+            ));
             self.newline();
             self.add_code(&format!(
                 "{}::{}()",
@@ -3638,7 +3641,7 @@ impl AstVisitor for RustVisitor {
                         "{}::{} => write!(f, \"{}\"),",
                         self.config.code.frame_event_message_type_name,
                         formatted_message_name,
-                        formatted_message_name
+                        canonical_message_name,
                     ));
                 }
                 None => {
