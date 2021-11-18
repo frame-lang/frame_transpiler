@@ -14,6 +14,7 @@ mod var_scope;
 
 // Tests with runtime_support enabled.
 mod basic;
+mod event_monitor;
 mod hierarchical;
 mod state_context_runtime;
 mod state_context_stack;
