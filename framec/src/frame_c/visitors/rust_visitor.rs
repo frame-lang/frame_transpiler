@@ -1005,6 +1005,7 @@ impl RustVisitor {
             "name: \"{}\",",
             self.config.code.pop_state_info_name
         ));
+        self.newline();
         self.add_code("parent: None,");
         self.newline();
         self.add_code("parameters: &[],");
@@ -2475,14 +2476,13 @@ impl RustVisitor {
         self.enter_block();
 
         if self.config.features.runtime_support {
-            self.newline();
             self.add_code(&format!(
                 "self.event_monitor_mut().event_sent({}.clone());",
                 self.config.code.frame_event_variable_name,
             ));
+            self.newline();
         }
 
-        self.newline();
         self.add_code(&format!(
             "match self.{} {{",
             self.config.code.state_var_name
