@@ -8,13 +8,13 @@ use std::rc::Rc;
 
 /// A trait alias for functions that take a method instance as an argument. Used as the type of
 /// Frame event notification callbacks.
-pub trait EventCallback<'a>: FnMut(Rc<dyn MethodInstance>) + Send + 'a {}
-impl<'a, F> EventCallback<'a> for F where F: FnMut(Rc<dyn MethodInstance>) + Send + 'a {}
+pub trait EventCallback<'a>: FnMut(Rc<dyn MethodInstance>) + 'a {}
+impl<'a, F> EventCallback<'a> for F where F: FnMut(Rc<dyn MethodInstance>) + 'a {}
 
 /// A trait alias for functions that take a transition instance as an argument. Used as the type of
 /// state transition notification callbacks.
-pub trait TransitionCallback<'a>: FnMut(&TransitionInstance) + Send + 'a {}
-impl<'a, F> TransitionCallback<'a> for F where F: FnMut(&TransitionInstance) + Send + 'a {}
+pub trait TransitionCallback<'a>: FnMut(&TransitionInstance) + 'a {}
+impl<'a, F> TransitionCallback<'a> for F where F: FnMut(&TransitionInstance) + 'a {}
 
 /// The event monitor.
 pub struct EventMonitor<'a> {
@@ -58,7 +58,7 @@ impl<'a> EventMonitor<'a> {
     /// anonymously.
     pub fn add_event_sent_callback(
         &mut self,
-        callback: impl FnMut(Rc<dyn MethodInstance>) + Send + 'a,
+        callback: impl FnMut(Rc<dyn MethodInstance>) + 'a,
         // callback: impl EventCallback<'a>,
     ) {
         self.event_sent_callbacks.push(Box::new(callback));
@@ -80,7 +80,7 @@ impl<'a> EventMonitor<'a> {
     /// anonymously.
     pub fn add_event_handled_callback(
         &mut self,
-        callback: impl FnMut(Rc<dyn MethodInstance>) + Send + 'a,
+        callback: impl FnMut(Rc<dyn MethodInstance>) + 'a,
         // callback: impl EventCallback<'a>,
     ) {
         self.event_handled_callbacks.push(Box::new(callback));
@@ -95,7 +95,7 @@ impl<'a> EventMonitor<'a> {
     /// anonymously.
     pub fn add_transition_callback(
         &mut self,
-        callback: impl FnMut(&TransitionInstance) + Send + 'a,
+        callback: impl FnMut(&TransitionInstance) + 'a,
         // callback: impl TransitionCallback<'a>,
     ) {
         self.transition_callbacks.push(Box::new(callback));
