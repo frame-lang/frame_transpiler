@@ -164,15 +164,27 @@ impl<'a> EventMonitor<'a> {
         self.transition_history = new_deque(&self.transition_history_capacity);
     }
 
-    /// Set the number of events to maintain in the history. If `None`, the number of elements is
+    /// Get the number of events that will be maintained in the history. If `None`, the number of
+    /// events is unlimited.
+    pub fn get_event_history_capacity(&self) -> Option<usize> {
+        self.event_history_capacity
+    }
+
+    /// Get the number of transitions that will be maintained in the history. If `None`, the number
+    /// of transitions is unlimited.
+    pub fn get_transition_history_capacity(&self) -> Option<usize> {
+        self.transition_history_capacity
+    }
+
+    /// Set the number of events to maintain in the history. If `None`, the number of events is
     /// unlimited.
     pub fn set_event_history_capacity(&mut self, capacity: Option<usize>) {
         resize_deque(&capacity, &mut self.event_history);
         self.event_history_capacity = capacity;
     }
 
-    /// Set the number of transitions to maintain in the history. If `None`, the number of elements
-    /// is unlimited.
+    /// Set the number of transitions to maintain in the history. If `None`, the number of
+    /// transitions is unlimited.
     pub fn set_transition_history_capacity(&mut self, capacity: Option<usize>) {
         resize_deque(&capacity, &mut self.transition_history);
         self.transition_history_capacity = capacity;
