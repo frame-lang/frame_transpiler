@@ -4,6 +4,7 @@
 //! structural information such as possible transitions and hierarchy relationships among states.
 
 use once_cell::sync::OnceCell;
+use std::fmt;
 
 /// Information about a simple name declaration. Names in Frame include domain, state, and local
 /// variables, as well as method parameters.
@@ -207,6 +208,15 @@ pub enum TransitionKind {
     Transition,
 }
 
+impl fmt::Display for TransitionKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            TransitionKind::ChangeState => write!(f, "->>"),
+            TransitionKind::Transition => write!(f, "->"),
+        }
+    }
+}
+
 /// Static information about a (potential) transition. Each `TransitionInfo` corresponds to a
 /// transition statement in the Frame specification. When a transition is executed at runtime, an
 /// `event::TransitionEvent` is produced, which links to the `TransitionInfo` for the statement
@@ -242,5 +252,11 @@ impl TransitionInfo {
     /// Is this a standard transition (as opposed to a change-state)?
     pub fn is_transition(&self) -> bool {
         self.kind == TransitionKind::Transition
+    }
+}
+
+impl fmt::Display for TransitionInfo {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}{}{}", self.source.name, self.kind, self.target.name)
     }
 }

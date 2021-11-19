@@ -253,16 +253,8 @@ mod tests {
     fn pop_transition_callbacks() {
         let out = Mutex::new(String::new());
         let mut sm = StateContextStack::new();
-        sm.event_monitor_mut().add_transition_callback(|event| {
-            *out.lock().unwrap() = format!(
-                "{}{}{}",
-                event.old_state.info().name,
-                match event.info.kind {
-                    TransitionKind::ChangeState => "->>",
-                    TransitionKind::Transition => "->",
-                },
-                event.new_state.info().name,
-            );
+        sm.event_monitor_mut().add_transition_callback(|t| {
+            *out.lock().unwrap() = t.to_string();
         });
         sm.to_c();
         sm.push();

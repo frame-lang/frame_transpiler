@@ -5,6 +5,7 @@ use crate::event::EventMonitor;
 use crate::info::*;
 use std::any::Any;
 use std::cell::Ref;
+use std::fmt;
 use std::rc::Rc;
 
 /// An interface to a running state machine that supports inspecting its current state and
@@ -135,6 +136,18 @@ impl TransitionInstance {
             Some(event) => event.arguments().clone(),
             None => Empty::new_rc(),
         }
+    }
+}
+
+impl fmt::Display for TransitionInstance {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}{}{}",
+            self.old_state.info().name,
+            self.info.kind,
+            self.new_state.info().name
+        )
     }
 }
 
