@@ -14,7 +14,7 @@
 
         |change| : u32
             ->> $B ^(2)
-        
+
         |transit| [x:u32]
             (3) -> (4) $B ^
 
@@ -23,7 +23,7 @@
             ^(out)
 
     $B
-        |>| [b_in:u32] 
+        |>| [b_in:u32]
             transit (11) ^
 
         |<| [b_out:u32] ^
@@ -33,7 +33,7 @@
 
         |transit| [x:u32]
             (13) -> (14) $C ^
-        
+
         |mult| [a:i32 b:i32] : i32
             var out = a * b
             ^(out)
@@ -42,7 +42,7 @@
             ->> $A ^
 
     $C
-        |>| [c_in:u32] 
+        |>| [c_in:u32]
             transit (21) ^
 
         |<| [c_out:u32] ^
@@ -61,7 +61,7 @@
             ->> $A ^
 
     $D
-        |>| [d_in:u32] 
+        |>| [d_in:u32]
             change () ^
 
         |<| [d_out:u32] ^
