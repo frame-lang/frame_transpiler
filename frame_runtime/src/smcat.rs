@@ -115,7 +115,7 @@ impl fmt::Display for EdgeStyle {
 /// A trait that enables looking up the style of elements in a state machine.
 pub trait Style {
     /// Get the node style for a state.
-    fn node(&self, info: &dyn StateInfo, active: bool) -> NodeStyle;
+    fn node(&self, info: &StateInfo, active: bool) -> NodeStyle;
     /// Get the edge style for a transition.
     fn edge(&self, info: &TransitionInfo, active: bool) -> EdgeStyle;
 }
@@ -127,7 +127,7 @@ pub struct CssStyle {}
 pub struct SimpleStyle {}
 
 impl Style for CssStyle {
-    fn node(&self, info: &dyn StateInfo, active: bool) -> NodeStyle {
+    fn node(&self, info: &StateInfo, active: bool) -> NodeStyle {
         let mut classes = Vec::new();
         if active {
             classes.push("active");
@@ -135,10 +135,13 @@ impl Style for CssStyle {
         if !info.children().is_empty() {
             classes.push("parent");
         }
-        if info.is_stack_pop() {
+        if info.is_stack_pop {
             classes.push("stack-pop");
         }
         NodeStyle {
+            // TODO Not sure if the "active" attribute is "semantic" or purely for rendering style.
+            // If it's purely style, then we should not enable it since we'll set the style in CSS.
+            // active,
             class: if classes.is_empty() {
                 None
             } else {
@@ -167,7 +170,7 @@ impl Style for CssStyle {
 }
 
 impl Style for SimpleStyle {
-    fn node(&self, _info: &dyn StateInfo, active: bool) -> NodeStyle {
+    fn node(&self, _info: &StateInfo, active: bool) -> NodeStyle {
         let mut style = NodeStyle::default();
         if active {
             style.active = true;
@@ -204,26 +207,23 @@ impl Renderer {
 
     /// Generate an smcat diagram illustrating the structure of a state machine, independent of any
     /// particular execution.
-    pub fn render_static(&self, machine_info: &dyn MachineInfo) -> String {
+    pub fn render_static(&self, machine_info: &MachineInfo) -> String {
         self.render_common(machine_info, None, None)
     }
 
     /// Generate an smcat diagram from a snapshot of a running state machine. Depending on the
     /// style configuration, this can be expected to highlight the running state, most recent
     /// transition, etc. Eventually, it may show the current values of variables.
-    pub fn render_live<'a>(
-        &self,
-        machine: &'a dyn MachineInstance<'a>,
-        last_transition: Option<usize>,
-    ) -> String {
+    pub fn render_live(&self, machine: &dyn MachineInstance) -> String {
         let machine_info = machine.info();
-        let active_state = machine.state().info().name();
+        let active_state = machine.state().info().name;
+        let last_transition = machine.event_monitor().last_transition().map(|t| t.info.id);
         self.render_common(machine_info, Some(active_state), last_transition)
     }
 
     fn render_common(
         &self,
-        machine_info: &dyn MachineInfo,
+        machine_info: &MachineInfo,
         active_state: Option<&'static str>,
         last_transition: Option<usize>,
     ) -> String {
@@ -237,14 +237,14 @@ impl Renderer {
             &machine_info.top_level_states(),
             &mut output,
         );
-        output.push_str(";\n\n");
+        output.push_str(";\n");
 
         // render transitions
         if let Some(init) = machine_info.initial_state() {
-            output.push_str(&format!("initial => {};\n", init.name()));
+            output.push_str(&format!("initial => {};\n", init.name));
         }
-        for transition in machine_info.transitions() {
-            self.render_transition(last_transition, &transition, &mut output);
+        for transition in machine_info.transitions {
+            self.render_transition(last_transition, transition, &mut output);
         }
         output
     }
@@ -253,15 +253,15 @@ impl Renderer {
         &self,
         active: Option<&'static str>,
         indent: usize,
-        states: &[&dyn StateInfo],
+        states: &[&StateInfo],
         output: &mut String,
     ) {
         let mut state_iter = states.iter().peekable();
         while let Some(state) = state_iter.next() {
-            let style = self.style.node(*state, active == Some(state.name()));
+            let style = self.style.node(*state, active == Some(state.name));
             let children = state.children();
             output.push_str(&"  ".repeat(indent));
-            output.push_str(&format!("{}{}", state.name(), style));
+            output.push_str(&format!("{}{}", state.name, style));
             if !children.is_empty() {
                 output.push_str(" {\n");
                 self.render_states(active, indent + 1, &children, output);
@@ -287,11 +287,7 @@ impl Renderer {
         }
         output.push_str(&format!(
             "{} -> {}{} : \"  {}{}  \";\n",
-            transition.source.name(),
-            transition.target.name(),
-            style,
-            transition.event.name,
-            label
+            transition.source.name, transition.target.name, style, transition.event.name, label
         ));
     }
 }

@@ -49,7 +49,9 @@
 //! ##
 //! ```
 
+use frame_runtime::smcat;
 use frame_runtime::*;
+use indoc::indoc;
 use std::any::Any;
 use std::cell::{Ref, RefCell};
 use std::rc::Rc;
@@ -1149,14 +1151,56 @@ fn enter_exit_arguments() {
     );
 }
 
-// #[test]
-// fn smcat_renderer() {
-//     let smcat = smcat::Renderer::new(Box::new(smcat::SimpleStyle {}));
-//     println!("Static rendering:\n{}", smcat.render_static(info::machine()));
-//     let mut sm = Demo::new();
-//     println!("Live rendering 1:\n{}", smcat.render_live(&sm, Some(0)));
-//     sm.next();
-//     println!("Live rendering 2:\n{}", smcat.render_live(&sm, Some(1)));
-//     sm.next();
-//     println!("Live rendering 3:\n{}", smcat.render_live(&sm, Some(2)));
-// }
+const SMCAT_STATIC: &str = indoc! {r#"
+    initial,
+    Init,
+    Foo,
+    Bar;
+    initial => Init;
+    Init -> Foo : "  Init:>  ";
+    Foo -> Bar : "  next  ";
+    Bar -> Foo [color="grey"] : "  next  ";
+    "#};
+const SMCAT_LIVE_1: &str = indoc! {r#"
+    initial,
+    Init,
+    Foo [active color="red"],
+    Bar;
+    initial => Init;
+    Init -> Foo [color="red" width=2] : "  Init:>  ";
+    Foo -> Bar : "  next  ";
+    Bar -> Foo [color="grey"] : "  next  ";
+    "#};
+const SMCAT_LIVE_2: &str = indoc! {r#"
+    initial,
+    Init,
+    Foo,
+    Bar [active color="red"];
+    initial => Init;
+    Init -> Foo : "  Init:>  ";
+    Foo -> Bar [color="red" width=2] : "  next  ";
+    Bar -> Foo [color="grey"] : "  next  ";
+    "#};
+const SMCAT_LIVE_3: &str = indoc! {r#"
+    initial,
+    Init,
+    Foo [active color="red"],
+    Bar;
+    initial => Init;
+    Init -> Foo : "  Init:>  ";
+    Foo -> Bar : "  next  ";
+    Bar -> Foo [color="pink" width=2] : "  next  ";
+    "#};
+
+#[test]
+fn smcat_renderer() {
+    let smcat = smcat::Renderer::new(Box::new(smcat::SimpleStyle {}));
+    assert_eq!(smcat.render_static(info::machine()), SMCAT_STATIC);
+
+    let mut sm = Demo::new();
+    assert_eq!(smcat.render_live(&sm), SMCAT_LIVE_1);
+    sm.next();
+    assert_eq!(smcat.render_live(&sm), SMCAT_LIVE_2);
+    sm.next();
+    assert_eq!(smcat.render_live(&sm), SMCAT_LIVE_3);
+}
