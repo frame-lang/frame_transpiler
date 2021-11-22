@@ -1,6 +1,5 @@
 use convert_case::{Case, Casing};
 use std::cell::Ref;
-use std::cmp::Ordering;
 use std::collections::HashSet;
 
 use crate::frame_c::ast::*;
@@ -663,23 +662,18 @@ impl RustVisitor {
 
     /// Generate a sub-module containing all of the static info used by the runtime interface.
     fn generate_runtime_info(&mut self, system_node: &SystemNode) {
-        // Build a sorted list of event names: interface methods first, then enter events, then
-        // exit events. This keeps the generated code tidy. As a very minor concern, we have to
-        // find the position of event names where transitions occur when generating the `*Info`
-        // instances; this ordering moves events likely to contain transitions to the front.
+        // list of event names: interface methods first, then enter/exit events for each state
         let mut event_names = self.arcanum.get_event_names();
-        event_names.sort_by(|n1, n2| {
-            let e1_rcref = self.arcanum.get_event(n1, &None).unwrap();
-            let e2_rcref = self.arcanum.get_event(n2, &None).unwrap();
-            let e1 = e1_rcref.borrow();
-            let e2 = e2_rcref.borrow();
-            let e1_kind = e1.is_enter_msg as u8 + e1.is_exit_msg as u8 * 2;
-            let e2_kind = e2.is_enter_msg as u8 + e2.is_exit_msg as u8 * 2;
-            match e1_kind.cmp(&e2_kind) {
-                Ordering::Equal => e1.msg.cmp(&e2.msg),
-                order => order,
-            }
+        event_names.retain(|name| {
+            let rcref = self.arcanum.get_event(name, &None).unwrap();
+            let event = rcref.borrow();
+            !event.is_enter_msg && !event.is_exit_msg
         });
+        let num_interface_event_names = event_names.len();
+        for state_name in &self.state_names {
+            event_names.push(format!("{}:{}", state_name, self.config.code.enter_token,));
+            event_names.push(format!("{}:{}", state_name, self.config.code.exit_token,));
+        }
 
         // generate sub-module containing info definitions
         self.add_code(&format!(
@@ -692,7 +686,7 @@ impl RustVisitor {
         self.add_code("use once_cell::sync::OnceCell;");
         self.newline();
         self.newline();
-        self.generate_machine_info(system_node, &event_names);
+        self.generate_machine_info(system_node, num_interface_event_names);
         self.newline();
         self.generate_action_info();
         self.newline();
@@ -725,7 +719,7 @@ impl RustVisitor {
 
     /// Generate the machine info and supporting definitions.
     #[allow(unused_variables)]
-    fn generate_machine_info(&mut self, system_node: &SystemNode, event_names: &[String]) {
+    fn generate_machine_info(&mut self, system_node: &SystemNode, num_interface_events: usize) {
         // generate the public-facing function
         self.add_code(&format!(
             "pub fn {}() -> &'static MachineInfo",
@@ -790,21 +784,11 @@ impl RustVisitor {
 
         // interface
         self.add_code("interface: &[");
-        if !event_names.is_empty() {
+        if num_interface_events > 0 {
             self.indent();
-            let mut idx = 0;
-            for event_name in event_names {
-                let event_rcref = self.arcanum.get_event(event_name, &None).unwrap();
-                let event = event_rcref.borrow();
-                if event.is_enter_msg || event.is_exit_msg {
-                    // interface methods are sorted to be first,
-                    // so if we see an enter/exit event we're done
-                    break;
-                } else {
-                    self.newline();
-                    self.add_code(&format!("EVENTS[{}],", idx));
-                    idx += 1;
-                }
+            for idx in 0..num_interface_events {
+                self.newline();
+                self.add_code(&format!("EVENTS[{}],", idx));
             }
             self.outdent();
             self.newline();
@@ -896,41 +880,46 @@ impl RustVisitor {
         if !event_names.is_empty() {
             self.indent();
             for event_name in event_names {
-                let event_rcref = self.arcanum.get_event(event_name, &None).unwrap();
-                let event = event_rcref.borrow();
                 self.newline();
                 self.add_code("&MethodInfo");
                 self.enter_block();
-                self.add_code(&format!("name: \"{}\",", event.msg));
+                self.add_code(&format!("name: \"{}\",", event_name));
                 self.newline();
-                self.add_code("parameters: &[");
-                if let Some(params) = &event.params_opt {
-                    if !params.is_empty() {
-                        self.indent();
-                        for param in params {
+                if let Some(event_rcref) = self.arcanum.get_event(event_name, &None) {
+                    let event = event_rcref.borrow();
+                    self.add_code("parameters: &[");
+                    if let Some(params) = &event.params_opt {
+                        if !params.is_empty() {
+                            self.indent();
+                            for param in params {
+                                self.newline();
+                                let param_name = param.name.clone();
+                                let param_type = param
+                                    .param_type_opt
+                                    .as_ref()
+                                    .unwrap()
+                                    .get_type_str()
+                                    .clone();
+                                self.generate_name_info(&param_name, &param_type);
+                            }
+                            self.outdent();
                             self.newline();
-                            let param_name = param.name.clone();
-                            let param_type = param
-                                .param_type_opt
-                                .as_ref()
-                                .unwrap()
-                                .get_type_str()
-                                .clone();
-                            self.generate_name_info(&param_name, &param_type);
                         }
-                        self.outdent();
-                        self.newline();
                     }
+                    self.add_code("],");
+                    self.newline();
+                    self.add_code(&format!(
+                        "return_type: {},",
+                        match &event.ret_type_opt {
+                            Some(type_node) => format!("Some(\"{}\")", type_node.get_type_str()),
+                            None => "None".to_string(),
+                        }
+                    ));
+                } else {
+                    self.add_code("parameters: &[],");
+                    self.newline();
+                    self.add_code("return_type: None,");
                 }
-                self.add_code("],");
-                self.newline();
-                self.add_code(&format!(
-                    "return_type: {},",
-                    match &event.ret_type_opt {
-                        Some(type_node) => format!("Some(\"{}\")", type_node.get_type_str()),
-                        None => "None".to_string(),
-                    }
-                ));
                 self.exit_block();
                 self.add_code(",");
             }
@@ -1474,6 +1463,23 @@ impl RustVisitor {
                 self.config.code.frame_event_args_type_name
             ));
             self.enter_block();
+            self.add_code("fn is_empty(&self) -> bool");
+            self.enter_block();
+            self.add_code("match self");
+            self.enter_block();
+            self.add_code(&format!(
+                "{}::None => true,",
+                self.config.code.frame_event_args_type_name
+            ));
+            for event_type_name in &has_params {
+                self.newline();
+                self.add_code(&format!(
+                    "{}::{}(_) => false,",
+                    self.config.code.frame_event_args_type_name, &event_type_name
+                ));
+            }
+            self.exit_block();
+            self.exit_block();
             self.add_code(&format!(
                 "fn lookup(&self, {}: &str) -> Option<&dyn Any>",
                 if has_params.is_empty() {
@@ -2041,6 +2047,7 @@ impl RustVisitor {
         self.newline();
         self.add_code("));");
 
+        self.newline();
         self.add_code(&format!(
             "self.{}({});",
             self.config.code.handle_event_method_name, self.config.code.frame_event_variable_name,

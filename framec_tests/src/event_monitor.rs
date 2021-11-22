@@ -208,9 +208,138 @@ mod tests {
         assert_eq!(handled_expected, *handled.lock().unwrap());
     }
 
+    /// Test that event sent callbacks receive the proper argument environments.
+    #[test]
+    fn event_sent_arguments() {
+        let events_mutex = Mutex::new(Vec::new());
+        let mut sm = EventMonitorSm::new();
+        sm.event_monitor_mut().add_event_sent_callback(|e| {
+            if e.info().name == "mult" {
+                assert!(!e.arguments().is_empty());
+            } else if e.info().name == "change" {
+                assert!(e.arguments().is_empty());
+            }
+            events_mutex.lock().unwrap().push(e);
+        });
+        sm.mult(3, 5);
+        sm.change();
+        sm.mult(4, 6);
+
+        let events = events_mutex.lock().unwrap();
+        assert_eq!(3, events.len());
+
+        assert_eq!("mult", events[0].info().name);
+        let args = events[0].arguments();
+        let a_opt = args.lookup("a");
+        let b_opt = args.lookup("b");
+        let c_opt = args.lookup("c");
+        assert!(a_opt.is_some());
+        assert!(b_opt.is_some());
+        assert!(c_opt.is_none());
+        assert_eq!(3, *a_opt.unwrap().downcast_ref::<i32>().unwrap());
+        assert_eq!(5, *b_opt.unwrap().downcast_ref::<i32>().unwrap());
+
+        assert_eq!("change", events[1].info().name);
+        assert!(events[1].arguments().is_empty());
+
+        assert_eq!("mult", events[2].info().name);
+        let args = events[2].arguments();
+        let a_opt = args.lookup("a");
+        let b_opt = args.lookup("b");
+        let c_opt = args.lookup("c");
+        assert!(a_opt.is_some());
+        assert!(b_opt.is_some());
+        assert!(c_opt.is_none());
+        assert_eq!(4, *a_opt.unwrap().downcast_ref::<i32>().unwrap());
+        assert_eq!(6, *b_opt.unwrap().downcast_ref::<i32>().unwrap());
+    }
+
+    /// Test that event sent callbacks do not receive a return value at the time they're called,
+    /// but that the return value is later added to the event.
+    #[test]
+    fn event_sent_return_value() {
+        let events_mutex = Mutex::new(Vec::new());
+        let mut sm = EventMonitorSm::new();
+        sm.event_monitor_mut().add_event_sent_callback(|e| {
+            assert!(e.return_value().is_none());
+            events_mutex.lock().unwrap().push(e);
+        });
+        sm.mult(3, 5);
+        sm.change();
+        sm.mult(4, 6);
+
+        let events = events_mutex.lock().unwrap();
+        assert_eq!(3, events.len());
+
+        assert_eq!("mult", events[0].info().name);
+        let ret_opt = events[0].return_value();
+        assert!(ret_opt.is_some());
+        assert_eq!(15, *ret_opt.unwrap().downcast_ref::<i32>().unwrap());
+
+        assert_eq!("change", events[1].info().name);
+        let ret_opt = events[1].return_value();
+        assert!(ret_opt.is_some());
+        assert_eq!(2, *ret_opt.unwrap().downcast_ref::<u32>().unwrap());
+
+        assert_eq!("mult", events[2].info().name);
+        let ret_opt = events[2].return_value();
+        assert!(ret_opt.is_some());
+        assert_eq!(24, *ret_opt.unwrap().downcast_ref::<i32>().unwrap());
+    }
+
+    /// Test that event handled callbacks receive a return value at the time they're called.
+    #[test]
+    fn event_handled_return_value() {
+        let events_mutex = Mutex::new(Vec::new());
+        let mut sm = EventMonitorSm::new();
+        sm.event_monitor_mut().add_event_handled_callback(|e| {
+            if e.return_value().is_some() {
+                events_mutex.lock().unwrap().push(e);
+            }
+        });
+        sm.mult(3, 5);
+        sm.change();
+        sm.mult(4, 6);
+        sm.transit(3);
+
+        let events = events_mutex.lock().unwrap();
+        assert_eq!(4, events.len());
+        assert_eq!(
+            15,
+            *events[0]
+                .return_value()
+                .unwrap()
+                .downcast_ref::<i32>()
+                .unwrap()
+        );
+        assert_eq!(
+            2,
+            *events[1]
+                .return_value()
+                .unwrap()
+                .downcast_ref::<u32>()
+                .unwrap()
+        );
+        assert_eq!(
+            24,
+            *events[2]
+                .return_value()
+                .unwrap()
+                .downcast_ref::<i32>()
+                .unwrap()
+        );
+        assert_eq!(
+            32,
+            *events[3]
+                .return_value()
+                .unwrap()
+                .downcast_ref::<u32>()
+                .unwrap()
+        );
+    }
+
     /// Test that the event history contains the initial enter event.
     #[test]
-    #[ignore]
     fn event_history_initial_enter() {
         let sm = EventMonitorSm::new();
         let history = sm.event_monitor().event_history();

@@ -285,16 +285,18 @@ mod tests {
     fn event_names() {
         let info = StateContextSm::machine_info();
         let methods = info.events;
-        assert_eq!(methods.len(), 9);
+        assert_eq!(methods.len(), 11);
         assert!(methods.iter().any(|m| m.name == "Start"));
         assert!(methods.iter().any(|m| m.name == "LogState"));
         assert!(methods.iter().any(|m| m.name == "Inc"));
         assert!(methods.iter().any(|m| m.name == "Next"));
         assert!(methods.iter().any(|m| m.name == "Change"));
         assert!(methods.iter().any(|m| m.name == "Init:>"));
+        assert!(methods.iter().any(|m| m.name == "Init:<"));
         assert!(methods.iter().any(|m| m.name == "Foo:>"));
         assert!(methods.iter().any(|m| m.name == "Foo:<"));
         assert!(methods.iter().any(|m| m.name == "Bar:>"));
+        assert!(methods.iter().any(|m| m.name == "Bar:<"));
     }
 
     /// Test that enter/exit events from the runtime interface have the correct signatures.
