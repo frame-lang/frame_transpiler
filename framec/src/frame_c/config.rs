@@ -178,25 +178,25 @@ pub struct RustRuntime {
     /// (in which case it should be occasionally manually cleared).
     ///
     /// Default is `0`, disabling event history tracking.
-    pub event_history_length: i32,
+    pub event_history_capacity: i32,
 
     /// The number of transitions to save in the transition history. A value of `0` disables the
     /// event history feature, while a negative value allows the history to grow to unbounded size
     /// (in which case it should be occasionally manually cleared).
     ///
     /// Default is `1`, storing the most recent transition only.
-    pub transition_history_length: i32,
+    pub transition_history_capacity: i32,
 }
 
 impl RustRuntime {
-    /// Get the event history length as a capacity value suitable for the event monitor.
+    /// Get the event history capacity as a value suitable for the event monitor.
     pub fn event_history_capacity(&self) -> Option<usize> {
-        self.event_history_length.try_into().ok()
+        self.event_history_capacity.try_into().ok()
     }
 
-    /// Get the transition history length as a capacity value suitable for the event monitor.
+    /// Get the transition history capacity as a value suitable for the event monitor.
     pub fn transition_history_capacity(&self) -> Option<usize> {
-        self.transition_history_length.try_into().ok()
+        self.transition_history_capacity.try_into().ok()
     }
 }
 
@@ -475,8 +475,8 @@ impl Default for RustCode {
 impl Default for RustRuntime {
     fn default() -> Self {
         RustRuntime {
-            event_history_length: 0,
-            transition_history_length: 1,
+            event_history_capacity: 0,
+            transition_history_capacity: 1,
         }
     }
 }

@@ -1,6 +1,6 @@
 #[codegen.rust.features.runtime_support:bool="true"]
-#[codegen.rust.runtime.event_history_length:int="5"]
-#[codegen.rust.runtime.transition_history_length:int="3"]
+#[codegen.rust.runtime.event_history_capacity:int="5"]
+#[codegen.rust.runtime.transition_history_capacity:int="3"]
 #EventMonitorSm
     -interface-
     change : u32
