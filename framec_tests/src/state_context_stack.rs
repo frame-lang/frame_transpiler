@@ -199,7 +199,7 @@ mod tests {
         assert_eq!(sm.value(), 5);
         sm.inc();
         sm.inc();
-        assert_eq!(sm.value(), 15);
+        assert_eq!(sm.value(), 15); // these changes should be forgotten
 
         sm.to_c();
         sm.inc();
@@ -209,7 +209,7 @@ mod tests {
         assert_eq!(sm.state, StateContextStackState::C);
         assert_eq!(sm.value(), 30);
         sm.inc();
-        assert_eq!(sm.value(), 40);
+        assert_eq!(sm.value(), 40); // forgotten
 
         sm.to_a();
         sm.inc();
@@ -232,7 +232,7 @@ mod tests {
         assert_eq!(sm.state, StateContextStackState::A);
         assert_eq!(sm.value(), 3);
         sm.inc();
-        assert_eq!(sm.value(), 4);
+        assert_eq!(sm.value(), 4); // forgotten
 
         sm.to_c();
         sm.inc();
@@ -253,16 +253,8 @@ mod tests {
     fn pop_transition_callbacks() {
         let out = Mutex::new(String::new());
         let mut sm = StateContextStack::new();
-        sm.callback_manager().add_transition_callback(|event| {
-            *out.lock().unwrap() = format!(
-                "{}{}{}",
-                event.old_state.info().name(),
-                match event.info.kind {
-                    TransitionKind::ChangeState => "->>",
-                    TransitionKind::Transition => "->",
-                },
-                event.new_state.info().name(),
-            );
+        sm.event_monitor_mut().add_transition_callback(|t| {
+            *out.lock().unwrap() = t.to_string();
         });
         sm.to_c();
         sm.push();
@@ -301,22 +293,22 @@ mod tests {
         sm.inc();
 
         let c_info = sm.state().info();
-        assert_eq!(c_info.name(), "C");
-        assert!(!c_info.is_stack_pop());
+        assert_eq!(c_info.name, "C");
+        assert!(!c_info.is_stack_pop);
 
         let c_out = c_info.outgoing_transitions();
         assert_eq!(c_out.len(), 5);
-        assert_eq!(c_out[0].target.name(), "A");
-        assert_eq!(c_out[1].target.name(), "B");
-        assert_eq!(c_out[2].target.name(), "C");
-        assert_eq!(c_out[3].target.name(), "$$[-]");
-        assert_eq!(c_out[4].target.name(), "$$[-]");
+        assert_eq!(c_out[0].target.name, "A");
+        assert_eq!(c_out[1].target.name, "B");
+        assert_eq!(c_out[2].target.name, "C");
+        assert_eq!(c_out[3].target.name, "$$[-]");
+        assert_eq!(c_out[4].target.name, "$$[-]");
 
-        assert!(!c_out[0].target.is_stack_pop());
-        assert!(!c_out[1].target.is_stack_pop());
-        assert!(!c_out[2].target.is_stack_pop());
-        assert!(c_out[3].target.is_stack_pop());
-        assert!(c_out[4].target.is_stack_pop());
+        assert!(!c_out[0].target.is_stack_pop);
+        assert!(!c_out[1].target.is_stack_pop);
+        assert!(!c_out[2].target.is_stack_pop);
+        assert!(c_out[3].target.is_stack_pop);
+        assert!(c_out[4].target.is_stack_pop);
 
         assert!(c_out[0].is_transition());
         assert!(c_out[1].is_transition());
@@ -326,22 +318,22 @@ mod tests {
 
         sm.pop();
         let b_info = sm.state().info();
-        assert_eq!(b_info.name(), "B");
-        assert!(!b_info.is_stack_pop());
+        assert_eq!(b_info.name, "B");
+        assert!(!b_info.is_stack_pop);
 
         let b_out = b_info.outgoing_transitions();
         assert_eq!(b_out.len(), 5);
-        assert_eq!(b_out[0].target.name(), "A");
-        assert_eq!(b_out[1].target.name(), "B");
-        assert_eq!(b_out[2].target.name(), "C");
-        assert_eq!(b_out[3].target.name(), "$$[-]");
-        assert_eq!(b_out[4].target.name(), "$$[-]");
+        assert_eq!(b_out[0].target.name, "A");
+        assert_eq!(b_out[1].target.name, "B");
+        assert_eq!(b_out[2].target.name, "C");
+        assert_eq!(b_out[3].target.name, "$$[-]");
+        assert_eq!(b_out[4].target.name, "$$[-]");
 
-        assert!(!b_out[0].target.is_stack_pop());
-        assert!(!b_out[1].target.is_stack_pop());
-        assert!(!b_out[2].target.is_stack_pop());
-        assert!(b_out[3].target.is_stack_pop());
-        assert!(b_out[4].target.is_stack_pop());
+        assert!(!b_out[0].target.is_stack_pop);
+        assert!(!b_out[1].target.is_stack_pop);
+        assert!(!b_out[2].target.is_stack_pop);
+        assert!(b_out[3].target.is_stack_pop);
+        assert!(b_out[4].target.is_stack_pop);
 
         assert!(b_out[0].is_transition());
         assert!(b_out[1].is_transition());
@@ -351,8 +343,8 @@ mod tests {
 
         sm.pop();
         let a_info = sm.state().info();
-        assert_eq!(a_info.name(), "A");
-        assert!(!a_info.is_stack_pop());
+        assert_eq!(a_info.name, "A");
+        assert!(!a_info.is_stack_pop);
     }
 
     /// Test that the values of state variables accessed via the runtime interface are correct

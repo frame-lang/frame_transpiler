@@ -1,11 +1,12 @@
 [package]
 name = "framec_tests"
-version = "0.7.0"
+version = "0.7.1"
 authors = ["Eric Walkingshaw <eric.wakingshaw@savant.com>", "Fernando De la Garza <fernando.delagarza@savant.com>"]
 edition = "2018"
 
 [dependencies]
 frame_runtime = { path = "../frame_runtime" }
+once_cell = "1.8.0"
 
 [build-dependencies]
 anyhow = "1.0"

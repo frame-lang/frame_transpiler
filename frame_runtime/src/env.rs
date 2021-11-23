@@ -2,6 +2,8 @@
 //! name bindings.
 
 use std::any::Any;
+use std::cell::{Ref, RefCell};
+use std::rc::Rc;
 
 /// Environments associate names (i.e. variables/parameters) with values.
 ///
@@ -12,7 +14,7 @@ use std::any::Any;
 /// It is common for a particular environment to be absent because there are no variables of the
 /// kind held by that environment. We represent absent environments by an empty environment rather
 /// than using an `Option` type because it simplifies the interface and because the distinction
-/// between `None` and `Some(EMPTY)` is not significant.
+/// between `None` and `Some(empty)` is not significant.
 pub trait Environment {
     /// Is this the empty environment?
     fn is_empty(&self) -> bool {
@@ -22,18 +24,53 @@ pub trait Environment {
     fn lookup(&self, name: &str) -> Option<&dyn Any>;
 }
 
-/// The trivial empty environment. This can be used in place of an environment when that
-/// environment is absent.
-pub const EMPTY: &'static dyn Environment = &EmptyEnvironment {};
+/// The trivial empty enviorment. This can be used in place of an environment when that environment
+/// is absent.
+#[derive(Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
+pub struct Empty {}
 
-struct EmptyEnvironment {}
+impl Empty {
+    /// Create a new empty environment.
+    pub fn new() -> Empty {
+        Empty {}
+    }
 
-impl Environment for EmptyEnvironment {
+    /// Create a new reference-counted pointer to an empty environment.
+    pub fn new_rc() -> Rc<Empty> {
+        Rc::new(Empty::new())
+    }
+}
+
+impl Default for Empty {
+    fn default() -> Self {
+        Empty::new()
+    }
+}
+
+impl Environment for Empty {
     fn is_empty(&self) -> bool {
         true
     }
     fn lookup(&self, _name: &str) -> Option<&dyn Any> {
         None
+    }
+}
+
+impl<'a, T: Environment> Environment for Ref<'a, T> {
+    fn is_empty(&self) -> bool {
+        (**self).is_empty()
+    }
+    fn lookup(&self, name: &str) -> Option<&dyn Any> {
+        (**self).lookup(name)
+    }
+}
+
+impl<T: Environment> Environment for RefCell<T> {
+    fn is_empty(&self) -> bool {
+        self.borrow().is_empty()
+    }
+    fn lookup(&self, name: &str) -> Option<&dyn Any> {
+        unsafe { (*self.as_ptr()).lookup(name) }
     }
 }
 
@@ -61,14 +98,16 @@ mod tests {
 
     #[test]
     fn empty_environment_is_empty() {
-        assert!(EMPTY.is_empty());
+        let empty = Empty::new();
+        assert!(empty.is_empty());
     }
 
     #[test]
     fn empty_environment_returns_none() {
-        assert!(EMPTY.lookup("x").is_none());
-        assert!(EMPTY.lookup("y").is_none());
-        assert!(EMPTY.lookup("z").is_none());
+        let empty = Empty::new();
+        assert!(empty.lookup("x").is_none());
+        assert!(empty.lookup("y").is_none());
+        assert!(empty.lookup("z").is_none());
     }
 
     #[test]

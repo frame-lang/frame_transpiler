@@ -72,27 +72,21 @@ mod tests {
     fn callbacks_get_event_args() {
         let out = Mutex::new(String::new());
         let mut sm = TransitParams::new();
-        sm.callback_manager().add_transition_callback(|event| {
+        sm.event_monitor_mut().add_transition_callback(|transit| {
             let mut entry = String::new();
-            if let Some(any) = event.exit_arguments.lookup("msg") {
+            let exit_args = transit.exit_arguments();
+            let enter_args = transit.enter_arguments();
+            if let Some(any) = exit_args.lookup("msg") {
                 entry.push_str(&format!("msg: {}, ", any.downcast_ref::<String>().unwrap()));
             }
-            if let Some(any) = event.exit_arguments.lookup("val") {
+            if let Some(any) = exit_args.lookup("val") {
                 entry.push_str(&format!("val: {}, ", any.downcast_ref::<bool>().unwrap()));
             }
-            entry.push_str(&format!(
-                "{}{}{}",
-                event.old_state.info().name(),
-                match event.info.kind {
-                    TransitionKind::ChangeState => "->>",
-                    TransitionKind::Transition => "->",
-                },
-                event.new_state.info().name(),
-            ));
-            if let Some(any) = event.enter_arguments.lookup("msg") {
+            entry.push_str(&transit.to_string());
+            if let Some(any) = enter_args.lookup("msg") {
                 entry.push_str(&format!(", msg: {}", any.downcast_ref::<String>().unwrap()));
             }
-            if let Some(any) = event.enter_arguments.lookup("val") {
+            if let Some(any) = enter_args.lookup("val") {
                 entry.push_str(&format!(", val: {}", any.downcast_ref::<i16>().unwrap()));
             }
             *out.lock().unwrap() = entry;

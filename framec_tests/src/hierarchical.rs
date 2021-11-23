@@ -222,16 +222,16 @@ mod tests {
     #[test]
     fn state_names() {
         let sm = Hierarchical::new();
-        let states = sm.info().states();
+        let states = sm.info().states;
         assert_eq!(states.len(), 7);
-        assert!(states.iter().any(|s| s.name() == "I"));
-        assert!(states.iter().any(|s| s.name() == "S"));
-        assert!(states.iter().any(|s| s.name() == "S0"));
-        assert!(states.iter().any(|s| s.name() == "S1"));
-        assert!(states.iter().any(|s| s.name() == "S2"));
-        assert!(states.iter().any(|s| s.name() == "S3"));
-        assert!(states.iter().any(|s| s.name() == "T"));
-        assert!(!states.iter().any(|s| s.name() == "A"));
+        assert!(states.iter().any(|s| s.name == "I"));
+        assert!(states.iter().any(|s| s.name == "S"));
+        assert!(states.iter().any(|s| s.name == "S0"));
+        assert!(states.iter().any(|s| s.name == "S1"));
+        assert!(states.iter().any(|s| s.name == "S2"));
+        assert!(states.iter().any(|s| s.name == "S3"));
+        assert!(states.iter().any(|s| s.name == "T"));
+        assert!(!states.iter().any(|s| s.name == "A"));
     }
 
     /// Test that the initial state from the runtime interface is correct.
@@ -240,7 +240,7 @@ mod tests {
         let info = Hierarchical::machine_info();
         let init = info.initial_state();
         assert!(init.is_some());
-        assert_eq!(init.unwrap().name(), "I");
+        assert_eq!(init.unwrap().name, "I");
     }
 
     /// Test that the top-level states from the runtime interface is correct.
@@ -249,9 +249,9 @@ mod tests {
         let info = Hierarchical::machine_info();
         let states = info.top_level_states();
         assert_eq!(states.len(), 3);
-        assert!(states.iter().any(|s| s.name() == "I"));
-        assert!(states.iter().any(|s| s.name() == "S"));
-        assert!(states.iter().any(|s| s.name() == "T"));
+        assert!(states.iter().any(|s| s.name == "I"));
+        assert!(states.iter().any(|s| s.name == "S"));
+        assert!(states.iter().any(|s| s.name == "T"));
     }
 
     /// Test that states have the right parents via the runtime interface.
@@ -265,17 +265,17 @@ mod tests {
         let s2 = info.get_state("S2").unwrap();
         let s3 = info.get_state("S3").unwrap();
         let t = info.get_state("T").unwrap();
-        assert!(i.parent().is_none());
-        assert!(s.parent().is_none());
-        assert!(s0.parent().is_some());
-        assert!(s1.parent().is_some());
-        assert!(s2.parent().is_some());
-        assert!(s3.parent().is_some());
-        assert!(t.parent().is_none());
-        assert_eq!(s0.parent().unwrap().name(), "S");
-        assert_eq!(s1.parent().unwrap().name(), "S");
-        assert_eq!(s2.parent().unwrap().name(), "S0");
-        assert_eq!(s3.parent().unwrap().name(), "S1");
+        assert!(i.parent.is_none());
+        assert!(s.parent.is_none());
+        assert!(s0.parent.is_some());
+        assert!(s1.parent.is_some());
+        assert!(s2.parent.is_some());
+        assert!(s3.parent.is_some());
+        assert!(t.parent.is_none());
+        assert_eq!(s0.parent.unwrap().name, "S");
+        assert_eq!(s1.parent.unwrap().name, "S");
+        assert_eq!(s2.parent.unwrap().name, "S0");
+        assert_eq!(s3.parent.unwrap().name, "S1");
     }
 
     /// Test that states have the right ancestors via the runtime interface.
@@ -297,31 +297,19 @@ mod tests {
         assert_eq!(s3.ancestors().len(), 2);
         assert_eq!(t.ancestors().len(), 0);
         assert_eq!(
-            s0.ancestors()
-                .iter()
-                .map(|c| c.name())
-                .collect::<Vec<&str>>(),
+            s0.ancestors().iter().map(|c| c.name).collect::<Vec<&str>>(),
             vec!["S"]
         );
         assert_eq!(
-            s1.ancestors()
-                .iter()
-                .map(|c| c.name())
-                .collect::<Vec<&str>>(),
+            s1.ancestors().iter().map(|c| c.name).collect::<Vec<&str>>(),
             vec!["S"]
         );
         assert_eq!(
-            s2.ancestors()
-                .iter()
-                .map(|c| c.name())
-                .collect::<Vec<&str>>(),
+            s2.ancestors().iter().map(|c| c.name).collect::<Vec<&str>>(),
             vec!["S0", "S"]
         );
         assert_eq!(
-            s3.ancestors()
-                .iter()
-                .map(|c| c.name())
-                .collect::<Vec<&str>>(),
+            s3.ancestors().iter().map(|c| c.name).collect::<Vec<&str>>(),
             vec!["S1", "S"]
         );
     }
@@ -345,21 +333,15 @@ mod tests {
         assert_eq!(s3.children().len(), 0);
         assert_eq!(t.children().len(), 0);
         assert_eq!(
-            s.children().iter().map(|c| c.name()).collect::<Vec<&str>>(),
+            s.children().iter().map(|c| c.name).collect::<Vec<&str>>(),
             vec!["S0", "S1"]
         );
         assert_eq!(
-            s0.children()
-                .iter()
-                .map(|c| c.name())
-                .collect::<Vec<&str>>(),
+            s0.children().iter().map(|c| c.name).collect::<Vec<&str>>(),
             vec!["S2"]
         );
         assert_eq!(
-            s1.children()
-                .iter()
-                .map(|c| c.name())
-                .collect::<Vec<&str>>(),
+            s1.children().iter().map(|c| c.name).collect::<Vec<&str>>(),
             vec!["S3"]
         );
     }
