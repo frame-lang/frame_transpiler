@@ -27,23 +27,18 @@ pub trait Environment {
 /// The trivial empty enviorment. This can be used in place of an environment when that environment
 /// is absent.
 #[derive(Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
-pub struct Empty {}
+pub struct Empty;
 
 impl Empty {
-    /// Create a new empty environment.
-    pub fn new() -> Empty {
-        Empty {}
-    }
-
-    /// Create a new reference-counted pointer to an empty environment.
+    /// Create a new reference-counted pointer to the empty environment.
     pub fn new_rc() -> Rc<Empty> {
-        Rc::new(Empty::new())
+        Rc::new(Empty)
     }
 }
 
 impl Default for Empty {
     fn default() -> Self {
-        Empty::new()
+        Empty
     }
 }
 
@@ -98,16 +93,14 @@ mod tests {
 
     #[test]
     fn empty_environment_is_empty() {
-        let empty = Empty::new();
-        assert!(empty.is_empty());
+        assert!(Empty.is_empty());
     }
 
     #[test]
     fn empty_environment_returns_none() {
-        let empty = Empty::new();
-        assert!(empty.lookup("x").is_none());
-        assert!(empty.lookup("y").is_none());
-        assert!(empty.lookup("z").is_none());
+        assert!(Empty.lookup("x").is_none());
+        assert!(Empty.lookup("y").is_none());
+        assert!(Empty.lookup("z").is_none());
     }
 
     #[test]

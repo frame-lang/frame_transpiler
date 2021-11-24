@@ -121,10 +121,10 @@ pub trait Style {
 }
 
 /// A style implementation that relegates all formatting to CSS via the "class" style options.
-pub struct CssStyle {}
+pub struct CssStyle;
 
 /// A simple style implementation that doesn't require CSS.
-pub struct SimpleStyle {}
+pub struct SimpleStyle;
 
 impl Style for CssStyle {
     fn node(&self, info: &StateInfo, active: bool) -> NodeStyle {

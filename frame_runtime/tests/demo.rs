@@ -1194,7 +1194,7 @@ const SMCAT_LIVE_3: &str = indoc! {r#"
 
 #[test]
 fn smcat_renderer() {
-    let smcat = smcat::Renderer::new(Box::new(smcat::SimpleStyle {}));
+    let smcat = smcat::Renderer::new(Box::new(smcat::SimpleStyle));
     assert_eq!(smcat.render_static(info::machine()), SMCAT_STATIC);
 
     let mut sm = Demo::new();
