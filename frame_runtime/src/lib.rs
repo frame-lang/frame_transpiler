@@ -25,14 +25,29 @@
 //! state `A` may have the same name as a variable in state `B`, or have the same name as a
 //! parameter in state `A`.
 
-#[allow(dead_code)]
+// #[allow(dead_code)]
 pub mod env;
 pub mod event;
+pub mod history;
 pub mod info;
 pub mod live;
-pub mod smcat;
+pub mod transition;
+// pub mod smcat;
 
-pub use env::*;
-pub use event::*;
-pub use info::*;
-pub use live::*;
+pub mod sync {
+    pub use crate::env::sync::*;
+    pub use crate::event::sync::*;
+    pub use crate::history::*;
+    pub use crate::info::*;
+    pub use crate::live::sync::*;
+    pub use crate::transition::sync::*;
+}
+
+pub mod unsync {
+    pub use crate::env::unsync::*;
+    pub use crate::event::unsync::*;
+    pub use crate::history::*;
+    pub use crate::info::*;
+    pub use crate::live::unsync::*;
+    pub use crate::transition::unsync::*;
+}
