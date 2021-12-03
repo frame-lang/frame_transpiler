@@ -5,7 +5,6 @@ use frame_runtime::unsync as runtime;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-#[derive(Clone)]
 pub struct FrameEvent {
     message: FrameMessage,
     arguments: Rc<RefCell<FrameEventArgs>>,
@@ -149,10 +148,10 @@ pub struct Demo<'a> {
 }
 
 impl<'a> Environment for Demo<'a> {
-    fn lookup(&self, name: &str) -> Option<&dyn Any> {
+    fn lookup(&self, name: &str) -> Option<Box<dyn Any>> {
         match name {
-            "x" => Some(&self.x),
-            "y" => Some(&self.y),
+            "x" => Some(Box::new(self.x)),
+            "y" => Some(Box::new(self.y)),
             _ => None,
         }
     }
@@ -380,5 +379,302 @@ impl<'a> Demo<'a> {
 impl<'a> Default for Demo<'a> {
     fn default() -> Self {
         Demo::new()
+    }
+}
+
+mod tests {
+    use super::*;
+    use frame_runtime::env::{Empty, Environment};
+    use frame_runtime::live::Machine;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Mutex;
+
+    /// Helper function to lookup an `i32` value in an environment.
+    /// Returns -1 if the lookup fails for any reason.
+    fn lookup_i32(env: &dyn Environment, name: &str) -> i32 {
+        match env.lookup(name) {
+            None => -1,
+            Some(any) => *any.downcast_ref().unwrap_or(&-1),
+        }
+    }
+
+    #[test]
+    fn current_state() {
+        let mut sm = Demo::new();
+        assert_eq!("Foo", sm.state().info().name);
+        sm.inc(3);
+        assert_eq!("Foo", sm.state().info().name);
+        sm.next();
+        assert_eq!("Bar", sm.state().info().name);
+        sm.inc(4);
+        assert_eq!("Bar", sm.state().info().name);
+        sm.next();
+        assert_eq!("Foo", sm.state().info().name);
+    }
+
+    #[test]
+    fn variables() {
+        let mut sm = Demo::new();
+        assert_eq!(0, lookup_i32(sm.variables(), "y"));
+        assert!(sm.variables().lookup("z").is_none());
+        assert!(sm.variables().lookup("arg").is_none());
+        assert!(sm.variables().lookup("inc").is_none());
+        sm.inc(3);
+        sm.inc(4);
+        assert_eq!(0, lookup_i32(sm.variables(), "x"));
+        assert_eq!(0, lookup_i32(sm.variables(), "y"));
+        sm.next();
+        assert_eq!(9, lookup_i32(sm.variables(), "x"));
+        assert_eq!(0, lookup_i32(sm.variables(), "y"));
+        sm.inc(5);
+        sm.inc(6);
+        assert_eq!(9, lookup_i32(sm.variables(), "x"));
+        assert_eq!(0, lookup_i32(sm.variables(), "y"));
+        sm.next();
+        assert_eq!(9, lookup_i32(sm.variables(), "x"));
+        assert_eq!(18, lookup_i32(sm.variables(), "y"));
+        sm.inc(7);
+        sm.next();
+        assert_eq!(16, lookup_i32(sm.variables(), "x"));
+        assert_eq!(18, lookup_i32(sm.variables(), "y"));
+    }
+
+    #[test]
+    fn state_variables() {
+        let mut sm = Demo::new();
+        assert_eq!(2, lookup_i32(sm.state().variables().as_ref(), "x"));
+        assert!(sm.state().variables().lookup("y").is_none());
+        sm.inc(3);
+        sm.inc(4);
+        assert_eq!(9, lookup_i32(sm.state().variables().as_ref(), "x"));
+        sm.next();
+        assert_eq!(7, lookup_i32(sm.state().variables().as_ref(), "y"));
+        assert!(sm.state().variables().lookup("x").is_none());
+        sm.inc(5);
+        sm.inc(6);
+        assert_eq!(18, lookup_i32(sm.state().variables().as_ref(), "y"));
+        sm.next();
+        assert_eq!(0, lookup_i32(sm.state().variables().as_ref(), "x"));
+        sm.inc(7);
+        assert_eq!(7, lookup_i32(sm.state().variables().as_ref(), "x"));
+    }
+
+    #[test]
+    fn state_arguments() {
+        let mut sm = Demo::new();
+        assert!(sm.state().arguments().lookup("x").is_none());
+        assert!(sm.state().arguments().lookup("y").is_none());
+        assert!(sm.state().arguments().lookup("tilt").is_none());
+        sm.next();
+        assert!(sm.state().arguments().lookup("x").is_none());
+        assert!(sm.state().arguments().lookup("y").is_none());
+        assert_eq!(4, lookup_i32(sm.state().arguments().as_ref(), "tilt"));
+        sm.next();
+        assert!(sm.state().arguments().lookup("tilt").is_none());
+    }
+
+    #[test]
+    fn event_sent_callbacks() {
+        let tape: Vec<String> = Vec::new();
+        let tape_mutex = Mutex::new(tape);
+        let mut sm = Demo::new();
+        sm.event_monitor_mut()
+            .add_event_sent_callback(Box::new(|e| {
+                tape_mutex.lock().unwrap().push(e.info().name.to_string());
+            }));
+        sm.inc(2);
+        sm.next();
+        sm.inc(3);
+        sm.next();
+        sm.next();
+        assert_eq!(
+            *tape_mutex.lock().unwrap(),
+            vec!["inc", "next", "Foo:<", "Bar:>", "inc", "next", "next", "Foo:<", "Bar:>"]
+        );
+    }
+
+    #[test]
+    fn event_handled_callbacks() {
+        let tape: Vec<String> = Vec::new();
+        let tape_mutex = Mutex::new(tape);
+        let mut sm = Demo::new();
+        sm.event_monitor_mut()
+            .add_event_handled_callback(Box::new(|e| {
+                tape_mutex.lock().unwrap().push(e.info().name.to_string());
+            }));
+        sm.inc(2);
+        sm.next();
+        sm.inc(3);
+        sm.next();
+        sm.next();
+        assert_eq!(
+            *tape_mutex.lock().unwrap(),
+            vec!["inc", "Foo:<", "Bar:>", "next", "inc", "next", "Foo:<", "Bar:>", "next"]
+        );
+    }
+
+    #[test]
+    fn event_sent_arguments() {
+        let tape: Vec<String> = Vec::new();
+        let tape_mutex = Mutex::new(tape);
+        let mut sm = Demo::new();
+        sm.event_monitor_mut()
+            .add_event_sent_callback(Box::new(|e| {
+                for param in e.info().parameters {
+                    let name = param.name;
+                    let val = lookup_i32(e.arguments().as_ref(), name);
+                    tape_mutex.lock().unwrap().push(format!("{}={}", name, val));
+                }
+            }));
+        sm.inc(5);
+        sm.next(); // transition done=7, start=3
+        sm.inc(6);
+        sm.next(); // change-state
+        sm.inc(7);
+        sm.next(); // transition done=7, start=3
+        assert_eq!(
+            *tape_mutex.lock().unwrap(),
+            vec!["arg=5", "done=7", "start=3", "arg=6", "arg=7", "done=7", "start=3"]
+        );
+    }
+
+    #[test]
+    fn event_handled_return() {
+        let tape: Vec<i32> = Vec::new();
+        let tape_mutex = Mutex::new(tape);
+        let mut sm = Demo::new();
+        sm.event_monitor_mut()
+            .add_event_handled_callback(Box::new(|e| {
+                let val = match e.return_value() {
+                    None => -1,
+                    Some(any) => *any.downcast_ref().unwrap_or(&-100),
+                };
+                tape_mutex.lock().unwrap().push(val);
+            }));
+        sm.inc(3); // 5
+        sm.inc(5); // 10
+        sm.next(); // transition
+        sm.inc(5); // 12
+        sm.inc(7); // 19
+        sm.next(); // change-state
+        sm.inc(3); // 3
+        sm.inc(5); // 8
+        sm.next(); // transition
+        assert_eq!(
+            *tape_mutex.lock().unwrap(),
+            vec![5, 10, -1, -1, -1, 12, 19, -1, 3, 8, -1, -1, -1]
+        );
+    }
+
+    #[test]
+    fn transition_callbacks() {
+        let tape: Vec<String> = Vec::new();
+        let tape_mutex = Mutex::new(tape);
+        let mut sm = Demo::new();
+        sm.event_monitor_mut()
+            .add_transition_callback(Box::new(|e| {
+                tape_mutex
+                    .lock()
+                    .unwrap()
+                    .push(format!("kind: {:?}", e.info.kind));
+            }));
+        sm.event_monitor_mut()
+            .add_transition_callback(Box::new(|e| {
+                tape_mutex
+                    .lock()
+                    .unwrap()
+                    .push(format!("old: {}", e.old_state.info().name));
+                tape_mutex
+                    .lock()
+                    .unwrap()
+                    .push(format!("new: {}", e.new_state.info().name));
+            }));
+        sm.next();
+        assert_eq!(
+            *tape_mutex.lock().unwrap(),
+            vec!["kind: Transition", "old: Foo", "new: Bar"]
+        );
+        tape_mutex.lock().unwrap().clear();
+        sm.next();
+        assert_eq!(
+            *tape_mutex.lock().unwrap(),
+            vec!["kind: ChangeState", "old: Bar", "new: Foo"]
+        );
+        tape_mutex.lock().unwrap().clear();
+        sm.next();
+        assert_eq!(
+            *tape_mutex.lock().unwrap(),
+            vec!["kind: Transition", "old: Foo", "new: Bar"]
+        );
+    }
+
+    #[test]
+    fn transition_info_id() {
+        let tape: Vec<usize> = Vec::new();
+        let tape_mutex = Mutex::new(tape);
+        let mut sm = Demo::new();
+        sm.event_monitor_mut()
+            .add_transition_callback(Box::new(|e| {
+                tape_mutex.lock().unwrap().push(e.info.id);
+            }));
+        sm.next();
+        sm.inc(5);
+        sm.next();
+        sm.next();
+        assert_eq!(*tape_mutex.lock().unwrap(), vec![1, 2, 1]);
+    }
+
+    #[test]
+    fn transition_static_info_agrees() {
+        let agree = AtomicBool::new(false);
+        let mut sm = Demo::new();
+        sm.event_monitor_mut()
+            .add_transition_callback(Box::new(|e| {
+                agree.store(
+                    e.info.source.name == e.old_state.info().name
+                        && e.info.target.name == e.new_state.info().name,
+                    Ordering::Relaxed,
+                );
+            }));
+        sm.next();
+        assert!(agree.load(Ordering::Relaxed));
+        sm.next();
+        assert!(agree.load(Ordering::Relaxed));
+        sm.next();
+        assert!(agree.load(Ordering::Relaxed));
+    }
+
+    #[test]
+    fn enter_exit_arguments() {
+        let tape: Vec<(i32, i32, i32, i32)> = Vec::new();
+        let tape_mutex = Mutex::new(tape);
+        let mut sm = Demo::new();
+        sm.event_monitor_mut()
+            .add_transition_callback(Box::new(|i| {
+                let exit = match i.exit_event.as_ref() {
+                    Some(event) => event.arguments(),
+                    None => Empty::rc(),
+                };
+                let enter = match i.enter_event.as_ref() {
+                    Some(event) => event.arguments(),
+                    None => Empty::rc(),
+                };
+                tape_mutex.lock().unwrap().push((
+                    lookup_i32(exit.as_ref(), "done"),
+                    lookup_i32(exit.as_ref(), "end"),
+                    lookup_i32(enter.as_ref(), "init"),
+                    lookup_i32(enter.as_ref(), "start"),
+                ));
+            }));
+        sm.inc(10);
+        sm.next(); // transition done=12, start=3
+        sm.inc(10);
+        sm.next(); // change-state
+        sm.inc(10);
+        sm.next(); // transition done=10, start=3
+        assert_eq!(
+            *tape_mutex.lock().unwrap(),
+            vec![(12, -1, -1, 3,), (-1, -1, -1, -1), (10, -1, -1, 3)]
+        );
     }
 }

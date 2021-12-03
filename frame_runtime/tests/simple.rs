@@ -148,7 +148,7 @@ mod sync {
         fn is_empty(&self) -> bool {
             true
         }
-        fn lookup(&self, _name: &str) -> Option<&dyn Any> {
+        fn lookup(&self, _name: &str) -> Option<Box<dyn Any>> {
             None
         }
     }
@@ -236,7 +236,7 @@ mod unsync {
         fn is_empty(&self) -> bool {
             true
         }
-        fn lookup(&self, _name: &str) -> Option<&dyn Any> {
+        fn lookup(&self, _name: &str) -> Option<Box<dyn Any>> {
             None
         }
     }

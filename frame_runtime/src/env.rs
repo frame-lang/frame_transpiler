@@ -4,7 +4,7 @@
 use std::any::Any;
 use std::cell::{Ref, RefCell};
 use std::rc::Rc;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 /// Environments associate names (i.e. variables/parameters) with values.
 ///
@@ -22,7 +22,7 @@ pub trait Environment {
         false
     }
     /// Get the value associated with a name.
-    fn lookup(&self, name: &str) -> Option<&dyn Any>;
+    fn lookup(&self, name: &str) -> Option<Box<dyn Any>>;
 }
 
 /// The trivial empty enviorment. This can be used in place of an environment when that environment
@@ -45,7 +45,7 @@ impl Environment for Empty {
     fn is_empty(&self) -> bool {
         true
     }
-    fn lookup(&self, _name: &str) -> Option<&dyn Any> {
+    fn lookup(&self, _name: &str) -> Option<Box<dyn Any>> {
         None
     }
 }
@@ -54,7 +54,7 @@ impl<'a, T: Environment> Environment for Ref<'a, T> {
     fn is_empty(&self) -> bool {
         (**self).is_empty()
     }
-    fn lookup(&self, name: &str) -> Option<&dyn Any> {
+    fn lookup(&self, name: &str) -> Option<Box<dyn Any>> {
         (**self).lookup(name)
     }
 }
@@ -63,8 +63,20 @@ impl<T: Environment> Environment for RefCell<T> {
     fn is_empty(&self) -> bool {
         self.borrow().is_empty()
     }
-    fn lookup(&self, name: &str) -> Option<&dyn Any> {
+    fn lookup(&self, name: &str) -> Option<Box<dyn Any>> {
         unsafe { (*self.as_ptr()).lookup(name) }
+    }
+}
+
+impl<T: Environment + Clone> Environment for Mutex<T> {
+    fn is_empty(&self) -> bool {
+        self.lock().unwrap().is_empty()
+    }
+    fn lookup(&self, name: &str) -> Option<Box<dyn Any>> {
+        // TODO: This could be super slow since it needs to clone the whole Args/Vars type...
+        // Probably need to re-think the whole Environment trait to get an efficient implementation
+        // for the `sync` case... :-(
+        self.lock().unwrap().clone().lookup(name)
     }
 }
 
@@ -84,6 +96,7 @@ pub mod sync {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::any::Any;
 
     struct TestArgs {
         x: i32,
@@ -92,11 +105,11 @@ mod tests {
     }
 
     impl Environment for TestArgs {
-        fn lookup(&self, name: &str) -> Option<&dyn Any> {
+        fn lookup(&self, name: &str) -> Option<Box<dyn Any>> {
             match name {
-                "x" => Some(&self.x),
-                "y" => Some(&self.y),
-                "z" => Some(&self.z),
+                "x" => Some(Box::new(self.x)),
+                "y" => Some(Box::new(self.y)),
+                "z" => Some(Box::new(self.z)),
                 _ => None,
             }
         }
@@ -134,19 +147,22 @@ mod tests {
 
         let opt_x = args.lookup("x");
         assert!(opt_x.is_some());
-        let opt_i32 = opt_x.unwrap().downcast_ref::<i32>();
+        let x = opt_x.unwrap();
+        let opt_i32 = x.downcast_ref::<i32>();
         assert!(opt_i32.is_some());
         assert_eq!(*opt_i32.unwrap(), 42);
 
         let opt_y = args.lookup("y");
         assert!(opt_y.is_some());
-        let opt_bool = opt_y.unwrap().downcast_ref::<bool>();
+        let y = opt_y.unwrap();
+        let opt_bool = y.downcast_ref::<bool>();
         assert!(opt_bool.is_some());
         assert!(!*opt_bool.unwrap());
 
-        let opt_y = args.lookup("z");
-        assert!(opt_y.is_some());
-        let opt_bool = opt_y.unwrap().downcast_ref::<Option<f32>>();
+        let opt_z = args.lookup("z");
+        assert!(opt_z.is_some());
+        let z = opt_z.unwrap();
+        let opt_bool = z.downcast_ref::<Option<f32>>();
         assert!(opt_bool.is_some());
         assert_eq!(*opt_bool.unwrap(), Some(3.14));
     }
@@ -168,8 +184,9 @@ mod tests {
 
         let opt_z = args.lookup("z");
         assert!(opt_z.is_some());
-        assert!(opt_y.unwrap().downcast_ref::<f32>().is_none());
-        assert!(opt_y.unwrap().downcast_ref::<Option<i32>>().is_none());
+        let z = opt_z.unwrap();
+        assert!(z.downcast_ref::<f32>().is_none());
+        assert!(z.downcast_ref::<Option<i32>>().is_none());
     }
 
     #[test]

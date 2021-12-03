@@ -344,7 +344,7 @@ mod tests {
         fn info(&self) -> &MethodInfo {
             info::machine().get_event(&self.to_string()).unwrap()
         }
-        fn arguments(&self) -> Rc<dyn Environment> {
+        fn arguments(&self) -> EnvironmentPtr {
             Empty::rc()
         }
         fn return_value(&self) -> Option<Box<dyn Any>> {
