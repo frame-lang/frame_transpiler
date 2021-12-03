@@ -678,4 +678,69 @@ mod tests {
             vec![(12, -1, -1, 3,), (-1, -1, -1, -1), (10, -1, -1, 3)]
         );
     }
+
+    #[test]
+    fn multiple_threads() {
+        use std::thread;
+        use std::sync::mpsc;
+        use std::time::Duration;
+
+        let (tx1, rx) = mpsc::channel();
+        let tx2 = tx1.clone();
+
+        let thread1 = thread::spawn(move || {
+            let mut sm1 = Demo::new();
+            sm1.event_monitor_mut()
+                .add_event_sent_callback(Box::new(|e| {
+                    tx1.send((1, e.info().name.to_string())).unwrap();
+                }));
+            sm1.inc(2); // inc
+            thread::sleep(Duration::from_millis(20));
+            sm1.next(); // next, Foo:<, Bar:>
+            sm1.inc(3); // inc
+            thread::sleep(Duration::from_millis(30));
+            sm1.next(); // next
+            thread::sleep(Duration::from_millis(20));
+            sm1.next(); // next, Foo:<, Bar:>
+        });
+
+        let thread2 = thread::spawn(move || {
+            let mut sm2 = Demo::new();
+            sm2.event_monitor_mut()
+                .add_event_sent_callback(Box::new(|e| {
+                    tx2.send((2, e.info().name.to_string())).unwrap();
+                }));
+            sm2.inc(2); // inc
+            sm2.inc(3); // inc
+            thread::sleep(Duration::from_millis(50));
+            sm2.next(); // next, Foo:<, Bar:>
+            sm2.inc(4); // inc
+            sm2.next(); // next
+        });
+
+        thread1.join().unwrap();
+        thread2.join().unwrap();
+
+        let out: Vec<(u8, String)> = rx.iter().collect();
+        assert_eq!(out.len(), 16);
+
+        let mut out1 = Vec::new();
+        let mut out2 = Vec::new();
+        for (thread, event) in out {
+            if thread == 1 {
+                out1.push(event);
+            } else if thread == 2 {
+                out2.push(event);
+            }
+        }
+
+        assert_eq!(
+            out1,
+            vec!["inc", "next", "Foo:<", "Bar:>", "inc", "next", "next", "Foo:<", "Bar:>"]
+        );
+        assert_eq!(
+            out2,
+            vec!["inc", "inc", "next", "Foo:<", "Bar:>", "inc", "next"]
+        );
+    }
 }

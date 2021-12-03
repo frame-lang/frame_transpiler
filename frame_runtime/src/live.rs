@@ -47,7 +47,7 @@ pub mod sync {
     use crate::env::sync::EnvironmentPtr;
     use std::sync::Arc;
 
-    pub type StatePtr = Arc<dyn super::State<EnvironmentPtr>>;
+    pub type StatePtr = Arc<dyn super::State<EnvironmentPtr> + Send + Sync>;
 }
 
 pub mod unsync {
