@@ -1,4 +1,5 @@
-//! This module defines a history data structure based with a possibly bounded capacity.
+//! This module defines a history data structure as a thin wrapper over a `VecDeque` that enforces
+//! a possibly bounded capacity.
 
 use std::collections::VecDeque;
 

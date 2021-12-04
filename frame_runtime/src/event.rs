@@ -25,15 +25,22 @@ impl<'a, Arg, F> Callback<'a, Arg> for F where F: FnMut(&Arg) + 'a {}
 /// An event monitor maintains a history of previous Frame events and transitions and enables
 /// registering callbacks that will be automatically invoked whenever an event or transition occurs
 /// in a running state machine.
-pub struct EventMonitor<'a, EventPtr, Transition> {
+pub struct EventMonitor<EventPtr, Transition, EventFn, TransitionFn> {
     event_history: History<EventPtr>,
     transition_history: History<Transition>,
-    event_sent_callbacks: Vec<Box<dyn FnMut(&EventPtr) + 'a>>,
-    event_handled_callbacks: Vec<Box<dyn FnMut(&EventPtr) + 'a>>,
-    transition_callbacks: Vec<Box<dyn FnMut(&Transition) + 'a>>,
+    event_sent_callbacks: Vec<EventFn>,
+    event_handled_callbacks: Vec<EventFn>,
+    transition_callbacks: Vec<TransitionFn>,
 }
 
-impl<'a, EventPtr, Transition> EventMonitor<'a, EventPtr, Transition> {
+impl<
+        'a,
+        EventPtr,
+        Transition,
+        EventFn: Callback<'a, EventPtr>,
+        TransitionFn: Callback<'a, Transition>,
+    > EventMonitor<EventPtr, Transition, EventFn, TransitionFn>
+{
     /// Create a new event monitor with the given capacities for the event history and
     /// transition history. See the documentation for the [History::capacity].
     pub fn new(event_capacity: Option<usize>, transition_capacity: Option<usize>) -> Self {
@@ -56,7 +63,7 @@ impl<'a, EventPtr, Transition> EventMonitor<'a, EventPtr, Transition> {
     ///  * triggering event
     ///  * exit event for the old state, if any
     ///  * enter event for the new state, if any
-    pub fn add_event_sent_callback(&mut self, callback: Box<dyn FnMut(&EventPtr) + 'a>) {
+    pub fn add_event_sent_callback(&mut self, callback: EventFn) {
         self.event_sent_callbacks.push(callback);
     }
 
@@ -70,7 +77,7 @@ impl<'a, EventPtr, Transition> EventMonitor<'a, EventPtr, Transition> {
     ///  * exit event for the old state, if any
     ///  * enter event for the new state, if any
     ///  * triggering event
-    pub fn add_event_handled_callback(&mut self, callback: Box<dyn FnMut(&EventPtr) + 'a>) {
+    pub fn add_event_handled_callback(&mut self, callback: EventFn) {
         self.event_handled_callbacks.push(callback);
     }
 
@@ -81,7 +88,7 @@ impl<'a, EventPtr, Transition> EventMonitor<'a, EventPtr, Transition> {
     /// Note that the argument type for this function is `impl Box<dyn FnMut(&Transition) + 'a><'a>`, but the
     /// trait alias is inlined to help Rust infer the argument type when callbacks are defined
     /// anonymously.
-    pub fn add_transition_callback(&mut self, callback: Box<dyn FnMut(&Transition) + 'a>) {
+    pub fn add_transition_callback(&mut self, callback: TransitionFn) {
         self.transition_callbacks.push(callback);
     }
 
@@ -160,7 +167,10 @@ pub mod sync {
     use std::sync::Arc;
 
     pub type EventPtr = Arc<dyn super::Event<EnvironmentPtr> + Send + Sync>;
-    pub type EventMonitor<'a> = super::EventMonitor<'a, EventPtr, Transition>;
+    pub type EventCallback<'a> = Box<dyn FnMut(&EventPtr) + Send + 'a>;
+    pub type TransitionCallback<'a> = Box<dyn FnMut(&Transition) + Send + 'a>;
+    pub type EventMonitor<'a> =
+        super::EventMonitor<EventPtr, Transition, EventCallback<'a>, TransitionCallback<'a>>;
 
     impl<'a> Default for EventMonitor<'a> {
         fn default() -> Self {
@@ -176,7 +186,10 @@ pub mod unsync {
     use std::rc::Rc;
 
     pub type EventPtr = Rc<dyn super::Event<EnvironmentPtr>>;
-    pub type EventMonitor<'a> = super::EventMonitor<'a, EventPtr, Transition>;
+    pub type EventCallback<'a> = Box<dyn FnMut(&EventPtr) + 'a>;
+    pub type TransitionCallback<'a> = Box<dyn FnMut(&Transition) + 'a>;
+    pub type EventMonitor<'a> =
+        super::EventMonitor<EventPtr, Transition, EventCallback<'a>, TransitionCallback<'a>>;
 
     impl<'a> Default for EventMonitor<'a> {
         fn default() -> Self {

@@ -680,7 +680,7 @@ mod tests {
     }
 
     #[test]
-    fn multiple_threads() {
+    fn machines_in_separate_threads() {
         use std::thread;
         use std::sync::mpsc;
         use std::time::Duration;
@@ -691,7 +691,7 @@ mod tests {
         let thread1 = thread::spawn(move || {
             let mut sm1 = Demo::new();
             sm1.event_monitor_mut()
-                .add_event_sent_callback(Box::new(|e| {
+                .add_event_sent_callback(Box::new(move |e| {
                     tx1.send((1, e.info().name.to_string())).unwrap();
                 }));
             sm1.inc(2); // inc
@@ -707,7 +707,7 @@ mod tests {
         let thread2 = thread::spawn(move || {
             let mut sm2 = Demo::new();
             sm2.event_monitor_mut()
-                .add_event_sent_callback(Box::new(|e| {
+                .add_event_sent_callback(Box::new(move |e| {
                     tx2.send((2, e.info().name.to_string())).unwrap();
                 }));
             sm2.inc(2); // inc
