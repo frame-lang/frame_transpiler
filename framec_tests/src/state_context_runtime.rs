@@ -22,6 +22,7 @@ impl<'a> StateContextSm<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use frame_runtime::unsync::*;
 
     #[test]
     fn initial_state() {
@@ -449,23 +450,13 @@ mod tests {
         sm.inc();
         sm.inc();
         {
-            let tape: &Log = sm
-                .variables()
-                .lookup("tape")
-                .unwrap()
-                .downcast_ref()
-                .unwrap();
-            assert_eq!(*tape, vec!["w=3", "w=4", "w=5"]);
+            let tape: Log = *sm.variables().lookup("tape").unwrap().downcast().unwrap();
+            assert_eq!(tape, vec!["w=3", "w=4", "w=5"]);
         }
         sm.tape.clear();
         sm.start();
         {
-            let tape: &Log = sm
-                .variables()
-                .lookup("tape")
-                .unwrap()
-                .downcast_ref()
-                .unwrap();
+            let tape: Log = *sm.variables().lookup("tape").unwrap().downcast().unwrap();
             assert_eq!(*tape, vec!["a=3", "b=5", "x=15"]);
         }
     }
@@ -477,8 +468,8 @@ mod tests {
         sm.inc();
         {
             let vars = sm.state().variables();
-            let w: &i32 = vars.lookup("w").unwrap().downcast_ref().unwrap();
-            assert_eq!(*w, 4);
+            let w: i32 = *vars.lookup("w").unwrap().downcast().unwrap();
+            assert_eq!(w, 4);
             assert!(vars.lookup("a").is_none());
             assert!(vars.lookup("x").is_none());
             assert!(vars.lookup("y").is_none());
@@ -488,15 +479,15 @@ mod tests {
         sm.inc();
         {
             let vars = sm.state().variables();
-            let w: &i32 = vars.lookup("w").unwrap().downcast_ref().unwrap();
-            assert_eq!(*w, 5);
+            let w: i32 = *vars.lookup("w").unwrap().downcast().unwrap();
+            assert_eq!(w, 5);
         }
         sm.inc();
         sm.start();
         {
             let vars = sm.state().variables();
-            let x: &i32 = vars.lookup("x").unwrap().downcast_ref().unwrap();
-            assert_eq!(*x, 18);
+            let x: i32 = *vars.lookup("x").unwrap().downcast().unwrap();
+            assert_eq!(x, 18);
             assert!(vars.lookup("a").is_none());
             assert!(vars.lookup("w").is_none());
             assert!(vars.lookup("y").is_none());
@@ -507,8 +498,8 @@ mod tests {
         sm.next(10);
         {
             let vars = sm.state().variables();
-            let z: &i32 = vars.lookup("z").unwrap().downcast_ref().unwrap();
-            assert_eq!(*z, 119);
+            let z: i32 = *vars.lookup("z").unwrap().downcast().unwrap();
+            assert_eq!(z, 119);
             assert!(vars.lookup("a").is_none());
             assert!(vars.lookup("w").is_none());
             assert!(vars.lookup("x").is_none());
@@ -536,8 +527,8 @@ mod tests {
         sm.next(10);
         {
             let args = sm.state().arguments();
-            let y: &i32 = args.lookup("y").unwrap().downcast_ref().unwrap();
-            assert_eq!(*y, 13);
+            let y: i32 = *args.lookup("y").unwrap().downcast().unwrap();
+            assert_eq!(y, 13);
             assert!(args.lookup("a").is_none());
             assert!(args.lookup("w").is_none());
             assert!(args.lookup("x").is_none());

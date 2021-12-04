@@ -10,7 +10,7 @@ type Log = Vec<String>;
 include!(concat!(env!("OUT_DIR"), "/", "transition.rs"));
 
 #[allow(dead_code)]
-impl<'a> Transition<'a> {
+impl<'a> TransitionSm<'a> {
     pub fn enter(&mut self, state: String) {
         self.enters.push(state);
     }
@@ -22,11 +22,15 @@ impl<'a> Transition<'a> {
         self.exits.clear();
         self.hooks.clear();
     }
-    pub fn transition_hook(&mut self, old_state: TransitionState, new_state: TransitionState) {
+    pub fn transition_hook(&mut self, old_state: TransitionSmState, new_state: TransitionSmState) {
         let s = format!("{:?}->{:?}", old_state, new_state);
         self.hooks.push(s);
     }
-    pub fn change_state_hook(&mut self, old_state: TransitionState, new_state: TransitionState) {
+    pub fn change_state_hook(
+        &mut self,
+        old_state: TransitionSmState,
+        new_state: TransitionSmState,
+    ) {
         let s = format!("{:?}->>{:?}", old_state, new_state);
         self.hooks.push(s);
     }
@@ -35,16 +39,16 @@ impl<'a> Transition<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use frame_runtime::*;
+    use frame_runtime::unsync::*;
     use std::sync::Mutex;
 
     /// Test that transition works and triggers enter and exit events.
     #[test]
     fn transition_events() {
-        let mut sm = Transition::new();
+        let mut sm = TransitionSm::new();
         sm.clear_all();
         sm.transit();
-        assert_eq!(sm.state, TransitionState::S1);
+        assert_eq!(sm.state, TransitionSmState::S1);
         assert_eq!(sm.exits, vec!["S0"]);
         assert_eq!(sm.enters, vec!["S1"]);
     }
@@ -52,16 +56,16 @@ mod tests {
     /// Test that change-state works and does not trigger events.
     #[test]
     fn change_state_no_events() {
-        let mut sm = Transition::new();
+        let mut sm = TransitionSm::new();
         sm.clear_all();
         sm.change();
-        assert_eq!(sm.state, TransitionState::S1);
+        assert_eq!(sm.state, TransitionSmState::S1);
         sm.change();
-        assert_eq!(sm.state, TransitionState::S2);
+        assert_eq!(sm.state, TransitionSmState::S2);
         sm.change();
-        assert_eq!(sm.state, TransitionState::S3);
+        assert_eq!(sm.state, TransitionSmState::S3);
         sm.change();
-        assert_eq!(sm.state, TransitionState::S4);
+        assert_eq!(sm.state, TransitionSmState::S4);
         assert!(sm.exits.is_empty());
         assert!(sm.enters.is_empty());
     }
@@ -69,12 +73,12 @@ mod tests {
     /// Test transition that triggers another transition in an enter event handler.
     #[test]
     fn cascading_transition() {
-        let mut sm = Transition::new();
+        let mut sm = TransitionSm::new();
         sm.change();
         sm.clear_all();
-        assert_eq!(sm.state, TransitionState::S1);
+        assert_eq!(sm.state, TransitionSmState::S1);
         sm.transit();
-        assert_eq!(sm.state, TransitionState::S3);
+        assert_eq!(sm.state, TransitionSmState::S3);
         assert_eq!(sm.exits, vec!["S1", "S2"]);
         assert_eq!(sm.enters, vec!["S2", "S3"]);
     }
@@ -82,14 +86,14 @@ mod tests {
     /// Test transition that triggers a change-state from an enter event handler.
     #[test]
     fn cascading_change_state() {
-        let mut sm = Transition::new();
+        let mut sm = TransitionSm::new();
         sm.change();
         sm.change();
         sm.change();
         sm.clear_all();
-        assert_eq!(sm.state, TransitionState::S3);
+        assert_eq!(sm.state, TransitionSmState::S3);
         sm.transit();
-        assert_eq!(sm.state, TransitionState::S0);
+        assert_eq!(sm.state, TransitionSmState::S0);
         assert_eq!(sm.exits, vec!["S3"]);
         assert_eq!(sm.enters, vec!["S4"]);
     }
@@ -98,34 +102,36 @@ mod tests {
     /// static transition info.
     #[test]
     fn consistent_transition_event() {
-        let mut sm = Transition::new();
-        sm.event_monitor_mut().add_transition_callback(|t| {
-            let source_name = t.info.source.name;
-            let target_name = t.info.target.name;
-            let old_name = t.old_state.info().name;
-            let new_name = t.new_state.info().name;
-            assert_eq!(source_name, old_name);
-            assert_eq!(target_name, new_name);
-        });
+        let mut sm = TransitionSm::new();
+        sm.event_monitor_mut()
+            .add_transition_callback(Box::new(|t| {
+                let source_name = t.info.source.name;
+                let target_name = t.info.target.name;
+                let old_name = t.old_state.info().name;
+                let new_name = t.new_state.info().name;
+                assert_eq!(source_name, old_name);
+                assert_eq!(target_name, new_name);
+            }));
         sm.transit();
         sm.transit();
         sm.transit();
-        assert_eq!(sm.state, TransitionState::S0);
+        assert_eq!(sm.state, TransitionSmState::S0);
         sm.change();
         sm.change();
         sm.change();
         sm.change();
-        assert_eq!(sm.state, TransitionState::S4);
+        assert_eq!(sm.state, TransitionSmState::S4);
     }
 
     /// Test transition callbacks.
     #[test]
     fn transition_callback() {
         let transits = Mutex::new(Vec::new());
-        let mut sm = Transition::new();
-        sm.event_monitor_mut().add_transition_callback(|t| {
-            transits.lock().unwrap().push(t.to_string());
-        });
+        let mut sm = TransitionSm::new();
+        sm.event_monitor_mut()
+            .add_transition_callback(Box::new(|t| {
+                transits.lock().unwrap().push(t.to_string());
+            }));
         sm.transit();
         assert_eq!(*transits.lock().unwrap(), vec!["S0->S1"]);
         transits.lock().unwrap().clear();
@@ -137,10 +143,11 @@ mod tests {
     #[test]
     fn change_state_callback() {
         let transits = Mutex::new(Vec::new());
-        let mut sm = Transition::new();
-        sm.event_monitor_mut().add_transition_callback(|t| {
-            transits.lock().unwrap().push(t.to_string());
-        });
+        let mut sm = TransitionSm::new();
+        sm.event_monitor_mut()
+            .add_transition_callback(Box::new(|t| {
+                transits.lock().unwrap().push(t.to_string());
+            }));
         sm.change();
         assert_eq!(*transits.lock().unwrap(), vec!["S0->>S1"]);
         transits.lock().unwrap().clear();
@@ -158,10 +165,11 @@ mod tests {
     #[test]
     fn transition_ids() {
         let ids = Mutex::new(Vec::new());
-        let mut sm = Transition::new();
-        sm.event_monitor_mut().add_transition_callback(|t| {
-            ids.lock().unwrap().push(t.info.id);
-        });
+        let mut sm = TransitionSm::new();
+        sm.event_monitor_mut()
+            .add_transition_callback(Box::new(|t| {
+                ids.lock().unwrap().push(t.info.id);
+            }));
         sm.transit();
         sm.transit();
         sm.transit();
@@ -177,7 +185,7 @@ mod tests {
     /// Test transition hook method.
     #[test]
     fn transition_hook() {
-        let mut sm = Transition::new();
+        let mut sm = TransitionSm::new();
         sm.transit();
         assert_eq!(sm.hooks, vec!["S0->S1"]);
         sm.clear_all();
@@ -188,7 +196,7 @@ mod tests {
     /// Test change-state hook method.
     #[test]
     fn change_state_hook() {
-        let mut sm = Transition::new();
+        let mut sm = TransitionSm::new();
         sm.change();
         assert_eq!(sm.hooks, vec!["S0->>S1"]);
         sm.clear_all();

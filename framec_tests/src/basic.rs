@@ -13,6 +13,7 @@ impl<'a> Basic<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use frame_runtime::unsync::*;
 
     /// Test that the enter event is sent for entering the initial state on startup.
     #[test]
@@ -212,19 +213,19 @@ mod tests {
         let mut sm = Basic::new();
         sm.a();
         sm.b();
-        let entry_log: &Log = sm
+        let entry_log: Log = *sm
             .variables()
             .lookup("entry_log")
             .unwrap()
-            .downcast_ref()
+            .downcast()
             .unwrap();
-        let exit_log: &Log = sm
+        let exit_log: Log = *sm
             .variables()
             .lookup("exit_log")
             .unwrap()
-            .downcast_ref()
+            .downcast()
             .unwrap();
-        assert_eq!(*entry_log, vec!["S0", "S1", "S0"]);
-        assert_eq!(*exit_log, vec!["S0", "S1"]);
+        assert_eq!(entry_log, vec!["S0", "S1", "S0"]);
+        assert_eq!(exit_log, vec!["S0", "S1"]);
     }
 }

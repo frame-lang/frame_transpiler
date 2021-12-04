@@ -5,7 +5,7 @@ include!(concat!(env!("OUT_DIR"), "/", "event_monitor.rs"));
 #[cfg(test)]
 mod tests {
     use super::*;
-    use frame_runtime::*;
+    use frame_runtime::unsync::*;
     use std::sync::Mutex;
 
     /// Test that event sent callbacks are triggered.
@@ -13,9 +13,10 @@ mod tests {
     fn event_sent() {
         let events = Mutex::new(Vec::new());
         let mut sm = EventMonitorSm::new();
-        sm.event_monitor_mut().add_event_sent_callback(|e| {
-            events.lock().unwrap().push(e.clone());
-        });
+        sm.event_monitor_mut()
+            .add_event_sent_callback(Box::new(|e| {
+                events.lock().unwrap().push(e.clone());
+            }));
 
         sm.mult(3, 5);
         sm.change();
@@ -36,9 +37,10 @@ mod tests {
     fn event_handled() {
         let events = Mutex::new(Vec::new());
         let mut sm = EventMonitorSm::new();
-        sm.event_monitor_mut().add_event_handled_callback(|e| {
-            events.lock().unwrap().push(e.clone());
-        });
+        sm.event_monitor_mut()
+            .add_event_handled_callback(Box::new(|e| {
+                events.lock().unwrap().push(e.clone());
+            }));
 
         sm.mult(3, 5);
         sm.change();
@@ -59,9 +61,10 @@ mod tests {
     fn event_sent_order() {
         let events = Mutex::new(Vec::new());
         let mut sm = EventMonitorSm::new();
-        sm.event_monitor_mut().add_event_sent_callback(|e| {
-            events.lock().unwrap().push(e.info().name);
-        });
+        sm.event_monitor_mut()
+            .add_event_sent_callback(Box::new(|e| {
+                events.lock().unwrap().push(e.info().name);
+            }));
 
         sm.transit(2);
         assert_eq!(EventMonitorSmState::A, sm.state);
@@ -91,9 +94,10 @@ mod tests {
     fn event_handled_order() {
         let events = Mutex::new(Vec::new());
         let mut sm = EventMonitorSm::new();
-        sm.event_monitor_mut().add_event_handled_callback(|e| {
-            events.lock().unwrap().push(e.info().name);
-        });
+        sm.event_monitor_mut()
+            .add_event_handled_callback(Box::new(|e| {
+                events.lock().unwrap().push(e.info().name);
+            }));
 
         sm.transit(2);
         assert_eq!(EventMonitorSmState::A, sm.state);
@@ -123,9 +127,10 @@ mod tests {
     fn transition_order() {
         let transits = Mutex::new(Vec::new());
         let mut sm = EventMonitorSm::new();
-        sm.event_monitor_mut().add_transition_callback(|t| {
-            transits.lock().unwrap().push(t.to_string());
-        });
+        sm.event_monitor_mut()
+            .add_transition_callback(Box::new(|t| {
+                transits.lock().unwrap().push(t.to_string());
+            }));
 
         sm.transit(2);
         assert_eq!(4, transits.lock().unwrap().len());
@@ -150,16 +155,19 @@ mod tests {
         let sent = Mutex::new(Vec::new());
         let handled = Mutex::new(Vec::new());
         let mut sm = EventMonitorSm::new();
-        sm.event_monitor_mut().add_event_sent_callback(|e| {
-            sent.lock().unwrap().push(e.info().name.to_string());
-        });
-        sm.event_monitor_mut().add_event_handled_callback(|e| {
-            handled.lock().unwrap().push(e.info().name.to_string());
-        });
-        sm.event_monitor_mut().add_transition_callback(|t| {
-            sent.lock().unwrap().push(t.to_string());
-            handled.lock().unwrap().push(t.to_string());
-        });
+        sm.event_monitor_mut()
+            .add_event_sent_callback(Box::new(|e| {
+                sent.lock().unwrap().push(e.info().name.to_string());
+            }));
+        sm.event_monitor_mut()
+            .add_event_handled_callback(Box::new(|e| {
+                handled.lock().unwrap().push(e.info().name.to_string());
+            }));
+        sm.event_monitor_mut()
+            .add_transition_callback(Box::new(|t| {
+                sent.lock().unwrap().push(t.to_string());
+                handled.lock().unwrap().push(t.to_string());
+            }));
 
         sm.transit(2);
         assert_eq!(14, sent.lock().unwrap().len());
@@ -213,14 +221,15 @@ mod tests {
     fn event_sent_arguments() {
         let events_mutex = Mutex::new(Vec::new());
         let mut sm = EventMonitorSm::new();
-        sm.event_monitor_mut().add_event_sent_callback(|e| {
-            if e.info().name == "mult" {
-                assert!(!e.arguments().is_empty());
-            } else if e.info().name == "change" {
-                assert!(e.arguments().is_empty());
-            }
-            events_mutex.lock().unwrap().push(e);
-        });
+        sm.event_monitor_mut()
+            .add_event_sent_callback(Box::new(|e| {
+                if e.info().name == "mult" {
+                    assert!(!e.arguments().is_empty());
+                } else if e.info().name == "change" {
+                    assert!(e.arguments().is_empty());
+                }
+                events_mutex.lock().unwrap().push(e.clone());
+            }));
         sm.mult(3, 5);
         sm.change();
         sm.mult(4, 6);
@@ -260,10 +269,11 @@ mod tests {
     fn event_sent_return_value() {
         let events_mutex = Mutex::new(Vec::new());
         let mut sm = EventMonitorSm::new();
-        sm.event_monitor_mut().add_event_sent_callback(|e| {
-            assert!(e.return_value().is_none());
-            events_mutex.lock().unwrap().push(e);
-        });
+        sm.event_monitor_mut()
+            .add_event_sent_callback(Box::new(|e| {
+                assert!(e.return_value().is_none());
+                events_mutex.lock().unwrap().push(e.clone());
+            }));
         sm.mult(3, 5);
         sm.change();
         sm.mult(4, 6);
@@ -292,11 +302,12 @@ mod tests {
     fn event_handled_return_value() {
         let events_mutex = Mutex::new(Vec::new());
         let mut sm = EventMonitorSm::new();
-        sm.event_monitor_mut().add_event_handled_callback(|e| {
-            if e.return_value().is_some() {
-                events_mutex.lock().unwrap().push(e);
-            }
-        });
+        sm.event_monitor_mut()
+            .add_event_handled_callback(Box::new(|e| {
+                if e.return_value().is_some() {
+                    events_mutex.lock().unwrap().push(e.clone());
+                }
+            }));
         sm.mult(3, 5);
         sm.change();
         sm.mult(4, 6);
@@ -344,22 +355,22 @@ mod tests {
         let sm = EventMonitorSm::new();
         let history = sm.event_monitor().event_history();
         assert_eq!(1, history.len());
-        assert_eq!("A:>", history.back().unwrap().info().name);
+        assert_eq!("A:>", history.newest().unwrap().info().name);
     }
 
     /// Test that the event history capacity works as expected.
     #[test]
     fn event_history_capacity() {
         let mut sm = EventMonitorSm::new();
-        assert_eq!(Some(5), sm.event_monitor().get_event_history_capacity());
+        assert_eq!(Some(5), sm.event_monitor().event_history().capacity());
         sm.event_monitor_mut().clear_event_history();
 
         sm.change();
         sm.mult(3, 5);
         let history = sm.event_monitor().event_history();
         assert_eq!(2, history.len());
-        assert_eq!("change", history[0].info().name);
-        assert_eq!("mult", history[1].info().name);
+        assert_eq!("change", history.as_deque()[0].info().name);
+        assert_eq!("mult", history.as_deque()[1].info().name);
 
         sm.transit(5);
         let history = sm.event_monitor().event_history();
@@ -403,10 +414,7 @@ mod tests {
     #[test]
     fn transition_history_capacity() {
         let mut sm = EventMonitorSm::new();
-        assert_eq!(
-            Some(3),
-            sm.event_monitor().get_transition_history_capacity()
-        );
+        assert_eq!(Some(3), sm.event_monitor().transition_history().capacity());
         assert!(sm.event_monitor().transition_history().is_empty());
 
         sm.change();
@@ -414,8 +422,8 @@ mod tests {
         sm.reset();
         let history = sm.event_monitor().transition_history();
         assert_eq!(2, history.len());
-        assert_eq!("A->>B", history[0].to_string());
-        assert_eq!("B->>A", history[1].to_string());
+        assert_eq!("A->>B", history.as_deque()[0].to_string());
+        assert_eq!("B->>A", history.as_deque()[1].to_string());
 
         sm.transit(5);
         let history = sm.event_monitor().transition_history();
@@ -468,13 +476,13 @@ mod tests {
         sm.change();
         sm.reset();
         let history = sm.event_monitor().event_history();
-        assert!(history[0].return_value().is_some());
-        assert!(history[1].return_value().is_some());
-        assert!(history[2].return_value().is_some());
-        assert!(history[3].return_value().is_none());
+        assert!(history.as_deque()[0].return_value().is_some());
+        assert!(history.as_deque()[1].return_value().is_some());
+        assert!(history.as_deque()[2].return_value().is_some());
+        assert!(history.as_deque()[3].return_value().is_none());
         assert_eq!(
             2,
-            *history[0]
+            *history.as_deque()[0]
                 .return_value()
                 .unwrap()
                 .downcast_ref::<u32>()
@@ -482,7 +490,7 @@ mod tests {
         );
         assert_eq!(
             15,
-            *history[1]
+            *history.as_deque()[1]
                 .return_value()
                 .unwrap()
                 .downcast_ref::<i32>()
@@ -490,7 +498,7 @@ mod tests {
         );
         assert_eq!(
             12,
-            *history[2]
+            *history.as_deque()[2]
                 .return_value()
                 .unwrap()
                 .downcast_ref::<u32>()

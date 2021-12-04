@@ -18,6 +18,7 @@ impl<'a> Hierarchical<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use frame_runtime::unsync::*;
 
     /// Test that a continue (`:>`) in a child enter handler calls the parent enter handler.
     #[test]

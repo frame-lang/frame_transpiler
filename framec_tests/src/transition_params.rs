@@ -13,7 +13,7 @@ impl<'a> TransitParams<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use frame_runtime::*;
+    use frame_runtime::unsync::*;
     use std::sync::Mutex;
 
     #[test]
@@ -72,25 +72,26 @@ mod tests {
     fn callbacks_get_event_args() {
         let out = Mutex::new(String::new());
         let mut sm = TransitParams::new();
-        sm.event_monitor_mut().add_transition_callback(|transit| {
-            let mut entry = String::new();
-            let exit_args = transit.exit_arguments();
-            let enter_args = transit.enter_arguments();
-            if let Some(any) = exit_args.lookup("msg") {
-                entry.push_str(&format!("msg: {}, ", any.downcast_ref::<String>().unwrap()));
-            }
-            if let Some(any) = exit_args.lookup("val") {
-                entry.push_str(&format!("val: {}, ", any.downcast_ref::<bool>().unwrap()));
-            }
-            entry.push_str(&transit.to_string());
-            if let Some(any) = enter_args.lookup("msg") {
-                entry.push_str(&format!(", msg: {}", any.downcast_ref::<String>().unwrap()));
-            }
-            if let Some(any) = enter_args.lookup("val") {
-                entry.push_str(&format!(", val: {}", any.downcast_ref::<i16>().unwrap()));
-            }
-            *out.lock().unwrap() = entry;
-        });
+        sm.event_monitor_mut()
+            .add_transition_callback(Box::new(|transit| {
+                let mut entry = String::new();
+                let exit_args = transit.exit_arguments();
+                let enter_args = transit.enter_arguments();
+                if let Some(any) = exit_args.lookup("msg") {
+                    entry.push_str(&format!("msg: {}, ", any.downcast_ref::<String>().unwrap()));
+                }
+                if let Some(any) = exit_args.lookup("val") {
+                    entry.push_str(&format!("val: {}, ", any.downcast_ref::<bool>().unwrap()));
+                }
+                entry.push_str(&transit.to_string());
+                if let Some(any) = enter_args.lookup("msg") {
+                    entry.push_str(&format!(", msg: {}", any.downcast_ref::<String>().unwrap()));
+                }
+                if let Some(any) = enter_args.lookup("val") {
+                    entry.push_str(&format!(", val: {}", any.downcast_ref::<i16>().unwrap()));
+                }
+                *out.lock().unwrap() = entry;
+            }));
         sm.next();
         assert_eq!(*out.lock().unwrap(), "Init->A, msg: hi A");
         sm.next();

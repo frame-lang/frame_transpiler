@@ -163,6 +163,7 @@ pub struct RustCode {
     pub state_stack_pop_method_name: String,
 
     pub runtime_info_module_name: String,
+    pub runtime_module_use_as_name: String,
     pub machine_info_function_name: String,
     pub pop_state_info_name: String,
     pub event_monitor_var_name: String,
@@ -173,6 +174,13 @@ pub struct RustCode {
 /// [RustFeatures.runtime_support] is enabled. These options can be changed at runtime later.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RustRuntime {
+    /// When enabled, generates a runtime implementation that is thread safe. When enabled, clients
+    /// should import `frame_runtime::sync` to interact with the state machine via the runtime
+    /// interface. When disabled, clients should import `frame_runtime::unsync`.
+    ///
+    /// Default is `false`, corresponding to `frame_runtime::unsync`.
+    pub thread_safe: bool,
+
     /// The number of handled events to save in the event history. A value of `0` disables the
     /// event history feature, while a negative value allows the history to grow to unbounded size
     /// (in which case it should be occasionally manually cleared).
@@ -464,6 +472,7 @@ impl Default for RustCode {
             state_stack_pop_method_name: String::from("state_stack_pop"),
 
             runtime_info_module_name: String::from("runtime_info"),
+            runtime_module_use_as_name: String::from("runtime"),
             machine_info_function_name: String::from("machine_info"),
             pop_state_info_name: String::from("$$[-]"),
             event_monitor_var_name: String::from("event_monitor"),
@@ -475,6 +484,7 @@ impl Default for RustCode {
 impl Default for RustRuntime {
     fn default() -> Self {
         RustRuntime {
+            thread_safe: false,
             event_history_capacity: 0,
             transition_history_capacity: 1,
         }
