@@ -34,7 +34,6 @@ pub struct RustVisitor {
     generate_transition_state: bool,
     generate_change_state_hook: bool,
     generate_transition_hook: bool,
-    thread_safe_runtime: bool,
 
     // static info about the state machine
     system_name: String,
@@ -93,8 +92,6 @@ impl RustVisitor {
                 && generate_change_state,
             generate_transition_hook: rust_config.features.generate_hook_methods
                 && generate_transition_state,
-            thread_safe_runtime: rust_config.features.runtime_support
-                && rust_config.runtime.thread_safe,
 
             system_name: String::new(),
             state_names: Vec::new(),
@@ -193,13 +190,14 @@ impl RustVisitor {
     fn format_variable_expr(&mut self, var_node: &VariableNode) -> String {
         let mut code = String::new();
         let var_name = self.format_value_name(&var_node.id_node.name.lexeme);
-        let borrow = if self.thread_safe_runtime {
+        let borrow = if self.config.features.thread_safe {
             "lock().unwrap()"
         } else if self.in_assignment_lvalue {
             "as_ref().borrow_mut()"
         } else {
             "as_ref().borrow()"
         };
+        let mut borrowed = false;
         match var_node.scope {
             IdentifierDeclScope::DomainBlock => {
                 if var_node.id_node.is_reference {
@@ -208,6 +206,7 @@ impl RustVisitor {
                 code.push_str(&format!("self.{}", var_name));
             }
             IdentifierDeclScope::StateParam => {
+                borrowed = true;
                 if self.visiting_call_chain_literal_variable {
                     code.push('(');
                 }
@@ -226,6 +225,7 @@ impl RustVisitor {
                 }
             }
             IdentifierDeclScope::StateVar => {
+                borrowed = true;
                 if self.visiting_call_chain_literal_variable {
                     code.push('(');
                 }
@@ -244,6 +244,7 @@ impl RustVisitor {
                 }
             }
             IdentifierDeclScope::EventHandlerParam => {
+                borrowed = true;
                 if self.visiting_call_chain_literal_variable {
                     code.push('(');
                 }
@@ -281,6 +282,11 @@ impl RustVisitor {
                 code.push_str(&self.format_value_name(&var_node.id_node.name.lexeme));
             } // Actions?
             _ => self.errors.push("Illegal scope.".to_string()),
+        }
+
+        // avoid a mutex deadlock in the thread_safe case
+        if borrowed && !self.in_assignment_lvalue && self.config.features.thread_safe {
+            code = format!("({{ let var_value = {}; var_value }})", code);
         }
 
         code
@@ -371,7 +377,7 @@ impl RustVisitor {
         format!(
             "{}::Empty::{}()",
             self.config.code.runtime_module_use_as_name,
-            if self.thread_safe_runtime {
+            if self.config.features.thread_safe {
                 "arc"
             } else {
                 "rc"
@@ -381,7 +387,7 @@ impl RustVisitor {
 
     /// Get the type of reference-counted pointers.
     fn rc_type(&self) -> &str {
-        if self.thread_safe_runtime {
+        if self.config.features.thread_safe {
             "Arc"
         } else {
             "Rc"
@@ -390,7 +396,7 @@ impl RustVisitor {
 
     /// Get the type of mutable cells.
     fn cell_type(&self) -> &str {
-        if self.thread_safe_runtime {
+        if self.config.features.thread_safe {
             "Mutex"
         } else {
             "RefCell"
@@ -647,25 +653,23 @@ impl RustVisitor {
                 }
                 DeclOrStmtType::StmtT { stmt_t } => {
                     match stmt_t {
-                        StatementType::ExpressionStmt { expr_stmt_t } => {
-                            match expr_stmt_t {
-                                ExprStmtType::ActionCallStmtT {
-                                    action_call_stmt_node,
-                                } => action_call_stmt_node.accept(self), // // TODO
-                                ExprStmtType::CallStmtT { call_stmt_node } => {
-                                    call_stmt_node.accept(self)
-                                }
-                                ExprStmtType::CallChainLiteralStmtT {
-                                    call_chain_literal_stmt_node,
-                                } => call_chain_literal_stmt_node.accept(self),
-                                ExprStmtType::AssignmentStmtT {
-                                    assignment_stmt_node,
-                                } => assignment_stmt_node.accept(self),
-                                ExprStmtType::VariableStmtT { variable_stmt_node } => {
-                                    variable_stmt_node.accept(self)
-                                }
+                        StatementType::ExpressionStmt { expr_stmt_t } => match expr_stmt_t {
+                            ExprStmtType::ActionCallStmtT {
+                                action_call_stmt_node,
+                            } => action_call_stmt_node.accept(self),
+                            ExprStmtType::CallStmtT { call_stmt_node } => {
+                                call_stmt_node.accept(self)
                             }
-                        }
+                            ExprStmtType::CallChainLiteralStmtT {
+                                call_chain_literal_stmt_node,
+                            } => call_chain_literal_stmt_node.accept(self),
+                            ExprStmtType::AssignmentStmtT {
+                                assignment_stmt_node,
+                            } => assignment_stmt_node.accept(self),
+                            ExprStmtType::VariableStmtT { variable_stmt_node } => {
+                                variable_stmt_node.accept(self)
+                            }
+                        },
                         StatementType::TransitionStmt {
                             transition_statement,
                         } => {
@@ -1356,7 +1360,7 @@ impl RustVisitor {
             self.newline();
             self.add_code("fn return_value(&self) -> Option<Box<dyn Any>>");
             self.enter_block();
-            if self.thread_safe_runtime {
+            if self.config.features.thread_safe {
                 self.add_code(&format!(
                     "match *self.{}.lock().unwrap()",
                     self.config.code.frame_event_return_attribute_name,
@@ -1476,7 +1480,7 @@ impl RustVisitor {
                     let mut bound_names: Vec<String> = Vec::new();
 
                     self.disable_type_style_warnings();
-                    if self.thread_safe_runtime {
+                    if self.config.features.thread_safe {
                         self.add_code("#[derive(Clone)]");
                         self.newline();
                     }
@@ -1507,7 +1511,7 @@ impl RustVisitor {
 
         // generate the enum type that unions all the arg structs
         self.disable_type_style_warnings();
-        if self.thread_safe_runtime {
+        if self.config.features.thread_safe {
             self.add_code("#[derive(Clone)]");
             self.newline();
         }
@@ -1638,7 +1642,7 @@ impl RustVisitor {
                         let mut bound_names: Vec<String> = Vec::new();
 
                         self.disable_type_style_warnings();
-                        if self.thread_safe_runtime {
+                        if self.config.features.thread_safe {
                             self.add_code("#[derive(Clone)]");
                             self.newline();
                         }
@@ -1678,7 +1682,7 @@ impl RustVisitor {
                         let mut bound_names: Vec<String> = Vec::new();
 
                         self.disable_type_style_warnings();
-                        if self.generate_state_stack || self.thread_safe_runtime {
+                        if self.generate_state_stack || self.config.features.thread_safe {
                             self.add_code("#[derive(Clone)]");
                             self.newline();
                         }
@@ -2378,6 +2382,9 @@ impl RustVisitor {
         self.add_code(")");
         self.enter_block();
 
+        self.add_code("println!(\"in transition\");");
+        self.newline();
+
         // create exit event for old state
         self.add_code(&format!(
             "let exit_event = {}::new({}::new(",
@@ -2405,6 +2412,9 @@ impl RustVisitor {
         self.newline();
         self.add_code("));");
 
+        self.newline();
+        self.add_code("println!(\"handling exit event\");");
+
         // send exit event
         self.newline();
         self.add_code(&format!(
@@ -2416,6 +2426,9 @@ impl RustVisitor {
                 ""
             }
         ));
+
+        self.newline();
+        self.add_code("println!(\"exit event handled\");");
 
         // save old state
         if self.generate_transition_hook
@@ -2492,6 +2505,9 @@ impl RustVisitor {
         self.newline();
         self.add_code("));");
 
+        self.newline();
+        self.add_code("println!(\"transition occurred\");");
+
         // call transition callbacks
         if self.config.features.runtime_support {
             self.newline();
@@ -2522,12 +2538,18 @@ impl RustVisitor {
             self.add_code("));");
         }
 
+        self.newline();
+        self.add_code("println!(\"handling enter event\");");
+
         // send enter event
         self.newline();
         self.add_code(&format!(
             "self.{}(enter_event);",
             self.config.code.handle_event_method_name,
         ));
+
+        self.newline();
+        self.add_code("println!(\"enter event handled\");");
 
         self.exit_block();
         self.newline();
@@ -3382,11 +3404,15 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.add_code("#[allow(unused_imports)]");
         self.newline();
-        self.add_code("use std::cell::{Ref, RefCell};");
-        self.newline();
-        self.add_code("#[allow(unused_imports)]");
-        self.newline();
-        self.add_code("use std::rc::Rc;");
+        if self.config.features.thread_safe {
+            self.add_code("use std::sync::{Arc, Mutex};");
+        } else {
+            self.add_code("use std::cell::RefCell;");
+            self.newline();
+            self.add_code("#[allow(unused_imports)]");
+            self.newline();
+            self.add_code("use std::rc::Rc;");
+        }
         self.newline();
 
         if self.config.features.runtime_support {
@@ -3396,7 +3422,7 @@ impl AstVisitor for RustVisitor {
             self.newline();
             self.add_code(&format!(
                 "use frame_runtime::{} as {};",
-                if self.thread_safe_runtime {
+                if self.config.features.thread_safe {
                     "sync"
                 } else {
                     "unsync"
@@ -3956,9 +3982,14 @@ impl AstVisitor for RustVisitor {
             ));
             self.newline();
             self.add_code(&format!(
-                "let return_value = match *{}.{}.borrow()",
+                "let return_value = match *{}.{}.{}",
                 self.config.code.frame_event_variable_name,
-                self.config.code.frame_event_return_attribute_name
+                self.config.code.frame_event_return_attribute_name,
+                if self.config.features.thread_safe {
+                    "lock().unwrap()"
+                } else {
+                    "borrow()"
+                },
             ));
             self.enter_block();
             self.add_code(&format!(
@@ -4278,7 +4309,7 @@ impl AstVisitor for RustVisitor {
                 match &evt_handler_terminator_node.return_expr_t_opt {
                     Some(expr_t) => {
                         self.newline();
-                        if self.thread_safe_runtime {
+                        if self.config.features.thread_safe {
                             self.add_code(&format!(
                                 "let mut ret = {}.{}.lock().unwrap();",
                                 self.config.code.frame_event_variable_name,
@@ -4302,7 +4333,7 @@ impl AstVisitor for RustVisitor {
                         self.add_code("return_value: ");
                         expr_t.accept(self);
                         self.exit_block();
-                        if !self.thread_safe_runtime {
+                        if !self.config.features.thread_safe {
                             self.add_code(")");
                         }
                         self.add_code(";");
@@ -5497,7 +5528,7 @@ impl AstVisitor for RustVisitor {
         self.newline_to_string(output);
         match &*assignment_expr_node.l_value_box {
             ExprType::FrameEventExprT { .. } => {
-                if self.thread_safe_runtime {
+                if self.config.features.thread_safe {
                     output.push_str(&format!(
                         "let mut ret = {}.{}.lock().unwrap();",
                         self.config.code.frame_event_variable_name,
@@ -5523,7 +5554,7 @@ impl AstVisitor for RustVisitor {
                     .r_value_box
                     .accept_to_string(self, output);
                 self.exit_block_to_string(output);
-                if !self.thread_safe_runtime {
+                if !self.config.features.thread_safe {
                     output.push(')');
                 }
                 output.push(';');

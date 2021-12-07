@@ -83,21 +83,41 @@ pub struct RustConfig {
 pub struct RustFeatures {
     /// When enabled, generated code will attempt to conform to standard Rust naming conventions.
     /// However, options in `RustCode` are in general not overridden by this feature.
+    ///
+    /// Default is `true`.
     pub follow_rust_naming: bool,
 
     /// When enabled, generate an empty implementation of the `Action` trait. This is nice so that
     /// the unextended output of Frame compiles. Actions may still be overridden by implementing
     /// them directly in an `impl` block for the generated state machine type.
+    ///
+    /// Default is `true`.
     pub generate_action_impl: bool,
 
     /// When enabled, generates "hook" methods that will be invoked on every transition or
     /// change-state. These hook methods are added to the `Action` trait and must be implemented.
+    ///
+    /// Default is `false`.
     pub generate_hook_methods: bool,
 
     /// When enabled, generates code that links into the Frame runtime system. See the
     /// `frame_runtime` crate. This crate provides reflection and monitoring capabilities to
     /// running state machines.
+    ///
+    /// To use the runtime interface, include the `frame_runtime` crate and import one the
+    /// following modules:
+    ///
+    ///  * `frame_runtime::unsync` if the `thread_safe` feature is disabled (default)
+    ///  * `frame_runtime::sync` if the `thread_safe` feature is enabled
+    ///
+    /// By default, the `runtime_support` feature is `false`.
     pub runtime_support: bool,
+
+    /// When enabled, generates a state machine that implements the `Send` trait, and so can be
+    /// safely passed acrosss thread boundries.
+    ///
+    /// Default is `false`.
+    pub thread_safe: bool,
 }
 
 /// Naming options for generated code specific to the Rust backend. These options can be used to
@@ -174,13 +194,6 @@ pub struct RustCode {
 /// [RustFeatures.runtime_support] is enabled. These options can be changed at runtime later.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RustRuntime {
-    /// When enabled, generates a runtime implementation that is thread safe. When enabled, clients
-    /// should import `frame_runtime::sync` to interact with the state machine via the runtime
-    /// interface. When disabled, clients should import `frame_runtime::unsync`.
-    ///
-    /// Default is `false`, corresponding to `frame_runtime::unsync`.
-    pub thread_safe: bool,
-
     /// The number of handled events to save in the event history. A value of `0` disables the
     /// event history feature, while a negative value allows the history to grow to unbounded size
     /// (in which case it should be occasionally manually cleared).
@@ -408,6 +421,7 @@ impl Default for RustFeatures {
             generate_action_impl: true,
             generate_hook_methods: false,
             runtime_support: false,
+            thread_safe: false,
         }
     }
 }
@@ -484,7 +498,6 @@ impl Default for RustCode {
 impl Default for RustRuntime {
     fn default() -> Self {
         RustRuntime {
-            thread_safe: false,
             event_history_capacity: 0,
             transition_history_capacity: 1,
         }

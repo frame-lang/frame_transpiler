@@ -2,9 +2,9 @@
 //! event variables, return values) that are implemented via state contexts, with the runtime
 //! system enabled.
 //!
-//! This is the same state machine as `state_context.rs` but with `runtime_support=true`, and the
-//! first few tests are redundant with the ones in that module, but the code generation code path
-//! is very different with `runtime_support` enabled, so these tests are doing work.
+//! This is the same state machine as `state_context.rs` but with `runtime_support=true`. The first
+//! few tests are redundant with the ones in that module, but the code generation code path is very
+//! different with `runtime_support` enabled, so these tests are doing work.
 //!
 //! Similarly, a few of the runtime system tests here test similar functionality as the tests in
 //! `basic.rs`, but the code path when state contexts are present is very different than without,
