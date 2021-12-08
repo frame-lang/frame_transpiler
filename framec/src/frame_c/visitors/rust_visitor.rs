@@ -427,9 +427,13 @@ impl RustVisitor {
         self.newline();
         self.add_code("#[allow(clippy::clone_on_copy)]");
         self.newline();
+        self.add_code("#[allow(clippy::collapsible_else_if)]");
+        self.newline();
         self.add_code("#[allow(clippy::double_parens)]");
         self.newline();
         self.add_code("#[allow(clippy::match_single_binding)]");
+        self.newline();
+        self.add_code("#[allow(clippy::needless_return)]");
         self.newline();
         self.add_code("#[allow(clippy::ptr_arg)]");
         self.newline();
@@ -2019,6 +2023,7 @@ impl RustVisitor {
             self.newline();
         }
         self.add_code("#[allow(clippy::clone_on_copy)]");
+        self.newline();
         self.add_code("fn lookup(&self, name: &str) -> Option<Box<dyn Any>>");
         self.enter_block();
         self.add_code("match name");
@@ -4159,6 +4164,8 @@ impl AstVisitor for RustVisitor {
         self.newline();
         self.newline();
 
+        self.add_code("#[allow(clippy::collapsible_else_if)]");
+        self.newline();
         self.add_code("#[allow(clippy::needless_return)]");
         self.newline();
         self.add_code("#[allow(unreachable_code)]");
