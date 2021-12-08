@@ -2047,11 +2047,7 @@ impl RustVisitor {
 
     /// Generate the constructor function.
     fn generate_constructor(&mut self, system_node: &SystemNode) {
-        self.add_code(&format!(
-            "pub fn new() -> {}{} {{",
-            self.system_type_name(),
-            self.lifetime_type_annotation()
-        ));
+        self.add_code("pub fn new() -> Self {");
         self.indent();
 
         let init_state_name = self.init_state_name();
@@ -3697,7 +3693,24 @@ impl AstVisitor for RustVisitor {
         self.add_code("} // end system controller");
         self.newline();
 
-        // Generate runtime info module used by implementations of the runtime interface
+        // generate Default trait implementation
+        if self.has_states {
+            self.newline();
+            self.add_code(&format!(
+                "impl{0} Default for {1}{0}",
+                self.lifetime_type_annotation(),
+                self.system_type_name(),
+            ));
+            self.enter_block();
+            self.add_code("fn default() -> Self");
+            self.enter_block();
+            self.add_code("Self::new()");
+            self.exit_block();
+            self.exit_block();
+            self.newline();
+        }
+
+        // generate runtime info module used by implementations of the runtime interface
         if self.config.features.runtime_support {
             self.newline();
             self.generate_runtime_info(system_node);
