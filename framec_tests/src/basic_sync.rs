@@ -1,5 +1,5 @@
 type Log = Vec<String>;
-include!(concat!(env!("OUT_DIR"), "/", "basic.rs"));
+include!(concat!(env!("OUT_DIR"), "/", "basic_sync.rs"));
 
 impl<'a> Basic<'a> {
     pub fn entered(&mut self, state: String) {
@@ -13,7 +13,23 @@ impl<'a> Basic<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use frame_runtime::unsync::*;
+    use frame_runtime::sync::*;
+
+    fn has_send(_: &impl Send) {}
+    fn has_sync(_: &impl Sync) {}
+
+    /// Test that the state machine implements the `Send` and `Sync` traits. Will cause a compile
+    /// error if it doesn't.
+    #[test]
+    fn implements_send_and_sync() {
+        let sm = Basic::new();
+        has_send(&sm);
+        has_sync(&sm);
+    }
+
+    // The rest of these tests are repeated from basic.rs. They're useful to repeat since the
+    // `thread_safe` feature touches a lot of the core types in both the state machine and the
+    // runtime system.
 
     /// Test that the enter event is sent for entering the initial state on startup.
     #[test]

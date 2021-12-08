@@ -13,7 +13,7 @@ impl<'a> StateStack<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use frame_runtime::*;
+    use frame_runtime::unsync::*;
     use std::sync::Mutex;
 
     /// Test that a pop restores a pushed state.
@@ -123,9 +123,10 @@ mod tests {
     fn pop_transition_callbacks() {
         let out = Mutex::new(String::new());
         let mut sm = StateStack::new();
-        sm.event_monitor_mut().add_transition_callback(|t| {
-            *out.lock().unwrap() = t.to_string();
-        });
+        sm.event_monitor_mut()
+            .add_transition_callback(Callback::new(|t: &Transition| {
+                *out.lock().unwrap() = t.to_string();
+            }));
         sm.to_c();
         sm.push();
         sm.to_b();

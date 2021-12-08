@@ -1,6 +1,6 @@
 #[codegen.rust.features.generate_hook_methods:bool="true"]
 #[codegen.rust.features.runtime_support:bool="true"]
-#Transition
+#TransitionSm
     -interface-
     transit
     change

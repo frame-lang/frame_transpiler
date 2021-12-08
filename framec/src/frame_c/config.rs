@@ -83,21 +83,41 @@ pub struct RustConfig {
 pub struct RustFeatures {
     /// When enabled, generated code will attempt to conform to standard Rust naming conventions.
     /// However, options in `RustCode` are in general not overridden by this feature.
+    ///
+    /// Default is `true`.
     pub follow_rust_naming: bool,
 
     /// When enabled, generate an empty implementation of the `Action` trait. This is nice so that
     /// the unextended output of Frame compiles. Actions may still be overridden by implementing
     /// them directly in an `impl` block for the generated state machine type.
+    ///
+    /// Default is `true`.
     pub generate_action_impl: bool,
 
     /// When enabled, generates "hook" methods that will be invoked on every transition or
     /// change-state. These hook methods are added to the `Action` trait and must be implemented.
+    ///
+    /// Default is `false`.
     pub generate_hook_methods: bool,
 
     /// When enabled, generates code that links into the Frame runtime system. See the
     /// `frame_runtime` crate. This crate provides reflection and monitoring capabilities to
     /// running state machines.
+    ///
+    /// To use the runtime interface, include the `frame_runtime` crate and import one the
+    /// following modules:
+    ///
+    ///  * `frame_runtime::unsync` if the `thread_safe` feature is disabled (default)
+    ///  * `frame_runtime::sync` if the `thread_safe` feature is enabled
+    ///
+    /// By default, the `runtime_support` feature is `false`.
     pub runtime_support: bool,
+
+    /// When enabled, generates a state machine that implements the `Send` trait, and so can be
+    /// safely passed acrosss thread boundries.
+    ///
+    /// Default is `false`.
+    pub thread_safe: bool,
 }
 
 /// Naming options for generated code specific to the Rust backend. These options can be used to
@@ -163,6 +183,7 @@ pub struct RustCode {
     pub state_stack_pop_method_name: String,
 
     pub runtime_info_module_name: String,
+    pub runtime_module_use_as_name: String,
     pub machine_info_function_name: String,
     pub pop_state_info_name: String,
     pub event_monitor_var_name: String,
@@ -400,6 +421,7 @@ impl Default for RustFeatures {
             generate_action_impl: true,
             generate_hook_methods: false,
             runtime_support: false,
+            thread_safe: false,
         }
     }
 }
@@ -464,6 +486,7 @@ impl Default for RustCode {
             state_stack_pop_method_name: String::from("state_stack_pop"),
 
             runtime_info_module_name: String::from("runtime_info"),
+            runtime_module_use_as_name: String::from("runtime"),
             machine_info_function_name: String::from("machine_info"),
             pop_state_info_name: String::from("$$[-]"),
             event_monitor_var_name: String::from("event_monitor"),

@@ -10,6 +10,7 @@ impl<'a> StateParams<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use frame_runtime::unsync::*;
 
     #[test]
     fn single_parameter() {

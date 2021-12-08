@@ -6,7 +6,6 @@
 //! compatibility with new types that may be added.
 
 use crate::info::*;
-use crate::live::*;
 use std::fmt;
 
 /// Style options for smcat states.
@@ -121,10 +120,10 @@ pub trait Style {
 }
 
 /// A style implementation that relegates all formatting to CSS via the "class" style options.
-pub struct CssStyle {}
+pub struct CssStyle;
 
 /// A simple style implementation that doesn't require CSS.
-pub struct SimpleStyle {}
+pub struct SimpleStyle;
 
 impl Style for CssStyle {
     fn node(&self, info: &StateInfo, active: bool) -> NodeStyle {
@@ -211,17 +210,7 @@ impl Renderer {
         self.render_common(machine_info, None, None)
     }
 
-    /// Generate an smcat diagram from a snapshot of a running state machine. Depending on the
-    /// style configuration, this can be expected to highlight the running state, most recent
-    /// transition, etc. Eventually, it may show the current values of variables.
-    pub fn render_live(&self, machine: &dyn MachineInstance) -> String {
-        let machine_info = machine.info();
-        let active_state = machine.state().info().name;
-        let last_transition = machine.event_monitor().last_transition().map(|t| t.info.id);
-        self.render_common(machine_info, Some(active_state), last_transition)
-    }
-
-    fn render_common(
+    pub fn render_common(
         &self,
         machine_info: &MachineInfo,
         active_state: Option<&'static str>,
@@ -289,5 +278,59 @@ impl Renderer {
             "{} -> {}{} : \"  {}{}  \";\n",
             transition.source.name, transition.target.name, style, transition.event.name, label
         ));
+    }
+}
+
+/// Definitions specific to the synchronized/thread-safe interface.
+pub mod sync {
+    pub use super::*;
+    use crate::event::sync::*;
+    use crate::live::sync::*;
+
+    impl Renderer {
+        /// Generate an smcat diagram from a snapshot of a running state machine implementing the
+        /// synchronized runtime interface. Depending on the style configuration, this can be
+        /// expected to highlight the running state, most recent transition, etc. Eventually, it
+        /// may show the current values of variables.
+        pub fn render_live_sync<'a>(
+            &self,
+            machine: &dyn Machine<StatePtr, EventMonitor<'a>>,
+        ) -> String {
+            let machine_info = machine.info();
+            let active_state = machine.state().info().name;
+            let last_transition = machine
+                .event_monitor()
+                .transition_history()
+                .newest()
+                .map(|t| t.info.id);
+            self.render_common(machine_info, Some(active_state), last_transition)
+        }
+    }
+}
+
+/// Definitions specific to the unsynchronized interface.
+pub mod unsync {
+    pub use super::*;
+    use crate::event::unsync::*;
+    use crate::live::unsync::*;
+
+    impl Renderer {
+        /// Generate an smcat diagram from a snapshot of a running state machine implementing the
+        /// unsynchronized runtime interface. Depending on the style configuration, this can be
+        /// expected to highlight the running state, most recent transition, etc. Eventually, it
+        /// may show the current values of variables.
+        pub fn render_live_unsync<'a>(
+            &self,
+            machine: &dyn Machine<StatePtr, EventMonitor<'a>>,
+        ) -> String {
+            let machine_info = machine.info();
+            let active_state = machine.state().info().name;
+            let last_transition = machine
+                .event_monitor()
+                .transition_history()
+                .newest()
+                .map(|t| t.info.id);
+            self.render_common(machine_info, Some(active_state), last_transition)
+        }
     }
 }
