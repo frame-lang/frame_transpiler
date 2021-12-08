@@ -297,6 +297,8 @@ mod tests {
     use super::*;
     use frame_runtime::info::*;
     use frame_runtime::live::Machine;
+    use frame_runtime::sync as srt;
+    use frame_runtime::unsync as urt;
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Mutex;
 
@@ -338,15 +340,15 @@ mod tests {
         let tape_mutex = Mutex::new(tape);
         let mut sm = sync::Simple::new();
         sm.event_monitor_mut()
-            .add_transition_callback(Box::new(|e| {
+            .add_transition_callback(srt::Callback::new(|t: &srt::Transition| {
                 tape_mutex.lock().unwrap().push(format!(
                     "{}{}{}",
-                    e.old_state.info().name,
-                    match e.info.kind {
+                    t.old_state.info().name,
+                    match t.info.kind {
                         TransitionKind::ChangeState => "->>",
                         TransitionKind::Transition => "->",
                     },
-                    e.new_state.info().name
+                    t.new_state.info().name
                 ));
             }));
         sm.next();
@@ -361,15 +363,15 @@ mod tests {
         let tape_mutex = Mutex::new(tape);
         let mut sm = unsync::Simple::new();
         sm.event_monitor_mut()
-            .add_transition_callback(Box::new(|e| {
+            .add_transition_callback(urt::Callback::new(|t: &urt::Transition| {
                 tape_mutex.lock().unwrap().push(format!(
                     "{}{}{}",
-                    e.old_state.info().name,
-                    match e.info.kind {
+                    t.old_state.info().name,
+                    match t.info.kind {
                         TransitionKind::ChangeState => "->>",
                         TransitionKind::Transition => "->",
                     },
-                    e.new_state.info().name
+                    t.new_state.info().name
                 ));
             }));
         sm.next();
@@ -384,8 +386,8 @@ mod tests {
         let tape_mutex = Mutex::new(tape);
         let mut sm = unsync::Simple::new();
         sm.event_monitor_mut()
-            .add_transition_callback(Box::new(|e| {
-                tape_mutex.lock().unwrap().push(e.info.id);
+            .add_transition_callback(urt::Callback::new(|t: &urt::Transition| {
+                tape_mutex.lock().unwrap().push(t.info.id);
             }));
         sm.next();
         sm.next();
@@ -398,10 +400,10 @@ mod tests {
         let agree = AtomicBool::new(false);
         let mut sm = sync::Simple::new();
         sm.event_monitor_mut()
-            .add_transition_callback(Box::new(|e| {
+            .add_transition_callback(srt::Callback::new(|t: &srt::Transition| {
                 agree.store(
-                    e.info.source.name == e.old_state.info().name
-                        && e.info.target.name == e.new_state.info().name,
+                    t.info.source.name == t.old_state.info().name
+                        && t.info.target.name == t.new_state.info().name,
                     Ordering::Relaxed,
                 );
             }));

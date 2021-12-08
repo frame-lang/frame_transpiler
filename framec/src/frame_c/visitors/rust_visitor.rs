@@ -1558,6 +1558,7 @@ impl RustVisitor {
             }
             self.exit_block();
             self.exit_block();
+            self.newline();
             self.add_code(&format!(
                 "fn lookup(&self, {}: &str) -> Option<Box<dyn Any>>",
                 if has_params.is_empty() {
@@ -2382,9 +2383,6 @@ impl RustVisitor {
         self.add_code(")");
         self.enter_block();
 
-        self.add_code("println!(\"in transition\");");
-        self.newline();
-
         // create exit event for old state
         self.add_code(&format!(
             "let exit_event = {}::new({}::new(",
@@ -2412,9 +2410,6 @@ impl RustVisitor {
         self.newline();
         self.add_code("));");
 
-        self.newline();
-        self.add_code("println!(\"handling exit event\");");
-
         // send exit event
         self.newline();
         self.add_code(&format!(
@@ -2426,9 +2421,6 @@ impl RustVisitor {
                 ""
             }
         ));
-
-        self.newline();
-        self.add_code("println!(\"exit event handled\");");
 
         // save old state
         if self.generate_transition_hook
@@ -2505,9 +2497,6 @@ impl RustVisitor {
         self.newline();
         self.add_code("));");
 
-        self.newline();
-        self.add_code("println!(\"transition occurred\");");
-
         // call transition callbacks
         if self.config.features.runtime_support {
             self.newline();
@@ -2538,18 +2527,12 @@ impl RustVisitor {
             self.add_code("));");
         }
 
-        self.newline();
-        self.add_code("println!(\"handling enter event\");");
-
         // send enter event
         self.newline();
         self.add_code(&format!(
             "self.{}(enter_event);",
             self.config.code.handle_event_method_name,
         ));
-
-        self.newline();
-        self.add_code("println!(\"enter event handled\");");
 
         self.exit_block();
         self.newline();

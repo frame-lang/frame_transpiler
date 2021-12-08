@@ -70,7 +70,6 @@ impl runtime::State<runtime::EnvironmentPtr> for FooStateContext {
     }
 }
 
-
 struct BarStateContext {
     state_args: Rc<RefCell<BarStateArgs>>,
     state_vars: Rc<RefCell<BarStateVars>>,
@@ -386,6 +385,7 @@ mod tests {
     use super::*;
     use frame_runtime::env::{Empty, Environment};
     use frame_runtime::live::Machine;
+    use frame_runtime::unsync::{Callback, EventPtr, Transition};
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Mutex;
 
@@ -479,7 +479,7 @@ mod tests {
         let tape_mutex = Mutex::new(tape);
         let mut sm = Demo::new();
         sm.event_monitor_mut()
-            .add_event_sent_callback(Box::new(|e| {
+            .add_event_sent_callback(Callback::new(|e: &EventPtr| {
                 tape_mutex.lock().unwrap().push(e.info().name.to_string());
             }));
         sm.inc(2);
@@ -499,7 +499,7 @@ mod tests {
         let tape_mutex = Mutex::new(tape);
         let mut sm = Demo::new();
         sm.event_monitor_mut()
-            .add_event_handled_callback(Box::new(|e| {
+            .add_event_handled_callback(Callback::new(|e: &EventPtr| {
                 tape_mutex.lock().unwrap().push(e.info().name.to_string());
             }));
         sm.inc(2);
@@ -519,7 +519,7 @@ mod tests {
         let tape_mutex = Mutex::new(tape);
         let mut sm = Demo::new();
         sm.event_monitor_mut()
-            .add_event_sent_callback(Box::new(|e| {
+            .add_event_sent_callback(Callback::new(|e: &EventPtr| {
                 for param in e.info().parameters {
                     let name = param.name;
                     let val = lookup_i32(e.arguments().as_ref(), name);
@@ -544,7 +544,7 @@ mod tests {
         let tape_mutex = Mutex::new(tape);
         let mut sm = Demo::new();
         sm.event_monitor_mut()
-            .add_event_handled_callback(Box::new(|e| {
+            .add_event_handled_callback(Callback::new(|e: &EventPtr| {
                 let val = match e.return_value() {
                     None => -1,
                     Some(any) => *any.downcast_ref().unwrap_or(&-100),
@@ -572,22 +572,22 @@ mod tests {
         let tape_mutex = Mutex::new(tape);
         let mut sm = Demo::new();
         sm.event_monitor_mut()
-            .add_transition_callback(Box::new(|e| {
+            .add_transition_callback(Callback::new(|t: &Transition| {
                 tape_mutex
                     .lock()
                     .unwrap()
-                    .push(format!("kind: {:?}", e.info.kind));
+                    .push(format!("kind: {:?}", t.info.kind));
             }));
         sm.event_monitor_mut()
-            .add_transition_callback(Box::new(|e| {
+            .add_transition_callback(Callback::new(|t: &Transition| {
                 tape_mutex
                     .lock()
                     .unwrap()
-                    .push(format!("old: {}", e.old_state.info().name));
+                    .push(format!("old: {}", t.old_state.info().name));
                 tape_mutex
                     .lock()
                     .unwrap()
-                    .push(format!("new: {}", e.new_state.info().name));
+                    .push(format!("new: {}", t.new_state.info().name));
             }));
         sm.next();
         assert_eq!(
@@ -614,8 +614,8 @@ mod tests {
         let tape_mutex = Mutex::new(tape);
         let mut sm = Demo::new();
         sm.event_monitor_mut()
-            .add_transition_callback(Box::new(|e| {
-                tape_mutex.lock().unwrap().push(e.info.id);
+            .add_transition_callback(Callback::new(|t: &Transition| {
+                tape_mutex.lock().unwrap().push(t.info.id);
             }));
         sm.next();
         sm.inc(5);
@@ -629,10 +629,10 @@ mod tests {
         let agree = AtomicBool::new(false);
         let mut sm = Demo::new();
         sm.event_monitor_mut()
-            .add_transition_callback(Box::new(|e| {
+            .add_transition_callback(Callback::new(|t: &Transition| {
                 agree.store(
-                    e.info.source.name == e.old_state.info().name
-                        && e.info.target.name == e.new_state.info().name,
+                    t.info.source.name == t.old_state.info().name
+                        && t.info.target.name == t.new_state.info().name,
                     Ordering::Relaxed,
                 );
             }));
@@ -650,12 +650,12 @@ mod tests {
         let tape_mutex = Mutex::new(tape);
         let mut sm = Demo::new();
         sm.event_monitor_mut()
-            .add_transition_callback(Box::new(|i| {
-                let exit = match i.exit_event.as_ref() {
+            .add_transition_callback(Callback::new(|t: &Transition| {
+                let exit = match t.exit_event.as_ref() {
                     Some(event) => event.arguments(),
                     None => Empty::rc(),
                 };
-                let enter = match i.enter_event.as_ref() {
+                let enter = match t.enter_event.as_ref() {
                     Some(event) => event.arguments(),
                     None => Empty::rc(),
                 };
@@ -680,8 +680,8 @@ mod tests {
 
     #[test]
     fn machines_in_separate_threads() {
-        use std::thread;
         use std::sync::mpsc;
+        use std::thread;
         use std::time::Duration;
 
         let (tx1, rx) = mpsc::channel();
@@ -690,7 +690,7 @@ mod tests {
         let thread1 = thread::spawn(move || {
             let mut sm1 = Demo::new();
             sm1.event_monitor_mut()
-                .add_event_sent_callback(Box::new(|e| {
+                .add_event_sent_callback(Callback::new(|e: &EventPtr| {
                     tx1.send((1, e.info().name.to_string())).unwrap();
                 }));
             sm1.inc(2); // inc
@@ -706,7 +706,7 @@ mod tests {
         let thread2 = thread::spawn(move || {
             let mut sm2 = Demo::new();
             sm2.event_monitor_mut()
-                .add_event_sent_callback(Box::new(|e| {
+                .add_event_sent_callback(Callback::new(|e: &EventPtr| {
                     tx2.send((2, e.info().name.to_string())).unwrap();
                 }));
             sm2.inc(2); // inc

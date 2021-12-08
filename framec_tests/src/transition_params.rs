@@ -1,5 +1,5 @@
-//! Test transition parameters, i.e. arguments passed to the enter/exit
-//! handlers during a transition.
+//! Test transition parameters, i.e. arguments passed to the enter/exit handlers during a
+//! transition.
 
 type Log = Vec<String>;
 include!(concat!(env!("OUT_DIR"), "/", "transition_params.rs"));
@@ -73,7 +73,7 @@ mod tests {
         let out = Mutex::new(String::new());
         let mut sm = TransitParams::new();
         sm.event_monitor_mut()
-            .add_transition_callback(Box::new(|transit| {
+            .add_transition_callback(Callback::new(|transit: &Transition| {
                 let mut entry = String::new();
                 let exit_args = transit.exit_arguments();
                 let enter_args = transit.enter_arguments();

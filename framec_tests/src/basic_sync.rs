@@ -15,13 +15,16 @@ mod tests {
     use super::*;
     use frame_runtime::sync::*;
 
-    fn has_send(_: impl Send) {}
+    fn has_send(_: &impl Send) {}
+    fn has_sync(_: &impl Sync) {}
 
-    /// Test that the state machine implements the `Send` trait.
+    /// Test that the state machine implements the `Send` and `Sync` traits. Will cause a compile
+    /// error if it doesn't.
     #[test]
-    fn implements_send() {
+    fn implements_send_and_sync() {
         let sm = Basic::new();
-        has_send(sm);
+        has_send(&sm);
+        has_sync(&sm);
     }
 
     // The rest of these tests are repeated from basic.rs. They're useful to repeat since the

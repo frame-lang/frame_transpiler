@@ -14,7 +14,7 @@ mod tests {
         let events = Mutex::new(Vec::new());
         let mut sm = EventMonitorSm::new();
         sm.event_monitor_mut()
-            .add_event_sent_callback(Box::new(|e| {
+            .add_event_sent_callback(Callback::new(|e: &EventPtr| {
                 events.lock().unwrap().push(e.clone());
             }));
 
@@ -38,7 +38,7 @@ mod tests {
         let events = Mutex::new(Vec::new());
         let mut sm = EventMonitorSm::new();
         sm.event_monitor_mut()
-            .add_event_handled_callback(Box::new(|e| {
+            .add_event_handled_callback(Callback::new(|e: &EventPtr| {
                 events.lock().unwrap().push(e.clone());
             }));
 
@@ -62,7 +62,7 @@ mod tests {
         let events = Mutex::new(Vec::new());
         let mut sm = EventMonitorSm::new();
         sm.event_monitor_mut()
-            .add_event_sent_callback(Box::new(|e| {
+            .add_event_sent_callback(Callback::new(|e: &EventPtr| {
                 events.lock().unwrap().push(e.info().name);
             }));
 
@@ -95,7 +95,7 @@ mod tests {
         let events = Mutex::new(Vec::new());
         let mut sm = EventMonitorSm::new();
         sm.event_monitor_mut()
-            .add_event_handled_callback(Box::new(|e| {
+            .add_event_handled_callback(Callback::new(|e: &EventPtr| {
                 events.lock().unwrap().push(e.info().name);
             }));
 
@@ -128,7 +128,7 @@ mod tests {
         let transits = Mutex::new(Vec::new());
         let mut sm = EventMonitorSm::new();
         sm.event_monitor_mut()
-            .add_transition_callback(Box::new(|t| {
+            .add_transition_callback(Callback::new(|t: &Transition| {
                 transits.lock().unwrap().push(t.to_string());
             }));
 
@@ -156,15 +156,15 @@ mod tests {
         let handled = Mutex::new(Vec::new());
         let mut sm = EventMonitorSm::new();
         sm.event_monitor_mut()
-            .add_event_sent_callback(Box::new(|e| {
+            .add_event_sent_callback(Callback::new(|e: &EventPtr| {
                 sent.lock().unwrap().push(e.info().name.to_string());
             }));
         sm.event_monitor_mut()
-            .add_event_handled_callback(Box::new(|e| {
+            .add_event_handled_callback(Callback::new(|e: &EventPtr| {
                 handled.lock().unwrap().push(e.info().name.to_string());
             }));
         sm.event_monitor_mut()
-            .add_transition_callback(Box::new(|t| {
+            .add_transition_callback(Callback::new(|t: &Transition| {
                 sent.lock().unwrap().push(t.to_string());
                 handled.lock().unwrap().push(t.to_string());
             }));
@@ -222,7 +222,7 @@ mod tests {
         let events_mutex = Mutex::new(Vec::new());
         let mut sm = EventMonitorSm::new();
         sm.event_monitor_mut()
-            .add_event_sent_callback(Box::new(|e| {
+            .add_event_sent_callback(Callback::new(|e: &EventPtr| {
                 if e.info().name == "mult" {
                     assert!(!e.arguments().is_empty());
                 } else if e.info().name == "change" {
@@ -270,7 +270,7 @@ mod tests {
         let events_mutex = Mutex::new(Vec::new());
         let mut sm = EventMonitorSm::new();
         sm.event_monitor_mut()
-            .add_event_sent_callback(Box::new(|e| {
+            .add_event_sent_callback(Callback::new(|e: &EventPtr| {
                 assert!(e.return_value().is_none());
                 events_mutex.lock().unwrap().push(e.clone());
             }));
@@ -303,7 +303,7 @@ mod tests {
         let events_mutex = Mutex::new(Vec::new());
         let mut sm = EventMonitorSm::new();
         sm.event_monitor_mut()
-            .add_event_handled_callback(Box::new(|e| {
+            .add_event_handled_callback(Callback::new(|e: &EventPtr| {
                 if e.return_value().is_some() {
                     events_mutex.lock().unwrap().push(e.clone());
                 }
