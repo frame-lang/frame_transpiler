@@ -64,8 +64,8 @@ pub mod event;
 pub mod history;
 pub mod info;
 pub mod live;
+pub mod smcat;
 pub mod transition;
-// pub mod smcat;
 
 /// The synchronized/thread-safe flavor of the runtime interface. Include this module if you
 /// compiled your Frame spec with `thread_safe = true`. Including this module will include the
@@ -76,6 +76,7 @@ pub mod sync {
     pub use crate::history::*;
     pub use crate::info::*;
     pub use crate::live::sync::*;
+    pub use crate::smcat::sync::*;
     pub use crate::transition::sync::*;
 }
 
@@ -88,5 +89,6 @@ pub mod unsync {
     pub use crate::history::*;
     pub use crate::info::*;
     pub use crate::live::unsync::*;
+    pub use crate::smcat::unsync::*;
     pub use crate::transition::unsync::*;
 }

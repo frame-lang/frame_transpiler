@@ -521,57 +521,80 @@ mod tests {
         assert!(!outgoing[0].is_change_state());
     }
 
-    // use indoc::indoc;
-    // const SMCAT_STATIC: &str = indoc! {r#"
-    //     initial,
-    //     Init,
-    //     Foo,
-    //     Bar;
-    //     initial => Init;
-    //     Init -> Foo : "  Init:>  ";
-    //     Foo -> Bar : "  next  "; Bar -> Foo [color="grey"] : "  next  ";
-    //     "#};
-    // const SMCAT_LIVE_1: &str = indoc! {r#"
-    //     initial,
-    //     Init,
-    //     Foo [active color="red"],
-    //     Bar;
-    //     initial => Init;
-    //     Init -> Foo [color="red" width=2] : "  Init:>  ";
-    //     Foo -> Bar : "  next  ";
-    //     Bar -> Foo [color="grey"] : "  next  ";
-    //     "#};
-    // const SMCAT_LIVE_2: &str = indoc! {r#"
-    //     initial,
-    //     Init,
-    //     Foo,
-    //     Bar [active color="red"];
-    //     initial => Init;
-    //     Init -> Foo : "  Init:>  ";
-    //     Foo -> Bar [color="red" width=2] : "  next  ";
-    //     Bar -> Foo [color="grey"] : "  next  ";
-    //     "#};
-    // const SMCAT_LIVE_3: &str = indoc! {r#"
-    //     initial,
-    //     Init,
-    //     Foo [active color="red"],
-    //     Bar;
-    //     initial => Init;
-    //     Init -> Foo : "  Init:>  ";
-    //     Foo -> Bar : "  next  ";
-    //     Bar -> Foo [color="pink" width=2] : "  next  ";
-    //     "#};
-    //
-    // #[test]
-    // fn smcat_renderer() {
-    //     let smcat = smcat::Renderer::new(Box::new(smcat::SimpleStyle));
-    //     assert_eq!(smcat.render_static(info::machine()), SMCAT_STATIC);
-    //
-    //     let mut sm = unsync::Demo::new();
-    //     assert_eq!(smcat.render_live(&sm), SMCAT_LIVE_1);
-    //     sm.next();
-    //     assert_eq!(smcat.render_live(&sm), SMCAT_LIVE_2);
-    //     sm.next();
-    //     assert_eq!(smcat.render_live(&sm), SMCAT_LIVE_3);
-    // }
+    use indoc::indoc;
+    const SMCAT_STATIC: &str = indoc! {r#"
+        initial,
+        Init,
+        Foo,
+        Bar;
+        initial => Init;
+        Init -> Foo : "  Init:>  ";
+        Foo -> Bar : "  next  ";
+        Bar -> Foo [color="grey"] : "  next  ";
+        "#};
+    const SMCAT_LIVE_1: &str = indoc! {r#"
+        initial,
+        Init,
+        Foo [active color="red"],
+        Bar;
+        initial => Init;
+        Init -> Foo [color="red" width=2] : "  Init:>  ";
+        Foo -> Bar : "  next  ";
+        Bar -> Foo [color="grey"] : "  next  ";
+        "#};
+    const SMCAT_LIVE_2: &str = indoc! {r#"
+        initial,
+        Init,
+        Foo,
+        Bar [active color="red"];
+        initial => Init;
+        Init -> Foo : "  Init:>  ";
+        Foo -> Bar [color="red" width=2] : "  next  ";
+        Bar -> Foo [color="grey"] : "  next  ";
+        "#};
+    const SMCAT_LIVE_3: &str = indoc! {r#"
+        initial,
+        Init,
+        Foo [active color="red"],
+        Bar;
+        initial => Init;
+        Init -> Foo : "  Init:>  ";
+        Foo -> Bar : "  next  ";
+        Bar -> Foo [color="pink" width=2] : "  next  ";
+        "#};
+
+    #[test]
+    fn smcat_render_static() {
+        use frame_runtime::smcat::*;
+        let smcat = Renderer::new(Box::new(SimpleStyle));
+        assert_eq!(smcat.render_static(super::info::machine()), SMCAT_STATIC);
+    }
+
+    #[test]
+    fn smcat_render_live_sync() {
+        use crate::demo::sync::*;
+        use frame_runtime::smcat::sync::*;
+        let smcat = Renderer::new(Box::new(SimpleStyle));
+
+        let mut sm = Demo::new();
+        assert_eq!(smcat.render_live_sync(&sm), SMCAT_LIVE_1);
+        sm.next();
+        assert_eq!(smcat.render_live_sync(&sm), SMCAT_LIVE_2);
+        sm.next();
+        assert_eq!(smcat.render_live_sync(&sm), SMCAT_LIVE_3);
+    }
+
+    #[test]
+    fn smcat_render_live_unsync() {
+        use crate::demo::unsync::*;
+        use frame_runtime::smcat::unsync::*;
+        let smcat = Renderer::new(Box::new(SimpleStyle));
+
+        let mut sm = Demo::new();
+        assert_eq!(smcat.render_live_unsync(&sm), SMCAT_LIVE_1);
+        sm.next();
+        assert_eq!(smcat.render_live_unsync(&sm), SMCAT_LIVE_2);
+        sm.next();
+        assert_eq!(smcat.render_live_unsync(&sm), SMCAT_LIVE_3);
+    }
 }
