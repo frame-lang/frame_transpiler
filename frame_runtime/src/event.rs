@@ -1,3 +1,5 @@
+//! This module defines events, callbacks, and the runtime system's event monitor.
+
 use crate::history::History;
 use crate::info::MethodInfo;
 use std::any::Any;

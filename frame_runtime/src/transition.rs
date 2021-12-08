@@ -1,3 +1,5 @@
+//! This module defines a type that captures state transitions.
+
 use crate::info::TransitionInfo;
 
 /// Captures the occurrence of a transition between two states.
@@ -53,6 +55,7 @@ impl<StatePtr, EventPtr> Transition<StatePtr, EventPtr> {
     }
 }
 
+/// Definitions specific to the synchronized/thread-safe interface.
 pub mod sync {
     use crate::env::sync::EnvironmentPtr;
     use crate::env::Empty;
@@ -64,7 +67,8 @@ pub mod sync {
     pub type Transition = super::Transition<StatePtr, EventPtr>;
 
     impl Transition {
-        /// Get the arguments from the exit event or an empty environment if there is no exit event.
+        /// Get the arguments from the exit event, or an empty environment if there is no exit
+        /// event.
         pub fn exit_arguments(&self) -> EnvironmentPtr {
             match &self.exit_event {
                 Some(event) => event.arguments(),
@@ -72,7 +76,8 @@ pub mod sync {
             }
         }
 
-        /// Get the arguments from the enter event or an empty environment if there is no enter event.
+        /// Get the arguments from the enter event or an empty environment if there is no enter
+        /// event.
         pub fn enter_arguments(&self) -> EnvironmentPtr {
             match &self.enter_event {
                 Some(event) => event.arguments(),
@@ -94,6 +99,7 @@ pub mod sync {
     }
 }
 
+/// Definitions specific to the unsynchronized interface.
 pub mod unsync {
     use crate::env::unsync::EnvironmentPtr;
     use crate::env::Empty;
@@ -105,7 +111,8 @@ pub mod unsync {
     pub type Transition = super::Transition<StatePtr, EventPtr>;
 
     impl Transition {
-        /// Get the arguments from the exit event or an empty environment if there is no exit event.
+        /// Get the arguments from the exit event, or an empty environment if there is no exit
+        /// event.
         pub fn exit_arguments(&self) -> EnvironmentPtr {
             match &self.exit_event {
                 Some(event) => event.arguments(),
@@ -113,7 +120,8 @@ pub mod unsync {
             }
         }
 
-        /// Get the arguments from the enter event or an empty environment if there is no enter event.
+        /// Get the arguments from the enter event or an empty environment if there is no enter
+        /// event.
         pub fn enter_arguments(&self) -> EnvironmentPtr {
             match &self.enter_event {
                 Some(event) => event.arguments(),

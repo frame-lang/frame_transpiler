@@ -80,16 +80,22 @@ impl<T: Environment + Clone> Environment for Mutex<T> {
     }
 }
 
-pub mod unsync {
-    pub use super::*;
-    use std::rc::Rc;
-    pub type EnvironmentPtr = Rc<dyn super::Environment>;
-}
-
+/// Definitions specific to the synchronized/thread-safe interface.
 pub mod sync {
     pub use super::*;
     use std::sync::Arc;
+
+    /// A reference-counted pointer to an environment.
     pub type EnvironmentPtr = Arc<dyn super::Environment>;
+}
+
+/// Definitions specific to the unsynchronized interface.
+pub mod unsync {
+    pub use super::*;
+    use std::rc::Rc;
+
+    /// A reference-counted pointer to an environment.
+    pub type EnvironmentPtr = Rc<dyn super::Environment>;
 }
 
 #[allow(clippy::approx_constant)]

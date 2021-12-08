@@ -1,3 +1,6 @@
+//! This module defines traits that provide access to a running state machine and snapshots of
+//! active states within a running state machine.
+
 use crate::env::Environment;
 use crate::info::{MachineInfo, StateInfo};
 
@@ -12,7 +15,7 @@ pub trait Machine<StatePtr, EventMonitor> {
     fn state(&self) -> StatePtr;
 
     /// Environment containing the current values of the domain variables associated with this
-    /// machine. The variable names can be obtained from `variable_declarations`.
+    /// machine. The variable names and types can be obtained from `self.info().variables`.
     fn variables(&self) -> &dyn Environment;
 
     /// Get an immutable reference to this machine's event monitor, suitable for querying the
@@ -42,18 +45,22 @@ pub trait State<EnvironmentPtr> {
     fn variables(&self) -> EnvironmentPtr;
 }
 
+/// Definitions specific to the synchronized/thread-safe interface.
 pub mod sync {
     pub use super::*;
     use crate::env::sync::EnvironmentPtr;
     use std::sync::Arc;
 
+    /// A reference-counted pointer to an active state.
     pub type StatePtr = Arc<dyn super::State<EnvironmentPtr> + Send + Sync>;
 }
 
+/// Definitions specific to the unsynchronized interface.
 pub mod unsync {
     pub use super::*;
     use crate::env::unsync::EnvironmentPtr;
     use std::rc::Rc;
 
+    /// A reference-counted pointer to an active state.
     pub type StatePtr = Rc<dyn super::State<EnvironmentPtr>>;
 }
