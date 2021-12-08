@@ -115,7 +115,7 @@ dependencies = [
 
 [[package]]
 name = "frame_runtime"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "indoc",
  "once_cell",
@@ -123,7 +123,7 @@ dependencies = [
 
 [[package]]
 name = "framec"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "convert_case",
  "downcast-rs",
@@ -137,7 +137,7 @@ dependencies = [
 
 [[package]]
 name = "framec_tests"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "anyhow",
  "frame_runtime",
