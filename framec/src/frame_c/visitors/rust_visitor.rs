@@ -1216,6 +1216,7 @@ impl RustVisitor {
             self.exit_block();
             self.exit_block();
 
+            self.newline();
             self.add_code(&format!(
                 "fn arguments(&self) -> {}::EnvironmentPtr",
                 self.config.code.runtime_module_use_as_name,
@@ -1224,6 +1225,7 @@ impl RustVisitor {
             self.add_code(&self.runtime_empty_env());
             self.exit_block();
 
+            self.newline();
             self.add_code(&format!(
                 "fn variables(&self) -> {}::EnvironmentPtr",
                 self.config.code.runtime_module_use_as_name,

@@ -52,7 +52,7 @@ pub mod sync {
     use std::sync::Arc;
 
     /// A reference-counted pointer to an active state.
-    pub type StatePtr = Arc<dyn super::State<EnvironmentPtr> + Send + Sync>;
+    pub type StatePtr = Arc<dyn State<EnvironmentPtr> + Send + Sync>;
 }
 
 /// Definitions specific to the unsynchronized interface.
@@ -62,5 +62,5 @@ pub mod unsync {
     use std::rc::Rc;
 
     /// A reference-counted pointer to an active state.
-    pub type StatePtr = Rc<dyn super::State<EnvironmentPtr>>;
+    pub type StatePtr = Rc<dyn State<EnvironmentPtr>>;
 }
