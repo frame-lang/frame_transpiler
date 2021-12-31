@@ -254,7 +254,7 @@ mod tests {
         let out = Mutex::new(String::new());
         let mut sm = StateContextStack::new();
         sm.event_monitor_mut()
-            .add_transition_callback(Callback::new(|t: &Transition| {
+            .add_transition_callback(Callback::new("test", |t: &Transition| {
                 *out.lock().unwrap() = t.to_string();
             }));
         sm.to_c();

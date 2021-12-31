@@ -340,7 +340,7 @@ mod tests {
         let tape_mutex = Mutex::new(tape);
         let mut sm = sync::Simple::new();
         sm.event_monitor_mut()
-            .add_transition_callback(srt::Callback::new(|t: &srt::Transition| {
+            .add_transition_callback(srt::Callback::new("test", |t: &srt::Transition| {
                 tape_mutex.lock().unwrap().push(format!(
                     "{}{}{}",
                     t.old_state.info().name,
@@ -363,7 +363,7 @@ mod tests {
         let tape_mutex = Mutex::new(tape);
         let mut sm = unsync::Simple::new();
         sm.event_monitor_mut()
-            .add_transition_callback(urt::Callback::new(|t: &urt::Transition| {
+            .add_transition_callback(urt::Callback::new("test", |t: &urt::Transition| {
                 tape_mutex.lock().unwrap().push(format!(
                     "{}{}{}",
                     t.old_state.info().name,
@@ -386,7 +386,7 @@ mod tests {
         let tape_mutex = Mutex::new(tape);
         let mut sm = unsync::Simple::new();
         sm.event_monitor_mut()
-            .add_transition_callback(urt::Callback::new(|t: &urt::Transition| {
+            .add_transition_callback(urt::Callback::new("test", |t: &urt::Transition| {
                 tape_mutex.lock().unwrap().push(t.info.id);
             }));
         sm.next();
@@ -400,7 +400,7 @@ mod tests {
         let agree = AtomicBool::new(false);
         let mut sm = sync::Simple::new();
         sm.event_monitor_mut()
-            .add_transition_callback(srt::Callback::new(|t: &srt::Transition| {
+            .add_transition_callback(srt::Callback::new("test", |t: &srt::Transition| {
                 agree.store(
                     t.info.source.name == t.old_state.info().name
                         && t.info.target.name == t.new_state.info().name,

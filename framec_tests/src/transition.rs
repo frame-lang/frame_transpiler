@@ -104,7 +104,7 @@ mod tests {
     fn consistent_transition_event() {
         let mut sm = TransitionSm::new();
         sm.event_monitor_mut()
-            .add_transition_callback(Callback::new(|t: &Transition| {
+            .add_transition_callback(Callback::new("test", |t: &Transition| {
                 let source_name = t.info.source.name;
                 let target_name = t.info.target.name;
                 let old_name = t.old_state.info().name;
@@ -129,7 +129,7 @@ mod tests {
         let transits = Mutex::new(Vec::new());
         let mut sm = TransitionSm::new();
         sm.event_monitor_mut()
-            .add_transition_callback(Callback::new(|t: &Transition| {
+            .add_transition_callback(Callback::new("test", |t: &Transition| {
                 transits.lock().unwrap().push(t.to_string());
             }));
         sm.transit();
@@ -145,7 +145,7 @@ mod tests {
         let transits = Mutex::new(Vec::new());
         let mut sm = TransitionSm::new();
         sm.event_monitor_mut()
-            .add_transition_callback(Callback::new(|t: &Transition| {
+            .add_transition_callback(Callback::new("test", |t: &Transition| {
                 transits.lock().unwrap().push(t.to_string());
             }));
         sm.change();
@@ -167,7 +167,7 @@ mod tests {
         let ids = Mutex::new(Vec::new());
         let mut sm = TransitionSm::new();
         sm.event_monitor_mut()
-            .add_transition_callback(Callback::new(|t: &Transition| {
+            .add_transition_callback(Callback::new("test", |t: &Transition| {
                 ids.lock().unwrap().push(t.info.id);
             }));
         sm.transit();

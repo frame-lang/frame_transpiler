@@ -480,7 +480,7 @@ mod tests {
         let tape_mutex = Mutex::new(tape);
         let mut sm = Demo::new();
         sm.event_monitor_mut()
-            .add_event_sent_callback(Callback::new(|e: &EventPtr| {
+            .add_event_sent_callback(Callback::new("test", |e: &EventPtr| {
                 tape_mutex.lock().unwrap().push(e.info().name.to_string());
             }));
         sm.inc(2);
@@ -500,7 +500,7 @@ mod tests {
         let tape_mutex = Mutex::new(tape);
         let mut sm = Demo::new();
         sm.event_monitor_mut()
-            .add_event_handled_callback(Callback::new(|e: &EventPtr| {
+            .add_event_handled_callback(Callback::new("test", |e: &EventPtr| {
                 tape_mutex.lock().unwrap().push(e.info().name.to_string());
             }));
         sm.inc(2);
@@ -520,7 +520,7 @@ mod tests {
         let tape_mutex = Mutex::new(tape);
         let mut sm = Demo::new();
         sm.event_monitor_mut()
-            .add_event_sent_callback(Callback::new(|e: &EventPtr| {
+            .add_event_sent_callback(Callback::new("test", |e: &EventPtr| {
                 for param in e.info().parameters {
                     let name = param.name;
                     let val = lookup_i32(e.arguments().as_ref(), name);
@@ -545,7 +545,7 @@ mod tests {
         let tape_mutex = Mutex::new(tape);
         let mut sm = Demo::new();
         sm.event_monitor_mut()
-            .add_event_handled_callback(Callback::new(|e: &EventPtr| {
+            .add_event_handled_callback(Callback::new("test", |e: &EventPtr| {
                 let val = match e.return_value() {
                     None => -1,
                     Some(any) => *any.downcast_ref().unwrap_or(&-100),
@@ -573,14 +573,14 @@ mod tests {
         let tape_mutex = Mutex::new(tape);
         let mut sm = Demo::new();
         sm.event_monitor_mut()
-            .add_transition_callback(Callback::new(|t: &Transition| {
+            .add_transition_callback(Callback::new("kind", |t: &Transition| {
                 tape_mutex
                     .lock()
                     .unwrap()
                     .push(format!("kind: {:?}", t.info.kind));
             }));
         sm.event_monitor_mut()
-            .add_transition_callback(Callback::new(|t: &Transition| {
+            .add_transition_callback(Callback::new("old_new", |t: &Transition| {
                 tape_mutex
                     .lock()
                     .unwrap()
@@ -615,7 +615,7 @@ mod tests {
         let tape_mutex = Mutex::new(tape);
         let mut sm = Demo::new();
         sm.event_monitor_mut()
-            .add_transition_callback(Callback::new(|t: &Transition| {
+            .add_transition_callback(Callback::new("test", |t: &Transition| {
                 tape_mutex.lock().unwrap().push(t.info.id);
             }));
         sm.next();
@@ -630,7 +630,7 @@ mod tests {
         let agree = AtomicBool::new(false);
         let mut sm = Demo::new();
         sm.event_monitor_mut()
-            .add_transition_callback(Callback::new(|t: &Transition| {
+            .add_transition_callback(Callback::new("test", |t: &Transition| {
                 agree.store(
                     t.info.source.name == t.old_state.info().name
                         && t.info.target.name == t.new_state.info().name,
@@ -651,7 +651,7 @@ mod tests {
         let tape_mutex = Mutex::new(tape);
         let mut sm = Demo::new();
         sm.event_monitor_mut()
-            .add_transition_callback(Callback::new(|t: &Transition| {
+            .add_transition_callback(Callback::new("test", |t: &Transition| {
                 let exit = match t.exit_event.as_ref() {
                     Some(event) => event.arguments(),
                     None => Empty::arc(),
@@ -691,7 +691,7 @@ mod tests {
         let thread1 = thread::spawn(move || {
             let mut sm1 = Demo::new();
             sm1.event_monitor_mut()
-                .add_event_sent_callback(Callback::new(move |e: &EventPtr| {
+                .add_event_sent_callback(Callback::new("test1", move |e: &EventPtr| {
                     tx1.send((1, e.info().name.to_string())).unwrap();
                 }));
             sm1.inc(2); // inc
@@ -707,7 +707,7 @@ mod tests {
         let thread2 = thread::spawn(move || {
             let mut sm2 = Demo::new();
             sm2.event_monitor_mut()
-                .add_event_sent_callback(Callback::new(move |e: &EventPtr| {
+                .add_event_sent_callback(Callback::new("test2", move |e: &EventPtr| {
                     tx2.send((2, e.info().name.to_string())).unwrap();
                 }));
             sm2.inc(2); // inc

@@ -23,6 +23,9 @@ pub trait Event<EnvironmentPtr> {
 pub trait IsCallback<'a, Arg> {
     /// Apply the wrapped function.
     fn apply(&mut self, arg: &Arg);
+
+    /// A name/ID associated with this callback to enable removing it later.
+    fn name(&self) -> &str;
 }
 
 /// An event monitor maintains a history of previous Frame events and transitions and enables
@@ -93,6 +96,21 @@ impl<
     /// anonymously.
     pub fn add_transition_callback(&mut self, callback: TransitionFn) {
         self.transition_callbacks.push(callback);
+    }
+
+    /// Remove all event-sent callbacks with the given name.
+    pub fn remove_event_sent_callback(&mut self, name: &str) {
+        self.event_sent_callbacks.retain(|c| c.name() != name);
+    }
+
+    /// Remove all event-handled callbacks with the given name.
+    pub fn remove_event_handled_callback(&mut self, name: &str) {
+        self.event_handled_callbacks.retain(|c| c.name() != name);
+    }
+
+    /// Remove all transition callbacks with the given name.
+    pub fn remove_transition_callback(&mut self, name: &str) {
+        self.transition_callbacks.retain(|c| c.name() != name);
     }
 
     /// Track that a Frame event was sent, calling any relevant callbacks and saving it to the
@@ -174,13 +192,15 @@ pub mod sync {
     /// and `Sync`.
     pub struct Callback<'a, Arg> {
         closure: Arc<Mutex<dyn FnMut(&Arg) + Send + 'a>>,
+        name: String,
     }
 
     impl<'a, Arg> Callback<'a, Arg> {
         /// Create a new callback from the given closure.
-        pub fn new(f: impl FnMut(&Arg) + Send + 'a) -> Self {
+        pub fn new(name: &str, f: impl FnMut(&Arg) + Send + 'a) -> Self {
             Callback {
                 closure: Arc::new(Mutex::new(f)),
+                name: name.to_string(),
             }
         }
     }
@@ -188,6 +208,9 @@ pub mod sync {
     impl<'a, Arg> IsCallback<'a, Arg> for Callback<'a, Arg> {
         fn apply(&mut self, arg: &Arg) {
             (*self.closure.lock().unwrap())(arg)
+        }
+        fn name(&self) -> &str {
+            &self.name
         }
     }
 
@@ -216,13 +239,15 @@ pub mod unsync {
     /// interface.
     pub struct Callback<'a, Arg> {
         closure: Box<dyn FnMut(&Arg) + 'a>,
+        name: String,
     }
 
     impl<'a, Arg> Callback<'a, Arg> {
         /// Create a new callback from the given closure.
-        pub fn new(f: impl FnMut(&Arg) + 'a) -> Self {
+        pub fn new(name: &str, f: impl FnMut(&Arg) + 'a) -> Self {
             Callback {
                 closure: Box::new(f),
+                name: name.to_string(),
             }
         }
     }
@@ -230,6 +255,9 @@ pub mod unsync {
     impl<'a, Arg> IsCallback<'a, Arg> for Callback<'a, Arg> {
         fn apply(&mut self, arg: &Arg) {
             (*self.closure)(arg)
+        }
+        fn name(&self) -> &str {
+            &self.name
         }
     }
 
@@ -400,7 +428,7 @@ mod tests {
         let tape: Vec<String> = Vec::new();
         let tape_mutex = Mutex::new(tape);
         let mut em = EventMonitor::default();
-        em.add_event_sent_callback(Callback::new(|e: &EventPtr| {
+        em.add_event_sent_callback(Callback::new("test", |e: &EventPtr| {
             tape_mutex.lock().unwrap().push(e.info().name.to_string())
         }));
         em.event_sent(Rc::new(FrameMessage::Next));
@@ -421,7 +449,7 @@ mod tests {
         let tape: Vec<String> = Vec::new();
         let tape_mutex = Mutex::new(tape);
         let mut em = EventMonitor::default();
-        em.add_event_handled_callback(Callback::new(|e: &EventPtr| {
+        em.add_event_handled_callback(Callback::new("test", |e: &EventPtr| {
             tape_mutex.lock().unwrap().push(e.info().name.to_string())
         }));
         em.event_handled(Rc::new(FrameMessage::Exit(TestState::B)));
@@ -441,19 +469,19 @@ mod tests {
         let tape: Vec<String> = Vec::new();
         let tape_mutex = Mutex::new(tape);
         let mut em = EventMonitor::default();
-        em.add_transition_callback(Callback::new(|t: &Transition| {
+        em.add_transition_callback(Callback::new("old", |t: &Transition| {
             tape_mutex
                 .lock()
                 .unwrap()
                 .push(format!("old: {}", t.old_state.info().name))
         }));
-        em.add_transition_callback(Callback::new(|t: &Transition| {
+        em.add_transition_callback(Callback::new("new", |t: &Transition| {
             tape_mutex
                 .lock()
                 .unwrap()
                 .push(format!("new: {}", t.new_state.info().name))
         }));
-        em.add_transition_callback(Callback::new(|t: &Transition| {
+        em.add_transition_callback(Callback::new("kind", |t: &Transition| {
             tape_mutex
                 .lock()
                 .unwrap()
@@ -481,6 +509,87 @@ mod tests {
         assert_eq!(
             *tape_mutex.lock().unwrap(),
             vec!["old: B", "new: A", "kind: ChangeState"]
+        );
+    }
+
+    #[test]
+    fn remove_transition_callbacks() {
+        let tape: Vec<String> = Vec::new();
+        let tape_mutex = Mutex::new(tape);
+        let mut em = EventMonitor::default();
+        em.add_transition_callback(Callback::new("old", |t: &Transition| {
+            tape_mutex
+                .lock()
+                .unwrap()
+                .push(format!("old: {}", t.old_state.info().name))
+        }));
+        em.add_transition_callback(Callback::new("new", |t: &Transition| {
+            tape_mutex
+                .lock()
+                .unwrap()
+                .push(format!("new: {}", t.new_state.info().name))
+        }));
+        em.add_transition_callback(Callback::new("kind", |t: &Transition| {
+            tape_mutex
+                .lock()
+                .unwrap()
+                .push(format!("kind: {:?}", t.info.kind))
+        }));
+
+        let a_rc = Rc::new(TestState::A);
+        let b_rc = Rc::new(TestState::B);
+        em.transition_occurred(Transition::new_change_state(
+            info::machine().transitions[0],
+            a_rc.clone(),
+            b_rc.clone(),
+        ));
+        assert_eq!(
+            *tape_mutex.lock().unwrap(),
+            vec!["old: A", "new: B", "kind: Transition"]
+        );
+        tape_mutex.lock().unwrap().clear();
+
+        em.remove_transition_callback("kind");
+        em.transition_occurred(Transition::new_change_state(
+            info::machine().transitions[0],
+            a_rc.clone(),
+            b_rc.clone(),
+        ));
+        assert_eq!(*tape_mutex.lock().unwrap(), vec!["old: A", "new: B"]);
+        tape_mutex.lock().unwrap().clear();
+
+        em.add_transition_callback(Callback::new("old", |t: &Transition| {
+            tape_mutex
+                .lock()
+                .unwrap()
+                .push(format!("old: {}", t.old_state.info().name))
+        }));
+        em.add_transition_callback(Callback::new("kind", |t: &Transition| {
+            tape_mutex
+                .lock()
+                .unwrap()
+                .push(format!("kind: {:?}", t.info.kind))
+        }));
+        em.transition_occurred(Transition::new_change_state(
+            info::machine().transitions[0],
+            a_rc.clone(),
+            b_rc.clone(),
+        ));
+        assert_eq!(
+            *tape_mutex.lock().unwrap(),
+            vec!["old: A", "new: B", "old: A", "kind: Transition"]
+        );
+        tape_mutex.lock().unwrap().clear();
+
+        em.remove_transition_callback("old");
+        em.transition_occurred(Transition::new_change_state(
+            info::machine().transitions[0],
+            a_rc,
+            b_rc,
+        ));
+        assert_eq!(
+            *tape_mutex.lock().unwrap(),
+            vec!["new: B", "kind: Transition"]
         );
     }
 

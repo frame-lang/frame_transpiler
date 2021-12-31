@@ -73,7 +73,7 @@ mod tests {
         let out = Mutex::new(String::new());
         let mut sm = TransitParams::new();
         sm.event_monitor_mut()
-            .add_transition_callback(Callback::new(|transit: &Transition| {
+            .add_transition_callback(Callback::new("test", |transit: &Transition| {
                 let mut entry = String::new();
                 let exit_args = transit.exit_arguments();
                 let enter_args = transit.enter_arguments();
