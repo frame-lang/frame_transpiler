@@ -49,7 +49,11 @@ pub trait State<EnvironmentPtr> {
 pub mod sync {
     pub use super::*;
     use crate::env::sync::EnvironmentPtr;
+    use crate::event::sync::EventMonitor;
     use std::sync::Arc;
+
+    /// A reference-counted pointer to a machine.
+    pub type MachinePtr<'a> = Arc<dyn Machine<StatePtr, EventMonitor<'a>>>;
 
     /// A reference-counted pointer to an active state.
     pub type StatePtr = Arc<dyn State<EnvironmentPtr> + Send + Sync>;
@@ -59,7 +63,11 @@ pub mod sync {
 pub mod unsync {
     pub use super::*;
     use crate::env::unsync::EnvironmentPtr;
+    use crate::event::unsync::EventMonitor;
     use std::rc::Rc;
+
+    /// A reference-counted pointer to a machine.
+    pub type MachinePtr<'a> = Rc<dyn Machine<StatePtr, EventMonitor<'a>>>;
 
     /// A reference-counted pointer to an active state.
     pub type StatePtr = Rc<dyn State<EnvironmentPtr>>;
