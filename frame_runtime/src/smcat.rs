@@ -16,7 +16,7 @@ use std::fmt;
 ///  * <https://github.com/sverweij/state-machine-cat/blob/develop/README.md#colors-and-line-width>
 ///  * <https://github.com/sverweij/state-machine-cat/blob/develop/README.md#state-display-names>
 ///  * <https://github.com/sverweij/state-machine-cat/blob/develop/README.md#overriding-the-type-of-a-state>
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct NodeStyle {
     pub active: bool,
     pub class: Option<String>,
@@ -31,35 +31,12 @@ pub struct NodeStyle {
 ///  * <https://github.com/sverweij/state-machine-cat/blob/develop/README.md#classes>
 ///  * <https://github.com/sverweij/state-machine-cat/blob/develop/README.md#colors-and-line-width>
 ///  * <https://github.com/sverweij/state-machine-cat/blob/develop/README.md#internal-and-external-transitions>
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct EdgeStyle {
     pub class: Option<String>,
     pub color: Option<String>,
     pub etype: Option<String>,
     pub width: Option<f32>,
-}
-
-impl Default for NodeStyle {
-    fn default() -> Self {
-        NodeStyle {
-            active: false,
-            class: None,
-            color: None,
-            label: None,
-            ntype: None,
-        }
-    }
-}
-
-impl Default for EdgeStyle {
-    fn default() -> Self {
-        EdgeStyle {
-            class: None,
-            color: None,
-            etype: None,
-            width: None,
-        }
-    }
 }
 
 impl fmt::Display for NodeStyle {

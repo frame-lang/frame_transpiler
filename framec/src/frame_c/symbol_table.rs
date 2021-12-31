@@ -1146,10 +1146,7 @@ impl Arcanum {
         }
         let system_symbol_rcref = self.system_symbol_opt.as_ref().unwrap();
         let system_symbol = system_symbol_rcref.borrow_mut();
-        system_symbol
-            .events
-            .get(&cannonical_msg)
-            .map(|x| Rc::clone(x))
+        system_symbol.events.get(&cannonical_msg).map(Rc::clone)
     }
 
     // pub fn get_event_ret_opt(&mut self, msg:&str, state_name_opt:&Option<String>) -> Option<TypeNode> {

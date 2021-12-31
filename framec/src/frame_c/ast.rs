@@ -1512,6 +1512,7 @@ impl NodeElement for LiteralExprNode {
 
 #[derive(Clone)]
 pub struct TypeNode {
+    #[allow(dead_code)]
     is_superstring: bool,
     is_reference: bool,
     type_str: String,

@@ -9,7 +9,7 @@ use std::fs;
 use std::path::PathBuf;
 
 /// The root struct of a frame configuration.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FrameConfig {
     pub codegen: CodeGenConfig,
 }
@@ -48,7 +48,7 @@ impl FrameConfig {
 }
 
 /// Configuration options related to code generation.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CodeGenConfig {
     pub common: CommonConfig,
     pub rust: RustConfig,
@@ -56,22 +56,22 @@ pub struct CodeGenConfig {
 }
 
 /// Code generation options shared among all backends.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CommonConfig {
     pub features: CommonFeatures,
     pub code: CommonCode,
 }
 
 /// Code generation features shared among all backends.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CommonFeatures {}
 
 /// Naming options for generated code shared among all backends.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CommonCode {}
 
 /// Code generation options specific to the Rust backend.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RustConfig {
     pub features: RustFeatures,
     pub code: RustCode,
@@ -222,14 +222,14 @@ impl RustRuntime {
 }
 
 /// Code generation options specific to the Smcat backend.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SmcatConfig {
     pub features: SmcatFeatures,
     pub code: SmcatCode,
 }
 
 /// Code generation features specific to the Smcat backend.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SmcatFeatures {}
 
 /// Style options for generated code specific to the Smcat backend.
@@ -365,55 +365,6 @@ impl Provider for SystemNode {
 
 // Defaults
 
-impl Default for FrameConfig {
-    fn default() -> Self {
-        FrameConfig {
-            codegen: CodeGenConfig::default(),
-        }
-    }
-}
-
-impl Default for CodeGenConfig {
-    fn default() -> Self {
-        CodeGenConfig {
-            common: CommonConfig::default(),
-            rust: RustConfig::default(),
-            smcat: SmcatConfig::default(),
-        }
-    }
-}
-
-impl Default for CommonConfig {
-    fn default() -> Self {
-        CommonConfig {
-            features: CommonFeatures::default(),
-            code: CommonCode::default(),
-        }
-    }
-}
-
-impl Default for CommonFeatures {
-    fn default() -> Self {
-        CommonFeatures {}
-    }
-}
-
-impl Default for CommonCode {
-    fn default() -> Self {
-        CommonCode {}
-    }
-}
-
-impl Default for RustConfig {
-    fn default() -> Self {
-        RustConfig {
-            features: RustFeatures::default(),
-            code: RustCode::default(),
-            runtime: RustRuntime::default(),
-        }
-    }
-}
-
 impl Default for RustFeatures {
     fn default() -> Self {
         RustFeatures {
@@ -501,21 +452,6 @@ impl Default for RustRuntime {
             event_history_capacity: 0,
             transition_history_capacity: 1,
         }
-    }
-}
-
-impl Default for SmcatConfig {
-    fn default() -> Self {
-        SmcatConfig {
-            features: SmcatFeatures::default(),
-            code: SmcatCode::default(),
-        }
-    }
-}
-
-impl Default for SmcatFeatures {
-    fn default() -> Self {
-        SmcatFeatures {}
     }
 }
 
