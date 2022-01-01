@@ -4,9 +4,9 @@
 //! depending on whether or not the state context types are generated. This example combined with
 //! the example in `tests/demo.rs` illustrate the two major varieties of runtime support.
 //!
-//! The organization of the code in this file is slightly different than what Framec would produce
-//! in order to support testing both the `sync` and `unsync` variants of the library without too
-//! much redundancy.
+//! The code corresponds to the generated code with the `thread_safe` feature enabled. For such a
+//! simple state machine, the non-thread-safe variant can be obtained by just swapping out `Arc`
+//! pointers with `Rc` pointers.
 //!
 //! Frame spec:
 //! ```
@@ -24,11 +24,10 @@
 //!     -domain-
 //! ```
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
-pub enum TestState {
-    A,
-    B,
-}
+use frame_runtime as runtime;
+use frame_runtime::Machine;
+use std::any::Any;
+use std::sync::Arc;
 
 mod info {
     use frame_runtime::info::*;
@@ -117,194 +116,179 @@ mod info {
     ];
 }
 
-mod sync {
-    use super::*;
-    use frame_runtime::sync as runtime;
-    use std::any::Any;
-    use std::sync::Arc;
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
+enum FrameMessage {
+    Next,
+}
 
-    impl runtime::State<runtime::EnvironmentPtr> for TestState {
-        fn info(&self) -> &'static runtime::StateInfo {
-            match self {
-                TestState::A => info::machine().states[0],
-                TestState::B => info::machine().states[1],
-            }
-        }
-        fn arguments(&self) -> runtime::EnvironmentPtr {
-            runtime::Empty::arc()
-        }
-        fn variables(&self) -> runtime::EnvironmentPtr {
-            runtime::Empty::arc()
-        }
-    }
-
-    pub struct Simple<'a> {
-        state: TestState,
-        state_rc: Arc<TestState>,
-        event_monitor: runtime::EventMonitor<'a>,
-    }
-
-    impl<'a> runtime::Environment for Simple<'a> {
-        fn is_empty(&self) -> bool {
-            true
-        }
-        fn lookup(&self, _name: &str) -> Option<Box<dyn Any>> {
-            None
-        }
-    }
-
-    impl<'a> runtime::Machine<runtime::StatePtr, runtime::EventMonitor<'a>> for Simple<'a> {
-        fn info(&self) -> &'static runtime::MachineInfo {
-            info::machine()
-        }
-        fn state(&self) -> runtime::StatePtr {
-            self.state_rc.clone()
-        }
-        fn variables(&self) -> &dyn runtime::Environment {
-            self
-        }
-        fn event_monitor(&self) -> &runtime::EventMonitor<'a> {
-            &self.event_monitor
-        }
-        fn event_monitor_mut(&mut self) -> &mut runtime::EventMonitor<'a> {
-            &mut self.event_monitor
-        }
-    }
-
-    impl<'a> Simple<'a> {
-        pub fn new() -> Simple<'a> {
-            Simple {
-                state: TestState::A,
-                state_rc: Arc::new(TestState::A),
-                event_monitor: runtime::EventMonitor::default(),
-            }
-        }
-
-        pub fn next(&mut self) {
-            match self.state {
-                TestState::A => self.transition(info::machine().transitions[0], TestState::B),
-                TestState::B => self.transition(info::machine().transitions[1], TestState::A),
-            }
-        }
-
-        pub fn transition(
-            &mut self,
-            transition_info: &'static runtime::TransitionInfo,
-            new_state: TestState,
-        ) {
-            let old_state_rc = self.state_rc.clone();
-            self.state = new_state;
-            self.state_rc = Arc::new(new_state);
-            self.event_monitor
-                .transition_occurred(runtime::Transition::new_change_state(
-                    transition_info,
-                    old_state_rc,
-                    self.state_rc.clone(),
-                ));
+impl std::fmt::Display for FrameMessage {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            FrameMessage::Next => write!(f, "next"),
         }
     }
 }
 
-mod unsync {
-    use super::*;
-    use frame_runtime::unsync as runtime;
-    use std::any::Any;
-    use std::rc::Rc;
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
+pub struct FrameEvent {
+    message: FrameMessage,
+}
 
-    impl runtime::State<runtime::EnvironmentPtr> for TestState {
-        fn info(&self) -> &'static runtime::StateInfo {
-            match self {
-                TestState::A => info::machine().states[0],
-                TestState::B => info::machine().states[1],
-            }
-        }
-        fn arguments(&self) -> runtime::EnvironmentPtr {
-            runtime::Empty::rc()
-        }
-        fn variables(&self) -> runtime::EnvironmentPtr {
-            runtime::Empty::rc()
-        }
-    }
-
-    pub struct Simple<'a> {
-        state: TestState,
-        state_rc: Rc<TestState>,
-        event_monitor: runtime::EventMonitor<'a>,
-    }
-
-    impl<'a> runtime::Environment for Simple<'a> {
-        fn is_empty(&self) -> bool {
-            true
-        }
-        fn lookup(&self, _name: &str) -> Option<Box<dyn Any>> {
-            None
-        }
-    }
-
-    impl<'a> runtime::Machine<runtime::StatePtr, runtime::EventMonitor<'a>> for Simple<'a> {
-        fn info(&self) -> &'static runtime::MachineInfo {
-            info::machine()
-        }
-        fn state(&self) -> runtime::StatePtr {
-            self.state_rc.clone()
-        }
-        fn variables(&self) -> &dyn runtime::Environment {
-            self
-        }
-        fn event_monitor(&self) -> &runtime::EventMonitor<'a> {
-            &self.event_monitor
-        }
-        fn event_monitor_mut(&mut self) -> &mut runtime::EventMonitor<'a> {
-            &mut self.event_monitor
-        }
-    }
-
-    impl<'a> Simple<'a> {
-        pub fn new() -> Simple<'a> {
-            Simple {
-                state: TestState::A,
-                state_rc: Rc::new(TestState::A),
-                event_monitor: runtime::EventMonitor::default(),
-            }
-        }
-
-        pub fn next(&mut self) {
-            match self.state {
-                TestState::A => self.transition(info::machine().transitions[0], TestState::B),
-                TestState::B => self.transition(info::machine().transitions[1], TestState::A),
-            }
-        }
-
-        pub fn transition(
-            &mut self,
-            transition_info: &'static runtime::TransitionInfo,
-            new_state: TestState,
-        ) {
-            let old_state_rc = self.state_rc.clone();
-            self.state = new_state;
-            self.state_rc = Rc::new(new_state);
-            self.event_monitor
-                .transition_occurred(runtime::Transition::new_change_state(
-                    transition_info,
-                    old_state_rc,
-                    self.state_rc.clone(),
-                ));
-        }
+impl FrameEvent {
+    fn new(message: FrameMessage) -> FrameEvent {
+        FrameEvent { message }
     }
 }
 
+impl runtime::Event<Simple> for FrameEvent {
+    fn info(&self) -> &runtime::MethodInfo {
+        let msg = self.message.to_string();
+        info::machine()
+            .get_event(&msg)
+            .unwrap_or_else(|| panic!("No runtime info for event: {}", msg))
+    }
+    fn arguments(&self) -> <Simple as runtime::Machine>::EnvironmentPtr {
+        runtime::Empty::arc()
+    }
+    fn return_value(&self) -> Option<Box<dyn Any>> {
+        None
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
+pub enum SimpleState {
+    A,
+    B,
+}
+
+impl runtime::State<Simple> for SimpleState {
+    fn info(&self) -> &'static runtime::StateInfo {
+        match self {
+            SimpleState::A => info::machine().states[0],
+            SimpleState::B => info::machine().states[1],
+        }
+    }
+    fn arguments(&self) -> <Simple as runtime::Machine>::EnvironmentPtr {
+        runtime::Empty::arc()
+    }
+    fn variables(&self) -> <Simple as runtime::Machine>::EnvironmentPtr {
+        runtime::Empty::arc()
+    }
+}
+
+pub struct Simple {
+    state: SimpleState,
+    state_rc: Arc<SimpleState>,
+    event_monitor: runtime::EventMonitor<Self>,
+}
+
+impl runtime::Environment for Simple {
+    fn is_empty(&self) -> bool {
+        true
+    }
+    fn lookup(&self, _name: &str) -> Option<Box<dyn Any>> {
+        None
+    }
+}
+
+impl runtime::Machine for Simple {
+    type EnvironmentPtr = Arc<dyn runtime::Environment>;
+    type StatePtr = Arc<dyn runtime::State<Self>>;
+    type EventPtr = Arc<dyn runtime::Event<Self>>;
+    type EventFn = runtime::CallbackSend<Self::EventPtr>;
+    type TransitionFn = runtime::CallbackSend<runtime::Transition<Self>>;
+    fn info(&self) -> &'static runtime::MachineInfo {
+        info::machine()
+    }
+    fn state(&self) -> Self::StatePtr {
+        self.state_rc.clone()
+    }
+    fn variables(&self) -> &dyn runtime::Environment {
+        self
+    }
+    fn event_monitor(&self) -> &runtime::EventMonitor<Self> {
+        &self.event_monitor
+    }
+    fn event_monitor_mut(&mut self) -> &mut runtime::EventMonitor<Self> {
+        &mut self.event_monitor
+    }
+    fn empty_environment() -> Self::EnvironmentPtr {
+        runtime::Empty::arc()
+    }
+}
+
+impl Simple {
+    pub fn new() -> Simple {
+        Simple {
+            state: SimpleState::A,
+            state_rc: Arc::new(SimpleState::A),
+            event_monitor: runtime::EventMonitor::default(),
+        }
+    }
+
+    pub fn next(&mut self) {
+        let frame_event = Arc::new(FrameEvent::new(FrameMessage::Next));
+        self.handle_event(frame_event);
+    }
+
+    fn handle_event(&mut self, frame_event: Arc<FrameEvent>) {
+        self.event_monitor_mut().event_sent(frame_event.clone());
+        match self.state {
+            SimpleState::A => self.a_handler(frame_event.clone()),
+            SimpleState::B => self.b_handler(frame_event.clone()),
+        }
+        self.event_monitor_mut().event_handled(frame_event);
+    }
+
+    fn a_handler(&mut self, frame_event: Arc<FrameEvent>) {
+        match frame_event.message {
+            FrameMessage::Next => {
+                self.transition(info::machine().transitions[0], SimpleState::B);
+            }
+        }
+    }
+
+    fn b_handler(&mut self, frame_event: Arc<FrameEvent>) {
+        match frame_event.message {
+            FrameMessage::Next => {
+                self.transition(info::machine().transitions[1], SimpleState::A);
+            }
+        }
+    }
+
+    pub fn transition(
+        &mut self,
+        transition_info: &'static runtime::TransitionInfo,
+        new_state: SimpleState,
+    ) {
+        let old_state_rc = self.state_rc.clone();
+        self.state = new_state;
+        self.state_rc = Arc::new(new_state);
+        self.event_monitor
+            .transition_occurred(runtime::Transition::new_change_state(
+                transition_info,
+                old_state_rc as <Simple as runtime::Machine>::StatePtr,
+                self.state_rc.clone() as <Simple as runtime::Machine>::StatePtr,
+            ));
+    }
+}
+
+impl Default for Simple {
+    fn default() -> Self {
+        Simple::new()
+    }
+}
+
+// TODO: Add some basic event tests.
 mod tests {
     use super::*;
-    use frame_runtime::info::*;
-    use frame_runtime::live::Machine;
-    use frame_runtime::sync as srt;
-    use frame_runtime::unsync as urt;
+    use frame_runtime::*;
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Mutex;
 
     #[test]
     fn static_info() {
-        let sm = unsync::Simple::new();
+        let sm = Simple::new();
         assert_eq!("Simple", sm.info().name);
         assert_eq!(0, sm.info().variables.len());
         assert_eq!(2, sm.info().states.len());
@@ -315,8 +299,8 @@ mod tests {
     }
 
     #[test]
-    fn current_state_sync() {
-        let mut sm = sync::Simple::new();
+    fn current_state() {
+        let mut sm = Simple::new();
         assert_eq!("A", sm.state().info().name);
         sm.next();
         assert_eq!("B", sm.state().info().name);
@@ -325,23 +309,13 @@ mod tests {
     }
 
     #[test]
-    fn current_state_unsync() {
-        let mut sm = unsync::Simple::new();
-        assert_eq!("A", sm.state().info().name);
-        sm.next();
-        assert_eq!("B", sm.state().info().name);
-        sm.next();
-        assert_eq!("A", sm.state().info().name);
-    }
-
-    #[test]
-    fn transition_callbacks_sync() {
-        let tape: Vec<String> = Vec::new();
-        let tape_mutex = Mutex::new(tape);
-        let mut sm = sync::Simple::new();
+    fn transition_callbacks() {
+        let tape = Arc::new(Mutex::new(Vec::new()));
+        let tape_cb = tape.clone();
+        let mut sm = Simple::new();
         sm.event_monitor_mut()
-            .add_transition_callback(srt::Callback::new("test", |t: &srt::Transition| {
-                tape_mutex.lock().unwrap().push(format!(
+            .add_transition_callback(CallbackSend::new("test", move |t: &Transition<Simple>| {
+                tape_cb.lock().unwrap().push(format!(
                     "{}{}{}",
                     t.old_state.info().name,
                     match t.info.kind {
@@ -354,54 +328,32 @@ mod tests {
         sm.next();
         sm.next();
         sm.next();
-        assert_eq!(*tape_mutex.lock().unwrap(), vec!["A->B", "B->>A", "A->B"]);
-    }
-
-    #[test]
-    fn transition_callbacks_unsync() {
-        let tape: Vec<String> = Vec::new();
-        let tape_mutex = Mutex::new(tape);
-        let mut sm = unsync::Simple::new();
-        sm.event_monitor_mut()
-            .add_transition_callback(urt::Callback::new("test", |t: &urt::Transition| {
-                tape_mutex.lock().unwrap().push(format!(
-                    "{}{}{}",
-                    t.old_state.info().name,
-                    match t.info.kind {
-                        TransitionKind::ChangeState => "->>",
-                        TransitionKind::Transition => "->",
-                    },
-                    t.new_state.info().name
-                ));
-            }));
-        sm.next();
-        sm.next();
-        sm.next();
-        assert_eq!(*tape_mutex.lock().unwrap(), vec!["A->B", "B->>A", "A->B"]);
+        assert_eq!(*tape.lock().unwrap(), vec!["A->B", "B->>A", "A->B"]);
     }
 
     #[test]
     fn transition_info_id() {
-        let tape: Vec<usize> = Vec::new();
-        let tape_mutex = Mutex::new(tape);
-        let mut sm = unsync::Simple::new();
+        let tape = Arc::new(Mutex::new(Vec::new()));
+        let tape_cb = tape.clone();
+        let mut sm = Simple::new();
         sm.event_monitor_mut()
-            .add_transition_callback(urt::Callback::new("test", |t: &urt::Transition| {
-                tape_mutex.lock().unwrap().push(t.info.id);
+            .add_transition_callback(CallbackSend::new("test", move |t: &Transition<Simple>| {
+                tape_cb.lock().unwrap().push(t.info.id);
             }));
         sm.next();
         sm.next();
         sm.next();
-        assert_eq!(*tape_mutex.lock().unwrap(), vec![0, 1, 0]);
+        assert_eq!(*tape.lock().unwrap(), vec![0, 1, 0]);
     }
 
     #[test]
     fn transition_static_info_agrees() {
-        let agree = AtomicBool::new(false);
-        let mut sm = sync::Simple::new();
+        let agree = Arc::new(AtomicBool::new(false));
+        let agree_cb = agree.clone();
+        let mut sm = Simple::new();
         sm.event_monitor_mut()
-            .add_transition_callback(srt::Callback::new("test", |t: &srt::Transition| {
-                agree.store(
+            .add_transition_callback(CallbackSend::new("test", move |t: &Transition<Simple>| {
+                agree_cb.store(
                     t.info.source.name == t.old_state.info().name
                         && t.info.target.name == t.new_state.info().name,
                     Ordering::Relaxed,

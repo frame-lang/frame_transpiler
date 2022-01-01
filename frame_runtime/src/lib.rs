@@ -59,36 +59,20 @@
 //! state `A` may have the same name as a variable in state `B`, or have the same name as a
 //! parameter in state `A`.
 
+pub mod callback;
 pub mod env;
 pub mod event;
 pub mod history;
 pub mod info;
-pub mod live;
+pub mod machine;
 pub mod smcat;
 pub mod transition;
 
-/// The synchronized/thread-safe flavor of the runtime interface. Include this module if you
-/// compiled your Frame spec with `thread_safe = true`. Including this module will include the
-/// entire runtime interface specialized the synchronized/thread-safe generated code.
-pub mod sync {
-    pub use crate::env::sync::*;
-    pub use crate::event::sync::*;
-    pub use crate::history::*;
-    pub use crate::info::*;
-    pub use crate::live::sync::*;
-    pub use crate::smcat::sync::*;
-    pub use crate::transition::sync::*;
-}
-
-/// The unsynchronized/thread-unsafe flavor of the runtime interface. Include this module if you
-/// compiled your Frame spec with `thread_safe = false`. Including this module will include the
-/// entire runtime interface specialized the unsynchronized generated code.
-pub mod unsync {
-    pub use crate::env::unsync::*;
-    pub use crate::event::unsync::*;
-    pub use crate::history::*;
-    pub use crate::info::*;
-    pub use crate::live::unsync::*;
-    pub use crate::smcat::unsync::*;
-    pub use crate::transition::unsync::*;
-}
+pub use crate::callback::*;
+pub use crate::env::*;
+pub use crate::event::*;
+pub use crate::history::*;
+pub use crate::info::*;
+pub use crate::machine::*;
+pub use crate::smcat::*;
+pub use crate::transition::*;
