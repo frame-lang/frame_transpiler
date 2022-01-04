@@ -280,9 +280,6 @@ mod tests {
         type EventPtr = Rc<dyn Event<Self>>;
         type EventFn = Callback<Self::EventPtr>;
         type TransitionFn = Callback<Transition<Self>>;
-        fn info(&self) -> &'static MachineInfo {
-            info::machine()
-        }
         fn state(&self) -> Self::StatePtr {
             panic!("not implemented")
         }
@@ -294,6 +291,9 @@ mod tests {
         }
         fn event_monitor_mut(&mut self) -> &mut EventMonitor<Self> {
             panic!("not implemented")
+        }
+        fn machine_info() -> &'static MachineInfo {
+            info::machine()
         }
         fn empty_environment() -> Self::EnvironmentPtr {
             Empty::rc()

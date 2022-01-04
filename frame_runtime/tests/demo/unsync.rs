@@ -162,9 +162,6 @@ impl runtime::Machine for Demo {
     type EventPtr = Rc<dyn runtime::Event<Self>>;
     type EventFn = runtime::Callback<Self::EventPtr>;
     type TransitionFn = runtime::Callback<runtime::Transition<Self>>;
-    fn info(&self) -> &'static runtime::MachineInfo {
-        info::machine()
-    }
     fn state(&self) -> Self::StatePtr {
         self.state_context.clone()
     }
@@ -176,6 +173,9 @@ impl runtime::Machine for Demo {
     }
     fn event_monitor_mut(&mut self) -> &mut runtime::EventMonitor<Self> {
         &mut self.event_monitor
+    }
+    fn machine_info() -> &'static runtime::MachineInfo {
+        info::machine()
     }
     fn empty_environment() -> Self::EnvironmentPtr {
         runtime::Empty::rc()

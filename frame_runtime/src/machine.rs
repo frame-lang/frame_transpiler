@@ -27,8 +27,11 @@ pub trait Machine {
     type TransitionFn: IsCallback<Transition<Self>>;
 
     /// Static information about the state machine declaration that gave rise to this machine
-    /// instance.
-    fn info(&self) -> &'static MachineInfo;
+    /// instance. This method is just a synonym for the function `Self::machine_info()` but is
+    /// provided for consistency with other elements of the runtime interface.
+    fn info(&self) -> &'static MachineInfo {
+        Self::machine_info()
+    }
 
     /// The currently active state of this machine.
     fn state(&self) -> Self::StatePtr;
@@ -44,6 +47,9 @@ pub trait Machine {
     /// Get a mutable reference to this machine's event monitor, suitable for registering callbacks
     /// to be notified of Frame events.
     fn event_monitor_mut(&mut self) -> &mut EventMonitor<Self>;
+
+    /// Static information about the state machine declaration.
+    fn machine_info() -> &'static MachineInfo;
 
     /// Get a pointer to an empty environment that is compatible with this machine. This is
     /// intended for use by generated code and library functions.

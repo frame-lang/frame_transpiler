@@ -446,8 +446,7 @@ mod tests {
 
     #[test]
     fn machine_info() {
-        // let sm = unsync::Demo::new();
-        let sm = sync::Demo::new();
+        let sm = unsync::Demo::new();
         assert_eq!("Demo", sm.info().name);
         assert_eq!(2, sm.info().variables.len());
         assert_eq!(3, sm.info().states.len());
@@ -496,8 +495,7 @@ mod tests {
     #[test]
     #[allow(clippy::blacklisted_name)]
     fn transition_info() {
-        // let sm = unsync::Demo::new();
-        let sm = sync::Demo::new();
+        let sm = unsync::Demo::new();
         let foo = sm.info().get_state("Foo").unwrap();
         let incoming = foo.incoming_transitions();
         let outgoing = foo.outgoing_transitions();
