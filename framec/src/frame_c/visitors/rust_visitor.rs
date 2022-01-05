@@ -364,12 +364,12 @@ impl RustVisitor {
         ))
     }
 
-    fn lifetime_type_annotation(&self) -> &str {
-        if self.config.features.runtime_support {
-            "<'a>"
-        } else {
-            ""
-        }
+    fn system_type_as_machine_trait(&self) -> String {
+        format!(
+            "<{} as {}::Machine>",
+            self.system_type_name(),
+            self.config.code.runtime_module_use_as_name,
+        )
     }
 
     /// Create a new empty environment for the runtime system.
@@ -381,6 +381,19 @@ impl RustVisitor {
                 "arc"
             } else {
                 "rc"
+            },
+        )
+    }
+
+    /// Get the callback type for the runtime system's event monitor.
+    fn runtime_callback_type(&self) -> String {
+        format!(
+            "{}::{}",
+            self.config.code.runtime_module_use_as_name,
+            if self.config.features.thread_safe {
+                "CallbackSend"
+            } else {
+                "Callback"
             },
         )
     }
@@ -1190,8 +1203,10 @@ impl RustVisitor {
             self.newline();
             self.newline();
             self.add_code(&format!(
-                "impl {0}::State<{0}::EnvironmentPtr> for {1}",
-                self.config.code.runtime_module_use_as_name, state_enum_type,
+                "impl {}::State<{}> for {}",
+                self.config.code.runtime_module_use_as_name,
+                self.system_type_name(),
+                state_enum_type,
             ));
             self.enter_block();
 
@@ -1219,7 +1234,7 @@ impl RustVisitor {
             self.newline();
             self.add_code(&format!(
                 "fn arguments(&self) -> {}::EnvironmentPtr",
-                self.config.code.runtime_module_use_as_name,
+                self.system_type_as_machine_trait(),
             ));
             self.enter_block();
             self.add_code(&self.runtime_empty_env());
@@ -1228,7 +1243,7 @@ impl RustVisitor {
             self.newline();
             self.add_code(&format!(
                 "fn variables(&self) -> {}::EnvironmentPtr",
-                self.config.code.runtime_module_use_as_name,
+                self.system_type_as_machine_trait(),
             ));
             self.enter_block();
             self.add_code(&self.runtime_empty_env());
@@ -1321,8 +1336,10 @@ impl RustVisitor {
             self.newline();
             self.newline();
             self.add_code(&format!(
-                "impl {0}::Event<{0}::EnvironmentPtr> for {1}",
-                self.config.code.runtime_module_use_as_name, self.config.code.frame_event_type_name,
+                "impl {}::Event<{}> for {}",
+                self.config.code.runtime_module_use_as_name,
+                self.system_type_name(),
+                self.config.code.frame_event_type_name,
             ));
             self.enter_block();
 
@@ -1352,7 +1369,7 @@ impl RustVisitor {
             self.newline();
             self.add_code(&format!(
                 "fn arguments(&self) -> {}::EnvironmentPtr",
-                self.config.code.runtime_module_use_as_name,
+                self.system_type_as_machine_trait(),
             ));
             self.enter_block();
             self.add_code(&format!(
@@ -1508,7 +1525,7 @@ impl RustVisitor {
 
                     // generate the env
                     if self.config.features.runtime_support {
-                        self.generate_environment_impl(false, &args_struct_name, &bound_names);
+                        self.generate_environment_impl(&args_struct_name, &bound_names);
                     }
                     has_params.insert(event_type_name);
                 }
@@ -1670,11 +1687,7 @@ impl RustVisitor {
                         self.newline();
 
                         if self.config.features.runtime_support {
-                            self.generate_environment_impl(
-                                false,
-                                &state_args_struct_name,
-                                &bound_names,
-                            );
+                            self.generate_environment_impl(&state_args_struct_name, &bound_names);
                         }
                     }
                     None => {}
@@ -1710,11 +1723,7 @@ impl RustVisitor {
                         self.newline();
 
                         if self.config.features.runtime_support {
-                            self.generate_environment_impl(
-                                false,
-                                &state_vars_struct_name,
-                                &bound_names,
-                            );
+                            self.generate_environment_impl(&state_vars_struct_name, &bound_names);
                         }
                     }
                     None => {}
@@ -1786,8 +1795,10 @@ impl RustVisitor {
                 // generate implementation of runtime state
                 if self.config.features.runtime_support {
                     self.add_code(&format!(
-                        "impl {0}::State<{0}::EnvironmentPtr> for {1}",
-                        self.config.code.runtime_module_use_as_name, context_struct_name,
+                        "impl {}::State<{}> for {}",
+                        self.config.code.runtime_module_use_as_name,
+                        self.system_type_name(),
+                        context_struct_name,
                     ));
                     self.enter_block();
 
@@ -1807,7 +1818,7 @@ impl RustVisitor {
                     self.newline();
                     self.add_code(&format!(
                         "fn arguments(&self) -> {}::EnvironmentPtr",
-                        self.config.code.runtime_module_use_as_name,
+                        self.system_type_as_machine_trait(),
                     ));
                     self.enter_block();
                     if has_state_args {
@@ -1823,7 +1834,7 @@ impl RustVisitor {
                     self.newline();
                     self.add_code(&format!(
                         "fn variables(&self) -> {}::EnvironmentPtr",
-                        self.config.code.runtime_module_use_as_name,
+                        self.system_type_as_machine_trait(),
                     ));
                     self.enter_block();
                     if has_state_vars {
@@ -1926,8 +1937,9 @@ impl RustVisitor {
                 self.newline();
                 self.newline();
                 self.add_code(&format!(
-                    "impl {0}::State<{0}::EnvironmentPtr> for {1}",
+                    "impl {}::State<{}> for {}",
                     self.config.code.runtime_module_use_as_name,
+                    self.system_type_name(),
                     self.config.code.state_context_type_name
                 ));
                 self.enter_block();
@@ -1953,7 +1965,7 @@ impl RustVisitor {
 
                 self.add_code(&format!(
                     "fn arguments(&self) -> {}::EnvironmentPtr",
-                    self.config.code.runtime_module_use_as_name,
+                    self.system_type_as_machine_trait(),
                 ));
                 self.enter_block();
                 self.add_code("match self {");
@@ -1972,7 +1984,7 @@ impl RustVisitor {
 
                 self.add_code(&format!(
                     "fn variables(&self) -> {}::EnvironmentPtr",
-                    self.config.code.runtime_module_use_as_name,
+                    self.system_type_as_machine_trait(),
                 ));
                 self.enter_block();
                 self.add_code("match self {");
@@ -1993,29 +2005,15 @@ impl RustVisitor {
         }
     }
 
-    fn generate_environment_impl(
-        &mut self,
-        has_lifetime_annotation: bool,
-        type_name: &str,
-        bound_names: &[String],
-    ) {
+    fn generate_environment_impl(&mut self, type_name: &str, bound_names: &[String]) {
         self.add_code("#[allow(clippy::match_single_binding)]");
         self.newline();
         self.add_code("#[allow(clippy::single_match)]");
         self.newline();
-        if has_lifetime_annotation {
-            self.add_code(&format!(
-                "impl{0} {1}::Environment for {2}{0}",
-                self.lifetime_type_annotation(),
-                self.config.code.runtime_module_use_as_name,
-                type_name,
-            ));
-        } else {
-            self.add_code(&format!(
-                "impl {}::Environment for {}",
-                self.config.code.runtime_module_use_as_name, type_name,
-            ));
-        }
+        self.add_code(&format!(
+            "impl {}::Environment for {}",
+            self.config.code.runtime_module_use_as_name, type_name,
+        ));
         self.enter_block();
         if bound_names.is_empty() {
             self.add_code("fn is_empty(&self) -> bool");
@@ -2319,13 +2317,31 @@ impl RustVisitor {
             self.add_code(&format!("{},", self.config.code.transition_info_arg_name));
             self.newline();
             if self.generate_state_context {
-                self.add_code(&format!("{},", old_state_context_var));
+                self.add_code(&format!(
+                    "{} as {}::StatePtr,",
+                    old_state_context_var,
+                    self.system_type_as_machine_trait(),
+                ));
                 self.newline();
-                self.add_code(&format!("{},", new_state_context_var));
+                self.add_code(&format!(
+                    "{} as {}::StatePtr,",
+                    new_state_context_var,
+                    self.system_type_as_machine_trait(),
+                ));
             } else {
-                self.add_code(&format!("{}::new({}),", self.rc_type(), old_state_var));
+                self.add_code(&format!(
+                    "{}::new({}) as {}::StatePtr,",
+                    self.rc_type(),
+                    old_state_var,
+                    self.system_type_as_machine_trait(),
+                ));
                 self.newline();
-                self.add_code(&format!("{}::new({}),", self.rc_type(), new_state_var));
+                self.add_code(&format!(
+                    "{}::new({}) as {}::StatePtr,",
+                    self.rc_type(),
+                    new_state_var,
+                    self.system_type_as_machine_trait(),
+                ));
             }
             self.outdent();
             self.newline();
@@ -2513,18 +2529,42 @@ impl RustVisitor {
             self.add_code(&format!("{},", self.config.code.transition_info_arg_name));
             self.newline();
             if self.generate_state_context {
-                self.add_code(&format!("{},", old_state_context_var));
+                self.add_code(&format!(
+                    "{} as {}::StatePtr,",
+                    old_state_context_var,
+                    self.system_type_as_machine_trait(),
+                ));
                 self.newline();
-                self.add_code(&format!("{},", new_state_context_var));
+                self.add_code(&format!(
+                    "{} as {}::StatePtr,",
+                    new_state_context_var,
+                    self.system_type_as_machine_trait(),
+                ));
             } else {
-                self.add_code(&format!("{}::new({}),", self.rc_type(), old_state_var));
+                self.add_code(&format!(
+                    "{}::new({}) as {}::StatePtr,",
+                    self.rc_type(),
+                    old_state_var,
+                    self.system_type_as_machine_trait(),
+                ));
                 self.newline();
-                self.add_code(&format!("{}::new({}),", self.rc_type(), new_state_var));
+                self.add_code(&format!(
+                    "{}::new({}) as {}::StatePtr,",
+                    self.rc_type(),
+                    new_state_var,
+                    self.system_type_as_machine_trait(),
+                ));
             }
             self.newline();
-            self.add_code("exit_event,");
+            self.add_code(&format!(
+                "exit_event as {}::EventPtr,",
+                self.system_type_as_machine_trait(),
+            ));
             self.newline();
-            self.add_code("enter_event.clone(),");
+            self.add_code(&format!(
+                "enter_event.clone() as {}::EventPtr,",
+                self.system_type_as_machine_trait(),
+            ));
             self.outdent();
             self.newline();
             self.add_code("));");
@@ -3407,12 +3447,7 @@ impl AstVisitor for RustVisitor {
             self.add_code("use std::any::Any;");
             self.newline();
             self.add_code(&format!(
-                "use frame_runtime::{} as {};",
-                if self.config.features.thread_safe {
-                    "sync"
-                } else {
-                    "unsync"
-                },
+                "use frame_runtime as {};",
                 self.config.code.runtime_module_use_as_name,
             ));
             self.newline();
@@ -3454,15 +3489,10 @@ impl AstVisitor for RustVisitor {
         }
 
         // define state machine struct
-        let machine_struct_name = format!(
-            "{}{}",
-            self.system_type_name(),
-            self.lifetime_type_annotation()
-        );
         self.add_code("// System Controller ");
         self.newline();
         self.disable_type_style_warnings();
-        self.add_code(&format!("pub struct {}", machine_struct_name,));
+        self.add_code(&format!("pub struct {}", self.system_type_name()));
         self.enter_block();
 
         // state variable
@@ -3506,10 +3536,9 @@ impl AstVisitor for RustVisitor {
         if self.config.features.runtime_support {
             self.newline();
             self.add_code(&format!(
-                "{}: {}::EventMonitor{},",
+                "{}: {}::EventMonitor<Self>,",
                 self.config.code.event_monitor_var_name,
                 self.config.code.runtime_module_use_as_name,
-                self.lifetime_type_annotation(),
             ));
         }
 
@@ -3530,32 +3559,58 @@ impl AstVisitor for RustVisitor {
 
         // add runtime support
         if self.config.features.runtime_support {
-            self.generate_environment_impl(true, &self.system_type_name(), &domain_vars);
+            self.generate_environment_impl(&self.system_type_name(), &domain_vars);
 
             self.add_code(&format!(
-                "impl{0} {1}::Machine<{1}::StatePtr, {1}::EventMonitor{0}> for {2}",
-                self.lifetime_type_annotation(),
+                "impl {}::Machine for {}",
                 self.config.code.runtime_module_use_as_name,
-                machine_struct_name,
+                self.system_type_name(),
             ));
             self.enter_block();
 
             self.add_code(&format!(
-                "fn info(&self) -> &'static {}::MachineInfo",
+                "type EnvironmentPtr = {}<dyn {}::Environment>;",
+                self.rc_type(),
                 self.config.code.runtime_module_use_as_name,
             ));
-            self.enter_block();
+            self.newline();
             self.add_code(&format!(
-                "{}::{}()",
-                self.config.code.runtime_info_module_name,
-                self.config.code.machine_info_function_name,
+                "type StatePtr = {}<dyn {}::State<Self>{}>;",
+                self.rc_type(),
+                self.config.code.runtime_module_use_as_name,
+                if self.config.features.thread_safe {
+                    " + Send + Sync"
+                } else {
+                    ""
+                }
             ));
-            self.exit_block();
+            self.newline();
+            self.add_code(&format!(
+                "type EventPtr = {}<dyn {}::Event<Self>{}>;",
+                self.rc_type(),
+                self.config.code.runtime_module_use_as_name,
+                if self.config.features.thread_safe {
+                    " + Send + Sync"
+                } else {
+                    ""
+                }
+            ));
+            self.newline();
+            self.add_code(&format!(
+                "type EventFn = {}<Self::EventPtr>;",
+                self.runtime_callback_type(),
+            ));
+            self.newline();
+            self.add_code(&format!(
+                "type TransitionFn = {}<{}::Transition<Self>>;",
+                self.runtime_callback_type(),
+                self.config.code.runtime_module_use_as_name,
+            ));
             self.newline();
 
             self.add_code(&format!(
                 "fn state(&self) -> {}::StatePtr",
-                self.config.code.runtime_module_use_as_name,
+                self.system_type_as_machine_trait(),
             ));
             self.enter_block();
             if self.generate_state_context {
@@ -3583,9 +3638,8 @@ impl AstVisitor for RustVisitor {
             self.newline();
 
             self.add_code(&format!(
-                "fn event_monitor(&self) -> &{}::EventMonitor{}",
+                "fn event_monitor(&self) -> &{}::EventMonitor<Self>",
                 self.config.code.runtime_module_use_as_name,
-                self.lifetime_type_annotation(),
             ));
             self.enter_block();
             self.add_code(&format!(
@@ -3596,9 +3650,8 @@ impl AstVisitor for RustVisitor {
             self.newline();
 
             self.add_code(&format!(
-                "fn event_monitor_mut(&mut self) -> &mut {}::EventMonitor{}",
+                "fn event_monitor_mut(&mut self) -> &mut {}::EventMonitor<Self>",
                 self.config.code.runtime_module_use_as_name,
-                self.lifetime_type_annotation(),
             ));
             self.enter_block();
             self.add_code(&format!(
@@ -3607,27 +3660,8 @@ impl AstVisitor for RustVisitor {
             ));
             self.exit_block();
 
-            self.exit_block();
-            self.newline();
-            self.newline();
-        }
-
-        // add state machine methods
-        self.disable_all_style_warnings();
-        self.add_code(&format!(
-            "impl{0} {1}{0} {{",
-            self.lifetime_type_annotation(),
-            self.system_type_name()
-        ));
-        self.indent();
-
-        // generate static link to machine info
-        if self.config.features.runtime_support {
-            self.newline();
-            self.newline();
             self.add_code(&format!(
-                "pub fn {}() -> &'static {}::MachineInfo",
-                self.config.code.machine_info_function_name,
+                "fn machine_info() -> &'static {}::MachineInfo",
                 self.config.code.runtime_module_use_as_name,
             ));
             self.enter_block();
@@ -3637,7 +3671,23 @@ impl AstVisitor for RustVisitor {
                 self.config.code.machine_info_function_name,
             ));
             self.exit_block();
+            self.newline();
+
+            self.add_code("fn empty_environment() -> Self::EnvironmentPtr");
+            self.enter_block();
+            self.add_code(&self.runtime_empty_env());
+            self.exit_block();
+            self.newline();
+
+            self.exit_block();
+            self.newline();
+            self.newline();
         }
+
+        // add state machine methods
+        self.disable_all_style_warnings();
+        self.add_code(&format!("impl {} {{", self.system_type_name()));
+        self.indent();
 
         // generate constructor and initialize method
         if self.has_states {
@@ -3698,11 +3748,7 @@ impl AstVisitor for RustVisitor {
         // generate Default trait implementation
         if self.has_states {
             self.newline();
-            self.add_code(&format!(
-                "impl{0} Default for {1}{0}",
-                self.lifetime_type_annotation(),
-                self.system_type_name(),
-            ));
+            self.add_code(&format!("impl Default for {}", self.system_type_name()));
             self.enter_block();
             self.add_code("fn default() -> Self");
             self.enter_block();
@@ -4064,11 +4110,7 @@ impl AstVisitor for RustVisitor {
             self.add_code("#[allow(clippy::ptr_arg)]");
             self.newline();
             self.disable_type_style_warnings();
-            self.add_code(&format!(
-                "trait {}{} {{ ",
-                self.action_trait_type_name(),
-                self.lifetime_type_annotation()
-            ));
+            self.add_code(&format!("trait {} {{ ", self.action_trait_type_name(),));
             self.indent();
 
             // add action signatures
@@ -4114,8 +4156,7 @@ impl AstVisitor for RustVisitor {
             self.newline();
             self.disable_all_style_warnings();
             self.add_code(&format!(
-                "impl{0} {1}{0} for {2}{0} {{ ",
-                self.lifetime_type_annotation(),
+                "impl {} for {} {{ ",
                 self.action_trait_type_name(),
                 self.system_type_name()
             ));

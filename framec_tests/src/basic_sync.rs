@@ -1,7 +1,7 @@
 type Log = Vec<String>;
 include!(concat!(env!("OUT_DIR"), "/", "basic_sync.rs"));
 
-impl<'a> Basic<'a> {
+impl Basic {
     pub fn entered(&mut self, state: String) {
         self.entry_log.push(state);
     }
@@ -13,7 +13,7 @@ impl<'a> Basic<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use frame_runtime::sync::*;
+    use frame_runtime::*;
 
     fn has_send(_: &impl Send) {}
     fn has_sync(_: &impl Sync) {}

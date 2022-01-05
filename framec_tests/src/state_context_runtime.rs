@@ -13,7 +13,7 @@
 type Log = Vec<String>;
 include!(concat!(env!("OUT_DIR"), "/", "state_context_runtime.rs"));
 
-impl<'a> StateContextSm<'a> {
+impl StateContextSm {
     pub fn log(&mut self, name: String, val: i32) {
         self.tape.push(format!("{}={}", name, val));
     }
@@ -22,7 +22,7 @@ impl<'a> StateContextSm<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use frame_runtime::unsync::*;
+    use frame_runtime::*;
 
     #[test]
     fn initial_state() {

@@ -1,7 +1,7 @@
 type Log = Vec<String>;
 include!(concat!(env!("OUT_DIR"), "/", "basic.rs"));
 
-impl<'a> Basic<'a> {
+impl Basic {
     pub fn entered(&mut self, state: String) {
         self.entry_log.push(state);
     }
@@ -13,7 +13,7 @@ impl<'a> Basic<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use frame_runtime::unsync::*;
+    use frame_runtime::*;
 
     /// Test that the enter event is sent for entering the initial state on startup.
     #[test]

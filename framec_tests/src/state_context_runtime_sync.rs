@@ -14,7 +14,7 @@ include!(concat!(
     "state_context_runtime_sync.rs"
 ));
 
-impl<'a> StateContextSm<'a> {
+impl StateContextSm {
     pub fn log(&mut self, name: String, val: i32) {
         self.tape.push(format!("{}={}", name, val));
     }
@@ -23,7 +23,7 @@ impl<'a> StateContextSm<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use frame_runtime::sync::*;
+    use frame_runtime::*;
 
     fn has_send(_: &impl Send) {}
     fn has_sync(_: &impl Sync) {}

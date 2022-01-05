@@ -4,7 +4,7 @@
 type Log = Vec<String>;
 include!(concat!(env!("OUT_DIR"), "/", "state_stack.rs"));
 
-impl<'a> StateStack<'a> {
+impl StateStack {
     pub fn log(&mut self, msg: String) {
         self.tape.push(msg);
     }
@@ -13,7 +13,7 @@ impl<'a> StateStack<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use frame_runtime::unsync::*;
+    use frame_runtime::*;
     use std::sync::Mutex;
 
     /// Test that a pop restores a pushed state.
@@ -121,11 +121,12 @@ mod tests {
     /// Test that pop transitions and change-states trigger callbacks.
     #[test]
     fn pop_transition_callbacks() {
-        let out = Mutex::new(String::new());
         let mut sm = StateStack::new();
+        let out = Rc::new(Mutex::new(String::new()));
+        let out_cb = out.clone();
         sm.event_monitor_mut()
-            .add_transition_callback(Callback::new("test", |t: &Transition| {
-                *out.lock().unwrap() = t.to_string();
+            .add_transition_callback(Callback::new("test", move |t: &Transition<StateStack>| {
+                *out_cb.lock().unwrap() = t.to_string();
             }));
         sm.to_c();
         sm.push();
