@@ -3659,6 +3659,7 @@ impl AstVisitor for RustVisitor {
                 self.config.code.event_monitor_var_name
             ));
             self.exit_block();
+            self.newline();
 
             self.add_code(&format!(
                 "fn machine_info() -> &'static {}::MachineInfo",
@@ -3677,7 +3678,6 @@ impl AstVisitor for RustVisitor {
             self.enter_block();
             self.add_code(&self.runtime_empty_env());
             self.exit_block();
-            self.newline();
 
             self.exit_block();
             self.newline();
