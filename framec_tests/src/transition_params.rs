@@ -4,7 +4,7 @@
 type Log = Vec<String>;
 include!(concat!(env!("OUT_DIR"), "/", "transition_params.rs"));
 
-impl<'a> TransitParams<'a> {
+impl TransitParams {
     pub fn log(&mut self, msg: String) {
         self.tape.push(msg);
     }
@@ -13,8 +13,8 @@ impl<'a> TransitParams<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use frame_runtime::unsync::*;
-    use std::sync::Mutex;
+    use frame_runtime::*;
+    use std::sync::{Arc, Mutex};
 
     #[test]
     fn enter() {
@@ -70,28 +70,34 @@ mod tests {
     /// Test that transition callbacks get event arguments.
     #[test]
     fn callbacks_get_event_args() {
-        let out = Mutex::new(String::new());
         let mut sm = TransitParams::new();
+        let out = Arc::new(Mutex::new(String::new()));
+        let out_cb = out.clone();
         sm.event_monitor_mut()
-            .add_transition_callback(Callback::new("test", |transit: &Transition| {
-                let mut entry = String::new();
-                let exit_args = transit.exit_arguments();
-                let enter_args = transit.enter_arguments();
-                if let Some(any) = exit_args.lookup("msg") {
-                    entry.push_str(&format!("msg: {}, ", any.downcast_ref::<String>().unwrap()));
-                }
-                if let Some(any) = exit_args.lookup("val") {
-                    entry.push_str(&format!("val: {}, ", any.downcast_ref::<bool>().unwrap()));
-                }
-                entry.push_str(&transit.to_string());
-                if let Some(any) = enter_args.lookup("msg") {
-                    entry.push_str(&format!(", msg: {}", any.downcast_ref::<String>().unwrap()));
-                }
-                if let Some(any) = enter_args.lookup("val") {
-                    entry.push_str(&format!(", val: {}", any.downcast_ref::<i16>().unwrap()));
-                }
-                *out.lock().unwrap() = entry;
-            }));
+            .add_transition_callback(Callback::new(
+                "test",
+                move |t: &Transition<TransitParams>| {
+                    let mut entry = String::new();
+                    let exit_args = t.exit_arguments();
+                    let enter_args = t.enter_arguments();
+                    if let Some(any) = exit_args.lookup("msg") {
+                        entry
+                            .push_str(&format!("msg: {}, ", any.downcast_ref::<String>().unwrap()));
+                    }
+                    if let Some(any) = exit_args.lookup("val") {
+                        entry.push_str(&format!("val: {}, ", any.downcast_ref::<bool>().unwrap()));
+                    }
+                    entry.push_str(&t.to_string());
+                    if let Some(any) = enter_args.lookup("msg") {
+                        entry
+                            .push_str(&format!(", msg: {}", any.downcast_ref::<String>().unwrap()));
+                    }
+                    if let Some(any) = enter_args.lookup("val") {
+                        entry.push_str(&format!(", val: {}", any.downcast_ref::<i16>().unwrap()));
+                    }
+                    *out_cb.lock().unwrap() = entry;
+                },
+            ));
         sm.next();
         assert_eq!(*out.lock().unwrap(), "Init->A, msg: hi A");
         sm.next();

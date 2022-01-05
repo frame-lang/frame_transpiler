@@ -10,7 +10,7 @@ type Log = Vec<String>;
 include!(concat!(env!("OUT_DIR"), "/", "transition.rs"));
 
 #[allow(dead_code)]
-impl<'a> TransitionSm<'a> {
+impl TransitionSm {
     pub fn enter(&mut self, state: String) {
         self.enters.push(state);
     }
@@ -39,8 +39,8 @@ impl<'a> TransitionSm<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use frame_runtime::unsync::*;
-    use std::sync::Mutex;
+    use frame_runtime::*;
+    use std::sync::{Arc, Mutex};
 
     /// Test that transition works and triggers enter and exit events.
     #[test]
@@ -104,14 +104,17 @@ mod tests {
     fn consistent_transition_event() {
         let mut sm = TransitionSm::new();
         sm.event_monitor_mut()
-            .add_transition_callback(Callback::new("test", |t: &Transition| {
-                let source_name = t.info.source.name;
-                let target_name = t.info.target.name;
-                let old_name = t.old_state.info().name;
-                let new_name = t.new_state.info().name;
-                assert_eq!(source_name, old_name);
-                assert_eq!(target_name, new_name);
-            }));
+            .add_transition_callback(Callback::new(
+                "test",
+                move |t: &Transition<TransitionSm>| {
+                    let source_name = t.info.source.name;
+                    let target_name = t.info.target.name;
+                    let old_name = t.old_state.info().name;
+                    let new_name = t.new_state.info().name;
+                    assert_eq!(source_name, old_name);
+                    assert_eq!(target_name, new_name);
+                },
+            ));
         sm.transit();
         sm.transit();
         sm.transit();
@@ -126,12 +129,16 @@ mod tests {
     /// Test transition callbacks.
     #[test]
     fn transition_callback() {
-        let transits = Mutex::new(Vec::new());
         let mut sm = TransitionSm::new();
+        let transits = Arc::new(Mutex::new(Vec::new()));
+        let transits_cb = transits.clone();
         sm.event_monitor_mut()
-            .add_transition_callback(Callback::new("test", |t: &Transition| {
-                transits.lock().unwrap().push(t.to_string());
-            }));
+            .add_transition_callback(Callback::new(
+                "test",
+                move |t: &Transition<TransitionSm>| {
+                    transits_cb.lock().unwrap().push(t.to_string());
+                },
+            ));
         sm.transit();
         assert_eq!(*transits.lock().unwrap(), vec!["S0->S1"]);
         transits.lock().unwrap().clear();
@@ -142,12 +149,16 @@ mod tests {
     /// Test change-state callbacks.
     #[test]
     fn change_state_callback() {
-        let transits = Mutex::new(Vec::new());
         let mut sm = TransitionSm::new();
+        let transits = Arc::new(Mutex::new(Vec::new()));
+        let transits_cb = transits.clone();
         sm.event_monitor_mut()
-            .add_transition_callback(Callback::new("test", |t: &Transition| {
-                transits.lock().unwrap().push(t.to_string());
-            }));
+            .add_transition_callback(Callback::new(
+                "test",
+                move |t: &Transition<TransitionSm>| {
+                    transits_cb.lock().unwrap().push(t.to_string());
+                },
+            ));
         sm.change();
         assert_eq!(*transits.lock().unwrap(), vec!["S0->>S1"]);
         transits.lock().unwrap().clear();
@@ -164,12 +175,16 @@ mod tests {
     /// Test that transition IDs are correct.
     #[test]
     fn transition_ids() {
-        let ids = Mutex::new(Vec::new());
         let mut sm = TransitionSm::new();
+        let ids = Arc::new(Mutex::new(Vec::new()));
+        let ids_cb = ids.clone();
         sm.event_monitor_mut()
-            .add_transition_callback(Callback::new("test", |t: &Transition| {
-                ids.lock().unwrap().push(t.info.id);
-            }));
+            .add_transition_callback(Callback::new(
+                "test",
+                move |t: &Transition<TransitionSm>| {
+                    ids_cb.lock().unwrap().push(t.info.id);
+                },
+            ));
         sm.transit();
         sm.transit();
         sm.transit();

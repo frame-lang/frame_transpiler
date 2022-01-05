@@ -3,7 +3,7 @@ include!(concat!(env!("OUT_DIR"), "/", "state_vars.rs"));
 #[cfg(test)]
 mod tests {
     use super::*;
-    use frame_runtime::unsync::*;
+    use frame_runtime::*;
 
     #[test]
     fn single_variable() {

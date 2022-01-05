@@ -1,34 +1,48 @@
 //! This module defines a type that captures state transitions.
 
+use crate::env::Environment;
+use crate::event::Event;
 use crate::info::TransitionInfo;
+use crate::machine::{Machine, State};
+use std::fmt;
+use std::ops::Deref;
 
 /// Captures the occurrence of a transition between two states.
-#[derive(Clone)]
-pub struct Transition<StatePtr, EventPtr> {
+pub struct Transition<M: Machine + ?Sized>
+where
+    <M::EnvironmentPtr as Deref>::Target: Environment,
+    <M::EventPtr as Deref>::Target: Event<M>,
+    <M::StatePtr as Deref>::Target: State<M>,
+{
     /// Information about the transition statement that triggered this transition.
     pub info: &'static TransitionInfo,
 
     /// The source state instance immediately before the transition.
-    pub old_state: StatePtr,
+    pub old_state: M::StatePtr,
 
     /// The target state instance immediately after the transition.
-    pub new_state: StatePtr,
+    pub new_state: M::StatePtr,
 
     /// The exit event sent to the source state. Will be `None` for a change-state transition.
-    pub exit_event: Option<EventPtr>,
+    pub exit_event: Option<M::EventPtr>,
 
     /// The enter event sent to the target state. Will be `None` for a change-state transition.
-    pub enter_event: Option<EventPtr>,
+    pub enter_event: Option<M::EventPtr>,
 }
 
-impl<StatePtr, EventPtr> Transition<StatePtr, EventPtr> {
+impl<M: Machine> Transition<M>
+where
+    <M::EnvironmentPtr as Deref>::Target: Environment,
+    <M::EventPtr as Deref>::Target: Event<M>,
+    <M::StatePtr as Deref>::Target: State<M>,
+{
     /// Create a transition instance for a standard transition with exit/enter events.
     pub fn new(
         info: &'static TransitionInfo,
-        old_state: StatePtr,
-        new_state: StatePtr,
-        exit_event: EventPtr,
-        enter_event: EventPtr,
+        old_state: M::StatePtr,
+        new_state: M::StatePtr,
+        exit_event: M::EventPtr,
+        enter_event: M::EventPtr,
     ) -> Self {
         Transition {
             info,
@@ -42,8 +56,8 @@ impl<StatePtr, EventPtr> Transition<StatePtr, EventPtr> {
     /// Create a transition instance for a change-state transition without exit/enter events.
     pub fn new_change_state(
         info: &'static TransitionInfo,
-        old_state: StatePtr,
-        new_state: StatePtr,
+        old_state: M::StatePtr,
+        new_state: M::StatePtr,
     ) -> Self {
         Transition {
             info,
@@ -55,90 +69,61 @@ impl<StatePtr, EventPtr> Transition<StatePtr, EventPtr> {
     }
 }
 
-/// Definitions specific to the synchronized/thread-safe interface.
-pub mod sync {
-    use crate::env::sync::EnvironmentPtr;
-    use crate::env::Empty;
-    use crate::event::sync::EventPtr;
-    use crate::live::sync::StatePtr;
-    use std::fmt;
-
-    /// Captures the occurrence of a transition between two states.
-    pub type Transition = super::Transition<StatePtr, EventPtr>;
-
-    impl Transition {
-        /// Get the arguments from the exit event, or an empty environment if there is no exit
-        /// event.
-        pub fn exit_arguments(&self) -> EnvironmentPtr {
-            match &self.exit_event {
-                Some(event) => event.arguments(),
-                None => Empty::arc(),
-            }
-        }
-
-        /// Get the arguments from the enter event or an empty environment if there is no enter
-        /// event.
-        pub fn enter_arguments(&self) -> EnvironmentPtr {
-            match &self.enter_event {
-                Some(event) => event.arguments(),
-                None => Empty::arc(),
-            }
+impl<M: Machine> Transition<M>
+where
+    <M::EnvironmentPtr as Deref>::Target: Environment,
+    <M::EventPtr as Deref>::Target: Event<M>,
+    <M::StatePtr as Deref>::Target: State<M>,
+{
+    /// Get the arguments from the exit event, or an empty environment if there is no exit
+    /// event.
+    pub fn exit_arguments(&self) -> M::EnvironmentPtr {
+        match &self.exit_event {
+            Some(event) => event.arguments(),
+            None => M::empty_environment(),
         }
     }
 
-    impl fmt::Display for Transition {
-        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-            write!(
-                f,
-                "{}{}{}",
-                self.old_state.info().name,
-                self.info.kind,
-                self.new_state.info().name
-            )
+    /// Get the arguments from the enter event or an empty environment if there is no enter
+    /// event.
+    pub fn enter_arguments(&self) -> M::EnvironmentPtr {
+        match &self.enter_event {
+            Some(event) => event.arguments(),
+            None => M::empty_environment(),
         }
     }
 }
 
-/// Definitions specific to the unsynchronized interface.
-pub mod unsync {
-    use crate::env::unsync::EnvironmentPtr;
-    use crate::env::Empty;
-    use crate::event::unsync::EventPtr;
-    use crate::live::unsync::StatePtr;
-    use std::fmt;
-
-    /// Captures the occurrence of a transition between two states.
-    pub type Transition = super::Transition<StatePtr, EventPtr>;
-
-    impl Transition {
-        /// Get the arguments from the exit event, or an empty environment if there is no exit
-        /// event.
-        pub fn exit_arguments(&self) -> EnvironmentPtr {
-            match &self.exit_event {
-                Some(event) => event.arguments(),
-                None => Empty::rc(),
-            }
-        }
-
-        /// Get the arguments from the enter event or an empty environment if there is no enter
-        /// event.
-        pub fn enter_arguments(&self) -> EnvironmentPtr {
-            match &self.enter_event {
-                Some(event) => event.arguments(),
-                None => Empty::rc(),
-            }
+impl<M: Machine> Clone for Transition<M>
+where
+    <M::EnvironmentPtr as Deref>::Target: Environment,
+    <M::EventPtr as Deref>::Target: Event<M>,
+    <M::StatePtr as Deref>::Target: State<M>,
+{
+    fn clone(&self) -> Self {
+        Transition {
+            info: self.info,
+            old_state: self.old_state.clone(),
+            new_state: self.new_state.clone(),
+            exit_event: self.exit_event.clone(),
+            enter_event: self.enter_event.clone(),
         }
     }
+}
 
-    impl fmt::Display for Transition {
-        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-            write!(
-                f,
-                "{}{}{}",
-                self.old_state.info().name,
-                self.info.kind,
-                self.new_state.info().name
-            )
-        }
+impl<M: Machine> fmt::Display for Transition<M>
+where
+    <M::EnvironmentPtr as Deref>::Target: Environment,
+    <M::EventPtr as Deref>::Target: Event<M>,
+    <M::StatePtr as Deref>::Target: State<M>,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}{}{}",
+            self.old_state.info().name,
+            self.info.kind,
+            self.new_state.info().name
+        )
     }
 }

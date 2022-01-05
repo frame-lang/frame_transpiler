@@ -442,7 +442,7 @@ pub mod demo {
 
 mod tests {
     use super::demo::*;
-    use frame_runtime::live::Machine;
+    use frame_runtime::machine::Machine;
 
     #[test]
     fn machine_info() {
@@ -571,30 +571,16 @@ mod tests {
     }
 
     #[test]
-    fn smcat_render_live_sync() {
+    fn smcat_render_live() {
         use crate::demo::sync::*;
-        use frame_runtime::smcat::sync::*;
+        use frame_runtime::smcat::*;
         let smcat = Renderer::new(Box::new(SimpleStyle));
 
         let mut sm = Demo::new();
-        assert_eq!(smcat.render_live_sync(&sm), SMCAT_LIVE_1);
+        assert_eq!(smcat.render_live(&sm), SMCAT_LIVE_1);
         sm.next();
-        assert_eq!(smcat.render_live_sync(&sm), SMCAT_LIVE_2);
+        assert_eq!(smcat.render_live(&sm), SMCAT_LIVE_2);
         sm.next();
-        assert_eq!(smcat.render_live_sync(&sm), SMCAT_LIVE_3);
-    }
-
-    #[test]
-    fn smcat_render_live_unsync() {
-        use crate::demo::unsync::*;
-        use frame_runtime::smcat::unsync::*;
-        let smcat = Renderer::new(Box::new(SimpleStyle));
-
-        let mut sm = Demo::new();
-        assert_eq!(smcat.render_live_unsync(&sm), SMCAT_LIVE_1);
-        sm.next();
-        assert_eq!(smcat.render_live_unsync(&sm), SMCAT_LIVE_2);
-        sm.next();
-        assert_eq!(smcat.render_live_unsync(&sm), SMCAT_LIVE_3);
+        assert_eq!(smcat.render_live(&sm), SMCAT_LIVE_3);
     }
 }

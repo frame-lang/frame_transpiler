@@ -1,7 +1,7 @@
 type Log = Vec<String>;
 include!(concat!(env!("OUT_DIR"), "/", "state_params.rs"));
 
-impl<'a> StateParams<'a> {
+impl StateParams {
     pub fn got_param(&mut self, name: String, val: u32) {
         self.param_log.push(format!("{}={}", name, val));
     }
@@ -10,7 +10,7 @@ impl<'a> StateParams<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use frame_runtime::unsync::*;
+    use frame_runtime::*;
 
     #[test]
     fn single_parameter() {

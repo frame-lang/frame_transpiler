@@ -3,7 +3,7 @@
 type Log = Vec<String>;
 include!(concat!(env!("OUT_DIR"), "/", "hierarchical.rs"));
 
-impl<'a> Hierarchical<'a> {
+impl Hierarchical {
     pub fn enter(&mut self, msg: String) {
         self.enters.push(msg);
     }
@@ -18,7 +18,7 @@ impl<'a> Hierarchical<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use frame_runtime::unsync::*;
+    use frame_runtime::*;
 
     /// Test that a continue (`:>`) in a child enter handler calls the parent enter handler.
     #[test]

@@ -5,18 +5,22 @@ include!(concat!(env!("OUT_DIR"), "/", "event_monitor.rs"));
 #[cfg(test)]
 mod tests {
     use super::*;
-    use frame_runtime::unsync::*;
-    use std::sync::Mutex;
+    use frame_runtime::*;
+    use std::sync::{Arc, Mutex};
 
     /// Test that event sent callbacks are triggered.
     #[test]
     fn event_sent() {
-        let events = Mutex::new(Vec::new());
         let mut sm = EventMonitorSm::new();
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let events_cb = events.clone();
         sm.event_monitor_mut()
-            .add_event_sent_callback(Callback::new("test", |e: &EventPtr| {
-                events.lock().unwrap().push(e.clone());
-            }));
+            .add_event_sent_callback(Callback::new(
+                "test",
+                move |e: &<EventMonitorSm as Machine>::EventPtr| {
+                    events_cb.lock().unwrap().push(e.clone());
+                },
+            ));
 
         sm.mult(3, 5);
         sm.change();
@@ -35,12 +39,16 @@ mod tests {
     /// Test that event handled callbacks are triggered.
     #[test]
     fn event_handled() {
-        let events = Mutex::new(Vec::new());
         let mut sm = EventMonitorSm::new();
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let events_cb = events.clone();
         sm.event_monitor_mut()
-            .add_event_handled_callback(Callback::new("test", |e: &EventPtr| {
-                events.lock().unwrap().push(e.clone());
-            }));
+            .add_event_handled_callback(Callback::new(
+                "test",
+                move |e: &<EventMonitorSm as Machine>::EventPtr| {
+                    events_cb.lock().unwrap().push(e.clone());
+                },
+            ));
 
         sm.mult(3, 5);
         sm.change();
@@ -59,12 +67,16 @@ mod tests {
     /// Test that event sent callbacks are triggered in the expected order.
     #[test]
     fn event_sent_order() {
-        let events = Mutex::new(Vec::new());
         let mut sm = EventMonitorSm::new();
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let events_cb = events.clone();
         sm.event_monitor_mut()
-            .add_event_sent_callback(Callback::new("test", |e: &EventPtr| {
-                events.lock().unwrap().push(e.info().name);
-            }));
+            .add_event_sent_callback(Callback::new(
+                "test",
+                move |e: &<EventMonitorSm as Machine>::EventPtr| {
+                    events_cb.lock().unwrap().push(e.info().name);
+                },
+            ));
 
         sm.transit(2);
         assert_eq!(EventMonitorSmState::A, sm.state);
@@ -92,12 +104,16 @@ mod tests {
     /// Test that event handled callbacks are triggered in the expected order.
     #[test]
     fn event_handled_order() {
-        let events = Mutex::new(Vec::new());
         let mut sm = EventMonitorSm::new();
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let events_cb = events.clone();
         sm.event_monitor_mut()
-            .add_event_handled_callback(Callback::new("test", |e: &EventPtr| {
-                events.lock().unwrap().push(e.info().name);
-            }));
+            .add_event_handled_callback(Callback::new(
+                "test",
+                move |e: &<EventMonitorSm as Machine>::EventPtr| {
+                    events_cb.lock().unwrap().push(e.info().name);
+                },
+            ));
 
         sm.transit(2);
         assert_eq!(EventMonitorSmState::A, sm.state);
@@ -125,12 +141,16 @@ mod tests {
     /// Test that transition callbacks are triggered in the expected order.
     #[test]
     fn transition_order() {
-        let transits = Mutex::new(Vec::new());
         let mut sm = EventMonitorSm::new();
+        let transits = Arc::new(Mutex::new(Vec::new()));
+        let transits_cb = transits.clone();
         sm.event_monitor_mut()
-            .add_transition_callback(Callback::new("test", |t: &Transition| {
-                transits.lock().unwrap().push(t.to_string());
-            }));
+            .add_transition_callback(Callback::new(
+                "test",
+                move |t: &Transition<EventMonitorSm>| {
+                    transits_cb.lock().unwrap().push(t.to_string());
+                },
+            ));
 
         sm.transit(2);
         assert_eq!(4, transits.lock().unwrap().len());
@@ -152,22 +172,35 @@ mod tests {
     /// Test that event and transition callbacks are triggered in the expected relative orders.
     #[test]
     fn event_transition_order() {
-        let sent = Mutex::new(Vec::new());
-        let handled = Mutex::new(Vec::new());
         let mut sm = EventMonitorSm::new();
+        let sent = Arc::new(Mutex::new(Vec::new()));
+        let handled = Arc::new(Mutex::new(Vec::new()));
+        let sent_cb1 = sent.clone();
+        let sent_cb2 = sent.clone();
+        let handled_cb1 = handled.clone();
+        let handled_cb2 = handled.clone();
         sm.event_monitor_mut()
-            .add_event_sent_callback(Callback::new("sent", |e: &EventPtr| {
-                sent.lock().unwrap().push(e.info().name.to_string());
-            }));
+            .add_event_sent_callback(Callback::new(
+                "sent",
+                move |e: &<EventMonitorSm as Machine>::EventPtr| {
+                    sent_cb1.lock().unwrap().push(e.info().name.to_string());
+                },
+            ));
         sm.event_monitor_mut()
-            .add_event_handled_callback(Callback::new("handled", |e: &EventPtr| {
-                handled.lock().unwrap().push(e.info().name.to_string());
-            }));
+            .add_event_handled_callback(Callback::new(
+                "handled",
+                move |e: &<EventMonitorSm as Machine>::EventPtr| {
+                    handled_cb1.lock().unwrap().push(e.info().name.to_string());
+                },
+            ));
         sm.event_monitor_mut()
-            .add_transition_callback(Callback::new("transition", |t: &Transition| {
-                sent.lock().unwrap().push(t.to_string());
-                handled.lock().unwrap().push(t.to_string());
-            }));
+            .add_transition_callback(Callback::new(
+                "transition",
+                move |t: &Transition<EventMonitorSm>| {
+                    sent_cb2.lock().unwrap().push(t.to_string());
+                    handled_cb2.lock().unwrap().push(t.to_string());
+                },
+            ));
 
         sm.transit(2);
         assert_eq!(14, sent.lock().unwrap().len());
@@ -219,22 +252,26 @@ mod tests {
     /// Test that event sent callbacks receive the proper argument environments.
     #[test]
     fn event_sent_arguments() {
-        let events_mutex = Mutex::new(Vec::new());
         let mut sm = EventMonitorSm::new();
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let events_cb = events.clone();
         sm.event_monitor_mut()
-            .add_event_sent_callback(Callback::new("test", |e: &EventPtr| {
-                if e.info().name == "mult" {
-                    assert!(!e.arguments().is_empty());
-                } else if e.info().name == "change" {
-                    assert!(e.arguments().is_empty());
-                }
-                events_mutex.lock().unwrap().push(e.clone());
-            }));
+            .add_event_sent_callback(Callback::new(
+                "test",
+                move |e: &<EventMonitorSm as Machine>::EventPtr| {
+                    if e.info().name == "mult" {
+                        assert!(!e.arguments().is_empty());
+                    } else if e.info().name == "change" {
+                        assert!(e.arguments().is_empty());
+                    }
+                    events_cb.lock().unwrap().push(e.clone());
+                },
+            ));
         sm.mult(3, 5);
         sm.change();
         sm.mult(4, 6);
 
-        let events = events_mutex.lock().unwrap();
+        let events = events.lock().unwrap();
         assert_eq!(3, events.len());
 
         assert_eq!("mult", events[0].info().name);
@@ -267,18 +304,22 @@ mod tests {
     /// but that the return value is later added to the event.
     #[test]
     fn event_sent_return_value() {
-        let events_mutex = Mutex::new(Vec::new());
         let mut sm = EventMonitorSm::new();
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let events_cb = events.clone();
         sm.event_monitor_mut()
-            .add_event_sent_callback(Callback::new("test", |e: &EventPtr| {
-                assert!(e.return_value().is_none());
-                events_mutex.lock().unwrap().push(e.clone());
-            }));
+            .add_event_sent_callback(Callback::new(
+                "test",
+                move |e: &<EventMonitorSm as Machine>::EventPtr| {
+                    assert!(e.return_value().is_none());
+                    events_cb.lock().unwrap().push(e.clone());
+                },
+            ));
         sm.mult(3, 5);
         sm.change();
         sm.mult(4, 6);
 
-        let events = events_mutex.lock().unwrap();
+        let events = events.lock().unwrap();
         assert_eq!(3, events.len());
 
         assert_eq!("mult", events[0].info().name);
@@ -300,20 +341,24 @@ mod tests {
     /// Test that event handled callbacks receive a return value at the time they're called.
     #[test]
     fn event_handled_return_value() {
-        let events_mutex = Mutex::new(Vec::new());
         let mut sm = EventMonitorSm::new();
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let events_cb = events.clone();
         sm.event_monitor_mut()
-            .add_event_handled_callback(Callback::new("test", |e: &EventPtr| {
-                if e.return_value().is_some() {
-                    events_mutex.lock().unwrap().push(e.clone());
-                }
-            }));
+            .add_event_handled_callback(Callback::new(
+                "test",
+                move |e: &<EventMonitorSm as Machine>::EventPtr| {
+                    if e.return_value().is_some() {
+                        events_cb.lock().unwrap().push(e.clone());
+                    }
+                },
+            ));
         sm.mult(3, 5);
         sm.change();
         sm.mult(4, 6);
         sm.transit(3);
 
-        let events = events_mutex.lock().unwrap();
+        let events = events.lock().unwrap();
         assert_eq!(4, events.len());
         assert_eq!(
             15,
