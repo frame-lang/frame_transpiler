@@ -157,8 +157,8 @@ impl Environment for Demo {
 
 impl runtime::Machine for Demo {
     type EnvironmentPtr = Arc<dyn runtime::Environment>;
-    type StatePtr = Arc<dyn runtime::State<Self>>;
-    type EventPtr = Arc<dyn runtime::Event<Self>>;
+    type StatePtr = Arc<dyn runtime::State<Self> + Send + Sync>;
+    type EventPtr = Arc<dyn runtime::Event<Self> + Send + Sync>;
     type EventFn = runtime::CallbackSend<Self::EventPtr>;
     type TransitionFn = runtime::CallbackSend<runtime::Transition<Self>>;
     fn state(&self) -> Self::StatePtr {
@@ -399,6 +399,9 @@ mod tests {
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Mutex;
 
+    fn has_send(_: &impl Send) {}
+    fn has_sync(_: &impl Sync) {}
+
     /// Helper function to lookup an `i32` value in an environment.
     /// Returns -1 if the lookup fails for any reason.
     fn lookup_i32(env: &dyn Environment, name: &str) -> i32 {
@@ -406,6 +409,15 @@ mod tests {
             None => -1,
             Some(any) => *any.downcast_ref().unwrap_or(&-1),
         }
+    }
+
+    /// Test that the state machine implements the `Send` and `Sync` traits. Will cause a compile
+    /// error if it doesn't.
+    #[test]
+    fn implements_send_and_sync() {
+        let sm = Demo::new();
+        has_send(&sm);
+        has_sync(&sm);
     }
 
     #[test]

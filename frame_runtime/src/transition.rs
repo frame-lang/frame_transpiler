@@ -1,11 +1,19 @@
 //! This module defines a type that captures state transitions.
 
+use crate::env::Environment;
+use crate::event::Event;
 use crate::info::TransitionInfo;
-use crate::machine::Machine;
+use crate::machine::{Machine, State};
 use std::fmt;
+use std::ops::Deref;
 
 /// Captures the occurrence of a transition between two states.
-pub struct Transition<M: Machine + ?Sized> {
+pub struct Transition<M: Machine + ?Sized>
+where
+    <M::EnvironmentPtr as Deref>::Target: Environment,
+    <M::EventPtr as Deref>::Target: Event<M>,
+    <M::StatePtr as Deref>::Target: State<M>,
+{
     /// Information about the transition statement that triggered this transition.
     pub info: &'static TransitionInfo,
 
@@ -22,7 +30,12 @@ pub struct Transition<M: Machine + ?Sized> {
     pub enter_event: Option<M::EventPtr>,
 }
 
-impl<M: Machine> Transition<M> {
+impl<M: Machine> Transition<M>
+where
+    <M::EnvironmentPtr as Deref>::Target: Environment,
+    <M::EventPtr as Deref>::Target: Event<M>,
+    <M::StatePtr as Deref>::Target: State<M>,
+{
     /// Create a transition instance for a standard transition with exit/enter events.
     pub fn new(
         info: &'static TransitionInfo,
@@ -56,7 +69,12 @@ impl<M: Machine> Transition<M> {
     }
 }
 
-impl<M: Machine> Transition<M> {
+impl<M: Machine> Transition<M>
+where
+    <M::EnvironmentPtr as Deref>::Target: Environment,
+    <M::EventPtr as Deref>::Target: Event<M>,
+    <M::StatePtr as Deref>::Target: State<M>,
+{
     /// Get the arguments from the exit event, or an empty environment if there is no exit
     /// event.
     pub fn exit_arguments(&self) -> M::EnvironmentPtr {
@@ -76,7 +94,12 @@ impl<M: Machine> Transition<M> {
     }
 }
 
-impl<M: Machine> Clone for Transition<M> {
+impl<M: Machine> Clone for Transition<M>
+where
+    <M::EnvironmentPtr as Deref>::Target: Environment,
+    <M::EventPtr as Deref>::Target: Event<M>,
+    <M::StatePtr as Deref>::Target: State<M>,
+{
     fn clone(&self) -> Self {
         Transition {
             info: self.info,
@@ -88,7 +111,12 @@ impl<M: Machine> Clone for Transition<M> {
     }
 }
 
-impl<M: Machine> fmt::Display for Transition<M> {
+impl<M: Machine> fmt::Display for Transition<M>
+where
+    <M::EnvironmentPtr as Deref>::Target: Environment,
+    <M::EventPtr as Deref>::Target: Event<M>,
+    <M::StatePtr as Deref>::Target: State<M>,
+{
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,

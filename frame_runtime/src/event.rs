@@ -1,14 +1,21 @@
 //! This module defines events, callbacks, and the runtime system's event monitor.
 
 use crate::callback::IsCallback;
+use crate::env::Environment;
 use crate::history::History;
 use crate::info::MethodInfo;
-use crate::machine::Machine;
+use crate::machine::{Machine, State};
 use crate::transition::Transition;
 use std::any::Any;
+use std::ops::Deref;
 
 /// Captures the occurence of a particular event or action.
-pub trait Event<M: Machine + ?Sized> {
+pub trait Event<M: Machine + ?Sized>
+where
+    <M::EnvironmentPtr as Deref>::Target: Environment,
+    <M::EventPtr as Deref>::Target: Event<M>,
+    <M::StatePtr as Deref>::Target: State<M>,
+{
     /// The signature of the event that occurred
     fn info(&self) -> &MethodInfo;
 
@@ -25,7 +32,12 @@ pub trait Event<M: Machine + ?Sized> {
 /// An event monitor maintains a history of previous Frame events and transitions and enables
 /// registering callbacks that will be automatically invoked whenever an event or transition occurs
 /// in a running state machine.
-pub struct EventMonitor<M: Machine + ?Sized> {
+pub struct EventMonitor<M: Machine + ?Sized>
+where
+    <M::EnvironmentPtr as Deref>::Target: Environment,
+    <M::EventPtr as Deref>::Target: Event<M>,
+    <M::StatePtr as Deref>::Target: State<M>,
+{
     event_history: History<M::EventPtr>,
     transition_history: History<Transition<M>>,
     event_sent_callbacks: Vec<M::EventFn>,
@@ -33,7 +45,12 @@ pub struct EventMonitor<M: Machine + ?Sized> {
     transition_callbacks: Vec<M::TransitionFn>,
 }
 
-impl<M: Machine> EventMonitor<M> {
+impl<M: Machine> EventMonitor<M>
+where
+    <M::EnvironmentPtr as Deref>::Target: Environment,
+    <M::EventPtr as Deref>::Target: Event<M>,
+    <M::StatePtr as Deref>::Target: State<M>,
+{
     /// Create a new event monitor with the given capacities for the event history and
     /// transition history. See the documentation for [History::capacity].
     pub fn new(event_capacity: Option<usize>, transition_capacity: Option<usize>) -> Self {
@@ -168,7 +185,12 @@ impl<M: Machine> EventMonitor<M> {
     }
 }
 
-impl<M: Machine> Default for EventMonitor<M> {
+impl<M: Machine> Default for EventMonitor<M>
+where
+    <M::EnvironmentPtr as Deref>::Target: Environment,
+    <M::EventPtr as Deref>::Target: Event<M>,
+    <M::StatePtr as Deref>::Target: State<M>,
+{
     fn default() -> Self {
         EventMonitor::new(Some(0), Some(1))
     }
@@ -180,7 +202,6 @@ mod tests {
     use crate::callback::*;
     use crate::env::*;
     use crate::info::*;
-    use crate::machine::*;
     use std::any::Any;
     use std::rc::Rc;
     use std::sync::Mutex;

@@ -5,9 +5,12 @@
 //! enumerations rather than strings. However, strings are used for simplicity and forward
 //! compatibility with new types that may be added.
 
+use crate::env::Environment;
+use crate::event::Event;
 use crate::info::*;
-use crate::machine::Machine;
+use crate::machine::{Machine, State};
 use std::fmt;
+use std::ops::Deref;
 
 /// Style options for smcat states.
 ///
@@ -191,7 +194,12 @@ impl Renderer {
     /// Generate an smcat diagram from a snapshot of a running state machine. Depending on the
     /// style configuration, this can be expected to highlight the running state, most recent
     /// transition, etc. Eventually, it may show the current values of variables.
-    pub fn render_live(&self, machine: &impl Machine) -> String {
+    pub fn render_live<M: Machine>(&self, machine: &M) -> String
+    where
+        <M::EnvironmentPtr as Deref>::Target: Environment,
+        <M::EventPtr as Deref>::Target: Event<M>,
+        <M::StatePtr as Deref>::Target: State<M>,
+    {
         let machine_info = machine.info();
         let active_state = machine.state().info().name;
         let last_transition = machine

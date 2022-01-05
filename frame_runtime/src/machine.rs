@@ -10,15 +10,20 @@ use std::ops::Deref;
 
 /// An interface to a running state machine that supports inspecting its current state and
 /// variables, and registering callbacks to be notified of various events.
-pub trait Machine {
+pub trait Machine
+where
+    <Self::EnvironmentPtr as Deref>::Target: Environment,
+    <Self::EventPtr as Deref>::Target: Event<Self>,
+    <Self::StatePtr as Deref>::Target: State<Self>,
+{
     /// Type of pointers to environments within this machine.
-    type EnvironmentPtr: Clone + Deref<Target = dyn Environment>;
-
-    /// Type of pointers to states within this machine.
-    type StatePtr: Clone + Deref<Target = dyn State<Self>>;
+    type EnvironmentPtr: Deref + Clone;
 
     /// Type of pointers to events within this machine.
-    type EventPtr: Clone + Deref<Target = dyn Event<Self>>;
+    type EventPtr: Deref + Clone;
+
+    /// Type of pointers to states within this machine.
+    type StatePtr: Deref + Clone;
 
     /// Type of event callbacks within this machine.
     type EventFn: IsCallback<Self::EventPtr>;
@@ -60,7 +65,12 @@ pub trait Machine {
 /// not saved between visits, so these names are bound to values only when the state is "active". A
 /// state is active when it is the current state or when it is immediately involved in a
 /// transition.
-pub trait State<M: Machine + ?Sized> {
+pub trait State<M: Machine + ?Sized>
+where
+    <M::EnvironmentPtr as Deref>::Target: Environment,
+    <M::EventPtr as Deref>::Target: Event<M>,
+    <M::StatePtr as Deref>::Target: State<M>,
+{
     /// Static information about the state declaration that gave rise to this state instance.
     fn info(&self) -> &'static StateInfo;
 
