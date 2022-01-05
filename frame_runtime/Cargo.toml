@@ -1,6 +1,6 @@
 [package]
 name = "frame_runtime"
-version = "0.7.2"
+version = "0.7.3"
 authors = ["Eric Walkingshaw <eric.walkingshaw@savant.com>"]
 edition = "2018"
 
