@@ -395,8 +395,8 @@ mod tests {
     use frame_runtime::env::{Empty, Environment};
     use frame_runtime::machine::Machine;
     use frame_runtime::transition::Transition;
+    use std::cell::RefCell;
     use std::sync::atomic::{AtomicBool, Ordering};
-    use std::sync::Mutex;
 
     /// Helper function to lookup an `i32` value in an environment.
     /// Returns -1 if the lookup fails for any reason.
@@ -484,14 +484,14 @@ mod tests {
 
     #[test]
     fn event_sent_callbacks() {
-        let tape = Rc::new(Mutex::new(Vec::new()));
+        let tape = Rc::new(RefCell::new(Vec::new()));
         let tape_cb = tape.clone();
         let mut sm = Demo::new();
         sm.event_monitor_mut()
             .add_event_sent_callback(Callback::new(
                 "test",
                 move |e: &<Demo as Machine>::EventPtr| {
-                    tape_cb.lock().unwrap().push(e.info().name.to_string());
+                    tape_cb.borrow_mut().push(e.info().name.to_string());
                 },
             ));
         sm.inc(2);
@@ -500,21 +500,21 @@ mod tests {
         sm.next();
         sm.next();
         assert_eq!(
-            *tape.lock().unwrap(),
+            *tape.borrow(),
             vec!["inc", "next", "Foo:<", "Bar:>", "inc", "next", "next", "Foo:<", "Bar:>"]
         );
     }
 
     #[test]
     fn event_handled_callbacks() {
-        let tape = Rc::new(Mutex::new(Vec::new()));
+        let tape = Rc::new(RefCell::new(Vec::new()));
         let tape_cb = tape.clone();
         let mut sm = Demo::new();
         sm.event_monitor_mut()
             .add_event_handled_callback(Callback::new(
                 "test",
                 move |e: &<Demo as Machine>::EventPtr| {
-                    tape_cb.lock().unwrap().push(e.info().name.to_string());
+                    tape_cb.borrow_mut().push(e.info().name.to_string());
                 },
             ));
         sm.inc(2);
@@ -523,14 +523,14 @@ mod tests {
         sm.next();
         sm.next();
         assert_eq!(
-            *tape.lock().unwrap(),
+            *tape.borrow(),
             vec!["inc", "Foo:<", "Bar:>", "next", "inc", "next", "Foo:<", "Bar:>", "next"]
         );
     }
 
     #[test]
     fn remove_event_sent_callbacks() {
-        let tape = Rc::new(Mutex::new(Vec::new()));
+        let tape = Rc::new(RefCell::new(Vec::new()));
         let tape_cb1 = tape.clone();
         let tape_cb2 = tape.clone();
         let tape_cb3 = tape.clone();
@@ -538,45 +538,45 @@ mod tests {
         let mut sm = Demo::new();
         sm.event_monitor_mut()
             .add_event_sent_callback(Callback::new("zero", move |_| {
-                tape_cb1.lock().unwrap().push("0".to_string());
+                tape_cb1.borrow_mut().push("0".to_string());
             }));
         sm.event_monitor_mut()
             .add_event_sent_callback(Callback::new("one", move |_| {
-                tape_cb2.lock().unwrap().push("1".to_string());
+                tape_cb2.borrow_mut().push("1".to_string());
             }));
         sm.event_monitor_mut()
             .add_event_sent_callback(Callback::new(
                 "event",
                 move |e: &<Demo as Machine>::EventPtr| {
-                    tape_cb3.lock().unwrap().push(e.info().name.to_string());
+                    tape_cb3.borrow_mut().push(e.info().name.to_string());
                 },
             ));
         sm.event_monitor_mut()
             .add_event_sent_callback(Callback::new("one", move |_| {
-                tape_cb4.lock().unwrap().push("1".to_string());
+                tape_cb4.borrow_mut().push("1".to_string());
             }));
 
         sm.inc(2);
-        assert_eq!(*tape.lock().unwrap(), vec!["0", "1", "inc", "1"]);
-        tape.lock().unwrap().clear();
+        assert_eq!(*tape.borrow(), vec!["0", "1", "inc", "1"]);
+        tape.borrow_mut().clear();
 
         sm.event_monitor_mut().remove_event_sent_callback("one");
         sm.next();
         assert_eq!(
-            *tape.lock().unwrap(),
+            *tape.borrow(),
             vec!["0", "next", "0", "Foo:<", "0", "Bar:>"]
         );
-        tape.lock().unwrap().clear();
+        tape.borrow_mut().clear();
 
         sm.event_monitor_mut().remove_event_sent_callback("zero");
         sm.inc(3);
         sm.next();
-        assert_eq!(*tape.lock().unwrap(), vec!["inc", "next"]);
+        assert_eq!(*tape.borrow(), vec!["inc", "next"]);
     }
 
     #[test]
     fn remove_event_handled_callbacks() {
-        let tape = Rc::new(Mutex::new(Vec::new()));
+        let tape = Rc::new(RefCell::new(Vec::new()));
         let tape_cb1 = tape.clone();
         let tape_cb2 = tape.clone();
         let tape_cb3 = tape.clone();
@@ -584,45 +584,45 @@ mod tests {
         let mut sm = Demo::new();
         sm.event_monitor_mut()
             .add_event_handled_callback(Callback::new("zero", move |_| {
-                tape_cb1.lock().unwrap().push("0".to_string());
+                tape_cb1.borrow_mut().push("0".to_string());
             }));
         sm.event_monitor_mut()
             .add_event_handled_callback(Callback::new("one", move |_| {
-                tape_cb2.lock().unwrap().push("1".to_string());
+                tape_cb2.borrow_mut().push("1".to_string());
             }));
         sm.event_monitor_mut()
             .add_event_handled_callback(Callback::new(
                 "event",
                 move |e: &<Demo as Machine>::EventPtr| {
-                    tape_cb3.lock().unwrap().push(e.info().name.to_string());
+                    tape_cb3.borrow_mut().push(e.info().name.to_string());
                 },
             ));
         sm.event_monitor_mut()
             .add_event_handled_callback(Callback::new("one", move |_| {
-                tape_cb4.lock().unwrap().push("1".to_string());
+                tape_cb4.borrow_mut().push("1".to_string());
             }));
 
         sm.inc(2);
-        assert_eq!(*tape.lock().unwrap(), vec!["0", "1", "inc", "1"]);
-        tape.lock().unwrap().clear();
+        assert_eq!(*tape.borrow(), vec!["0", "1", "inc", "1"]);
+        tape.borrow_mut().clear();
 
         sm.event_monitor_mut().remove_event_handled_callback("one");
         sm.next();
         assert_eq!(
-            *tape.lock().unwrap(),
+            *tape.borrow(),
             vec!["0", "Foo:<", "0", "Bar:>", "0", "next"]
         );
-        tape.lock().unwrap().clear();
+        tape.borrow_mut().clear();
 
         sm.event_monitor_mut().remove_event_handled_callback("zero");
         sm.inc(3);
         sm.next();
-        assert_eq!(*tape.lock().unwrap(), vec!["inc", "next"]);
+        assert_eq!(*tape.borrow(), vec!["inc", "next"]);
     }
 
     #[test]
     fn event_sent_arguments() {
-        let tape = Rc::new(Mutex::new(Vec::new()));
+        let tape = Rc::new(RefCell::new(Vec::new()));
         let tape_cb = tape.clone();
         let mut sm = Demo::new();
         sm.event_monitor_mut()
@@ -632,7 +632,7 @@ mod tests {
                     for param in e.info().parameters {
                         let name = param.name;
                         let val = lookup_i32(e.arguments().as_ref(), name);
-                        tape_cb.lock().unwrap().push(format!("{}={}", name, val));
+                        tape_cb.borrow_mut().push(format!("{}={}", name, val));
                     }
                 },
             ));
@@ -643,14 +643,14 @@ mod tests {
         sm.inc(7);
         sm.next(); // transition done=7, start=3
         assert_eq!(
-            *tape.lock().unwrap(),
+            *tape.borrow(),
             vec!["arg=5", "done=7", "start=3", "arg=6", "arg=7", "done=7", "start=3"]
         );
     }
 
     #[test]
     fn event_handled_return() {
-        let tape = Rc::new(Mutex::new(Vec::new()));
+        let tape = Rc::new(RefCell::new(Vec::new()));
         let tape_cb = tape.clone();
         let mut sm = Demo::new();
         sm.event_monitor_mut()
@@ -661,7 +661,7 @@ mod tests {
                         None => -1,
                         Some(any) => *any.downcast_ref().unwrap_or(&-100),
                     };
-                    tape_cb.lock().unwrap().push(val);
+                    tape_cb.borrow_mut().push(val);
                 },
             ));
         sm.inc(3); // 5
@@ -674,68 +674,65 @@ mod tests {
         sm.inc(5); // 8
         sm.next(); // transition
         assert_eq!(
-            *tape.lock().unwrap(),
+            *tape.borrow(),
             vec![5, 10, -1, -1, -1, 12, 19, -1, 3, 8, -1, -1, -1]
         );
     }
 
     #[test]
     fn transition_callbacks() {
-        let tape = Rc::new(Mutex::new(Vec::new()));
+        let tape = Rc::new(RefCell::new(Vec::new()));
         let tape_cb1 = tape.clone();
         let tape_cb2 = tape.clone();
         let mut sm = Demo::new();
         sm.event_monitor_mut()
             .add_transition_callback(Callback::new("kind", move |t: &Transition<Demo>| {
                 tape_cb1
-                    .lock()
-                    .unwrap()
+                    .borrow_mut()
                     .push(format!("kind: {:?}", t.info.kind));
             }));
         sm.event_monitor_mut()
             .add_transition_callback(Callback::new("kind", move |t: &Transition<Demo>| {
                 tape_cb2
-                    .lock()
-                    .unwrap()
+                    .borrow_mut()
                     .push(format!("old: {}", t.old_state.info().name));
                 tape_cb2
-                    .lock()
-                    .unwrap()
+                    .borrow_mut()
                     .push(format!("new: {}", t.new_state.info().name));
             }));
         sm.next();
         assert_eq!(
-            *tape.lock().unwrap(),
+            *tape.borrow(),
             vec!["kind: Transition", "old: Foo", "new: Bar"]
         );
-        tape.lock().unwrap().clear();
+        tape.borrow_mut().clear();
         sm.next();
         assert_eq!(
-            *tape.lock().unwrap(),
+            *tape.borrow(),
             vec!["kind: ChangeState", "old: Bar", "new: Foo"]
         );
-        tape.lock().unwrap().clear();
+        tape.borrow_mut().clear();
         sm.next();
         assert_eq!(
-            *tape.lock().unwrap(),
+            *tape.borrow(),
             vec!["kind: Transition", "old: Foo", "new: Bar"]
         );
     }
 
     #[test]
     fn transition_info_id() {
-        let tape = Rc::new(Mutex::new(Vec::new()));
+        let tape = Rc::new(RefCell::new(Vec::new()));
         let tape_cb = tape.clone();
         let mut sm = Demo::new();
         sm.event_monitor_mut()
             .add_transition_callback(Callback::new("test", move |t: &Transition<Demo>| {
-                tape_cb.lock().unwrap().push(t.info.id);
+                tape_cb.borrow_mut().push(t.info.id);
             }));
         sm.next();
         sm.inc(5);
         sm.next();
         sm.next();
-        assert_eq!(*tape.lock().unwrap(), vec![1, 2, 1]);
+        assert_eq!(*tape.borrow(), vec![1, 2, 1]);
     }
 
     #[test]
@@ -761,7 +758,7 @@ mod tests {
 
     #[test]
     fn enter_exit_arguments() {
-        let tape = Rc::new(Mutex::new(Vec::new()));
+        let tape = Rc::new(RefCell::new(Vec::new()));
         let tape_cb = tape.clone();
         let mut sm = Demo::new();
         sm.event_monitor_mut()
@@ -774,7 +771,7 @@ mod tests {
                     Some(event) => event.arguments(),
                     None => Empty::rc(),
                 };
-                tape_cb.lock().unwrap().push((
+                tape_cb.borrow_mut().push((
                     lookup_i32(exit.as_ref(), "done"),
                     lookup_i32(exit.as_ref(), "end"),
                     lookup_i32(enter.as_ref(), "init"),
@@ -788,7 +785,7 @@ mod tests {
         sm.inc(10);
         sm.next(); // transition done=10, start=3
         assert_eq!(
-            *tape.lock().unwrap(),
+            *tape.borrow(),
             vec![(12, -1, -1, 3), (-1, -1, -1, -1), (10, -1, -1, 3)]
         );
     }

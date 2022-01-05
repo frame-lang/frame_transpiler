@@ -203,8 +203,8 @@ mod tests {
     use crate::env::*;
     use crate::info::*;
     use std::any::Any;
+    use std::cell::RefCell;
     use std::rc::Rc;
-    use std::sync::Mutex;
 
     mod info {
         use crate::info::*;
@@ -373,13 +373,13 @@ mod tests {
 
     #[test]
     fn event_sent_callbacks() {
-        let tape = Rc::new(Mutex::new(Vec::new()));
+        let tape = Rc::new(RefCell::new(Vec::new()));
         let tape_cb = tape.clone();
         let mut em = EventMonitor::<Dummy>::default();
         em.add_event_sent_callback(Callback::new(
             "test",
             move |e: &<Dummy as Machine>::EventPtr| {
-                tape_cb.lock().unwrap().push(e.info().name.to_string())
+                tape_cb.borrow_mut().push(e.info().name.to_string())
             },
         ));
         em.event_sent(Rc::new(FrameMessage::Next));
@@ -390,20 +390,20 @@ mod tests {
         em.event_sent(Rc::new(FrameMessage::Exit(TestState::B)));
         em.event_sent(Rc::new(FrameMessage::Next));
         assert_eq!(
-            *tape.lock().unwrap(),
+            *tape.borrow(),
             vec!["next", "A:>", "B:>", "next", "A:<", "B:<", "next"]
         );
     }
 
     #[test]
     fn event_handled_callbacks() {
-        let tape = Rc::new(Mutex::new(Vec::new()));
+        let tape = Rc::new(RefCell::new(Vec::new()));
         let tape_cb = tape.clone();
         let mut em = EventMonitor::<Dummy>::default();
         em.add_event_handled_callback(Callback::new(
             "test",
             move |e: &<Dummy as Machine>::EventPtr| {
-                tape_cb.lock().unwrap().push(e.info().name.to_string())
+                tape_cb.borrow_mut().push(e.info().name.to_string())
             },
         ));
         em.event_handled(Rc::new(FrameMessage::Exit(TestState::B)));
@@ -413,34 +413,31 @@ mod tests {
         em.event_handled(Rc::new(FrameMessage::Enter(TestState::B)));
         em.event_handled(Rc::new(FrameMessage::Next));
         assert_eq!(
-            *tape.lock().unwrap(),
+            *tape.borrow(),
             vec!["B:<", "A:>", "next", "A:<", "B:>", "next"]
         );
     }
 
     #[test]
     fn transition_callbacks() {
-        let tape = Rc::new(Mutex::new(Vec::new()));
+        let tape = Rc::new(RefCell::new(Vec::new()));
         let tape_cb1 = tape.clone();
         let tape_cb2 = tape.clone();
         let tape_cb3 = tape.clone();
         let mut em = EventMonitor::<Dummy>::default();
         em.add_transition_callback(Callback::new("old", move |t: &Transition<Dummy>| {
             tape_cb1
-                .lock()
-                .unwrap()
+                .borrow_mut()
                 .push(format!("old: {}", t.old_state.info().name))
         }));
         em.add_transition_callback(Callback::new("new", move |t: &Transition<Dummy>| {
             tape_cb2
-                .lock()
-                .unwrap()
+                .borrow_mut()
                 .push(format!("new: {}", t.new_state.info().name))
         }));
         em.add_transition_callback(Callback::new("kind", move |t: &Transition<Dummy>| {
             tape_cb3
-                .lock()
-                .unwrap()
+                .borrow_mut()
                 .push(format!("kind: {:?}", t.info.kind))
         }));
 
@@ -451,11 +448,8 @@ mod tests {
             a_rc.clone() as <Dummy as Machine>::StatePtr,
             b_rc.clone() as <Dummy as Machine>::StatePtr,
         ));
-        assert_eq!(
-            *tape.lock().unwrap(),
-            vec!["old: A", "new: B", "kind: Transition"]
-        );
-        tape.lock().unwrap().clear();
+        assert_eq!(*tape.borrow(), vec!["old: A", "new: B", "kind: Transition"]);
+        tape.borrow_mut().clear();
 
         em.transition_occurred(Transition::new_change_state(
             info::machine().transitions[1],
@@ -463,34 +457,31 @@ mod tests {
             a_rc as <Dummy as Machine>::StatePtr,
         ));
         assert_eq!(
-            *tape.lock().unwrap(),
+            *tape.borrow(),
             vec!["old: B", "new: A", "kind: ChangeState"]
         );
     }
 
     #[test]
     fn remove_transition_callbacks() {
-        let tape = Rc::new(Mutex::new(Vec::new()));
+        let tape = Rc::new(RefCell::new(Vec::new()));
         let tape_cb1 = tape.clone();
         let tape_cb2 = tape.clone();
         let tape_cb3 = tape.clone();
         let mut em = EventMonitor::<Dummy>::default();
         em.add_transition_callback(Callback::new("old", move |t: &Transition<Dummy>| {
             tape_cb1
-                .lock()
-                .unwrap()
+                .borrow_mut()
                 .push(format!("old: {}", t.old_state.info().name))
         }));
         em.add_transition_callback(Callback::new("new", move |t: &Transition<Dummy>| {
             tape_cb2
-                .lock()
-                .unwrap()
+                .borrow_mut()
                 .push(format!("new: {}", t.new_state.info().name))
         }));
         em.add_transition_callback(Callback::new("kind", move |t: &Transition<Dummy>| {
             tape_cb3
-                .lock()
-                .unwrap()
+                .borrow_mut()
                 .push(format!("kind: {:?}", t.info.kind))
         }));
 
@@ -501,11 +492,8 @@ mod tests {
             a_rc.clone() as <Dummy as Machine>::StatePtr,
             b_rc.clone() as <Dummy as Machine>::StatePtr,
         ));
-        assert_eq!(
-            *tape.lock().unwrap(),
-            vec!["old: A", "new: B", "kind: Transition"]
-        );
-        tape.lock().unwrap().clear();
+        assert_eq!(*tape.borrow(), vec!["old: A", "new: B", "kind: Transition"]);
+        tape.borrow_mut().clear();
 
         em.remove_transition_callback("kind");
         em.transition_occurred(Transition::new_change_state(
@@ -513,21 +501,19 @@ mod tests {
             a_rc.clone() as <Dummy as Machine>::StatePtr,
             b_rc.clone() as <Dummy as Machine>::StatePtr,
         ));
-        assert_eq!(*tape.lock().unwrap(), vec!["old: A", "new: B"]);
-        tape.lock().unwrap().clear();
+        assert_eq!(*tape.borrow(), vec!["old: A", "new: B"]);
+        tape.borrow_mut().clear();
 
         let tape_cb4 = tape.clone();
         let tape_cb5 = tape.clone();
         em.add_transition_callback(Callback::new("old", move |t: &Transition<Dummy>| {
             tape_cb4
-                .lock()
-                .unwrap()
+                .borrow_mut()
                 .push(format!("old: {}", t.old_state.info().name))
         }));
         em.add_transition_callback(Callback::new("kind", move |t: &Transition<Dummy>| {
             tape_cb5
-                .lock()
-                .unwrap()
+                .borrow_mut()
                 .push(format!("kind: {:?}", t.info.kind))
         }));
         em.transition_occurred(Transition::new_change_state(
@@ -536,10 +522,10 @@ mod tests {
             b_rc.clone() as <Dummy as Machine>::StatePtr,
         ));
         assert_eq!(
-            *tape.lock().unwrap(),
+            *tape.borrow(),
             vec!["old: A", "new: B", "old: A", "kind: Transition"]
         );
-        tape.lock().unwrap().clear();
+        tape.borrow_mut().clear();
 
         em.remove_transition_callback("old");
         em.transition_occurred(Transition::new_change_state(
@@ -547,7 +533,7 @@ mod tests {
             a_rc as <Dummy as Machine>::StatePtr,
             b_rc as <Dummy as Machine>::StatePtr,
         ));
-        assert_eq!(*tape.lock().unwrap(), vec!["new: B", "kind: Transition"]);
+        assert_eq!(*tape.borrow(), vec!["new: B", "kind: Transition"]);
     }
 
     #[test]
