@@ -1,12 +1,14 @@
 //! This module defines traits that provide access to a running state machine and snapshots of
 //! active states within a running state machine.
 
-use crate::callback::IsCallback;
+use crate::callback::{Callback, CallbackSend, IsCallback};
 use crate::env::Environment;
 use crate::event::{Event, EventMonitor};
 use crate::info::{MachineInfo, StateInfo};
 use crate::transition::Transition;
 use std::ops::Deref;
+use std::rc::Rc;
+use std::sync::Arc;
 
 /// An interface to a running state machine that supports inspecting its current state and
 /// variables, and registering callbacks to be notified of various events.
@@ -60,6 +62,31 @@ where
     /// intended for use by generated code and library functions.
     fn empty_environment() -> Self::EnvironmentPtr;
 }
+
+/// Trait for machines that were generated with the `thread_safe` feature disabled.
+#[rustfmt::skip]
+pub trait ThreadUnsafeMachine:
+    Machine<
+        EnvironmentPtr = Rc<dyn Environment>,
+        EventPtr = Rc<dyn Event<Self>>,
+        StatePtr = Rc<dyn State<Self>>,
+        EventFn = Callback<Rc<dyn Event<Self>>>,
+        TransitionFn = Callback<Transition<Self>>,
+    >
+{}
+
+/// Trait for machines that were generated with the `thread_safe` feature enabled.
+#[rustfmt::skip]
+pub trait ThreadSafeMachine:
+    Machine<
+        EnvironmentPtr = Arc<dyn Environment>,
+        EventPtr = Arc<dyn Event<Self> + Send + Sync>,
+        StatePtr = Arc<dyn State<Self> + Send + Sync>,
+        EventFn = CallbackSend<Arc<dyn Event<Self> + Send + Sync>>,
+        TransitionFn = CallbackSend<Transition<Self>>,
+    >
+    + Send + Sync
+{}
 
 /// A snapshot of an active state within a running state machine. State arguments and variables are
 /// not saved between visits, so these names are bound to values only when the state is "active". A

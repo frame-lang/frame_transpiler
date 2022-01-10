@@ -3682,6 +3682,22 @@ impl AstVisitor for RustVisitor {
             self.exit_block();
             self.newline();
             self.newline();
+
+            if self.config.features.thread_safe {
+                self.add_code(&format!(
+                    "impl {}::ThreadSafeMachine for {} {{}}",
+                    self.config.code.runtime_module_use_as_name,
+                    self.system_type_name(),
+                ));
+            } else {
+                self.add_code(&format!(
+                    "impl {}::ThreadUnsafeMachine for {} {{}}",
+                    self.config.code.runtime_module_use_as_name,
+                    self.system_type_name(),
+                ));
+            }
+            self.newline();
+            self.newline();
         }
 
         // add state machine methods

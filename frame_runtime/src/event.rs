@@ -94,10 +94,6 @@ where
     /// Register a callback to be called on each transition. Callbacks will be invoked after the
     /// exit event for the old state has been handled, and before the enter event for the new
     /// state has been sent.
-    ///
-    /// Note that the argument type for this function is `impl Box<dyn FnMut(&Transition) + 'a><'a>`, but the
-    /// trait alias is inlined to help Rust infer the argument type when callbacks are defined
-    /// anonymously.
     pub fn add_transition_callback(&mut self, callback: M::TransitionFn) {
         self.transition_callbacks.push(callback);
     }
