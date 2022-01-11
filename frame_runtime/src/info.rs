@@ -244,6 +244,11 @@ pub struct TransitionInfo {
 }
 
 impl TransitionInfo {
+    /// The machine this transition occurs in.
+    pub fn machine(&self) -> &'static MachineInfo {
+        self.source.machine()
+    }
+
     /// Is this a change-state transition?
     pub fn is_change_state(&self) -> bool {
         self.kind == TransitionKind::ChangeState
