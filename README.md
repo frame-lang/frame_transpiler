@@ -1,6 +1,8 @@
 
 # Frame Language Transpiler v0.7.3
 
+[![Join the chat at https://gitter.im/frame-language/python-discussion](https://badges.gitter.im/frame-language/python-discussion.svg)](https://gitter.im/frame-language/python-discussion?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 
 Hi! So very glad you are interested in Frame. Frame system design markdown language for software architects and engineers. It is an easy to learn textual language for defining system specifications that can generate both UML documentation as well as code in 7 langauges. 
 
