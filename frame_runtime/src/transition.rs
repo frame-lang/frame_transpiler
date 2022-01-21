@@ -67,14 +67,7 @@ where
             enter_event: None,
         }
     }
-}
 
-impl<M: Machine> Transition<M>
-where
-    <M::EnvironmentPtr as Deref>::Target: Environment,
-    <M::EventPtr as Deref>::Target: Event<M>,
-    <M::StatePtr as Deref>::Target: State<M>,
-{
     /// Get the arguments from the exit event, or an empty environment if there is no exit
     /// event.
     pub fn exit_arguments(&self) -> M::EnvironmentPtr {
