@@ -8,6 +8,7 @@ pub mod plantuml_visitor;
 pub mod python_visitor;
 pub mod rust_visitor;
 pub mod smcat_visitor;
+pub mod golang_visitor;
 //pub mod xtate_visitor;
 
 use super::ast::*;

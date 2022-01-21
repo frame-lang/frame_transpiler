@@ -16,11 +16,12 @@ use crate::frame_c::visitors::smcat_visitor::SmcatVisitor;
 use exitcode::USAGE;
 use std::fs;
 use std::path::{Path, PathBuf};
+use crate::frame_c::visitors::golang_visitor::GolangVisitor;
 
 /* --------------------------------------------------------------------- */
 
 static IS_DEBUG: bool = false;
-static FRAMEC_VERSION: &str = "emitted from framec_v0.7.3";
+static FRAMEC_VERSION: &str = "emitted from framec_v0.7.4";
 
 /* --------------------------------------------------------------------- */
 
@@ -203,6 +204,19 @@ impl Exe {
             output = visitor.get_code();
         } else if output_format == "gdscript" {
             let mut visitor = GdScript32Visitor::new(
+                semantic_parser.get_arcanum(),
+                generate_exit_args,
+                generate_enter_args || generate_state_context,
+                generate_state_stack,
+                generate_change_state,
+                generate_transition_state,
+                FRAMEC_VERSION,
+                comments,
+            );
+            visitor.run(&system_node);
+            output = visitor.get_code();
+        } else if output_format == "golang" {
+            let mut visitor = GolangVisitor::new(
                 semantic_parser.get_arcanum(),
                 generate_exit_args,
                 generate_enter_args || generate_state_context,

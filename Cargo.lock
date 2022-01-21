@@ -123,7 +123,7 @@ dependencies = [
 
 [[package]]
 name = "framec"
-version = "0.7.3"
+version = "0.7.4"
 dependencies = [
  "convert_case",
  "downcast-rs",
