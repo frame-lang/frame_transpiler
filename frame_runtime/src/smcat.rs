@@ -101,9 +101,11 @@ pub trait Style {
 }
 
 /// A style implementation that relegates all formatting to CSS via the "class" style options.
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub struct CssStyle;
 
 /// A simple style implementation that doesn't require CSS.
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub struct SimpleStyle;
 
 impl Style for CssStyle {
@@ -175,13 +177,14 @@ impl Style for SimpleStyle {
 }
 
 /// Generates smcat diagrams from Frame state machines.
-pub struct Renderer {
-    style: Box<dyn Style>,
+#[derive(Clone)]
+pub struct Renderer<S: Style> {
+    style: S,
 }
 
-impl Renderer {
+impl<S: Style> Renderer<S> {
     /// Create a new renderer with the given style configuration.
-    pub fn new(style: Box<dyn Style>) -> Self {
+    pub fn new(style: S) -> Self {
         Renderer { style }
     }
 

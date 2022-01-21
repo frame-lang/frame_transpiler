@@ -566,7 +566,7 @@ mod tests {
     #[test]
     fn smcat_render_static() {
         use frame_runtime::smcat::*;
-        let smcat = Renderer::new(Box::new(SimpleStyle));
+        let smcat = Renderer::new(SimpleStyle);
         assert_eq!(smcat.render_static(super::info::machine()), SMCAT_STATIC);
     }
 
@@ -574,7 +574,7 @@ mod tests {
     fn smcat_render_live() {
         use crate::demo::sync::*;
         use frame_runtime::smcat::*;
-        let smcat = Renderer::new(Box::new(SimpleStyle));
+        let smcat = Renderer::new(SimpleStyle);
 
         let mut sm = Demo::new();
         assert_eq!(smcat.render_live(&sm), SMCAT_LIVE_1);
