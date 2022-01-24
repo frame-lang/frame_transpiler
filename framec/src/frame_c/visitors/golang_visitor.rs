@@ -535,11 +535,42 @@ impl GolangVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn generate_subclass(&mut self) {
-        for line in self.subclass_code.iter() {
-            self.code.push_str(&*line.to_string());
-            self.code.push_str(&*format!("\n{}", self.dent()));
+    fn generate_subclass(&mut self, system_node: &SystemNode ) {
+        self.add_code("/********************");
+        self.newline();
+        self.add_code(&format!(
+            "package {}\n",
+            self.system_name
+        ));
+        self.newline();
+        self.add_code(&format!(
+            "type {}Actions struct{{}}\n",
+            self.first_letter_to_lower_case(&system_node.name)
+        ));
+
+        // for line in self.subclass_code.iter() {
+        //     self.code.push_str(&*line.to_string());
+        //     self.code.push_str(&*format!("\n{}", self.dent()));
+        // }
+
+        if let Some(actions_block_node) = &system_node.actions_block_node_opt {
+            // for action_decl_node_rcref in &actions_block_node.actions {
+            //     self.newline();
+            //     let action_decl_node = action_decl_node_rcref.borrow();
+            //     self.add_code(&format!(
+            //         "func {}",
+            //         action_decl_node.name
+            //     ));
+            // }
+            for action_decl_node_rcref in &actions_block_node.actions {
+                let action_decl_node = action_decl_node_rcref.borrow();
+                action_decl_node.accept(self);
+            }
         }
+        self.newline();
+        self.newline();
+        self.add_code("********************/");
+
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1192,13 +1223,6 @@ impl AstVisitor for GolangVisitor {
         // self.deserialize
         //     .push("void _deserialize__do(Bag data) {".to_string());
 
-        self.subclass_code.push("".to_string());
-        self.subclass_code
-            .push("/********************\n".to_string());
-        self.subclass_code.push(format!(
-            "public partial class {}Controller : {} {{",
-            system_node.name, system_node.name
-        ));
 
         if let Some(interface_block_node) = &system_node.interface_block_node_opt {
             interface_block_node.accept(self);
@@ -1215,7 +1239,6 @@ impl AstVisitor for GolangVisitor {
         self.indent();
 
         if let Some(machine_block_node) = &system_node.machine_block_node_opt {
-            self.newline();
             self.newline();
             self.add_code("switch m._state_ {");
             for state_node_rcref in &machine_block_node.states {
@@ -1251,13 +1274,10 @@ impl AstVisitor for GolangVisitor {
             machine_block_node.accept(self);
         }
 
-        if let Some(actions_block_node) = &system_node.actions_block_node_opt {
-            actions_block_node.accept(self);
-        }
+        // if let Some(actions_block_node) = &system_node.actions_block_node_opt {
+        //     actions_block_node.accept(self);
+        // }
 
-        self.subclass_code.push("}".to_string());
-        self.subclass_code
-            .push("\n********************/".to_string());
 
         // self.serialize.push("".to_string());
         // self.serialize
@@ -1281,7 +1301,9 @@ impl AstVisitor for GolangVisitor {
         // self.add_code("}");
         // self.newline();
 
-        self.generate_subclass();
+        if let Some(actions_block_node) = &system_node.actions_block_node_opt {
+            self.generate_subclass(&system_node);
+        }
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1585,7 +1607,7 @@ impl AstVisitor for GolangVisitor {
             //     ));
             // }
             self.add_code(&format!(
-                "case e.msg == \"{}\":",
+                "case \"{}\":",
                 message_node.name
             ));
         }
@@ -2553,21 +2575,16 @@ impl AstVisitor for GolangVisitor {
         let mut subclass_code = String::new();
 
         self.newline();
-        self.newline_to_string(&mut subclass_code);
 
         let action_ret_type: String = match &action_decl_node.type_opt {
             Some(ret_type) => ret_type.get_type_str(),
-            None => String::from("void"),
+            None => String::from(""),
         };
 
         let action_name = self.format_action_name(&action_decl_node.name);
         self.add_code(&format!(
-            "protected virtual {} {}(",
-            action_ret_type, action_name
-        ));
-        subclass_code.push_str(&format!(
-            "protected override {} {}(",
-            action_ret_type, action_name
+            "func (m *{}Actions) {}(",
+            self.first_letter_to_lower_case(&self.system_name), action_name
         ));
 
         match &action_decl_node.params {
@@ -2576,10 +2593,8 @@ impl AstVisitor for GolangVisitor {
             }
             None => {}
         }
-        subclass_code.push_str(&") {}".to_string());
-        self.subclass_code.push(subclass_code);
 
-        self.add_code(&") { throw new NotImplementedException(); }".to_string());
+        self.add_code(&format!(") {} {{}}",action_ret_type));
     }
 
     //* --------------------------------------------------------------------- *//
