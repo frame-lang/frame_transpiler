@@ -11,7 +11,7 @@ fn format_styling(style: &str) -> String {
     if style.is_empty() {
         String::new()
     } else {
-        format!("[{}] ", style)
+        format!(" [{}]", style)
     }
 }
 
@@ -20,7 +20,7 @@ pub struct SmcatVisitor {
     config: SmcatConfig,
     system_hierarchy: SystemHierarchy,
     current_state: Option<String>,
-    transition_msg: String,
+    current_handler: Option<String>,
     code: String,
 }
 
@@ -36,7 +36,7 @@ impl SmcatVisitor {
             config: smcat_config,
             system_hierarchy,
             current_state: None,
-            transition_msg: String::new(),
+            current_handler: None,
             code: String::from(""),
         }
     }
@@ -56,13 +56,23 @@ impl SmcatVisitor {
     fn generate_states(&self, node_name: &str, indent: usize, output: &mut String) {
         let node = self.system_hierarchy.get_node(node_name).unwrap();
         let mut child_iter = node.children.iter().peekable();
+        let has_children = child_iter.peek().is_some();
         let indent_str = indent_str(indent);
 
         // add state
-        output.push_str(&format!("{}{}", indent_str, node_name));
+        let style = if has_children {
+            &self.config.code.parent_state_node_style
+        } else {
+            &self.config.code.simple_state_node_style
+        };
+        output.push_str(&format!(
+            "{}{}{}",
+            indent_str,
+            node_name,
+            format_styling(style)
+        ));
 
         // add children
-        let has_children = child_iter.peek().is_some();
         if has_children {
             output.push_str(" {\n");
         }
@@ -107,8 +117,29 @@ impl SmcatVisitor {
         }
     }
 
+    fn generate_transition(
+        &mut self,
+        source_name: &str,
+        target_name: &str,
+        style: &str,
+        event_name: &str,
+        label: Option<&String>,
+    ) {
+        self.add_code(&format!(
+            "{} -> {}{} : \"  {}{}  \";\n",
+            source_name,
+            target_name,
+            style,
+            event_name,
+            match label {
+                Some(text) => format!("/ {}", text),
+                None => String::new(),
+            }
+        ));
+    }
+
     fn generate_state_ref_change_state(&mut self, change_state_stmt: &ChangeStateStatementNode) {
-        let source_state = self.current_state.as_ref().unwrap().clone();
+        let source_state = self.current_state.as_ref().unwrap().to_string();
         let target_state = match &change_state_stmt.state_context_t {
             StateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_node.name
@@ -117,21 +148,15 @@ impl SmcatVisitor {
                 panic!("TODO")
             }
         };
-        let label = match &change_state_stmt.label_opt {
-            Some(label) => {
-                format!("{};", label.clone())
-            }
-            None => {
-                format!("{};", self.transition_msg.clone())
-            }
-        };
-        self.add_code(&format!(
-            "{} => {} {}: {}\n",
-            source_state,
+        let style = format_styling(&self.config.code.change_state_edge_style);
+        let event = self.current_handler.as_ref().unwrap().clone();
+        self.generate_transition(
+            &source_state,
             target_state,
-            format_styling(&self.config.code.change_state_edge_style),
-            label
-        ));
+            &style,
+            &event,
+            change_state_stmt.label_opt.as_ref(),
+        );
     }
 
     fn generate_state_ref_transition(&mut self, transition_stmt: &TransitionStatementNode) {
@@ -144,21 +169,15 @@ impl SmcatVisitor {
                 panic!("TODO")
             }
         };
-        let label = match &transition_stmt.label_opt {
-            Some(label) => {
-                format!("{};", label.clone())
-            }
-            None => {
-                format!("{};", self.transition_msg.clone())
-            }
-        };
-        self.add_code(&format!(
-            "{} => {} {}: {}\n",
-            source_state,
+        let style = format_styling(&self.config.code.transition_edge_style);
+        let event = self.current_handler.as_ref().unwrap().clone();
+        self.generate_transition(
+            &source_state,
             target_state,
-            format_styling(&self.config.code.transition_edge_style),
-            label
-        ));
+            &style,
+            &event,
+            transition_stmt.label_opt.as_ref(),
+        );
     }
 
     // TODO: Review if this is correct handling. At least with regular statecharts,
@@ -168,14 +187,15 @@ impl SmcatVisitor {
         &mut self,
         transition_statement: &TransitionStatementNode,
     ) {
+        let event = self.current_handler.as_ref().unwrap().clone();
         let label = match &transition_statement.label_opt {
             Some(label) => label,
-            None => &self.transition_msg,
+            None => &event,
         };
         // .deephistory suffix overrides target state label with H* and sets shape to
         // circle
         let transition = &format!(
-            "{} => H*.deephistory : {};\n",
+            "{} -> H*.deephistory : {};\n",
             &self.current_state.as_ref().unwrap(),
             label
         );
@@ -209,7 +229,7 @@ impl AstVisitor for SmcatVisitor {
         self.add_code(&output);
         if let Some(first_state) = machine_block_node.get_first_state() {
             self.add_code(&format!(
-                "initial => {};\n",
+                "initial -> {};\n",
                 first_state.borrow().name.clone()
             ));
         }
@@ -244,15 +264,27 @@ impl AstVisitor for SmcatVisitor {
     }
 
     fn visit_event_handler_node(&mut self, evt_handler_node: &EventHandlerNode) {
-        if let MessageType::CustomMessage { message_node } = &evt_handler_node.msg_t {
-            self.transition_msg = message_node.name.clone();
-        } else {
-            // AnyMessage ( ||* )
-            self.transition_msg = "||*".to_string();
+        // remember qualified event name
+        let state_name = &self.current_state.as_ref().unwrap();
+        let event_name =
+            if let MessageType::CustomMessage { message_node } = &evt_handler_node.msg_t {
+                &message_node.name
+            } else {
+                "||*"
+            };
+        let mut qualified_event_name = String::new();
+        if event_name == ">" || event_name == "<" {
+            qualified_event_name.push_str(state_name);
+            qualified_event_name.push(':');
         }
+        qualified_event_name.push_str(event_name);
+        self.current_handler = Some(qualified_event_name);
 
-        // Generate statements
+        // process statements, looking for transitions
         self.visit_decl_stmts(&evt_handler_node.statements);
+
+        // forget event name
+        self.current_handler = None;
     }
 
     fn visit_action_call_statement_node(&mut self, _action_call_stmt_node: &ActionCallStmtNode) {}

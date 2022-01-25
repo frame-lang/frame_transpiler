@@ -522,42 +522,50 @@ mod tests {
     }
 
     use indoc::indoc;
+
     const SMCAT_STATIC: &str = indoc! {r#"
         initial,
         Init,
         Foo,
         Bar;
-        initial => Init;
+
+        initial -> Init;
         Init -> Foo : "  Init:>  ";
         Foo -> Bar : "  next  ";
         Bar -> Foo [color="grey"] : "  next  ";
         "#};
+
     const SMCAT_LIVE_1: &str = indoc! {r#"
         initial,
         Init,
         Foo [active color="red"],
         Bar;
-        initial => Init;
+
+        initial -> Init;
         Init -> Foo [color="red" width=2] : "  Init:>  ";
         Foo -> Bar : "  next  ";
         Bar -> Foo [color="grey"] : "  next  ";
         "#};
+
     const SMCAT_LIVE_2: &str = indoc! {r#"
         initial,
         Init,
         Foo,
         Bar [active color="red"];
-        initial => Init;
+
+        initial -> Init;
         Init -> Foo : "  Init:>  ";
         Foo -> Bar [color="red" width=2] : "  next  ";
         Bar -> Foo [color="grey"] : "  next  ";
         "#};
+
     const SMCAT_LIVE_3: &str = indoc! {r#"
         initial,
         Init,
         Foo [active color="red"],
         Bar;
-        initial => Init;
+
+        initial -> Init;
         Init -> Foo : "  Init:>  ";
         Foo -> Bar : "  next  ";
         Bar -> Foo [color="pink" width=2] : "  next  ";
