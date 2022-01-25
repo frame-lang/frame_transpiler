@@ -1364,7 +1364,7 @@ impl AstVisitor for JavaScriptVisitor {
 
         method_call.call_expr_list.accept(self);
 
-        self.add_code(&format!(""));
+        self.add_code("");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1385,7 +1385,7 @@ impl AstVisitor for JavaScriptVisitor {
 
         method_call.call_expr_list.accept_to_string(self, output);
 
-        output.push_str(&format!(""));
+        output.push_str("");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1429,7 +1429,7 @@ impl AstVisitor for JavaScriptVisitor {
         self.add_code(&action_name);
         action_call.call_expr_list.accept(self);
 
-        self.add_code(&format!(""));
+        self.add_code("");
     }
 
     //* --------------------------------------------------------------------- *//

@@ -346,4 +346,16 @@ mod tests {
             vec!["S3"]
         );
     }
+
+    /// Test that statically rendered smcat matches smcat rendered via the runtime system.
+    #[test]
+    fn smcat_static_dynamic_same() {
+        let smcat_file = concat!(env!("OUT_DIR"), "/", "hierarchical.smcat");
+        let smcat_static = std::fs::read_to_string(smcat_file).expect("expected smcat file");
+
+        let renderer = smcat::Renderer::new(smcat::CssStyle);
+        let smcat_dynamic = renderer.render_static(Hierarchical::machine_info());
+
+        assert_eq!(smcat_static, smcat_dynamic);
+    }
 }

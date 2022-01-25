@@ -111,41 +111,39 @@ pub struct SimpleStyle;
 impl Style for CssStyle {
     fn node(&self, info: &StateInfo, active: bool) -> NodeStyle {
         let mut classes = Vec::new();
-        if active {
-            classes.push("active");
-        }
-        if !info.children().is_empty() {
-            classes.push("parent");
-        }
         if info.is_stack_pop {
             classes.push("stack-pop");
+        } else {
+            classes.push("state");
+            if info.children().is_empty() {
+                classes.push("simple");
+            } else {
+                classes.push("parent");
+            }
+        }
+        if active {
+            classes.push("active");
         }
         NodeStyle {
             // TODO Not sure if the "active" attribute is "semantic" or purely for rendering style.
             // If it's purely style, then we should not enable it since we'll set the style in CSS.
             // active,
-            class: if classes.is_empty() {
-                None
-            } else {
-                Some(classes.join(" "))
-            },
+            class: Some(classes.join(" ")),
             ..NodeStyle::default()
         }
     }
     fn edge(&self, info: &TransitionInfo, active: bool) -> EdgeStyle {
-        let mut classes = Vec::new();
+        let mut classes = vec!["edge"];
+        if info.is_change_state() {
+            classes.push("change-state");
+        } else {
+            classes.push("transition");
+        }
         if active {
             classes.push("active");
         }
-        if info.is_change_state() {
-            classes.push("change-state");
-        }
         EdgeStyle {
-            class: if classes.is_empty() {
-                None
-            } else {
-                Some(classes.join(" "))
-            },
+            class: Some(classes.join(" ")),
             ..EdgeStyle::default()
         }
     }
@@ -191,7 +189,7 @@ impl<S: Style> Renderer<S> {
     /// Generate an smcat diagram illustrating the structure of a state machine, independent of any
     /// particular execution.
     pub fn render_static(&self, machine_info: &MachineInfo) -> String {
-        self.render_common(machine_info, None, None)
+        self.render(machine_info, None, None)
     }
 
     /// Generate an smcat diagram from a snapshot of a running state machine. Depending on the
@@ -210,10 +208,12 @@ impl<S: Style> Renderer<S> {
             .transition_history()
             .newest()
             .map(|t| t.info.id);
-        self.render_common(machine_info, Some(active_state), last_transition)
+        self.render(machine_info, Some(active_state), last_transition)
     }
 
-    pub fn render_common(
+    /// Generate an smcat diagram, highlighing the given active state and last transition (if
+    /// provided) according to the associated style configurating.
+    pub fn render(
         &self,
         machine_info: &MachineInfo,
         active_state: Option<&'static str>,
@@ -229,11 +229,11 @@ impl<S: Style> Renderer<S> {
             &machine_info.top_level_states(),
             &mut output,
         );
-        output.push_str(";\n");
+        output.push('\n');
 
         // render transitions
         if let Some(init) = machine_info.initial_state() {
-            output.push_str(&format!("initial => {};\n", init.name));
+            output.push_str(&format!("initial -> {};\n", init.name));
         }
         for transition in machine_info.transitions {
             self.render_transition(last_transition, transition, &mut output);
@@ -262,6 +262,8 @@ impl<S: Style> Renderer<S> {
             }
             if state_iter.peek().is_some() {
                 output.push_str(",\n");
+            } else {
+                output.push_str(";\n");
             }
         }
     }

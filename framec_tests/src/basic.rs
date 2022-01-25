@@ -228,4 +228,16 @@ mod tests {
         assert_eq!(entry_log, vec!["S0", "S1", "S0"]);
         assert_eq!(exit_log, vec!["S0", "S1"]);
     }
+
+    /// Test that statically rendered smcat matches smcat rendered via the runtime system.
+    #[test]
+    fn smcat_static_dynamic_same() {
+        let smcat_file = concat!(env!("OUT_DIR"), "/", "basic.smcat");
+        let smcat_static = std::fs::read_to_string(smcat_file).expect("expected smcat file");
+
+        let renderer = smcat::Renderer::new(smcat::CssStyle);
+        let smcat_dynamic = renderer.render_static(Basic::machine_info());
+
+        assert_eq!(smcat_static, smcat_dynamic);
+    }
 }
