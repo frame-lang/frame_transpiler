@@ -114,7 +114,6 @@ impl Style for CssStyle {
         if info.is_stack_pop {
             classes.push("stack-pop");
         } else {
-            classes.push("state");
             if info.children().is_empty() {
                 classes.push("simple");
             } else {
@@ -133,11 +132,11 @@ impl Style for CssStyle {
         }
     }
     fn edge(&self, info: &TransitionInfo, active: bool) -> EdgeStyle {
-        let mut classes = vec!["edge"];
+        let mut classes = Vec::new();
         if info.is_change_state() {
             classes.push("change-state");
         } else {
-            classes.push("transition");
+            classes.push("standard");
         }
         if active {
             classes.push("active");
