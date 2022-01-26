@@ -149,6 +149,16 @@ impl GolangVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    fn first_letter_to_upper_case (&self, s1: &String) -> String {
+        let mut c = s1.chars();
+        match c.next() {
+            None => String::new(),
+            Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+        }
+    }
+
+    //* --------------------------------------------------------------------- *//
+
     fn format_state_name(&self, state_name: &str) -> String {
         format!("{}", self.first_letter_to_lower_case(&state_name.to_string()))
     }
@@ -259,7 +269,7 @@ impl GolangVisitor {
                 Some(ret_type) => ret_type.get_type_str(),
                 None => String::from("<?>"),
             };
-            self.add_code(&format!("{} {}", param_type, param.param_name));
+            self.add_code(&format!("{} {}", param.param_name, param_type));
             subclass_actions.push_str(&format!("{} {}", param_type, param.param_name));
             separator = ",";
         }
@@ -412,7 +422,7 @@ impl GolangVisitor {
                     self.add_code(&"private void _transition_(FrameState newState,Dictionary<String,object> exitArgs) {".to_string());
                 } else {
 
-                    self.add_code(&"func (m *machine) _transition_(newState State) {".to_string());
+                    self.add_code(&format!("func (m *{}Struct) _transition_(newState State) {{",self.first_letter_to_lower_case(&system_node.name)));
                     // self.add_code(&"private void _transition_(FrameState newState) {".to_string());
                 }
                 self.indent();
@@ -426,7 +436,7 @@ impl GolangVisitor {
                     // );
                 } else {
                     self.add_code(
-                        "m._mux_(&FrameEvent{\"<\", nil, nil})",
+                        "m._mux_(&framelang.FrameEvent{\"<\", nil, nil})",
                     );
                     // self.add_code(
                     //     &"FrameEvent exitEvent = new FrameEvent(\"<\",null);".to_string(),
@@ -444,7 +454,7 @@ impl GolangVisitor {
                     self.newline();
                 } else {
                     self.add_code(
-                        "m._mux_(&FrameEvent{\">\", nil, nil})",
+                        "m._mux_(&framelang.FrameEvent{\">\", nil, nil})",
                     );
                     // self.newline();
                 }
@@ -859,25 +869,25 @@ impl GolangVisitor {
         if self.generate_state_context {
             if self.generate_exit_args {
                 self.add_code(&format!(
-                    "_transition_({},{},stateContext)",
+                    "m._transition_({},{},stateContext)",
                     self.format_state_name(target_state_name),
                     exit_args
                 ));
             } else {
                 self.add_code(&format!(
-                    "_transition_({},stateContext)",
+                    "m._transition_({},stateContext)",
                     self.format_state_name(target_state_name)
                 ));
             }
         } else if self.generate_exit_args {
             self.add_code(&format!(
-                "_transition_({},{});",
+                "m._transition_({},{});",
                 self.format_state_name(target_state_name),
                 exit_args
             ));
         } else {
             self.add_code(&format!(
-                "_transition_({})",
+                "m._transition_({})",
                 self.format_state_name(target_state_name)
             ));
         }
@@ -1026,7 +1036,7 @@ impl AstVisitor for GolangVisitor {
 
         self.newline();
         self.newline();
-        self.add_code(&format!("type {} interface {{", system_node.name));
+        self.add_code(&format!("type {} interface {{", self.first_letter_to_upper_case(&system_node.name)));
         self.indent();
 
         // TODO: create visitor for this
@@ -1054,12 +1064,6 @@ impl AstVisitor for GolangVisitor {
         self.add_code("}");
         self.newline();
 
-        // define actions interface
-        // type actions interface {
-        //     getState() string
-        //     showMsg(string)
-        //     print(string)
-        // }
         if let Some(actions_block_node) = &system_node.actions_block_node_opt {
             self.newline();
             self.newline();
@@ -1108,6 +1112,8 @@ impl AstVisitor for GolangVisitor {
         self.indent();
         self.newline();
         self.add_code(&format!("_state_ State"));
+        self.newline();
+        self.add_code(&format!("actions actions"));
 
 
         //
@@ -1186,10 +1192,12 @@ impl AstVisitor for GolangVisitor {
         // }
 
         self.newline();
-        self.add_code(&format!("func New() {} {{", system_node.name));
+        self.add_code(&format!("func New() {} {{",self.first_letter_to_upper_case( &system_node.name)));
         self.indent();
         self.newline();
-        self.add_code(&format!("m := new({})", system_node.name));
+        self.add_code(&format!("m := new({}Struct)", self.first_letter_to_lower_case( &system_node.name)));
+        self.newline();
+        self.add_code(&format!("m.actions = &{}Actions{{}}", self.first_letter_to_lower_case( &system_node.name)));
         for x in domain_vec {
             self.newline();
             self.add_code(&format!("m.{} = {}", x.0, x.1))
@@ -1235,7 +1243,7 @@ impl AstVisitor for GolangVisitor {
         self.newline();
         self.newline();
 
-        self.add_code("func (m *machine) _mux_(e *FrameEvent) {");
+        self.add_code(&format!("func (m *{}Struct) _mux_(e *framelang.FrameEvent) {{",&system_node.name));
         self.indent();
 
         if let Some(machine_block_node) = &system_node.machine_block_node_opt {
@@ -1407,7 +1415,7 @@ impl AstVisitor for GolangVisitor {
         self.indent();
         let params_param_code;
         if interface_method_node.params.is_some() {
-            params_param_code = String::from("parameters");
+            params_param_code = String::from("params");
             self.newline();
             self.add_code(
                 "params := make(map[string]interface{})",
@@ -1433,17 +1441,17 @@ impl AstVisitor for GolangVisitor {
  //           "FrameEvent e = new FrameEvent(\"{}\",{});",
  //           "e := FrameEvent{\"{}}\", {}}, nil}"
  //           "e := FrameEvent{\"{}\", {}, nil}})",
-           "e := FrameEvent{{\"{}\",{}, nil}};",
+           "e := framelang.FrameEvent{{\"{}\",{}, nil}};",
             method_name_or_alias, params_param_code
         ));
         self.newline();
-        self.add_code(&"_mux_(&e);".to_string());
+        self.add_code(&"m._mux_(&e);".to_string());
 
         match &interface_method_node.return_type_opt {
             Some(return_type) => {
                 self.newline();
                 self.add_code(&format!(
-                    "return  e.ret.({})",
+                    "return  e.Ret.({})",
                     return_type.get_type_str()
                 ));
             }
@@ -1537,7 +1545,7 @@ impl AstVisitor for GolangVisitor {
         self.newline();
         self.newline();
         self.add_code(&format!(
-            "func (m *{}Struct) _{}_(e *FrameEvent) {{",
+            "func (m *{}Struct) _{}_(e *framelang.FrameEvent) {{",
             self.first_letter_to_lower_case(&self.system_name),
             self.format_state_name(&state_node.name)
         ));
@@ -1563,7 +1571,7 @@ impl AstVisitor for GolangVisitor {
 
         self.first_event_handler = true; // context for formatting
         self.newline();
-        self.add_code(&format!("switch e.msg {{"));
+        self.add_code(&format!("switch e.Msg {{"));
 
         if !state_node.evt_handlers_rcref.is_empty() {
             for evt_handler_node in &state_node.evt_handlers_rcref {
@@ -1669,7 +1677,7 @@ impl AstVisitor for GolangVisitor {
         match &evt_handler_terminator_node.terminator_type {
             TerminatorType::Return => match &evt_handler_terminator_node.return_expr_t_opt {
                 Some(expr_t) => {
-                    self.add_code(&"e.ret = ".to_string());
+                    self.add_code(&"e.Ret = ".to_string());
                     expr_t.accept(self);
                     self.newline();
                     self.add_code("return");
@@ -1767,7 +1775,7 @@ impl AstVisitor for GolangVisitor {
 
     fn visit_action_call_expression_node(&mut self, action_call: &ActionCallExprNode) {
         let action_name = self.format_action_name(&action_call.identifier.name.lexeme);
-        self.add_code(&action_name);
+        self.add_code(&format!("m.actions.{}", &action_name));
         action_call.call_expr_list.accept(self);
     }
 
@@ -1837,7 +1845,7 @@ impl AstVisitor for GolangVisitor {
 
     fn visit_dispatch_node(&mut self, dispatch_node: &DispatchNode) {
         self.newline();
-        self.add_code(&format!("_{}_(e)", self.format_state_name(&dispatch_node.target_state_ref.name)));
+        self.add_code(&format!("m._{}_(e)", self.format_state_name(&dispatch_node.target_state_ref.name)));
         self.generate_comment(dispatch_node.line);
         self.newline();
     }
