@@ -113,12 +113,10 @@ impl Style for CssStyle {
         let mut classes = Vec::new();
         if info.is_stack_pop {
             classes.push("stack-pop");
+        } else if info.children().is_empty() {
+            classes.push("simple");
         } else {
-            if info.children().is_empty() {
-                classes.push("simple");
-            } else {
-                classes.push("parent");
-            }
+            classes.push("parent");
         }
         if active {
             classes.push("active");
