@@ -216,14 +216,14 @@ impl GolangVisitor {
                 let var_type = self.get_variable_type(&*var_symbol);
 
                 if self.visiting_call_chain_literal_variable {
-                    code.push('(');
+              //      code.push('(');
                 }
                 code.push_str(&format!(
-                    "({}) e._parameters[\"{}\"]",
-                    var_type, variable_node.id_node.name.lexeme
+                    "e.Params[\"{}\"].({})",
+                     variable_node.id_node.name.lexeme,var_type
                 ));
                 if self.visiting_call_chain_literal_variable {
-                    code.push(')');
+               //     code.push(')');
                 }
             }
             IdentifierDeclScope::EventHandlerVar => {
@@ -1067,7 +1067,7 @@ impl AstVisitor for GolangVisitor {
         if let Some(actions_block_node) = &system_node.actions_block_node_opt {
             self.newline();
             self.newline();
-            self.add_code(&format!("type frameActions interface {{"));
+            self.add_code(&format!("type actions interface {{"));
             self.indent();
 
             // TODO: create visitor for this
@@ -1113,7 +1113,7 @@ impl AstVisitor for GolangVisitor {
         self.newline();
         self.add_code(&format!("_state_ FrameState"));
         self.newline();
-        self.add_code(&format!("actions frameActions"));
+        self.add_code(&format!("actions actions"));
 
 
         //
@@ -1878,9 +1878,9 @@ impl AstVisitor for GolangVisitor {
         self.newline();
         for branch_node in &bool_test_node.conditional_branch_nodes {
             if branch_node.is_negated {
-                self.add_code(&format!("{}(!(", if_or_else_if));
+                self.add_code(&format!("{}!(", if_or_else_if));
             } else {
-                self.add_code(&format!("{}(", if_or_else_if));
+                self.add_code(&format!("{}", if_or_else_if));
             }
 
             branch_node.expr_t.accept(self);
@@ -1888,7 +1888,7 @@ impl AstVisitor for GolangVisitor {
             if branch_node.is_negated {
                 self.add_code(&")".to_string());
             }
-            self.add_code(&") {".to_string());
+            self.add_code(&" {".to_string());
             self.indent();
 
             branch_node.accept(self);
@@ -2544,7 +2544,7 @@ impl AstVisitor for GolangVisitor {
             FrameEventPart::Param {
                 param_tok,
                 is_reference: _is_reference,
-            } => self.add_code(&format!("e._parameters[\"{}\"]", param_tok.lexeme)),
+            } => self.add_code(&format!("e.Params[\"{}\"]", param_tok.lexeme)),
             FrameEventPart::Return {
                 is_reference: _is_reference,
             } => self.add_code(&"e._return".to_string()),
@@ -2570,7 +2570,7 @@ impl AstVisitor for GolangVisitor {
             FrameEventPart::Param {
                 param_tok,
                 is_reference: _is_reference,
-            } => output.push_str(&format!("e._parameters[\"{}\"]", param_tok.lexeme)),
+            } => output.push_str(&format!("e.Params[\"{}\"]", param_tok.lexeme)),
             FrameEventPart::Return {
                 is_reference: _is_reference,
             } => output.push_str("e._return"),
