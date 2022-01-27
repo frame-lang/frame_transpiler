@@ -414,15 +414,15 @@ impl GolangVisitor {
                 self.newline();
                 if self.generate_state_context {
                     if self.generate_exit_args {
-                        self.add_code(&"private void _transition_(FrameState newState,Dictionary<String,object> exitArgs, StateContext stateContext) {".to_string());
+                        self.add_code(&"private void _transition_(newState FrameState,Dictionary<String,object> exitArgs, StateContext stateContext) {".to_string());
                     } else {
-                        self.add_code(&"private void _transition_(FrameState newState, StateContext stateContext) {".to_string());
+                        self.add_code(&"private void _transition_(newState FrameState, StateContext stateContext) {".to_string());
                     }
                 } else if self.generate_exit_args {
-                    self.add_code(&"private void _transition_(FrameState newState,Dictionary<String,object> exitArgs) {".to_string());
+                    self.add_code(&"private void _transition_(newState FrameState,Dictionary<String,object> exitArgs) {".to_string());
                 } else {
 
-                    self.add_code(&format!("func (m *{}Struct) _transition_(newState State) {{",self.first_letter_to_lower_case(&system_node.name)));
+                    self.add_code(&format!("func (m *{}Struct) _transition_(newState FrameState) {{",self.first_letter_to_lower_case(&system_node.name)));
                     // self.add_code(&"private void _transition_(FrameState newState) {".to_string());
                 }
                 self.indent();
@@ -519,10 +519,10 @@ impl GolangVisitor {
             if self.generate_change_state {
                 self.newline();
                 self.newline();
-                self.add_code(&"private void _changeState_(FrameState newState) {".to_string());
+                self.add_code(&format!("func (m *{}Struct) _changeState_(newState FrameState) {{",self.first_letter_to_lower_case(&system_node.name)));
                 self.indent();
                 self.newline();
-                self.add_code(&"_state_ = newState;".to_string());
+                self.add_code(&"m._state_ = newState".to_string());
                 self.outdent();
                 self.newline();
                 self.add_code(&"}".to_string());
@@ -634,7 +634,7 @@ impl GolangVisitor {
 
         self.newline();
         self.add_code(&format!(
-            "_changeState_({});",
+            "m._changeState_({})",
             self.format_state_name(target_state_name)
         ));
     }
@@ -881,7 +881,7 @@ impl GolangVisitor {
             }
         } else if self.generate_exit_args {
             self.add_code(&format!(
-                "m._transition_({},{});",
+                "m._transition_({},{})",
                 self.format_state_name(target_state_name),
                 exit_args
             ));
@@ -976,15 +976,15 @@ impl GolangVisitor {
         if self.generate_exit_args {
             if self.generate_state_context {
                 self.add_code(
-                    &"_transition_(stateContext.state,exitArgs,stateContext);".to_string(),
+                    &"_transition_(stateContext.state,exitArgs,stateContext)".to_string(),
                 );
             } else {
-                self.add_code(&"_transition_(state,exitArgs);".to_string());
+                self.add_code(&"_transition_(state,exitArgs)".to_string());
             }
         } else if self.generate_state_context {
-            self.add_code(&"_transition_(stateContext.state,stateContext);".to_string());
+            self.add_code(&"_transition_(stateContext.state,stateContext)".to_string());
         } else {
-            self.add_code(&"_transition_(state);".to_string());
+            self.add_code(&"_transition_(state)".to_string());
         }
     }
 }
@@ -1005,7 +1005,7 @@ impl AstVisitor for GolangVisitor {
         self.add_code(&format!("package {}", system_node.name));
         self.newline();
         self.newline();
-        self.add_code(&format!("type State uint"));
+        self.add_code(&format!("type FrameState uint"));
         self.newline();
         self.newline();
 
@@ -1019,7 +1019,7 @@ impl AstVisitor for GolangVisitor {
             for state_node_rcref in &machine_block_node.states {
                 self.add_code(&format!("{}", self.format_state_name(&state_node_rcref.borrow().name)));
                 if current == 0 {
-                    self.add_code(" State = iota");
+                    self.add_code(" FrameState = iota");
                 }
                 current = current + 1;
                 if current != len {
@@ -1067,7 +1067,7 @@ impl AstVisitor for GolangVisitor {
         if let Some(actions_block_node) = &system_node.actions_block_node_opt {
             self.newline();
             self.newline();
-            self.add_code(&format!("type actions interface {{"));
+            self.add_code(&format!("type frameActions interface {{"));
             self.indent();
 
             // TODO: create visitor for this
@@ -1111,9 +1111,9 @@ impl AstVisitor for GolangVisitor {
         self.add_code(&format!("type {}Struct struct {{", self.first_letter_to_lower_case(&system_node.name)));
         self.indent();
         self.newline();
-        self.add_code(&format!("_state_ State"));
+        self.add_code(&format!("_state_ FrameState"));
         self.newline();
-        self.add_code(&format!("actions actions"));
+        self.add_code(&format!("actions frameActions"));
 
 
         //
@@ -1243,7 +1243,7 @@ impl AstVisitor for GolangVisitor {
         self.newline();
         self.newline();
 
-        self.add_code(&format!("func (m *{}Struct) _mux_(e *framelang.FrameEvent) {{",&system_node.name));
+        self.add_code(&format!("func (m *{}Struct) _mux_(e *framelang.FrameEvent) {{",self.first_letter_to_lower_case(&system_node.name)));
         self.indent();
 
         if let Some(machine_block_node) = &system_node.machine_block_node_opt {
@@ -1445,7 +1445,7 @@ impl AstVisitor for GolangVisitor {
             method_name_or_alias, params_param_code
         ));
         self.newline();
-        self.add_code(&"m._mux_(&e);".to_string());
+        self.add_code(&"m._mux_(&e)".to_string());
 
         match &interface_method_node.return_type_opt {
             Some(return_type) => {
