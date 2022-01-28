@@ -2234,7 +2234,7 @@ impl AstVisitor for GolangVisitor {
 
         self.newline();
         for match_branch_node in &number_match_test_node.match_branch_nodes {
-            self.add_code(&format!("{} (", if_or_else_if));
+            self.add_code(&format!("{} ", if_or_else_if));
             match &number_match_test_node.expr_t {
                 ExprType::CallExprT {
                     call_expr_node: method_call_expr_node,
@@ -2262,10 +2262,10 @@ impl AstVisitor for GolangVisitor {
             let mut first_match = true;
             for match_number in &match_branch_node.number_match_pattern_nodes {
                 if first_match {
-                    self.add_code(&format!(" == {})", match_number.match_pattern_number));
+                    self.add_code(&format!(" == {}", match_number.match_pattern_number));
                     first_match = false;
                 } else {
-                    self.add_code(&" || (".to_string());
+                    self.add_code(&" || ".to_string());
                     match &number_match_test_node.expr_t {
                         ExprType::CallExprT {
                             call_expr_node: method_call_expr_node,
@@ -2279,11 +2279,11 @@ impl AstVisitor for GolangVisitor {
                         ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
                         _ => self.errors.push("TODO.".to_string()),
                     }
-                    self.add_code(&format!(" == {})", match_number.match_pattern_number));
+                    self.add_code(&format!(" == {}", match_number.match_pattern_number));
                 }
             }
 
-            self.add_code(&") {".to_string());
+            self.add_code(&" {".to_string());
             self.indent();
 
             match_branch_node.accept(self);
