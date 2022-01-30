@@ -1035,7 +1035,7 @@ impl GolangVisitor {
         } else if self.generate_state_context {
             self.add_code(&"m._transition_(stateContext.state.(FrameState),stateContext)".to_string());
         } else {
-            self.add_code(&"m._transition_(state.(FrameState)".to_string());
+            self.add_code(&"m._transition_(state.(FrameState))".to_string());
         }
     }
 }
