@@ -227,7 +227,7 @@ impl GolangVisitor {
                 let var_symbol_rcref_opt = &var_node.symbol_type_rcref_opt;
                 let var_symbol_rcref = var_symbol_rcref_opt.as_ref().unwrap();
                 let var_symbol = var_symbol_rcref.borrow();
-//                let var_type = self.get_variable_type(&*var_symbol);
+                let var_type = self.get_variable_type(&*var_symbol);
 
                 if self.visiting_call_chain_literal_variable {
               //      code.push('(');
@@ -237,10 +237,10 @@ impl GolangVisitor {
                      variable_node.id_node.name.lexeme
                 ));
                 // if is being used as an rval, cast it.
-                if self.expr_context == ExprContext::rvalue {
+                if self.expr_context == ExprContext::rvalue || self.expr_context == ExprContext::none {
                     code.push_str(&format!(
                         ".({})",
-                        self.current_var_type
+                        var_type
                     ));
                 }
                 if self.visiting_call_chain_literal_variable {
@@ -436,16 +436,16 @@ impl GolangVisitor {
                 if self.generate_state_context {
                     if self.generate_exit_args {
  //                       self.add_code(&"private void _transition_(newState FrameState,Dictionary<String,object> exitArgs, StateContext stateContext) {".to_string());
-                        self.add_code(&format!("func (m *{}Struct) _transition_(newState FrameState, exitArgs map[string]interface{{}}, stateContext StateContext) {{",self.first_letter_to_lower_case(&system_node.name)));
+                        self.add_code(&format!("func (m *{}Struct) _transition_(newState framelang.FrameState, exitArgs map[string]interface{{}}, stateContext StateContext) {{",self.first_letter_to_lower_case(&system_node.name)));
                     } else {
-                        self.add_code(&format!("func (m *{}Struct) _transition_(newState FrameState, stateContext StateContext) {{",self.first_letter_to_lower_case(&system_node.name)));
- //                       self.add_code(&"private void _transition_(newState FrameState, StateContext stateContext) {".to_string());
+                        self.add_code(&format!("func (m *{}Struct) _transition_(newState framelang.FrameState, stateContext StateContext) {{",self.first_letter_to_lower_case(&system_node.name)));
+ //                       self.add_code(&"private void _transition_(newState framelang.FrameState, StateContext stateContext) {".to_string());
                     }
                 } else if self.generate_exit_args {
-                    self.add_code(&format!("func (m *{}Struct) _transition_(newState FrameState, exitArgs map[string]interface{{}}) {{",self.first_letter_to_lower_case(&system_node.name)));
-//                    self.add_code(&"private void _transition_(newState FrameState,Dictionary<String,object> exitArgs) {".to_string());
+                    self.add_code(&format!("func (m *{}Struct) _transition_(newState framelang.FrameState, exitArgs map[string]interface{{}}) {{",self.first_letter_to_lower_case(&system_node.name)));
+//                    self.add_code(&"private void _transition_(newState framelang.FrameState,Dictionary<String,object> exitArgs) {".to_string());
                 } else {
-                    self.add_code(&format!("func (m *{}Struct) _transition_(newState FrameState) {{",self.first_letter_to_lower_case(&system_node.name)));
+                    self.add_code(&format!("func (m *{}Struct) _transition_(newState framelang.FrameState) {{",self.first_letter_to_lower_case(&system_node.name)));
                 }
                 self.indent();
                 self.newline();
@@ -526,13 +526,13 @@ impl GolangVisitor {
                     self.add_code(&"return m._stateStack_.Pop()".to_string());
                 } else {
                     // self.add_code(
-                    //     &"private Stack<FrameState> _stateStack_ = new Stack<FrameState>();"
+                    //     &"private Stack<framelang.FrameState> _stateStack_ = new Stack<framelang.FrameState>();"
                     //         .to_string(),
                     // );
                     self.newline();
                     self.newline();
                     self.add_code(
-                        &format!("func (m *{}Struct) _stateStack_push_(state FrameState) {{",
+                        &format!("func (m *{}Struct) _stateStack_push_(state framelang.FrameState) {{",
                         self.first_letter_to_lower_case(&self.system_name)
                     ));
                     self.indent();
@@ -568,7 +568,7 @@ impl GolangVisitor {
             if self.generate_change_state {
                 self.newline();
                 self.newline();
-                self.add_code(&format!("func (m *{}Struct) _changeState_(newState FrameState) {{",self.first_letter_to_lower_case(&system_node.name)));
+                self.add_code(&format!("func (m *{}Struct) _changeState_(newState framelang.FrameState) {{",self.first_letter_to_lower_case(&system_node.name)));
                 self.indent();
                 self.newline();
                 self.add_code(&"m._state_ = newState".to_string());
@@ -1027,15 +1027,15 @@ impl GolangVisitor {
         if self.generate_exit_args {
             if self.generate_state_context {
                 self.add_code(
-                    &"m._transition_(stateContext.state.(FrameState),exitArgs,stateContext)".to_string(),
+                    &"m._transition_(stateContext.state.(framelang.FrameState),exitArgs,stateContext)".to_string(),
                 );
             } else {
-                self.add_code(&"m._transition_(state.(FrameState),exitArgs)".to_string());
+                self.add_code(&"m._transition_(state.(framelang.FrameState),exitArgs)".to_string());
             }
         } else if self.generate_state_context {
-            self.add_code(&"m._transition_(stateContext.state.(FrameState),stateContext)".to_string());
+            self.add_code(&"m._transition_(stateContext.state.(framelang.FrameState),stateContext)".to_string());
         } else {
-            self.add_code(&"m._transition_(state.(FrameState))".to_string());
+            self.add_code(&"m._transition_(state.(framelang.FrameState))".to_string());
         }
     }
 }
@@ -1056,7 +1056,7 @@ impl AstVisitor for GolangVisitor {
         self.add_code(&format!("package {}", system_node.name));
         self.newline();
         self.newline();
-        self.add_code(&format!("type FrameState uint"));
+//        self.add_code(&format!("type FrameState uint"));
         self.newline();
         self.newline();
 
@@ -1070,7 +1070,7 @@ impl AstVisitor for GolangVisitor {
             for state_node_rcref in &machine_block_node.states {
                 self.add_code(&format!("{}", self.format_state_name(&state_node_rcref.borrow().name)));
                 if current == 0 {
-                    self.add_code(" FrameState = iota");
+                    self.add_code(" framelang.FrameState = iota");
                 }
                 current = current + 1;
                 if current != len {
@@ -1162,7 +1162,7 @@ impl AstVisitor for GolangVisitor {
         self.add_code(&format!("type {}Struct struct {{", self.first_letter_to_lower_case(&system_node.name)));
         self.indent();
         self.newline();
-        self.add_code(&format!("_state_ FrameState"));
+        self.add_code(&format!("_state_ framelang.FrameState"));
         if self.generate_state_stack {
             self.newline();
             self.add_code(
