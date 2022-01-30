@@ -9,6 +9,7 @@ use crate::frame_c::ast::*;
 use crate::frame_c::scanner::{Token, TokenType};
 use crate::frame_c::symbol_table::*;
 use crate::frame_c::visitors::*;
+use crate::frame_c::visitors::golang_visitor::ExprContext::rvalue;
 // use yaml_rust::{YamlLoader, Yaml};
 
 #[derive(PartialEq)]
@@ -2643,7 +2644,14 @@ impl AstVisitor for GolangVisitor {
             },
             FrameEventPart::Return {
                 is_reference: _is_reference,
-            } => self.add_code(&"e.Ret".to_string()),
+            } => {
+                self.add_code(&"e.Ret".to_string());
+                if self.expr_context == rvalue || self.expr_context == ExprContext::none {
+                    self.add_code(&format!(".({})",
+                                             &self.current_event_ret_type));
+                }
+
+            },
         }
     }
 
@@ -2666,11 +2674,23 @@ impl AstVisitor for GolangVisitor {
             FrameEventPart::Param {
                 param_tok,
                 is_reference: _is_reference,
-            } => output.push_str(&format!("e.Params[\"{}\"].({})",
-                                          param_tok.lexeme, &self.current_var_type)),
+            } => {
+                output.push_str(&format!("e.Params[\"{}\"]",
+                                         param_tok.lexeme,));
+                if self.expr_context == rvalue || self.expr_context == ExprContext::none {
+                    output.push_str(&format!(".({})",
+                                             &self.current_var_type));
+                }
+            },
             FrameEventPart::Return {
                 is_reference: _is_reference,
-            } => output.push_str("e.Ret"),
+            } => {
+                output.push_str("e.Ret");
+                if self.expr_context == rvalue || self.expr_context == ExprContext::none {
+                    output.push_str(&format!(".({})",
+                                             &self.current_event_ret_type));
+                }
+            },
         }
     }
 
