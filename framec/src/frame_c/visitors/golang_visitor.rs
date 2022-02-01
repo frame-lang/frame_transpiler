@@ -184,7 +184,7 @@ impl GolangVisitor {
 
         match variable_node.scope {
             IdentifierDeclScope::DomainBlock => {
-                code.push_str(&format!("this.{}", variable_node.id_node.name.lexeme));
+                code.push_str(&format!("m.{}", variable_node.id_node.name.lexeme));
             }
             IdentifierDeclScope::StateParam => {
                 let var_node = variable_node;
@@ -822,7 +822,7 @@ impl GolangVisitor {
                                     let mut expr = String::new();
                                     expr_t.accept_to_string(self, &mut expr);
                                     self.add_code(&format!(
-                                        "stateContext.addEnterArg(\"{}\",{})",
+                                        "stateContext.AddEnterArg(\"{}\",{})",
                                         p.name, expr
                                     ));
                                     self.newline();
