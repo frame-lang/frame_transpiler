@@ -868,7 +868,7 @@ impl GolangVisitor {
                                     let mut expr = String::new();
                                     expr_t.accept_to_string(self, &mut expr);
                                     self.add_code(&format!(
-                                        "stateContext.addStateArg(\"{}\",{})",
+                                        "stateContext.AddStateArg(\"{}\",{})",
                                         param_symbol.name, expr
                                     ));
                                     self.newline();
@@ -1738,16 +1738,17 @@ impl AstVisitor for GolangVisitor {
 
         // Generate statements
         self.visit_decl_stmts(&evt_handler_node.statements);
-        self.current_event_msg = String::new();
 
         let terminator_node = &evt_handler_node.terminator_node;
         terminator_node.accept(self);
         self.outdent();
+
 //        self.newline();
    //     self.add_code(&"}".to_string());
 
         // this controls formatting here
         self.first_event_handler = false;
+        self.current_event_msg = String::new();
         self.current_event_ret_type = String::new();
     }
 
@@ -2025,7 +2026,10 @@ impl AstVisitor for GolangVisitor {
                 CallChainLiteralNodeType::InterfaceMethodCallT {
                     interface_method_call_expr_node,
                 } => {
-                    interface_method_call_expr_node.accept(self);
+                    self.errors.push(String::from(
+                        "Error: Interface method calls may not appear in call chains.",
+                    ));
+//                    interface_method_call_expr_node.accept(self);
                 }
                 CallChainLiteralNodeType::ActionCallT {
                     action_call_expr_node,
@@ -2063,7 +2067,10 @@ impl AstVisitor for GolangVisitor {
                 CallChainLiteralNodeType::InterfaceMethodCallT {
                     interface_method_call_expr_node,
                 } => {
-                    interface_method_call_expr_node.accept_to_string(self, output);
+                    self.errors.push(String::from(
+                        "Error: Interface method calls may not appear in call chains.",
+                    ));
+//                    interface_method_call_expr_node.accept_to_string(self, output);
                 }
                 CallChainLiteralNodeType::ActionCallT {
                     action_call_expr_node,
@@ -2644,7 +2651,12 @@ impl AstVisitor for GolangVisitor {
                                         Some(type_node) => {
                                             param_type = type_node.get_type_str();
                                         },
-                                        None => {}
+                                        None => {
+                                            self.errors.push(format!(
+                                                "Error: {}[{}] type is not declared.", event_symbol.msg, param_symbol.name
+                                            ));
+                                            return;
+                                        }
                                     };
                                     break;
                                 }
@@ -2652,9 +2664,19 @@ impl AstVisitor for GolangVisitor {
                             param_type
                         },
                         None => {
+                            self.errors.push(format!(
+                                "Error: {}[{}] type is not declared.", event_symbol.msg, param_tok.lexeme
+                            ));
                             "".to_string()
                         },
                     };
+                    // if param_type.eq("") {
+                    //
+                    //     // let err = format!(
+                    //     //     "Error: {}[{}] type is not set.", event_symbol.msg, param_symbol.name
+                    //     // );
+                    //     self.errors.push(err);
+                    // }
                     self.add_code(&format!(".({})",
                                            param_type));
                 }
