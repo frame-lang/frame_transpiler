@@ -251,21 +251,6 @@ impl CsVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    // fn format_parameter_list_to_string(&mut self,params:&Vec<ParameterNode>,output:&mut String) {
-    //     let mut separator = "";
-    //     for param in params {
-    //         output.push_str(&format!("{}", separator));
-    //         let param_type: String = match &param.param_type_opt {
-    //             Some(ret_type) => ret_type.get_type_str(),
-    //             None => String::from("<?>"),
-    //         };
-    //         output.push_str(&format!("{} {}", param_type, param.param_name));
-    //         separator = ",";
-    //     }
-    // }
-
-    //* --------------------------------------------------------------------- *//
-
     fn format_action_name(&mut self, action_name: &String) -> String {
         return format!("{}_do", action_name);
     }

@@ -7,6 +7,7 @@ use crate::frame_c::visitors::cpp_visitor::CppVisitor;
 use crate::frame_c::visitors::cs_visitor::CsVisitor;
 use crate::frame_c::visitors::cs_visitor_for_bob::CsVisitorForBob;
 use crate::frame_c::visitors::gdscript_3_2_visitor::GdScript32Visitor;
+use crate::frame_c::visitors::golang_visitor::GolangVisitor;
 use crate::frame_c::visitors::java_8_visitor::Java8Visitor;
 use crate::frame_c::visitors::javascript_visitor::JavaScriptVisitor;
 use crate::frame_c::visitors::plantuml_visitor::PlantUmlVisitor;
@@ -16,7 +17,6 @@ use crate::frame_c::visitors::smcat_visitor::SmcatVisitor;
 use exitcode::USAGE;
 use std::fs;
 use std::path::{Path, PathBuf};
-use crate::frame_c::visitors::golang_visitor::GolangVisitor;
 
 /* --------------------------------------------------------------------- */
 
