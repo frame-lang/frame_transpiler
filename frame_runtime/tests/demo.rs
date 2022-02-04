@@ -522,42 +522,50 @@ mod tests {
     }
 
     use indoc::indoc;
+
     const SMCAT_STATIC: &str = indoc! {r#"
         initial,
         Init,
         Foo,
         Bar;
-        initial => Init;
+
+        initial -> Init;
         Init -> Foo : "  Init:>  ";
         Foo -> Bar : "  next  ";
         Bar -> Foo [color="grey"] : "  next  ";
         "#};
+
     const SMCAT_LIVE_1: &str = indoc! {r#"
         initial,
         Init,
         Foo [active color="red"],
         Bar;
-        initial => Init;
+
+        initial -> Init;
         Init -> Foo [color="red" width=2] : "  Init:>  ";
         Foo -> Bar : "  next  ";
         Bar -> Foo [color="grey"] : "  next  ";
         "#};
+
     const SMCAT_LIVE_2: &str = indoc! {r#"
         initial,
         Init,
         Foo,
         Bar [active color="red"];
-        initial => Init;
+
+        initial -> Init;
         Init -> Foo : "  Init:>  ";
         Foo -> Bar [color="red" width=2] : "  next  ";
         Bar -> Foo [color="grey"] : "  next  ";
         "#};
+
     const SMCAT_LIVE_3: &str = indoc! {r#"
         initial,
         Init,
         Foo [active color="red"],
         Bar;
-        initial => Init;
+
+        initial -> Init;
         Init -> Foo : "  Init:>  ";
         Foo -> Bar : "  next  ";
         Bar -> Foo [color="pink" width=2] : "  next  ";
@@ -566,7 +574,7 @@ mod tests {
     #[test]
     fn smcat_render_static() {
         use frame_runtime::smcat::*;
-        let smcat = Renderer::new(Box::new(SimpleStyle));
+        let smcat = Renderer::new(SimpleStyle);
         assert_eq!(smcat.render_static(super::info::machine()), SMCAT_STATIC);
     }
 
@@ -574,7 +582,7 @@ mod tests {
     fn smcat_render_live() {
         use crate::demo::sync::*;
         use frame_runtime::smcat::*;
-        let smcat = Renderer::new(Box::new(SimpleStyle));
+        let smcat = Renderer::new(SimpleStyle);
 
         let mut sm = Demo::new();
         assert_eq!(smcat.render_live(&sm), SMCAT_LIVE_1);

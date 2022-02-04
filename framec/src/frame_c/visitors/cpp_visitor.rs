@@ -1365,7 +1365,7 @@ impl AstVisitor for CppVisitor {
 
         method_call.call_expr_list.accept(self);
 
-        self.add_code(&format!(""));
+        self.add_code("");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1386,7 +1386,7 @@ impl AstVisitor for CppVisitor {
 
         method_call.call_expr_list.accept_to_string(self, output);
 
-        output.push_str(&format!(""));
+        output.push_str("");
     }
 
     //* --------------------------------------------------------------------- *//

@@ -458,10 +458,10 @@ impl Default for RustRuntime {
 impl Default for SmcatCode {
     fn default() -> Self {
         SmcatCode {
-            simple_state_node_style: String::from("class=\"state simple\""),
-            parent_state_node_style: String::from("class=\"state parent\""),
-            change_state_edge_style: String::from("class=\"edge change-state\""),
-            transition_edge_style: String::from("class=\"edge transition\""),
+            simple_state_node_style: String::from("class=\"simple\""),
+            parent_state_node_style: String::from("class=\"parent\""),
+            change_state_edge_style: String::from("class=\"change-state\""),
+            transition_edge_style: String::from("class=\"standard\""),
         }
     }
 }

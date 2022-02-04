@@ -101,5 +101,4 @@ pub use crate::event::*;
 pub use crate::history::*;
 pub use crate::info::*;
 pub use crate::machine::*;
-pub use crate::smcat::*;
 pub use crate::transition::*;
