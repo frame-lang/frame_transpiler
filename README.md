@@ -1,17 +1,17 @@
 
-# Frame Language Transpiler v0.7.3
+# Frame Language Transpiler v0.7.4
 
 
-Hi! So very glad you are interested in Frame. Frame system design markdown language for software architects and engineers. It is an easy to learn textual language for defining system specifications that can generate both UML documentation as well as code in 7 langauges. 
+Hi! So very glad you are interested in Frame. Frame system design markdown language for software architects and engineers. It is an easy to learn textual language for defining system specifications that can generate both UML documentation as well as code in 8 langauges. 
 
 
 ## Purpose
 
-This project contains the code for building the Frame Language Transpiler - the Framepiler.  The Framepiler is written in Rust and transpiles Frame specification documents into 6 programming languages (more to come) and UML documentation.
+This project contains the code for building the Frame Language Transpiler - the Framepiler.  The Framepiler is written in Rust and transpiles Frame specification documents into 8 programming languages (more to come) and UML documentation.
 
-## New in Frame v0.7.X
+## New in Frame v0.7.4
 
-Frame now has a full-featured runtime interface in Rust!
+Frame now supports golang!
 
 For details, see the [Release Notes](https://github.com/frame-lang/frame_transpiler/releases).
 
