@@ -2,7 +2,16 @@
 # Frame Language Transpiler v0.7.4
 
 
-Hi! So very glad you are interested in Frame. Frame system design markdown language for software architects and engineers. It is an easy to learn textual language for defining system specifications that can generate both UML documentation as well as code in 8 langauges. 
+Hi! So very glad you are interested in Frame. Frame system design markdown language for software architects and engineers. It is an easy to learn textual language for defining system specifications that can generate both UML documentation as well as code in 8 langauges:
+
+* C++
+* C#
+* GDScript
+* Go
+* Java
+* JavaScript
+* Python
+* Rust
 
 
 ## Purpose
