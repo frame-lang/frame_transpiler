@@ -22,7 +22,7 @@ use std::path::{Path, PathBuf};
 /* --------------------------------------------------------------------- */
 
 static IS_DEBUG: bool = false;
-static FRAMEC_VERSION: &str = "emitted from framec_v0.7.4";
+static FRAMEC_VERSION: &str = "emitted from framec_v0.7.5";
 
 /* --------------------------------------------------------------------- */
 

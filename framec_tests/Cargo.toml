@@ -1,6 +1,6 @@
 [package]
 name = "framec_tests"
-version = "0.7.3"
+version = "0.7.5"
 authors = ["Eric Walkingshaw <eric.wakingshaw@savant.com>", "Fernando De la Garza <fernando.delagarza@savant.com>"]
 edition = "2018"
 
