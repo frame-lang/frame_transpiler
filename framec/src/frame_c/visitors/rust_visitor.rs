@@ -21,6 +21,8 @@ pub struct RustVisitor {
     // general config and system info
     compiler_version: String,
     config: RustConfig,
+    input_path: Option<String>,
+    sha256: String,
     symbol_config: SymbolConfig,
     arcanum: Arcanum,
 
@@ -63,9 +65,12 @@ pub struct RustVisitor {
 }
 
 impl RustVisitor {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         compiler_version: &str,
         config: FrameConfig,
+        input_path: Option<&str>,
+        sha256: &str,
         arcanum: Arcanum,
         generate_enter_args: bool,
         generate_exit_args: bool,
@@ -78,6 +83,8 @@ impl RustVisitor {
         let rust_config = config.codegen.rust;
         RustVisitor {
             compiler_version: compiler_version.to_string(),
+            input_path: input_path.map(|s| s.to_string()),
+            sha256: sha256.to_string(),
             symbol_config: SymbolConfig::new(),
             arcanum,
 
@@ -794,7 +801,15 @@ impl RustVisitor {
         self.add_code("static MACHINE: &MachineInfo = &MachineInfo");
         self.enter_block();
 
-        // name
+        // file path, hash, and machine name
+        let path_str = match &self.input_path {
+            Some(s) => format!("Some(\"{}\")", s),
+            None => "None".to_string(),
+        };
+        self.add_code(&format!("path_str: {},", path_str));
+        self.newline();
+        self.add_code(&format!("sha256: Some(\"{}\"),", self.sha256));
+        self.newline();
         self.add_code(&format!("name: \"{}\",", self.system_name));
         self.newline();
 

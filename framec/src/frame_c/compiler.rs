@@ -15,6 +15,7 @@ use crate::frame_c::visitors::python_visitor::PythonVisitor;
 use crate::frame_c::visitors::rust_visitor::RustVisitor;
 use crate::frame_c::visitors::smcat_visitor::SmcatVisitor;
 use exitcode::USAGE;
+use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -53,7 +54,7 @@ impl Exe {
         match fs::read_to_string(input_path) {
             Ok(content) => {
                 Exe::debug_print(&(&content).to_string());
-                self.run(config_path, content, output_format)
+                self.run(config_path, input_path.to_str(), content, output_format)
             }
             Err(err) => {
                 let error_msg = format!("Error reading input file: {}", err);
@@ -66,6 +67,7 @@ impl Exe {
     pub fn run(
         &self,
         config_path: &Option<PathBuf>,
+        input_path_str: Option<&str>,
         content: String,
         mut output_format: String,
     ) -> Result<String, RunError> {
@@ -78,6 +80,10 @@ impl Exe {
         // debugging here, just uncomment the next line and then comment it back
         // when checking in.
         // let mut output= String::new();
+
+        let mut hasher = Sha256::new();
+        hasher.update(&content);
+        let sha256 = &format!("{:x}", hasher.finalize());
 
         let output;
         let scanner = Scanner::new(content);
@@ -272,6 +278,8 @@ impl Exe {
             let mut visitor = RustVisitor::new(
                 FRAMEC_VERSION,
                 config,
+                input_path_str,
+                sha256,
                 semantic_parser.get_arcanum(),
                 generate_enter_args,
                 generate_exit_args,
