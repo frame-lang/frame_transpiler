@@ -41,6 +41,8 @@ mod info {
     }
 
     static MACHINE: &MachineInfo = &MachineInfo {
+        path_str: None,
+        sha256: None,
         name: "Simple",
         variables: &[],
         states: &[STATE_A, STATE_B],

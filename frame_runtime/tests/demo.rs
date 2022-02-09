@@ -69,6 +69,8 @@ mod info {
     }
 
     static MACHINE: &MachineInfo = &MachineInfo {
+        path_str: None,
+        sha256: None,
         name: "Demo",
         variables: &[
             NameInfo {

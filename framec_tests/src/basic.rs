@@ -52,6 +52,24 @@ mod tests {
         assert_eq!(sm.state, BasicState::S0);
     }
 
+    /// Test that the file name from the runtime interface is correct.
+    #[test]
+    fn file_name() {
+        let info = Basic::machine_info();
+        assert!(info.file_name().is_some());
+        assert_eq!(info.file_name().unwrap(), "basic.frm");
+    }
+
+    /// Test that the file path from the runtime interface is correct.
+    #[test]
+    fn file_path() {
+        let info = Basic::machine_info();
+        assert!(info.path().is_some());
+        let path = info.path().unwrap();
+        assert!(path.is_relative());
+        assert_eq!(path.to_str().unwrap(), "src/basic.frm");
+    }
+
     /// Test that the machine name from the runtime interface is correct.
     #[test]
     fn machine_name() {
