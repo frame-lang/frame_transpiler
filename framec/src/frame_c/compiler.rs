@@ -15,9 +15,10 @@ use crate::frame_c::visitors::python_visitor::PythonVisitor;
 use crate::frame_c::visitors::rust_visitor::RustVisitor;
 use crate::frame_c::visitors::smcat_visitor::SmcatVisitor;
 use exitcode::USAGE;
-use std::fs;
+use std::{fs};
+use std::io;
 use std::path::{Path, PathBuf};
-
+use std::io::{Read};
 /* --------------------------------------------------------------------- */
 
 static IS_DEBUG: bool = false;
@@ -50,6 +51,7 @@ impl Exe {
         input_path: &Path,
         output_format: String,
     ) -> Result<String, RunError> {
+
         match fs::read_to_string(input_path) {
             Ok(content) => {
                 Exe::debug_print(&(&content).to_string());
@@ -61,7 +63,74 @@ impl Exe {
                 Err(run_error)
             }
         }
+        //
+        // match input_path {
+        //     Some(path) => {
+        //         // let path:&Path;
+        //         // match input_path {
+        //         //     Some(x) => {
+        //         //         path = x.as_path();
+        //         //     }
+        //         //     None => {
+        //         //         panic!()
+        //         //     }
+        //         // };
+        //         match fs::read_to_string(path) {
+        //             Ok(content) => {
+        //                 Exe::debug_print(&(&content).to_string());
+        //                 self.run(config_path, content, output_format)
+        //             }
+        //             Err(err) => {
+        //                 let error_msg = format!("Error reading input file: {}", err);
+        //                 let run_error = RunError::new(exitcode::NOINPUT, &*error_msg);
+        //                 Err(run_error)
+        //             }
+        //         }
+        //     }
+        //     None => {
+        //         let mut buffer = String::new();
+        //         let mut stdin = io::stdin(); // We get `Stdin` here.
+        //         match stdin.read_to_string(&mut buffer) {
+        //             Ok(size) => {
+        //                 Exe::debug_print(&(&buffer).to_string());
+        //                 self.run(config_path, buffer, output_format)
+        //             }
+        //             Err(err) => {
+        //                 let error_msg = format!("Error reading input file: {}", err);
+        //                 let run_error = RunError::new(exitcode::NOINPUT, &*error_msg);
+        //                 Err(run_error)
+        //             }
+        //         }
+        //     }
+        }
+
+
+
+
+    /* --------------------------------------------------------------------- */
+
+    pub fn run_stdin(
+        &self,
+        config_path: &Option<PathBuf>,
+        output_format: String,
+    ) -> Result<String, RunError> {
+        let mut buffer = String::new();
+        let mut stdin = io::stdin(); // We get `Stdin` here.
+        match stdin.read_to_string(&mut buffer) {
+            Ok(size) => {
+                Exe::debug_print(&(&buffer).to_string());
+                self.run(config_path, buffer, output_format)
+            }
+            Err(err) => {
+                let error_msg = format!("Error reading input file: {}", err);
+                let run_error = RunError::new(exitcode::NOINPUT, &*error_msg);
+                Err(run_error)
+            }
+        }
     }
+
+
+    /* --------------------------------------------------------------------- */
 
     pub fn run(
         &self,
@@ -77,9 +146,10 @@ impl Exe {
         // but I've reported it to JetBrains and want it fixed. So when you are
         // debugging here, just uncomment the next line and then comment it back
         // when checking in.
-        // let mut output= String::new();
 
-        let output;
+        // let output;
+        let mut output= String::new();
+
         let scanner = Scanner::new(content);
 
         let (has_errors, errors, tokens) = scanner.scan_tokens();
