@@ -15,14 +15,14 @@ use crate::frame_c::visitors::python_visitor::PythonVisitor;
 use crate::frame_c::visitors::rust_visitor::RustVisitor;
 use crate::frame_c::visitors::smcat_visitor::SmcatVisitor;
 use exitcode::USAGE;
-use std::{fs};
+use std::fs;
 use std::io;
+use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::io::{Read};
 /* --------------------------------------------------------------------- */
 
 static IS_DEBUG: bool = false;
-static FRAMEC_VERSION: &str = "emitted from framec_v0.7.4";
+static FRAMEC_VERSION: &str = "emitted from framec_v0.8.0";
 
 /* --------------------------------------------------------------------- */
 
@@ -51,7 +51,6 @@ impl Exe {
         input_path: &Path,
         output_format: String,
     ) -> Result<String, RunError> {
-
         match fs::read_to_string(input_path) {
             Ok(content) => {
                 Exe::debug_print(&(&content).to_string());
@@ -63,49 +62,7 @@ impl Exe {
                 Err(run_error)
             }
         }
-        //
-        // match input_path {
-        //     Some(path) => {
-        //         // let path:&Path;
-        //         // match input_path {
-        //         //     Some(x) => {
-        //         //         path = x.as_path();
-        //         //     }
-        //         //     None => {
-        //         //         panic!()
-        //         //     }
-        //         // };
-        //         match fs::read_to_string(path) {
-        //             Ok(content) => {
-        //                 Exe::debug_print(&(&content).to_string());
-        //                 self.run(config_path, content, output_format)
-        //             }
-        //             Err(err) => {
-        //                 let error_msg = format!("Error reading input file: {}", err);
-        //                 let run_error = RunError::new(exitcode::NOINPUT, &*error_msg);
-        //                 Err(run_error)
-        //             }
-        //         }
-        //     }
-        //     None => {
-        //         let mut buffer = String::new();
-        //         let mut stdin = io::stdin(); // We get `Stdin` here.
-        //         match stdin.read_to_string(&mut buffer) {
-        //             Ok(size) => {
-        //                 Exe::debug_print(&(&buffer).to_string());
-        //                 self.run(config_path, buffer, output_format)
-        //             }
-        //             Err(err) => {
-        //                 let error_msg = format!("Error reading input file: {}", err);
-        //                 let run_error = RunError::new(exitcode::NOINPUT, &*error_msg);
-        //                 Err(run_error)
-        //             }
-        //         }
-        //     }
-        }
-
-
-
+    }
 
     /* --------------------------------------------------------------------- */
 
@@ -117,7 +74,7 @@ impl Exe {
         let mut buffer = String::new();
         let mut stdin = io::stdin(); // We get `Stdin` here.
         match stdin.read_to_string(&mut buffer) {
-            Ok(size) => {
+            Ok(_size) => {
                 Exe::debug_print(&(&buffer).to_string());
                 self.run(config_path, buffer, output_format)
             }
@@ -128,7 +85,6 @@ impl Exe {
             }
         }
     }
-
 
     /* --------------------------------------------------------------------- */
 
@@ -147,8 +103,8 @@ impl Exe {
         // debugging here, just uncomment the next line and then comment it back
         // when checking in.
 
-        // let output;
-        let mut output= String::new();
+        let output;
+        //        let mut output= String::new(); ^^^^ See above! ^^^^
 
         let scanner = Scanner::new(content);
 
