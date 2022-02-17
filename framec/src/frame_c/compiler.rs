@@ -14,8 +14,10 @@ use crate::frame_c::visitors::plantuml_visitor::PlantUmlVisitor;
 use crate::frame_c::visitors::python_visitor::PythonVisitor;
 use crate::frame_c::visitors::rust_visitor::RustVisitor;
 use crate::frame_c::visitors::smcat_visitor::SmcatVisitor;
+use crate::frame_c::visitors::TargetLanguage;
 use exitcode::USAGE;
 use sha2::{Digest, Sha256};
+use std::convert::TryFrom;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -155,165 +157,181 @@ impl Exe {
             }
             None => {}
         }
-        if output_format == "javascript" {
-            let mut visitor = JavaScriptVisitor::new(
-                semantic_parser.get_arcanum(),
-                generate_exit_args,
-                generate_enter_args || generate_state_context,
-                generate_state_stack,
-                generate_change_state,
-                generate_transition_state,
-                FRAMEC_VERSION,
-                comments,
-            );
-            visitor.run(&system_node);
-            output = visitor.get_code();
-        } else if output_format == "cpp" {
-            let mut visitor = CppVisitor::new(
-                semantic_parser.get_arcanum(),
-                config,
-                generate_exit_args,
-                generate_enter_args || generate_state_context,
-                generate_state_stack,
-                generate_change_state,
-                generate_transition_state,
-                FRAMEC_VERSION,
-                comments,
-            );
-            visitor.run(&system_node);
-            output = visitor.get_code();
-        } else if output_format == "c_sharp_bob" {
-            let mut visitor = CsVisitorForBob::new(
-                semantic_parser.get_arcanum(),
-                generate_exit_args,
-                generate_enter_args || generate_state_context,
-                generate_state_stack,
-                generate_change_state,
-                generate_transition_state,
-                FRAMEC_VERSION,
-                comments,
-            );
-            visitor.run(&system_node);
-            output = visitor.get_code();
-        } else if output_format == "c_sharp" {
-            let mut visitor = CsVisitor::new(
-                semantic_parser.get_arcanum(),
-                generate_exit_args,
-                generate_enter_args || generate_state_context,
-                generate_state_stack,
-                generate_change_state,
-                generate_transition_state,
-                FRAMEC_VERSION,
-                comments,
-            );
-            visitor.run(&system_node);
-            output = visitor.get_code();
-        } else if output_format == "gdscript" {
-            let mut visitor = GdScript32Visitor::new(
-                semantic_parser.get_arcanum(),
-                generate_exit_args,
-                generate_enter_args || generate_state_context,
-                generate_state_stack,
-                generate_change_state,
-                generate_transition_state,
-                FRAMEC_VERSION,
-                comments,
-            );
-            visitor.run(&system_node);
-            output = visitor.get_code();
-        } else if output_format == "golang" {
-            let mut visitor = GolangVisitor::new(
-                semantic_parser.get_arcanum(),
-                generate_exit_args,
-                generate_enter_args || generate_state_context,
-                generate_state_stack,
-                generate_change_state,
-                generate_transition_state,
-                FRAMEC_VERSION,
-                comments,
-            );
-            visitor.run(&system_node);
-            output = visitor.get_code();
-        } else if output_format == "java_8" {
-            let mut visitor = Java8Visitor::new(
-                semantic_parser.get_arcanum(),
-                generate_exit_args,
-                generate_enter_args || generate_state_context,
-                generate_state_stack,
-                generate_change_state,
-                generate_transition_state,
-                FRAMEC_VERSION,
-                comments,
-            );
-            visitor.run(&system_node);
-            output = visitor.get_code();
-        } else if output_format == "python_3" {
-            let mut visitor = PythonVisitor::new(
-                semantic_parser.get_arcanum(),
-                generate_exit_args,
-                generate_enter_args || generate_state_context,
-                generate_state_stack,
-                generate_change_state,
-                generate_transition_state,
-                FRAMEC_VERSION,
-                comments,
-            );
-            visitor.run(&system_node);
-            output = visitor.get_code();
-        } else if output_format == "plantuml" {
-            let (arcanum, system_hierarchy) = semantic_parser.get_all();
-            let mut visitor = PlantUmlVisitor::new(
-                arcanum,
-                system_hierarchy,
-                generate_state_context,
-                generate_state_stack,
-                generate_change_state,
-                generate_transition_state,
-                FRAMEC_VERSION,
-                comments,
-            );
-            visitor.run(&system_node);
-            output = visitor.get_code();
-        } else if output_format == "rust" {
-            let mut visitor = RustVisitor::new(
-                FRAMEC_VERSION,
-                config,
-                input_path_str,
-                sha256,
-                semantic_parser.get_arcanum(),
-                generate_enter_args,
-                generate_exit_args,
-                generate_state_context,
-                generate_state_stack,
-                generate_change_state,
-                generate_transition_state,
-                comments,
-            );
-            visitor.run(&system_node);
-            output = visitor.get_code();
-        } else if output_format == "smcat" {
-            let mut visitor = SmcatVisitor::new(
-                FRAMEC_VERSION,
-                config,
-                semantic_parser.get_system_hierarchy(),
-            );
-            visitor.run(&system_node);
-            output = visitor.get_code();
-        // } else if output_format == "xstate" {
-        //     let mut visitor = XStateVisitor::new(semantic_parser.get_arcanum()
-        //                                        , generate_exit_args
-        //                                        , generate_state_context
-        //                                        , generate_state_stack
-        //                                        , generate_change_state
-        //                                        , generate_transition_state
-        //                                        , FRAMEC_VERSION
-        //                                        , comments);
-        //     visitor.run(&system_node);
-        //     return visitor.get_code();
-        } else {
-            let error_msg = &format!("Error - unrecognized output format {}.", output_format);
-            let run_error = RunError::new(USAGE, error_msg);
-            return Err(run_error);
+
+        match TargetLanguage::try_from(output_format) {
+            Ok(TargetLanguage::Cpp) => {
+                let mut visitor = CppVisitor::new(
+                    semantic_parser.get_arcanum(),
+                    config,
+                    generate_exit_args,
+                    generate_enter_args || generate_state_context,
+                    generate_state_stack,
+                    generate_change_state,
+                    generate_transition_state,
+                    FRAMEC_VERSION,
+                    comments,
+                );
+                visitor.run(&system_node);
+                output = visitor.get_code();
+            }
+            Ok(TargetLanguage::CSharp) => {
+                let mut visitor = CsVisitor::new(
+                    semantic_parser.get_arcanum(),
+                    generate_exit_args,
+                    generate_enter_args || generate_state_context,
+                    generate_state_stack,
+                    generate_change_state,
+                    generate_transition_state,
+                    FRAMEC_VERSION,
+                    comments,
+                );
+                visitor.run(&system_node);
+                output = visitor.get_code();
+            }
+            Ok(TargetLanguage::CSharpForBob) => {
+                let mut visitor = CsVisitorForBob::new(
+                    semantic_parser.get_arcanum(),
+                    generate_exit_args,
+                    generate_enter_args || generate_state_context,
+                    generate_state_stack,
+                    generate_change_state,
+                    generate_transition_state,
+                    FRAMEC_VERSION,
+                    comments,
+                );
+                visitor.run(&system_node);
+                output = visitor.get_code();
+            }
+            Ok(TargetLanguage::GdScript) => {
+                let mut visitor = GdScript32Visitor::new(
+                    semantic_parser.get_arcanum(),
+                    generate_exit_args,
+                    generate_enter_args || generate_state_context,
+                    generate_state_stack,
+                    generate_change_state,
+                    generate_transition_state,
+                    FRAMEC_VERSION,
+                    comments,
+                );
+                visitor.run(&system_node);
+                output = visitor.get_code();
+            }
+            Ok(TargetLanguage::GoLang) => {
+                let mut visitor = GolangVisitor::new(
+                    semantic_parser.get_arcanum(),
+                    generate_exit_args,
+                    generate_enter_args || generate_state_context,
+                    generate_state_stack,
+                    generate_change_state,
+                    generate_transition_state,
+                    FRAMEC_VERSION,
+                    comments,
+                );
+                visitor.run(&system_node);
+                output = visitor.get_code();
+            }
+            Ok(TargetLanguage::Java8) => {
+                let mut visitor = Java8Visitor::new(
+                    semantic_parser.get_arcanum(),
+                    generate_exit_args,
+                    generate_enter_args || generate_state_context,
+                    generate_state_stack,
+                    generate_change_state,
+                    generate_transition_state,
+                    FRAMEC_VERSION,
+                    comments,
+                );
+                visitor.run(&system_node);
+                output = visitor.get_code();
+            }
+            Ok(TargetLanguage::JavaScript) => {
+                let mut visitor = JavaScriptVisitor::new(
+                    semantic_parser.get_arcanum(),
+                    generate_exit_args,
+                    generate_enter_args || generate_state_context,
+                    generate_state_stack,
+                    generate_change_state,
+                    generate_transition_state,
+                    FRAMEC_VERSION,
+                    comments,
+                );
+                visitor.run(&system_node);
+                output = visitor.get_code();
+            }
+            Ok(TargetLanguage::PlantUml) => {
+                let (arcanum, system_hierarchy) = semantic_parser.get_all();
+                let mut visitor = PlantUmlVisitor::new(
+                    arcanum,
+                    system_hierarchy,
+                    generate_state_context,
+                    generate_state_stack,
+                    generate_change_state,
+                    generate_transition_state,
+                    FRAMEC_VERSION,
+                    comments,
+                );
+                visitor.run(&system_node);
+                output = visitor.get_code();
+            }
+            Ok(TargetLanguage::Python3) => {
+                let mut visitor = PythonVisitor::new(
+                    semantic_parser.get_arcanum(),
+                    generate_exit_args,
+                    generate_enter_args || generate_state_context,
+                    generate_state_stack,
+                    generate_change_state,
+                    generate_transition_state,
+                    FRAMEC_VERSION,
+                    comments,
+                );
+                visitor.run(&system_node);
+                output = visitor.get_code();
+            }
+            Ok(TargetLanguage::Rust) => {
+                let mut visitor = RustVisitor::new(
+                    FRAMEC_VERSION,
+                    config,
+                    input_path_str,
+                    sha256,
+                    semantic_parser.get_arcanum(),
+                    generate_enter_args,
+                    generate_exit_args,
+                    generate_state_context,
+                    generate_state_stack,
+                    generate_change_state,
+                    generate_transition_state,
+                    comments,
+                );
+                visitor.run(&system_node);
+                output = visitor.get_code();
+            }
+            Ok(TargetLanguage::Smcat) => {
+                let mut visitor = SmcatVisitor::new(
+                    FRAMEC_VERSION,
+                    config,
+                    semantic_parser.get_system_hierarchy(),
+                );
+                visitor.run(&system_node);
+                output = visitor.get_code();
+            }
+            // Ok(TargetLanguage::XState) => {
+            //     let mut visitor = XStateVisitor::new(
+            //         semantic_parser.get_arcanum(),
+            //         generate_exit_args,
+            //         generate_state_context,
+            //         generate_state_stack,
+            //         generate_change_state,
+            //         generate_transition_state,
+            //         FRAMEC_VERSION,
+            //         comments,
+            //     );
+            //     visitor.run(&system_node);
+            //     output = visitor.get_code();
+            // },
+            Err(msg) => {
+                let run_error = RunError::new(USAGE, &msg);
+                return Err(run_error);
+            }
         }
 
         Ok(output)
