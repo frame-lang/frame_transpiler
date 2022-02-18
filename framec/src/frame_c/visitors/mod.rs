@@ -44,7 +44,7 @@ impl TryFrom<&str> for TargetLanguage {
         // } else if value == "xstate" {
         //     Ok(TargetLanguage::XState)
         } else {
-            Err(format!("Unrecognized output format {}", value))
+            Err(format!("Unrecognized target language {}", value))
         }
     }
 }

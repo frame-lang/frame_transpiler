@@ -1,5 +1,6 @@
-use crate::frame_c::compiler::Exe;
+use crate::frame_c::compiler::{Exe, TargetLanguage};
 use crate::frame_c::config::FrameConfig;
+use std::convert::TryFrom;
 use std::path::PathBuf;
 use structopt::StructOpt;
 
@@ -55,8 +56,22 @@ pub fn run_with(args: Cli) {
         return;
     }
 
+    let target_language = match args.language {
+        Some(lang_str) => match TargetLanguage::try_from(lang_str) {
+            Ok(lang) => lang,
+            Err(err) => {
+                eprintln!("{}", err);
+                std::process::exit(exitcode::USAGE);
+            }
+        },
+        None => {
+            eprintln!("No target language specified.");
+            std::process::exit(exitcode::USAGE);
+        }
+    };
+
     // run the compiler and print output to stdout
-    match exe.run_file(&args.config, &args.path.unwrap(), args.language.unwrap()) {
+    match exe.run_file(&args.config, &args.path.unwrap(), Some(target_language)) {
         Ok(code) => {
             println!("{}", code);
         }
