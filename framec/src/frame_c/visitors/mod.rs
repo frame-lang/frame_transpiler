@@ -1,6 +1,7 @@
 use std::convert::TryFrom;
 
 /// An enumeration of the target languages currently supported by Frame.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub enum TargetLanguage {
     Cpp,
     CSharp,
@@ -14,6 +15,24 @@ pub enum TargetLanguage {
     Rust,
     Smcat,
     // XState,
+}
+
+impl TargetLanguage {
+    pub fn file_extension(&self) -> &'static str {
+        match self {
+            TargetLanguage::Cpp => "cpp",
+            TargetLanguage::CSharp => "cs",
+            TargetLanguage::CSharpForBob => "cs",
+            TargetLanguage::GdScript => "gd",
+            TargetLanguage::GoLang => "go",
+            TargetLanguage::Java8 => "java",
+            TargetLanguage::JavaScript => "js",
+            TargetLanguage::PlantUml => "puml",
+            TargetLanguage::Python3 => "py",
+            TargetLanguage::Rust => "rs",
+            TargetLanguage::Smcat => "smcat",
+        }
+    }
 }
 
 impl TryFrom<&str> for TargetLanguage {
