@@ -5,6 +5,7 @@
 
 use once_cell::sync::OnceCell;
 use std::fmt;
+use std::path::Path;
 
 /// Information about a simple name declaration. Names in Frame include domain, state, and local
 /// variables, as well as method parameters.
@@ -34,6 +35,19 @@ pub struct MethodInfo {
 /// Static information about a state machine.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MachineInfo {
+    /// The file path to the Frame specification that generated this machine, rendered as a string.
+    /// This value may be `None` if the machine was constructed directly, or if the Frame
+    /// specification was passed to Framec via STDIN.
+    pub path_str: Option<&'static str>,
+
+    /// The SHA-256 hash of the Frame specification that generated this machine. This can be used,
+    /// for example, to ensure that you're using the expected version of a machine whose spec is
+    /// known.
+    ///
+    /// This value may be `None` in the rare case that the machine was constructed directly, rather
+    /// than generated from a specification. This is true in some tests, for example.
+    pub sha256: Option<&'static str>,
+
     /// The system name for this state machine.
     pub name: &'static str,
 
@@ -58,6 +72,20 @@ pub struct MachineInfo {
 }
 
 impl MachineInfo {
+    /// The file path to the Frame specification that generated this machine. This is just the path
+    /// passed to Framec, so will be relative or absolute based on how Framec was invoked. This
+    /// value may be `None` if the machine was constructed directly, or if the Frame specification
+    /// was passed to Framec via STDIN.
+    pub fn path(&self) -> Option<&Path> {
+        self.path_str.map(Path::new)
+    }
+
+    /// The file name of the Frame specification that generated this machine.
+    pub fn file_name(&self) -> Option<&str> {
+        self.path()
+            .and_then(|p| p.file_name().and_then(|os| os.to_str()))
+    }
+
     /// The initial state of the machine, which is is the first state listed in the `machine` block.
     /// Returns `None` if the machine has no states.
     pub fn initial_state(&self) -> Option<&'static StateInfo> {

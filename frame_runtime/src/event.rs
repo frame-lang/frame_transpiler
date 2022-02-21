@@ -214,6 +214,8 @@ mod tests {
         }
 
         static MACHINE: &MachineInfo = &MachineInfo {
+            path_str: None,
+            sha256: None,
             name: "Dummy",
             variables: &[],
             states: &[STATE_A, STATE_B],

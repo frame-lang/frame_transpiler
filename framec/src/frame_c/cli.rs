@@ -2,7 +2,7 @@ use crate::frame_c::compiler::Exe;
 use crate::frame_c::config::FrameConfig;
 use std::path::PathBuf;
 // use structopt::StructOpt;
-use clap::{App, Arg};
+use clap::Arg;
 
 /// Command line arguments to the `framec` executable.
 //#[derive(StructOpt)]
@@ -25,7 +25,7 @@ pub struct Cli {
 
 impl Cli {
     pub fn new() -> Cli {
-        let matches = App::new("framec")
+        let matches = clap::Command::new("framec")
             .version("0.8.0")
             .about("Says hello")
             .arg(

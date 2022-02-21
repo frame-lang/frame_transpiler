@@ -518,17 +518,14 @@ impl GolangVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn generate_subclass(&mut self, system_node: &SystemNode ) {
+    fn generate_subclass(&mut self, system_node: &SystemNode) {
         self.newline();
         self.add_code("/********************");
         self.newline();
         self.add_code("// Sample Actions Implementation");
         self.newline();
 
-        self.add_code(&format!(
-            "package {}\n",
-            self.system_name
-        ));
+        self.add_code(&format!("package {}\n", self.system_name));
         self.newline();
         self.add_code(&format!(
             "type {}Actions struct{{}}\n",
@@ -543,7 +540,6 @@ impl GolangVisitor {
         }
         self.newline();
         self.add_code("********************/");
-
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1221,7 +1217,7 @@ impl AstVisitor for GolangVisitor {
         // self.newline();
 
         if let Some(_actions_block_node) = &system_node.actions_block_node_opt {
-            self.generate_subclass(&system_node);
+            self.generate_subclass(system_node);
         }
     }
 
