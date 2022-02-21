@@ -518,43 +518,33 @@ impl GolangVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    // fn generate_subclass(&mut self, system_node: &SystemNode ) {
-    //     self.add_code("/********************");
-    //     self.newline();
-    //     self.add_code(&format!(
-    //         "package {}\n",
-    //         self.system_name
-    //     ));
-    //     self.newline();
-    //     self.add_code(&format!(
-    //         "type {}Actions struct{{}}\n",
-    //         self.first_letter_to_lower_case(&system_node.name)
-    //     ));
-    //
-    //     // for line in self.subclass_code.iter() {
-    //     //     self.code.push_str(&*line.to_string());
-    //     //     self.code.push_str(&*format!("\n{}", self.dent()));
-    //     // }
-    //
-    //     if let Some(actions_block_node) = &system_node.actions_block_node_opt {
-    //         // for action_decl_node_rcref in &actions_block_node.actions {
-    //         //     self.newline();
-    //         //     let action_decl_node = action_decl_node_rcref.borrow();
-    //         //     self.add_code(&format!(
-    //         //         "func {}",
-    //         //         action_decl_node.name
-    //         //     ));
-    //         // }
-    //         for action_decl_node_rcref in &actions_block_node.actions {
-    //             let action_decl_node = action_decl_node_rcref.borrow();
-    //             action_decl_node.accept(self);
-    //         }
-    //     }
-    //     self.newline();
-    //     self.newline();
-    //     self.add_code("********************/");
-    //
-    // }
+    fn generate_subclass(&mut self, system_node: &SystemNode ) {
+        self.newline();
+        self.add_code("/********************");
+        self.newline();
+        self.add_code("// Sample Actions Implementation");
+        self.newline();
+
+        self.add_code(&format!(
+            "package {}\n",
+            self.system_name
+        ));
+        self.newline();
+        self.add_code(&format!(
+            "type {}Actions struct{{}}\n",
+            self.first_letter_to_lower_case(&system_node.name)
+        ));
+
+        if let Some(actions_block_node) = &system_node.actions_block_node_opt {
+            for action_decl_node_rcref in &actions_block_node.actions {
+                let action_decl_node = action_decl_node_rcref.borrow();
+                action_decl_node.accept(self);
+            }
+        }
+        self.newline();
+        self.add_code("********************/");
+
+    }
 
     //* --------------------------------------------------------------------- *//
 
@@ -1110,13 +1100,10 @@ impl AstVisitor for GolangVisitor {
         if let Some(domain_block_node) = &system_node.domain_block_node_opt {
             for var_rcref in &domain_block_node.member_variables {
                 let var_name = var_rcref.borrow().name.clone();
-                let var_type = var_rcref
-                    .borrow()
-                    .type_opt
-                    .as_ref()
-                    .unwrap()
-                    .get_type_str()
-                    .clone();
+                let var_type = match &var_rcref.borrow().type_opt {
+                    Some(x) => x.get_type_str(),
+                    None => String::from("<?>"), // TODO this should generate an error instead
+                };
                 self.newline();
                 self.add_code(&format!("{} {}", var_name, var_type));
                 // get init expression and cache code
@@ -1233,9 +1220,9 @@ impl AstVisitor for GolangVisitor {
         // self.add_code("}");
         // self.newline();
 
-        // if let Some(actions_block_node) = &system_node.actions_block_node_opt {
-        //     self.generate_subclass(&system_node);
-        // }
+        if let Some(_actions_block_node) = &system_node.actions_block_node_opt {
+            self.generate_subclass(&system_node);
+        }
     }
 
     //* --------------------------------------------------------------------- *//
