@@ -29,8 +29,8 @@
 //! frame_build = "0.8"
 //! ```
 //!
-//! You can run the default build process by adding creating the following `build.rs` file and
-//! storing it at the root of your package.
+//! You can run the default build process by adding the following `build.rs` file to the root of
+//! your package.
 //!
 //! ```no_run
 //! use anyhow::Result;

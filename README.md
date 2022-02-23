@@ -23,14 +23,19 @@ This project contains the code for building the Frame Language Transpiler - the 
 
 For details, see the [Release Notes](https://github.com/frame-lang/frame_transpiler/releases).
 
-### Frame v0.7.4
+### Frame v0.8.0
 
-Frame now supports golang!
+A new `frame_build` crate has been added to ease the integration of Frame with
+Rust projects. See the crate-level documentation for more!
 
 ### Frame v0.7.5
 
 The runtime system for the Rust backend now provides the path to and a checksum
 of the `.frm` file that was used to generate the state machine.
+
+### Frame v0.7.4
+
+Frame now supports golang!
 
 
 ## Resources
