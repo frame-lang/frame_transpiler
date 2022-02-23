@@ -27,7 +27,7 @@ pub use crate::frame_c::visitors::TargetLanguage;
 /* --------------------------------------------------------------------- */
 
 static IS_DEBUG: bool = false;
-static FRAMEC_VERSION: &str = "emitted from framec_v0.7.5";
+static FRAMEC_VERSION: &str = "emitted from framec_v0.8.0";
 
 /* --------------------------------------------------------------------- */
 
