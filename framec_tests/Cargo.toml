@@ -10,5 +10,4 @@ once_cell = "1.8.0"
 
 [build-dependencies]
 anyhow = "1.0"
-framec = { path = "../framec" }
-walkdir = "2.3"
+frame_build = { path = "../frame_build" }
