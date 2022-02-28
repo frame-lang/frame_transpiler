@@ -161,6 +161,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "frame_build"
+version = "0.8.0"
+dependencies = [
+ "anyhow",
+ "framec",
+ "walkdir",
+]
+
+[[package]]
 name = "frame_runtime"
 version = "0.8.0"
 dependencies = [
@@ -189,10 +198,9 @@ name = "framec_tests"
 version = "0.8.0"
 dependencies = [
  "anyhow",
+ "frame_build",
  "frame_runtime",
- "framec",
  "once_cell",
- "walkdir",
 ]
 
 [[package]]

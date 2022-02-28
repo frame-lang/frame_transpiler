@@ -29,6 +29,9 @@ The CLI has been updated to support stdin:
 
 `framec -language rust < HelloWorld.frm`
 
+A new `frame_build` crate has been added to ease the integration of Frame with
+Rust projects. See the crate-level documentation for more!
+
 ### Frame v0.7.5
 
 The runtime system for the Rust backend now provides the path to and a checksum
@@ -37,6 +40,10 @@ of the `.frm` file that was used to generate the state machine.
 ### Frame v0.7.4
 
 Frame now supports golang!
+<<<<<<< HEAD
+=======
+
+>>>>>>> main
 
 ## Resources
 

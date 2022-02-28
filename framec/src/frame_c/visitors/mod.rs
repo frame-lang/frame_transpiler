@@ -1,3 +1,80 @@
+use std::convert::TryFrom;
+
+/// An enumeration of the target languages currently supported by Frame.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
+pub enum TargetLanguage {
+    Cpp,
+    CSharp,
+    CSharpForBob,
+    GdScript,
+    GoLang,
+    Java8,
+    JavaScript,
+    PlantUml,
+    Python3,
+    Rust,
+    Smcat,
+    // XState,
+}
+
+impl TargetLanguage {
+    pub fn file_extension(&self) -> &'static str {
+        match self {
+            TargetLanguage::Cpp => "cpp",
+            TargetLanguage::CSharp => "cs",
+            TargetLanguage::CSharpForBob => "cs",
+            TargetLanguage::GdScript => "gd",
+            TargetLanguage::GoLang => "go",
+            TargetLanguage::Java8 => "java",
+            TargetLanguage::JavaScript => "js",
+            TargetLanguage::PlantUml => "puml",
+            TargetLanguage::Python3 => "py",
+            TargetLanguage::Rust => "rs",
+            TargetLanguage::Smcat => "smcat",
+        }
+    }
+}
+
+impl TryFrom<&str> for TargetLanguage {
+    type Error = String;
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        if value == "cpp" {
+            Ok(TargetLanguage::Cpp)
+        } else if value == "c_sharp" {
+            Ok(TargetLanguage::CSharp)
+        } else if value == "c_sharp_bob" {
+            Ok(TargetLanguage::CSharpForBob)
+        } else if value == "gdscript" {
+            Ok(TargetLanguage::GdScript)
+        } else if value == "golang" {
+            Ok(TargetLanguage::GoLang)
+        } else if value == "java_8" {
+            Ok(TargetLanguage::Java8)
+        } else if value == "javascript" {
+            Ok(TargetLanguage::JavaScript)
+        } else if value == "plantuml" {
+            Ok(TargetLanguage::PlantUml)
+        } else if value == "python_3" {
+            Ok(TargetLanguage::Python3)
+        } else if value == "rust" {
+            Ok(TargetLanguage::Rust)
+        } else if value == "smcat" {
+            Ok(TargetLanguage::Smcat)
+        // } else if value == "xstate" {
+        //     Ok(TargetLanguage::XState)
+        } else {
+            Err(format!("Unrecognized target language {}", value))
+        }
+    }
+}
+
+impl TryFrom<String> for TargetLanguage {
+    type Error = String;
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::try_from(value.as_str())
+    }
+}
+
 pub mod cpp_visitor;
 pub mod cs_visitor;
 pub mod cs_visitor_for_bob;

@@ -525,12 +525,12 @@ impl GolangVisitor {
         self.add_code("// Sample Actions Implementation");
         self.newline();
 
-        self.add_code(&format!("package {}\n", self.system_name));
-        self.newline();
-        self.add_code(&format!(
-            "type {}Actions struct{{}}\n",
-            self.first_letter_to_lower_case(&system_node.name)
-        ));
+        self.add_code(&format!("package {}\n", self.system_name.to_lowercase()));
+        // self.newline();
+        // self.add_code(&format!(
+        //     "type {}Actions struct{{}}\n",
+        //     self.first_letter_to_lower_case(&system_node.name)
+        // ));
 
         if let Some(actions_block_node) = &system_node.actions_block_node_opt {
             for action_decl_node_rcref in &actions_block_node.actions {
@@ -970,7 +970,7 @@ impl AstVisitor for GolangVisitor {
             "// get include files at https://github.com/frame-lang/frame-ancillary-files",
         );
         self.newline();
-        self.add_code(&format!("package {}", system_node.name));
+        self.add_code(&format!("package {}", system_node.name.to_lowercase()));
         self.newline();
         self.newline();
         self.newline();
@@ -1013,7 +1013,7 @@ impl AstVisitor for GolangVisitor {
             for interface_method_node_rcref in &interface_block_node.interface_methods {
                 self.newline();
                 let interface_method_node = interface_method_node_rcref.borrow();
-                self.add_code(&format!("{}(", interface_method_node.name));
+                self.add_code(&format!("{}(", self.first_letter_to_upper_case(&interface_method_node.name)));
                 match &interface_method_node.params {
                     Some(params) => {
                         self.format_parameter_list(params);
@@ -1087,10 +1087,10 @@ impl AstVisitor for GolangVisitor {
             self.add_code("_stateContext_ *framelang.StateContext");
         }
 
-        if system_node.actions_block_node_opt.is_some() {
-            self.newline();
-            self.add_code("actions actions")
-        }
+        // if system_node.actions_block_node_opt.is_some() {
+        //     self.newline();
+        //     self.add_code("actions actions")
+        // }
 
         let mut domain_vec: Vec<(String, String)> = Vec::new();
         if let Some(domain_block_node) = &system_node.domain_block_node_opt {
@@ -1130,6 +1130,15 @@ impl AstVisitor for GolangVisitor {
             "m := new({}Struct)",
             self.first_letter_to_lower_case(&system_node.name)
         ));
+        self.newline();
+        self.add_code(&format!(
+            "// Verify {}Struct implements actions interface",
+            &system_node.name,
+        ));
+        self.newline();
+        self.add_code(&format!(
+            "var _ actions = m",
+        ));
         if self.generate_state_stack {
             self.newline();
             self.add_code("m._stateStack_ = &Stack{{stack: list.New()}}");
@@ -1141,13 +1150,13 @@ impl AstVisitor for GolangVisitor {
                 self.first_state_name
             ));
         }
-        if system_node.actions_block_node_opt.is_some() {
-            self.newline();
-            self.add_code(&format!(
-                "m.actions = &{}Actions{{}}",
-                self.first_letter_to_lower_case(&system_node.name)
-            ));
-        }
+        // if system_node.actions_block_node_opt.is_some() {
+        //     self.newline();
+        //     self.add_code(&format!(
+        //         "m.actions = &{}Actions{{}}",
+        //         self.first_letter_to_lower_case(&system_node.name)
+        //     ));
+        // }
         for x in domain_vec {
             self.newline();
             self.add_code(&format!("m.{} = {}", x.0, x.1))
@@ -1309,7 +1318,7 @@ impl AstVisitor for GolangVisitor {
         self.add_code(&format!(
             "func (m *{}Struct) {}(",
             self.first_letter_to_lower_case(&self.system_name),
-            interface_method_node.name
+            self.first_letter_to_upper_case(&interface_method_node.name),
         ));
 
         match &interface_method_node.params {
@@ -1335,14 +1344,19 @@ impl AstVisitor for GolangVisitor {
                 }
                 None => {}
             }
-        } else {
-            // params_param_code = String::from("nil");
         }
-
         self.newline();
         self.add_code(&format!(
-            "e := framelang.FrameEvent{{Msg:\"{}\"}}",
+            "e := framelang.FrameEvent{{Msg:\"{}\"",
             method_name_or_alias,
+        ));
+        if interface_method_node.params.is_some() {
+            self.add_code(&format!(
+                ", Params:params"
+            ));
+        }
+        self.add_code(&format!(
+            "}}"
         ));
         self.newline();
         self.add_code(&"m._mux_(&e)".to_string());
@@ -1614,7 +1628,7 @@ impl AstVisitor for GolangVisitor {
 
     fn visit_action_call_expression_node(&mut self, action_call: &ActionCallExprNode) {
         let action_name = self.format_action_name(&action_call.identifier.name.lexeme);
-        self.add_code(&format!("m.actions.{}", &action_name));
+        self.add_code(&format!("m.{}", &action_name));
         action_call.call_expr_list.accept(self);
     }
 
@@ -2261,8 +2275,8 @@ impl AstVisitor for GolangVisitor {
             TokenType::String => self.add_code(&format!("\"{}\"", literal_expression_node.value)),
             TokenType::True => self.add_code("true"),
             TokenType::False => self.add_code("false"),
-            TokenType::Null => self.add_code("null"),
-            TokenType::Nil => self.add_code("null"),
+            TokenType::Null => self.add_code("nil"),
+            TokenType::Nil => self.add_code("nil"),
             _ => self
                 .errors
                 .push("TODO: visit_literal_expression_node".to_string()),
@@ -2289,10 +2303,10 @@ impl AstVisitor for GolangVisitor {
                 output.push_str("false");
             }
             TokenType::Nil => {
-                output.push_str("null");
+                output.push_str("nil");
             }
             TokenType::Null => {
-                output.push_str("null");
+                output.push_str("nil");
             }
             _ => self
                 .errors
@@ -2487,7 +2501,7 @@ impl AstVisitor for GolangVisitor {
 
         let action_name = self.format_action_name(&action_decl_node.name);
         self.add_code(&format!(
-            "func (m *{}Actions) {}(",
+            "func (m *{}Struct) {}(",
             self.first_letter_to_lower_case(&self.system_name),
             action_name
         ));

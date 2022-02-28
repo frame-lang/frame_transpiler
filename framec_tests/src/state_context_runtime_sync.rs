@@ -77,24 +77,17 @@ mod tests {
     #[test]
     fn change_state() {
         let mut sm = StateContextSm::new();
-        println!("1");
         sm.inc();
-        println!("2");
         sm.inc();
-        println!("3");
         sm.start();
-        println!("4");
         sm.tape.clear();
 
         sm.inc();
-        println!("5");
         assert_eq!(sm.tape, vec!["x=16"]);
         sm.tape.clear();
 
         sm.change(10);
-        println!("6");
         sm.log_state();
-        println!("7");
         assert_eq!(sm.tape, vec!["y=26", "z=0"]);
         sm.tape.clear();
 

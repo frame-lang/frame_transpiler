@@ -1,5 +1,6 @@
-use crate::frame_c::compiler::Exe;
+use crate::frame_c::compiler::{Exe, TargetLanguage};
 use crate::frame_c::config::FrameConfig;
+use std::convert::TryFrom;
 use std::path::PathBuf;
 // use structopt::StructOpt;
 use clap::Arg;
@@ -47,8 +48,8 @@ impl Cli {
                     .takes_value(true)
                     .long("language")
                     .short('l')
-                    .help("Target language")
-                    .required_unless_present("GENERATE-CONFIG"),
+                    .help("Target language"),
+//                    .required_unless_present("GENERATE-CONFIG"),
             )
             .get_matches();
 
@@ -111,9 +112,25 @@ pub fn run_with(args: Cli) {
         return;
     }
 
+    let target_language = match args.language {
+        Some(lang_str) => match TargetLanguage::try_from(lang_str) {
+            Ok(lang) => Some(lang),
+            Err(err) => {
+                eprintln!("{}", err);
+                std::process::exit(exitcode::USAGE);
+            }
+        },
+        None => {
+            // eprintln!("No target language specified.");
+            // std::process::exit(exitcode::USAGE);
+            None
+        }
+    };
+
     // run the compiler and print output to stdout
     if args.stdin_flag {
-        match exe.run_stdin(&args.config, args.language.unwrap()) {
+        match exe.run_stdin(&args.config, target_language) {
+        // match exe.run_stdin(&args.config, args.language.unwrap()) {
             Ok(code) => {
                 println!("{}", code);
             }
@@ -123,7 +140,7 @@ pub fn run_with(args: Cli) {
             }
         }
     } else {
-        match exe.run_file(&args.config, &args.path.unwrap(), args.language.unwrap()) {
+        match exe.run_file(&args.config, &args.path.unwrap(), target_language) {
             Ok(code) => {
                 println!("{}", code);
             }
