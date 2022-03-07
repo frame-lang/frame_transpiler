@@ -52,6 +52,7 @@ impl FrameConfig {
 pub struct CodeGenConfig {
     pub common: CommonConfig,
     pub rust: RustConfig,
+    pub golang: GolangConfig,
     pub smcat: SmcatConfig,
 }
 
@@ -62,6 +63,153 @@ pub struct CommonConfig {
     pub code: CommonCode,
 }
 
+/// Code generation options specific to the Rust backend.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GolangConfig {
+//    pub features: GolangFeatures,
+    pub code: GolangCode,
+}
+
+/// Naming options for generated code specific to the Rust backend. These options can be used to
+/// tweak the names of types, methods, fields, and variables in generated code.
+///
+/// These options are "use at your own risk" for now since we are not testing Frame with anything
+/// other than the defaults. Unless you have some strong reason to do otherwise, it's probably best
+/// to leave them be. :-)
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GolangCode {
+    pub action_prefix: String,
+    pub action_suffix: String,
+    pub actions_prefix: String,
+    pub actions_suffix: String,
+
+    pub enter_token: String,
+    pub exit_token: String,
+    pub enter_msg: String,
+    pub exit_msg: String,
+    pub event_args_suffix: String,
+    pub event_args_method_suffix: String,
+    pub enter_args_member_name: String,
+    pub exit_args_member_name: String,
+
+    pub frame_event_type_name: String,
+    pub frame_event_variable_name: String,
+    pub frame_event_args_attribute_name: String,
+    pub frame_event_args_type_name: String,
+    pub frame_event_message_attribute_name: String,
+    pub frame_event_message_type_name: String,
+    pub frame_event_return_attribute_name: String,
+    pub frame_event_return_type_name: String,
+
+    pub initialize_method_name: String,
+    pub handle_event_method_name: String,
+    pub change_state_method_name: String,
+    pub transition_method_name: String,
+
+    pub assignment_temp_var_name: String,
+    pub state_handler_name_prefix: String,
+    pub state_handler_name_suffix: String,
+
+    pub state_var_name: String,
+    pub state_args_suffix: String,
+    pub state_args_var_name: String,
+    pub state_vars_suffix: String,
+    pub state_vars_var_name: String,
+    pub state_name_use_sysname_prefix: bool, // auto prefix the state name w/ system name
+
+    pub state_context_type_name: String,
+    pub state_context_var_name: String,
+    pub state_context_suffix: String,
+    pub state_context_method_suffix: String,
+    pub this_state_context_var_name: String,
+
+    pub state_enum_suffix: String,
+    pub state_enum_traits: String,
+
+    pub change_state_hook_method_name: String,
+    pub transition_hook_method_name: String,
+
+    pub state_stack_var_name: String,
+    pub state_stack_push_method_name: String,
+    pub state_stack_pop_method_name: String,
+
+    pub runtime_info_module_name: String,
+    pub runtime_module_use_as_name: String,
+    pub machine_info_function_name: String,
+    pub pop_state_info_name: String,
+    pub event_monitor_var_name: String,
+    pub transition_info_arg_name: String,
+}
+
+impl Default for GolangCode {
+    fn default() -> Self {
+        GolangCode {
+            action_prefix: String::from(""),
+            action_suffix: String::from(""),
+            actions_prefix: String::from(""),
+            actions_suffix: String::from("Actions"),
+
+            enter_token: String::from(">"),
+            exit_token: String::from("<"),
+            enter_msg: String::from("Enter"),
+            exit_msg: String::from("Exit"),
+            event_args_suffix: String::from("Args"),
+            event_args_method_suffix: String::from("_args"),
+            enter_args_member_name: String::from("enter_args"),
+            exit_args_member_name: String::from("exit_args"),
+
+            frame_event_type_name: String::from("FrameEvent"),
+            frame_event_variable_name: String::from("frame_event"),
+            frame_event_args_attribute_name: String::from("arguments"),
+            frame_event_args_type_name: String::from("FrameEventArgs"),
+            frame_event_message_attribute_name: String::from("message"),
+            frame_event_message_type_name: String::from("FrameMessage"),
+            frame_event_return_attribute_name: String::from("ret"),
+            frame_event_return_type_name: String::from("FrameEventReturn"),
+
+            initialize_method_name: String::from("initialize"),
+            handle_event_method_name: String::from("handle_event"),
+            change_state_method_name: String::from("change_state"),
+            transition_method_name: String::from("transition"),
+
+            assignment_temp_var_name: String::from("assign_temp"),
+            state_handler_name_prefix: String::from(""),
+            state_handler_name_suffix: String::from("_handler"),
+
+            state_var_name: String::from("state"),
+            state_args_suffix: String::from("StateArgs"),
+            state_args_var_name: String::from("state_args"),
+            state_vars_suffix: String::from("StateVars"),
+            state_vars_var_name: String::from("state_vars"),
+            state_name_use_sysname_prefix:true,
+
+            state_context_type_name: String::from("StateContext"),
+            state_context_var_name: String::from("state_context"),
+            state_context_suffix: String::from("StateContext"),
+            state_context_method_suffix: String::from("_context"),
+            this_state_context_var_name: String::from("this_state_context"),
+
+            state_enum_suffix: String::from("State"),
+            state_enum_traits: String::from(
+                "Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord",
+            ),
+
+            change_state_hook_method_name: String::from("change_state_hook"),
+            transition_hook_method_name: String::from("transition_hook"),
+
+            state_stack_var_name: String::from("state_stack"),
+            state_stack_push_method_name: String::from("state_stack_push"),
+            state_stack_pop_method_name: String::from("state_stack_pop"),
+
+            runtime_info_module_name: String::from("runtime_info"),
+            runtime_module_use_as_name: String::from("runtime"),
+            machine_info_function_name: String::from("machine_info"),
+            pop_state_info_name: String::from("$$[-]"),
+            event_monitor_var_name: String::from("event_monitor"),
+            transition_info_arg_name: String::from("transition_info"),
+        }
+    }
+}
 /// Code generation features shared among all backends.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CommonFeatures {}
@@ -70,7 +218,7 @@ pub struct CommonFeatures {}
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CommonCode {}
 
-/// Code generation options specific to the Rust backend.
+/// Code generation options specific to the Golang backend.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RustConfig {
     pub features: RustFeatures,

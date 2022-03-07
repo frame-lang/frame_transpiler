@@ -8,6 +8,7 @@
 use crate::frame_c::ast::*;
 use crate::frame_c::scanner::{Token, TokenType};
 use crate::frame_c::symbol_table::*;
+use crate::frame_c::config::*;
 use crate::frame_c::visitors::golang_visitor::ExprContext::Rvalue;
 use crate::frame_c::visitors::*;
 
@@ -20,6 +21,7 @@ enum ExprContext {
 
 pub struct GolangVisitor {
     compiler_version: String,
+    config: GolangConfig,
     code: String,
     dent: usize,
     current_state_name_opt: Option<String>,
@@ -50,6 +52,7 @@ impl GolangVisitor {
 
     pub fn new(
         arcanium: Arcanum,
+        config: FrameConfig,
         generate_exit_args: bool,
         generate_state_context: bool,
         generate_state_stack: bool,
@@ -58,6 +61,7 @@ impl GolangVisitor {
         compiler_version: &str,
         comments: Vec<Token>,
     ) -> GolangVisitor {
+        let golang_config = config.codegen.golang;
         GolangVisitor {
             compiler_version: compiler_version.to_string(),
             code: String::from(""),
@@ -83,6 +87,7 @@ impl GolangVisitor {
             generate_transition_state,
             current_var_type: String::new(),
             expr_context: ExprContext::None,
+            config: golang_config,
         }
     }
 
@@ -970,9 +975,22 @@ impl AstVisitor for GolangVisitor {
             "// get include files at https://github.com/frame-lang/frame-ancillary-files",
         );
         self.newline();
-        self.add_code(&format!("package {}", system_node.name.to_lowercase()));
+        self.add_code(&system_node.header);
+
+        // self.newline();
+        // self.add_code(&format!("package {}", system_node.name.to_lowercase()));
+        // self.newline();
+        let state_prefix = if self.config.code.state_name_use_sysname_prefix {
+            &format!("{}State",self.first_letter_to_lower_case(&system_node.name))
+        } else {
+            String::new()
+        };
         self.newline();
         self.newline();
+        self.add_code(&format!(
+            "type {} uint",
+            state_prefix
+        ));
         self.newline();
         self.newline();
 
@@ -984,10 +1002,18 @@ impl AstVisitor for GolangVisitor {
             let len = machine_block_node.states.len();
             let mut current = 0;
             for state_node_rcref in &machine_block_node.states {
-                self.add_code(&self.format_state_name(&state_node_rcref.borrow().name));
+                self.add_code(&format!(
+                    "{}_{}",
+                    state_prefix,
+                    &self.format_state_name(&state_node_rcref.borrow().name)
+                ));
                 if current == 0 {
-                    self.add_code(" framelang.FrameState = iota");
+                    self.add_code(&format!(
+                        " {} = iota",
+                        state_prefix
+                    ));
                 }
+
                 current += 1;
                 if current != len {
                     self.newline();
@@ -1347,7 +1373,7 @@ impl AstVisitor for GolangVisitor {
         }
         self.newline();
         self.add_code(&format!(
-            "e := framelang.FrameEvent{{Msg:\"{}\"",
+                "e := framelang.FrameEvent{{Msg:\"{}\"",
             method_name_or_alias,
         ));
         if interface_method_node.params.is_some() {

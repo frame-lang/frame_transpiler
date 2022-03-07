@@ -145,7 +145,7 @@ impl Exe {
         hasher.update(&content);
         let sha256 = &format!("{:x}", hasher.finalize());
 
-        let output;
+        let mut output = String::new();
         //        let mut output= String::new(); ^^^^ See above! ^^^^
 
         let scanner = Scanner::new(content);
@@ -292,6 +292,7 @@ impl Exe {
                 TargetLanguage::GoLang => {
                     let mut visitor = GolangVisitor::new(
                         semantic_parser.get_arcanum(),
+                        config,
                         generate_exit_args,
                         generate_enter_args || generate_state_context,
                         generate_state_stack,
