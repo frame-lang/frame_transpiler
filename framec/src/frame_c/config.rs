@@ -143,6 +143,7 @@ pub struct GolangCode {
     pub marshal: bool, // Generate Marshalling code
     pub state_type: String, // Name of state type
     pub marshal_system_state_var: String,
+    pub system_struct_type: String,
 
 }
 
@@ -214,9 +215,12 @@ impl Default for GolangCode {
             transition_info_arg_name: String::from("transition_info"),
 
             managed:false, // Generate Managed code
-            marshal:false, // Generate Marshlling code
-            state_type: String::from("framelang.FrameState"), // Name of state type
-            marshal_system_state_var: String::new()
+            marshal:false, // Generate Marshling code
+            // Name of state type. In Golang this can't be a universal type
+            // (like framelang.FrameState)
+            state_type: String::new(),
+            marshal_system_state_var: String::new(),
+            system_struct_type: String::new(),
         }
     }
 }

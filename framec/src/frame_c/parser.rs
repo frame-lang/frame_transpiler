@@ -2872,10 +2872,24 @@ impl<'a> Parser<'a> {
 
         //        let mut scope_override = false;
         if self.match_token(&[TokenType::System]) {
-            if let Err(parse_error) = self.consume(TokenType::Dot, "Expected '.'.") {
-                return Err(parse_error); // TODO
+            if self.match_token(&[TokenType::Dot]) {
+                scope = IdentifierDeclScope::DomainBlock;
+            } else {
+                // System reference
+                scope = IdentifierDeclScope::System;
+                let id_node = IdentifierNode::new(
+                    self.previous().clone(),
+                    None,
+                    IdentifierDeclScope::System,
+                    false,
+                    self.previous().line,
+                );
+                let var_scope = id_node.scope.clone();
+                let var_node = VariableNode::new(id_node, var_scope, None);
+                return Ok(Some(VariableExprT { var_node }));
             }
-            scope = IdentifierDeclScope::DomainBlock;
+
+
         //           scope_override = true;
         } else if self.match_token(&[TokenType::State]) {
             if self.match_token(&[TokenType::LBracket]) {

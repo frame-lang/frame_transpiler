@@ -1473,6 +1473,7 @@ impl NodeElement for ExprListNode {
 #[derive(Clone, PartialEq)]
 pub enum IdentifierDeclScope {
     //     Global,  TODO!
+    System,
     InterfaceBlock,
     DomainBlock,
     ActionsBlock,

@@ -196,6 +196,9 @@ impl GolangVisitor {
         let mut code = String::new();
 
         match variable_node.scope {
+            IdentifierDeclScope::System => {
+                code.push_str(&format!("m"));
+            }
             IdentifierDeclScope::DomainBlock => {
                 code.push_str(&format!("m.{}", variable_node.id_node.name.lexeme));
             }
@@ -311,6 +314,9 @@ impl GolangVisitor {
     //* --------------------------------------------------------------------- *//
 
     pub fn run(&mut self, system_node: &SystemNode) {
+
+        // Intialize configuration values from spec attributes.
+
         match &system_node.attributes_opt {
             Some(attributes) => {
                 for (key, value) in &*attributes {
@@ -319,7 +325,8 @@ impl GolangVisitor {
                             match attr.name.as_str() {
                                 // TODO: constants
                                 "stateType" => self.config.code.state_type = attr.value.clone(),
-                                _ => {}
+                                _ => {
+                                }
                             }
                         }
                         AttributeNode::MetaListIdents { attr } => {
@@ -334,36 +341,22 @@ impl GolangVisitor {
                         }
                     }
                 }
+
                 self.config.code.marshal_system_state_var = format!( "{}State", &system_node.name);
 
-                //
-                // if let Some(traits) = attributes.get("derive") {
-                //     match traits {
-                //         AttributeNode::MetaListIdents { attr } => {
-                //             for value in &attr.idents {
-                //                 match value.as_str() {
-                //                     // TODO: constants
-                //                     "MOM" => self.config.code.managed = true,
-                //                     "Marshal" => self.config.code.marshal = true,
-                //                     _ => {}
-                //                 }
-                //             }
-                //         }
-                //     } else if  let Some(traits) = attributes.get("derive") {
-                //         AttributeNode::MetaNameValueStr { attr } => {
-                //             match attr.name.as_str() {
-                //                 // TODO: constants
-                //                 "stateType" => self.config.code.state_type = attr.value.clone(),
-                //                 _ => {}
-                //             }
-                //         }
-                //
-                //         _ => {}
-                //     }
-                // }
             },
             None => {},
         }
+
+        if self.config.code.state_type == "" {
+            self.config.code.state_type = format!("{}State", system_node.name);
+        }
+        self.config.code.system_struct_type = format!(
+            "{}Struct",
+            self.first_letter_to_lower_case(&system_node.name)
+        );
+
+
         system_node.accept(self);
     }
 
@@ -1026,12 +1019,14 @@ impl GolangVisitor {
         self.newline();
         if self.config.code.managed {
             self.add_code(&format!(
-                "func NewTrafficLight(mom *mOMStruct) {} {{",
+                "func New{}(mom *mOMStruct) {} {{",
+                system_node.name,
                 self.first_letter_to_upper_case(&system_node.name)
             ));
         } else {
             self.add_code(&format!(
-                "func NewTrafficLight() {} {{",
+                "func New{}() {} {{",
+                system_node.name,
                 self.first_letter_to_upper_case(&system_node.name)
             ));
         }
@@ -1060,9 +1055,11 @@ impl GolangVisitor {
             self.first_letter_to_upper_case(&system_node.name),
         ));
         self.newline();
-        self.add_code(&format!(
-            "var _ actions = m",
-        ));
+        if let Some(actions_block_node) = &system_node.actions_block_node_opt {
+            self.add_code(&format!(
+                "var _ actions = m",
+            ));
+        }
         if self.generate_state_stack {
             self.newline();
             self.newline();
@@ -1108,7 +1105,9 @@ impl GolangVisitor {
         self.indent();
         self.newline();
         self.add_code(&format!(
-            "m := &trafficLightStruct{{}}"
+            "m := &{}Struct{{}}",
+           self.first_letter_to_lower_case(&system_node.name),
+
         ));
         self.newline();
         self.add_code(&format!(
@@ -1118,7 +1117,10 @@ impl GolangVisitor {
         self.newline();
         self.add_code("// Validate interfaces");
         self.newline();
-        self.add_code("var _ TrafficLight = m");
+        self.add_code(&format!(
+            "var _ {} = m",
+            system_node.name,
+        ));
         self.newline();
         self.add_code("var _ actions = m");
         self.newline();
@@ -1165,7 +1167,8 @@ impl GolangVisitor {
         self.newline();
         self.newline();
         self.add_code(&format!(
-            "func (m *trafficLightStruct) MarshalJSON() ([]byte, error) {{"
+            "func (m *{}) MarshalJSON() ([]byte, error) {{",
+            self.config.code.system_struct_type
         ));
         self.indent();
         self.newline();
@@ -1418,8 +1421,8 @@ impl AstVisitor for GolangVisitor {
         self.newline();
         self.newline();
         self.add_code(&format!(
-            "type {}Struct struct {{",
-            self.first_letter_to_lower_case(&system_node.name)
+            "type {} struct {{",
+            self.config.code.system_struct_type
         ));
         self.indent();
 
