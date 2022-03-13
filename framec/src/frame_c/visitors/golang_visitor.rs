@@ -62,6 +62,7 @@ impl GolangVisitor {
         comments: Vec<Token>,
     ) -> GolangVisitor {
         let golang_config = config.codegen.golang;
+
         GolangVisitor {
             compiler_version: compiler_version.to_string(),
             code: String::from(""),
@@ -171,8 +172,22 @@ impl GolangVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    fn format_marshal_state_field_name(&self) -> String {
+        format!(
+            "marshal.{}",
+            self.config.code.marshal_system_state_var
+        )
+    }
+
+    //* --------------------------------------------------------------------- *//
+
     fn format_state_name(&self, state_name: &str) -> String {
-        self.first_letter_to_lower_case(&state_name.to_string())
+        format!(
+            "{}_{}",
+            self.config.code.state_type,
+            state_name
+        )
+//        self.first_letter_to_lower_case(&state_name.to_string())
     }
 
     //* --------------------------------------------------------------------- *//
@@ -296,6 +311,59 @@ impl GolangVisitor {
     //* --------------------------------------------------------------------- *//
 
     pub fn run(&mut self, system_node: &SystemNode) {
+        match &system_node.attributes_opt {
+            Some(attributes) => {
+                for (key, value) in &*attributes {
+                    match value {
+                        AttributeNode::MetaNameValueStr { attr } => {
+                            match attr.name.as_str() {
+                                // TODO: constants
+                                "stateType" => self.config.code.state_type = attr.value.clone(),
+                                _ => {}
+                            }
+                        }
+                        AttributeNode::MetaListIdents { attr } => {
+                            for ident in &attr.idents {
+                                match ident.as_str() {
+                                    // TODO: constants
+                                    "Managed" => self.config.code.managed = true,
+                                    "Marshal" => self.config.code.marshal = true,
+                                    _ => {}
+                                }
+                            }
+                        }
+                    }
+                }
+                self.config.code.marshal_system_state_var = format!( "{}State", &system_node.name);
+
+                //
+                // if let Some(traits) = attributes.get("derive") {
+                //     match traits {
+                //         AttributeNode::MetaListIdents { attr } => {
+                //             for value in &attr.idents {
+                //                 match value.as_str() {
+                //                     // TODO: constants
+                //                     "MOM" => self.config.code.managed = true,
+                //                     "Marshal" => self.config.code.marshal = true,
+                //                     _ => {}
+                //                 }
+                //             }
+                //         }
+                //     } else if  let Some(traits) = attributes.get("derive") {
+                //         AttributeNode::MetaNameValueStr { attr } => {
+                //             match attr.name.as_str() {
+                //                 // TODO: constants
+                //                 "stateType" => self.config.code.state_type = attr.value.clone(),
+                //                 _ => {}
+                //             }
+                //         }
+                //
+                //         _ => {}
+                //     }
+                // }
+            },
+            None => {},
+        }
         system_node.accept(self);
     }
 
@@ -403,16 +471,17 @@ impl GolangVisitor {
                 self.newline();
                 if self.generate_state_context {
                     if self.generate_exit_args {
-                        self.add_code(&format!("func (m *{}Struct) _transition_(newState framelang.FrameState, exitArgs map[string]interface{{}}, stateContext *framelang.StateContext) {{",self.first_letter_to_lower_case(&system_node.name)));
+                        self.add_code(&format!("func (m *{}Struct) _transition_(newState framelang.FrameState, exitArgs map[string]interface{{}}, stateContext *framelang.StateContext) {{", self.first_letter_to_lower_case(&system_node.name)));
                     } else {
-                        self.add_code(&format!("func (m *{}Struct) _transition_(newState framelang.FrameState, stateContext *framelang.StateContext) {{",self.first_letter_to_lower_case(&system_node.name)));
+                        self.add_code(&format!("func (m *{}Struct) _transition_(newState framelang.FrameState, stateContext *framelang.StateContext) {{", self.first_letter_to_lower_case(&system_node.name)));
                     }
                 } else if self.generate_exit_args {
-                    self.add_code(&format!("func (m *{}Struct) _transition_(newState framelang.FrameState, exitArgs map[string]interface{{}}) {{",self.first_letter_to_lower_case(&system_node.name)));
+                    self.add_code(&format!("func (m *{}Struct) _transition_(newState framelang.FrameState, exitArgs map[string]interface{{}}) {{", self.first_letter_to_lower_case(&system_node.name)));
                 } else {
                     self.add_code(&format!(
-                        "func (m *{}Struct) _transition_(newState framelang.FrameState) {{",
-                        self.first_letter_to_lower_case(&system_node.name)
+                        "func (m *{}Struct) _transition_(newState {}) {{",
+                        self.first_letter_to_lower_case(&system_node.name),
+                        self.config.code.state_type
                     ));
                 }
                 self.indent();
@@ -949,6 +1018,241 @@ impl GolangVisitor {
             self.add_code(&"m._transition_(state.(framelang.FrameState))".to_string());
         }
     }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn format_new_fn(&mut self, domain_vec: &Vec<(String, String)>, system_node: &SystemNode) {
+        self.newline();
+        self.newline();
+        if self.config.code.managed {
+            self.add_code(&format!(
+                "func NewTrafficLight(mom *mOMStruct) {} {{",
+                self.first_letter_to_upper_case(&system_node.name)
+            ));
+        } else {
+            self.add_code(&format!(
+                "func NewTrafficLight() {} {{",
+                self.first_letter_to_upper_case(&system_node.name)
+            ));
+        }
+
+        self.indent();
+        self.newline();
+        self.add_code(&format!(
+            "m := &{}Struct{{}}",
+            self.first_letter_to_lower_case(&system_node.name)
+        ));
+
+        if self.config.code.managed {
+            self.newline();
+            self.add_code(&format!(
+                "m.mom = mom"
+            ));
+        }
+        self.newline();
+        self.newline();
+        self.add_code(&format!(
+            "// Validate interfaces"
+        ));
+        self.newline();
+        self.add_code(&format!(
+            "var _ {} = m",
+            self.first_letter_to_upper_case(&system_node.name),
+        ));
+        self.newline();
+        self.add_code(&format!(
+            "var _ actions = m",
+        ));
+        if self.generate_state_stack {
+            self.newline();
+            self.newline();
+            self.add_code("m._stateStack_ = &Stack{{stack: list.New()}}");
+        }
+        if self.generate_state_context {
+            self.newline();
+            self.add_code(&format!(
+                "m._stateContext_ = framelang.NewStateContext({})",
+                self.first_state_name
+            ));
+        }
+
+        self.newline();
+        self.newline();
+        self.add_code(&format!(
+            "// Initialize domain"
+        ));
+
+        for x in domain_vec {
+            self.newline();
+            self.add_code(&format!("m.{} = {}", x.0, x.1))
+        }
+        self.newline();
+        self.newline();
+        self.add_code("return m");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.newline();
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn format_load_fn(&mut self, domain_vec: &Vec<(String, String)>, system_node: &SystemNode) {
+        self.newline();
+        self.newline();
+        self.add_code(&format!(
+            "func Load{}(mom *mOMStruct, data []byte) {} {{",
+            system_node.name,
+            system_node.name
+        ));
+        self.indent();
+        self.newline();
+        self.add_code(&format!(
+            "m := &trafficLightStruct{{}}"
+        ));
+        self.newline();
+        self.add_code(&format!(
+            "m.mom = mom"
+        ));
+        self.newline();
+        self.newline();
+        self.add_code("// Validate interfaces");
+        self.newline();
+        self.add_code("var _ TrafficLight = m");
+        self.newline();
+        self.add_code("var _ actions = m");
+        self.newline();
+        self.newline();
+        self.add_code("// Unmarshal");
+        self.newline();
+        self.add_code("var marshal marshalStruct");
+        self.newline();
+        self.add_code("err := json.Unmarshal(data, &marshal)");
+        self.newline();
+        self.add_code("if err != nil {");
+        self.indent();
+        self.newline();
+        self.add_code("return nil");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.newline();
+        self.newline();
+        self.add_code("// Initialize machine");
+        self.newline();
+        self.add_code(&format!(
+            "m._state_ = {}",
+            self.format_marshal_state_field_name()
+        ));
+        for x in domain_vec {
+            self.newline();
+            self.add_code(&format!("m.{} = marshal.{}", x.0, self.first_letter_to_upper_case((&x.0))))
+        }
+        self.newline();
+        self.newline();
+        self.add_code("return m");
+        self.newline();
+
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+    }
+
+
+    //* --------------------------------------------------------------------- *//
+
+    fn format_marshal_json_fn(&mut self, domain_vec: &Vec<(String, String)>, system_node: &SystemNode) {
+        self.newline();
+        self.newline();
+        self.add_code(&format!(
+            "func (m *trafficLightStruct) MarshalJSON() ([]byte, error) {{"
+        ));
+        self.indent();
+        self.newline();
+        self.add_code(&format!(
+            "data := marshalStruct{{"
+        ));
+        self.indent();
+        self.newline();
+        self.add_code(&format!(
+            "{}: m._state_,",
+            self.config.code.marshal_system_state_var
+        ));
+        for x in domain_vec {
+            self.newline();
+            self.add_code(&format!("{}: m.{},", self.first_letter_to_upper_case((&x.0)), x.0))
+        }
+        self.outdent();
+        self.newline();
+        self.add_code(&format!(
+            "}}"
+        ));
+        self.newline();
+        self.add_code(&format!(
+            "return json.Marshal(data)"
+        ));
+        // self.newline();
+        // self.add_code(&format!(
+        //     "if err != nil {{"
+        // ));
+        // self.indent();
+        // self.newline();
+        // self.add_code(&format!(
+        //     "return nil, err"
+        // ));
+        // self.outdent();
+        // self.newline();
+        // self.add_code(&format!(
+        //     "}}"
+        // ));
+        // self.newline();
+        // self.add_code(&format!(
+        //     "return j, nil"
+        // ));
+
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+    }
+
+
+    //* --------------------------------------------------------------------- *//
+
+    fn format_marshal_fn(&mut self, domain_vec: &Vec<(String, String)>, system_node: &SystemNode) {
+        self.newline();
+        self.newline();
+        self.add_code(&format!(
+            "func (m *{}Struct) Marshal() []byte {{",
+            self.first_letter_to_lower_case(&system_node.name)
+        ));
+        self.indent();
+        self.newline();
+        self.add_code(&format!(
+            "data, err := json.Marshal(m)"
+        ));
+        self.newline();
+        self.add_code(&format!(
+            "if err != nil {{"
+        ));
+        self.indent();
+        self.newline();
+        self.add_code(&format!(
+            "return nil"
+        ));
+        self.outdent();
+        self.newline();
+        self.add_code(&format!(
+            "}}"
+        ));
+
+        self.newline();
+        self.add_code("return data");
+        self.newline();
+
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+    }
 }
 
 //* --------------------------------------------------------------------- *//
@@ -980,8 +1284,11 @@ impl AstVisitor for GolangVisitor {
         // self.newline();
         // self.add_code(&format!("package {}", system_node.name.to_lowercase()));
         // self.newline();
-        let state_prefix = if self.config.code.state_name_use_sysname_prefix {
-            &format!("{}State",self.first_letter_to_lower_case(&system_node.name))
+        // let state_prefix = if self.config.code.state_name_use_sysname_prefix {
+        //     format!("{}State_",self.first_letter_to_lower_case(&system_node.name))
+        // } else
+        let state_prefix = if self.config.code.state_type != "" {
+            self.config.code.state_type.clone()
         } else {
             String::new()
         };
@@ -1003,8 +1310,7 @@ impl AstVisitor for GolangVisitor {
             let mut current = 0;
             for state_node_rcref in &machine_block_node.states {
                 self.add_code(&format!(
-                    "{}_{}",
-                    state_prefix,
+                    "{}",
                     &self.format_state_name(&state_node_rcref.borrow().name)
                 ));
                 if current == 0 {
@@ -1024,8 +1330,19 @@ impl AstVisitor for GolangVisitor {
             self.add_code(")");
         }
 
-        // define public interface
+        if self.config.code.marshal {
+            self.newline();
+            self.newline();
+            self.add_code("type Marshal interface {");
+            self.indent();
+            self.newline();
+            self.add_code("Marshal() []byte");
+            self.outdent();
+            self.newline();
+            self.add_code("}");
+        }
 
+        // define public interface
         self.newline();
         self.newline();
         self.add_code(&format!(
@@ -1033,6 +1350,10 @@ impl AstVisitor for GolangVisitor {
             self.first_letter_to_upper_case(&system_node.name)
         ));
         self.indent();
+        if self.config.code.marshal {
+            self.newline();
+            self.add_code("Marshal");
+        }
 
         // TODO: create visitor for this
         if let Some(interface_block_node) = &system_node.interface_block_node_opt {
@@ -1057,7 +1378,6 @@ impl AstVisitor for GolangVisitor {
         self.outdent();
         self.newline();
         self.add_code("}");
-        self.newline();
 
         if let Some(actions_block_node) = &system_node.actions_block_node_opt {
             self.newline();
@@ -1102,8 +1422,20 @@ impl AstVisitor for GolangVisitor {
             self.first_letter_to_lower_case(&system_node.name)
         ));
         self.indent();
+
+
+        if self.config.code.managed {
+            self.newline();
+            self.add_code(&format!(
+                "mom *mOMStruct"
+            ));
+        }
         self.newline();
-        self.add_code("_state_ framelang.FrameState");
+        self.add_code(&format!(
+            "_state_ {}",
+            self.config.code.state_type
+        ));
+
         if self.generate_state_stack {
             self.newline();
             self.add_code(&"_stateStack_ *Stack".to_string());
@@ -1112,11 +1444,6 @@ impl AstVisitor for GolangVisitor {
             self.newline();
             self.add_code("_stateContext_ *framelang.StateContext");
         }
-
-        // if system_node.actions_block_node_opt.is_some() {
-        //     self.newline();
-        //     self.add_code("actions actions")
-        // }
 
         let mut domain_vec: Vec<(String, String)> = Vec::new();
         if let Some(domain_block_node) = &system_node.domain_block_node_opt {
@@ -1143,58 +1470,58 @@ impl AstVisitor for GolangVisitor {
         self.add_code("}");
         self.newline();
 
-        // generate New factory
+        // generate the marshal struct
 
-        self.newline();
-        self.add_code(&format!(
-            "func New() {} {{",
-            self.first_letter_to_upper_case(&system_node.name)
-        ));
-        self.indent();
-        self.newline();
-        self.add_code(&format!(
-            "m := new({}Struct)",
-            self.first_letter_to_lower_case(&system_node.name)
-        ));
-        self.newline();
-        self.add_code(&format!(
-            "// Verify {}Struct implements actions interface",
-            &system_node.name,
-        ));
-        self.newline();
-        self.add_code(&format!(
-            "var _ actions = m",
-        ));
-        if self.generate_state_stack {
-            self.newline();
-            self.add_code("m._stateStack_ = &Stack{{stack: list.New()}}");
-        }
-        if self.generate_state_context {
+        if self.config.code.marshal {
             self.newline();
             self.add_code(&format!(
-                "m._stateContext_ = framelang.NewStateContext({})",
-                self.first_state_name
+                "type marshalStruct struct {{"
             ));
-        }
-        // if system_node.actions_block_node_opt.is_some() {
-        //     self.newline();
-        //     self.add_code(&format!(
-        //         "m.actions = &{}Actions{{}}",
-        //         self.first_letter_to_lower_case(&system_node.name)
-        //     ));
-        // }
-        for x in domain_vec {
+            self.indent();
             self.newline();
-            self.add_code(&format!("m.{} = {}", x.0, x.1))
-        }
-        self.newline();
-        self.add_code("return m");
-        self.outdent();
-        self.newline();
-        self.add_code("}");
-        self.newline();
+            self.add_code(&format!(
+                "{} {}",
+                self.config.code.marshal_system_state_var,
+                self.config.code.state_type,
+            ));
+            if let Some(domain_block_node) = &system_node.domain_block_node_opt {
+                for var_rcref in &domain_block_node.member_variables {
+                    let var_name = var_rcref.borrow().name.clone();
+                    let var_type = match &var_rcref.borrow().type_opt {
+                        Some(x) => x.get_type_str(),
+                        None => String::from("<?>"), // TODO this should generate an error instead
+                    };
+                    self.newline();
+                    self.add_code(&format!("{} {}", self.first_letter_to_upper_case(&var_name), var_type));
+                    // get init expression and cache code
+                    let var = var_rcref.borrow();
+                    let var_init_expr = var.initializer_expr_t_opt.as_ref().unwrap();
+                    let mut init_expression = String::new();
+                    var_init_expr.accept_to_string(self, &mut init_expression);
+                    // push for later initialization
+                }
+            }
+            self.outdent();
+            self.newline();
+            self.add_code(&format!(
+                "}}"
+            ));
 
-        // }
+        }
+
+        // generate New factory
+        self.format_new_fn(&domain_vec,&system_node);
+
+
+        if self.config.code.marshal {
+            if self.config.code.managed {
+                // generate Load() factory
+                self.format_load_fn(&domain_vec,&system_node);
+            }
+            // generate MarshalJSON() factory
+            self.format_marshal_json_fn(&domain_vec,&system_node);
+            self.format_marshal_fn(&domain_vec,&system_node);
+        }
 
         // end of generate constructor
 

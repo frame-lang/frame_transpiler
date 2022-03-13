@@ -495,7 +495,7 @@ impl<'a> Parser<'a> {
                         return Err(err);
                     }
                 };
-                attributes.insert(attribute_node.name.clone(), attribute_node);
+                attributes.insert(attribute_node.get_name(), attribute_node);
                 if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
                     return Err(parse_error);
                 }
@@ -527,8 +527,17 @@ impl<'a> Parser<'a> {
             name.push_str(&self.previous().lexeme.clone());
         }
 
-        // equals
-        if let Err(err) = self.consume(TokenType::Equals, "Expected '='") {
+        if self.match_token(&[TokenType::LParen]) {
+            // MetaListIdents
+            match self.metaListIdents() {
+                Ok(idents) => {
+                    let attrib_idents = AttributeMetaListIdents::new(name,idents);
+                    return Ok(AttributeNode::MetaListIdents { attr: attrib_idents});
+                },
+                Err(err) => return Err(err)
+            }
+        } else if let Err(err) = self.consume(TokenType::Equals, "Expected '='") {
+            // equals
             return Err(err);
         }
 
@@ -541,7 +550,34 @@ impl<'a> Parser<'a> {
             let parse_error = ParseError::new("TODO");
             return Err(parse_error);
         }
-        Ok(AttributeNode::new(name, value))
+        let attr_namevalue = AttributeMetaNameValueStr::new(name, value);
+        Ok(AttributeNode::MetaNameValueStr {attr: attr_namevalue})
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    //  ( ',' Name )* ')'
+
+    fn metaListIdents(&mut self) -> Result<Vec<String>, ParseError> {
+
+        let mut idents:Vec<String> = Vec::new();
+        loop {
+            if !self.match_token(&[TokenType::Identifier]) {
+                break;
+            }
+            let ident = self.previous().lexeme.clone();
+            idents.push(ident);
+            if !self.match_token(&[TokenType::Colon]) {
+                break;
+            }
+        }
+
+        if let Err(err) = self.consume(TokenType::RParen, "Expected ')'") {
+            // equals
+            return Err(err);
+        }
+
+        Ok(idents)
     }
 
     /* --------------------------------------------------------------------- */

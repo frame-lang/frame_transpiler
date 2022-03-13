@@ -87,15 +87,67 @@ impl CallChainLiteralNodeType {
 }
 
 //-----------------------------------------------------//
+// See Rust attribute grammar spec:
+// see https://doc.rust-lang.org/reference/attributes.html#attributes
 
-pub struct AttributeNode {
+pub enum AttributeNode {
+    MetaNameValueStr { attr: AttributeMetaNameValueStr },
+    MetaListIdents { attr: AttributeMetaListIdents },
+}
+
+
+impl AttributeNode {
+    pub fn get_name(&self) -> String {
+        match self {
+            AttributeNode::MetaNameValueStr { attr } => {
+                attr.name.clone()
+            }
+            AttributeNode::MetaListIdents { attr } => {
+                attr.name.clone()
+            }
+        }
+    }
+}
+
+// impl AttributeNode {
+//     pub fn new(name: String, value: String) -> AttributeNode {
+//         AttributeNode { name, value }
+//     }
+// }
+
+pub struct AttributeMetaNameValueStr {
     pub name: String,
     pub value: String,
 }
 
-impl AttributeNode {
-    pub fn new(name: String, value: String) -> AttributeNode {
-        AttributeNode { name, value }
+
+impl AttributeMetaNameValueStr {
+    pub fn new(
+        name: String,
+        value: String,
+    ) -> AttributeMetaNameValueStr {
+        AttributeMetaNameValueStr {
+            name,
+            value,
+        }
+    }
+}
+
+// e.g. macro_use(foo, bar)
+pub struct AttributeMetaListIdents {
+    pub name: String,
+    pub idents: Vec<String>,
+}
+
+impl AttributeMetaListIdents {
+    pub fn new(
+        name: String,
+        idents: Vec<String>,
+    ) -> AttributeMetaListIdents {
+        AttributeMetaListIdents {
+            name,
+            idents,
+        }
     }
 }
 

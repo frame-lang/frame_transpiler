@@ -365,6 +365,9 @@ impl Scanner {
             '.' => {
                 self.add_token(TokenType::Dot);
             }
+            ',' => {
+                self.add_token(TokenType::Colon)
+            },
             _ => {
                 if self.is_digit(c) {
                     self.number();
@@ -701,9 +704,9 @@ pub enum TokenType {
     RParen,
     LBracket,
     RBracket,
-    Transition,
-    ChangeState,
-    String,
+    Transition,              // ->
+    ChangeState,             // ->>
+    String,                  // "foo"
     ThreeTicks,              // ```
     SuperString,             // `stuff + "stuff"`
     Number,                  // 1, 1.01
@@ -719,6 +722,7 @@ pub enum TokenType {
     Nil,                     // nil
     Colon,                   // :
     Semicolon,               // ;
+    Comma,                   // ,
     Dispatch,                // =>
     Equals,                  // =
     BoolTestTrue,            // ?

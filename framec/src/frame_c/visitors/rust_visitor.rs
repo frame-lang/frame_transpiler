@@ -1183,13 +1183,24 @@ impl RustVisitor {
         match &system_node.attributes_opt {
             Some(attributes) => {
                 if let Some(new_traits) = attributes.get("override_state_enum_traits") {
-                    traits = new_traits.value.clone();
+                    match new_traits {
+                        AttributeNode::MetaNameValueStr {attr} => {
+                            traits = attr.value.clone();
+                        }
+                        _ => {}
+                    }
                 }
                 if let Some(new_traits) = attributes.get("extend_state_enum_traits") {
+                    let new_traits_value:String = match new_traits {
+                        AttributeNode::MetaNameValueStr {attr} => {
+                            attr.value.clone()
+                        }
+                        _ => String::new()
+                    };
                     if traits.is_empty() {
-                        traits = new_traits.value.clone();
+                        traits = new_traits_value.clone();
                     } else {
-                        traits = format!("{}, {}", traits, new_traits.value);
+                        traits = format!("{}, {}", traits, new_traits_value);
                     }
                 }
             }

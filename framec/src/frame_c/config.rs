@@ -115,7 +115,7 @@ pub struct GolangCode {
     pub state_args_var_name: String,
     pub state_vars_suffix: String,
     pub state_vars_var_name: String,
-    pub state_name_use_sysname_prefix: bool, // auto prefix the state name w/ system name
+//    pub state_name_use_sysname_prefix: bool, // auto prefix the state name w/ system name
 
     pub state_context_type_name: String,
     pub state_context_var_name: String,
@@ -139,6 +139,11 @@ pub struct GolangCode {
     pub pop_state_info_name: String,
     pub event_monitor_var_name: String,
     pub transition_info_arg_name: String,
+    pub managed: bool, // Generate Managed code
+    pub marshal: bool, // Generate Marshalling code
+    pub state_type: String, // Name of state type
+    pub marshal_system_state_var: String,
+
 }
 
 impl Default for GolangCode {
@@ -181,7 +186,7 @@ impl Default for GolangCode {
             state_args_var_name: String::from("state_args"),
             state_vars_suffix: String::from("StateVars"),
             state_vars_var_name: String::from("state_vars"),
-            state_name_use_sysname_prefix:true,
+ //           state_name_use_sysname_prefix:true,
 
             state_context_type_name: String::from("StateContext"),
             state_context_var_name: String::from("state_context"),
@@ -207,6 +212,11 @@ impl Default for GolangCode {
             pop_state_info_name: String::from("$$[-]"),
             event_monitor_var_name: String::from("event_monitor"),
             transition_info_arg_name: String::from("transition_info"),
+
+            managed:false, // Generate Managed code
+            marshal:false, // Generate Marshlling code
+            state_type: String::from("framelang.FrameState"), // Name of state type
+            marshal_system_state_var: String::new()
         }
     }
 }
@@ -440,13 +450,22 @@ impl Provider for AttributeNode {
     }
     fn data(&self) -> Result<Map<Profile, Dict>, Error> {
         let mut map = Map::new();
-        let attr_name = &self.name;
+        let attr_name;
+        let value;
+        match self {
+            AttributeNode::MetaNameValueStr {attr} => {
+                attr_name = attr.name.clone();
+                value = attr.value.clone();
+            }
+            _ => return Ok(map)
+        }
+//        let attr_name = &self.name;
         let config_path;
         let config_value;
         if let Some(path) = attr_name.strip_suffix(":bool") {
             // this attribute is a boolean option
             config_path = path;
-            match self.value.parse::<bool>() {
+            match value.parse::<bool>() {
                 Ok(value) => {
                     config_value = Value::from(value);
                 }
@@ -460,7 +479,7 @@ impl Provider for AttributeNode {
         } else if let Some(path) = attr_name.strip_suffix(":int") {
             // this attribute is an integer option
             config_path = path;
-            match self.value.parse::<i32>() {
+            match value.parse::<i32>() {
                 Ok(value) => {
                     config_value = Value::from(value);
                 }
@@ -474,7 +493,7 @@ impl Provider for AttributeNode {
         } else if let Some(path) = attr_name.strip_suffix(":str") {
             // this attribute is a string config option
             config_path = path;
-            config_value = Value::from(self.value.clone());
+            config_value = Value::from(value.clone());
         } else {
             return Ok(map);
         }

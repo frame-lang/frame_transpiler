@@ -25,6 +25,7 @@ use std::path::{Path, PathBuf};
 // Re-export this enum here since it's part of the interface for the run functions. The definition
 // lives with visitors since adding a new visitor requires extending the enum and its trait impls.
 pub use crate::frame_c::visitors::TargetLanguage;
+use crate::frame_c::ast::{AttributeNode, AttributeMetaNameValueStr, AttributeMetaListIdents};
 
 
 /* --------------------------------------------------------------------- */
@@ -212,15 +213,23 @@ impl Exe {
         // check for language attribute specifying target language
         match &system_node.attributes_opt {
             Some(attributes) => {
-                if let Some(language) = attributes.get("language") {
-                    match TargetLanguage::try_from(language.value.clone()) {
-                        Ok(lang) => target_language = Some(lang),
-                        Err(err) => {
-                            let msg = format!("Error parsing language attribute: {}", err);
-                            let run_error = RunError::new(frame_exitcode::PARSE_ERR, &msg);
-                            return Err(run_error);
-                        }
+                if let Some(attr_node) = attributes.get("language") {
+                    match attr_node {
+                        AttributeNode::MetaNameValueStr {attr} => {
+
+                        },
+                        AttributeNode::MetaListIdents { attr } => {
+
+                        },
                     }
+                    // match TargetLanguage::try_from(language.value.clone()) {
+                    //     Ok(lang) => target_language = Some(lang),
+                    //     Err(err) => {
+                    //         let msg = format!("Error parsing language attribute: {}", err);
+                    //         let run_error = RunError::new(frame_exitcode::PARSE_ERR, &msg);
+                    //         return Err(run_error);
+                    //     }
+                    // }
                 }
             }
             None => {}
