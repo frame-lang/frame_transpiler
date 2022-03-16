@@ -144,7 +144,7 @@ pub struct GolangCode {
     pub state_type: String, // Name of state type
     pub marshal_system_state_var: String,
     pub system_struct_type: String,
-
+    pub mom: String,
 }
 
 impl Default for GolangCode {
@@ -221,6 +221,7 @@ impl Default for GolangCode {
             state_type: String::new(),
             marshal_system_state_var: String::new(),
             system_struct_type: String::new(),
+            mom: String::new(),
         }
     }
 }

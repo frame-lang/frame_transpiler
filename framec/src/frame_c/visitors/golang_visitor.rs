@@ -325,6 +325,10 @@ impl GolangVisitor {
                             match attr.name.as_str() {
                                 // TODO: constants
                                 "stateType" => self.config.code.state_type = attr.value.clone(),
+                                "mom" => {
+                                    self.config.code.mom = attr.value.clone();
+                                    self.config.code.managed = true;
+                                },
                                 _ => {
                                 }
                             }
@@ -332,8 +336,8 @@ impl GolangVisitor {
                         AttributeNode::MetaListIdents { attr } => {
                             for ident in &attr.idents {
                                 match ident.as_str() {
-                                    // TODO: constants
-                                    "Managed" => self.config.code.managed = true,
+                                    // TODO: constants and figure out mom vs managed
+                                  //  "Managed" => self.config.code.managed = true,
                                     "Marshal" => self.config.code.marshal = true,
                                     _ => {}
                                 }
@@ -1019,9 +1023,10 @@ impl GolangVisitor {
         self.newline();
         if self.config.code.managed {
             self.add_code(&format!(
-                "func New{}(mom *mOMStruct) {} {{",
+                "func New{}(mom {}) {} {{",
                 system_node.name,
-                self.first_letter_to_upper_case(&system_node.name)
+                &self.config.code.mom,
+                self.first_letter_to_upper_case(&system_node.name),
             ));
         } else {
             self.add_code(&format!(
@@ -1057,7 +1062,8 @@ impl GolangVisitor {
         self.newline();
         if let Some(actions_block_node) = &system_node.actions_block_node_opt {
             self.add_code(&format!(
-                "var _ actions = m",
+                "var _ {}_actions = m",
+                &system_node.name,
             ));
         }
         if self.generate_state_stack {
@@ -1098,8 +1104,9 @@ impl GolangVisitor {
         self.newline();
         self.newline();
         self.add_code(&format!(
-            "func Load{}(mom *mOMStruct, data []byte) {} {{",
+            "func Load{}(mom {}, data []byte) {} {{",
             system_node.name,
+            self.config.code.mom,
             system_node.name
         ));
         self.indent();
@@ -1119,10 +1126,15 @@ impl GolangVisitor {
         self.newline();
         self.add_code(&format!(
             "var _ {} = m",
-            system_node.name,
+            self.first_letter_to_upper_case(&system_node.name),
         ));
         self.newline();
-        self.add_code("var _ actions = m");
+        if let Some(actions_block_node) = &system_node.actions_block_node_opt {
+            self.add_code(&format!(
+                "var _ {}_actions = m",
+                &system_node.name,
+            ));
+        }
         self.newline();
         self.newline();
         self.add_code("// Unmarshal");
@@ -1385,7 +1397,10 @@ impl AstVisitor for GolangVisitor {
         if let Some(actions_block_node) = &system_node.actions_block_node_opt {
             self.newline();
             self.newline();
-            self.add_code("type actions interface {");
+            self.add_code(&format!(
+                "type {}_actions interface {{",
+                &system_node.name
+            ));
             self.indent();
 
             // TODO: create visitor for this
@@ -1430,7 +1445,8 @@ impl AstVisitor for GolangVisitor {
         if self.config.code.managed {
             self.newline();
             self.add_code(&format!(
-                "mom *mOMStruct"
+                "mom {}",
+                &self.config.code.mom
             ));
         }
         self.newline();
