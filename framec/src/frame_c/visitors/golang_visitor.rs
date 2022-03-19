@@ -560,7 +560,7 @@ impl GolangVisitor {
                     self.newline();
                     self.newline();
                     self.add_code(&format!(
-                        "func (m *{}Struct) _stateStack_push_(state *{}) {{",
+                        "func (m *{}Struct) _stateStack_push_(state {}) {{",
                         self.first_letter_to_lower_case(&self.system_name),
                         self.config.code.state_type
                     ));
