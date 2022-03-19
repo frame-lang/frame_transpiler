@@ -145,6 +145,7 @@ pub struct GolangCode {
     pub marshal_system_state_var: String,
     pub system_struct_type: String,
     pub mom: String,
+    pub compartment_type:String,
 }
 
 impl Default for GolangCode {
@@ -222,6 +223,8 @@ impl Default for GolangCode {
             marshal_system_state_var: String::new(),
             system_struct_type: String::new(),
             mom: String::new(),
+            compartment_type: String::new(),
+
         }
     }
 }
