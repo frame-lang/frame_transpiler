@@ -1243,9 +1243,10 @@ impl GolangVisitor {
         self.add_code("// Initialize machine");
         self.newline();
         self.add_code(&format!(
-            "m._state_ = {}",
-            self.format_marshal_state_field_name()
+            "m._compartment_ = &marshal.{}",
+            self.config.code.compartment_type
         ));
+        self.newline();
         for x in domain_vec {
             self.newline();
             self.add_code(&format!("m.{} = marshal.{}", x.0, self.first_letter_to_upper_case((&x.0))))
@@ -1278,8 +1279,8 @@ impl GolangVisitor {
         self.indent();
         self.newline();
         self.add_code(&format!(
-            "{}: m._state_,",
-            self.config.code.marshal_system_state_var
+            "{}: *m._compartment_,",
+            self.config.code.compartment_type
         ));
         for x in domain_vec {
             self.newline();
@@ -1931,10 +1932,16 @@ impl AstVisitor for GolangVisitor {
             ));
             self.indent();
             self.newline();
+            // TODO - CHANGE CONFIG
+            // self.add_code(&format!(
+            //     "{} {}",
+            //     self.config.code.marshal_system_state_var,
+            //     self.config.code.state_type,
+            // ));
+
             self.add_code(&format!(
-                "{} {}",
-                self.config.code.marshal_system_state_var,
-                self.config.code.state_type,
+                "{}",
+                self.config.code.compartment_type,
             ));
             if let Some(domain_block_node) = &system_node.domain_block_node_opt {
                 for var_rcref in &domain_block_node.member_variables {
