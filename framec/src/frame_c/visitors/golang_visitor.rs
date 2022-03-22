@@ -527,7 +527,7 @@ impl GolangVisitor {
             self.newline();
             self.add_code(&format!(
                             "func (m *{}Struct) _transition_(compartment *{}) {{",
-                            self.format_internal_system_name(&system_node),
+                            self.format_internal_system_name(&system_node.name),
                             self.config.code.compartment_type,
                         ));
             self.indent();
@@ -541,7 +541,7 @@ impl GolangVisitor {
             self.newline();
             self.add_code(&format!(
                 "func (m *{}Struct) _do_transition_(nextCompartment *{}) {{",
-                self.format_internal_system_name(&system_node),
+                self.format_internal_system_name(&system_node.name),
                 self.config.code.compartment_type
             ));
 
@@ -648,7 +648,7 @@ impl GolangVisitor {
                 self.newline();
                 self.newline();
                 self.add_code(&format!(
-                    "func (m *{}Struct) _changeState_(newCompartment {}) {{",
+                    "func (m *{}Struct) _changeState_(newCompartment *{}) {{",
                     self.first_letter_to_lower_case(&system_node.name),
                     self.config.code.compartment_type,
                 ));
@@ -737,12 +737,20 @@ impl GolangVisitor {
                 "error"
             }
         };
-
         self.newline();
         self.add_code(&format!(
-            "m._changeState_({})",
-            self.format_state_name(target_state_name)
+            "compartment := New{}({})",
+            self.config.code.compartment_type,
+            self.generate_state_ref_code(target_state_name)
         ));
+        self.newline();
+        self.add_code(&format!(
+            "m._changeState_(compartment)"));
+        // self.add_code(&format!(
+        //     "func (m *{}Struct) _changeState_(compartment *{}) {{",
+        //     self.format_internal_system_name(&self.system_name),
+        //     self.config.code.compartment_type,
+        // ));
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1361,8 +1369,8 @@ impl GolangVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn format_internal_system_name(&self,  system_node: &SystemNode) -> String {
-        self.first_letter_to_lower_case(&system_node.name)
+    fn format_internal_system_name(&self,  system_name: &String) -> String {
+        self.first_letter_to_lower_case(system_name)
     }
 
 
@@ -2038,7 +2046,7 @@ impl AstVisitor for GolangVisitor {
         }
 
         if self.has_states {
-            self.generate_machinery(system_node);
+            self.generate_machinery(&system_node);
         }
 
         // TODO: add comments back
