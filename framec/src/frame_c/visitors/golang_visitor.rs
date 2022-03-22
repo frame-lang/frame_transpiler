@@ -807,9 +807,8 @@ impl GolangVisitor {
                                 );
                             }
                             let mut param_symbols_it = event_params.iter();
-
     //                        self.add_code("exitArgs := make(map[string]interface{})");
-                            self.newline();
+    //                        self.newline();
                             // Loop through the ARGUMENTS...
                             for expr_t in &exit_args.exprs_t {
                                 // ...and validate w/ the PARAMETERS
@@ -1052,8 +1051,8 @@ impl GolangVisitor {
                                 );
                             }
                             let mut param_symbols_it = event_params.iter();
-                            self.add_code("exitArgs := make(map[string]interface{})");
-                            self.newline();
+                       //     self.add_code("exitArgs := make(map[string]interface{})");
+                       //     self.newline();
                             // Loop through the ARGUMENTS...
                             for expr_t in &exit_args.exprs_t {
                                 // ...and validate w/ the PARAMETERS
@@ -1062,7 +1061,7 @@ impl GolangVisitor {
                                         let mut expr = String::new();
                                         expr_t.accept_to_string(self, &mut expr);
                                         self.add_code(&format!(
-                                            "exitArgs[\"{}\"] = {}",
+                                            "m._compartment_.AddExitArg(\"{}\", {})",
                                             p.name, expr
                                         ));
                                         self.newline();
