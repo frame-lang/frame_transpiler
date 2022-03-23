@@ -1112,20 +1112,44 @@ impl GolangVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn format_new_fn(&mut self, domain_vec: &Vec<(String, String)>, system_node: &SystemNode) {
+    fn generate_new_fn(&mut self, domain_vec: &Vec<(String, String)>, system_node: &SystemNode) {
         self.newline();
         self.newline();
+        // format system params,if any.
+        let params:String = match &system_node.system_params_opt {
+            Some(param_list) => {
+                let mut params = String::new();
+                let mut separator = String::new();
+                for param_node in param_list {
+                    let param_type = match &param_node.param_type_opt {
+                        Some(type_node) => type_node.get_type_str(),
+                        None => String::new(),
+                    };
+                    params.push_str(&format!("{}{} {}",
+                                             separator,
+                                             param_node.param_name,
+                                             &*param_type));
+                    separator = String::from(",");
+                }
+                params
+            }
+            None => {
+                String::new()
+            }
+        };
         if self.config.code.managed {
             self.add_code(&format!(
-                "func New{}(mom {}) {} {{",
+                "func New{}(mom {} {}) {} {{",
                 system_node.name,
                 &self.config.code.mom,
+                params,
                 self.first_letter_to_upper_case(&system_node.name),
             ));
         } else {
             self.add_code(&format!(
-                "func New{}() {} {{",
+                "func New{}({}) {} {{",
                 system_node.name,
+                params,
                 self.first_letter_to_upper_case(&system_node.name)
             ));
         }
@@ -1186,6 +1210,9 @@ impl GolangVisitor {
         }
         self.newline();
         self.newline();
+        if params != "" {
+
+        }
         self.add_code("return m");
         self.outdent();
         self.newline();
@@ -1976,7 +2003,7 @@ impl AstVisitor for GolangVisitor {
         }
 
         // generate New factory
-        self.format_new_fn(&domain_vec,&system_node);
+        self.generate_new_fn(&domain_vec, &system_node);
 
 
         if self.config.code.marshal {

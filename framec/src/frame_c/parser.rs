@@ -15,6 +15,7 @@ use downcast_rs::__std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
+use crate::frame_c::scanner::TokenType::LBracket;
 
 pub struct ParseError {
     // TODO:
@@ -368,6 +369,7 @@ impl<'a> Parser<'a> {
                 None,
                 None,
                 None,
+                None,
                 0,
             );
         }
@@ -427,6 +429,17 @@ impl<'a> Parser<'a> {
             self.arcanum.set_parse_scope(&system_name);
         }
 
+        let mut system_params_opt: Option<Vec<ParameterNode>> = Option::None;
+
+        // #SystemName[param1:type1 param2:type2]
+        if self.match_token(&[TokenType::LBracket]) {
+            match self.parameters() {
+                Ok(Some(parameters)) => system_params_opt = Some(parameters),
+                Ok(None) => {},
+                Err(parse_error) =>  {},
+            }
+        }
+
         if self.match_token(&[TokenType::InterfaceBlock]) {
             self.arcanum
                 .debug_print_current_symbols(self.arcanum.get_current_symtab());
@@ -467,6 +480,7 @@ impl<'a> Parser<'a> {
         SystemNode::new(
             system_name,
             header,
+            system_params_opt,
             attributes_opt,
             interface_block_node_opt,
             machine_block_node_opt,
