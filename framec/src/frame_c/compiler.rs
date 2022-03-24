@@ -16,7 +16,6 @@ use crate::frame_c::visitors::rust_visitor::RustVisitor;
 use crate::frame_c::visitors::smcat_visitor::SmcatVisitor;
 use exitcode::USAGE;
 use sha2::{Digest, Sha256};
-use std::convert::TryFrom;
 use std::fs;
 use std::io;
 use std::io::Read;
@@ -25,7 +24,7 @@ use std::path::{Path, PathBuf};
 // Re-export this enum here since it's part of the interface for the run functions. The definition
 // lives with visitors since adding a new visitor requires extending the enum and its trait impls.
 pub use crate::frame_c::visitors::TargetLanguage;
-use crate::frame_c::ast::{AttributeNode, AttributeMetaNameValueStr, AttributeMetaListIdents};
+//use crate::frame_c::ast::{AttributeNode, AttributeMetaNameValueStr, AttributeMetaListIdents};
 
 
 /* --------------------------------------------------------------------- */
@@ -130,7 +129,7 @@ impl Exe {
         config_path: &Option<PathBuf>,
         input_path_str: Option<&str>,
         content: String,
-        mut target_language: Option<TargetLanguage>,
+        target_language: Option<TargetLanguage>,
     ) -> Result<String, RunError> {
         // NOTE!!! There is a bug w/ the CLion debugger when a variable (maybe just String type)
         // isn't initialized under some circumstances. Basically the debugger
@@ -146,7 +145,7 @@ impl Exe {
         hasher.update(&content);
         let sha256 = &format!("{:x}", hasher.finalize());
 
-        let mut output = String::new();
+        let output;
         //        let mut output= String::new(); ^^^^ See above! ^^^^
 
         let scanner = Scanner::new(content);
@@ -211,29 +210,29 @@ impl Exe {
         };
 
         // check for language attribute specifying target language
-        match &system_node.attributes_opt {
-            Some(attributes) => {
-                if let Some(attr_node) = attributes.get("language") {
-                    match attr_node {
-                        AttributeNode::MetaNameValueStr {attr} => {
-
-                        },
-                        AttributeNode::MetaListIdents { attr } => {
-
-                        },
-                    }
-                    // match TargetLanguage::try_from(language.value.clone()) {
-                    //     Ok(lang) => target_language = Some(lang),
-                    //     Err(err) => {
-                    //         let msg = format!("Error parsing language attribute: {}", err);
-                    //         let run_error = RunError::new(frame_exitcode::PARSE_ERR, &msg);
-                    //         return Err(run_error);
-                    //     }
-                    // }
-                }
-            }
-            None => {}
-        }
+        // match &system_node.attributes_opt {
+        //     Some(attributes) => {
+        //         if let Some(attr_node) = attributes.get("language") {
+        //             match attr_node {
+        //                 AttributeNode::MetaNameValueStr {attr} => {
+        //
+        //                 },
+        //                 AttributeNode::MetaListIdents { attr } => {
+        //
+        //                 },
+        //             }
+        //             // match TargetLanguage::try_from(language.value.clone()) {
+        //             //     Ok(lang) => target_language = Some(lang),
+        //             //     Err(err) => {
+        //             //         let msg = format!("Error parsing language attribute: {}", err);
+        //             //         let run_error = RunError::new(frame_exitcode::PARSE_ERR, &msg);
+        //             //         return Err(run_error);
+        //             //     }
+        //             // }
+        //         }
+        //     }
+        //     None => {}
+        // }
 
         match target_language {
             None => {
@@ -302,11 +301,11 @@ impl Exe {
                     let mut visitor = GolangVisitor::new(
                         semantic_parser.get_arcanum(),
                         config,
-                        generate_exit_args,
-                        generate_enter_args || generate_state_context,
+    //                    generate_exit_args,
+   //                     generate_enter_args || generate_state_context,
                         generate_state_stack,
                         generate_change_state,
-                        generate_transition_state,
+    //                    generate_transition_state,
                         FRAMEC_VERSION,
                         comments,
                     );

@@ -38,11 +38,11 @@ pub struct GolangVisitor {
     has_states: bool,
     errors: Vec<String>,
     visiting_call_chain_literal_variable: bool,
-    generate_exit_args: bool,
-    generate_state_context: bool,
+//    generate_exit_args: bool,
+    // generate_state_context: bool,
     generate_state_stack: bool,
     generate_change_state: bool,
-    generate_transition_state: bool,
+//    generate_transition_state: bool,
     current_var_type: String,
     expr_context: ExprContext,
 }
@@ -53,11 +53,11 @@ impl GolangVisitor {
     pub fn new(
         arcanium: Arcanum,
         config: FrameConfig,
-        generate_exit_args: bool,
-        generate_state_context: bool,
+//        generate_exit_args: bool,
+//        generate_state_context: bool,
         generate_state_stack: bool,
         generate_change_state: bool,
-        generate_transition_state: bool,
+//        generate_transition_state: bool,
         compiler_version: &str,
         comments: Vec<Token>,
     ) -> GolangVisitor {
@@ -81,11 +81,11 @@ impl GolangVisitor {
             errors: Vec::new(),
             warnings: Vec::new(),
             visiting_call_chain_literal_variable: false,
-            generate_exit_args,
-            generate_state_context,
+//            generate_exit_args,
+ //           generate_state_context,
             generate_state_stack,
             generate_change_state,
-            generate_transition_state,
+ //           generate_transition_state,
             current_var_type: String::new(),
             expr_context: ExprContext::None,
             config: golang_config,
@@ -168,15 +168,6 @@ impl GolangVisitor {
             None => String::new(),
             Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
         }
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn format_marshal_state_field_name(&self) -> String {
-        format!(
-            "marshal.{}",
-            self.config.code.marshal_system_state_var
-        )
     }
 
     //* --------------------------------------------------------------------- *//
@@ -319,7 +310,7 @@ impl GolangVisitor {
 
         match &system_node.attributes_opt {
             Some(attributes) => {
-                for (key, value) in &*attributes {
+                for (_, value) in &*attributes {
                     match value {
                         AttributeNode::MetaNameValueStr { attr } => {
                             match attr.name.as_str() {
@@ -782,10 +773,10 @@ impl GolangVisitor {
 
         // -- Exit Arguments --
 
-        let mut has_exit_args = false;
+    //    let mut has_exit_args = false;
         if let Some(exit_args) = &transition_statement.exit_args_opt {
             if !exit_args.exprs_t.is_empty() {
-                has_exit_args = true;
+      //          has_exit_args = true;
 
                 // Note - searching for event keyed with "State:<"
                 // e.g. "S1:<"
@@ -980,7 +971,7 @@ impl GolangVisitor {
                 //                code = target_state_vars.clone();
             }
         }
-        let exit_args = if has_exit_args { "exitArgs" } else { "null" };
+
         self.newline();
         self.add_code(&format!(
             "m._transition_(compartment)"
@@ -1178,7 +1169,7 @@ impl GolangVisitor {
             self.first_letter_to_upper_case(&system_node.name),
         ));
         self.newline();
-        if let Some(actions_block_node) = &system_node.actions_block_node_opt {
+        if system_node.actions_block_node_opt.is_some() {
             self.add_code(&format!(
                 "var _ {}_actions = m",
                 &system_node.name,
@@ -1212,27 +1203,27 @@ impl GolangVisitor {
         self.newline();
 
         // System start message
-        let params:String = match &system_node.system_params_opt {
-            Some(param_list) => {
-                let mut params = String::new();
-                let mut separator = String::new();
-                for param_node in param_list {
-                    let param_type = match &param_node.param_type_opt {
-                        Some(type_node) => type_node.get_type_str(),
-                        None => String::new(),
-                    };
-                    params.push_str(&format!("{}{} {}",
-                                             separator,
-                                             param_node.param_name,
-                                             &*param_type));
-                    separator = String::from(",");
-                }
-                params
-            }
-            None => {
-                String::new()
-            }
-        };
+        // let params:String = match &system_node.system_params_opt {
+        //     Some(param_list) => {
+        //         let mut params = String::new();
+        //         let mut separator = String::new();
+        //         for param_node in param_list {
+        //             let param_type = match &param_node.param_type_opt {
+        //                 Some(type_node) => type_node.get_type_str(),
+        //                 None => String::new(),
+        //             };
+        //             params.push_str(&format!("{}{} {}",
+        //                                      separator,
+        //                                      param_node.param_name,
+        //                                      &*param_type));
+        //             separator = String::from(",");
+        //         }
+        //         params
+        //     }
+        //     None => {
+        //         String::new()
+        //     }
+        // };
 
         self.add_code(&format!(
             "// Send system start event"
@@ -1299,7 +1290,7 @@ impl GolangVisitor {
             self.first_letter_to_upper_case(&system_node.name),
         ));
         self.newline();
-        if let Some(actions_block_node) = &system_node.actions_block_node_opt {
+        if let Some(_) = &system_node.actions_block_node_opt {
             self.add_code(&format!(
                 "var _ {}_actions = m",
                 &system_node.name,
@@ -1331,7 +1322,7 @@ impl GolangVisitor {
         self.newline();
         for x in domain_vec {
             self.newline();
-            self.add_code(&format!("m.{} = marshal.{}", x.0, self.first_letter_to_upper_case((&x.0))))
+            self.add_code(&format!("m.{} = marshal.{}", x.0, self.first_letter_to_upper_case(&x.0)))
         }
         self.newline();
         self.newline();
@@ -1346,7 +1337,7 @@ impl GolangVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn format_marshal_json_fn(&mut self, domain_vec: &Vec<(String, String)>, system_node: &SystemNode) {
+    fn generate_marshal_json_fn(&mut self, domain_vec: &Vec<(String, String)>) {
         self.newline();
         self.newline();
         self.add_code(&format!(
@@ -1366,7 +1357,7 @@ impl GolangVisitor {
         ));
         for x in domain_vec {
             self.newline();
-            self.add_code(&format!("{}: m.{},", self.first_letter_to_upper_case((&x.0)), x.0))
+            self.add_code(&format!("{}: m.{},", self.first_letter_to_upper_case(&x.0), x.0))
         }
         self.outdent();
         self.newline();
@@ -1404,7 +1395,7 @@ impl GolangVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn format_marshal_fn(&mut self, domain_vec: &Vec<(String, String)>, system_node: &SystemNode) {
+    fn generate_marshal_fn(&mut self, system_node: &SystemNode) {
         self.newline();
         self.newline();
         self.add_code(&format!(
@@ -1450,7 +1441,7 @@ impl GolangVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn generate_compartment(&mut self,  system_node: &SystemNode) {
+    fn generate_compartment(&mut self) {
         self.newline();
         self.newline();
         self.add_code("//=============== Compartment ==============//");
@@ -2060,8 +2051,8 @@ impl AstVisitor for GolangVisitor {
                 self.format_load_fn(&domain_vec,&system_node);
             }
             // generate MarshalJSON() factory
-            self.format_marshal_json_fn(&domain_vec,&system_node);
-            self.format_marshal_fn(&domain_vec,&system_node);
+            self.generate_marshal_json_fn(&domain_vec);
+            self.generate_marshal_fn( &system_node);
         }
 
         // end of generate constructor
@@ -2136,7 +2127,7 @@ impl AstVisitor for GolangVisitor {
             self.generate_subclass(system_node);
         }
 
-        self.generate_compartment(&system_node);
+        self.generate_compartment();
 
     }
 

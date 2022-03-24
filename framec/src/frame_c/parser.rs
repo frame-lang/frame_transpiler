@@ -15,7 +15,6 @@ use downcast_rs::__std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
-use crate::frame_c::scanner::TokenType::LBracket;
 
 pub struct ParseError {
     // TODO:
@@ -436,7 +435,7 @@ impl<'a> Parser<'a> {
             match self.parameters() {
                 Ok(Some(parameters)) => system_params_opt = Some(parameters),
                 Ok(None) => {},
-                Err(parse_error) =>  {},
+                Err(_) =>  {},
             }
         }
 
@@ -543,7 +542,7 @@ impl<'a> Parser<'a> {
 
         if self.match_token(&[TokenType::LParen]) {
             // MetaListIdents
-            match self.metaListIdents() {
+            match self.meta_list_idents() {
                 Ok(idents) => {
                     let attrib_idents = AttributeMetaListIdents::new(name,idents);
                     return Ok(AttributeNode::MetaListIdents { attr: attrib_idents});
@@ -572,7 +571,7 @@ impl<'a> Parser<'a> {
 
     //  ( ',' Name )* ')'
 
-    fn metaListIdents(&mut self) -> Result<Vec<String>, ParseError> {
+    fn meta_list_idents(&mut self) -> Result<Vec<String>, ParseError> {
 
         let mut idents:Vec<String> = Vec::new();
         loop {
@@ -2890,7 +2889,7 @@ impl<'a> Parser<'a> {
                 scope = IdentifierDeclScope::DomainBlock;
             } else {
                 // System reference
-                scope = IdentifierDeclScope::System;
+ //               scope = IdentifierDeclScope::System;
                 let id_node = IdentifierNode::new(
                     self.previous().clone(),
                     None,
