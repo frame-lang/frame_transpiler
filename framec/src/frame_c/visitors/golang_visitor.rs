@@ -1210,9 +1210,57 @@ impl GolangVisitor {
         }
         self.newline();
         self.newline();
-        if params != "" {
 
+        // System start message
+        let params:String = match &system_node.system_params_opt {
+            Some(param_list) => {
+                let mut params = String::new();
+                let mut separator = String::new();
+                for param_node in param_list {
+                    let param_type = match &param_node.param_type_opt {
+                        Some(type_node) => type_node.get_type_str(),
+                        None => String::new(),
+                    };
+                    params.push_str(&format!("{}{} {}",
+                                             separator,
+                                             param_node.param_name,
+                                             &*param_type));
+                    separator = String::from(",");
+                }
+                params
+            }
+            None => {
+                String::new()
+            }
+        };
+
+        self.add_code(&format!(
+            "// Send system start event"
+        ));
+
+        if let Some(system_params) = &system_node.system_params_opt {
+            self.newline();
+            self.add_code("params := make(map[string]interface{})");
+            for param in system_params {
+                self.newline();
+                self.add_code(&format!(
+                    "params[\"{}\"] = {}",
+                    param.param_name,
+                    param.param_name,
+                ));
+            }
         }
+
+        self.newline();
+        self.add_code(&format!(
+            "e := framelang.FrameEvent{{Msg:\">\", Params:params}}",
+        ));
+        self.newline();
+        self.add_code(&format!(
+            "m._mux_(&e)",
+        ));
+
+        self.newline();
         self.add_code("return m");
         self.outdent();
         self.newline();
