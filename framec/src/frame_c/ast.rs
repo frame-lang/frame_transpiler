@@ -1093,8 +1093,10 @@ pub struct TransitionStatementNode {
     pub target_state_context_t: StateContextType,
     pub exit_args_opt: Option<ExprListNode>,
     pub label_opt: Option<String>,
+    pub forward_event:bool,
 }
 
+// TODO - why is new() commented out?
 impl TransitionStatementNode {
     // pub fn new(target_state_context_t:StateContextType,
     //            exit_args_opt:Option<ExprListNode>,

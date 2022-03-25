@@ -3472,6 +3472,7 @@ impl<'a> Parser<'a> {
             // need exit args generated
             self.generate_exit_args = true;
         }
+        let mut forward_event:bool = false;
         let mut enter_args_opt: Option<ExprListNode> = None;
         let mut transition_label: Option<String> = None;
 
@@ -3485,6 +3486,11 @@ impl<'a> Parser<'a> {
                 Err(parse_error) => return Err(parse_error),
                 Ok(None) => {} // continue
             }
+        }
+
+        // transition label string
+        if self.match_token(&[TokenType::Dispatch]) {
+            forward_event = true;
         }
 
         // transition label string
@@ -3508,6 +3514,7 @@ impl<'a> Parser<'a> {
                 target_state_context_t: state_context_t,
                 exit_args_opt,
                 label_opt: transition_label,
+                forward_event,
             },
         }))
     }

@@ -763,10 +763,11 @@ impl GolangVisitor {
                 ""
             }
         };
+
         match &transition_statement.label_opt {
             Some(label) => {
-                self.add_code(&format!("// {}", label));
                 self.newline();
+                self.add_code(&format!("// {}", label));
             }
             None => {}
         }
@@ -838,12 +839,19 @@ impl GolangVisitor {
         // -- Enter Arguments --
 
   //      if self.generate_state_context {
+        self.newline();
         self.add_code(&format!(
             "compartment := New{}({})",
             self.config.code.compartment_type,
             self.generate_state_ref_code(target_state_name)
         ));
    //     }
+
+
+        if transition_statement.forward_event {
+            self.newline();
+            self.add_code("compartment._forwardEvent_ = e");
+        }
 
         let enter_args_opt = match &transition_statement.target_state_context_t {
             StateContextType::StateRef { state_context_node } => &state_context_node.enter_args_opt,
@@ -917,7 +925,9 @@ impl GolangVisitor {
                                 Some(param_symbol_rcref) => {
                                     let param_symbol = param_symbol_rcref.borrow();
                                     let mut expr = String::new();
+
                                     expr_t.accept_to_string(self, &mut expr);
+                                    self.newline();
                                     self.add_code(&format!(
                                         "compartment.AddStateArg(\"{}\",{})",
                                         param_symbol.name, expr
@@ -1240,12 +1250,18 @@ impl GolangVisitor {
                     param.param_name,
                 ));
             }
+            self.newline();
+            self.add_code(&format!(
+                "e := framelang.FrameEvent{{Msg:\">\", Params:params}}",
+            ));
+        } else {
+            self.newline();
+            self.add_code(&format!(
+                "e := framelang.FrameEvent{{Msg:\">\"}}",
+            ));
         }
 
-        self.newline();
-        self.add_code(&format!(
-            "e := framelang.FrameEvent{{Msg:\">\", Params:params}}",
-        ));
+
         self.newline();
         self.add_code(&format!(
             "m._mux_(&e)",
@@ -1473,6 +1489,10 @@ impl GolangVisitor {
         self.add_code(&format!(
             "ExitArgs map[string]interface{{}}"
         ));
+        self.newline();
+        self.add_code(&format!(
+            "_forwardEvent_ *framelang.FrameEvent"
+        ));
         self.outdent();
         self.newline();
         self.add_code(&format!(
@@ -1508,6 +1528,7 @@ impl GolangVisitor {
         self.add_code(&format!(
             "c.ExitArgs = make(map[string]interface{{}})"
         ));
+
         self.newline();
         self.add_code(&format!(
             "return c"
@@ -2098,6 +2119,16 @@ impl AstVisitor for GolangVisitor {
             self.add_code("m._nextCompartment_ = nil");
             self.newline();
             self.add_code("m._do_transition_(nextCompartment)");
+            self.newline();
+            self.add_code("if m._compartment_._forwardEvent_ != nil {");
+            self.indent();
+            self.newline();
+            self.add_code("m._mux_(m._compartment_._forwardEvent_)");
+            self.newline();
+            self.add_code("m._compartment_._forwardEvent_ = nil");
+            self.outdent();
+            self.newline();
+            self.add_code("}");
             self.outdent();
             self.newline();
             self.add_code("}");
