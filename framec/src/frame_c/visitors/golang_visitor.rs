@@ -807,6 +807,7 @@ impl GolangVisitor {
                                 match param_symbols_it.next() {
                                     Some(p) => {
                                         let mut expr = String::new();
+                                        self.newline();
                                         expr_t.accept_to_string(self, &mut expr);
                                         self.add_code(&format!(
                                             "m._compartment_.AddExitArg(\"{}\", {})",
@@ -1060,6 +1061,7 @@ impl GolangVisitor {
                                 match param_symbols_it.next() {
                                     Some(p) => {
                                         let mut expr = String::new();
+                                        self.newline();
                                         expr_t.accept_to_string(self, &mut expr);
                                         self.add_code(&format!(
                                             "m._compartment_.AddExitArg(\"{}\", {})",
