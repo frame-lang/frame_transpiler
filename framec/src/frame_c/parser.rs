@@ -87,6 +87,7 @@ pub struct Parser<'a> {
     current: usize,
     current_token: String,
     current_tok_ref: &'a Token,
+    current_event_symbol_opt: Option<Rc<RefCell<EventSymbol>>>,
     processed_tokens: String,
     //    reset_pos:usize,
     is_building_symbol_table: bool,
@@ -120,6 +121,7 @@ impl<'a> Parser<'a> {
             current: 0,
             last_sync_token_idx: 0,
             current_token: String::from(""),
+            current_event_symbol_opt: None,
             processed_tokens: String::from(""),
             is_building_symbol_table,
             arcanum,
@@ -1502,6 +1504,7 @@ impl<'a> Parser<'a> {
                         Ok(eh_opt) => {
                             if let Some(eh) = eh_opt {
                                 let eh_rcref = Rc::new(RefCell::new(eh));
+
                                 // find enter/exit event handlers
                                 {
                                     // new scope to make BC happy
@@ -1529,6 +1532,7 @@ impl<'a> Parser<'a> {
                                     }
                                 }
 
+                                self.current_event_symbol_opt = None;
                                 evt_handlers.push(eh_rcref);
                             }
                         }
@@ -1639,6 +1643,7 @@ impl<'a> Parser<'a> {
         }
 
         let mut is_declaring_event = false;
+
         if self.is_building_symbol_table {
             let event_symbol_rcref;
 
@@ -1666,16 +1671,19 @@ impl<'a> Parser<'a> {
                 }
             }
 
+
             // create the event handler symbol and enter the event handler scope
             let event_handler_symbol =
                 EventHandlerScopeSymbol::new(&msg, Rc::clone(&event_symbol_rcref));
             let event_handler_scope_symbol_rcref = Rc::new(RefCell::new(event_handler_symbol));
+
             self.arcanum.enter_scope(ParseScopeType::EventHandler {
                 event_handler_scope_symbol_rcref,
             });
         } else {
             self.arcanum.set_parse_scope(&msg);
         }
+
 
         // Remember to pop param scope at end if it is entered.
         let mut pop_params_scope = false;
@@ -1836,6 +1844,7 @@ impl<'a> Parser<'a> {
                             .set_parse_scope(EventHandlerParamsScopeSymbol::scope_name());
                         //                       self.arcanum.debug_print_current_symbols(self.arcanum.get_current_symtab());
                     }
+
                 }
                 Ok(None) => return Err(ParseError::new("TODO")),
                 Err(parse_error) => return Err(parse_error),
@@ -1872,6 +1881,10 @@ impl<'a> Parser<'a> {
             self.arcanum
                 .set_parse_scope(EventHandlerLocalScopeSymbol::scope_name());
         }
+
+        let event_symbol_rcref =
+            self.arcanum.get_event(&*msg, &self.state_name_opt).unwrap();
+        self.current_event_symbol_opt = Some(event_symbol_rcref.clone());
 
         let statements = self.statements();
         let event_symbol_rcref = self.arcanum.get_event(&msg, &self.state_name_opt).unwrap();
@@ -1915,6 +1928,8 @@ impl<'a> Parser<'a> {
         if self.panic_mode {
             return Err(ParseError::new("TODO"));
         }
+
+        self.current_event_symbol_opt = None;
 
         Ok(Some(EventHandlerNode::new(
             st_name,
@@ -3472,12 +3487,18 @@ impl<'a> Parser<'a> {
             // need exit args generated
             self.generate_exit_args = true;
         }
-        let mut forward_event:bool = false;
+
+        let mut enter_msg_with_enter_args:bool = false;
         let mut enter_args_opt: Option<ExprListNode> = None;
         let mut transition_label: Option<String> = None;
 
         // enterArgs: '(' ')' | '(' expr ')'
         if self.match_token(&[TokenType::LParen]) {
+            let eh_rc_refcell = self.current_event_symbol_opt.as_ref().unwrap().clone();
+            let evt_symbol = eh_rc_refcell.borrow();
+            if evt_symbol.is_enter_msg {
+                enter_msg_with_enter_args = true;
+            }
             // need enter args generated
             self.generate_enter_args = true;
             match self.expr_list() {
@@ -3489,13 +3510,19 @@ impl<'a> Parser<'a> {
         }
 
         // transition label string
-        if self.match_token(&[TokenType::Dispatch]) {
-            forward_event = true;
-        }
-
-        // transition label string
         if self.match_token(&[TokenType::String]) {
             transition_label = Some(self.previous().lexeme.clone());
+        }
+
+        // Transition dispatch
+        // -> => $Next
+        let mut forward_event = false;
+        if self.match_token(&[TokenType::Dispatch]) {
+            forward_event = true;
+            if enter_msg_with_enter_args {
+                self.error_at_current("Transition dispatch disallowed in enter message with enter event parameters.")
+            }
+
         }
 
         let state_context_t;
