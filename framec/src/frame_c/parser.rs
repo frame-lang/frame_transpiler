@@ -3483,6 +3483,13 @@ impl<'a> Parser<'a> {
     ) -> Result<Option<StatementType>, ParseError> {
         self.generate_transition_state = true;
 
+        let eh_rc_refcell = self.current_event_symbol_opt.as_ref().unwrap().clone();
+        let evt_symbol = eh_rc_refcell.borrow();
+
+        if evt_symbol.is_exit_msg {
+            self.error_at_current("Transition disallowed in exit event handler.")
+        }
+
         if exit_args_opt.is_some() {
             // need exit args generated
             self.generate_exit_args = true;
@@ -3494,8 +3501,7 @@ impl<'a> Parser<'a> {
 
         // enterArgs: '(' ')' | '(' expr ')'
         if self.match_token(&[TokenType::LParen]) {
-            let eh_rc_refcell = self.current_event_symbol_opt.as_ref().unwrap().clone();
-            let evt_symbol = eh_rc_refcell.borrow();
+
             if evt_symbol.is_enter_msg {
                 enter_msg_with_enter_args = true;
             }
