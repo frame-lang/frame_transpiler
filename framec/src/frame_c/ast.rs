@@ -36,7 +36,7 @@ pub trait NodeElement {
     // fn accept_frame_message_enum(&self,  ast_visitor:&mut dyn AstVisitor) {
     //     // no_op
     // }
-    fn accept_to_string(&self, _ast_visitor: &mut dyn AstVisitor, _output: &mut String) {
+    fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
         // no_op
     }
 }
@@ -95,16 +95,11 @@ pub enum AttributeNode {
     MetaListIdents { attr: AttributeMetaListIdents },
 }
 
-
 impl AttributeNode {
     pub fn get_name(&self) -> String {
         match self {
-            AttributeNode::MetaNameValueStr { attr } => {
-                attr.name.clone()
-            }
-            AttributeNode::MetaListIdents { attr } => {
-                attr.name.clone()
-            }
+            AttributeNode::MetaNameValueStr { attr } => attr.name.clone(),
+            AttributeNode::MetaListIdents { attr } => attr.name.clone(),
         }
     }
 }
@@ -120,16 +115,9 @@ pub struct AttributeMetaNameValueStr {
     pub value: String,
 }
 
-
 impl AttributeMetaNameValueStr {
-    pub fn new(
-        name: String,
-        value: String,
-    ) -> AttributeMetaNameValueStr {
-        AttributeMetaNameValueStr {
-            name,
-            value,
-        }
+    pub fn new(name: String, value: String) -> AttributeMetaNameValueStr {
+        AttributeMetaNameValueStr { name, value }
     }
 }
 
@@ -140,14 +128,8 @@ pub struct AttributeMetaListIdents {
 }
 
 impl AttributeMetaListIdents {
-    pub fn new(
-        name: String,
-        idents: Vec<String>,
-    ) -> AttributeMetaListIdents {
-        AttributeMetaListIdents {
-            name,
-            idents,
-        }
+    pub fn new(name: String, idents: Vec<String>) -> AttributeMetaListIdents {
+        AttributeMetaListIdents { name, idents }
     }
 }
 
@@ -1063,6 +1045,11 @@ impl NodeElement for AssignmentExprNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         ast_visitor.visit_assignment_expr_node(self);
     }
+
+    fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
+        ast_visitor.visit_assignment_expr_node_to_string(self, output);
+    }
+
 }
 
 //-----------------------------------------------------//
@@ -1093,7 +1080,7 @@ pub struct TransitionStatementNode {
     pub target_state_context_t: StateContextType,
     pub exit_args_opt: Option<ExprListNode>,
     pub label_opt: Option<String>,
-    pub forward_event:bool,
+    pub forward_event: bool,
 }
 
 // TODO - why is new() commented out?

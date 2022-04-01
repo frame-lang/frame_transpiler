@@ -26,7 +26,6 @@ use std::path::{Path, PathBuf};
 pub use crate::frame_c::visitors::TargetLanguage;
 //use crate::frame_c::ast::{AttributeNode, AttributeMetaNameValueStr, AttributeMetaListIdents};
 
-
 /* --------------------------------------------------------------------- */
 
 static IS_DEBUG: bool = false;
@@ -82,7 +81,6 @@ impl Exe {
         }
     }
 
-
     /* --------------------------------------------------------------------- */
 
     pub fn run_stdin(
@@ -106,7 +104,6 @@ impl Exe {
     }
 
     /* --------------------------------------------------------------------- */
-
 
     /// Run the Frame compiler on a Frame specification passed as a `String`.
     ///
@@ -139,7 +136,6 @@ impl Exe {
         // but I've reported it to JetBrains and want it fixed. So when you are
         // debugging here, just uncomment the next line and then comment it back
         // when checking in.
-
 
         let mut hasher = Sha256::new();
         hasher.update(&content);

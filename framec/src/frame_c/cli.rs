@@ -49,7 +49,7 @@ impl Cli {
                     .long("language")
                     .short('l')
                     .help("Target language"),
-//                    .required_unless_present("GENERATE-CONFIG"),
+                //                    .required_unless_present("GENERATE-CONFIG"),
             )
             .get_matches();
 
@@ -130,7 +130,7 @@ pub fn run_with(args: Cli) {
     // run the compiler and print output to stdout
     if args.stdin_flag {
         match exe.run_stdin(&args.config, target_language) {
-        // match exe.run_stdin(&args.config, args.language.unwrap()) {
+            // match exe.run_stdin(&args.config, args.language.unwrap()) {
             Ok(code) => {
                 println!("{}", code);
             }

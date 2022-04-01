@@ -66,7 +66,7 @@ pub struct CommonConfig {
 /// Code generation options specific to the Rust backend.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GolangConfig {
-//    pub features: GolangFeatures,
+    //    pub features: GolangFeatures,
     pub code: GolangCode,
 }
 
@@ -115,8 +115,7 @@ pub struct GolangCode {
     pub state_args_var_name: String,
     pub state_vars_suffix: String,
     pub state_vars_var_name: String,
-//    pub state_name_use_sysname_prefix: bool, // auto prefix the state name w/ system name
-
+    //    pub state_name_use_sysname_prefix: bool, // auto prefix the state name w/ system name
     pub state_context_type_name: String,
     pub state_context_var_name: String,
     pub state_context_suffix: String,
@@ -139,13 +138,13 @@ pub struct GolangCode {
     pub pop_state_info_name: String,
     pub event_monitor_var_name: String,
     pub transition_info_arg_name: String,
-    pub managed: bool, // Generate Managed code
-    pub marshal: bool, // Generate Marshalling code
+    pub managed: bool,      // Generate Managed code
+    pub marshal: bool,      // Generate Marshalling code
     pub state_type: String, // Name of state type
     pub marshal_system_state_var: String,
     pub system_struct_type: String,
     pub mom: String,
-    pub compartment_type:String,
+    pub compartment_type: String,
 }
 
 impl Default for GolangCode {
@@ -188,8 +187,7 @@ impl Default for GolangCode {
             state_args_var_name: String::from("state_args"),
             state_vars_suffix: String::from("StateVars"),
             state_vars_var_name: String::from("state_vars"),
- //           state_name_use_sysname_prefix:true,
-
+            //           state_name_use_sysname_prefix:true,
             state_context_type_name: String::from("StateContext"),
             state_context_var_name: String::from("state_context"),
             state_context_suffix: String::from("StateContext"),
@@ -215,8 +213,8 @@ impl Default for GolangCode {
             event_monitor_var_name: String::from("event_monitor"),
             transition_info_arg_name: String::from("transition_info"),
 
-            managed:false, // Generate Managed code
-            marshal:false, // Generate Marshling code
+            managed: false, // Generate Managed code
+            marshal: false, // Generate Marshling code
             // Name of state type. In Golang this can't be a universal type
             // (like framelang.FrameState)
             state_type: String::new(),
@@ -224,7 +222,6 @@ impl Default for GolangCode {
             system_struct_type: String::new(),
             mom: String::new(),
             compartment_type: String::new(),
-
         }
     }
 }
@@ -461,13 +458,13 @@ impl Provider for AttributeNode {
         let attr_name;
         let value;
         match self {
-            AttributeNode::MetaNameValueStr {attr} => {
+            AttributeNode::MetaNameValueStr { attr } => {
                 attr_name = attr.name.clone();
                 value = attr.value.clone();
             }
-            _ => return Ok(map)
+            _ => return Ok(map),
         }
-//        let attr_name = &self.name;
+        //        let attr_name = &self.name;
         let config_path;
         let config_value;
         if let Some(path) = attr_name.strip_suffix(":bool") {
@@ -501,7 +498,7 @@ impl Provider for AttributeNode {
         } else if let Some(path) = attr_name.strip_suffix(":str") {
             // this attribute is a string config option
             config_path = path;
-            config_value = Value::from(value.clone());
+            config_value = Value::from(value);
         } else {
             return Ok(map);
         }

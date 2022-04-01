@@ -436,8 +436,8 @@ impl<'a> Parser<'a> {
         if self.match_token(&[TokenType::LBracket]) {
             match self.parameters() {
                 Ok(Some(parameters)) => system_params_opt = Some(parameters),
-                Ok(None) => {},
-                Err(_) =>  {},
+                Ok(None) => {}
+                Err(_) => {}
             }
         }
 
@@ -546,10 +546,12 @@ impl<'a> Parser<'a> {
             // MetaListIdents
             match self.meta_list_idents() {
                 Ok(idents) => {
-                    let attrib_idents = AttributeMetaListIdents::new(name,idents);
-                    return Ok(AttributeNode::MetaListIdents { attr: attrib_idents});
-                },
-                Err(err) => return Err(err)
+                    let attrib_idents = AttributeMetaListIdents::new(name, idents);
+                    return Ok(AttributeNode::MetaListIdents {
+                        attr: attrib_idents,
+                    });
+                }
+                Err(err) => return Err(err),
             }
         } else if let Err(err) = self.consume(TokenType::Equals, "Expected '='") {
             // equals
@@ -566,7 +568,9 @@ impl<'a> Parser<'a> {
             return Err(parse_error);
         }
         let attr_namevalue = AttributeMetaNameValueStr::new(name, value);
-        Ok(AttributeNode::MetaNameValueStr {attr: attr_namevalue})
+        Ok(AttributeNode::MetaNameValueStr {
+            attr: attr_namevalue,
+        })
     }
 
     /* --------------------------------------------------------------------- */
@@ -574,8 +578,7 @@ impl<'a> Parser<'a> {
     //  ( ',' Name )* ')'
 
     fn meta_list_idents(&mut self) -> Result<Vec<String>, ParseError> {
-
-        let mut idents:Vec<String> = Vec::new();
+        let mut idents: Vec<String> = Vec::new();
         loop {
             if !self.match_token(&[TokenType::Identifier]) {
                 break;
@@ -1671,7 +1674,6 @@ impl<'a> Parser<'a> {
                 }
             }
 
-
             // create the event handler symbol and enter the event handler scope
             let event_handler_symbol =
                 EventHandlerScopeSymbol::new(&msg, Rc::clone(&event_symbol_rcref));
@@ -1683,7 +1685,6 @@ impl<'a> Parser<'a> {
         } else {
             self.arcanum.set_parse_scope(&msg);
         }
-
 
         // Remember to pop param scope at end if it is entered.
         let mut pop_params_scope = false;
@@ -1844,7 +1845,6 @@ impl<'a> Parser<'a> {
                             .set_parse_scope(EventHandlerParamsScopeSymbol::scope_name());
                         //                       self.arcanum.debug_print_current_symbols(self.arcanum.get_current_symtab());
                     }
-
                 }
                 Ok(None) => return Err(ParseError::new("TODO")),
                 Err(parse_error) => return Err(parse_error),
@@ -1882,9 +1882,8 @@ impl<'a> Parser<'a> {
                 .set_parse_scope(EventHandlerLocalScopeSymbol::scope_name());
         }
 
-        let event_symbol_rcref =
-            self.arcanum.get_event(&*msg, &self.state_name_opt).unwrap();
-        self.current_event_symbol_opt = Some(event_symbol_rcref.clone());
+        let event_symbol_rcref = self.arcanum.get_event(&*msg, &self.state_name_opt).unwrap();
+        self.current_event_symbol_opt = Some(event_symbol_rcref);
 
         let statements = self.statements();
         let event_symbol_rcref = self.arcanum.get_event(&msg, &self.state_name_opt).unwrap();
@@ -2904,7 +2903,7 @@ impl<'a> Parser<'a> {
                 scope = IdentifierDeclScope::DomainBlock;
             } else {
                 // System reference
- //               scope = IdentifierDeclScope::System;
+                //               scope = IdentifierDeclScope::System;
                 let id_node = IdentifierNode::new(
                     self.previous().clone(),
                     None,
@@ -2916,7 +2915,6 @@ impl<'a> Parser<'a> {
                 let var_node = VariableNode::new(id_node, var_scope, None);
                 return Ok(Some(VariableExprT { var_node }));
             }
-
 
         //           scope_override = true;
         } else if self.match_token(&[TokenType::State]) {
@@ -3495,13 +3493,12 @@ impl<'a> Parser<'a> {
             self.generate_exit_args = true;
         }
 
-        let mut enter_msg_with_enter_args:bool = false;
+        let mut enter_msg_with_enter_args: bool = false;
         let mut enter_args_opt: Option<ExprListNode> = None;
         let mut transition_label: Option<String> = None;
 
         // enterArgs: '(' ')' | '(' expr ')'
         if self.match_token(&[TokenType::LParen]) {
-
             if evt_symbol.is_enter_msg {
                 enter_msg_with_enter_args = true;
             }
@@ -3526,9 +3523,10 @@ impl<'a> Parser<'a> {
         if self.match_token(&[TokenType::Dispatch]) {
             forward_event = true;
             if enter_msg_with_enter_args {
-                self.error_at_current("Transition dispatch disallowed in enter message with enter event parameters.")
+                self.error_at_current(
+                    "Transition dispatch disallowed in enter message with enter event parameters.",
+                )
             }
-
         }
 
         let state_context_t;
