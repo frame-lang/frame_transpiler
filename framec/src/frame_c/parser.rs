@@ -371,6 +371,7 @@ impl<'a> Parser<'a> {
                 None,
                 None,
                 None,
+                None,
                 0,
             );
         }
@@ -430,12 +431,48 @@ impl<'a> Parser<'a> {
             self.arcanum.set_parse_scope(&system_name);
         }
 
-        let mut system_params_opt: Option<Vec<ParameterNode>> = Option::None;
+        // Parse optional system params.
+        // #SystemName $[start_state_param:T] >[start_state_enter_param:X]
 
-        // #SystemName[param1:type1 param2:type2]
-        if self.match_token(&[TokenType::LBracket]) {
+        let mut start_state_state_params_opt: Option<Vec<ParameterNode>> = Option::None;
+
+        if self.match_token(&[TokenType::State]) {
+            if self.consume(TokenType::LBracket, "Expected '$'")
+                .is_err()
+            {
+                let sync_tokens = &vec![TokenType::GT,
+                                        TokenType::InterfaceBlock,
+                                        TokenType::ActionsBlock,
+                                        TokenType::MachineBlock,
+                                        TokenType::DomainBlock,
+                                        TokenType::SystemEnd,
+                ];
+                self.synchronize(sync_tokens);
+            }
             match self.parameters() {
-                Ok(Some(parameters)) => system_params_opt = Some(parameters),
+                Ok(Some(parameters)) => start_state_state_params_opt = Some(parameters),
+                Ok(None) => {}
+                Err(_) => {}
+            }
+        }
+
+        let mut start_state_enter_params_opt: Option<Vec<ParameterNode>> = Option::None;
+
+        if self.match_token(&[TokenType::GT]) {
+            if self.consume(TokenType::LBracket, "Expected '>'")
+                .is_err()
+            {
+                let sync_tokens = &vec![
+                                        TokenType::InterfaceBlock,
+                                        TokenType::ActionsBlock,
+                                        TokenType::MachineBlock,
+                                        TokenType::DomainBlock,
+                                        TokenType::SystemEnd,
+                ];
+                self.synchronize(sync_tokens);
+            }
+            match self.parameters() {
+                Ok(Some(parameters)) => start_state_enter_params_opt = Some(parameters),
                 Ok(None) => {}
                 Err(_) => {}
             }
@@ -481,8 +518,9 @@ impl<'a> Parser<'a> {
         SystemNode::new(
             system_name,
             header,
-            system_params_opt,
             attributes_opt,
+            start_state_state_params_opt,
+            start_state_enter_params_opt,
             interface_block_node_opt,
             machine_block_node_opt,
             actions_block_node_opt,

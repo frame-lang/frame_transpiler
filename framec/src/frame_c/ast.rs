@@ -138,8 +138,9 @@ impl AttributeMetaListIdents {
 pub struct SystemNode {
     pub name: String,
     pub header: String,
-    pub system_params_opt: Option<Vec<ParameterNode>>,
     pub attributes_opt: Option<HashMap<String, AttributeNode>>,
+    pub start_state_state_params_opt: Option<Vec<ParameterNode>>,
+    pub start_state_enter_params_opt: Option<Vec<ParameterNode>>,
     pub interface_block_node_opt: Option<InterfaceBlockNode>,
     pub machine_block_node_opt: Option<MachineBlockNode>,
     pub actions_block_node_opt: Option<ActionsBlockNode>,
@@ -151,8 +152,9 @@ impl SystemNode {
     pub fn new(
         name: String,
         header: String,
-        system_params_opt: Option<Vec<ParameterNode>>,
         attributes_opt: Option<HashMap<String, AttributeNode>>,
+        start_state_state_params_opt: Option<Vec<ParameterNode>>,
+        start_state_enter_params_opt: Option<Vec<ParameterNode>>,
         interface_block_node_opt: Option<InterfaceBlockNode>,
         machine_block_node_opt: Option<MachineBlockNode>,
         actions_block_node_opt: Option<ActionsBlockNode>,
@@ -162,8 +164,9 @@ impl SystemNode {
         SystemNode {
             name,
             header,
-            system_params_opt,
             attributes_opt,
+            start_state_state_params_opt,
+            start_state_enter_params_opt,
             interface_block_node_opt,
             machine_block_node_opt,
             actions_block_node_opt,

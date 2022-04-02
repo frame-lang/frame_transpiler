@@ -186,7 +186,7 @@ impl GolangVisitor {
 
         match variable_node.scope {
             IdentifierDeclScope::System => {
-                code.push('m');
+                code.push_str(&format!("m"));
             }
             IdentifierDeclScope::DomainBlock => {
                 code.push_str(&format!("m.{}", variable_node.id_node.name.lexeme));
@@ -201,39 +201,18 @@ impl GolangVisitor {
                 if self.visiting_call_chain_literal_variable {
                     code.push('(');
                 }
-
-                // This branch is due to the sitaution that
-                // assignment for compartment data does not
-                // resolve like x = 1. Instead it is a call
-                // to a setter on the compartment. Therefore the
-                // rh expression is captured in visit_assignment_expr_node_to_string()
-                // into self.r_expr and then spliced into the
-                // lh expression when evaluating it below.
-
-                if self.expr_context == ExprContext::Rvalue ||
-                    self.expr_context == ExprContext::None {
-                    code.push_str(&format!(
-                        "m._compartment_.GetStateArg(\"{}\").({})",
-                        variable_node.id_node.name.lexeme, var_type,
-                    ));
-                    if self.visiting_call_chain_literal_variable {
-                        code.push(')');
-                    }
-                } else if self.expr_context == ExprContext::Lvalue {
-                    code.push_str(&format!(
-                        "m._compartment_.SetStateArg(\"{}\",",
-                        variable_node.id_node.name.lexeme,
-                    ));
-
-                    // As per above, splice in the rh expression into
-                    // the setter code.
-                    code.push_str(&self.r_expr);
+                code.push_str(&format!(
+                    "m._compartment_.StateArgs[\"{}\"]",
+                    variable_node.id_node.name.lexeme,
+                ));
+                // if is being used as an rval, cast it.
+                if self.expr_context == ExprContext::Rvalue
+                    || self.expr_context == ExprContext::None
+                {
+                    code.push_str(&format!(".({})", var_type));
+                }
+                if self.visiting_call_chain_literal_variable {
                     code.push(')');
-                    if self.visiting_call_chain_literal_variable {
-                        code.push(')');
-                    }
-                } else {
-                    self.errors.push("Expected Lvalue or Rvalue - found none.".to_string());
                 }
             }
             IdentifierDeclScope::StateVar => {
@@ -246,41 +225,19 @@ impl GolangVisitor {
                 if self.visiting_call_chain_literal_variable {
                     code.push('(');
                 }
-
-                // This branch is due to the sitaution that
-                // assignment for compartment data does not
-                // resolve like x = 1. Instead it is a call
-                // to a setter on the compartment. Therefore the
-                // rh expression is captured in visit_assignment_expr_node_to_string()
-                // into self.r_expr and then spliced into the
-                // lh expression when evaluating it below.
-
-                if self.expr_context == ExprContext::Rvalue ||
-                    self.expr_context == ExprContext::None {
-                    code.push_str(&format!(
-                        "m._compartment_.GetStateVar(\"{}\").({})",
-                        variable_node.id_node.name.lexeme, var_type,
-                    ));
-                    if self.visiting_call_chain_literal_variable {
-                        code.push(')');
-                    }
-                } else if self.expr_context == ExprContext::Lvalue {
-                    code.push_str(&format!(
-                        "m._compartment_.SetStateVar(\"{}\",",
-                        variable_node.id_node.name.lexeme,
-                    ));
-
-                    // As per above, splice in the rh expression into
-                    // the setter code.
-                    code.push_str(&self.r_expr);
-                    code.push(')');
-                    if self.visiting_call_chain_literal_variable {
-                        code.push(')');
-                    }
-                } else {
-                    self.errors.push("Expected Lvalue or Rvalue - found none.".to_string());
+                code.push_str(&format!(
+                    "m._compartment_.StateVars[\"{}\"]",
+                    variable_node.id_node.name.lexeme,
+                ));
+                // if is being used as an rval, cast it.
+                if self.expr_context == ExprContext::Rvalue
+                    || self.expr_context == ExprContext::None
+                {
+                    code.push_str(&format!(".({})", var_type));
                 }
-
+                if self.visiting_call_chain_literal_variable {
+                    code.push(')');
+                }
             }
             IdentifierDeclScope::EventHandlerParam => {
                 let var_node = variable_node;
@@ -293,18 +250,12 @@ impl GolangVisitor {
                     "e.Params[\"{}\"]",
                     variable_node.id_node.name.lexeme
                 ));
-
-                if self.expr_context == ExprContext::Rvalue ||
-                    self.expr_context == ExprContext::None {
+                // if is being used as an rval, cast it.
+                if self.expr_context == ExprContext::Rvalue
+                    || self.expr_context == ExprContext::None
+                {
                     code.push_str(&format!(".({})", var_type));
-                } else if self.expr_context == ExprContext::Lvalue {
-                    code.push_str(" = ");
-                    code.push_str(&self.r_expr);
-                } else {
-                    self.errors.push("Expected Lvalue or Rvalue - found none.".to_string());
                 }
-
-
             }
             IdentifierDeclScope::EventHandlerVar => {
                 code.push_str(&variable_node.id_node.name.lexeme.to_string());
@@ -321,7 +272,21 @@ impl GolangVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn format_parameter_list(&mut self, params: &Vec<ParameterNode>) {
+    fn format_parameter_list(&mut self, params_in: &Option<Vec<ParameterNode>>) {
+
+        if params_in.is_none() {
+            return;
+        }
+
+        let params = match params_in {
+            Some(params) => {
+                params
+            }
+            None => {
+                return;
+            }
+        };
+
         let mut separator = "";
         for param in params {
             self.add_code(&separator.to_string());
@@ -804,6 +769,9 @@ impl GolangVisitor {
         self.format_state_name(target_state_name)
     }
 
+
+
+
     //* --------------------------------------------------------------------- *//
 
     fn generate_state_ref_transition(&mut self, transition_statement: &TransitionStatementNode) {
@@ -1167,10 +1135,10 @@ impl GolangVisitor {
         self.newline();
         self.newline();
         // format system params,if any.
-        let params: String = match &system_node.system_params_opt {
+        let mut separator = String::new();
+        let mut new_params: String = match &system_node.start_state_state_params_opt {
             Some(param_list) => {
                 let mut params = String::new();
-                let mut separator = String::new();
                 for param_node in param_list {
                     let param_type = match &param_node.param_type_opt {
                         Some(type_node) => type_node.get_type_str(),
@@ -1186,19 +1154,35 @@ impl GolangVisitor {
             }
             None => String::new(),
         };
+        match &system_node.start_state_enter_params_opt {
+            Some(param_list) => {
+                for param_node in param_list {
+                    let param_type = match &param_node.param_type_opt {
+                        Some(type_node) => type_node.get_type_str(),
+                        None => String::new(),
+                    };
+                    new_params.push_str(&format!(
+                        "{}{} {}",
+                        separator, param_node.param_name, &*param_type
+                    ));
+                    separator = String::from(",");
+                }
+            }
+            None => {},
+        };
         if self.config.code.managed {
             self.add_code(&format!(
                 "func New{}(mom {} {}) {} {{",
                 system_node.name,
                 &self.config.code.mom,
-                params,
+                new_params,
                 self.first_letter_to_upper_case(&system_node.name),
             ));
         } else {
             self.add_code(&format!(
                 "func New{}({}) {} {{",
                 system_node.name,
-                params,
+                new_params,
                 self.first_letter_to_upper_case(&system_node.name)
             ));
         }
@@ -1238,7 +1222,48 @@ impl GolangVisitor {
             self.config.code.compartment_type,
             self.format_state_name(self.first_state_name.as_str())
         ));
-        //      }
+
+        // let x = (&system_node.start_state_state_params_opt);
+        // self.format_parameter_list(x);
+
+        // Initialize state arguments.
+        match &system_node.start_state_state_params_opt {
+            Some(params) => {
+                for param in params {
+                    self.newline();
+                    self.add_code(&format!("m._compartment_.StateArgs[\"{}\"] = {}",
+                        param.param_name,
+                        param.param_name,
+                        ));
+                }
+            }
+            None => {}
+        }
+
+        match system_node.get_first_state() {
+            Some(state_rcref) => {
+                let state_node = state_rcref.borrow();
+                match &state_node.vars_opt {
+                    Some(vars) => {
+                        for var_rcref in vars {
+                            let var_decl_node = var_rcref.borrow();
+                            let expr_t = var_decl_node.initializer_expr_t_opt.as_ref().unwrap();
+                            let mut expr_code = String::new();
+                            expr_t.accept_to_string(self, &mut expr_code);
+
+                            self.newline();
+                            self.add_code(&format!("m._compartment_.StateVars[\"{}\"] = {}",
+                                                   var_decl_node.name,
+                                                   expr_code,
+                            ));
+                        }
+                    }
+                    None => {}
+                }
+
+            }
+            None => {}
+        }
 
         self.newline();
         self.newline();
@@ -1276,10 +1301,10 @@ impl GolangVisitor {
 
         self.add_code("// Send system start event");
 
-        if let Some(system_params) = &system_node.system_params_opt {
+        if let Some(enter_params) = &system_node.start_state_enter_params_opt {
             self.newline();
             self.add_code("params := make(map[string]interface{})");
-            for param in system_params {
+            for param in enter_params {
                 self.newline();
                 self.add_code(&format!(
                     "params[\"{}\"] = {}",
@@ -1821,12 +1846,9 @@ impl AstVisitor for GolangVisitor {
                     "{}(",
                     self.first_letter_to_upper_case(&interface_method_node.name)
                 ));
-                match &interface_method_node.params {
-                    Some(params) => {
-                        self.format_parameter_list(params);
-                    }
-                    None => {}
-                }
+
+                self.format_parameter_list(&interface_method_node.params);
+
                 let return_type = match &interface_method_node.return_type_opt {
                     Some(ret) => ret.get_type_str(),
                     None => "".to_string(),
@@ -2181,12 +2203,7 @@ impl AstVisitor for GolangVisitor {
             self.first_letter_to_upper_case(&interface_method_node.name),
         ));
 
-        match &interface_method_node.params {
-            Some(params) => {
-                self.format_parameter_list(params);
-            }
-            None => {}
-        }
+        self.format_parameter_list(&interface_method_node.params);
 
         self.add_code(&format!(") {} {{", return_type));
         self.indent();
@@ -3497,31 +3514,17 @@ impl AstVisitor for GolangVisitor {
         assignment_expr_node: &AssignmentExprNode,
         output: &mut String,
     ) {
-
         self.generate_comment(assignment_expr_node.line);
-
-        let mut r_expr = String::new();
-
-        self.expr_context = ExprContext::Rvalue;
-        assignment_expr_node
-            .r_value_box
-            .accept_to_string(self, &mut r_expr);
-
-        self.r_expr = r_expr;
-
-        //self.newline();
-        // let x = assignment_expr_node.l_value_box.as_ref();
-        // self.newline_to_string(output);
         self.expr_context = ExprContext::Lvalue;
-
         assignment_expr_node
             .l_value_box
             .accept_to_string(self, output);
-//        output.push_str(" = ");
-
+        output.push_str(" = ");
+        self.expr_context = ExprContext::Rvalue;
+        assignment_expr_node
+            .r_value_box
+            .accept_to_string(self, output);
         self.expr_context = ExprContext::None;
-
-//        output.push(';');
     }
 
     //* --------------------------------------------------------------------- *//
