@@ -39,6 +39,12 @@ pub trait NodeElement {
     fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
         // no_op
     }
+    fn accept_action_decl(&self, ast_visitor: &mut dyn AstVisitor) {
+        // no_op
+    }
+    fn accept_action_impl(&self, ast_visitor: &mut dyn AstVisitor) {
+        // no_op
+    }
 }
 
 // TODO: is this a good name for Identifier and Call expressions?
@@ -305,6 +311,12 @@ impl NodeElement for ActionNode {
         ast_visitor.visit_action_decl_node(self);
     }
     fn accept_rust_impl(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_action_impl_node(self);
+    }
+    fn accept_action_decl(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_action_decl_node(self);
+    }
+    fn accept_action_impl(&self, ast_visitor: &mut dyn AstVisitor) {
         ast_visitor.visit_action_impl_node(self);
     }
 }

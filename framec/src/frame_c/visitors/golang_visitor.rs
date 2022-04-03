@@ -568,13 +568,13 @@ impl GolangVisitor {
             // }
             //            self.newline();
             self.add_code(
-                "m._mux_(&framelang.FrameEvent{Msg: \"<\", Params: m._compartment_.GetExitArgs(), Ret: nil})",
+                "m._mux_(&framelang.FrameEvent{Msg: \"<\", Params: m._compartment_.ExitArgs, Ret: nil})",
             );
             self.newline();
             self.add_code("m._compartment_ = nextCompartment");
             self.newline();
             self.add_code(
-                "m._mux_(&framelang.FrameEvent{Msg: \">\", Params: m._compartment_.GetEnterArgs(), Ret: nil})",
+                "m._mux_(&framelang.FrameEvent{Msg: \">\", Params: m._compartment_.EnterArgs, Ret: nil})",
             );
             // if self.generate_state_context {
             //     self.newline();
@@ -659,13 +659,13 @@ impl GolangVisitor {
                 self.newline();
                 self.newline();
                 self.add_code(&format!(
-                    "func (m *{}Struct) _changeState_(newCompartment *{}) {{",
+                    "func (m *{}Struct) _changeState_(compartment *{}) {{",
                     self.first_letter_to_lower_case(&system_node.name),
                     self.config.code.compartment_type,
                 ));
                 self.indent();
                 self.newline();
-                self.add_code(&"m._compartment_ = newCompartment".to_string());
+                self.add_code(&"m._compartment_ = compartment".to_string());
                 self.outdent();
                 self.newline();
                 self.add_code(&"}".to_string());
@@ -678,12 +678,14 @@ impl GolangVisitor {
 
     fn generate_subclass(&mut self, system_node: &SystemNode) {
         self.newline();
-        self.add_code("/********************");
         self.newline();
-        self.add_code("// Sample Actions Implementation");
+        self.add_code("//********************************************************//");
+        self.newline();
+        self.newline();
+        self.add_code("// Unimplemented Actions");
         self.newline();
 
-        self.add_code(&format!("package {}\n", self.system_name.to_lowercase()));
+//        self.add_code(&format!("package {}\n", self.system_name.to_lowercase()));
         // self.newline();
         // self.add_code(&format!(
         //     "type {}Actions struct{{}}\n",
@@ -691,13 +693,20 @@ impl GolangVisitor {
         // ));
 
         if let Some(actions_block_node) = &system_node.actions_block_node_opt {
-            for action_decl_node_rcref in &actions_block_node.actions {
-                let action_decl_node = action_decl_node_rcref.borrow();
-                action_decl_node.accept(self);
+            // for action_decl_node_rcref in &actions_block_node.actions {
+            //     let action_decl_node = action_decl_node_rcref.borrow();
+            //     action_decl_node.accept(self);
+            // }
+            for action_rcref in &actions_block_node.actions {
+                let action_node = action_rcref.borrow();
+                if action_node.code_opt.is_none() {
+                    action_node.accept_action_decl(self);
+                }
             }
         }
         self.newline();
-        self.add_code("********************/");
+        self.newline();
+        self.add_code("//********************************************************/");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -832,7 +841,7 @@ impl GolangVisitor {
                                         self.newline();
                                         expr_t.accept_to_string(self, &mut expr);
                                         self.add_code(&format!(
-                                            "m._compartment_.AddExitArg(\"{}\", {})",
+                                            "m._compartment_.ExitArgs[\"{}\"] = {}",
                                             p.name, expr
                                         ));
                                     }
@@ -902,7 +911,7 @@ impl GolangVisitor {
                                     expr_t.accept_to_string(self, &mut expr);
                                     self.newline();
                                     self.add_code(&format!(
-                                        "compartment.AddEnterArg(\"{}\",{})",
+                                        "compartment.EnterArgs[\"{}\"] = {}",
                                         p.name, expr
                                     ));
                                 }
@@ -949,7 +958,7 @@ impl GolangVisitor {
                                     expr_t.accept_to_string(self, &mut expr);
                                     self.newline();
                                     self.add_code(&format!(
-                                        "compartment.AddStateArg(\"{}\",{})",
+                                        "compartment.StateArgs[\"{}\"] = {}",
                                         param_symbol.name, expr
                                     ));
                                     self.newline();
@@ -989,7 +998,7 @@ impl GolangVisitor {
                             expr_t.accept_to_string(self, &mut expr_code);
                             self.newline();
                             self.add_code(&format!(
-                                "compartment.AddStateVar(\"{}\",{})",
+                                "compartment.StateVars[\"{}\"] = {}",
                                 var.name, expr_code
                             ));
                             self.newline();
@@ -1547,197 +1556,197 @@ impl GolangVisitor {
         self.outdent();
         self.newline();
         self.add_code(&format!("}}"));
-
-        self.newline();
-        self.newline();
-
-        self.add_code(&format!(
-            "func (c *{}) AddStateArg(name string, value interface{{}}) {{",
-            self.config.code.compartment_type,
-        ));
-        self.indent();
-        self.newline();
-        self.add_code(&format!("c.StateArgs[name] = value"));
-        self.outdent();
-        self.newline();
-        self.add_code(&format!("}}"));
-
-        self.newline();
-        self.newline();
-
-        self.add_code(&format!(
-            "func (c *{}) SetStateArg(name string, value interface{{}}) {{",
-            self.config.code.compartment_type,
-        ));
-        self.indent();
-        self.newline();
-        self.add_code(&format!("c.StateArgs[name] = value"));
-        self.outdent();
-        self.newline();
-        self.add_code(&format!("}}"));
-        self.newline();
-        self.newline();
-
-        self.add_code(&format!(
-            "func (c *{}) GetStateArg(name string) interface{{}} {{",
-            self.config.code.compartment_type,
-        ));
-        self.indent();
-        self.newline();
-        self.add_code(&format!("return c.StateArgs[name]"));
-        self.outdent();
-        self.newline();
-        self.add_code(&format!("}}"));
-
-        // ---
-        self.newline();
-        self.newline();
-
-        self.add_code(&format!(
-            "func (c *{}) AddStateVar(name string, value interface{{}}) {{",
-            self.config.code.compartment_type,
-        ));
-        self.indent();
-        self.newline();
-        self.add_code(&format!("c.StateVars[name] = value"));
-        self.outdent();
-        self.newline();
-        self.add_code(&format!("}}"));
-
-        self.newline();
-        self.newline();
-
-        self.add_code(&format!(
-            "func (c *{}) SetStateVar(name string, value interface{{}}) {{",
-            self.config.code.compartment_type,
-        ));
-        self.indent();
-        self.newline();
-        self.add_code(&format!("c.StateVars[name] = value"));
-        self.outdent();
-        self.newline();
-        self.add_code(&format!("}}"));
-        self.newline();
-        self.newline();
-
-        self.add_code(&format!(
-            "func (c *{}) GetStateVar(name string) interface{{}} {{",
-            self.config.code.compartment_type,
-        ));
-        self.indent();
-        self.newline();
-        self.add_code(&format!("return c.StateVars[name]"));
-        self.outdent();
-        self.newline();
-        self.add_code(&format!("}}"));
-
-        self.newline();
-        self.newline();
-
-        self.add_code(&format!(
-            "func (c *{}) AddEnterArg(name string, value interface{{}}) {{",
-            self.config.code.compartment_type,
-        ));
-        self.indent();
-        self.newline();
-        self.add_code(&format!("c.EnterArgs[name] = value"));
-        self.outdent();
-        self.newline();
-        self.add_code(&format!("}}"));
-
-        self.newline();
-        self.newline();
-
-        self.add_code(&format!(
-            "func (c *{}) SetEnterArg(name string, value interface{{}}) {{",
-            self.config.code.compartment_type,
-        ));
-        self.indent();
-        self.newline();
-        self.add_code(&format!("c.EnterArgs[name] = value"));
-        self.outdent();
-        self.newline();
-        self.add_code(&format!("}}"));
-        self.newline();
-        self.newline();
-
-        self.add_code(&format!(
-            "func (c *{}) GetEnterArg(name string) interface{{}} {{",
-            self.config.code.compartment_type,
-        ));
-        self.indent();
-        self.newline();
-        self.add_code(&format!("return c.EnterArgs[name]"));
-        self.outdent();
-        self.newline();
-        self.add_code(&format!("}}"));
-
-        self.newline();
-        self.newline();
-        self.add_code(&format!(
-            "func (c *{}) GetEnterArgs() map[string]interface{{}} {{",
-            self.config.code.compartment_type,
-        ));
-        self.indent();
-        self.newline();
-        self.add_code(&format!("return c.EnterArgs"));
-        self.outdent();
-        self.newline();
-        self.add_code(&format!("}}"));
-
-        self.newline();
-        self.newline();
-
-        self.add_code(&format!(
-            "func (c *{}) AddExitArg(name string, value interface{{}}) {{",
-            self.config.code.compartment_type,
-        ));
-        self.indent();
-        self.newline();
-        self.add_code(&format!("c.ExitArgs[name] = value"));
-        self.outdent();
-        self.newline();
-        self.add_code(&format!("}}"));
-
-        self.newline();
-        self.newline();
-
-        self.add_code(&format!(
-            "func (c *{}) SetExitArg(name string, value interface{{}}) {{",
-            self.config.code.compartment_type,
-        ));
-        self.indent();
-        self.newline();
-        self.add_code(&format!("c.ExitArgs[name] = value"));
-        self.outdent();
-        self.newline();
-        self.add_code(&format!("}}"));
-        self.newline();
-        self.newline();
-
-        self.add_code(&format!(
-            "func (c *{}) GetExitArg(name string) interface{{}} {{",
-            self.config.code.compartment_type,
-        ));
-        self.indent();
-        self.newline();
-        self.add_code(&format!("return c.ExitArgs[name]"));
-        self.outdent();
-        self.newline();
-        self.add_code(&format!("}}"));
-
-        self.newline();
-        self.newline();
-        self.add_code(&format!(
-            "func (c *{}) GetExitArgs() map[string]interface{{}} {{",
-            self.config.code.compartment_type,
-        ));
-        self.indent();
-        self.newline();
-        self.add_code(&format!("return c.ExitArgs"));
-        self.outdent();
-        self.newline();
-        self.add_code(&format!("}}"));
+        //
+        // self.newline();
+        // self.newline();
+        //
+        // self.add_code(&format!(
+        //     "func (c *{}) AddStateArg(name string, value interface{{}}) {{",
+        //     self.config.code.compartment_type,
+        // ));
+        // self.indent();
+        // self.newline();
+        // self.add_code(&format!("c.StateArgs[name] = value"));
+        // self.outdent();
+        // self.newline();
+        // self.add_code(&format!("}}"));
+        //
+        // self.newline();
+        // self.newline();
+        //
+        // self.add_code(&format!(
+        //     "func (c *{}) SetStateArg(name string, value interface{{}}) {{",
+        //     self.config.code.compartment_type,
+        // ));
+        // self.indent();
+        // self.newline();
+        // self.add_code(&format!("c.StateArgs[name] = value"));
+        // self.outdent();
+        // self.newline();
+        // self.add_code(&format!("}}"));
+        // self.newline();
+        // self.newline();
+        //
+        // self.add_code(&format!(
+        //     "func (c *{}) GetStateArg(name string) interface{{}} {{",
+        //     self.config.code.compartment_type,
+        // ));
+        // self.indent();
+        // self.newline();
+        // self.add_code(&format!("return c.StateArgs[name]"));
+        // self.outdent();
+        // self.newline();
+        // self.add_code(&format!("}}"));
+        //
+        // // ---
+        // self.newline();
+        // self.newline();
+        //
+        // self.add_code(&format!(
+        //     "func (c *{}) AddStateVar(name string, value interface{{}}) {{",
+        //     self.config.code.compartment_type,
+        // ));
+        // self.indent();
+        // self.newline();
+        // self.add_code(&format!("c.StateVars[name] = value"));
+        // self.outdent();
+        // self.newline();
+        // self.add_code(&format!("}}"));
+        //
+        // self.newline();
+        // self.newline();
+        //
+        // self.add_code(&format!(
+        //     "func (c *{}) SetStateVar(name string, value interface{{}}) {{",
+        //     self.config.code.compartment_type,
+        // ));
+        // self.indent();
+        // self.newline();
+        // self.add_code(&format!("c.StateVars[name] = value"));
+        // self.outdent();
+        // self.newline();
+        // self.add_code(&format!("}}"));
+        // self.newline();
+        // self.newline();
+        //
+        // self.add_code(&format!(
+        //     "func (c *{}) GetStateVar(name string) interface{{}} {{",
+        //     self.config.code.compartment_type,
+        // ));
+        // self.indent();
+        // self.newline();
+        // self.add_code(&format!("return c.StateVars[name]"));
+        // self.outdent();
+        // self.newline();
+        // self.add_code(&format!("}}"));
+        //
+        // self.newline();
+        // self.newline();
+        //
+        // self.add_code(&format!(
+        //     "func (c *{}) AddEnterArg(name string, value interface{{}}) {{",
+        //     self.config.code.compartment_type,
+        // ));
+        // self.indent();
+        // self.newline();
+        // self.add_code(&format!("c.EnterArgs[name] = value"));
+        // self.outdent();
+        // self.newline();
+        // self.add_code(&format!("}}"));
+        //
+        // self.newline();
+        // self.newline();
+        //
+        // self.add_code(&format!(
+        //     "func (c *{}) SetEnterArg(name string, value interface{{}}) {{",
+        //     self.config.code.compartment_type,
+        // ));
+        // self.indent();
+        // self.newline();
+        // self.add_code(&format!("c.EnterArgs[name] = value"));
+        // self.outdent();
+        // self.newline();
+        // self.add_code(&format!("}}"));
+        // self.newline();
+        // self.newline();
+        //
+        // self.add_code(&format!(
+        //     "func (c *{}) GetEnterArg(name string) interface{{}} {{",
+        //     self.config.code.compartment_type,
+        // ));
+        // self.indent();
+        // self.newline();
+        // self.add_code(&format!("return c.EnterArgs[name]"));
+        // self.outdent();
+        // self.newline();
+        // self.add_code(&format!("}}"));
+        //
+        // self.newline();
+        // self.newline();
+        // self.add_code(&format!(
+        //     "func (c *{}) GetEnterArgs() map[string]interface{{}} {{",
+        //     self.config.code.compartment_type,
+        // ));
+        // self.indent();
+        // self.newline();
+        // self.add_code(&format!("return c.EnterArgs"));
+        // self.outdent();
+        // self.newline();
+        // self.add_code(&format!("}}"));
+        //
+        // self.newline();
+        // self.newline();
+        //
+        // self.add_code(&format!(
+        //     "func (c *{}) AddExitArg(name string, value interface{{}}) {{",
+        //     self.config.code.compartment_type,
+        // ));
+        // self.indent();
+        // self.newline();
+        // self.add_code(&format!("c.ExitArgs[name] = value"));
+        // self.outdent();
+        // self.newline();
+        // self.add_code(&format!("}}"));
+        //
+        // self.newline();
+        // self.newline();
+        //
+        // self.add_code(&format!(
+        //     "func (c *{}) SetExitArg(name string, value interface{{}}) {{",
+        //     self.config.code.compartment_type,
+        // ));
+        // self.indent();
+        // self.newline();
+        // self.add_code(&format!("c.ExitArgs[name] = value"));
+        // self.outdent();
+        // self.newline();
+        // self.add_code(&format!("}}"));
+        // self.newline();
+        // self.newline();
+        //
+        // self.add_code(&format!(
+        //     "func (c *{}) GetExitArg(name string) interface{{}} {{",
+        //     self.config.code.compartment_type,
+        // ));
+        // self.indent();
+        // self.newline();
+        // self.add_code(&format!("return c.ExitArgs[name]"));
+        // self.outdent();
+        // self.newline();
+        // self.add_code(&format!("}}"));
+        //
+        // self.newline();
+        // self.newline();
+        // self.add_code(&format!(
+        //     "func (c *{}) GetExitArgs() map[string]interface{{}} {{",
+        //     self.config.code.compartment_type,
+        // ));
+        // self.indent();
+        // self.newline();
+        // self.add_code(&format!("return c.ExitArgs"));
+        // self.outdent();
+        // self.newline();
+        // self.add_code(&format!("}}"));
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1780,6 +1789,30 @@ impl AstVisitor for GolangVisitor {
         } else {
             String::new()
         };
+
+        let mut domain_vec: Vec<(String, String)> = Vec::new();
+        if let Some(domain_block_node) = &system_node.domain_block_node_opt {
+            for var_rcref in &domain_block_node.member_variables {
+                let var_name = var_rcref.borrow().name.clone();
+                let var_type = match &var_rcref.borrow().type_opt {
+                    Some(x) => x.get_type_str(),
+                    None => String::from("<?>"), // TODO this should generate an error instead
+                };
+                self.newline();
+                self.add_code(&format!("{} {}", var_name, var_type));
+                // get init expression and cache code
+                let var = var_rcref.borrow();
+                let var_init_expr = var.initializer_expr_t_opt.as_ref().unwrap();
+                let mut init_expression = String::new();
+                var_init_expr.accept_to_string(self, &mut init_expression);
+                // push for later initialization
+                domain_vec.push((var_name.clone(), init_expression))
+            }
+        }
+
+        // generate New factory
+        self.generate_new_fn(&domain_vec, &system_node);
+
         self.newline();
         self.newline();
         self.add_code(&format!("type {} uint", state_prefix));
@@ -1930,25 +1963,7 @@ impl AstVisitor for GolangVisitor {
         //     ));
         // }
 
-        let mut domain_vec: Vec<(String, String)> = Vec::new();
-        if let Some(domain_block_node) = &system_node.domain_block_node_opt {
-            for var_rcref in &domain_block_node.member_variables {
-                let var_name = var_rcref.borrow().name.clone();
-                let var_type = match &var_rcref.borrow().type_opt {
-                    Some(x) => x.get_type_str(),
-                    None => String::from("<?>"), // TODO this should generate an error instead
-                };
-                self.newline();
-                self.add_code(&format!("{} {}", var_name, var_type));
-                // get init expression and cache code
-                let var = var_rcref.borrow();
-                let var_init_expr = var.initializer_expr_t_opt.as_ref().unwrap();
-                let mut init_expression = String::new();
-                var_init_expr.accept_to_string(self, &mut init_expression);
-                // push for later initialization
-                domain_vec.push((var_name.clone(), init_expression))
-            }
-        }
+
 
         self.outdent();
         self.newline();
@@ -1969,7 +1984,7 @@ impl AstVisitor for GolangVisitor {
             //     self.config.code.state_type,
             // ));
 
-            self.add_code(&format!("{}", self.config.code.compartment_type,));
+            self.add_code(&format!("{}", self.config.code.compartment_type, ));
             if let Some(domain_block_node) = &system_node.domain_block_node_opt {
                 for var_rcref in &domain_block_node.member_variables {
                     let var_name = var_rcref.borrow().name.clone();
@@ -1995,9 +2010,6 @@ impl AstVisitor for GolangVisitor {
             self.newline();
             self.add_code(&format!("}}"));
         }
-
-        // generate New factory
-        self.generate_new_fn(&domain_vec, &system_node);
 
         if self.config.code.marshal {
             if self.config.code.managed {
@@ -2056,7 +2068,7 @@ impl AstVisitor for GolangVisitor {
             self.add_code("   nextCompartment._forwardEvent_.Msg == \">\" {");
             self.indent();
             self.newline();
-            self.add_code("m._mux_(&framelang.FrameEvent{Msg: \"<\", Params: m._compartment_.GetExitArgs(), Ret: nil})");
+            self.add_code("m._mux_(&framelang.FrameEvent{Msg: \"<\", Params: m._compartment_.ExitArgs, Ret: nil})");
             self.newline();
             self.add_code("m._compartment_ = nextCompartment");
             self.newline();
@@ -2105,7 +2117,19 @@ impl AstVisitor for GolangVisitor {
         // self.add_code("}");
         // self.newline();
 
-        if let Some(_actions_block_node) = &system_node.actions_block_node_opt {
+        if let Some(actions_block_node) = &system_node.actions_block_node_opt {
+
+            self.newline();
+            self.add_code("//===================== Actions Block ===================//");
+            self.newline();
+
+            for action_rcref in &actions_block_node.actions {
+                let action_node = action_rcref.borrow();
+                if action_node.code_opt.is_some() {
+                    action_node.accept_action_impl(self);
+                }
+            }
+
             self.generate_subclass(system_node);
         }
 
@@ -3353,7 +3377,7 @@ impl AstVisitor for GolangVisitor {
                 param_tok,
                 is_reference: _is_reference,
             } => {
-                output.push_str(&format!("e.Params[\"{}\"]", param_tok.lexeme,));
+                output.push_str(&format!("e.Params[\"{}\"]", param_tok.lexeme, ));
                 if self.expr_context == Rvalue || self.expr_context == ExprContext::None {
                     output.push_str(&format!(".({})", &self.current_var_type));
                 }
@@ -3400,9 +3424,40 @@ impl AstVisitor for GolangVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_impl_node(&mut self, _action_decl_node: &ActionNode) {
-        panic!("visit_action_impl_node() not implemented.");
+    fn visit_action_impl_node(&mut self, action_node: &ActionNode) {
+        let mut subclass_code = String::new();
+
+        self.newline();
+        self.newline();
+        let action_ret_type: String = match &action_node.type_opt {
+            Some(ret_type) => ret_type.get_type_str(),
+            None => String::from(""),
+        };
+
+        let action_name = self.format_action_name(&action_node.name);
+        self.add_code(&format!(
+            "func (m *{}Struct) {}(",
+            self.first_letter_to_lower_case(&self.system_name),
+            action_name
+        ));
+
+        match &action_node.params {
+            Some(params) => {
+                self.format_actions_parameter_list(params, &mut subclass_code);
+            }
+            None => {}
+        }
+
+
+        self.add_code(&format!(") {} {{", action_ret_type));
+        self.indent();
+        self.newline();
+        self.add_code(&format!("{}", &action_node.code_opt.as_ref().unwrap().as_str()));
+        self.outdent();
+        self.newline();
+        self.add_code("}");
     }
+
 
     //* --------------------------------------------------------------------- *//
 
