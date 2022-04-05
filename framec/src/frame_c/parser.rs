@@ -372,6 +372,7 @@ impl<'a> Parser<'a> {
                 None,
                 None,
                 None,
+                None,
                 0,
             );
         }
@@ -432,15 +433,17 @@ impl<'a> Parser<'a> {
         }
 
         // Parse optional system params.
-        // #SystemName $[start_state_param:T] >[start_state_enter_param:X]
+        // #SystemName $[start_state_param:T] >[start_state_enter_param:X] #[domain_params:Y]
 
         let mut start_state_state_params_opt: Option<Vec<ParameterNode>> = Option::None;
 
         if self.match_token(&[TokenType::State]) {
-            if self.consume(TokenType::LBracket, "Expected '$'")
+            if self.consume(TokenType::LBracket, "Expected '['")
                 .is_err()
             {
-                let sync_tokens = &vec![TokenType::GT,
+                let sync_tokens = &vec![
+                                        TokenType::GT,
+                                        TokenType::System,
                                         TokenType::InterfaceBlock,
                                         TokenType::ActionsBlock,
                                         TokenType::MachineBlock,
@@ -459,10 +462,11 @@ impl<'a> Parser<'a> {
         let mut start_state_enter_params_opt: Option<Vec<ParameterNode>> = Option::None;
 
         if self.match_token(&[TokenType::GT]) {
-            if self.consume(TokenType::LBracket, "Expected '>'")
+            if self.consume(TokenType::LBracket, "Expected '['")
                 .is_err()
             {
                 let sync_tokens = &vec![
+                                        TokenType::System,
                                         TokenType::InterfaceBlock,
                                         TokenType::ActionsBlock,
                                         TokenType::MachineBlock,
@@ -473,6 +477,16 @@ impl<'a> Parser<'a> {
             }
             match self.parameters() {
                 Ok(Some(parameters)) => start_state_enter_params_opt = Some(parameters),
+                Ok(None) => {}
+                Err(_) => {}
+            }
+        }
+
+        let mut domain_params_opt: Option<Vec<ParameterNode>> = Option::None;
+
+        if self.match_token(&[TokenType::LBracket]) {
+            match self.parameters() {
+                Ok(Some(parameters)) => domain_params_opt = Some(parameters),
                 Ok(None) => {}
                 Err(_) => {}
             }
@@ -521,6 +535,7 @@ impl<'a> Parser<'a> {
             attributes_opt,
             start_state_state_params_opt,
             start_state_enter_params_opt,
+            domain_params_opt,
             interface_block_node_opt,
             machine_block_node_opt,
             actions_block_node_opt,

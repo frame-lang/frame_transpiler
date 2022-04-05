@@ -679,7 +679,7 @@ impl GolangVisitor {
     fn generate_subclass(&mut self, system_node: &SystemNode) {
         self.newline();
         self.newline();
-        self.add_code("//********************************************************//");
+        self.add_code("/********************************************************");
         self.newline();
         self.newline();
         self.add_code("// Unimplemented Actions");
@@ -706,7 +706,7 @@ impl GolangVisitor {
         }
         self.newline();
         self.newline();
-        self.add_code("//********************************************************/");
+        self.add_code("********************************************************/");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1179,6 +1179,22 @@ impl GolangVisitor {
             }
             None => {},
         };
+        match &system_node.domain_params_opt {
+            Some(param_list) => {
+                for param_node in param_list {
+                    let param_type = match &param_node.param_type_opt {
+                        Some(type_node) => type_node.get_type_str(),
+                        None => String::new(),
+                    };
+                    new_params.push_str(&format!(
+                        "{}{} {}",
+                        separator, param_node.param_name, &*param_type
+                    ));
+                    separator = String::from(",");
+                }
+            }
+            None => {},
+        };
         if self.config.code.managed {
             self.add_code(&format!(
                 "func New{}(mom {} {}) {} {{",
@@ -1279,8 +1295,25 @@ impl GolangVisitor {
         self.add_code("// Initialize domain");
 
         for x in domain_vec {
+            let domain_var_name = x.0.clone();
+            let mut domain_var_initializer = x.1.clone();
             self.newline();
-            self.add_code(&format!("m.{} = {}", x.0, x.1))
+            match &system_node.domain_params_opt {
+                Some(param_nodes) => {
+                    for param_node in param_nodes {
+                        if param_node.param_name == domain_var_name {
+                            // found domain var name in domain param list
+                            // init to param rather than default initial value
+                            domain_var_initializer = param_node.param_name.clone();
+                            break;
+                        }
+                    }
+                    self.add_code(&format!("m.{} = {}", domain_var_name, domain_var_initializer))
+                }
+                None => {
+                    self.add_code(&format!("m.{} = {}", domain_var_name, domain_var_initializer))
+                }
+            }
         }
         self.newline();
         self.newline();
@@ -1792,21 +1825,19 @@ impl AstVisitor for GolangVisitor {
 
         let mut domain_vec: Vec<(String, String)> = Vec::new();
         if let Some(domain_block_node) = &system_node.domain_block_node_opt {
+            // get init expression and cache code
             for var_rcref in &domain_block_node.member_variables {
                 let var_name = var_rcref.borrow().name.clone();
                 let var_type = match &var_rcref.borrow().type_opt {
                     Some(x) => x.get_type_str(),
                     None => String::from("<?>"), // TODO this should generate an error instead
                 };
-                self.newline();
-                self.add_code(&format!("{} {}", var_name, var_type));
-                // get init expression and cache code
                 let var = var_rcref.borrow();
                 let var_init_expr = var.initializer_expr_t_opt.as_ref().unwrap();
                 let mut init_expression = String::new();
                 var_init_expr.accept_to_string(self, &mut init_expression);
                 // push for later initialization
-                domain_vec.push((var_name.clone(), init_expression))
+                domain_vec.push((var_name.clone(), init_expression));
             }
         }
 
@@ -1956,14 +1987,19 @@ impl AstVisitor for GolangVisitor {
             self.newline();
             self.add_code(&"_stateStack_ *Stack".to_string());
         }
-        // if self.generate_state_context {
-        //     self.newline();
-        //     self.add_code(&format!("_compartment_ *{}",
-        //         self.config.code.compartment_type
-        //     ));
-        // }
 
-
+        // declare member variables
+        if let Some(domain_block_node) = &system_node.domain_block_node_opt {
+            for var_rcref in &domain_block_node.member_variables {
+                let var_name = var_rcref.borrow().name.clone();
+                let var_type = match &var_rcref.borrow().type_opt {
+                    Some(x) => x.get_type_str(),
+                    None => String::from("<?>"), // TODO this should generate an error instead
+                };
+                self.newline();
+                self.add_code(&format!("{} {}", var_name, var_type));
+            }
+        }
 
         self.outdent();
         self.newline();
