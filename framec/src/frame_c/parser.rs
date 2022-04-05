@@ -438,17 +438,15 @@ impl<'a> Parser<'a> {
         let mut start_state_state_params_opt: Option<Vec<ParameterNode>> = Option::None;
 
         if self.match_token(&[TokenType::State]) {
-            if self.consume(TokenType::LBracket, "Expected '['")
-                .is_err()
-            {
+            if self.consume(TokenType::LBracket, "Expected '['").is_err() {
                 let sync_tokens = &vec![
-                                        TokenType::GT,
-                                        TokenType::System,
-                                        TokenType::InterfaceBlock,
-                                        TokenType::ActionsBlock,
-                                        TokenType::MachineBlock,
-                                        TokenType::DomainBlock,
-                                        TokenType::SystemEnd,
+                    TokenType::GT,
+                    TokenType::System,
+                    TokenType::InterfaceBlock,
+                    TokenType::ActionsBlock,
+                    TokenType::MachineBlock,
+                    TokenType::DomainBlock,
+                    TokenType::SystemEnd,
                 ];
                 self.synchronize(sync_tokens);
             }
@@ -462,16 +460,14 @@ impl<'a> Parser<'a> {
         let mut start_state_enter_params_opt: Option<Vec<ParameterNode>> = Option::None;
 
         if self.match_token(&[TokenType::GT]) {
-            if self.consume(TokenType::LBracket, "Expected '['")
-                .is_err()
-            {
+            if self.consume(TokenType::LBracket, "Expected '['").is_err() {
                 let sync_tokens = &vec![
-                                        TokenType::System,
-                                        TokenType::InterfaceBlock,
-                                        TokenType::ActionsBlock,
-                                        TokenType::MachineBlock,
-                                        TokenType::DomainBlock,
-                                        TokenType::SystemEnd,
+                    TokenType::System,
+                    TokenType::InterfaceBlock,
+                    TokenType::ActionsBlock,
+                    TokenType::MachineBlock,
+                    TokenType::DomainBlock,
+                    TokenType::SystemEnd,
                 ];
                 self.synchronize(sync_tokens);
             }

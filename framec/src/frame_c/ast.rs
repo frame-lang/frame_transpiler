@@ -36,13 +36,13 @@ pub trait NodeElement {
     // fn accept_frame_message_enum(&self,  ast_visitor:&mut dyn AstVisitor) {
     //     // no_op
     // }
-    fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
+    fn accept_to_string(&self, _ast_visitor: &mut dyn AstVisitor, _output: &mut String) {
         // no_op
     }
-    fn accept_action_decl(&self, ast_visitor: &mut dyn AstVisitor) {
+    fn accept_action_decl(&self, _ast_visitor: &mut dyn AstVisitor) {
         // no_op
     }
-    fn accept_action_impl(&self, ast_visitor: &mut dyn AstVisitor) {
+    fn accept_action_impl(&self, _ast_visitor: &mut dyn AstVisitor) {
         // no_op
     }
 }
@@ -1067,7 +1067,6 @@ impl NodeElement for AssignmentExprNode {
     fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
         ast_visitor.visit_assignment_expr_node_to_string(self, output);
     }
-
 }
 
 //-----------------------------------------------------//
