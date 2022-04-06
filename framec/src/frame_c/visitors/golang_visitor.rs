@@ -168,7 +168,7 @@ impl GolangVisitor {
 
     fn format_state_name(&self, state_name: &str) -> String {
         format!("{}_{}", self.config.code.state_type, state_name)
-     }
+    }
 
     //* --------------------------------------------------------------------- *//
 
@@ -642,7 +642,6 @@ impl GolangVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn generate_state_ref_transition(&mut self, transition_statement: &TransitionStatementNode) {
-
         let target_state_name = match &transition_statement.target_state_context_t {
             StateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_node.name
@@ -665,7 +664,6 @@ impl GolangVisitor {
 
         if let Some(exit_args) = &transition_statement.exit_args_opt {
             if !exit_args.exprs_t.is_empty() {
-
                 let mut msg: String = String::new();
                 if let Some(state_name) = &self.current_state_name_opt {
                     msg = state_name.clone();
@@ -1314,16 +1312,16 @@ impl GolangVisitor {
         self.newline();
         self.add_code("StateArgs map[string]interface{}");
         self.newline();
-        self.add_code(&format!("StateVars map[string]interface{{}}"));
+        self.add_code("StateVars map[string]interface{}");
         self.newline();
-        self.add_code(&format!("EnterArgs map[string]interface{{}}"));
+        self.add_code("EnterArgs map[string]interface{}");
         self.newline();
-        self.add_code(&format!("ExitArgs map[string]interface{{}}"));
+        self.add_code("ExitArgs map[string]interface{}");
         self.newline();
-        self.add_code(&format!("_forwardEvent_ *framelang.FrameEvent"));
+        self.add_code("_forwardEvent_ *framelang.FrameEvent");
         self.outdent();
         self.newline();
-        self.add_code(&format!("}}"));
+        self.add_code("}");
         self.newline();
         self.newline();
         self.add_code(&format!(
@@ -1339,19 +1337,19 @@ impl GolangVisitor {
             self.config.code.compartment_type,
         ));
         self.newline();
-        self.add_code(&format!("c.StateArgs = make(map[string]interface{{}})"));
+        self.add_code("c.StateArgs = make(map[string]interface{})");
         self.newline();
-        self.add_code(&format!("c.StateVars = make(map[string]interface{{}})"));
+        self.add_code("c.StateVars = make(map[string]interface{})");
         self.newline();
-        self.add_code(&format!("c.EnterArgs = make(map[string]interface{{}})"));
+        self.add_code("c.EnterArgs = make(map[string]interface{})");
         self.newline();
-        self.add_code(&format!("c.ExitArgs = make(map[string]interface{{}})"));
+        self.add_code("c.ExitArgs = make(map[string]interface{})");
 
         self.newline();
-        self.add_code(&format!("return c"));
+        self.add_code("return c");
         self.outdent();
         self.newline();
-        self.add_code(&format!("}}"));
+        self.add_code("}");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1383,7 +1381,7 @@ impl AstVisitor for GolangVisitor {
         self.newline();
         self.add_code(&system_node.header);
 
-        let state_prefix = if self.config.code.state_type != "" {
+        let state_prefix = if !self.config.code.state_type.is_empty() {
             self.config.code.state_type.clone()
         } else {
             String::new()
@@ -1404,7 +1402,7 @@ impl AstVisitor for GolangVisitor {
         }
 
         // generate New factory
-        self.generate_new_fn(&domain_vec, &system_node);
+        self.generate_new_fn(&domain_vec, system_node);
 
         self.newline();
         self.newline();
@@ -1424,6 +1422,7 @@ impl AstVisitor for GolangVisitor {
                     "{}",
                     &self.format_state_name(&state_node_rcref.borrow().name)
                 ));
+                // self.format_state_name(&state_node_rcref.borrow().name);
                 if current == 0 {
                     self.add_code(&format!(" {} = iota", state_prefix));
                 }
@@ -1582,7 +1581,7 @@ impl AstVisitor for GolangVisitor {
             //     self.config.code.state_type,
             // ));
 
-            self.add_code(&format!("{}", self.config.code.compartment_type,));
+            self.add_code(&self.config.code.compartment_type.clone());
             if let Some(domain_block_node) = &system_node.domain_block_node_opt {
                 for var_rcref in &domain_block_node.member_variables {
                     let var_name = var_rcref.borrow().name.clone();
@@ -1606,17 +1605,17 @@ impl AstVisitor for GolangVisitor {
             }
             self.outdent();
             self.newline();
-            self.add_code(&format!("}}"));
+            self.add_code("}");
         }
 
         if self.config.code.marshal {
             if self.config.code.managed {
                 // generate Load() factory
-                self.format_load_fn(&domain_vec, &system_node);
+                self.format_load_fn(&domain_vec, system_node);
             }
             // generate MarshalJSON() factory
             self.generate_marshal_json_fn(&domain_vec);
-            self.generate_marshal_fn(&system_node);
+            self.generate_marshal_fn(system_node);
         }
 
         // end of generate constructor
@@ -1703,7 +1702,7 @@ impl AstVisitor for GolangVisitor {
         }
 
         if self.has_states {
-            self.generate_machinery(&system_node);
+            self.generate_machinery(system_node);
         }
 
         // TODO: add comments back
@@ -1849,9 +1848,9 @@ impl AstVisitor for GolangVisitor {
             method_name_or_alias,
         ));
         if interface_method_node.params.is_some() {
-            self.add_code(&format!(", Params:params"));
+            self.add_code(", Params:params");
         }
-        self.add_code(&format!("}}"));
+        self.add_code("}");
         self.newline();
         self.add_code(&"m._mux_(&e)".to_string());
 
@@ -3034,10 +3033,7 @@ impl AstVisitor for GolangVisitor {
         self.add_code(&format!(") {} {{", action_ret_type));
         self.indent();
         self.newline();
-        self.add_code(&format!(
-            "{}",
-            &action_node.code_opt.as_ref().unwrap().as_str()
-        ));
+        self.add_code(action_node.code_opt.as_ref().unwrap().as_str());
         self.outdent();
         self.newline();
         self.add_code("}");
