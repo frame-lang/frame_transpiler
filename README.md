@@ -40,10 +40,7 @@ of the `.frm` file that was used to generate the state machine.
 ### Frame v0.7.4
 
 Frame now supports golang!
-<<<<<<< HEAD
-=======
 
->>>>>>> main
 
 ## Resources
 
