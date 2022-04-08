@@ -1,8 +1,8 @@
 
-# Frame Language Transpiler v0.8.0
+# Frame Language Transpiler v0.9.0
 
 
-Hi! So very glad you are interested in Frame. Frame system design markdown language for software architects and engineers. It is an easy to learn textual language for defining system specifications that can generate both UML documentation as well as code in 8 langauges:
+Frame is a language for designing systems. It is easy to learn and can generate both UML documentation as well as code in 8 programming languages:
 
 * C++
 * C#
@@ -23,28 +23,33 @@ This project contains the code for building the Frame Language Transpiler - the 
 
 For details, see the [Release Notes](https://github.com/frame-lang/frame_transpiler/releases).
 
-### Frame v0.8.0
+### Frame v0.9.0
 
+Frame v0.9.0 brings a lot of exciting additions to the Frame language, adding both power and standardization to the notation. In addition, the transpiler now can read from stdin as well as still accepting file paths as in the past. This enables improved CI/CD processes involving Frame.
+
+#### New Language Features
+
+Note: The new language features are currently only supported in Golang. Other languages will be supported in coming releases.
+
+* **Compartments** - v0.9 formalizes the idea of **state closures** called *Compartments*. Compartments are data structures that hold a state's local data as well as other metadata enabling new advanced features like *Event Forwarding* (see below).
+* **Deferred transitions** - deferred transitions address challenges with the previous approach of executing a transition immediately when called. Each immediate transition makes a function call and under certain situations, can blow up the stack if too many occur before returning to the caller. Deferred transitions avoid this situation and enable Frame controllers to make any number of sequential transitions. This architecture change enables Frame controllers to be launched as background daemons that run indefinitely until stopped as well as to be used to solve iterative problems.
+* **System parameters** - system parameters enable initializing the system in a more standardized, flexible and direct manner. This includes syntax for setting the start state parameters, the start state's enter parameters as well as override domain variable initialization. This change normalizes the start state to behave like all other states in the machine.
+* **Event forwarding** - event forwarding syntax enables passing events from one state to another. This capability enables system designers to easily receive events in one state and forward them on to other states that can handle them appropriately.
+* **Persistance** - A new system attribute enables code generation for Marshaling and Unmarshaling system data as JSON.
+
+#### Stdin support
 The CLI has been updated to support stdin:
 
-`framec -language rust < HelloWorld.frm`
+`framec -language rust < HelloWorld.frm > HelloWorld.rs`
 
-A new `frame_build` crate has been added to ease the integration of Frame with
-Rust projects. See the crate-level documentation for more!
+or
 
-### Frame v0.7.5
-
-The runtime system for the Rust backend now provides the path to and a checksum
-of the `.frm` file that was used to generate the state machine.
-
-### Frame v0.7.4
-
-Frame now supports golang!
+`cat HellowWorld.frm | framec -language golang > HellowWorld.go`
 
 
 ## Resources
 
-The Frame project is just getting started but there are some resources and communities to help. You can now download [VSCode](https://marketplace.visualstudio.com/items?itemName=frame-lang-org.frame-machine-maker) and [Atom](https://atom.io/packages/frame-machine-maker) extensions to work with Frame in these popular free development applications.
+The Frame project is still early days but there are some resources and communities to help. You can now download [VSCode](https://marketplace.visualstudio.com/items?itemName=frame-lang-org.frame-machine-maker) and [Atom](https://atom.io/packages/frame-machine-maker) extensions to work with Frame in these popular free development applications.
 
 An [online version of the Framepiler](https://framepiler.frame-lang.org) is also available and provides examples and links to other resources. You can learn more about the Frame language at [frame-lang.org](https://frame-lang.org) as well as find general resources about programming with automata at Reddit ![re](https://www.google.com/s2/favicons?domain_url=https://reddit.com) on the [r/statemachines](https://www.reddit.com/r/statemachines/) subreddit.
 
