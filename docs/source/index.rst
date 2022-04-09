@@ -1,11 +1,11 @@
 
-Frame v0.7.0 Documentation
+Frame v0.9.0 Documentation
 =======================================================
-Welcome! Here you will find the official v0.7.0 documentation for the **Frame Software Architecture Language**.
+Welcome! Here you will find the official v0.9.0 documentation for the **Frame System Design Language**.
 
 What is Frame?
 --------------
-Frame is an easy to learn textual markdown language for defining system specifications that can generate both UML documentation as well as code in 7 langauges.
+Frame is an easy to learn language for defining system specifications that can generate both UML documentation as well as code in 8 langauges.
 
 Frame is a simple yet powerful textual language for defining the dynamic behavior of systems, enabling software architicts and developers to quickly design - and code - state machines that comply with core UML statechart concepts.
 
