@@ -17,8 +17,8 @@ make the most of your time learning it.
     :maxdepth: 1
     :name: toc-getting-started-introduction
 
-   system
-   machine_block
-   actions_block
-   domain_block
-   interface_block
+    system
+    machine_block
+    actions_block
+    domain_block
+    interface_block
