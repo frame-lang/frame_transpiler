@@ -4,9 +4,10 @@ Welcome! Here you will find the official v0.9.0 documentation for the **Frame Sy
 
 What is Frame?
 --------------
-Frame is an easy to learn language for writing specifications for system behavior. From a Frame specification, the `Link Frame transpiler <https://github.com/frame-lang/frame_transpiler>` can generate both UML documentation as well as code in 8 langauges.
+At the highest level, Frame is language for defining the behavior of systems in Frame specification docs, or specs. In practice, system designers and programmers can define Frame specifications that generate both UML documentation as well as code in (currently) 8 different programming languages, with many more to come.
 
-Frame is a simple yet powerful textual language for defining the dynamic behavior of systems, enabling software architicts and developers to quickly design - and code - state machines that comply with core UML statechart concepts.
+The Frame transpiler is the open source CLI tool that turns Frame specs into UML or code. The transpiler, or Framepiler, is written in Rust and is straightforward to modify to add new target outputs for documentation and source code generation. You can experiment with Frame online `here <https://framepiler.frame-lang.org>`_.
+
 
 A Markdown Language For System Designers
 ----------------------------------------
