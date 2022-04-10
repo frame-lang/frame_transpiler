@@ -106,7 +106,6 @@ The true power of Frame, however, is realized by the ability to generate both do
    about/index
 
 .. toctree::
-   :maxdepth: 1
    :caption: Getting Started
    :name: sec-getting-started
 
@@ -117,4 +116,4 @@ The true power of Frame, however, is realized by the ability to generate both do
      :caption: Language
      :name: sec-language
 
-     language/grammar
+     language/index
