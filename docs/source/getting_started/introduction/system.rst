@@ -4,20 +4,21 @@ Define a System
 
 ``Frame``
 
-.. .. code-block::
+.. code-block::
 
     #MySystem
     ##
 
 ``JavaScript``
 
-.. .. code-block::
+.. code-block::
 
     let MySystem = function () {
 
-    let that = {};
-    that.constructor = MySystem;
+        let that = {};
+        that.constructor = MySystem;
 
 
-    return that;
+        return that;
+        
     };
