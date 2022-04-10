@@ -100,8 +100,21 @@ The true power of Frame, however, is realized by the ability to generate both do
 
 .. toctree::
    :maxdepth: 1
+   :caption: General
+   :name: sec-about
+
+   about/index
+
+.. toctree::
+   :maxdepth: 1
    :caption: Getting Started
    :name: sec-getting-started
 
    getting_started/introduction/index
-   about/index
+
+.. toctree::
+     :maxdepth: 1
+     :caption: Language
+     :name: sec-language
+
+     language/grammar
