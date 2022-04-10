@@ -16,3 +16,7 @@ make the most of your time learning it.
 .. toctree::
 
    system
+   machine_block
+   actions_block
+   domain_block
+   interface_block
