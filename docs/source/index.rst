@@ -99,7 +99,6 @@ The true power of Frame, however, is realized by the ability to generate both do
     }
 
 .. toctree::
-   :maxdepth: 1
    :caption: General
    :name: sec-general
 

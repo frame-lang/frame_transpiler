@@ -12,3 +12,7 @@ In the following pages, you will get answers to questions such as "Is Frame for
 me?" or "What can I do with Frame?". We will then introduce the language's most
 essential concepts, run you through the language's syntax, and give you tips to
 make the most of your time learning it.
+
+.. toctree::
+
+   system
