@@ -14,6 +14,8 @@ essential concepts, run you through the language's syntax, and give you tips to
 make the most of your time learning it.
 
 .. toctree::
+    :maxdepth: 1
+    :name: toc-getting-started-introduction
 
    system
    machine_block
