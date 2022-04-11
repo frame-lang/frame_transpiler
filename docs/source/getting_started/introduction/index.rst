@@ -16,8 +16,9 @@ make the most of your time learning it.
 .. toctree::
     :name: toc-getting-started-introduction
 
+    basics
     system
-    machine_block
-    actions_block
     domain_block
+    actions_block
+    machine_block
     interface_block

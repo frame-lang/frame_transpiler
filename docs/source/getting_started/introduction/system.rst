@@ -45,7 +45,8 @@ JavaScript version of the same spec:
 
     };
 
-### Blocks
+Blocks
+======
 
 Frame specs are organized internally into four *blocks* that are all optional,
 as we just saw, but if present must be implemented in a specified order.
