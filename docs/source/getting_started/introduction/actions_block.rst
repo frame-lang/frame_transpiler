@@ -6,8 +6,7 @@ Declaring Actions
 -----------------
 
 Actions are declared in the -actions- block and observe all of the method
-declaration syntax discussed above. However actions do not support the alias
-notation:
+declaration syntax discussed in the `Methods`_ section:
 
 .. code-block:: Frame
 
