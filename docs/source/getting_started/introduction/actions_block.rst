@@ -6,7 +6,7 @@ Declaring Actions
 -----------------
 
 Actions are declared in the -actions- block and observe all of the method
-declaration syntax discussed in the  :ref:`methods` section:
+declaration syntax discussed in the xxx :ref:`methods` section:
 
 .. code-block:: Frame
 
