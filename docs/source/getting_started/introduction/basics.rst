@@ -66,6 +66,8 @@ If you transpile into a language that requires a type and you don’t provide on
  a token such as <?> is substituted. Conversely, if you add a type and transpile
  into a language that doesn’t require one, the Framepiler ignores it.
 
+.. _methods:
+
 Methods
 -------
 
