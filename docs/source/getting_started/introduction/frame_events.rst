@@ -48,22 +48,13 @@ FrameEvent attributes has its own accessor symbol as well:
 
 Frame has two special reserved messages for important operations:
 
-table here:
-
 ============== ===========
 Message Symbol Meaning
 ============== ===========
->              Enter state   
+>              Enter state
 <              Exit state
 ============== ===========
 
-end table
 
-======= ===========  =================
-Message Symbol	     Meaning Mandatory
-------- -----------  -----------------
->	    Enter state	 Yes
-<	    Exit state	 Yes
-======= ===========  =================
-
-The semantics of the |>| and |<| events are understood by the Framepiler and functionally supported. The remaining messages are optional may be unused or replaced by other messages with the same semantics if desired.
+The semantics of the |>| and |<| events are understood by the Framepiler
+and functionally supported.
