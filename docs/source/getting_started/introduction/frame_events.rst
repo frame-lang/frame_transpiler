@@ -27,7 +27,7 @@ Here is a basic implementation of this class:
 Frame notation uses the `@` symbol to identify a FrameEvent. Each of the three
 FrameEvent attributes has its own accessor symbol as well:
 
-.. list-table:: Title
+.. list-table:: Frame Event Syntax
     :widths: 25 25
     :header-rows: 1
 
@@ -48,9 +48,11 @@ FrameEvent attributes has its own accessor symbol as well:
 
 Frame has two special reserved messages for important operations:
 
-======= ======  =================
-Message Symbol	Meaning	Mandatory
-------- ------  -----------------
->	Enter state	Yes
-<	Exit state	Yes
-=   =========== ===
+======= ===========  =================
+Message Symbol	     Meaning Mandatory
+------- -----------  -----------------
+>	    Enter state	 Yes
+<	    Exit state	 Yes
+======= ===========  =================
+
+The semantics of the |>| and |<| events are understood by the Framepiler and functionally supported. The remaining messages are optional may be unused or replaced by other messages with the same semantics if desired.
