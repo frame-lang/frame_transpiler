@@ -11,6 +11,7 @@ Frame Events are essential to the notation and the implementation of Frame syste
 Here is a basic implementation of this class:
 
 `C#`
+
 .. code-block:: csharp
 
     public class FrameEvent {
@@ -23,19 +24,27 @@ Here is a basic implementation of this class:
         public Object _return;
     }
 
-Frame notation uses the `@ symbol to identify a FrameEvent. Each of the three
+Frame notation uses the `@` symbol to identify a FrameEvent. Each of the three
 FrameEvent attributes has its own accessor symbol as well:
 
-==========  ==================================
-Symbol	    Meaning/Usage
-----------  ----------------------------------
-@           frameEvent
-@||	        frameEvent._message
-@[]	        frameEvent._parameters
-@[“foo”]	frameEvent._parameters[“foo”]
-@^	        frameEvent._return
-^(value)	frameEvent._return = value; return;
-==========  ===================================
+.. list-table:: Title
+    :widths: 25 25
+    :header-rows: 1
+
+    * - Symbol
+      - Meaning/Usage
+    * - @
+      - frameEvent
+    * - @||
+      - frameEvent._message
+    * - @[]
+      - frameEvent._parameters
+    * - @[“foo”]
+      - frameEvent._parameters[“foo”]
+    * - @^
+      - frameEvent._return
+    * - ^(value)
+      - frameEvent._return = value; return;
 
 Frame has two special reserved messages for important operations:
 
