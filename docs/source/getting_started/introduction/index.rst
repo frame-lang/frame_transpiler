@@ -17,6 +17,7 @@ make the most of your time learning it.
     :name: toc-getting-started-introduction
 
     basics
+    frame_event
     system
     domain_block
     actions_block
