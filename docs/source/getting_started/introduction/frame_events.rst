@@ -35,4 +35,13 @@ FrameEvent attributes has its own accessor symbol as well:
 @[“foo”]	frameEvent._parameters[“foo”]
 @^	        frameEvent._return
 ^(value)	frameEvent._return = value; return;
-=====       =====  
+=====       =====
+
+Frame has two special reserved messages for important operations:
+
+======= ======  =================
+Message Symbol	Meaning	Mandatory
+------- ------  -----------------
+>	Enter state	Yes
+<	Exit state	Yes
+=   =========== ===
