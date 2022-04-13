@@ -48,6 +48,8 @@ FrameEvent attributes has its own accessor symbol as well:
 
 Frame has two special reserved messages for important operations:
 
+.. _system_events:
+
 ============== ===========
 Message Symbol Meaning
 ============== ===========

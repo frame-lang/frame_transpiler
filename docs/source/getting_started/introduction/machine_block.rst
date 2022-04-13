@@ -24,6 +24,7 @@ States
 ------
 
 Let us start by exploring a defective lamp as our most basic state machine.
+State identifiers in Frame are indicated by a `$` prefix.
 
 .. code-block::
 
@@ -35,9 +36,20 @@ Let us start by exploring a defective lamp as our most basic state machine.
 
     ##
 
+
 Although rather useless to read by, the #BrokenLamp does illuminate an important
-point - a state machine can have just one state. State identifiers in Frame are
-indicated by a `$` prefix.
+point - a state machine can have just a single state. However it won't be
+ very exciting. We will increase the wattage on it very soon and add some more.
+
+Start State
+^^^^^^^^^^^
+
+An important point about state machines is that there is always a designated
+**start state**. In Frame that is the very first state in the spec, which in
+this case is `$Off`.
+
+Event Handlers
+--------------
 
 To make States do something, they need to be sent events. States handle events
 with... event handlers.
@@ -54,21 +66,124 @@ with... event handlers.
 
     ##
 
-Event handlers start with a *message selector* (|msg|) and end with either a
-*return* (**^** token) or *continue* (**>**) token.
+Event handlers start with a *message selector* (`|msg|`) and end with either a
+*return* (**^**) or *continue* (**:>**) token.
 
-Here we see that the $Off state handles the |turnOn| event by calling the
+Here we see that the `$Off` state handles the `|turnOn|` event by calling the
 print function and then returning. In general, states can be described as
 mapping events to **behavior**. Behavior comes in two big categories -
 **taking action** and **transitioning**.
 
+While this is somewhat trivial analysis, it is important when trying to
+understand what makes a state a state. At its most essential, a state is an
+**event map** that maps events to a *unique set of behaviors*. Therefore if
+two states have exactly the same event map, they can be considered identical
+(as well as redundant).
+
 Taking Action
 -------------
 
-Taking action means executing general imperative behaviors
-like calling external code, sending messages, changing data etc. In the 
-broadest sense, "doing something" that doesn't include transitioning to a new
-state. In this example, "doing something" is printing a message.
+Taking action (as distinguished from calling a system action) means executing
+general imperative behaviors. Those can include calling a system action,
+however it can also include changing data, sending messages, calling global
+functions and so on. In the broadest sense, "taking action" is **anything _except_
+transitioning to a new state**. In this example, "doing something" is
+simply printing a message.
 
 Next we will explore the other category of behavior - transitioning to a new
 state.
+
+Transitioning
+-------------
+
+Transitions between states are effected using the `->` operator. Let's use it
+to make a working lamp.
+
+.. code-block::
+
+    #Lamp
+
+    -machine-
+
+    $Off
+        |turnOn| -> $On ^
+
+    $On
+        |turnOff| -> $Off ^
+    ##
+
+Now we have a working lamp, but all it does it oscillate between `$Off` and
+`$On`. To do something, we need to be able to trigger activity when the
+state changes.
+
+System Events
+-------------
+
+We haven't yet discussed where events come from to drive the system. One
+source is the outside world through the system interface, which will
+be explained in the next section. Another source is the system itself when
+a transition occurs.
+
+Enter Event
+^^^^^^^^^^^
+Upon transitioning to a new state, the system sends an enter message (`|>|`)
+to the state that is being transitioned into.
+This is used to trigger an event handler to initialize the state. Unlike
+constructors for objects, there is nothing special about this event handler
+other than the source of the message.
+
+We can now update our state machine to use this event to turn the light on and
+off.
+
+.. code-block::
+
+    #Lamp
+
+    -machine-
+
+    $Off
+        |>|
+            turnOffLamp() ^
+        |turnOn|
+            -> $On ^
+
+    $On
+        |>|
+            turnOnLamp() ^
+        |turnOff|
+            -> $Off ^
+    ##
+
+This is a perfectly fine way to implement a #Lamp. However the system also
+sends another message which we can use to accomplish the same functionality.
+
+Exit Event
+^^^^^^^^^^^
+Upon transitioning out of the current state, the system sends an exit
+message (`|<|`) to it first. Importantly, the exit event is sent before the
+enter event so the current state can clean up before the new state initializes.
+
+Here is how we can use that to accomplish the same functionality we have above:
+
+.. code-block::
+
+    #Lamp
+
+    -machine-
+
+    $Off
+        |turnOn|
+            -> $On ^
+
+    $On
+        |>|
+            turnOnLamp() ^
+        |<|
+            turnOffLamp() ^
+        |turnOff|
+            -> $Off ^
+    ##
+
+So here we can see that we moved the event handler that turns off the lamp
+to the `$On` state and changed the triggering event to be the exit event when
+leaving the state.
