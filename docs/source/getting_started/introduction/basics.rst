@@ -60,13 +60,14 @@ Variable and constant declarations have the following format:
     var x:int = 1
     const name = "Steve"
 
-Variables can be modified after initialization and constants can not. Frame will transpile into the closest semantic equivalents in the target language.
+Variables can be modified after initialization and constants can not. Frame will
+ transpile into the closest semantic equivalents in the target language.
 
 The type is optional but the initializer is not.
 
 If you transpile into a language that requires a type and you don’t provide one,
- a token such as <?> is substituted. Conversely, if you add a type and transpile
- into a language that doesn’t require one, the Framepiler ignores it.
+a token such as `<?>` is substituted. Conversely, if you add a type and transpile
+into a language that doesn’t require one, the Framepiler ignores it.
 
 .. _methods:
 

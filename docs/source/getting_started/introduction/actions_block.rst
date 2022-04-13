@@ -45,4 +45,4 @@ nature of the target language.
 
 Although Frame does not yet have a full implementation language, in the advanced
 section we will explore how to developers *can* inline target language code
-into Frame specs. This capability addresses many simple use cases.
+into Frame specs. This capability addresses many use cases.
