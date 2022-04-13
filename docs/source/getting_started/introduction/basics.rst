@@ -46,6 +46,8 @@ Therefore parameter lists can be declared either of these two ways:
 
     [param1:type1 param2:type2]
 
+.. _variable_declarations:
+
 Variable Declarations
 ---------------------
 
