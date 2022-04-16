@@ -202,8 +202,10 @@ The Machinery
 -------------
 
 Frame generates supporting code as appropriate for the target language.
-The heart of the controller are the transition methods and their interaction
+The heart of the controller is the transition methods and their interaction
 with the Mux method.
+
+.. code-block::
 
     //=============== Machinery and Mechanisms ==============//
 
@@ -219,3 +221,6 @@ with the Mux method.
         m._compartment_ = nextCompartment
         m._mux_(&framelang.FrameEvent{Msg: ">", Params: m._compartment_.EnterArgs, Ret: nil})
     }
+
+This concludes our quick overview of a simple Frame spec and the controller
+code it generates.
