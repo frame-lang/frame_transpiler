@@ -35,4 +35,4 @@ History 101
 
     ##
 
-.. image:: images/intermediate_frame/history101.png
+.. image:: ../images/intermediate_frame/history101.png
