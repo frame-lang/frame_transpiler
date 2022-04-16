@@ -112,7 +112,7 @@ to make a working lamp.
         |turnOff| -> $Off ^
     ##
 
-.. image:: ../images/getting_started/lamp1.png
+.. image:: ../../images/getting_started/lamp1.png
 
 Notice how the transitions are labeled by default with the name of the message
 that triggered the transition. Frame introduces **transition labels** which
@@ -133,7 +133,7 @@ allow for arbitrary labels to be used:
     ##
 
 
-.. image:: ../images/getting_started/lamp2.png
+.. image:: ../../images/getting_started/lamp2.png
 
 Now we have a working lamp, but all it does it oscillate between `$Off` and
 `$On`. To do something, we need to be able to trigger activity when the
