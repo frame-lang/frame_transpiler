@@ -23,3 +23,4 @@ make the most of your time learning it.
     actions_block
     machine_block
     interface_block
+    controller

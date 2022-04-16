@@ -7,12 +7,12 @@ can access the domain data.
 
 .. code-block::
 
-    #Lamp
+    #Item
 
     -domain-
 
-    var location:string = "bedroom" --- typed variable
-    const sku = 12345               --- untyped constant
+    var location:string = "warehouse" --- typed variable
+    const sku = 12345                 --- untyped constant
 
     ##
 
@@ -25,3 +25,15 @@ Domain variables can be disambiguated from variables with the same name in
 different scopes by prefixing it with `#.`. For example `#.location` would
 reference the domain variable shown above. Variables from other scopes also
 have scope prefixes which will be discussed in context.
+
+Our lamp will have just one data member - the color of the light.
+
+.. code-block::
+
+    #Lamp
+
+    -domain-
+
+    var color:string = "white"
+
+    ##

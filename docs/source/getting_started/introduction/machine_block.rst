@@ -160,8 +160,9 @@ sends another message which we can use to accomplish the same functionality.
 Exit Event
 ^^^^^^^^^^^
 Upon transitioning out of the current state, the system sends an exit
-message (`|<|`) to it first. Importantly, the exit event is sent before the
-enter event so the current state can clean up before the new state initializes.
+message (`|<|`) to it first. Importantly, the exit event is sent to the current
+event before the
+enter event is sent to the next state. This allows so the current state can clean up before the new state initializes.
 
 Here is how we can use that to accomplish the same functionality we have above:
 
@@ -182,8 +183,80 @@ Here is how we can use that to accomplish the same functionality we have above:
             turnOffLamp() ^
         |turnOff|
             -> $Off ^
+
+    -actions-
+
+    turnOnLamp
+    turnOffLamp
+    setColor [color:string]
+    getColor : string
+
+    -domain-
+
+    var color:string = "white"
+
     ##
 
-So here we can see that we moved the event handler that turns off the lamp
-to the `$On` state and changed the triggering event to be the exit event when
-leaving the state.
+We can see that the `$On` state now turns off the lamp when exiting.
+
+Currently our machine doesn't provide a way to access the color variable.
+Let's add getter and setter events to do so.
+
+.. code-block::
+
+    #Lamp
+
+    -machine-
+
+    $Off
+        |turnOn|
+            -> $On ^
+        |getColor| : string
+            ^(color)
+        |setColor| [color:string]
+            #.color = color ^
+
+    $On
+        |>|
+            turnOnLamp() ^
+        |<|
+            turnOffLamp() ^
+        |turnOff|
+            -> $Off ^
+        |getColor| : string
+            ^(color)
+        |setColor| [color:string]
+            #.color = color ^
+
+    -actions-
+
+    turnOnLamp
+    turnOffLamp
+
+    -domain-
+
+    var color:string = "white"
+
+    ##
+
+Notice that the |getColor| event handler signature is typed to return a
+string:
+
+.. code-block::
+
+    |getColor| : string
+        ^(color)
+
+To do so, the return token (^) is provided an expression to evaluate
+that is returned.
+
+To set the color, the |setColor| event handler takes a color string and
+sets the domain variable.
+
+.. code-block::
+
+    |setColor| [color:string]
+        #.color = color ^
+
+The domain scope prefix `#.` differentiates between the
+color parameter on the event handler and the domain variable.
