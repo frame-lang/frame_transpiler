@@ -128,3 +128,101 @@ new state:
 .. code-block::
 
     $$[+] -> $NewState
+
+while the state stack pop operator produces the state to be transitioned into:
+
+.. code-block::
+
+    -> $$[-]
+
+Recalling that FrameState is a delegate typedef in C# to allow references to
+methods, we can see that Frame generates a _stateStack_ variable which is
+initialized to a Stack<FrameState>() data structure. Also generated are the push
+ and pop functions for the state stack operations.
+
+.. note::
+    Frame is in the process of converting from a code pattern focused on
+     simple states to a new, more advanced concept of **compartments**.
+    Compartments are a essentially a **state closure** data structure that
+    has a state as one of its data members but also other data members that
+    represent an *instance* of a state call. More about this later but for now
+    where you see *state*, or *FrameState* these will soon be converted to
+    the new compartments terminology as the code generators are updated.
+
+.. code-block::
+
+    //=========== Machinery and Mechanisms ===========//
+
+    ...
+
+    private Stack<FrameState> _stateStack_ = new Stack<FrameState>();
+
+    private void _stateStack_push(FrameState state) {
+        _stateStack_.Push(state);
+    }
+
+    private FrameState _stateStack_pop() {
+        FrameState state =  _stateStack_.back();
+        return _stateStack_.Pop();
+    }
+
+History 202
+-----------
+
+In our next example we will combine HSMs for refactoring behavior out of two
+states and show how it can work together with the state history mechansism.
+
+The History202 spec below starts in a `$Waiting` state and then transitions
+to `$A` or `$B` depending on how the client drives it.
+
+From there both states have an identical handler to transition to `$C`.
+
+.. code-block::
+
+    #History202
+
+     -interface-
+
+     gotoA
+     gotoB
+     gotoC
+     goBack
+
+     -machine-
+
+       $Waiting
+           |>| print("In $Waiting") ^
+           |gotoA| print("|gotoA|") -> $A ^
+           |gotoB| print("|gotoB|") -> $B ^
+
+       $A
+           |>| print("In $A") ^
+           |gotoB| print("|gotoB|") -> $B ^
+           |gotoC| print("|gotoC|") $$[+] -> "$$[+]" $C ^
+
+       $B
+           |>| print("In $B") ^
+           |gotoA| print("|gotoA|") -> $A ^
+           |gotoC| print("|gotoC|") $$[+] -> "$$[+]" $C ^
+
+       $C
+           |>| print("In $C") ^
+           |goBack| print("|goBack|") -> "$$[-]" $$[-] ^
+
+       -actions-
+
+       print [msg:string]
+
+   ##
+
+.. image:: ../images/intermediate_frame/history202.png
+
+.. raw:: html
+
+    <iframe width="100%" height="475" src="https://dotnetfiddle.net/Widget/aofLnO" frameborder="0"></iframe>
+
+Now lets refactor the common event handler into a new base state.
+
+.. code-block::
+
+    <code>
