@@ -272,7 +272,7 @@ both $A and $B inherit behavior from it.
 
 .. raw:: html
 
-    <iframe width="100%" height="475" src="https://dotnetfiddle.net/Widget/aofLnO" frameborder="0"></iframe>
+    <iframe width="100%" height="475" src="https://dotnetfiddle.net/Widget/U1axyV" frameborder="0"></iframe>
 
 .. note::
     History203 demonstrates the recommended best practice of using a Frame
@@ -283,9 +283,10 @@ Conclusion
 ----------
 
 The History mechanism is one of the most valuable contributions of Statecharts
-to the evolution of the state machine formalism.
+to the evolution of the state machine.
 
-However, whereas Statecharts were declared to be a visual formalism 
-(Harel, 1987), Frame is intended to be a symbolic language that can generate
-equivalent code and documentation. As such, the Frame notation will favor a
- terse textual syntax that is (hopefully) both clear and powerful.
+This article introduced the base concept and use case for state history and
+showed its implementation in Frame. In addition, it showed how it works in
+conjunction with Hierarchical State Machines. The combination of these two
+capabilities makes Statecharts and Frame a powerful and efficient way to both
+model and create complex software systems.
