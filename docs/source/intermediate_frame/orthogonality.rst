@@ -3,7 +3,7 @@ Orthoganal Regions
 ==================
 
 In Dr. David Harel's
-"1987 paper <https://www.sciencedirect.com/science/article/pii/0167642387900359>"_
+`1987 paper <https://www.sciencedirect.com/science/article/pii/0167642387900359>`_
 introducing his concept of Statecharts, one of the key concepts was
 **Orthogonal Regions**. In essence, orthogonal regions is Statecharts way of
 defining parallelism visually. This is an inherient aspect to designing
