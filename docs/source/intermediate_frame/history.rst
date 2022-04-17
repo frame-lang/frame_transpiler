@@ -221,8 +221,71 @@ From there both states have an identical handler to transition to `$C`.
 
     <iframe width="100%" height="475" src="https://dotnetfiddle.net/Widget/aofLnO" frameborder="0"></iframe>
 
+Refactoring Common Behavior
+---------------------------
 Now lets refactor the common event handler into a new base state.
 
 .. code-block::
 
-    <code>
+    #History203
+
+       -interface-
+
+       gotoA
+       gotoB
+       gotoC
+       goBack
+
+       -machine-
+
+       $Waiting
+           |>| print("In $Waiting") ^
+           |gotoA| print("|gotoA|") -> $A ^
+           |gotoB| print("|gotoB|") -> $B ^
+
+       $A => $AB
+           |>| print("In $A") ^
+           |gotoB| print("|gotoB|") -> $B ^
+
+       $B => $AB
+           |>| print("In $B") ^
+           |gotoA| print("|gotoA|") -> $A ^
+
+       $AB
+           |gotoC| print("|gotoC| in $AB") $$[+] -> "$$[+]" $C ^
+
+       $C
+           |>| print("In $C") ^
+           |goBack| print("|goBack|") -> "$$[-]" $$[-] ^
+
+       -actions-
+
+       print [msg:string]
+
+    ##
+
+We can see that the duplicated |gotoC| event handler is now moved into $AB and
+both $A and $B inherit behavior from it.
+
+.. image:: ../images/intermediate_frame/history203.png
+
+
+.. raw:: html
+
+    <iframe width="100%" height="475" src="https://dotnetfiddle.net/Widget/aofLnO" frameborder="0"></iframe>
+
+.. note::
+    History203 demonstrates the recommended best practice of using a Frame
+    specification to define a base class (in this case _History203_) and then
+    derive a subclass to provide the implemented actions for behavior.
+
+Conclusion
+----------
+
+The History mechanism is one of the most valuable contributions of Statecharts
+to the evolution of the state machine formalism.
+
+However, whereas Statecharts were declared to be a visual formalism 
+(Harel, 1987), Frame is intended to be a symbolic language that can generate
+equivalent code and documentation. As such, the Frame notation will favor a
+ terse textual syntax that is (hopefully) both clear and powerful.
