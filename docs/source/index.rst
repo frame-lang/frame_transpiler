@@ -123,7 +123,7 @@ The true power of Frame, however, is realized by the ability to generate both do
     advanced_frame/index
 
 .. toctree::
-    :caption: Language
+    :caption: Language?
     :name: sec-language
 
     language/index
