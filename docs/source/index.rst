@@ -99,7 +99,7 @@ The true power of Frame, however, is realized by the ability to generate both do
     }
 
 .. toctree::
-    :caption: General1
+    :caption: General2
     :name: sec-about
 
     about/introduction
@@ -114,6 +114,7 @@ The true power of Frame, however, is realized by the ability to generate both do
     :caption: Intermediate Frame
     :name: sec-intermediate-frame
 
+    getting_started/introduction/index
     intermediate_frame/index
 
   .. toctree::
