@@ -99,22 +99,22 @@ The true power of Frame, however, is realized by the ability to generate both do
     }
 
 .. toctree::
-   :caption: General
-   :name: sec-about
+    :caption: General
+    :name: sec-about
 
-   about/introduction
-
-.. toctree::
-   :caption: Getting Started
-   :name: sec-getting-started
-
-   getting_started/introduction/index
+    about/introduction
 
 .. toctree::
-  :caption: Intermediate Frame
-  :name: sec-intermediate-frame
+    :caption: Getting Started
+    :name: sec-getting-started
 
-  intermediate_frame/index
+    getting_started/introduction/index
+
+.. toctree::
+    :caption: Intermediate Frame
+    :name: sec-intermediate-frame
+
+    intermediate_frame/index
 
   .. toctree::
     :caption: Advanced Frame
