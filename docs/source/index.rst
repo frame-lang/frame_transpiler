@@ -111,7 +111,7 @@ The true power of Frame, however, is realized by the ability to generate both do
     getting_started/introduction/index
 
 .. toctree::
-    :caption: Intermediate Frame test
+    :caption: Intermediate Frame
     :name: sec-intermediate-frame
 
     intermediate_frame/index
