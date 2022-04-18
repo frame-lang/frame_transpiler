@@ -13,19 +13,21 @@ and terminated with the `##` token:
 
 .. code-block::
 
-    #MySystem
+    #Lamp
     ##
 
-`#MySystem` is an empty system and has no behavior. However, when sent to the Framepiler it still generates code:
+`#Lamp` is an empty system spec and has no behavior. However, when sent to the
+Framepiler it still generates code:
 
 ``C#``
 
 .. code-block::
 
-    public partial class MySystem {
+    public partial class Lamp {
     }
 
-As we can see, Frame simply software class file. For programming languages that don't have the
+As we can see, Frame simply generates a class. For programming languages 
+that don't have the
 concept of a class, Frame generates other targets to implement system
 behavior.
 
@@ -36,13 +38,12 @@ JavaScript version of the same spec:
 
 .. code-block::
 
-    let MySystem = function () {
+    let Lamp = function () {
 
         let that = {};
-        that.constructor = MySystem;
+        that.constructor = Lamp;
 
         return that;
-
     };
 
 Blocks
@@ -53,7 +54,7 @@ as we just saw, but if present must be implemented in a specified order.
 
 .. code-block::
 
-    #MySystem
+    #Lamp
 
     -interface-
     -machine-

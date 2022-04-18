@@ -20,8 +20,8 @@ Frame does not have notation or visual support for orthogonal regions.
 However this is an important challenge to address.
 
 It is the author's opinion that Frame should evolve to better express
-system-of-systems architecture using concepts from
- `the actor model <https://en.wikipedia.org/wiki/Actor_model>`_.
+system-of-systems architecture using concepts
+from `the actor model <https://en.wikipedia.org/wiki/Actor_model>`_.
 
 Simply put, the actor model is an architectural approach to system design
 based on concurrently running processes communicating through message passing.
@@ -33,6 +33,7 @@ their relationships expressed via shared communication protocols.
 
 This is an area for future research, but will most likely evolve Frame
 to include declarative languages such as Terraform and KRM to define
-infrastructure. This will progress Frame into becoming a polyglot language
+infrastructure - the substrate - that Frame processes manage and run on.
+This will progress Frame into becoming a polyglot language
 that absorbs useful languages into its standard, as well as being adopted
 inside of them as appropriate for expressing process and protocols.
