@@ -116,6 +116,12 @@ The true power of Frame, however, is realized by the ability to generate both do
 
   intermediate_frame/index
 
+  .. toctree::
+    :caption: Advanced Frame
+    :name: sec-advanced-frame
+
+    advanced_frame/index
+
 .. toctree::
      :caption: Language
      :name: sec-language
