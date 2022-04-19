@@ -98,11 +98,6 @@ State parameters are declared as a parameter list for the state:
 
     #StateParameters
 
-        -interface-
-
-        start @(|>>|)
-        stop @(|<<|)
-
         -machine-
 
         $Begin

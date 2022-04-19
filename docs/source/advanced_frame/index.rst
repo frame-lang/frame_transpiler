@@ -24,3 +24,4 @@ Frame introduces a number of innovations that extend Statechart capabilities.
     transition_parameters
     state_variables
     compartments
+    simple_machines
