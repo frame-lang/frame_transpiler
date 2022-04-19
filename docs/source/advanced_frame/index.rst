@@ -21,3 +21,6 @@ Frame introduces a number of innovations that extend Statechart capabilities.
     :name: toc-advanced-frame
 
     control_flow
+    transition_parameters
+    state_variables
+    compartments
