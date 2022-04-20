@@ -83,9 +83,9 @@ the (event x state) -> behavior.
     =============  ===============  ===============
     Event\\State    OFF              ON
     =============  ===============  ===============
-    TURN_ON        state = ON
+    TURN_ON        state = ON       \n
                                     closeSwitch()
-    TURN_OFF                        openSwitch()
+    TURN_OFF                        openSwitch()\n
                                     state = OFF
     =============  ===============  ===============
 
