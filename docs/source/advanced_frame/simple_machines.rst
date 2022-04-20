@@ -83,17 +83,17 @@ the (event x state) -> behavior.
     +----------------------------------------------+
     |Event\\State |   OFF           |   ON         |
     +==============================================+
-    |TURN_ON        state = ON                     |
-    |                                closeSwitch() |
+    |TURN_ON      |  state = ON     |              |
+    |             |                 |closeSwitch() |
     +----------------------------------------------+
-    |TURN_OFF                        openSwitch()  |
-    |                                state = OFF   |
+    |TURN_OFF     |                 | openSwitch() |
+    |             |                 | state = OFF  |
     +----------------------------------------------+
 
 
 .. table:: Event-Oriented State Machine Table
     :widths: auto
-        
+
     =============  ===============  ===============
     Event\\State    OFF              ON
     =============  ===============  ===============
