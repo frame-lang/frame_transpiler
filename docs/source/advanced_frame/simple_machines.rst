@@ -83,8 +83,8 @@ the (event x state) -> behavior.
     +-------------+-----------------+--------------+
     |Event\\State |   OFF           |   ON         |
     +=============+=================+==============+
-    |TURN_ON      |  state = ON     |              |
-    |             |                 |closeSwitch() |
+    ||TURN_ON     | |state = ON     ||             |
+    ||            | |               ||closeSwitch()|
     +-------------+-----------------+--------------+
     |TURN_OFF     |                 | openSwitch() |
     |             |                 | state = OFF  |
