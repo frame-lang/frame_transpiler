@@ -87,23 +87,15 @@ the (event x state) -> behavior.
     ||            ||                || closeSwitch()|
     +-------------+-----------------+---------------+
     || TURN_OFF   |                 || openSwitch() |
-    |             |                 |  state = OFF  |
+    ||            |                 || state = OFF  |
     +-------------+-----------------+---------------+
 
+Notice how the `closeSwitch()` and `openSwitch()` calls happen in the context
+of the state machine being in the `ON` state. It is a subtle point, which
+is actually the point. The context activity occurs should be more obvious.
 
-.. table:: Event-Oriented State Machine Table
-    :widths: auto
-
-    =============  ===============  ===============
-    Event\\State    OFF              ON
-    =============  ===============  ===============
-    TURN_ON        state = ON       \n
-                                    closeSwitch()
-    TURN_OFF                        openSwitch()\n
-                                    state = OFF
-    =============  ===============  ===============
-
-The
+The example below improves the situation, but is still not completely
+well structured from a logical standpoint.
 
 .. code-block::
 
@@ -118,6 +110,8 @@ The
                         state = ON;
                         closeSwitch();
                         return;
+                    } else {
+                        // nop
                     }
                     break;
                 case ON:
@@ -125,8 +119,58 @@ The
                         openSwitch();
                         state = OFF;
                         return;
+                    } else {
+                        // nop
                     }
                     break;
             }
         }
     }
+
+This version of a Lamp state machine has one major improvement - it is now
+*state oriented* in that the state is considered first (in the switch)
+and then the event is inspected. What this accomplishes is that now **all
+code related to a logical state is in one physical location in the code**.
+
+In the event-oriented state machine, the developer would have to look in both
+event handlers to see the code related to a given state. This is called
+**logical state fragmentation** and is one of the worst flaws of event-oriented
+state machines.
+
+However, this approach is still not semantically perfect.
+
+.. code-block::
+
+    case OFF:
+        if e.msg == "TURN_ON" {
+            state = ON;
+            closeSwitch();
+            return;
+        } else {
+            // nop
+        }
+        break;
+
+The code above still has one subtle, logical problem. It shows the code
+related to the `OFF` state, therefore it is reasonable so assume that all
+code there is actually exectuted in the context of being `OFF`. However,
+that is not the case. The problem happens on these lines:
+
+.. code-block::
+
+    state = ON;
+    closeSwitch();
+
+Here, inside of `OFF`, the machine changes state **and then proceeds do
+do an action**. The problem is that `closeSwitch()` happens in the actual
+context of being in the `ON` state - you can see that we just changed state in
+the line above. However all this code is inside the `case OFF` block, which
+it is reasonable to assume only contains code related to being OFF. But as we
+have just shown, the `closeSwitch()` call is decidedly called when being `ON`.
+
+The result is that we have an entanglement of the two states in the same block.
+This
+entanglement makes it subtle and potentially confusing what exactly is
+happening. This subtlety is why this approach to implementing state machines
+is flawed as it is very easy to lose track as to what is happening in which
+state. 
