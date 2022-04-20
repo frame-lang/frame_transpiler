@@ -76,6 +76,19 @@ the event is (an event handler is called) and then considers what state it is
 in (boolean test for state performed). It then triggers some behavior if
 the (event x state) -> behavior.
 
+
+.. table:: Event-Oriented State Machine Table
+    :widths: auto
+
+    =============  ===============  ===============
+    Event\\State    OFF              ON
+    =============  ===============  ===============
+    TURN_ON        state = ON
+                   closeSwitch()
+    TURN_OFF                        openSwitch()
+                                    state = OFF
+    =============  ===============  ===============
+
 The
 
 .. code-block::
@@ -103,13 +116,3 @@ The
             }
         }
     }
-
-.. table:: State Machine Table
-    :widths: auto
-
-    =============  ===============  ===============
-    Event\State    OFF              ON
-    =============  ===============  ===============
-    TURN_ON         closeSwitch()
-    TURN_OFF                        openSwitch()
-    =============  ===============  ===============
