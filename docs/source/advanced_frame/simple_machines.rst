@@ -1,18 +1,30 @@
 Simple Machines
 ===============
 
-Before explaining the details of the Frame architecture for state machine
-controllers, let us take a look at some simple alternatives to better
-understand why certain choices were made.
+The Frame language evolved from years of studying the literature and
+experimenting with writing
+state machines by hand using many different programming languages.
+Although the basic coding pattern the Framepiler generates today quickly
+emerged as the preferred implementation, it took much longer to understand why
+it was instinctually preferred.
 
-However let us start at an even more basic level and answer a very basic
-question - what is a state?
+It just so happened that this approach lent itself to both a pleasing (to
+the author in any case) domain specific language for expressing the pattern
+as well as unlocking new concepts that could make the generated state machines
+more powerful and easier to work with.
+
+This section will explore that evolutionary path with the goal of making
+the choices for Frame's syntax and implementation clearer.
+
+We will begin with a very basic question about the atomic unit of a state
+machine - what is a state?
 
 The Essence Of a State
 ----------------------
 
-States are, at their core, a function. This function takes, at its most
-basic incarnation, two inputs and outputs a "behavior".
+States are, at their core, form of mathematical function.
+And in its simplest
+incarnation this function takes two inputs and outputs a "behavior".
 
 .. code-block::
 
@@ -31,7 +43,7 @@ However, from a code organization standpoint this difference results in
 
 Let us now take a look an example of each to see why.
 
-Event Oriented State Machines
+Event Oriented Machines
 -----------------------------
 
 An important point about why state machines are interesting is that
@@ -48,19 +60,19 @@ Below we have pseuedocode for a state machine for a very simple lamp that simply
 
         function turnOn() {
 
-            if state == OFF {
+            if state == OFF {       // <--- "OFF" state
                 state = ON;
                 closeSwitch();
-            } else if state == ON {
-                // nop
+            } else if state == ON { // <--- "ON" state
+                print("Already on");
             }
         }
 
         function turnOff() {
 
-            if state == OFF {
-                // nop
-            } else if state == ON {
+            if state == OFF {       // <--- more "OFF" state
+                print("Already off");
+            } else if state == ON { // <--- more "ON" state
                 openSwitch();
                 state = OFF;
             }
@@ -76,23 +88,33 @@ the event is (an event handler is called) and then considers what state it is
 in (boolean test for state performed). It then triggers some behavior if
 the (event x state) -> behavior.
 
+Here is a table that illustrates the behavior mapping function:
 
 .. table:: Event-Oriented State Machine Table
     :widths: auto
 
-    +-------------+-----------------+---------------+
-    |Event\\State |   OFF           |   ON          |
-    +=============+=================+===============+
-    || turnOn     || state = ON     ||              |
-    ||            ||                || closeSwitch()|
-    +-------------+-----------------+---------------+
-    || turnOff    |                 || openSwitch() |
-    ||            |                 || state = OFF  |
-    +-------------+-----------------+---------------+
+    +-------------+-----------------------+----------------------+
+    |Event\\State |   OFF                 |   ON                 |
+    +=============+=======================+======================+
+    || turnOn     || state = ON           || print("Already On") |
+    ||            || closeSwitch()        ||                     |
+    +-------------+-----------------------+----------------------+
+    || turnOff    || print("Already Off") || openSwitch()        |
+    ||            |                       || state = OFF         |
+    +-------------+-----------------------+----------------------+
 
-Notice how the `closeSwitch()` and `openSwitch()` calls happen in the context
-of the state machine being in the `ON` state. It is a subtle point, which
-is actually the point. The context activity occurs should be more obvious.
+The problem with this approach is that **each event handler has a block
+of code for each state**. By organizing the class by event we necessarily
+must sort out the small chunks of each state that are related to the event.
+This organization for a state machine results in **state fragmentation**.
+
+People mentally organize the world around logical context - logical state.
+State fragmentation makes it much harder to understand what is happening in
+any give logical context because the logical context is exploded throughout
+the software, as we have just seen. It is, in fact, a bizarre way to structure
+software. However, it is also the practically universal way of doing it.
+
+Let us now take a look at the start of an alternative.
 
 State Oriented Machines
 -----------------------
@@ -101,7 +123,7 @@ To address some of the deficiencies of the event-oriented machine architecture
 we will try to restructure the state machine to pull together all the code related
 to a single logical state in one place.
 The example below improves the situation, but is still not completely
-well structured from the perspective of compartmentalizing logical state.
+water-tight from the perspective of compartmentalizing logical state.
 
 .. code-block::
 
@@ -116,8 +138,8 @@ well structured from the perspective of compartmentalizing logical state.
                         state = ON;
                         closeSwitch();
                         return;
-                    } else {
-                        // nop
+                    } else if e.msg == "turnOff" {
+                        print("Already off");
                     }
                     break;
                 case ON:
@@ -125,8 +147,8 @@ well structured from the perspective of compartmentalizing logical state.
                         openSwitch();
                         state = OFF;
                         return;
-                    } else {
-                        // nop
+                    } else if e.msg == "turnOn" {
+                        print("Already on");
                     }
                     break;
             }
@@ -137,40 +159,45 @@ This version of a Lamp state machine has one major improvement - it is now
 *state oriented* in that the state is considered first (in the switch)
 and then the event is inspected. The goal with that reorganization is
 to get the code related to a logical state is in one physical location
-in the file. And it *looks* like we have but, in fact, that is *not* the case.
+in the file. And it *looks* like we have. Unfortunately, it's not true.
 
-Let's take a closer look at the code block for the `Off` state:
+Let's take a closer look at the code block for the `OFF` state:
 
 .. code-block::
 
-    case OFF:
+    case OFF: // <--- code block for "OFF" state
         if e.msg == "turnOn" {
-            state = ON;
-            closeSwitch();
+            state = ON;    // <---- change of state
+            closeSwitch(); // <---- enter behavior for "ON" state
             return;
-        } else {
-            // nop
+        } else if e.msg == "turnOff" {
+            print("Already off");
         }
         break;
 
-The code above still has one subtle, logical problem. The problem happens
+The code above is better still has one subtle, logical problem. The problem happens
 on these lines:
 
 .. code-block::
 
-    state = ON;
-    closeSwitch();
+    state = ON;    // <---- change of state.
+    // ----------------------------------//
+    // This code is run in the ON state!!
+    closeSwitch(); // <---- enter behavior for "ON" state
 
-Here, inside of `OFF`, the machine changes state to `ON` **and then proceeds do
-do an action**. Therefore `closeSwitch()` is being executed in the
-context of `ON` state despite both of those lines being inside the
+Here, inside of the `OFF` state code block, the machine changes state to
+`ON` **and then proceeds do
+do an action**. Therefore `closeSwitch()` is being executed **in the
+context of `ON` state** despite both of those lines being inside the
 `case OFF` block. Essentially a sliver of
- `ON` state functionality is inside of a
+ `ON` state functionality is subtly embedded in a
 code block that is supposedly code related to being `OFF`.
 
-The result is an **entanglement** of the two states.  This
-entanglement is a subtle, and potentially very confusing, overlap of logical
+The result is an **entanglement** of the two states.  State entanglement is a
+subtle, and potentially very confusing, overlap of logical
 states. And it certainly isn't very tidy.
+
+Let's see how this can be addressed.
 
 State Function Machine Architecture
 -----------------------------------
@@ -189,25 +216,36 @@ Let us take another look at the last, entangled state example:
 
 .. code-block::
 
-    case OFF:
+    case OFF: // <--- code block for "OFF" state
         if e.msg == "turnOn" {
-            state = ON;    // <---- Change of state
-            closeSwitch(); // <---- ON State enter behavior
+            state = ON;    // <---- change of state
+            closeSwitch(); // <---- enter behavior for "ON" state
             return;
-        } else {
-            // nop
+        } else if e.msg == "turnOff" {
+            print("Already off");
         }
         break;
 
 The comments identify what is actually happening in the entangled portion
-of the state machine. The code is changing state and then **executing the
-enter state behavior**. Although this is a perfectly viable way to construct state machines,
-but can be confusing for the reasons discussed above as well as not being
-as powerful as will be discussed in the advanced Frame features later.
+of the machine. The code is changing state and then **executing the
+enter state behavior**. This is a perfectly viable way to construct state machines,
+but suffers from two problems. First, it can be very confusing. But second,
+it is not as powerful or flexible as it could be.
 
-The Frame approach to solving this problem is to use state functions to
+The Frame approach to solving this problem is to use **state functions** to
 hold all state event handlers and behavior and to introduce a `_transition_()`
-method to do the change of state mechanics:
+method to do the mechanics of chaging the state. Here is snippet of a Frame spec
+for the lamp:
+
+``Frame``
+
+.. code-block::
+
+    $Off
+        |turnOn| -> $On ^
+    $On
+        |>| closeSwitch() ^
+        |<| openSwitch() ^
 
 .. code-block::
 
@@ -244,17 +282,7 @@ key operations necessary for basic Statechart functionality:
 #. Change the current state to the new state
 #. Send the Enter Event to the (new) current state
 
-The Frame spec that would generate the code above is very simple:
 
-``Frame``
-
-.. code-block::
-
-    $Off
-        |turnOn| -> $On ^
-    $On
-        |>| closeSwitch() ^
-        |<| openSwitch() ^
 
 What we can see this approach also accomplishes is consolidating all behavior related
 to the `ON` state in the `ON` state function. The logical behavior of the
@@ -262,7 +290,7 @@ state machine is now properly compartmentalized in the correct state function.
 
 It is arguable that the state function approach necessitates more code to
 accomplish the goal of complete disentanglement, which may be considered
-bad form. The perspective of the author is that the complete compartmentalization
+bad form. The perspective of the author is that the complete compartmentatliztion
 of code related to logical states is tremendously simpler from an organizational
 perspective and the benefits vastly outweigh any other concerns. This approach
  also provides the infrastructure to build far more sophisticated
