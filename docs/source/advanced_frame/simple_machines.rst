@@ -83,10 +83,10 @@ the (event x state) -> behavior.
     +-------------+-----------------+---------------+
     |Event\\State |   OFF           |   ON          |
     +=============+=================+===============+
-    || TURN_ON    || state = ON     ||              |
+    || turnOn     || state = ON     ||              |
     ||            ||                || closeSwitch()|
     +-------------+-----------------+---------------+
-    || TURN_OFF   |                 || openSwitch() |
+    || turnOff    |                 || openSwitch() |
     ||            |                 || state = OFF  |
     +-------------+-----------------+---------------+
 
@@ -94,8 +94,14 @@ Notice how the `closeSwitch()` and `openSwitch()` calls happen in the context
 of the state machine being in the `ON` state. It is a subtle point, which
 is actually the point. The context activity occurs should be more obvious.
 
+State Oriented Machines
+-----------------------
+
+To address some of the deficiencies of the event-oriented machine architecture
+we will try to restructure the state machine to pull together all the code related
+to a single logical state in one place.
 The example below improves the situation, but is still not completely
-well structured from a logical standpoint.
+well structured from the perspective of compartmentalizing logical state.
 
 .. code-block::
 
@@ -106,7 +112,7 @@ well structured from a logical standpoint.
         function handleEvent(e Event) {
             switch state {
                 case OFF:
-                    if e.msg == "TURN_ON" {
+                    if e.msg == "turnOn" {
                         state = ON;
                         closeSwitch();
                         return;
@@ -115,7 +121,7 @@ well structured from a logical standpoint.
                     }
                     break;
                 case ON:
-                    if e.msg == "TURN_OFF" {
+                    if e.msg == "turnOff" {
                         openSwitch();
                         state = OFF;
                         return;
@@ -129,20 +135,16 @@ well structured from a logical standpoint.
 
 This version of a Lamp state machine has one major improvement - it is now
 *state oriented* in that the state is considered first (in the switch)
-and then the event is inspected. What this accomplishes is that now **all
-code related to a logical state is in one physical location in the code**.
+and then the event is inspected. The goal with that reorganization is
+to get the code related to a logical state is in one physical location
+in the file. And it *looks* like we have but, in fact, that is *not* the case.
 
-In the event-oriented state machine, the developer would have to look in both
-event handlers to see the code related to a given state. This is called
-**logical state fragmentation** and is one of the worst flaws of event-oriented
-state machines.
-
-However, this approach is still not semantically perfect.
+Let's take a closer look at the code block for the `Off` state:
 
 .. code-block::
 
     case OFF:
-        if e.msg == "TURN_ON" {
+        if e.msg == "turnOn" {
             state = ON;
             closeSwitch();
             return;
@@ -151,26 +153,118 @@ However, this approach is still not semantically perfect.
         }
         break;
 
-The code above still has one subtle, logical problem. It shows the code
-related to the `OFF` state, therefore it is reasonable so assume that all
-code there is actually exectuted in the context of being `OFF`. However,
-that is not the case. The problem happens on these lines:
+The code above still has one subtle, logical problem. The problem happens
+on these lines:
 
 .. code-block::
 
     state = ON;
     closeSwitch();
 
-Here, inside of `OFF`, the machine changes state **and then proceeds do
-do an action**. The problem is that `closeSwitch()` happens in the actual
-context of being in the `ON` state - you can see that we just changed state in
-the line above. However all this code is inside the `case OFF` block, which
-it is reasonable to assume only contains code related to being OFF. But as we
-have just shown, the `closeSwitch()` call is decidedly called when being `ON`.
+Here, inside of `OFF`, the machine changes state to `ON` **and then proceeds do
+do an action**. Therefore `closeSwitch()` is being executed in the
+context of `ON` state despite both of those lines being inside the
+`case OFF` block. Essentially a sliver of
+ `ON` state functionality is inside of a
+code block that is supposedly code related to being `OFF`.
 
-The result is that we have an entanglement of the two states in the same block.
-This
-entanglement makes it subtle and potentially confusing what exactly is
-happening. This subtlety is why this approach to implementing state machines
-is flawed as it is very easy to lose track as to what is happening in which
-state. 
+The result is an **entanglement** of the two states.  This
+entanglement is a subtle, and potentially very confusing, overlap of logical
+states. And it certainly isn't very tidy.
+
+State Function Machine Architecture
+-----------------------------------
+
+Statecharts introduced the concept of enter and exit events, which were
+explored earlier. These system generated (as opposed to coming from an
+external client) events are supremely valuable as mechanisms to initialize and
+cleanup states. How are these ideas represented in the state machine
+implementations above. The answer to that question precisely intersects
+ the entanglement problem that was just discussed.
+
+ The Enter Event and State Structure in Frame
+---------------------------------------------
+
+Let us take another look at the last, entangled state example:
+
+.. code-block::
+
+    case OFF:
+        if e.msg == "turnOn" {
+            state = ON;    // <---- Change of state
+            closeSwitch(); // <---- ON State enter behavior
+            return;
+        } else {
+            // nop
+        }
+        break;
+
+The comments identify what is actually happening in the entangled portion
+of the state machine. The code is changing state and then **executing the
+enter state behavior**. Although this is a perfectly viable way to construct state machines,
+but can be confusing for the reasons discussed above as well as not being
+as powerful as will be discussed in the advanced Frame features later.
+
+The Frame approach to solving this problem is to use state functions to
+hold all state event handlers and behavior and to introduce a `_transition_()`
+method to do the change of state mechanics:
+
+.. code-block::
+
+    private void _sOff_(FrameEvent e) {
+        if (e._message.Equals("turnOn")) {
+            _transition_(_sOn_);
+            return;
+        }
+        ...
+    }
+
+    private void _sOn_(FrameEvent e) {
+        if (e._message.Equals(">")) {
+            closeSwitch_do();
+            return;
+        }
+        ...
+    }
+
+    private void _transition_(FrameState newState) {
+        FrameEvent exitEvent = new FrameEvent("<",null);
+        _state_(exitEvent);  // <--- send Exit Event
+
+        _state_ = newState;  // <--- change state
+
+        FrameEvent enterEvent = new FrameEvent(">",null);
+        _state_(enterEvent); // <--- send Enter Event
+    }
+
+As we can see above, the `OFF` state uses the `_transition_()` to perform three
+key operations necessary for basic Statechart functionality:
+
+#. Send the Exit Event to the current state
+#. Change the current state to the new state
+#. Send the Enter Event to the (new) current state
+
+The Frame spec that would generate the code above is very simple:
+
+``Frame``
+
+.. code-block::
+
+    $Off
+        |turnOn| -> $On ^
+    $On
+        |>| closeSwitch() ^
+        |<| openSwitch() ^
+
+What we can see this approach also accomplishes is consolidating all behavior related
+to the `ON` state in the `ON` state function. The logical behavior of the
+state machine is now properly compartmentalized in the correct state function.
+
+It is arguable that the state function approach necessitates more code to
+accomplish the goal of complete disentanglement, which may be considered
+bad form. The perspective of the author is that the complete compartmentalization
+of code related to logical states is tremendously simpler from an organizational
+perspective and the benefits vastly outweigh any other concerns. This approach
+ also provides the infrastructure to build far more sophisticated
+mechanisms for state machine architectures than would be reasonably possible
+without this approach.

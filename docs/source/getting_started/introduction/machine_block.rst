@@ -166,13 +166,13 @@ off.
 
     $Off
         |>|
-            turnOffLamp() ^
+            openSwitch() ^
         |turnOn|
             -> $On ^
 
     $On
         |>|
-            turnOnLamp() ^
+            closeSwitch() ^
         |turnOff|
             -> $Off ^
     ##
@@ -201,16 +201,16 @@ Here is how we can use that to accomplish the same functionality we have above:
 
     $On
         |>|
-            turnOnLamp() ^
+            closeSwitch() ^
         |<|
-            turnOffLamp() ^
+            openSwitch() ^
         |turnOff|
             -> $Off ^
 
     -actions-
 
-    turnOnLamp
-    turnOffLamp
+    closeSwitch
+    openSwitch
     setColor [color:string]
     getColor : string
 
@@ -241,9 +241,9 @@ Let's add getter and setter events to do so.
 
     $On
         |>|
-            turnOnLamp() ^
+            closeSwitch() ^
         |<|
-            turnOffLamp() ^
+            openSwitch() ^
         |turnOff|
             -> $Off ^
         |getColor| : string
@@ -253,8 +253,8 @@ Let's add getter and setter events to do so.
 
     -actions-
 
-    turnOnLamp
-    turnOffLamp
+    closeSwitch
+    openSwitch
 
     -domain-
 

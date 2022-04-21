@@ -56,8 +56,8 @@ For our Lamp, we simply need two actions to drive the switch:
 
       -actions-
 
-      turnOnLamp
-      turnOffLamp
+      closeSwitch
+      openSwitch
 
       -domain-
 
