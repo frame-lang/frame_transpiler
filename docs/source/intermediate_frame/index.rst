@@ -11,7 +11,7 @@ state machine visual languages.
 
 Although Frame has some deviations from a strict interpretation
 of some of the more complex aspects of the Statechart semantics, these
-differences enable a simplfied implemenation of the generated controller code
+differences enable a simplified implementation of the generated controller code
 as well as enable new capabilities
 not addressed in Statecharts. These advanced features will be discussed in
 detail in the advanced section.
@@ -19,6 +19,7 @@ detail in the advanced section.
 .. toctree::
     :name: toc-intermediate-frame-introduction
 
+    machine_evolution
     hsm
     history
     orthogonality
