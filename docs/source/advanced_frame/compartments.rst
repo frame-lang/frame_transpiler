@@ -35,13 +35,13 @@ and has the following data members:
 * ExitArgs  - map of transition exit arguments
 *  _forwardEvent_ - system runtime data member for Event Forwarding feature
 
-The Compartment State Member
+The State Member
 ----------------------------
 
 The state variable holds the identifier for the state and is immutable so
 should be implemented as a const if supported by the language.
 
-The Compartment StateArgs Member
+The StateArgs Member
 --------------------------------
 
 The StateArgs are a map containing the data passed as part of a transition
@@ -52,7 +52,7 @@ to a new state:
     -> $NextState(<state_args>)
 
 
-The Compartment StateVars Member
+The StateVars Member
 --------------------------------
 
 The StateVars member is a map containing the initializer data for each
@@ -64,7 +64,7 @@ state variable member:
     $JoeName
         var name:string = "Joe"
 
-The Compartment EnterArgs Member
+The EnterArgs Member
 --------------------------------
 
 The EnterArgs member is a map containing the initializer data for each
@@ -74,7 +74,7 @@ member of the enter event parameters for a transition:
 
     -> ("Mark") $PrintName
 
-The Compartment ExitArgs Member
+The ExitArgs Member
 -------------------------------
 
 The ExitArgs member is a map containing the initializer data for each
@@ -89,7 +89,7 @@ member of the exit event parameters for a transition:
             print(exitMsg) ^ --- prints "cya"
 
 
-The Compartment _forwardEvent_ Member
+The _forwardEvent_ Member
 -------------------------------------
 
 The _forwardEvent_ member is used by the system runtime code to support event
