@@ -4,6 +4,18 @@ Starting A System
 State machines begin operation in a **start state** which is always the
 first state listed in the Frame spec.
 
+
+``Frame``
+
+.. code-block::
+
+    #InTheBeginning
+
+    -machine-
+
+    $Start
+
+
 The start state is different from all the other states as it is the only one
 that is not first entered via a state change or transition. In Frame, transitions
 perform three important state initialization activities:
@@ -66,6 +78,98 @@ default initialization of the domain variables:
 
 These lists are optional, but if present must be in the following order:
 
-#. State parameter initializer list
-#. Enter event parameter initializer list
-#. Domain variable override list
+#. State parameter initializer list - $[<params>]
+#. Enter event parameter initializer list - >[<params>]
+#. Domain variable override list - [<params>]
+
+The System Factory
+------------------
+
+To facilitate proper use of this feature, the Framepiler generates
+a convenience factory function to return a properly initialized system
+
+State Parameter Initialization
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. code-block::
+
+    #StartSystem3 $[state_param:string] >[enter_param:string] [domain_param:string]
+
+    -machine-
+
+    $StartState [state_param:string]
+        |>| [enter_param:string] ^
+
+    -domain-
+
+    var domain_param:string = nil
+
+    ##
+
+This specification generates the following factory code:
+
+``Go``
+
+.. code-block::
+
+
+    func NewStartSystem3(state_param string,enter_param string,domain_param string) StartSystem3 {
+        m := &startSystem3Struct{}
+
+        // Validate interfaces
+        var _ StartSystem3 = m
+
+        m._compartment_ = NewStartSystem3Compartment(StartSystem3State_StartState)
+        m._compartment_.StateArgs["state_param"] = state_param
+
+        // Initialize domain
+        m.domain_param = domain_param
+
+        // Send system start event
+        params := make(map[string]interface{})
+        params["enter_param"] = enter_param
+        e := framelang.FrameEvent{Msg:">", Params:params}
+        m._mux_(&e)
+        return m
+    }
+
+Enter Event Parameter Initialization
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. code-block::
+
+    #StartSystem3 >[enter_param:string]
+
+    -machine-
+
+    $StartState
+        |>| [enter_param:string] ^
+
+    -domain-
+
+    var domain_param:string = nil
+
+    ##
+
+
+Domain Variable Override Initialization
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. code-block::
+
+    #StartSystem3 [domain_param:string]
+
+    -domain-
+
+    var domain_param:string = nil
+
+    ##
+
+
+
+
+The steps for proper system initialization are:
+
+#. Create the system and initialize the domain
+#. Create the compartment for the first state
+#. Set the machine compartment to be the new compartment
+#. Initialize the compartment with state parameters
+#. Initialize compartment with enter parameters
+#. Send an enter event to the mux and pass the compartment enter parameters
