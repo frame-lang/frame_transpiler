@@ -3,7 +3,7 @@ Machine Evolution
 
 The Frame language evolved from years of studying the literature and
 experimenting with writing
-state machines by hand using many different programming languages.
+state machines by hand in many different programming languages.
 Although the basic coding pattern the Framepiler generates today quickly
 emerged as the preferred implementation, it took much longer to understand why
 it was instinctually preferred.

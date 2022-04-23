@@ -1,52 +1,71 @@
 Starting A System
 =================
 
-The simplest implementation of a state machine is nothing more than a switch
-statement on a state variable:
+State machines begin operation in a **start state** which is always the
+first state listed in the Frame spec.
+
+The start state is different from all the other states as it is the only one
+that is not first entered via a state change or transition. In Frame, transitions
+perform three important state initialization activities:
+
+#. Send enter event
+#. Set enter event parameters
+#. Set state parameters
+
+For instance:
+
+``Frame``
 
 .. code-block::
 
-    class SimpleLamp {
+    #TransitionInit
 
-        enum {OFF,ON} state;
+        -machine-
 
-        function handleEvent(e Event) {
-            switch state {
-                case OFF:
-                    if e.msg == "TURN_ON" {
-                        state = ON;
-                        closeSwitch();
-                        return;
-                    }
-                    break;
-                case ON:
-                    if e.msg == "TURN_OFF" {
-                        state = OFF;
-                        openSwitch();
-                        return;
-                    }
-                    break;
-            }
-        }
-    }
+        $S1
+            |next| -> ("Hello") $S2("state $S2")  ^
 
-In each of the state functions some code changes the state the machine is in
-as well as performs actions.
+        $S2 [who:string]
+            var separator:string = " "
 
-However this implementation, which is probably the most common, does not
-have the machinery for implementing the concepts that make Statecharts so
-powerful including state enter and exit events, hierarchical state machines
-and the history mechanism. To enable those capabilities the machine implementation
-must be significantly more sophisticated.
+            |>| [greeting:string]
+                print(who + separator + greeting) ^
+    ##
 
-Event Driven Architecture
--------------------------
+Upon creation, the system does not do a transition into the start state, so
+another mechanism must exist to provide these parameters to the start state.
+To do so, Frame provides system initializer lists:
 
-Typical object oriented (Java, C# etc.) and structure oriented (Golang, Rust)
- languages
+.. code-block::
 
-Transitions
+    #StartSystem1 $[state_param:string] >[enter_param:string]
 
+    -machine-
 
+    $StartState [state_param:string]
+        |>| [enter_param:string] ^
 
-Frame system controllers require
+    ##
+
+Above we can see that the state parameters and enter event parameters can be
+provided via two lists after the system declaration identifier. The `StartState`
+will now work upon boot just like it will if a state transitions back into it.
+
+Additionally, the system has one additional initializer list to override the
+default initialization of the domain variables:
+
+.. code-block::
+
+    #StartSystem2 [domain_param:string]
+
+    -domain-
+
+    var domain_param:string = nil
+
+    ##
+
+These lists are optional, but if present must be in the following order:
+
+#. State parameter initializer list
+#. Enter event parameter initializer list
+#. Domain variable override list

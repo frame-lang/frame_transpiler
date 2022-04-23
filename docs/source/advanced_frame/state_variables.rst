@@ -2,7 +2,7 @@
 State Variables
 ===============
 
-State variables are variables scoped to a state and are initalized upon
+State variables are variables scoped to a state and are initialized upon
 entry to a state. As with state parameters, they go out of scope when
 the state compartment does.
 
@@ -53,4 +53,4 @@ new one upon reentry. This reentry will reset the state variable to "Joe".
 
 State variables are always reset upon reentry to a state except in one important
 situation - the return of the machine to a historical state. We will see
-how state compartments facilitate that capability. 
+how state compartments facilitate that capability.
