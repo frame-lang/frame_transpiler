@@ -190,7 +190,7 @@ concern:
 complexity to the machine as it doesn't do a normal transition
 #. Exit events - disallowed and will result in a parse error
 #. All other events - handled simply in the else clause above by transitioning
-and then forwarding into the mux
+and then forwarding into the multiplexer
 
 Full Event Forwarding Syntax
 ----------------------------
@@ -214,6 +214,41 @@ The full syntax for an event forwarding transition is shown here:
     ##
 
 
+Returning Values from Forwarded Events
+--------------------------------------
+
+Forwarded events should work exactly like non-forwarded events in the machine.
+As an example of this, `#StringTools` takes a small set of requests for
+string editing operations and routes them to the correct state for processing:
+
+.. code-block::
+
+    #StringTools
+
+    -interface-
+
+    reverse [str:string] : string
+    makePalindrome [str:string] : string
+
+    -machine-
+
+    $Router
+    	|makePalindrome| [str:string] : string
+            -> "make\npalindrome" => $MakePalindrome ^
+        |reverse| [str:string] : string
+            -> "reverse" => $Reverse ^
+
+    $Reverse
+        |reverse| [str:string] : string
+            @^ = reverse_str(str)
+            -> "ready" $Router ^
+
+    $MakePalindrome
+        |makePalindrome| [str:string] : string
+            @^ = str + reverse_str(str)
+            -> "ready" $Router ^
+
+    ##
 
 Conclusion
 ----------
@@ -221,19 +256,20 @@ Conclusion
 Event forwarding is a very nice to have, but not essential, capability
 in Frame. The need for it arises as a byproduct of having a better organized
 system. It is a lot like having taken a messy room with everything available
-and in reach but strewn about and hard to find and put them in boxes. It
-may be better organized, but now you have to deal with accessing and organizing
-boxes.
+and in reach but strewn about and hard to find and then put all the stuff in
+boxes. The stuff is now better organized, but now you have to deal with
+organizing and accessing boxes.
 
 The need for event forwarding was recognized early in the development of
-Frame but had no simple solution at the time. It required the concept of the compartment
-in order to provide a key part of the solution to
+Frame but had no simple solution at the time. It required the concept of the
+compartment in order to provide a key part of the solution to
 the puzzle to be developed first. Additionally, at the time, there was also
-no multiplexer
-method as a location to put the logic to handle it. Therefore it required the
+not a multiplexer
+method to put the logic to implement the feature. Therefore it required the
 evolution
-of other mechanisms to unlock a practical way to finally implement this feature.
+of other mechanisms to unlock a practical way to finally implement it.
 
-It is hoped that as Frame continues to mature, similar discoveries about useful
-features, Frame syntax and low level code mechanisms will continue to be identified 
+It is hoped that as Frame continues to mature, similar discoveries about
+useful combinations of 
+features, Frame syntax and low level code mechanisms will continue to be identified
 and able to build on each other.
