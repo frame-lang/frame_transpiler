@@ -15,19 +15,21 @@ data values in an ad hoc manner. This lack of structure is liberating when
 systems are simple, but becomes the definition of "spaghetti code" when they
 become complex.
 
-One of the situations that is easy to handle in event orgiented systems is
-dealing with
+State functions rigidly isolate one state's behavior from other
+state's behavior. A side effect of this segregation of logical state, however,
+is that the system can't easily slip from one
+state to another during a single call to an event handler. This is the goal,
+but also creates some curious situations that need to be understood as a
+byproduct of this segregation.
 
-events are
-One of the side effects of compartmentalization of system behavior is that
-now event handling is contextualized and we can't easily slip from one
-state to another during a single call to an event handler.
+One of the most common situations occurs when an event is sent with the system
+in one state but needs to be handled in another. An example will illustrate
+the point.
 
-This matters when an event happens in one state but needs to be dealt with
-in another. For instance, let's say you are at the mailbox when a letter
+Say you are at the mailbox when a letter
 arrives, but you don't want to read it right then as a nosey neighbor
-might read it. Instead you wait until you are on your couch at home before
-you open and read it.
+might read it. Instead you wait until you are on your couch in the privacy
+of your home before you read it.
 
 .. code-block::
 
@@ -39,7 +41,7 @@ you open and read it.
 
     -machine-
 
-    $AtMailBox --- start state is at mailbox
+    $AtMailBox                    --- start state at the mailbox
         |newMail| [letter:Letter] --- new mail arrives
             newLetter = letter    --- cache off letter reference in domain variable
             -> $OnCouch ^         --- transition to couch
@@ -59,9 +61,9 @@ you open and read it.
 
     ##
 
-This solution is fine, however we have to do some shuffling of the letter
-and what feels like a bit of a hack in differentiating between the two
-situations of having a letter or not when reaching it.
+This solution is fine, however we have to do some shuffling around of the letter
+to deal with. It also feels a bit like a hack in differentiating between the two
+situations of having a letter or not when transitioning to the couch.
 
 As this is a common situation, it would be nice to have a more elegant way
 to deal with it. Event forwarding provides just that solution.
@@ -75,7 +77,7 @@ operator:
         -> => $OnCouch ^
 
 This syntax basically reads "do a transition and then dispatch **this** event to
-the new state". The important point is that a new event is not created. Instead
+the new state". The important point is that **a new event is not created**. Instead
 the system machinery handles the caching and forwarding of the original event
 to the new state. Lets see how our mail scenario works using event forwarding.
 
@@ -100,7 +102,7 @@ to the new state. Lets see how our mail scenario works using event forwarding.
     ##
 
 Obviously there has been a significant simplification in the system's
-specification as we can completely eliminate the `$OnCouch` `|>|` event handler.
+specification as we have completely eliminated the `$OnCouch` `|>|` event handler.
 
 This simplification in the Frame spec comes at the cost of complexity in the
 generated code. This, of course, shouldn't matter to anyone as it is handled
@@ -126,6 +128,10 @@ _forwardEvent_ to cache off the current event and then start the transition:
         }
     }
 
+The heart of the event forwarding mechanism lives in the multiplexer method.
+The multiplexer has two big sections. The first is the real "state machine"
+switch statement that routes events to the current state function. The second
+is the event forwarding logic which is commented below:
 
 .. code-block:: go
 
@@ -133,7 +139,8 @@ _forwardEvent_ to cache off the current event and then start the transition:
 
     func (m *youGotMailStruct) _mux_(e *framelang.FrameEvent) {
 
-        // send event to state for processing
+        // Send event to state for processing.
+        // This is the core "state machine".
         switch m._compartment_.State {
         case YouGotMailState_AtMailBox:
             m._YouGotMailState_AtMailBox_(e)
@@ -175,3 +182,58 @@ _forwardEvent_ to cache off the current event and then start the transition:
             nextCompartment._forwardEvent_ = nil
         }
     }
+
+From the event forwarding perspective there are three categories of events of
+concern:
+
+#. Enter events - the mechanism support for forwarding these adds the most
+complexity to the machine as it doesn't do a normal transition
+#. Exit events - disallowed and will result in a parse error
+#. All other events - handled simply in the else clause above by transitioning
+and then forwarding into the mux
+
+Full Event Forwarding Syntax
+----------------------------
+
+The full syntax for an event forwarding transition is shown here:
+
+.. code-block::
+
+    #EventForwardSyntax
+
+    -machine-
+
+    $S0
+    	|<| [exit_msg:string] ^
+        |e1| ("exit") -> ("enter") "Transition Label" => $S1 ^
+
+    $S1
+    	|>| [enter_msg:string] ^
+        |e1| ^
+
+    ##
+
+
+
+Conclusion
+----------
+
+Event forwarding is a very nice to have, but not essential, capability
+in Frame. The need for it arises as a byproduct of having a better organized
+system. It is a lot like having taken a messy room with everything available
+and in reach but strewn about and hard to find and put them in boxes. It
+may be better organized, but now you have to deal with accessing and organizing
+boxes.
+
+The need for event forwarding was recognized early in the development of
+Frame but had no simple solution at the time. It required the concept of the compartment
+in order to provide a key part of the solution to
+the puzzle to be developed first. Additionally, at the time, there was also
+no multiplexer
+method as a location to put the logic to handle it. Therefore it required the
+evolution
+of other mechanisms to unlock a practical way to finally implement this feature.
+
+It is hoped that as Frame continues to mature, similar discoveries about useful
+features, Frame syntax and low level code mechanisms will continue to be identified 
+and able to build on each other.
