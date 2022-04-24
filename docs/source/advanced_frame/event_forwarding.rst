@@ -162,7 +162,7 @@ _forwardEvent_ to cache off the current event and then start the transition:
                 m._mux_(nextCompartment._forwardEvent_)
             } else {
                 // if there was a forwarded event then it wasn't
-                // an enter event. Go ahead and transiton like normal
+                // an enter event. Go ahead and transition like normal
                 m._do_transition_(nextCompartment)
                 // now detect if there was a forwarded event
                 if nextCompartment._forwardEvent_ != nil {

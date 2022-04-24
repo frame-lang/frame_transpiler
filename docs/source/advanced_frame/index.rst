@@ -27,3 +27,4 @@ Frame introduces a number of innovations that extend Statechart capabilities.
     simple_machines
     system_start
     deferred_transitions
+    event_forwarding
