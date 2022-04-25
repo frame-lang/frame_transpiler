@@ -161,7 +161,8 @@ Persistence using a MOM
 To demonstrate this from a working example let us examine a `demo of a
 traffic light <https://github.com/frame-lang/frame-demos/tree/main/go/persistenttrafficlight>`_.
 
-View the spec using the online Framepiler playground `here <https://framepiler.frame-lang.org/gist/aHR0cHM6Ly9naXN0LmdpdGh1Yi5jb20vZnJhbWUtbGFuZy9mZjY1N2M1MGVjZWE1MjBlY2RjMzM4ODlkM2FkOGJhZg==>`_.
+View the MOM spec using the online Framepiler playground `here <https://framepiler.frame-lang.org/gist/aHR0cHM6Ly9naXN0LmdpdGh1Yi5jb20vZnJhbWUtbGFuZy9mZjY1N2M1MGVjZWE1MjBlY2RjMzM4ODlkM2FkOGJhZg==>`_.
+The `#TrafficLight` workflow it manages can be viewed `here <https://gist.github.com/frame-lang/59d483ec5e75604b6ec5e2e1f2a20176>`_.
 
 The MOM's domain consists of a reference to the TrafficLight workflow it manages
 as well as the raw serialized data for the workflow:
@@ -190,3 +191,13 @@ and passes a reference to itself using the # token:
         |>|
             trafficLight = NewTrafficLight(#)
             -> "Traffic Light\nStarted" $Saving ^
+
+`$New` then transitions into the `$Saving` state.
+
+.. code-block::
+
+    $Saving
+        |>|
+            data = trafficLight.Marshal()
+            trafficLight = nil
+            -> "Saved" $Persisted ^
