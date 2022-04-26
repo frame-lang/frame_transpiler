@@ -265,7 +265,9 @@ Likewise converting a "memory resident" controller like the TrafficLight into a
 workflow (by definition persisted) is the matter of adding a couple of
 attributes.
 
-So while there is a lot to absorb about Frame, the repeated patterns of
-use as well as an ever growing library of solutions to draw on should make
-working with Frame controllers increasingly like snapping together legos than
-custom crafting a piece of art.
+Frame is most certainly a very different
+way to develop software. However, it is hoped that an ever
+growing library of Frame solutions to common system design challenges
+combined with powerful configurability will make
+developing systems-of-systems with Frame an increasingly appealing choice 
+for system architects and developers.
