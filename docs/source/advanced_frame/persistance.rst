@@ -201,3 +201,71 @@ and passes a reference to itself using the # token:
             data = trafficLight.Marshal()
             trafficLight = nil
             -> "Saved" $Persisted ^
+
+Upon entry, `$Saving` marshals the data out of the TrafficLight workflow
+and persists it in the MOM. This is not complete persistence to a durable
+data store, but that step is a trivial addition. The reference to the
+TrafficLight workflow is then set to nil and the MOM transitions to
+the `$Persisted` state.
+
+The `$Persisted` state then waits for a `|tick|` event to occur. If it does,
+then the event is forwarded to the `$Working` state for processing. Alternatively
+a `|systemError|` or `|stop|` event may occur sooner.
+
+.. code-block::
+
+    $Persisted
+        |tick| -> "Tick"  =>  $Working ^
+        |systemError| -> "System Error" =>  $Working ^
+        |stop| -> "Stop" $End ^
+
+The `|systemError|` will initiate a transition to `$Working` and forward
+the event there for processing. `|stop|` will simply send the machine to the
+`$End` state.
+
+Upon entry the `$Working` state reloads the TrafficLight from the marshaled JSON
+data. After the state is initialized, either the `|tick|` or the `|systemError|`
+will be forwarded.
+
+
+.. code-block::
+
+    $Working => $TrafficLightApi
+        |>|
+            trafficLight = LoadTrafficLight(# data)  ^
+        |tick|
+            trafficLight.Tick() -> "Done" $Saving ^
+        |systemError|
+            trafficLight.SystemError() -> "Done" $Saving ^
+
+Both the `|tick|` and the `|systemError|` events work in the same manner,
+calling the corresponding interface on the workflow and then transitioning
+back to `$Saving` to start the cycle over again.
+
+Finally, and a bit oddly, entering the `$End` state requires loading the
+workflow simply to tell it to stop:
+
+.. code-block::
+
+    $End => $TrafficLightApi
+        |>|
+            trafficLight = LoadTrafficLight(# data)
+            trafficLight.Stop()
+            trafficLight = nil ^
+
+Conclusion
+----------
+
+This section has explored how two symbiotic systems can be organized to
+achieve a persisted workflow. The MOM state machine should be generally
+repurposable for managing the lifecycle other workflows and therefore is
+a reusable "solution" to a general class of problems.
+
+Likewise converting a "memory resident" controller like the TrafficLight into a
+workflow (by definition persisted) is the matter of adding a couple of
+attributes.
+
+So while there is a lot to absorb about Frame, the repeated patterns of
+use as well as an ever growing library of solutions to draw on should make
+working with Frame controllers increasingly like snapping together legos than
+custom crafting a piece of art.
