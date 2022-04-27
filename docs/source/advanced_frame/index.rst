@@ -16,7 +16,6 @@ Frame introduces a number of innovations that extend Statechart capabilities.
 * Persistance
 
 
-
 .. toctree::
     :name: toc-advanced-frame
 

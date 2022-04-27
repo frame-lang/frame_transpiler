@@ -16,13 +16,9 @@ Comments are single line and indicated by three (3) dashes:
     --- so is this
 
 
-Variable and Parameter Declarations
------------------------------------
-
-Variables and parameter declarations share a core common syntax.
-
 Parameter Declarations
-^^^^^^^^^^^^^^^^^^^^^^
+----------------------
+
 Parameters are declared as follows and separated by whitespace:
 
 .. code-block::
@@ -60,10 +56,11 @@ Variable and constant declarations have the following format:
     var x:int = 1
     const name = "Steve"
 
-Variables can be modified after initialization and constants can not. Frame will
- transpile into the closest semantic equivalents in the target language.
+The type is optional but the initializer is required.
 
-The type is optional but the initializer is not.
+Frame will transpile into the closest semantic equivalents in the target
+language. At this time Frame does not enforce mutability itself but instead
+relies on the underlying language to do so.
 
 If you transpile into a language that requires a type and you don’t provide one,
 a token such as `<?>` is substituted. Conversely, if you add a type and transpile
@@ -103,6 +100,7 @@ delineate tokens:
 .. code-block:: language
 
     --- lists ---
+
     [x y]
     [x:int y:string]
     (a b c)
@@ -131,6 +129,13 @@ Frame uses square brackets to denote parameter lists:
 
     [x y]
     [x:int y:string]
+
+Expression lists are parenthetical lists of expressions that currently
+only hold arguments for function or method calls:
+
+.. code-block::
+
+    foo(b a r)
 
 Next
 ----
