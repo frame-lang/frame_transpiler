@@ -57,7 +57,7 @@ the spec, which in this case is ``$Off``.
 Event Handlers
 --------------
 
-To make states do something, they need to be sent events. States handle events
+To make a state do something, it needs to be sent events. States handle events
 with... event handlers.
 
 .. code-block::
@@ -75,14 +75,14 @@ with... event handlers.
 Event handlers start with a *message selector* ``|msg|`` and end with either a
 *return* ``^`` or *continue* ``:>`` token.
 
-Here we see that the `$Off` state handles the `|turnOn|` event by calling the
+Here we see that the ``$Off`` state handles the ``|turnOn|`` event by calling the
 print function and then returning. In general, states can be described as
 mapping events to **behavior**. Behavior comes in two big categories -
 **taking action** and **transitioning**.
 
 While this is somewhat trivial analysis, it is important when trying to
 understand what makes a state a state. At its most essential, a state is an
-**event map** that maps events to a *unique set of behaviors*. Therefore if
+**event map** that *uniquely* maps events to a set of behaviors. Therefore if
 two states have exactly the same event map, they can be considered identical
 (as well as redundant).
 
