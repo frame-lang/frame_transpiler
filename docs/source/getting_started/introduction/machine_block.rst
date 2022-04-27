@@ -24,7 +24,8 @@ States
 ------
 
 Let us start by exploring a defective lamp as our most basic state machine.
-State identifiers in Frame are indicated by a `$` prefix.
+State identifiers in Frame are indicated by a `$` prefix. Here we have a
+spec for a defective lamp:
 
 .. code-block::
 
@@ -38,15 +39,16 @@ State identifiers in Frame are indicated by a `$` prefix.
 
 
 Although rather useless to read by, the #BrokenLamp does illuminate an important
-point - a state machine can have just a single state. However it won't be
- very exciting. We will increase the wattage on it very soon and add some more.
+point - a state machine can have just a single state, in this case `$Off`.
+However it won't be
+very exciting. We will increase the wattage on it very soon and add some more.
 
 Start State
-^^^^^^^^^^^
+--------------
 
-An important point about state machines is that there is always a designated
-**start state**. In Frame that is the very first state in the spec, which in
-this case is `$Off`.
+State machines always have a single designated
+**start state**. In Frame the start state is always the very first state in
+the spec, which in this case is `$Off`.
 
 Event Handlers
 --------------
@@ -66,8 +68,8 @@ with... event handlers.
 
     ##
 
-Event handlers start with a *message selector* (`|msg|`) and end with either a
-*return* (**^**) or *continue* (**:>**) token.
+Event handlers start with a *message selector* ``|msg|`` and end with either a
+*return* ``^`` or *continue* ``:>`` token.
 
 Here we see that the `$Off` state handles the `|turnOn|` event by calling the
 print function and then returning. In general, states can be described as

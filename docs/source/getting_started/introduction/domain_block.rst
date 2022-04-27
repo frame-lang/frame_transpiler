@@ -3,8 +3,8 @@ Domain Block
 ============
 
 The domain block contains the system data which are in scope for actions and
-event handlers. For instance an item in an e-commerce site
-might have a few member variables.
+event handlers. For instance, an item in an e-commerce site
+might have a few system variables:
 
 .. code-block::
 
@@ -33,7 +33,7 @@ different scopes by prefixing it with `#.<domain_var>`. For example
 would reference the domain variable declared above. Variables from other scopes
 also have scope prefixes which will be discussed in context.
 
-Returning to our `#Lamp` project, we will add a single data member to it -
+Returning to our `#Lamp` system project, we will add a single data member to it -
 the color of the light:
 
 .. code-block::

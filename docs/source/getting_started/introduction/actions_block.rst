@@ -2,11 +2,10 @@
 Actions Block
 ==================
 
-Declaring Actions
------------------
-
-Actions are declared in the -actions- block and observe all of the method
+The `-actions-` block contains the system methods which observe all of the method
 declaration syntax discussed in the :ref:`methods` section:
+
+``Frame``
 
 .. code-block::
 
@@ -23,7 +22,7 @@ declaration syntax discussed in the :ref:`methods` section:
 
 The corresponding C# code is generated:
 
-`C#`
+``C#``
 
 .. code-block::
 
@@ -49,6 +48,8 @@ into Frame specs, which we will explore in later sections. This capability
 addresses many simple use cases, but does tie the spec to a particular target language.
 
 For our Lamp, we simply need two actions to drive the switch:
+
+``Frame``
 
 .. code-block::
 
