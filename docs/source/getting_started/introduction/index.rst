@@ -6,6 +6,7 @@ This series of articles will introduce you to the Frame language and give you an
 of its features using a simple model of a Lamp.
 
 .. toctree::
+    :maxdepth: 1
     :name: toc-getting-started-introduction
 
     basics

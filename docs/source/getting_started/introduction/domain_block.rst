@@ -2,8 +2,8 @@
 Domain Block
 ============
 
-The domain block contains the system data. All actions and event handlers
-can access the domain data. For instance an Item in an e-commerce site
+The domain block contains the system data which are in scope for actions and
+event handlers. For instance an item in an e-commerce site
 might have a few member variables.
 
 .. code-block::
@@ -24,11 +24,17 @@ Domain variables follow the general declaration syntax discussed in the
 Domain Scope Prefix
 -------------------
 Domain variables can be disambiguated from variables with the same name in
-different scopes by prefixing it with `#.<domain_var>`. For example `#.location` would
-reference the domain variable shown above. Variables from other scopes also
-have scope prefixes which will be discussed in context.
+different scopes by prefixing it with `#.<domain_var>`. For example
 
-Our lamp will have just one data member - the color of the light.
+.. code-block::
+
+    print("The domain variable location value is " + #.location)
+
+would reference the domain variable declared above. Variables from other scopes
+also have scope prefixes which will be discussed in context.
+
+Returning to our `#Lamp` project, we will add a single data member to it -
+the color of the light:
 
 .. code-block::
 
