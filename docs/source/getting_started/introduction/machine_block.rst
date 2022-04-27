@@ -23,9 +23,13 @@ make this assertion clearer.
 States
 ------
 
-Let us start by exploring a defective lamp as our most basic state machine.
-State identifiers in Frame are indicated by a `$` prefix. Here we have a
-spec for a defective lamp:
+State identifiers in Frame are indicated by a ``$`` prefix:
+
+.. code-block::
+
+    $Off
+
+Here we have a spec for a defective lamp:
 
 .. code-block::
 
@@ -38,8 +42,8 @@ spec for a defective lamp:
     ##
 
 
-Although rather useless to read by, the #BrokenLamp does illuminate an important
-point - a state machine can have just a single state, in this case `$Off`.
+Although rather useless to read by, the ``#BrokenLamp`` does illuminate an important
+point - a state machine can have just a single state, in this case ``$Off``.
 However it won't be
 very exciting. We will increase the wattage on it very soon and add some more.
 
@@ -48,12 +52,12 @@ Start State
 
 State machines always have a single designated
 **start state**. In Frame the start state is always the very first state in
-the spec, which in this case is `$Off`.
+the spec, which in this case is ``$Off``.
 
 Event Handlers
 --------------
 
-To make States do something, they need to be sent events. States handle events
+To make states do something, they need to be sent events. States handle events
 with... event handlers.
 
 .. code-block::
