@@ -2,7 +2,7 @@ Introduction
 ============
 
 Frame is a Domain Specific Language (DSL) for creating behavioral
-specifications for systems, and has
+specifications for systems and has
 evolved from years of low-level experimentation with UML Statecharts and
 how to structure object-oriented classes to implement them.
 
@@ -16,6 +16,7 @@ benefits of being able to generate them in multiple target languages
 
 This manual is structured to present an initial introduction to the language
 itself and then progress into explaining the how and why of Frame's
-state machine code generation, alignment and differences with UML Statecharts
+state machine code generation. Along the way we will explore Frame's
+alignment with and deviations from UML Statecharts
 and finally delve into the advanced features that differentiate Frame from
 other approaches to state machines and visual software design.
