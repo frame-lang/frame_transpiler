@@ -92,7 +92,7 @@ Taking Action
 Taking action (as distinguished from calling a system action) means executing
 general imperative behaviors. Those can include calling a system action,
 however it can also include changing data, sending messages, calling global
-functions and so on. In the broadest sense, "taking action" is **anything _except_
+functions and so on. In the broadest sense, "taking action" is **anything *except*
 transitioning to a new state**. In this example, "doing something" is
 simply printing a message.
 
@@ -102,7 +102,7 @@ state.
 Transitioning
 -------------
 
-Transitions between states are effected using the `->` operator. Let's use it
+Transitions between states are effected using the ``->`` operator. Let's use it
 to make a working lamp.
 
 .. code-block::
@@ -141,8 +141,8 @@ allow for arbitrary labels to be used:
 
 .. image:: ../../images/getting_started/lamp2.png
 
-Now we have a working lamp, but all it does it oscillate between `$Off` and
-`$On`. To do something, we need to be able to trigger activity when the
+Now we have a working lamp, but all it does it oscillate between ``$Off`` and
+``$On``. To do something, we need to be able to trigger activity when the
 state changes.
 
 System Events
@@ -155,7 +155,7 @@ a transition occurs.
 
 Enter Event
 ^^^^^^^^^^^
-Upon transitioning to a new state, the system sends an enter message (`|>|`)
+Upon transitioning to a new state, the system sends an enter message ``|>|``
 to the state that is being transitioned into.
 This is used to trigger an event handler to initialize the state. Unlike
 constructors for objects, there is nothing special about this event handler
@@ -183,13 +183,13 @@ off.
             -> $Off ^
     ##
 
-This is a perfectly fine way to implement a #Lamp. However the system also
+This is a perfectly fine way to implement a ``#Lamp``. However the system also
 sends another message which we can use to accomplish the same functionality.
 
 Exit Event
 ^^^^^^^^^^^
 Upon transitioning out of the current state, the system sends an exit
-message (`|<|`) to it first. Importantly, the exit event is sent to the current
+message ``|<|`` to it first. Importantly, the exit event is sent to the current
 event before the
 enter event is sent to the next state. This allows so the current state can clean up before the new state initializes.
 
@@ -226,7 +226,7 @@ Here is how we can use that to accomplish the same functionality we have above:
 
     ##
 
-We can see that the `$On` state now turns off the lamp when exiting.
+We can see that the ``$On`` state now turns off the lamp when exiting.
 
 Currently our machine doesn't provide a way to access the color variable.
 Let's add getter and setter events to do so.
@@ -268,7 +268,7 @@ Let's add getter and setter events to do so.
 
     ##
 
-Notice that the |getColor| event handler signature is typed to return a
+Notice that the ``|getColor|`` event handler signature is typed to return a
 string:
 
 .. code-block::
@@ -276,10 +276,10 @@ string:
     |getColor| : string
         ^(color)
 
-To do so, the return token (^) is provided an expression to evaluate
+To do so, the return token ``^`` is provided an expression to evaluate
 that is returned.
 
-To set the color, the |setColor| event handler takes a color string and
+To set the color, the ``|setColor|`` event handler takes a color string and
 sets the domain variable.
 
 .. code-block::
@@ -287,5 +287,5 @@ sets the domain variable.
     |setColor| [color:string]
         #.color = color ^
 
-The domain scope prefix `#.` differentiates between the
+The domain scope prefix ``#.`` differentiates between the
 color parameter on the event handler and the domain variable.
