@@ -1,13 +1,12 @@
-===========================
 Define a System
 ===========================
 
-Systems Engineering methodology describes two broad categories of aspects to a system -
+Systems Engineering methodology describes two broad of aspects of a system -
 **structure** and **behavior**.
 
 Frame is a **Domain Specific Language (DSL)** for for defining system behavior.
-In Frame notation a Frame system specification starts with the `#` token and the name of the system
-and terminated with the `##` token:
+In Frame notation a system specification starts with the ``#`` token and the name of the system
+and terminated with the ``##`` token:
 
 ``Frame``
 
@@ -26,7 +25,7 @@ Framepiler it still generates code:
     public partial class Lamp {
     }
 
-As we can see, Frame simply generates a class. For programming languages 
+As we can see, Frame simply generates a class. For programming languages
 that don't have the
 concept of a class, Frame generates other targets to implement system
 behavior.

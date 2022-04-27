@@ -1,4 +1,3 @@
-============
 Frame Events
 ============
 
@@ -10,7 +9,7 @@ Frame Events are essential to the notation and the implementation of Frame syste
 
 Here is a basic implementation of this class:
 
-`C#`
+``C#``
 
 .. code-block:: csharp
 
@@ -50,12 +49,12 @@ Frame has two special reserved messages for important operations:
 
 .. _system_events:
 
-============== ===========
+============== ===================
 Message Symbol Meaning
-============== ===========
->              Enter state
-<              Exit state
-============== ===========
+============== ===================
+>              Enter state message
+<              Exit state message 
+============== ===================
 
 
 The semantics of the |>| and |<| events are understood by the Framepiler
