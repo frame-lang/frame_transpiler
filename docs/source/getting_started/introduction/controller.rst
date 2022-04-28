@@ -127,7 +127,7 @@ the state machine:
 .. note::
 
     There is more to the Multiplexer than is shown in the snippet above.
-    See multiplexer_ for more details.
+    See :ref:`multiplexer` for details.
 
 The Machine Block
 -----------------
@@ -206,12 +206,13 @@ The Domain Block contains the initialized system variables.
 
     string color = "white";
 
-The Machinery
--------------
+The Transition Machinery
+------------------------
 
-Frame generates supporting code as appropriate for the target language.
-The heart of the controller is the transition methods and their interaction
-with the Mux method.
+Frame generates supporting runtime code for the system mechanisms
+as appropriate for the target language.
+The heart of the controller machinery are the transition methods and
+their interplay with the Mux method.
 
 .. code-block::
 
