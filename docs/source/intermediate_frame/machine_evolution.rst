@@ -3,10 +3,11 @@ Machine Evolution
 
 The Frame language evolved from years of studying the literature and
 experimenting with writing
-state machines by hand in many different programming languages.
+state machines by hand in a number of different programming languages.
 Although the basic coding pattern the Framepiler generates today quickly
 emerged as the preferred implementation, it took much longer to understand why
-it was instinctually preferred.
+it was instinctually preferred and to build confidence it truly was a generalizable
+pattern.
 
 It just so happened that this approach lent itself to both a pleasing (to
 the author in any case) domain specific language for expressing the pattern
@@ -44,13 +45,13 @@ However, from a code organization standpoint this difference results in
 Let us now take a look an example of each to see why.
 
 Event Oriented Machines
------------------------------
+-----------------------
 
 An important point about why state machines are interesting is that
 all code really is part of a state machine, whether it looks like it or not.
 
 Below we have pseuedocode for a state machine for a very simple lamp that simply
- looks like a normal object oriented class:
+looks like a normal object oriented class:
 
 .. code-block::
 
@@ -108,7 +109,11 @@ of code for each state**. By organizing the class by event we necessarily
 must sort out the small chunks of each state that are related to the event.
 This organization for a state machine results in **state fragmentation**.
 
-People mentally organize the world around logical context - logical state.
+People mentally organize the world in terms of context. Where am I is one
+key context. What am I supposed to be doing? What am I wearing? All of these
+aspects of the situation could make a difference to how I react to an event.
+These are logical states for different aspects to a situation.
+
 State fragmentation makes it much harder to understand what is happening in
 any give logical context because the logical context is exploded throughout
 the software, as we have just seen. It is, in fact, a bizarre way to structure
@@ -166,16 +171,16 @@ Let's take a closer look at the code block for the `OFF` state:
 .. code-block::
 
     case OFF: // <--- code block for "OFF" state
-        if e.msg == "turnOn" {
+        if e.msg == "turnOn" { <--- |turnOn| event handler block
             state = ON;    // <---- change of state
             closeSwitch(); // <---- enter behavior for "ON" state
             return;
-        } else if e.msg == "turnOff" {
+        } else if e.msg == "turnOff" { <--- |turnOff| event handler block
             print("Already off");
         }
         break;
 
-The code above is better still has one subtle, logical problem. The problem happens
+The code above is better still has one subtle, logical problem which happens
 on these lines:
 
 .. code-block::

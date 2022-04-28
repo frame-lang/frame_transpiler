@@ -212,8 +212,6 @@ The Transition Machinery
 
 Frame generates supporting runtime code for the system mechanisms
 as appropriate for the target language.
-The heart of the controller machinery is the transition methods and
-their interplay with the Mux method.
 
 .. code-block::
 
@@ -232,8 +230,5 @@ their interplay with the Mux method.
     }
 
 Here we can see the declaration of the compartment runtime variable,
-the deferred transition method and the transition execution method. Together
-with the multiplexer
-
-This concludes our quick overview of a simple Frame spec and the controller
-code it generates.
+the deferred transition method and the transition execution method. These, together
+with the multiplexer, comprise the bulk of the Frame controller machinery.

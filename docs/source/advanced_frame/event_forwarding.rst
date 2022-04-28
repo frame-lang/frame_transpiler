@@ -190,10 +190,14 @@ Multiplexer
 From the event forwarding perspective there are three categories of events of
 concern:
 
-#. Enter events - the mechanism support for forwarding these adds the most
+#. One
+#. Two
+#. Three
+
+1. Enter events - the mechanism support for forwarding these adds the most
 complexity to the machine as it doesn't do a normal transition
-#. Exit events - disallowed and will result in a parse error
-#. All other events - handled simply in the else clause above by transitioning
+2. Exit events - disallowed and will result in a parse error
+3. All other events - handled simply in the else clause above by transitioning
 and then forwarding into the multiplexer
 
 Full Event Forwarding Syntax
