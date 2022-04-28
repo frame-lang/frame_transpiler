@@ -135,7 +135,7 @@ is the event forwarding logic which is commented below:
 
 .. _multiplexer:
 
-    Multiplexer
+Multiplexer
 
 .. code-block:: go
 
