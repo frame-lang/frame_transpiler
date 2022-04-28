@@ -21,6 +21,7 @@ language supports them. For context we will start with a short, selective,
 incomplete and very opinionated history of state machine implementations.
 
 .. toctree::
+    :maxdepth: 1
     :name: toc-intermediate-frame-introduction
 
     machine_evolution

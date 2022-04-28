@@ -17,6 +17,7 @@ Frame introduces a number of innovations that extend Statechart capabilities.
 
 
 .. toctree::
+    :maxdepth: 1
     :name: toc-advanced-frame
 
     control_flow
