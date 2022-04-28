@@ -3,7 +3,7 @@ System Controllers
 ==================
 
 We will now bring all the pieces together as well as explore
-the structure of the generated code. Here is the complete #Lamp spec:
+the structure of the generated code. Here is the complete ``#Lamp`` spec:
 
 .. code-block::
 
@@ -28,9 +28,9 @@ the structure of the generated code. Here is the complete #Lamp spec:
 
     $On
         |>|
-            turnOnLamp() ^
+            closeSwitch() ^
         |<|
-            turnOffLamp() ^
+            openSwitch() ^
         |turnOff|
             -> $Off ^
         |getColor| : string
@@ -40,8 +40,8 @@ the structure of the generated code. Here is the complete #Lamp spec:
 
     -actions-
 
-    turnOnLamp
-    turnOffLamp
+    closeSwitch
+    openSwitch
 
     -domain-
 
@@ -54,7 +54,7 @@ This output is known as *the controller*.
 
 The Start State
 ---------------
-The first thing that must be initialized is the start state. This can be
+The first thing that must be initialized in the system is the start state. This can be
 done by direct member variable initialization or in a constructor depending
 on the particular capabilities of the language. Here we see it done in the
 constructor.
@@ -81,12 +81,12 @@ The interface methods perform the following functions:
 
      public void turnOn() {
          FrameEvent e = new FrameEvent("turnOn",null);
-         _state_(e);
+         _mux_(e);
      }
 
      public void turnOff() {
          FrameEvent e = new FrameEvent("turnOff",null);
-         _state_(e);
+         _mux_(e);
      }
 
      public void setColor(string color) {
@@ -94,12 +94,12 @@ The interface methods perform the following functions:
          parameters["color"] = color;
 
          FrameEvent e = new FrameEvent("setColor",parameters);
-         _state_(e);
+         _mux_(e);
      }
 
      public string getColor() {
          FrameEvent e = new FrameEvent("getColor",null);
-         _state_(e);
+         _mux_(e);
          return (string) e._return;
      }
 
