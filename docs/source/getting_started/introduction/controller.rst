@@ -71,9 +71,9 @@ The Interface
 
 The interface methods perform the following functions:
 
-# Create a FrameEvent and initialize its message and parameters.
-# Send the event to the state machine.
-# Return the message's return value to the caller
+#. Create a FrameEvent and initialize its message and parameters
+#. Send the event to the state machine
+#. Return the message's return value to the caller
 
 .. code-block::
 
@@ -107,7 +107,8 @@ The Mux
 -------
 
 The Mux, or Multiplexer, is the private method containing the switch statement
-that routes the incoming event to the current state method.
+that routes the incoming event to the current state method - in other words,
+the state machine:
 
 .. code-block::
 
@@ -119,7 +120,14 @@ that routes the incoming event to the current state method.
             m._LampState_Off_(e)
         case LampState_On:
             m._LampState_On_(e)
+
+        ...
     }
+
+.. note::
+
+    There is more to the Multiplexer than is shown in the snippet above.
+    See multiplexer_ for more details.
 
 The Machine Block
 -----------------

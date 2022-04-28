@@ -133,6 +133,8 @@ The multiplexer has two big sections. The first is the real "state machine"
 switch statement that routes events to the current state function. The second
 is the event forwarding logic which is commented below:
 
+.. _multiplexer:
+
 .. code-block:: go
 
     //====================== Multiplexer ====================//
@@ -270,6 +272,6 @@ evolution
 of other mechanisms to unlock a practical way to finally implement it.
 
 It is hoped that as Frame continues to mature, similar discoveries about
-useful combinations of 
+useful combinations of
 features, Frame syntax and low level code mechanisms will continue to be identified
 and able to build on each other.
