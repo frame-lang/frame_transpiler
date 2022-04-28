@@ -127,7 +127,7 @@ the state machine:
 .. note::
 
     There is more to the Multiplexer than is shown in the snippet above.
-    See :ref:`multiplexer` for details.
+    See :ref:`methods` for details.
 
 
 The Machine Block
@@ -212,15 +212,14 @@ The Transition Machinery
 
 Frame generates supporting runtime code for the system mechanisms
 as appropriate for the target language.
-The heart of the controller machinery are the transition methods and
+The heart of the controller machinery is the transition methods and
 their interplay with the Mux method.
 
 .. code-block::
 
     //=============== Machinery and Mechanisms ==============//
 
-    private delegate void FrameState(FrameEvent e);
-    private FrameState _state_;
+    private Compartment _compartment_;
 
     func (m *lampStruct) _transition_(compartment *LampCompartment) {
         m._nextCompartment_ = compartment
@@ -231,6 +230,10 @@ their interplay with the Mux method.
         m._compartment_ = nextCompartment
         m._mux_(&framelang.FrameEvent{Msg: ">", Params: m._compartment_.EnterArgs, Ret: nil})
     }
+
+Here we can see the declaration of the compartment runtime variable,
+the deferred transition method and the transition execution method. Together
+with the multiplexer
 
 This concludes our quick overview of a simple Frame spec and the controller
 code it generates.
