@@ -184,13 +184,14 @@ off.
     ##
 
 This is a perfectly fine way to implement a ``#Lamp``. However the system also
-sends another message which we can use to accomplish the same functionality.
+sends another message which we can use to accomplish the same functionality in
+a slightly different way.
 
 Exit Event
 ^^^^^^^^^^^
 Upon transitioning out of the current state, the system sends an exit
 message ``|<|`` to it first. Importantly, the exit event is sent to the current
-event before the
+state before the
 enter event is sent to the next state. This allows so the current state can clean up before the new state initializes.
 
 Here is how we can use that to accomplish the same functionality we have above:
@@ -217,8 +218,6 @@ Here is how we can use that to accomplish the same functionality we have above:
 
     closeSwitch
     openSwitch
-    setColor [color:string]
-    getColor : string
 
     -domain-
 
@@ -261,6 +260,8 @@ Let's add getter and setter events to do so.
 
     closeSwitch
     openSwitch
+    setColor [color:string]
+    getColor : string
 
     -domain-
 
@@ -277,15 +278,22 @@ string:
         ^(color)
 
 To do so, the return token ``^`` is provided an expression to evaluate
-that is returned.
-
-To set the color, the ``|setColor|`` event handler takes a color string and
+that is returned. To set the color, the ``|setColor|`` event handler takes a color string and
 sets the domain variable.
 
 .. code-block::
 
     |setColor| [color:string]
-        #.color = color ^
+        #.color = color ^ --- sets domain color variable with value of color param
 
 The domain scope prefix ``#.`` differentiates between the
-color parameter on the event handler and the domain variable.
+color parameter on the event handler and the domain variable. The event handler
+parameter also has a scope identifier syntax as well: ``@[param]``.
+
+So if we wanted to be completely clear we could also write this:
+
+
+.. code-block::
+
+    |setColor| [color:string]
+        #.color = @[color] ^ --- using event parameter scope syntax
