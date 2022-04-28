@@ -127,7 +127,7 @@ the state machine:
 .. note::
 
     There is more to the Multiplexer than is shown in the snippet above.
-    See :ref:`methods` for details.
+    See :ref:`multiplexer` for details.
 
 
 The Machine Block
