@@ -19,8 +19,8 @@ History 101
 -----------
 
 The following spec illustrates the limitation of state machines with regards
-to history. Below we see states `$A` and `$B` both transitioning into, and
-dead ending in, state `$C`.
+to history. Below we see states ``$A`` and ``$B`` both transitioning into, and
+dead ending in, state ``$C``.
 
 .. code-block::
 
@@ -41,7 +41,7 @@ dead ending in, state `$C`.
 
 .. image:: ../images/intermediate_frame/history101.png
 
-Here we see that $C has no way to know what state preceded it. To solve this
+Here we see that ``$C`` has no way to know what state preceded it. To solve this
 problem for a pure state machine we would have to do something like this:
 
 .. code-block::
@@ -67,8 +67,8 @@ problem for a pure state machine we would have to do something like this:
 
 .. image:: ../images/intermediate_frame/history102.png
 
-$Ca and $Cb would be identical except for the response to the |return| message.
-This is obviously inefficient.
+``$Ca`` and ``$Cb`` would be identical except for the response to the ``|return|``
+message. This is obviously inefficient.
 
 The Solution
 ------------

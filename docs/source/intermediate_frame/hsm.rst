@@ -170,18 +170,18 @@ Here is the full HSM implementation of our #Lamp:
             -> $On ^
 
     $On => $ColorBehavior
-    |>|
-        closeSwitch() ^
-    |<|
-        openSwitch() ^
-        |turnOff|
-            -> $Off ^
+        |>|
+            closeSwitch() ^
+        |<|
+            openSwitch() ^
+            |turnOff|
+                -> $Off ^
 
-    $ColorBehavior
-        |getColor| : string
-            ^(color)
-        |setColor| [color:string]
-            #.color = color ^
+        $ColorBehavior
+            |getColor| : string
+                ^(color)
+            |setColor| [color:string]
+                #.color = color ^
 
     -actions-
 
