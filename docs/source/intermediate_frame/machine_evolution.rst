@@ -127,7 +127,8 @@ State Oriented Machines
 To address some of the deficiencies of the event-oriented machine architecture
 we will try to restructure the state machine to pull together all the code related
 to a single logical state in one place.
-The example below improves the situation, but is still not completely
+The example below apparently fixes the situation, but, as will be shown,
+ is still not completely
 water-tight from the perspective of compartmentalizing logical state.
 
 .. code-block::
@@ -176,33 +177,24 @@ Let's take a closer look at the code block for the `OFF` state:
 
 .. code-block::
 
-    case OFF: // <--- code block for "OFF" state
-        if e.msg == "turnOn" { <--- |turnOn| event handler block
-            state = ON;    // <---- CHANGE OF STATE HAPPENS HERE!
-            closeSwitch(); // <---- enter behavior for "ON" state
+    case OFF:                           // <--- code block for "OFF" state
+        if e.msg == "turnOn" {          // <--- |turnOn| event handler block
+            state = ON;         // <---- CHANGE OF STATE HAPPENS HERE!
+            closeSwitch();              // <---- enter behavior for "ON" state
             return;
-        } else if e.msg == "turnOff" { <--- |turnOff| event handler block
+        } else if e.msg == "turnOff" {  // <--- |turnOff| event handler block
             print("Already off");
         }
         break;
 
-The code above still has one subtle, logical problem which happens
-on these lines:
-
-.. code-block::
-
-    state = ON;    // <---- change of state.
-    // ----------------------------------//
-    // This code is run in the ON state but the OFF code block
-    closeSwitch(); // <---- enter behavior for "ON" state
-
-Here, inside of the ``OFF`` state code block, the machine changes state to
+While inside the ``OFF`` state code block a strange thing happens.
+The machine changes state to
 ``ON`` **and then proceeds do
-do an action**. Therefore `closeSwitch()` is being executed **in the
+do an action**. Therefore ``closeSwitch()`` is being executed **in the
 context of `ON` state** despite both of those lines being inside the
-`case OFF` block. Essentially a sliver of
- `ON` state functionality is subtly embedded in a
-code block that is supposedly code related to being `OFF`.
+``case OFF`` block. Essentially a sliver of
+``ON`` state functionality is subtly embedded in a
+code block that is supposedly code dedicated to being `OFF`.
 
 The result is an **entanglement** of the two states.  State entanglement is a
 subtle, and potentially very confusing, overlap of logical
@@ -217,8 +209,8 @@ Statecharts introduced the concept of enter and exit events, which were
 explored earlier. These system generated (as opposed to coming from an
 external client) events are supremely valuable as mechanisms to initialize and
 cleanup states. How are these ideas represented in the state machine
-implementations above. The answer to that question precisely intersects
- the entanglement problem that was just discussed.
+implementations above? The answer to that question precisely intersects
+the entanglement problem that was just discussed.
 
  The Enter Event and State Mechanism in Frame
 ---------------------------------------------
@@ -227,10 +219,10 @@ Let us take another look at the last, entangled state example:
 
 .. code-block::
 
-    case OFF: // <--- code block for "OFF" state
+    case OFF:                   // <--- code block for "OFF" state
         if e.msg == "turnOn" {
-            state = ON;    // <---- change of state
-            closeSwitch(); // <---- enter behavior for "ON" state
+            state = ON;         // <---- change of state
+            closeSwitch();      // <---- enter behavior for "ON" state
             return;
         } else if e.msg == "turnOff" {
             print("Already off");
@@ -289,7 +281,7 @@ And the generated code:
         _state_(new FrameEvent(">",null));  // <--- send Enter Event
     }
 
-As we can see above, the `OFF` state uses `_transition_()` to perform three
+As we can see above, the ``OFF`` state uses ``_transition_()`` to perform three
 key operations necessary for basic Statechart enter/exit functionality:
 
 #. Send the Exit Event to the current state
