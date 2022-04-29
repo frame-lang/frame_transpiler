@@ -2,19 +2,10 @@
 Advanced Frame Features
 =======================
 
-Frame introduces a number of innovations that extend Statechart capabilities.
-* Conditional tests
-* Transition Parameters
-    * Exit Parameters
-    * Enter Parameters
-    * State Parameters
-* State Variables
-* Compartments
-* Deferred transitions
-* Event Forwarding
-* System Parameters and Initialization
-* Persistance
-
+The advanced section introduces a number of Frame innovations that extend
+Statechart capabilities. They demonstrate that there is much more to explore
+in stateful software design and hopefully inspires new and radical thinking
+about how software systems can be architected.
 
 .. toctree::
     :maxdepth: 1

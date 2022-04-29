@@ -11,10 +11,19 @@ The basic syntax for both classes of test are:
 
 .. code-block::
 
-    x ?<type> <branches> : <else clause> ::
+    expression ?<test-type> <branches> : <opt-else clause> ::
 
-The : token is “else” and :: terminates the statement for all branching
-statement types. Let’s explore the boolean test first.
+The test types are:
+
+Test type  Test token
+---------  ----------
+Boolean    ?
+String     ?~
+Number     ?#
+
+
+The ``:`` token is “else” and the ``::`` token terminates the statement for
+all branching statement types. Let’s explore the boolean test first.
 
 Boolean Tests
 -------------
@@ -25,7 +34,8 @@ The basic boolean test in Frame is:
 
     x ? callIfTrue() : callIfFalse() ::
 
-This syntax generates the following `C#` code:
+Note that the boolean test does not to have a type symbol after ``?``. This
+syntax generates the following ``C#`` code:
 
 .. code-block::
 
