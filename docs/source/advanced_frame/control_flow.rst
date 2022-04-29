@@ -48,7 +48,7 @@ syntax generates the following ``C#`` code:
 To reinforce the point that branching in Frame is not an expression evaluation,
 see how we can call multiple statements inside each branch:
 
-`Frame`
+``Frame``
 
 .. code-block::
 
@@ -60,7 +60,7 @@ see how we can call multiple statements inside each branch:
         d()
     ::
 
-`C#`
+``C#``
 
 .. code-block::
 
@@ -74,13 +74,13 @@ see how we can call multiple statements inside each branch:
 
 To negate the test use the ?! operator:
 
-`Frame`
+``Frame``
 
 .. code-block::
 
     x ?! callIfFalse() : callIfTrue() ::
 
-`C#`
+``C#``
 
 .. code-block::
 
@@ -114,7 +114,7 @@ String Matching
 
 The string matching statement looks like this:
 
-`Frame`
+``Frame``
 
 .. code-block::
 
@@ -125,7 +125,7 @@ The string matching statement looks like this:
 
 And results in this code:
 
-`C#`
+``C#``
 
 .. code-block::
 
@@ -139,7 +139,7 @@ And results in this code:
 
 Frame also permits multiple string matches per pattern:
 
-`Frame`
+``Frame``
 
 .. code-block::
 
@@ -150,7 +150,7 @@ Frame also permits multiple string matches per pattern:
 
 With this output:
 
-`C#`
+``C#``
 
 .. code-block::
 
@@ -168,7 +168,7 @@ Number Matching
 
 Number matching is very similar to string pattern matching:
 
-`Frame`
+``Frame``
 
 .. code-block::
 
@@ -179,7 +179,7 @@ Number matching is very similar to string pattern matching:
 
 The output is:
 
-`C#`
+``C#``
 
 .. code-block::
 
@@ -194,7 +194,7 @@ The output is:
 Frame can also pattern match multiple numbers to a single branch as well as
 compare decimals:
 
-`Frame`
+``Frame``
 
 .. code-block::
 
@@ -205,7 +205,7 @@ compare decimals:
 
 The output is:
 
-`C#`
+``C#``
 
 .. code-block::
 
@@ -224,7 +224,7 @@ The default behavior of Frame is to label transitions with the message that
 generated the transition. This is fine when an event handler only contains a
 single transition:
 
-`Frame`
+``Frame``
 
 .. code-block::
 
@@ -244,7 +244,7 @@ single transition:
 However this leads to ambiguity with two or more transitions from the same
 event handler:
 
-`Frame`
+``Frame``
 
 .. code-block::
 
@@ -270,7 +270,7 @@ event handler:
 
 Transition labels provide clarity as to which transition is which:
 
-`Frame`
+``Frame``
 
 .. code-block::
 
