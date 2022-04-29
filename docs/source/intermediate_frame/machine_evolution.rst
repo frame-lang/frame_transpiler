@@ -205,44 +205,14 @@ Let's see how this can be addressed.
 State Function Machine Architecture
 -----------------------------------
 
-Statecharts introduced the concept of enter and exit events, which were
-explored earlier. These system generated (as opposed to coming from an
-external client) events are supremely valuable as mechanisms to initialize and
-cleanup states. How are these ideas represented in the state machine
-implementations above? The answer to that question precisely intersects
-the entanglement problem that was just discussed.
-
- The Enter Event and State Mechanism in Frame
----------------------------------------------
-
-Let us take another look at the last, entangled state example:
-
-.. code-block::
-
-    case OFF:                   // <--- code block for "OFF" state
-        if e.msg == "turnOn" {
-            state = ON;         // <---- change of state
-            closeSwitch();      // <---- enter behavior for "ON" state
-            return;
-        } else if e.msg == "turnOff" {
-            print("Already off");
-        }
-        break;
-
-The comments identify what is actually happening in the entangled portion
-of the machine. The code is changing state and then **executing the
-enter state behavior**. This is a perfectly viable way to construct state machines,
-but suffers from two problems. First, it can be very confusing. But second,
-it is not as powerful or flexible as it could be.
-
-The Frame approach to solving this problem is to use **state functions** to
-hold all state event handlers and behavior and to introduce a `_transition_()`
-method to do the mechanics of changing the state. Here is snippet of a Frame spec
-for the lamp:
+To address the state entanglement problem, Frame utilizes *state functions*
+that completely compartmentalize all code related to a logical state in one place.
 
 ``Frame``
 
 .. code-block::
+
+    -machine-
 
     $Off
         |turnOn| -> $On ^
@@ -250,7 +220,9 @@ for the lamp:
     $On
         |>| closeSwitch() ^
 
-And the generated code:
+Above we see that the Frame spec places the ``closeSwitch()`` code in the
+``$On`` state. It is completely disentangled from ``$Off``. Here is the
+generated code showing how Frame controllers implement this spec:
 
 ``C#``
 
@@ -288,8 +260,9 @@ key operations necessary for basic Statechart enter/exit functionality:
 #. Change the current state to the new state
 #. Send the Enter Event to the (new) current state
 
-What we can see this approach also accomplishes is consolidating all behavior related
-to the `ON` state in the `ON` state function. The logical behavior of the
+What we can see this approach also accomplishes is providing the mechanism to
+segregate all behavior related
+to the ``ON`` state in the ``ON`` state function. The logical behavior of the
 state machine is now properly compartmentalized in the correct state function.
 
 It is arguable that the state function approach necessitates more code to
@@ -297,8 +270,8 @@ accomplish the goal of complete disentanglement, which may be considered
 bad form. The perspective of the author is that the complete compartmentalization
 of code related to logical states is tremendously simpler from an organizational
 perspective and the benefits vastly outweigh any other concerns. This approach
- also provides the infrastructure to build far more sophisticated
-mechanisms for state machine architectures than would be reasonably possible
+also provides the infrastructure to build far more sophisticated
+mechanisms for state machine architectures than would be likely possible
 without this approach.
 
 Conclusion
