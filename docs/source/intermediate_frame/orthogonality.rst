@@ -17,9 +17,8 @@ an enclosing state that supports having two state machines (A and D) running in
 parallel when Y is active.
 
 Frame does not have notation or visual support for orthogonal regions.
-However this is an important challenge to address.
-
-It is the author's opinion that Frame should evolve to better express
+However this is an important challenge to address. It is the author's opinion
+that Frame should evolve to better express
 system-of-systems architecture using concepts
 from `the actor model <https://en.wikipedia.org/wiki/Actor_model>`_.
 
@@ -29,7 +28,7 @@ The opportunities for Frame to innovate as a language are to be able to:
 
 #. Express infrastructure topology such as networking channels and messages.
 #. Provide  associations between systems and system states based on
-their relationships expressed via shared communication protocols.
+   their relationships expressed via shared communication protocols.
 
 This is an area for future research, but will most likely evolve Frame
 to include declarative languages such as Terraform and KRM to define
