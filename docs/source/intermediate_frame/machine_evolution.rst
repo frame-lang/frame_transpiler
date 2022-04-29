@@ -138,21 +138,21 @@ water-tight from the perspective of compartmentalizing logical state.
 
         function handleEvent(e Event) {
             switch state {
-                case OFF:
-                    if e.msg == "turnOn" {
+                case OFF:                       // <--- STATE detection
+                    if e.msg == "turnOn" {          // <--- EVENT detection
                         state = ON;
                         closeSwitch();
                         return;
-                    } else if e.msg == "turnOff" {
+                    } else if e.msg == "turnOff" {  // <--- EVENT detection
                         print("Already off");
                     }
                     break;
-                case ON:
-                    if e.msg == "turnOff" {
+                case ON:                        // <--- STATE detection
+                    if e.msg == "turnOff" {         // <--- EVENT detection
                         openSwitch();
                         state = OFF;
                         return;
-                    } else if e.msg == "turnOn" {
+                    } else if e.msg == "turnOn" {   // <--- EVENT detection
                         print("Already on");
                     }
                     break;
@@ -162,7 +162,13 @@ water-tight from the perspective of compartmentalizing logical state.
 
 This version of a Lamp state machine has one major improvement - it is now
 *state oriented* in that the state is considered first (in the switch)
-and then the event is inspected. The goal with that reorganization is
+and then the events are tested for:
+
+.. code-block::
+
+    (state x event) -> behavior
+
+The goal with that reorganization is
 to get the code related to a logical state is in one physical location
 in the file. And it *looks* like we have. Unfortunately, it's not true.
 
@@ -172,7 +178,7 @@ Let's take a closer look at the code block for the `OFF` state:
 
     case OFF: // <--- code block for "OFF" state
         if e.msg == "turnOn" { <--- |turnOn| event handler block
-            state = ON;    // <---- change of state
+            state = ON;    // <---- CHANGE OF STATE HAPPENS HERE!
             closeSwitch(); // <---- enter behavior for "ON" state
             return;
         } else if e.msg == "turnOff" { <--- |turnOff| event handler block
@@ -180,18 +186,18 @@ Let's take a closer look at the code block for the `OFF` state:
         }
         break;
 
-The code above is better still has one subtle, logical problem which happens
+The code above still has one subtle, logical problem which happens
 on these lines:
 
 .. code-block::
 
     state = ON;    // <---- change of state.
     // ----------------------------------//
-    // This code is run in the ON state!!
+    // This code is run in the ON state but the OFF code block
     closeSwitch(); // <---- enter behavior for "ON" state
 
-Here, inside of the `OFF` state code block, the machine changes state to
-`ON` **and then proceeds do
+Here, inside of the ``OFF`` state code block, the machine changes state to
+``ON`` **and then proceeds do
 do an action**. Therefore `closeSwitch()` is being executed **in the
 context of `ON` state** despite both of those lines being inside the
 `case OFF` block. Essentially a sliver of
