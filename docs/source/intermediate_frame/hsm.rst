@@ -14,7 +14,7 @@ is especially impactful to the visual modeling of them as the number of lines
 in the diagram can go up dramatically for shared transitions.
 
 To address this situation, Hierarchical State Machines (HSMs) were invented
-by Dr David Harel in his
+by Dr. David Harel in his
 1987 paper on Statecharts. Statechart notation is used in both UML software
 modeling and the SYSML systems modeling languages as the standard flavor of
 state machine visual languages.
@@ -45,9 +45,9 @@ amount of identical functionality with the |getColor| and |setColor| handlers:
 
     $On
         |>|
-            turnOnLamp() ^
+            closeSwitch() ^
         |<|
-            turnOffLamp() ^
+            openSwitch() ^
         |turnOff|
             -> $Off ^
         |getColor| : string
@@ -57,8 +57,8 @@ amount of identical functionality with the |getColor| and |setColor| handlers:
 
     -actions-
 
-    turnOnLamp
-    turnOffLamp
+    closeSwitch
+    openSwitch
 
     -domain-
 
@@ -85,9 +85,9 @@ it.
 
     $On => $ColorBehavior
         |>|
-            turnOnLamp() ^
+            closeSwitch() ^
         |<|
-            turnOffLamp() ^
+            openSwitch() ^
         |turnOff|
             -> $Off ^
 
@@ -97,8 +97,8 @@ it.
         |setColor| [color:string]
             #.color = color ^
 
-Here we can see the `$Off` and `$On` states now inherit their behavior from
-`$ColorBehavior` state using the `=>` dispatch operator.
+Here we can see the ``$Off`` and ``$On`` states now inherit their behavior from
+``$ColorBehavior`` state using the ``=>`` dispatch operator.
 
 Easily supporting HSM semantics is one of the major reasons for the use of
 FrameEvents in the architecture as it enables a very simple way to inherit
@@ -114,15 +114,16 @@ behavior between states using call chains:
             return;
         }
         _sColorBehavior_(e);
+
     }
 
     private void _sOn_(FrameEvent e) {
         if (e._message.Equals(">")) {
-            turnOnLamp_do();
+            closeSwitch_do();
             return;
         }
         else if (e._message.Equals("<")) {
-            turnOffLamp_do();
+            openSwitch_do();
             return;
         }
         else if (e._message.Equals("turnOff")) {
@@ -130,6 +131,7 @@ behavior between states using call chains:
             return;
         }
         _sColorBehavior_(e);
+
     }
 
     private void _sColorBehavior_(FrameEvent e) {
@@ -144,8 +146,8 @@ behavior between states using call chains:
         }
     }
 
-Above we can see that the `$ColorBehavior` state now contains the get/setColor
-event handlers and the `$Off` and `$On` states forward the FrameEvent
+Above we can see that the ``$ColorBehavior`` state now contains the get/setColor
+event handlers and the ``$Off`` and ``$On`` states forward the FrameEvent
 to it for any functionality they do not handle.
 
 Here is the full HSM implementation of our #Lamp:
@@ -168,10 +170,10 @@ Here is the full HSM implementation of our #Lamp:
             -> $On ^
 
     $On => $ColorBehavior
-        |>|
-            turnOnLamp() ^
-        |<|
-            turnOffLamp() ^
+    |>|
+        closeSwitch() ^
+    |<|
+        openSwitch() ^
         |turnOff|
             -> $Off ^
 
@@ -183,8 +185,8 @@ Here is the full HSM implementation of our #Lamp:
 
     -actions-
 
-    turnOnLamp
-    turnOffLamp
+    closeSwitch
+    openSwitch
 
     -domain-
 
