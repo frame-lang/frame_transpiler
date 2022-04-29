@@ -138,11 +138,11 @@ while the state stack pop operator produces the state to be transitioned into:
 Recalling that FrameState is a delegate typedef in C# to allow references to
 methods, we can see that Frame generates a _stateStack_ variable which is
 initialized to a Stack<FrameState>() data structure. Also generated are the push
- and pop functions for the state stack operations.
+and pop functions for the state stack operations.
 
 .. note::
     Frame is in the process of converting from a code pattern focused on
-     simple states to a new, more advanced concept of **compartments**.
+    simple states to a new, more advanced concept of **compartments** (see :ref:`_compartments_sec`).
     Compartments are a essentially a **state closure** data structure that
     has a state as one of its data members but also other data members that
     represent an *instance* of a state call. More about this later but for now

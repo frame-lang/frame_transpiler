@@ -1,3 +1,5 @@
+.. _compartments_sec:
+
 Compartments
 ============
 
