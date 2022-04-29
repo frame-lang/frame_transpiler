@@ -5,15 +5,15 @@ Orthoganal Regions
 In Dr. David Harel's
 `1987 paper <https://www.sciencedirect.com/science/article/pii/0167642387900359>`_
 introducing his concept of Statecharts, one of the key concepts was
-**Orthogonal Regions**. In essence, orthogonal regions is Statecharts way of
+**Orthogonal Regions**. In essence, orthogonal regions are Statecharts way of
 defining parallelism visually. This is an inherient aspect to designing
 systems-of-systems, which is the definition of most truly complex software.
 
 .. image:: ../images/intermediate_frame/orthogonal_region1.png
 [Harel 1987]
 
-The image above shows Harel's concept of orthogonal regions A and D. Y is
-an enclosing state that supports having two state machines running in
+The image above shows Harel's concept of orthogonal regions directly. Y is
+an enclosing state that supports having two state machines (A and D) running in
 parallel when Y is active.
 
 Frame does not have notation or visual support for orthogonal regions.
