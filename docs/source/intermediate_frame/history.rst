@@ -170,12 +170,12 @@ History 202
 -----------
 
 In our next example we will combine HSMs for refactoring behavior out of two
-states and show how it can work together with the state history mechansism.
+states and show how it can work together with the state history mechanism.
 
-The History202 spec below starts in a `$Waiting` state and then transitions
-to `$A` or `$B` depending on how the client drives it.
+The History202 spec below starts in a ``$Waiting`` state and then transitions
+to ``$A`` or ``$B`` depending on how the client drives it.
 
-From there both states have an identical handler to transition to `$C`.
+From there both states have an identical handler to transition to ``$C``.
 
 .. code-block::
 
@@ -275,9 +275,10 @@ both $A and $B inherit behavior from it.
     <iframe width="100%" height="475" src="https://dotnetfiddle.net/Widget/U1axyV" frameborder="0"></iframe>
 
 .. note::
-    History203 demonstrates the recommended best practice of using a Frame
-    specification to define a base class (in this case _History203_) and then
-    derive a subclass to provide the implemented actions for behavior.
+    This example demonstrates the recommended best practice of using a Frame
+    specification to define a base class (in this case ``History203``) and then
+    derive a subclass (in this case ``History203Controller``) to provide the
+    implemented actions for behavior.
 
 Conclusion
 ----------
