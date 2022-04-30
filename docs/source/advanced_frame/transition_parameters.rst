@@ -1,11 +1,15 @@
+.. _transition_parameters::
+
 Transition Parameters
 =====================
 
 Transition parameters allow system designers to specify that data that should
-be sent to enter |>| and exit |<| event handlers during a transition.
+be sent to enter ``|>|`` and exit ``|<|`` event handlers during a transition.
 
-This capability simplifies managing data passing when the current event handler
-shouldn’t process information in the current context.
+This capability greatly simplifies data passing between states and parameterizing
+exit event behavior.
+
+.. _exit_event_parameters::
 
 Enter Event Parameters
 ----------------------
@@ -17,13 +21,14 @@ a transition:
 
     -> (<enter_argument_list>) $NewState
 
-For instance:
+The state being transitioned to receives the arguments on the ``|>|`` event:
 
 .. code-block::
 
-    -> ("Mark") $PrintName
+    $NewState
+        |>| [<enter_argument_list>] ...
 
-This list is sent as arguments to the enter event in the target state:
+For instance:
 
 ``Frame``
 
@@ -38,11 +43,11 @@ This list is sent as arguments to the enter event in the target state:
         -machine-
 
         $Begin
-            |>>| -> ("Hello $State") $State ^
+            |>>| -> ("Hello $State") $Print ^ // <--- "Hello State" sent to $Print
 
-        $State
-            |>| [greeting:string]
-                print(greeting) ^
+        $Print
+            |>| [greeting:string]  // <--- greeting parameter is "Hello State"
+                print(greeting) ^  // <--- greeting printed
 
         -actions-
 
@@ -98,15 +103,19 @@ State parameters are declared as a parameter list for the state:
 
     #StateParameters
 
+        -interface-
+
+        stop
+
         -machine-
 
         $Begin
-            |>>| -> $State("Hi! I am $State :)")  ^
+            |>| -> $State("Hi! I am $State :)")  ^
 
         $State [stateNameTag:string]
             |>|  print(stateNameTag) ^
             |<|  print(stateNameTag) ^
-            |<<|
+            |stop|
                  print(stateNameTag)
                  -> $End ^
 

@@ -1,4 +1,5 @@
-===============
+.. _state_variables:
+
 State Variables
 ===============
 
