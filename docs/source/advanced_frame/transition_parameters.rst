@@ -6,6 +6,8 @@ introducing the idea of enter and exit events.
 
 ``Frame``
 
+.. code-block::
+
     -machine-
 
     $S1
