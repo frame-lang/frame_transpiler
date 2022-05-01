@@ -1,9 +1,16 @@
 Starting A System
 =================
 
-State machines begin operation in a **start state** which is always the
-first state listed in the Frame spec.
+Frame specifications mask over a number of important complexities
+about how to start a system running. This
+section will explore the Frame syntax and implementation details related
+to "booting up" a Frame system.
 
+The Start State
+---------------
+
+State machines conceptually begin operation already in a **start state**.
+In Frame this is always the first state listed in the spec.
 
 ``Frame``
 
@@ -13,16 +20,18 @@ first state listed in the Frame spec.
 
     -machine-
 
-    $Start
+    $StartHere
 
+An important implementation detail is that the start state is different from
+all other states as it is the only one
+that is not first entered via a state change or transition. This is important
+as transitions are the means by which all other states are initialized. The
+state initialization steps during a transition are:
 
-The start state is different from all the other states as it is the only one
-that is not first entered via a state change or transition. In Frame, transitions
-perform three important state initialization activities:
-
-#. Send enter event
-#. Set enter event parameters
-#. Set state parameters
+#. Initialize the state parameters
+#. Initialize the state variables
+#. Initialize the enter event parameters
+#. Send state the enter event and trigger the enter event handler
 
 For instance:
 
@@ -35,18 +44,32 @@ For instance:
         -machine-
 
         $S1
-            |next| -> ("Hello") $S2("state $S2")  ^
+            |next|
+                -> ("Hello")            // <--- Initialize enter event params
+                    $S2("state $S2")    // <--- Intialize state params
+                    ^
 
-        $S2 [who:string]
-            var separator:string = " "
+        $S2 [who:string]                // <--- State param
+            var separator:string = " "  // <--- Intialize state variable
 
-            |>| [greeting:string]
+            |>| [greeting:string]       // <--- Enter event handler and params
                 print(who + separator + greeting) ^
     ##
 
-Upon creation, the system does not do a transition into the start state, so
+The Frame transition mechanisms support the activities outlined above.
+Upon creation, however, the system does not do a transition into the start state.
+Instead it simply starts there, so none of the usual transition mechanisms
+are used in the very beginning. Therefore
 another mechanism must exist to provide these parameters to the start state.
-To do so, Frame provides system initializer lists:
+To do so, Frame provides **system initializer lists**.
+
+These lists are optional, but if present must be in the following order:
+
+#. State parameter initializer list - $[<params>]
+#. Enter event parameter initializer list - >[<params>]
+#. Domain variable override list - [<params>]
+
+The state parameters are initialized with the first two lists:
 
 .. code-block::
 
@@ -60,7 +83,7 @@ To do so, Frame provides system initializer lists:
     ##
 
 Above we can see that the state parameters and enter event parameters can be
-provided via two lists after the system declaration identifier. The `StartState`
+provided via two lists after the system declaration identifier. The ``StartState``
 will now work upon boot just like it will if a state transitions back into it.
 
 Additionally, the system has one additional initializer list to override the
@@ -76,17 +99,12 @@ default initialization of the domain variables:
 
     ##
 
-These lists are optional, but if present must be in the following order:
-
-#. State parameter initializer list - $[<params>]
-#. Enter event parameter initializer list - >[<params>]
-#. Domain variable override list - [<params>]
 
 The System Factory
 ------------------
 
 To facilitate proper use of this feature, the Framepiler generates
-a convenience factory function to return a properly initialized system
+a convenience factory function to return a properly initialized system.
 
 State Parameter Initialization
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -151,7 +169,7 @@ Enter Event Parameter Initialization
 
 
 Domain Variable Override Initialization
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. code-block::
 
     #StartSystem3 [domain_param:string]
@@ -162,9 +180,6 @@ Domain Variable Override Initialization
 
     ##
 
-
-
-
 The steps for proper system initialization are:
 
 #. Create the system and initialize the domain
@@ -172,4 +187,4 @@ The steps for proper system initialization are:
 #. Set the machine compartment to be the new compartment
 #. Initialize the compartment with state parameters
 #. Initialize compartment with enter parameters
-#. Send an enter event to the mux and pass the compartment enter parameters
+#. Send an enter event to the multiplexer and pass the compartment enter parameters

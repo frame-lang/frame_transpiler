@@ -6,12 +6,13 @@ Compartments
 In the sections on transition and state parameters, as well as state variables,
 no details were given as
 to how this data is passed to the state, initialized and/or preserved.
-The answer to those questions is a new concept for state machines called
+The answer to those questions is a new idea for state machines called
 the **compartment**.
 
-Compartments are a closure concept for
-states that preserve the state itself, the data from the
-various scopes event handlers can access (but not including the domain)
+Compartments are a `closure <https://en.wikipedia.org/wiki/Closure_(computer_programming)>`
+concept for states that preserve the state's context. This context includes
+the state identifier, the data from the
+various state local scopes event handlers can access (so not including the domain)
 as well as the system runtime data needed for the machinery to implement the
 Frame language semantics.
 

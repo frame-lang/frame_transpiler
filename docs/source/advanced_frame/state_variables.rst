@@ -44,14 +44,14 @@ event handlers:
 
     ##
 
-The `#StateVariableDemo` spec start state, `$JoeName`, initializes the `name`
-state varible to "Joe". The `|updateName|` handler will update the state
-variable such that the next `|print|` event will print the new name.
+The ``#StateVariableDemo`` spec start state, ``$JoeName``, initializes the ``name``
+state variable to "Joe". The ``|updateName|`` handler will update the state
+variable such that the next ``|print|`` event will print the new name.
 
-When `|forgetMe|` is handled, the machine will cycle through the `$ResetName`
+When ``|forgetMe|`` is handled, the machine will cycle through the ``$ResetName``
 state, losing reference to the previous state compartment and creating a
 new one upon reentry. This reentry will reset the state variable to "Joe".
 
 State variables are always reset upon reentry to a state except in one important
 situation - the return of the machine to a historical state. We will see
-how state compartments facilitate that capability.
+how compartments facilitate that capability next.
