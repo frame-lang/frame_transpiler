@@ -102,11 +102,12 @@ For instance:
         -machine-
 
         $Begin
-            |>| -> ("Hello $State") $Print ^ // <--- "Hello State" sent to $Print
+            |>|
+                -> ("Hello $State") $Print ^ // 1) <--- "Hello State" sent to $Print
 
         $Print
-            |>| [greeting:string]  // <--- greeting parameter is "Hello State"
-                print(greeting) ^  // <--- greeting printed
+            |>| [greeting:string]  // 2) <--- greeting parameter is "Hello State"
+                print(greeting) ^  // 3) <--- greeting printed
 
         -actions-
 
@@ -135,7 +136,7 @@ For instance:
 
     ("cya") -> $NextState
 
-In context,
+In context:
 
 ``Frame``
 
@@ -154,52 +155,18 @@ This ability can be useful when distinguishing different exit contexts:
 .. code-block::
 
     $OuttaHere
+        |yellow_alert|
+            ("walk") -> $NextState ^  // <--- send "walk" message
+
+        |red_alert|
+            ("run!!") -> $NextState ^ // <--- send "run" message
+
         |<| [exitMsg:string]          // <--- "walk" or "run" depending on...
             print(exitMsg) ^
 
-        |yellow_alert|
-            ("walk") -> $NextState ^  // <--- "show "walk" message
-
-        |red_alert|
-            ("run!!") -> $NextState ^ // <--- show "run" message
 
 The enter and exit events provide a pleasing symmetry to the data flows
-involving transitions. And while the syntax is simple to specify them,
-how they are implemented is significantly more involved.
-
-An Introduction to Compartments
--------------------------------
-
-Frame controllers are the generated code from Frame specs. As we have seen,
-the controller's current state is tracked in a Frame managed runtime variable:
-
-.. code-block::
-
-    var _state_ = OFF
-
-However, transition parameters now mean there is more data associated with a
-state than just the state variable. To accomplish this, Frame introduces
-the idea of the **Compartment**. A compartment is, in essence, a *state closure*.
-
-Closures are a concept from programming languages that tie references to anonymous functions
-to the environment that existed when they were created. Frame compartments
-are a similar concept, but instead of a function carrying its associated environment
-with it, compartments enable instances of states to maintain their own environments.
-
-Compartments are simply a data structure consisting of a state variable and
-its environment:
-
-.. code-block::
-
-    struct Compartment {
-        State _state_;
-        Map stateArgs;
-        Map stateArgs;
-        StateVars map[string]interface{}
-        EnterArgs map[string]interface{}
-        ExitArgs map[string]interface{}
-        _forwardEvent_ *framelang.FrameEvent
-    }
+involving transitions.
 
 State Parameters
 ----------------
@@ -247,3 +214,48 @@ State parameters are declared as a parameter list for the state:
 Above we see that the stateNameTag is accessible in the enter, exit and
 stop event handlers. It will also be in scope for all other event handlers for
 the state as well.
+
+Event and state parameters are a simple solution to a rough edge to existing
+system design approaches. This simplicity in the specification, however,
+is at the cost of increased complexity
+in the generated controller code. 
+
+Which, of course, is the Framepiler's
+problem and not the system designers.
+
+An Introduction to Compartments
+-------------------------------
+
+Frame controllers are the generated code from Frame specs. As we have seen,
+the controller's current state is tracked in a Frame managed runtime variable:
+
+.. code-block::
+
+    var _state_ = OFF
+
+However, transition parameters now mean there is more data associated with a
+state than just the state variable. To accomplish this, Frame introduces
+the idea of the **Compartment**. A compartment is, in essence, a *state closure*.
+
+Closures are a concept from programming languages that tie references to anonymous functions
+to the environment that existed when they were created. Frame compartments
+are a similar concept, but instead of a function carrying its associated environment
+with it, compartments enable instances of states to maintain their own environments.
+
+Compartments are simply a data structure consisting of a state variable and
+its environment:
+
+.. code-block::
+
+    struct Compartment {
+        State _state_;
+        EnterArgs map[string]interface{}
+        ExitArgs map[string]interface{}
+        ...
+    }
+
+.. note::
+
+    To focus on just the transition related parameters, the
+    Compartment data structure above only shows a partial
+    inventory of a full Compartment.
