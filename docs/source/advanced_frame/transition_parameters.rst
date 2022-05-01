@@ -11,11 +11,11 @@ introducing the idea of enter and exit events.
     -machine-
 
     $S1
-        |<| exitS1() ^
-        |e1| -> $S2 ^
+        |someEvent| -> $S2 ^ // <--- 1) transition is triggered
+        |<| exitS1() ^       // <--- 2) exit event happens
 
     $S2
-        |>| enterS2() ^
+        |>| enterS2() ^      // <--- 3) enter event happens
 
 We have already seen the
 Frame mechanism for implementing these features during a transition
@@ -43,13 +43,16 @@ variable:
     -machine-
 
     $S1
-        |<| exitS1() ^
         |e1|
-            meaning_of_life = 42
-            -> $S2 ^
+            meaning_of_life = 42 // <--- 1) save a value in the domain
+            -> $S2 ^             // <--- 2) transition
+        |<| exitS1() ^           // <--- 3) exit event handler
+
 
     $S2
-        |>| enterS2(meaning_of_life) ^
+        |>|
+            enterS2(meaning_of_life) // <--- 4) use cached data
+            ^
 
     -domain-
 
