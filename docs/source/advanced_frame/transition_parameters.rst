@@ -11,11 +11,11 @@ introducing the idea of enter and exit events.
     -machine-
 
     $S1
-        |someEvent| -> $S2 ^ // <--- 1) transition is triggered
-        |<| exitS1() ^       // <--- 2) exit event happens
+        |someEvent| -> $S2 ^    --- 1) transition is triggered
+        |<| exitS1() ^          --- 2) exit event happens
 
     $S2
-        |>| enterS2() ^      // <--- 3) enter event happens
+        |>| enterS2() ^         --- 3) enter event happens
 
 We have already seen the
 Frame mechanism for implementing these features during a transition
@@ -44,9 +44,9 @@ variable:
 
     $S1
         |e1|
-            meaning_of_life = 42 // <--- 1) save a value in the domain
-            -> $S2 ^             // <--- 2) transition
-        |<| exitS1() ^           // <--- 3) exit event handler
+            meaning_of_life = 42    --- 1) save a value in the domain
+            -> $S2 ^                --- 2) transition
+        |<| exitS1() ^              --- 3) exit event handler
 
 
     $S2
@@ -103,11 +103,11 @@ For instance:
 
         $Begin
             |>|
-                -> ("Hello $State") $Print ^ // 1) <--- "Hello State" sent to $Print
+                -> ("Hello $State") $Print ^ --- 1) "Hello State" sent to $Print
 
         $Print
-            |>| [greeting:string]  // 2) <--- greeting parameter is "Hello State"
-                print(greeting) ^  // 3) <--- greeting printed
+            |>| [greeting:string]            --- 2) greeting parameter is "Hello State"
+                print(greeting) ^            --- 3) greeting printed
 
         -actions-
 
@@ -143,11 +143,12 @@ In context:
 .. code-block::
 
     $OuttaHere
-        |<| [exitMsg:string]        // <--- exit event parameters
+        |gottaGo|
+            ("cya") -> $NextState ^     --- initialize exit event parameters
+
+        |<| [exitMsg:string]            --- exit event parameters
             print(exitMsg) ^
 
-        |gottaGo|
-            ("cya") -> $NextState ^ // <--- initialize exit event parameters
 
 This ability can be useful when distinguishing different exit contexts:
 
@@ -156,12 +157,12 @@ This ability can be useful when distinguishing different exit contexts:
 
     $OuttaHere
         |yellow_alert|
-            ("walk") -> $NextState ^  // <--- send "walk" message
+            ("walk") -> $NextState ^    --- send "walk" message
 
         |red_alert|
-            ("run!!") -> $NextState ^ // <--- send "run" message
+            ("run!!") -> $NextState ^   --- send "run" message
 
-        |<| [exitMsg:string]          // <--- "walk" or "run" depending on...
+        |<| [exitMsg:string]            --- "walk" or "run" depending on...
             print(exitMsg) ^
 
 
@@ -211,14 +212,14 @@ State parameters are declared as a parameter list for the state:
 
     ##
 
-Above we see that the stateNameTag is accessible in the enter, exit and
-stop event handlers. It will also be in scope for all other event handlers for
+Above we see that the ``stateNameTag`` is accessible in the ``|>|``, ``|<|`` and
+``|stop|`` event handlers. It will also be in scope for all other event handlers for
 the state as well.
 
 Event and state parameters are a simple solution to a rough edge to existing
 system design approaches. This simplicity in the specification, however,
 is at the cost of increased complexity
-in the generated controller code. 
+in the generated controller code.
 
 Which, of course, is the Framepiler's
 problem and not the system designers.
