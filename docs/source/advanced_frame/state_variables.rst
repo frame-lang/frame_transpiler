@@ -25,18 +25,19 @@ event handlers:
     -machine-
 
     $JoeName
-        var name:string = "Joe"
+        var name:string = "Joe"         --- State variable declaration and init
 
         |print|
-            print(name) ^
+            print(name) ^               --- Reference to state variable
         |updateName| [newName:string]
-            name = newName ^
+            name = newName ^            --- Update state variable
         |forgetMe|
             -> $ResetName ^
 
     $ResetName
         |>|
-            -> $JoeName ^
+            -> $JoeName ^               --- re-entry to $JoeName will create
+                                        --- new $JoeName:name and init to "Joe"
 
     -actions-
 

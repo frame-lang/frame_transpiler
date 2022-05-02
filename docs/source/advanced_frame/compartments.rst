@@ -3,10 +3,6 @@
 Compartments
 ============
 
-
-An Introduction to Compartments
--------------------------------
-
 Frame controllers are the generated code from Frame specs. As we have seen,
 the controller's current state is tracked in a Frame managed runtime variable:
 
@@ -14,7 +10,8 @@ the controller's current state is tracked in a Frame managed runtime variable:
 
     var _state_ = OFF
 
-However, transition parameters now mean there is more data associated with a
+However, transition parameters, state paramenters and state variables
+now mean there is more data associated with a
 state than just the state variable. To accomplish this, Frame introduces
 the idea of the **Compartment**. A compartment is, in essence, a *state closure*.
 
@@ -23,59 +20,22 @@ to the environment that existed when they were created. Frame compartments
 are a similar concept, but instead of a function carrying its associated environment
 with it, compartments enable instances of states to maintain their own environments.
 
-Compartments are simply a data structure consisting of a state variable and
-its environment:
-
-.. code-block::
-
-    struct Compartment {
-        State _state_;
-        EnterArgs map[string]interface{}
-        ExitArgs map[string]interface{}
-        ...
-    }
-
-.. note::
-
-    To focus on just the transition related parameters, the
-    data structure above only shows a partial
-    inventory of a full Compartment.
-
-
-In the sections on transition and state parameters, as well as state variables,
-no details were given as
-to how this data is passed to the state, initialized and/or preserved.
-The answer to those questions is a new idea for state machines called
-the **compartment**.
-
-Compartments are a `closure <https://en.wikipedia.org/wiki/Closure_(computer_programming)>`
-concept for states that preserve the state's context. This context includes
-the state identifier, the data from the
-various state local scopes event handlers can access (so not including the domain)
-as well as the system runtime data needed for the machinery to implement the
-Frame language semantics.
-
-A compartment is implemented simply enough:
+While closures sound mysterious, at the end of the day they are basically lookup tables
+for variables. Therefore compartments are simply a data structure consisting of
+a state variable and the state's environment:
 
 .. code-block::
 
     type SomeCompartment struct {
-        State SomeState
-        StateArgs map[string]interface{}
-        StateVars map[string]interface{}
-        EnterArgs map[string]interface{}
-        ExitArgs map[string]interface{}
-        _forwardEvent_ *framelang.FrameEvent
+        State SomeState                      // - state variable
+        StateArgs map[string]interface{}     // - map of state arguments
+        StateVars map[string]interface{}     // - map of state variables
+        EnterArgs map[string]interface{}     // - map of transition enter arguments
+        ExitArgs map[string]interface{}      // - map of transition exit arguments
+        _forwardEvent_ *framelang.FrameEvent // - system runtime data member for Event Forwarding feature
     }
 
-and has the following data members:
-
-* State     - state variable
-* StateArgs - map of state arguments
-* StateVars - map of state variables
-* EnterArgs - map of transition enter arguments
-* ExitArgs  - map of transition exit arguments
-*  _forwardEvent_ - system runtime data member for Event Forwarding feature
+Let us now discuss each member in detail.
 
 The State Member
 ----------------------------
@@ -184,3 +144,54 @@ this code would be generated:
         c.ExitArgs = make(map[string]interface{})
         return c
     }
+
+
+Compartments are allocated and intialized in event handlers as the first stage
+of a transition. Lets explore the controller code for a basic transition:
+
+``Frame``
+
+.. code-block::
+
+    #TransitionCompartment
+
+    -machine-
+
+    $From
+        |>| -> $To ^
+
+    $To
+
+    ##
+
+This trivial spec generates the following code related to the transition:
+
+The spec generates the controller class/struct that contains two runtime
+data members related to compartments:
+
+.. code-block::
+
+    type transitionCompartmentStruct struct {
+        _compartment_ *TransitionCompartmentCompartment
+        _nextCompartment_ *TransitionCompartmentCompartment
+    }
+
+``_compartment_`` variable always holds a reference to the current compartment while
+the ``_nextCompartment_`` sometimes holds a reference to the next compartment
+when the transition is also :ref:`forwarding an event <event_forwarding>`.
+
+This trivial spec generates the following code related to the transition:
+
+.. code-block::
+
+    func (m *transitionCompartmentStruct) _TransitionCompartmentState_From_(e *framelang.FrameEvent) {
+        switch e.Msg {
+        case ">":
+            compartment := NewTransitionCompartmentCompartment(TransitionCompartmentState_To)
+            m._transition_(compartment)
+            return
+        }
+    }
+
+The ``NewTransitionCompartmentCompartment`` factory simply takes the id of the
+state being transitioned to, in this case ``$To``.
