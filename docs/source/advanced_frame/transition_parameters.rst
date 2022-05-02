@@ -258,5 +258,5 @@ its environment:
 .. note::
 
     To focus on just the transition related parameters, the
-    Compartment data structure above only shows a partial
+    data structure above only shows a partial
     inventory of a full Compartment.
