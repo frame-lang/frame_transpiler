@@ -3,6 +3,45 @@
 Compartments
 ============
 
+
+An Introduction to Compartments
+-------------------------------
+
+Frame controllers are the generated code from Frame specs. As we have seen,
+the controller's current state is tracked in a Frame managed runtime variable:
+
+.. code-block::
+
+    var _state_ = OFF
+
+However, transition parameters now mean there is more data associated with a
+state than just the state variable. To accomplish this, Frame introduces
+the idea of the **Compartment**. A compartment is, in essence, a *state closure*.
+
+Closures are a concept from programming languages that tie references to anonymous functions
+to the environment that existed when they were created. Frame compartments
+are a similar concept, but instead of a function carrying its associated environment
+with it, compartments enable instances of states to maintain their own environments.
+
+Compartments are simply a data structure consisting of a state variable and
+its environment:
+
+.. code-block::
+
+    struct Compartment {
+        State _state_;
+        EnterArgs map[string]interface{}
+        ExitArgs map[string]interface{}
+        ...
+    }
+
+.. note::
+
+    To focus on just the transition related parameters, the
+    data structure above only shows a partial
+    inventory of a full Compartment.
+
+
 In the sections on transition and state parameters, as well as state variables,
 no details were given as
 to how this data is passed to the state, initialized and/or preserved.
