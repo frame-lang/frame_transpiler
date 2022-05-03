@@ -112,9 +112,7 @@ Compartment Initialization
 --------------------------
 
 The Framepiler generates code for both the system compartment structure declaration
-as well as a factory function for creating new ones.
-
-So for this system spec:
+as well as a factory function for creating new ones. So for this system spec:
 
 ``Frame``
 
@@ -145,15 +143,14 @@ this code would be generated:
         return c
     }
 
-
-Compartments are allocated and intialized in event handlers as the first stage
+Compartments are allocated and initialized in event handlers as the first stage
 of a transition. Lets explore the controller code for a basic transition:
 
 ``Frame``
 
 .. code-block::
 
-    #TransitionCompartment
+    #TransitionExample
 
     -machine-
 
@@ -169,9 +166,9 @@ data members related to compartments:
 
 .. code-block::
 
-    type transitionCompartmentStruct struct {
-        _compartment_ *TransitionCompartmentCompartment
-        _nextCompartment_ *TransitionCompartmentCompartment
+    type transitionExampleStruct struct {
+        _compartment_ *TransitionExampleCompartment
+        _nextCompartment_ *TransitionExampleCompartment
     }
 
 ``_compartment_`` variable always holds a reference to the current compartment while
@@ -183,10 +180,10 @@ The following code related to the transition from ``$From`` to ``$To``:
 
 .. code-block::
 
-    func (m *transitionCompartmentStruct) _TransitionCompartmentState_From_(e *framelang.FrameEvent) {
+    func (m *transitionExampleStruct) _TransitionExampleState_From_(e *framelang.FrameEvent) {
         switch e.Msg {
         case ">":
-            compartment := NewTransitionCompartmentCompartment(TransitionCompartmentState_To)
+            compartment := NewTransitionExampleCompartment(TransitionExampleState_To)
             m._transition_(compartment)
             return
         }
@@ -199,7 +196,7 @@ state being transitioned to, in this case ``$To``.
 
     //=============== Machinery and Mechanisms ==============//
 
-    func (m *transitionCompartmentStruct) _transition_(compartment *TransitionCompartmentCompartment) {
+    func (m *transitionExampleStruct) _transition_(compartment *TransitionExampleCompartment) {
         m._nextCompartment_ = compartment
     }
 
@@ -216,12 +213,12 @@ return immediately to the ``multiplexer``:
 
     //====================== Multiplexer ====================//
 
-    func (m *transitionCompartmentStruct) _mux_(e *framelang.FrameEvent) {
+    func (m *transitionExampleStruct) _mux_(e *framelang.FrameEvent) {
         switch m._compartment_.State {
-        case TransitionCompartmentState_From:
-            m._TransitionCompartmentState_From_(e)
-        case TransitionCompartmentState_To:
-            m._TransitionCompartmentState_To_(e)
+        case TransitionExampleState_From:
+            m._TransitionExampleState_From_(e)
+        case TransitionExampleState_To:
+            m._TransitionExampleState_To_(e)
         }
 
         // NOTE: this is a simplified version of the _do_transition_() logic
@@ -249,7 +246,7 @@ If so, it performs the transition:
 
     ...
 
-    func (m *stateParametersStruct) _do_transition_(nextCompartment *StateParametersCompartment) {
+    func (m *transitionExampleStruct) _do_transition_(nextCompartment *TransitionExampleCompartment) {
         m._mux_(&framelang.FrameEvent{Msg: "<", Params: m._compartment_.ExitArgs, Ret: nil})
         m._compartment_ = nextCompartment
         m._mux_(&framelang.FrameEvent{Msg: ">", Params: m._compartment_.EnterArgs, Ret: nil})
@@ -260,7 +257,7 @@ a transition with all of the data passing in place:
 
 .. code-block::
 
-    #TransitionCompartment
+    #TransitionExampleWithDataPassing
 
     -machine-
 
@@ -272,15 +269,16 @@ a transition with all of the data passing in place:
     	|>| [enterParam:string] ^
 
     ##
+
 .. code-block::
 
     //===================== Machine Block ===================//
 
-    func (m *transitionCompartmentStruct) _TransitionCompartmentState_From_(e *framelang.FrameEvent) {
+    func (m *transitionExampleWithDataPassingStruct) _TransitionExampleWithDataPassingState_From_(e *framelang.FrameEvent) {
         switch e.Msg {
         case ">":
             m._compartment_.ExitArgs["exitParam"] = "exitParam"
-            compartment := NewTransitionCompartmentCompartment(TransitionCompartmentState_To)
+            compartment := NewTransitionExampleWithDataPassingCompartment(TransitionExampleWithDataPassingState_To)
             compartment.EnterArgs["enterParam"] = "enterParam"
             compartment.StateArgs["stateParam"] = "stateParam"
 
@@ -307,4 +305,4 @@ Conclusion
 
 This section explained the mechanisms of compartments for data
 passing between states. We will next explore their role in facilitating a number of
-advanced or nuanced scenarios. 
+advanced or nuanced scenarios.
