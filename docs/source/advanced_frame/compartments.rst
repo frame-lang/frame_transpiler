@@ -164,8 +164,6 @@ of a transition. Lets explore the controller code for a basic transition:
 
     ##
 
-This trivial spec generates the following code related to the transition:
-
 The spec generates the controller class/struct that contains two runtime
 data members related to compartments:
 
@@ -177,10 +175,11 @@ data members related to compartments:
     }
 
 ``_compartment_`` variable always holds a reference to the current compartment while
-the ``_nextCompartment_`` sometimes holds a reference to the next compartment
-when the transition is also :ref:`forwarding an event <event_forwarding>`.
+the ``_nextCompartment_`` holds a reference to the next compartment
+and is a key runtime mechanism for the :ref:`deferred transitions <deferred_transitions>`
+capability of Frame controllers.
 
-This trivial spec generates the following code related to the transition:
+The following code related to the transition from ``$From`` to ``$To``:
 
 .. code-block::
 
@@ -193,5 +192,119 @@ This trivial spec generates the following code related to the transition:
         }
     }
 
-The ``NewTransitionCompartmentCompartment`` factory simply takes the id of the
+In this simple case, the ``NewTransitionCompartmentCompartment`` factory simply takes the id of the
 state being transitioned to, in this case ``$To``.
+
+.. code-block::
+
+    //=============== Machinery and Mechanisms ==============//
+
+    func (m *transitionCompartmentStruct) _transition_(compartment *TransitionCompartmentCompartment) {
+        m._nextCompartment_ = compartment
+    }
+
+    ...
+
+As we can see, the ``_transition_`` method simply caches off a reference to
+the newly constructed transition and then returns.
+
+If a transition occurs in an event handler, the event handler is required to
+return immediately to the ``multiplexer``:
+
+.. code-block::
+
+
+    //====================== Multiplexer ====================//
+
+    func (m *transitionCompartmentStruct) _mux_(e *framelang.FrameEvent) {
+        switch m._compartment_.State {
+        case TransitionCompartmentState_From:
+            m._TransitionCompartmentState_From_(e)
+        case TransitionCompartmentState_To:
+            m._TransitionCompartmentState_To_(e)
+        }
+
+        // NOTE: this is a simplified version of the _do_transition_() logic
+        if m._nextCompartment_ != nil {
+            m._do_transition_(m._nextCompartment_)
+        }
+    }
+
+The ``m._TransitionCompartmentState_From_(e)`` state function call returns
+and then tests if a transition occurred by seeing if ``m._nextCompartment_`` is
+set:
+
+.. code-block::
+
+    // NOTE: this is a simplified version of the _do_transition_() logic
+    if m._nextCompartment_ != nil {
+        m._do_transition_(m._nextCompartment_)
+    }
+
+If so, it performs the transition:
+
+.. code-block::
+
+    //=============== Machinery and Mechanisms ==============//
+
+    ...
+
+    func (m *stateParametersStruct) _do_transition_(nextCompartment *StateParametersCompartment) {
+        m._mux_(&framelang.FrameEvent{Msg: "<", Params: m._compartment_.ExitArgs, Ret: nil})
+        m._compartment_ = nextCompartment
+        m._mux_(&framelang.FrameEvent{Msg: ">", Params: m._compartment_.EnterArgs, Ret: nil})
+    }
+
+This is the basic pattern for a "simple" transition. Let's take a look at
+a transition with all of the data passing in place:
+
+.. code-block::
+
+    #TransitionCompartment
+
+    -machine-
+
+    $From
+        |>| ("exitParam") -> ("enterParam") $To("stateParam") ^
+        |<| [exitParam:string] ^
+
+    $To [stateParam:string]
+    	|>| [enterParam:string] ^
+
+    ##
+.. code-block::
+
+    //===================== Machine Block ===================//
+
+    func (m *transitionCompartmentStruct) _TransitionCompartmentState_From_(e *framelang.FrameEvent) {
+        switch e.Msg {
+        case ">":
+            m._compartment_.ExitArgs["exitParam"] = "exitParam"
+            compartment := NewTransitionCompartmentCompartment(TransitionCompartmentState_To)
+            compartment.EnterArgs["enterParam"] = "enterParam"
+            compartment.StateArgs["stateParam"] = "stateParam"
+
+            m._transition_(compartment)
+            return
+        case "<":
+            return
+        }
+    }
+
+Above we can see the following steps happen with regards to data passing:
+
+#. Set the exit parameter on the *current* state compartment
+#. Create the next state compartment and initialize the state variable
+#. Initialize the next state's enter parameters
+#. Initialize the next state's state parameters
+#. Do (deferred) transition and return
+
+So each transition is simply proceeded by code that creates and provisions the compartments
+as appropriate.
+
+Conclusion
+----------
+
+This section explained the mechanisms of compartments for data
+passing between states. We will next explore their role in facilitating a number of
+advanced or nuanced scenarios. 

@@ -1,3 +1,5 @@
+.. _deferred_transitions:
+
 Deferred Transitions
 ====================
 
@@ -81,10 +83,15 @@ each call to a transition. Lets inspect the call stack
 when a client makes a call to the `doTransition()` interface. By the time we
 are at the line `print("Entering $S1")`, the call the stack looks like this:
 
+================
+Call Stack
+================
 _sS1_
 _transition_
 _sS0_
 doTransition
+================
+
 
 Now let us add a few more transitions inside of `|>|` handlers:
 
@@ -120,6 +127,9 @@ Now let us add a few more transitions inside of `|>|` handlers:
 
 Now our state stack will look like this by the time we are in `$S3`:
 
+================
+Call Stack
+================
 _sS3_
 _transition_
 _sS2_
@@ -128,6 +138,8 @@ _sS1_
 _transition_
 _sS0_
 doTransition
+================
+
 
 So we can start to see a problem with this implementation of transitions.
 However this usually is not a problem in reactive systems as typically a

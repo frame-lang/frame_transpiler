@@ -15,7 +15,6 @@ about how software systems can be architected.
     transition_parameters
     state_variables
     compartments
-    simple_machines
     system_start
     deferred_transitions
     event_forwarding
