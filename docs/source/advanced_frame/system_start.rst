@@ -128,6 +128,7 @@ a convenience factory function to return a properly initialized system.
 
 State Parameter Initialization
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 .. code-block::
 
     #StartSystem3 $[stateParam:string] >[enterParam:string] [domainParam:string]
