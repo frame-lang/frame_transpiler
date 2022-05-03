@@ -64,7 +64,7 @@ another mechanism must exist to provide these parameters to the start state.
 To do so, Frame provides **system initializer lists**.
 
 
-State Parameter Initialization
+State Parameter List
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The system state parameters are initialized with the $[<params>] list:
@@ -79,7 +79,7 @@ The system state parameters are initialized with the $[<params>] list:
 
     ##
 
-Enter Event Parameter Initialization
+Enter Event Parameter List
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The system enter event parameters are initialized with the >[<params>] list:
@@ -96,11 +96,23 @@ The system enter event parameters are initialized with the >[<params>] list:
     ##
 
 
-Domain Variable Override Initialization
+Domain Variable Override List
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The system domain variables are initialized by default, but can be overriden
+The system domain variables must be initialized by default, but can be overriden
 using the domain variable initialization list:
+
+
+.. code-block::
+
+    #StartSystem2 >[enterParam:string]
+
+    -machine-
+
+    $StartState
+        |>| [enterParam:string] ^
+
+    ##
 
 .. code-block::
 
