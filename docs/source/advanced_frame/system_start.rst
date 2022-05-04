@@ -86,7 +86,7 @@ The system enter event parameters are initialized with the >[<params>] list:
 
 .. code-block::
 
-    #StartSystem3 [domainParam:string]
+    #StartSystem2 >[enterParam:string]
 
     -machine-
 
@@ -102,7 +102,10 @@ Domain Variable Override List
 The system domain variables must be initialized by default, but can be overriden
 using the domain variable initialization list:
 
+.. code-block::
 
+    #StartSystem3 [domainParam:string]
+    
 .. code-block::
 
     #StartSystem3 [domainParam:string]
