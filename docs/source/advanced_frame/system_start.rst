@@ -104,8 +104,8 @@ using the domain variable initialization list:
 
 .. code-block::
 
-    #StartSystem3 [domainParam:string]
-    
+    #StartSystem3 >[domainParam:string]
+
 .. code-block::
 
     #StartSystem3 [domainParam:string]
