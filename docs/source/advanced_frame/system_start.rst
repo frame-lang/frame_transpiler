@@ -86,7 +86,7 @@ The system enter event parameters are initialized with the >[<params>] list:
 
 .. code-block::
 
-    #StartSystem2 >[enterParam:string]
+    #StartSystem3 [domainParam:string]
 
     -machine-
 
@@ -105,17 +105,6 @@ using the domain variable initialization list:
 
 .. code-block::
 
-    #StartSystem2 >[enterParam:string]
-
-    -machine-
-
-    $StartState
-        |>| [enterParam:string] ^
-
-    ##
-
-.. code-block::
-
     #StartSystem3 [domainParam:string]
 
     -domain-
@@ -123,6 +112,7 @@ using the domain variable initialization list:
     var domainParam:string = nil
 
     ##
+
 
 
 These lists are optional, but if present must be in the following order:
