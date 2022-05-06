@@ -104,7 +104,7 @@ to the new state. Lets see how our mail scenario works using event forwarding.
     ##
 
 Obviously there has been a significant simplification in the system's
-specification as we have completely eliminated the `$OnCouch` `|>|` event handler.
+specification as we have completely eliminated the ``$OnCouch`` ``|>|`` event handler.
 
 This simplification in the Frame spec comes at the cost of complexity in the
 generated code. This, of course, shouldn't matter to anyone as it is handled
@@ -116,7 +116,7 @@ Event Forwarding Mechanism
 --------------------------
 
 The first step in event forwarding is to use the runtime compartment variable
-_forwardEvent_ to cache off the current event and then start the transition:
+``_forwardEvent_`` to cache off the current event and then start the transition:
 
 .. code-block:: go
 
@@ -145,7 +145,7 @@ Multiplexer
 
     func (m *youGotMailStruct) _mux_(e *framelang.FrameEvent) {
 
-        // Send event to state for processing.
+        // Send event to the current state for processing.
         // This is the core "state machine".
         switch m._compartment_.State {
         case YouGotMailState_AtMailBox:
@@ -174,8 +174,7 @@ Multiplexer
                 // send the old, forwarded one to the new state/compartment
                 m._mux_(nextCompartment._forwardEvent_)
             } else {
-                // if there was a forwarded event then it wasn't
-                // an enter event. Go ahead and transition like normal
+                // Go ahead and transition like normal
                 m._do_transition_(nextCompartment)
                 // now detect if there was a forwarded event
                 if nextCompartment._forwardEvent_ != nil {
@@ -192,15 +191,11 @@ Multiplexer
 From the event forwarding perspective there are three categories of events of
 concern:
 
-#. One
-#. Two
-#. Three
-
-1. Enter events - the mechanism support for forwarding these adds the most
-complexity to the machine as it doesn't do a normal transition
-2. Exit events - disallowed and will result in a parse error
-3. All other events - handled simply in the else clause above by transitioning
-and then forwarding into the multiplexer
+1.  Enter events - the mechanism support for forwarding these adds the most
+    complexity to the machine as it doesn't do a normal transition
+2.  Exit events - disallowed and will result in a parse error
+3.  All other events - handled simply in the else clause above by transitioning
+    and then forwarding into the multiplexer
 
 Full Event Forwarding Syntax
 ----------------------------
@@ -228,7 +223,7 @@ Returning Values from Forwarded Events
 --------------------------------------
 
 Forwarded events should work exactly like non-forwarded events in the machine.
-As an example of this, `#StringTools` takes a small set of requests for
+As an example of this, ``#StringTools`` takes a small set of requests for
 string editing operations and routes them to the correct state for processing:
 
 .. code-block::
@@ -244,9 +239,9 @@ string editing operations and routes them to the correct state for processing:
 
     $Router
     	|makePalindrome| [str:string] : string
-            -> "make\npalindrome" => $MakePalindrome ^
+            -> "make\npalindrome" => $MakePalindrome ^  --- forward to $MakePalindrome
         |reverse| [str:string] : string
-            -> "reverse" => $Reverse ^
+            -> "reverse" => $Reverse ^                  --- forward to $Reverse
 
     $Reverse
         |reverse| [str:string] : string
@@ -265,21 +260,9 @@ Conclusion
 
 Event forwarding is a very nice to have, but not essential, capability
 in Frame. The need for it arises as a byproduct of having a better organized
-system. It is a lot like having taken a messy room with everything available
-and in reach but strewn about and hard to find and then put all the stuff in
-boxes. The stuff is now better organized, but now you have to deal with
-organizing and accessing boxes.
-
-The need for event forwarding was recognized early in the development of
+system.  The need for event forwarding was recognized early in the development of
 Frame but had no simple solution at the time. It required the concept of the
-compartment in order to provide a key part of the solution to
-the puzzle to be developed first. Additionally, at the time, there was also
-not a multiplexer
-method to put the logic to implement the feature. Therefore it required the
-evolution
-of other mechanisms to unlock a practical way to finally implement it.
+compartment as well as the multiplexer to be developed first.
 
-It is hoped that as Frame continues to mature, similar discoveries about
-useful combinations of
-features, Frame syntax and low level code mechanisms will continue to be identified
-and able to build on each other.
+It is hoped that as Frame continues to mature, similar discoveries will
+build upon each other to deliver more and more powerful capabilities.
