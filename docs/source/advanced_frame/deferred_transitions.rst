@@ -96,29 +96,7 @@ are at the line `print("Entering $S1")`, the call the stack looks like this:
 | doTransition           |
 +------------------------+
 
-==========
-Call Stack
-==========
-a
-b
-c
-==========
-
-=====
-A
-=====
-False
-True
-False
-True
-=====
-
-_sS1_
-_transition_
-_sS0_
-doTransition
-
-Now let us add a few more transitions inside of `|>|` handlers:
+Now let us add a few more transitions inside of ``|>|`` handlers:
 
 .. code-block::
 
@@ -150,26 +128,34 @@ Now let us add a few more transitions inside of `|>|` handlers:
 
   	##
 
-Now our state stack will look like this by the time we are in `$S3`:
-
-================
-Call Stack
-================
-_sS3_
-_transition_
-_sS2_
-_transition_
-_sS1_
-_transition_
-_sS0_
-doTransition
-================
+Now our state stack will look like this by the time we are in ``$S3``:
 
 
-So we can start to see a problem with this implementation of transitions.
-However this usually is not a problem in reactive systems as typically a
-client will call the interface and usually only a single transition will
-happen at most.
++------------------------+
+| Call Stack             |
++========================+
+| _sS3_                  |
++------------------------+
+| _transition_           |
++------------------------+
+| _sS2_                  |
++------------------------+
+| _transition_           |
++------------------------+
+| _sS1_                  |
++------------------------+
+| _transition_           |
++------------------------+
+| _sS0_                  |
++------------------------+
+| doTransition           |
++------------------------+
+
+We can start to see a problem emerge with this implementation of transitions
+as the stack grows when we transition in a ``|>|`` event handler.
+This usually is not a problem in reactive systems as typically a
+client will call the interface and typically only a single transition will
+occur.
 
 Where this situation becomes a problem is in a couple of cases. One case is
 in trying to solve iterative problems with state machines. For instance, here
@@ -185,32 +171,30 @@ is a simple count down machine that does all its work in the enter events:
         |>|
             print(itoa(i))          --- print current value of i
             i <= 0 ? -> $Stop ^ ::  --- if i == 0 then transition to $Stop
-            -> (i) $S1 ^            --- otherwise pass i as an enter event param
+            -> (i) $Decrement ^     --- otherwise pass i as an enter event param
                                     --- to $Decrement
 
       $Decrement
         |>| [i:int]
             i = i - 1               --- decrement i
-            -> $Test(i) ^           --- loop back to
+            -> $Test(i) ^           --- loop back to $Test
 
       $Stop
         |>| print("done") ^
 
     ##
 
-Here we can see that the machine has two states and no external interface.
-Instead `$Test[i:int]` is initialized by the `#Countdown $[i:int]`
-system parameter and the machine loops between `$Test` and `$Decrement`.
-With every loop the call stack will grow by three stack frames. If `i`
-is a large number, this could easily crash the process.
+The machine above is designed to loop between ``$Test`` and ``$Decrement`` i times.
+With every loop the call stack will grow by three stack frames. If ``i``
+is a large number, this could easily crash the program.
 
-Deferred transitions are the solution to this problem.
+To address this situation, Frame introduces the concept of a **deferred transition**.
 
 Deferred Transition Mechanism
 -----------------------------
 
 A deferred transition means, at a high level, that the transition does not
-actually happen when `_transition()` is called. Instead, a multistep process
+actually happen when ``_transition()`` is called. Instead, a multistep process
 is initiated by first caching a reference to the
 next compartment:
 
@@ -237,8 +221,8 @@ As we can see, the transition takes place in two steps:
 #. _transition_()    - cache next compartment
 #. _do_transition_() - perform transition
 
-The question is - where does `_do_transition_()` get called. The answer is in
-the last block in the `_mux_()`:
+The question is - where does ``_do_transition_()`` get called. The answer is in
+the last block in the ``_mux_()``:
 
 .. code-block::
 
@@ -261,11 +245,11 @@ the last block in the `_mux_()`:
         }
     }
 
-Above we can see that the `_mux_()` has two blocks. The first is a switch
+Above we can see that the ``mux`` has two blocks. The first is a switch
 statement that routes the Frame Event to the current state for processing. The
 second block determines if a transition has occurred by testing the
-`m._nextCompartment_` runtime variable. If so, it executes the transition.
+``m._nextCompartment_`` runtime variable. If so, it executes the transition.
 
 Using this mechanism, transitions that happen inside an enter event handler will
 not result in recursive additions to the call stack as the transition always
-actually occurs in the context of the mux.
+actually occurs in the context of the ``mux``.
