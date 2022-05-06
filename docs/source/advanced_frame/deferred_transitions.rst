@@ -249,5 +249,4 @@ second block determines if a transition has occurred by testing the
 ``m._nextCompartment_`` runtime variable. If so, it executes the transition.
 
 Using this mechanism, transitions that happen inside an enter event handler will
-not result in recursive additions to the call stack as the transition always
-actually occurs in the context of the ``mux``.
+not result in recursive additions to the call stack and can run indefinitely.

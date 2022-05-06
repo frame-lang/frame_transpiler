@@ -10,8 +10,8 @@ in event handlers, of one form or another.
 
 (event,state) -> behavior
 
-Unlike state functions, event handlers have no formal internal structure
-around state. This lack of structure actually makes it easy to slip between
+Unlike state functions, event oriented software have no formal internal structure
+around state. This lack of structure makes it easy to slip between
 one state and another by performing arbitrary boolean tests and updating
 data values in an ad hoc manner. This lack of structure is liberating when
 systems are simple, but becomes the definition of "spaghetti code" when they
@@ -20,12 +20,12 @@ become complex.
 State functions rigidly isolate one state's behavior from other
 state's behavior. A side effect of this segregation of logical state, however,
 is that the system can't easily slip from one
-state to another during a single call to an event handler. This is the goal,
-but also creates some curious situations that need to be understood as a
+state to another during a single call to an event handler. While this is, in fact, the goal,
+it also creates some curious situations that need to be understood as a
 byproduct of this segregation.
 
 One of the most common situations occurs when an event is sent with the system
-in one state but needs to be handled in another. An example will illustrate
+in one state but the event really needs to be handled in another state. An example will illustrate
 the point.
 
 Say you are at the mailbox when a letter
@@ -43,35 +43,35 @@ of your home before you read it.
 
     -machine-
 
-    $AtMailBox                    --- start state at the mailbox
-        |newMail| [letter:Letter] --- new mail arrives
-            newLetter = letter    --- cache off letter reference in domain variable
-            -> $OnCouch ^         --- transition to couch
+    $AtMailBox                      --- start state at the mailbox
+        |newMail| [letter:Letter]   --- new mail arrives
+            savedLetter = letter    --- cache off letter reference in domain variable
+            -> $OnCouch ^           --- transition to couch
 
     $OnCouch
-        |>|                       --- once at couch
-            #.newLetter != nil ?  --- see if we have a letter. we won't always
-                readLetter()      --- read letter if we do
-                newLetter = nil   --- throw away letter
+        |>|                         --- once at couch
+            savedLetter != nil ?    --- see if we have a letter. we won't always
+                read(savedLetter)   --- read letter if we do
+                savedLetter = nil   --- throw away letter
             :: ^
-        |newMail| [letter:Letter] --- if we are already on the couch
-            readLetter() ^        --- and someone brings us the mail, read it
+        |newMail| [letter:Letter]   --- if we are already on the couch
+            read(letter) ^          --- and someone brings us the mail, read it
 
     -domain-
 
-    var newLetter:Letter = nil
+    var savedLetter:Letter = nil
 
     ##
 
-This solution is fine, however we have to do some shuffling around of the letter
-to deal with. It also feels a bit like a hack in differentiating between the two
-situations of having a letter or not when transitioning to the couch.
+This solution is fine, however we have to do some shuffling around of the letter.
+After receiving ``|newMail|`` in ``$AtMailBox``, the letter is
+saved off and then dealt with in the ``$OnCouch`` enter event handler.
 
 As this is a common situation, it would be nice to have a more elegant way
-to deal with it. Event forwarding provides just that solution.
+to deal with it that didn't involve saving the letter. Event forwarding
+provides just that mechanism.
 
-Event forwarding syntax annotates a transition operator with a dispatch
-operator:
+To forward an event to another state one uses the ``-> =>`` pair of tokens together:
 
 .. code-block::
 
