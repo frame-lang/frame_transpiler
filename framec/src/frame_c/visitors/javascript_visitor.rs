@@ -378,13 +378,10 @@ impl JavaScriptVisitor {
                 if self.generate_state_context {
                     if self.generate_exit_args {
                         self.add_code(
-                            &"_transition_(newState,exitArgs, stateContext) {"
-                                .to_string(),
+                            &"_transition_(newState,exitArgs, stateContext) {".to_string(),
                         );
                     } else {
-                        self.add_code(
-                            &"_transition_(newState, stateContext) {".to_string(),
-                        );
+                        self.add_code(&"_transition_(newState, stateContext) {".to_string());
                     }
                 } else if self.generate_exit_args {
                     self.add_code(&"_transition_function(newState,exitArgs) {".to_string());
@@ -558,7 +555,10 @@ impl JavaScriptVisitor {
         }
 
         if self.generate_state_context {
-            self.add_code(&format!("stateContext = StateContext(this.{});", state_ref_code));
+            self.add_code(&format!(
+                "stateContext = StateContext(this.{});",
+                state_ref_code
+            ));
             self.newline();
         }
 
@@ -903,7 +903,6 @@ impl AstVisitor for JavaScriptVisitor {
         self.newline();
         self.newline();
         self.add_code(&format!("constructor () {{"));
-    
         // First state name needed for machinery.
         // Don't generate if there isn't at least one state.
         match system_node.get_first_state() {
@@ -917,7 +916,10 @@ impl AstVisitor for JavaScriptVisitor {
         if system_node.get_first_state().is_some() {
             self.indent();
             self.newline();
-            self.add_code(&format!("this._state_ = this._s{}_;", self.first_state_name));
+            self.add_code(&format!(
+                "this._state_ = this._s{}_;",
+                self.first_state_name
+            ));
             if self.generate_state_context {
                 self.newline();
                 self.add_code(&"this._stateContext_ = StateContext(this._state_);".to_string());
@@ -925,7 +927,6 @@ impl AstVisitor for JavaScriptVisitor {
             self.outdent();
             self.newline();
         }
-        
         self.add_code(&"}".to_string());
         self.newline();
 
@@ -940,15 +941,14 @@ impl AstVisitor for JavaScriptVisitor {
             .push("that._deserialize__do = function(data) {".to_string());
 
         self.subclass_code.push("".to_string());
-        self.subclass_code.push("/********************\n".to_string());
+        self.subclass_code
+            .push("/********************\n".to_string());
         self.subclass_code.push(format!(
             "class {}Controller extends {} {{\n",
-            system_node.name,system_node.name
+            system_node.name, system_node.name
         ));
-        self.subclass_code
-            .push("\tconstructor() {".to_string());
-        self.subclass_code
-            .push("\t  super()".to_string());
+        self.subclass_code.push("\tconstructor() {".to_string());
+        self.subclass_code.push("\t  super()".to_string());
         self.subclass_code.push("\t}".to_string());
         if let Some(interface_block_node) = &system_node.interface_block_node_opt {
             interface_block_node.accept(self);
@@ -967,7 +967,8 @@ impl AstVisitor for JavaScriptVisitor {
         }
 
         self.subclass_code.push("};".to_string());
-        self.subclass_code.push("\n********************/".to_string());
+        self.subclass_code
+            .push("\n********************/".to_string());
 
         self.serialize.push("".to_string());
         self.serialize
@@ -1062,11 +1063,7 @@ impl AstVisitor for JavaScriptVisitor {
         let mut call_params = String::new();
         let mut send_params = String::new();
 
-        call_params.push_str(&format!(
-            "\n{}{}(",
-            self.dent(),
-            interface_method_node.name
-        ));
+        call_params.push_str(&format!("\n{}{}(", self.dent(), interface_method_node.name));
 
         let has_params;
         match &interface_method_node.params {
@@ -1436,7 +1433,10 @@ impl AstVisitor for JavaScriptVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_action_call_expression_node(&mut self, action_call: &ActionCallExprNode) {
-        let action_name = &format!("this.{}",self.format_action_name(&action_call.identifier.name.lexeme));
+        let action_name = &format!(
+            "this.{}",
+            self.format_action_name(&action_call.identifier.name.lexeme)
+        );
         self.add_code(&action_name);
         action_call.call_expr_list.accept(self);
 
@@ -1450,7 +1450,10 @@ impl AstVisitor for JavaScriptVisitor {
         action_call: &ActionCallExprNode,
         output: &mut String,
     ) {
-        let action_name = &format!("this.{}",self.format_action_name(&action_call.identifier.name.lexeme));
+        let action_name = &format!(
+            "this.{}",
+            self.format_action_name(&action_call.identifier.name.lexeme)
+        );
         output.push_str(&action_name);
         action_call.call_expr_list.accept_to_string(self, output);
     }
@@ -1507,7 +1510,10 @@ impl AstVisitor for JavaScriptVisitor {
 
     fn visit_dispatch_node(&mut self, dispatch_node: &DispatchNode) {
         self.newline();
-        self.add_code(&format!("this._s{}_(e);", dispatch_node.target_state_ref.name));
+        self.add_code(&format!(
+            "this._s{}_(e);",
+            dispatch_node.target_state_ref.name
+        ));
         self.generate_comment(dispatch_node.line);
         self.newline();
     }
