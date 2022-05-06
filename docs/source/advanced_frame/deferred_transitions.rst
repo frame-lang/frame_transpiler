@@ -92,14 +92,14 @@ b
 c
 ================
 
-=====  =====  
-A      B
-=====  =====
-False  False
-True   False
-False  True
-True   True
-=====  =====
+=====    
+A
+=====
+False
+True
+False
+True
+=====
 
 _sS1_
 _transition_
