@@ -81,7 +81,7 @@ code:
 
 One obvious but subtly important aspect to this architecture is that the call stack grows with
 each call to a transition. Lets inspect the call stack
-when a client makes a call to the `doTransition()` interface. By the time we
+when a client makes a call to the ``doTransition()`` interface. By the time we
 are at the line `print("Entering $S1")`, the call the stack looks like this:
 
 +------------------------+
@@ -151,15 +151,13 @@ Now our state stack will look like this by the time we are in ``$S3``:
 | doTransition           |
 +------------------------+
 
-We can start to see a problem emerge with this implementation of transitions
-as the stack grows when we transition in a ``|>|`` event handler.
-This usually is not a problem in reactive systems as typically a
-client will call the interface and typically only a single transition will
-occur.
+This situation is usually is not a problem in reactive systems as most machines
+are not designed to do repeated transitions from enter event handlers. However,
+there are a couple of important cases where this is problematic.
 
-Where this situation becomes a problem is in a couple of cases. One case is
-in trying to solve iterative problems with state machines. For instance, here
-is a simple count down machine that does all its work in the enter events:
+The first is machines designed to solve iterative problems.
+For instance, here
+is a simple machine implementing a loop that does all its work in the enter events:
 
 .. code-block::
 
@@ -170,7 +168,7 @@ is a simple count down machine that does all its work in the enter events:
       $Test[i:int]                  --- start state initialized by system param
         |>|
             print(itoa(i))          --- print current value of i
-            i <= 0 ? -> $Stop ^ ::  --- if i == 0 then transition to $Stop
+            i == 0 ? -> $Stop ^ ::  --- if i == 0 then transition to $Stop
             -> (i) $Decrement ^     --- otherwise pass i as an enter event param
                                     --- to $Decrement
 
@@ -193,7 +191,7 @@ To address this situation, Frame introduces the concept of a **deferred transiti
 Deferred Transition Mechanism
 -----------------------------
 
-A deferred transition means, at a high level, that the transition does not
+The term deferred transition means that the transition does not
 actually happen when ``_transition()`` is called. Instead, a multistep process
 is initiated by first caching a reference to the
 next compartment:
@@ -221,7 +219,7 @@ As we can see, the transition takes place in two steps:
 #. _transition_()    - cache next compartment
 #. _do_transition_() - perform transition
 
-The question is - where does ``_do_transition_()`` get called. The answer is in
+So where does ``_do_transition_()`` get called? The answer is in
 the last block in the ``_mux_()``:
 
 .. code-block::
