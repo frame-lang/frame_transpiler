@@ -48,17 +48,16 @@ For instance:
                 -> ("Hello")            // <--- Initialize enter event params
                     $S2("state $S2")    // <--- Intialize state params
                     ^
-
         $S2 [who:string]                // <--- State param
             var separator:string = " "  // <--- Intialize state variable
 
             |>| [greeting:string]       // <--- Enter event handler and params
-                print(who + separator + greeting) ^
+                print(greeting + separator + who) ^
     ##
 
 The Frame transition mechanisms support the activities outlined above.
-Upon creation, however, the system does not do a transition into the start state.
-Instead it simply starts there, so none of the usual transition mechanisms
+Upon creation, however, the *system does not do a transition into the start state*.
+Instead it simply boots into the start state, so none of the usual transition mechanisms
 are used in the very beginning. Therefore
 another mechanism must exist to provide these parameters to the start state.
 To do so, Frame provides **system initializer lists**.
@@ -131,9 +130,6 @@ The System Factory
 To facilitate proper use of these feature, the Framepiler generates
 a convenience factory function to return a properly initialized system.
 
-State Parameter Initialization
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
 .. code-block::
 
     #StartSystem3 $[stateParam:string] >[enterParam:string] [domainParam:string]
@@ -185,3 +181,12 @@ The steps for proper system initialization are:
 #. Initialize the compartment with state parameters
 #. Initialize compartment with enter parameters
 #. Send an enter event to the multiplexer and pass the compartment enter parameters
+
+Conclusion
+----------
+
+Using a factory to initialize a system accomplishes two important goals:
+
+#.  the ability to override the default initialization of the system domain
+#.  to adapt the important aspects of a state transition such that the start state
+    works like other states
