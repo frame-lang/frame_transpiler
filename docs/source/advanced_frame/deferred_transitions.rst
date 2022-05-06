@@ -84,15 +84,27 @@ each call to a transition. Lets inspect the call stack
 when a client makes a call to the `doTransition()` interface. By the time we
 are at the line `print("Entering $S1")`, the call the stack looks like this:
 
-================
++------------------------+
+| Call Stack             |
++========================+
+| _sS1_                  |
++------------------------+
+| _transition_           |
++------------------------+
+| _sS0_                  |
++------------------------+
+| doTransition           |
++------------------------+
+
+==========
 Call Stack
 ==========
 a
 b
 c
-================
+==========
 
-=====    
+=====
 A
 =====
 False
