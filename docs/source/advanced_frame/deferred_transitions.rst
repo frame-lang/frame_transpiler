@@ -25,7 +25,8 @@ exit events to state functions.
 
   	##
 
-This spec generates the following code:
+Using earlier versions of the Framepiler, this spec would generate the following
+code:
 
 .. code-block::
 
@@ -78,7 +79,7 @@ This spec generates the following code:
 
     }
 
-One aspect to this architecture is that the call stack grows with
+One obvious but subtly important aspect to this architecture is that the call stack grows with
 each call to a transition. Lets inspect the call stack
 when a client makes a call to the `doTransition()` interface. By the time we
 are at the line `print("Entering $S1")`, the call the stack looks like this:
@@ -86,12 +87,15 @@ are at the line `print("Entering $S1")`, the call the stack looks like this:
 ================
 Call Stack
 ================
+a
+b
+c
+================
+
 _sS1_
 _transition_
 _sS0_
 doTransition
-================
-
 
 Now let us add a few more transitions inside of `|>|` handlers:
 
