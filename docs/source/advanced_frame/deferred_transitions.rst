@@ -86,11 +86,20 @@ are at the line `print("Entering $S1")`, the call the stack looks like this:
 
 ================
 Call Stack
-================
+==========
 a
 b
 c
 ================
+
+=====  =====  
+A      B
+=====  =====
+False  False
+True   False
+False  True
+True   True
+=====  =====
 
 _sS1_
 _transition_
