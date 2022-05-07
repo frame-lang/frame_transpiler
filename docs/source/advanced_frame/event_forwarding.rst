@@ -245,14 +245,18 @@ string editing operations and routes them to the correct state for processing:
 
     $Reverse
         |reverse| [str:string] : string
-            @^ = reverse_str(str)
+            @^ = reverseStr(str)
             -> "ready" $Router ^
 
     $MakePalindrome
         |makePalindrome| [str:string] : string
-            @^ = str + reverse_str(str)
+            @^ = str + reverseStr(str)
             -> "ready" $Router ^
 
+    -actions-
+
+    reverseStr [str:string]
+    
     ##
 
 Conclusion
@@ -265,4 +269,4 @@ Frame but had no simple solution at the time. It required the concept of the
 compartment as well as the multiplexer to be developed first.
 
 It is hoped that as Frame continues to mature, similar discoveries will
-build upon each other to deliver more and more powerful capabilities.
+build upon each other to deliver increasingly powerful capabilities.
