@@ -12,6 +12,7 @@ about how software systems can be architected.
     :name: toc-advanced-frame
 
     control_flow
+    attributes
     transition_parameters
     state_variables
     compartments
