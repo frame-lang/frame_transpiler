@@ -2886,7 +2886,10 @@ impl AstVisitor for GolangVisitor {
                 param_symbol_rcref,
                 is_reference: _is_reference,
             } => {
-                self.add_code(&format!("e.Params[\"{}\"]", param_symbol_rcref.borrow().name));
+                self.add_code(&format!(
+                    "e.Params[\"{}\"]",
+                    param_symbol_rcref.borrow().name
+                ));
                 if self.expr_context == ExprContext::Rvalue
                     || self.expr_context == ExprContext::None
                 {
@@ -2920,7 +2923,8 @@ impl AstVisitor for GolangVisitor {
                         None => {
                             self.errors.push(format!(
                                 "Error: {}[{}] type is not declared.",
-                                event_symbol.msg, param_symbol_rcref.borrow().name
+                                event_symbol.msg,
+                                param_symbol_rcref.borrow().name
                             ));
                             "".to_string()
                         }
@@ -2959,15 +2963,14 @@ impl AstVisitor for GolangVisitor {
                 param_symbol_rcref,
                 is_reference: _is_reference,
             } => {
-                output.push_str(&format!("e.Params[\"{}\"]", param_symbol_rcref.borrow().name,));
+                output.push_str(&format!(
+                    "e.Params[\"{}\"]",
+                    param_symbol_rcref.borrow().name,
+                ));
                 if self.expr_context == Rvalue || self.expr_context == ExprContext::None {
                     let var_type = match &param_symbol_rcref.borrow().param_type_opt {
-                        Some(x) => {
-                            x.get_type_str()
-                        }
-                        None => {
-                            String::from("<?>")
-                        }
+                        Some(x) => x.get_type_str(),
+                        None => String::from("<?>"),
                     };
                     output.push_str(&format!(".({})", var_type));
                 }
