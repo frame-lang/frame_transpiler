@@ -2883,10 +2883,10 @@ impl AstVisitor for GolangVisitor {
                 is_reference: _is_reference,
             } => self.add_code(&"e.Msg".to_string()),
             FrameEventPart::Param {
-                param_tok,
+                param_symbol_rcref,
                 is_reference: _is_reference,
             } => {
-                self.add_code(&format!("e.Params[\"{}\"]", param_tok.lexeme));
+                self.add_code(&format!("e.Params[\"{}\"]", param_symbol_rcref.borrow().name));
                 if self.expr_context == ExprContext::Rvalue
                     || self.expr_context == ExprContext::None
                 {
@@ -2899,7 +2899,7 @@ impl AstVisitor for GolangVisitor {
                         Some(param_symbols) => {
                             let mut param_type: String = String::new();
                             for param_symbol in param_symbols {
-                                if param_symbol.name == param_tok.lexeme {
+                                if param_symbol.name == param_symbol_rcref.borrow().name {
                                     match &param_symbol.param_type_opt {
                                         Some(type_node) => {
                                             param_type = type_node.get_type_str();
@@ -2920,7 +2920,7 @@ impl AstVisitor for GolangVisitor {
                         None => {
                             self.errors.push(format!(
                                 "Error: {}[{}] type is not declared.",
-                                event_symbol.msg, param_tok.lexeme
+                                event_symbol.msg, param_symbol_rcref.borrow().name
                             ));
                             "".to_string()
                         }
@@ -2956,12 +2956,20 @@ impl AstVisitor for GolangVisitor {
                 is_reference: _is_reference,
             } => output.push_str("e.Msg"),
             FrameEventPart::Param {
-                param_tok,
+                param_symbol_rcref,
                 is_reference: _is_reference,
             } => {
-                output.push_str(&format!("e.Params[\"{}\"]", param_tok.lexeme,));
+                output.push_str(&format!("e.Params[\"{}\"]", param_symbol_rcref.borrow().name,));
                 if self.expr_context == Rvalue || self.expr_context == ExprContext::None {
-                    output.push_str(&format!(".({})", &self.current_var_type));
+                    let var_type = match &param_symbol_rcref.borrow().param_type_opt {
+                        Some(x) => {
+                            x.get_type_str()
+                        }
+                        None => {
+                            String::from("<?>")
+                        }
+                    };
+                    output.push_str(&format!(".({})", var_type));
                 }
             }
             FrameEventPart::Return {

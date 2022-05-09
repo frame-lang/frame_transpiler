@@ -7,7 +7,7 @@ use super::symbol_table::{ActionDeclSymbol, EventSymbol, SymbolType};
 use crate::frame_c::ast::OperatorType::{
     Divide, Greater, GreaterEqual, LessEqual, Minus, Multiply, Plus,
 };
-use crate::frame_c::symbol_table::InterfaceMethodSymbol;
+use crate::frame_c::symbol_table::{InterfaceMethodSymbol, ParameterSymbol};
 use crate::frame_c::visitors::*;
 use downcast_rs::__std::cell::RefCell;
 use downcast_rs::*;
@@ -717,7 +717,8 @@ pub enum FrameEventPart {
         is_reference: bool,
     },
     Param {
-        param_tok: Token,
+//        param_tok: Token,
+        param_symbol_rcref: Rc<RefCell<ParameterSymbol>>,
         is_reference: bool,
     },
     Return {

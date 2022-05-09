@@ -2195,9 +2195,9 @@ impl AstVisitor for JavaScriptVisitor {
                 is_reference: _is_reference,
             } => self.add_code(&"e._message".to_string()),
             FrameEventPart::Param {
-                param_tok,
+                param_symbol_rcref,
                 is_reference: _is_reference,
-            } => self.add_code(&format!("e._parameters[\"{}\"]", param_tok.lexeme)),
+            } => self.add_code(&format!("e._parameters[\"{}\"]", param_symbol_rcref.borrow().name)),
             FrameEventPart::Return {
                 is_reference: _is_reference,
             } => self.add_code(&"e._return".to_string()),
@@ -2220,9 +2220,9 @@ impl AstVisitor for JavaScriptVisitor {
                 is_reference: _is_reference,
             } => output.push_str("e._message"),
             FrameEventPart::Param {
-                param_tok,
+                param_symbol_rcref,
                 is_reference: _is_reference,
-            } => output.push_str(&format!("e._parameters[\"{}\"]", param_tok.lexeme)),
+            } => output.push_str(&format!("e._parameters[\"{}\"]", param_symbol_rcref.borrow().name)),
             FrameEventPart::Return {
                 is_reference: _is_reference,
             } => output.push_str("e._return"),

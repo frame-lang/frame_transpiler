@@ -2133,6 +2133,8 @@ impl<'a> Parser<'a> {
             Ok(et_opt) => expr_t_opt = et_opt,
             Err(_) => {
                 let sync_tokens = &vec![
+                    TokenType::Caret,
+                    TokenType::ElseContinue,
                     TokenType::Identifier,
                     TokenType::Pipe,
                     TokenType::State,
@@ -3187,8 +3189,33 @@ impl<'a> Parser<'a> {
                 if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
                     return Err(parse_error);
                 }
+
+                // TODO!! must test for existence
+                let param_symbol_rcref;
+                let symbol_type_rcref_opt = self.arcanum.lookup(&id_tok.lexeme, &IdentifierDeclScope::None);
+                match symbol_type_rcref_opt {
+                    Some(symbol_type_rcref) => {
+                        let symbol_type = symbol_type_rcref.borrow();
+
+                        match &*symbol_type {
+                            SymbolType::EventHandlerParam {event_handler_param_symbol_rcref} => {
+                                param_symbol_rcref = event_handler_param_symbol_rcref.clone();
+                            }
+                            _ => {
+                                self.error_at_current(&format!("{} is not an event parameter.",id_tok.lexeme));
+                                return Err(ParseError::new(""));
+                            }
+                        }
+                    }
+                    None => {
+                        self.error_at_current(&format!("Unknown event parameter - {}.",id_tok.lexeme));
+                        return Err(ParseError::new(""));
+                    }
+                }
+
+
                 return Ok(Some(FrameEventPart::Param {
-                    param_tok: id_tok,
+                    param_symbol_rcref,
                     is_reference,
                 }));
             } else {

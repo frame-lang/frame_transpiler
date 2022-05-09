@@ -5384,7 +5384,7 @@ impl AstVisitor for RustVisitor {
             // FrameEventPart::Param {param_tok} => self.add_code(&format!("{}._parameters[\"{}\"]"
             //                                                             ,self.config.code.frame_event_variable_name
             FrameEventPart::Param {
-                param_tok,
+                param_symbol_rcref,
                 is_reference,
             } => {
                 let event_name = self.format_event_type_name(&self.current_message);
@@ -5394,7 +5394,7 @@ impl AstVisitor for RustVisitor {
                     self.config.code.frame_event_variable_name,
                     self.config.code.frame_event_args_attribute_name,
                     self.format_args_method_name(&event_name),
-                    self.format_value_name(&param_tok.lexeme)
+                    self.format_value_name(&param_symbol_rcref.borrow().name)
                 ));
             }
             FrameEventPart::Return { is_reference } => {
@@ -5435,7 +5435,7 @@ impl AstVisitor for RustVisitor {
                 self.config.code.frame_event_message_attribute_name
             )),
             FrameEventPart::Param {
-                param_tok,
+                param_symbol_rcref,
                 is_reference,
             } => {
                 let event_name = self.format_event_type_name(&self.current_message);
@@ -5445,7 +5445,7 @@ impl AstVisitor for RustVisitor {
                     self.config.code.frame_event_variable_name,
                     self.config.code.frame_event_args_attribute_name,
                     self.format_args_method_name(&event_name),
-                    self.format_value_name(&param_tok.lexeme)
+                    self.format_value_name(&param_symbol_rcref.borrow().name)
                 ));
             }
             FrameEventPart::Return { is_reference } => output.push_str(&format!(
