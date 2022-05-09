@@ -159,7 +159,7 @@ impl JavaScriptVisitor {
                     code.push('(');
                 }
                 code.push_str(&format!(
-                    "_stateContext_.getStateArg(\"{}\")",
+                    "this._stateContext_.getStateArg(\"{}\")",
                     variable_node.id_node.name.lexeme
                 ));
                 if self.visiting_call_chain_literal_variable {
@@ -177,7 +177,7 @@ impl JavaScriptVisitor {
                     code.push('(');
                 }
                 code.push_str(&format!(
-                    " _stateContext_.getStateVar(\"{}\")",
+                    " this._stateContext_.getStateVar(\"{}\")",
                     variable_node.id_node.name.lexeme
                 ));
                 if self.visiting_call_chain_literal_variable {
@@ -420,22 +420,22 @@ impl JavaScriptVisitor {
             if self.generate_state_stack {
                 self.newline();
                 self.newline();
-                self.add_code(&"let _stateStack_ = [];".to_string());
+                self.add_code(&"_stateStack_ = [];".to_string());
                 self.newline();
                 self.newline();
-                self.add_code(&"let  _stateStack_push_ = function (stateData) {".to_string());
+                self.add_code(&"_stateStack_push_(stateData) {".to_string());
                 self.indent();
                 self.newline();
-                self.add_code(&"_stateStack_.push(stateData);".to_string());
+                self.add_code(&"this._stateStack_.push(stateData);".to_string());
                 self.outdent();
                 self.newline();
                 self.add_code(&"}".to_string());
                 self.newline();
                 self.newline();
-                self.add_code(&"let _stateStack_pop_ = function() {".to_string());
+                self.add_code(&"_stateStack_pop_() {".to_string());
                 self.indent();
                 self.newline();
-                self.add_code(&"return _stateStack_.pop();".to_string());
+                self.add_code(&"return this._stateStack_.pop();".to_string());
                 self.outdent();
                 self.newline();
                 self.add_code(&"}".to_string());
@@ -863,9 +863,9 @@ impl JavaScriptVisitor {
             }
         }
         if self.generate_state_context {
-            self.add_code(&"let stateContext = _stateStack_pop();".to_string());
+            self.add_code(&"let stateContext = this._stateStack_pop();".to_string());
         } else {
-            self.add_code(&"let state = _stateStack_pop_();".to_string());
+            self.add_code(&"let state = this._stateStack_pop_();".to_string());
         }
         self.newline();
         if self.generate_exit_args {
@@ -1018,7 +1018,7 @@ impl AstVisitor for JavaScriptVisitor {
         interface_method_call_expr_node: &InterfaceMethodCallExprNode,
     ) {
         self.add_code(&format!(
-            "that.{}",
+            "this.{}",
             interface_method_call_expr_node.identifier.name.lexeme
         ));
         interface_method_call_expr_node.call_expr_list.accept(self);
@@ -1034,7 +1034,7 @@ impl AstVisitor for JavaScriptVisitor {
         output: &mut String,
     ) {
         output.push_str(&format!(
-            "that.{}",
+            "this.{}",
             interface_method_call_expr_node.identifier.name.lexeme
         ));
         interface_method_call_expr_node
@@ -2162,16 +2162,16 @@ impl AstVisitor for JavaScriptVisitor {
             StateStackOperationType::Push => {
                 self.newline();
                 if self.generate_state_context {
-                    self.add_code(&"_stateStack_push_(_stateContext_);".to_string());
+                    self.add_code(&"this._stateStack_push_(this._stateContext_);".to_string());
                 } else {
-                    self.add_code(&"_stateStack_push_(_state_);".to_string());
+                    self.add_code(&"this._stateStack_push_(this._state_);".to_string());
                 }
             }
             StateStackOperationType::Pop => {
                 if self.generate_state_context {
-                    self.add_code(&"let stateContext = _stateStack_pop_()".to_string());
+                    self.add_code(&"let stateContext = this._stateStack_pop_()".to_string());
                 } else {
-                    self.add_code(&"FrameState state = _stateStack_pop_()".to_string());
+                    self.add_code(&"FrameState state = this._stateStack_pop_()".to_string());
                 }
             }
         }
