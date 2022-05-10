@@ -2158,7 +2158,10 @@ impl AstVisitor for PythonVisitor {
             FrameEventPart::Param {
                 param_symbol_rcref,
                 is_reference: _is_reference,
-            } => self.add_code(&format!("e._params[\"{}\"]", param_symbol_rcref.borrow().name)),
+            } => self.add_code(&format!(
+                "e._params[\"{}\"]",
+                param_symbol_rcref.borrow().name
+            )),
             FrameEventPart::Return {
                 is_reference: _is_reference,
             } => self.add_code(&"e._return".to_string()),
@@ -2184,7 +2187,10 @@ impl AstVisitor for PythonVisitor {
             FrameEventPart::Param {
                 param_symbol_rcref,
                 is_reference: _is_reference,
-            } => output.push_str(&format!("e._params[\"{}\"]", param_symbol_rcref.borrow().name)),
+            } => output.push_str(&format!(
+                "e._params[\"{}\"]",
+                param_symbol_rcref.borrow().name
+            )),
             FrameEventPart::Return {
                 is_reference: _is_reference,
             } => output.push_str("e._return"),
