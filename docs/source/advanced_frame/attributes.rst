@@ -24,12 +24,9 @@ to the system spec:
 Managed
 -------
 
-Frame supports a manager relationship between machines by the ``Managed``
-attribute combined with the ``mom`` attribute. ``mom`` stands for Machine Operating
-Machine. To have Frame autogenerate a member variable for a manager, use these
-type attributes together:
+Frame supports a manager relationship between machines using the ``managed``
+attribute, which accepts the name of the manager type as a parameter:
 
 .. code-block::
 
-    #[derive(Managed)]
-    #[mom="MomTypeName"]
+    #[managed(ManagerTypeName)]
