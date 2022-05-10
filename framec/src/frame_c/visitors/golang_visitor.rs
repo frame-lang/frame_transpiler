@@ -327,22 +327,47 @@ impl GolangVisitor {
                             match attr.name.as_str() {
                                 // TODO: constants
                                 "stateType" => self.config.code.state_type = attr.value.clone(),
-                                "mom" => {
-                                    self.config.code.mom = attr.value.clone();
+                                "managed" => {
+                                    self.config.code.manager = attr.value.clone();
                                     self.config.code.managed = true;
                                 }
                                 _ => {}
                             }
                         }
                         AttributeNode::MetaListIdents { attr } => {
-                            for ident in &attr.idents {
-                                match ident.as_str() {
-                                    // TODO: constants and figure out mom vs managed
-                                    //  "Managed" => self.config.code.managed = true,
-                                    "Marshal" => self.config.code.marshal = true,
-                                    _ => {}
+                            match attr.name.as_str() {
+                                "derive" => {
+                                    for ident in &attr.idents {
+
+                                        match ident.as_str() {
+                                            // TODO: constants and figure out mom vs managed
+                                            //  "Managed" => self.config.code.managed = true,
+                                            "Marshal" => self.config.code.marshal = true,
+                                            _ => {}
+                                        }
+                                    }
+                                }
+                                "managed" => {
+                                    self.config.code.managed = true;
+                                    if attr.idents.len() != 1 {
+                                        self.errors.push("Attribute 'managed' takes 1 parameter".to_string());
+                                    }
+                                    match attr.idents.get(0) {
+                                        Some(manager_type) => {
+                                            self.config.code.manager = manager_type.clone();
+                                        }
+                                        None => {
+                                            self.errors.push("Attribute 'managed' missing manager type.".to_string());
+                                        }
+                                    }
+
+
+                                }
+                                _ => {
+                                    self.errors.push("Unknown attribute".to_string());
                                 }
                             }
+
                         }
                     }
                 }
@@ -497,8 +522,6 @@ impl GolangVisitor {
             self.add_code("}");
 
             if self.generate_state_stack {
-                self.newline();
-                self.newline();
                 self.newline();
                 self.newline();
                 self.add_code(&format!(
@@ -1000,13 +1023,23 @@ impl GolangVisitor {
             None => {}
         };
         if self.config.code.managed {
-            self.add_code(&format!(
-                "func New{}(mom {} {}) {} {{",
-                system_node.name,
-                &self.config.code.mom,
-                new_params,
-                self.first_letter_to_upper_case(&system_node.name),
-            ));
+            if new_params.is_empty() {
+                self.add_code(&format!(
+                    "func New{}(manager {}) {} {{",
+                    system_node.name,
+                    self.config.code.manager,
+                    self.first_letter_to_upper_case(&system_node.name),
+                ));
+            } else {
+                self.add_code(&format!(
+                    "func New{}(manager {} {}) {} {{",
+                    system_node.name,
+                    self.config.code.manager,
+                    new_params,
+                    self.first_letter_to_upper_case(&system_node.name),
+                ));
+            }
+
         } else {
             self.add_code(&format!(
                 "func New{}({}) {} {{",
@@ -1025,7 +1058,7 @@ impl GolangVisitor {
 
         if self.config.code.managed {
             self.newline();
-            self.add_code("m.mom = mom");
+            self.add_code("m._manager_ = manager");
         }
         self.newline();
         self.newline();
@@ -1045,6 +1078,9 @@ impl GolangVisitor {
             self.add_code("m._stateStack_ = &Stack{stack: list.New()}");
         }
         //      if self.generate_state_context {
+        self.newline();
+        self.newline();
+        self.add_code("// Create start state compartment");
         self.newline();
         self.add_code(&format!(
             "m._compartment_ = New{}({})",
@@ -1156,10 +1192,15 @@ impl GolangVisitor {
     fn format_load_fn(&mut self, domain_vec: &Vec<(String, String)>, system_node: &SystemNode) {
         self.newline();
         self.newline();
+        let mut manager_param = String::new();
+        if self.config.code.managed {
+            manager_param = String::from(&format!("manager {}, ",self.config.code.manager));
+        }
         self.add_code(&format!(
-            "func Load{}(mom {}, data []byte) {} {{",
-            system_node.name, self.config.code.mom, system_node.name
+            "func Load{}({}data []byte) {} {{",
+            system_node.name, manager_param, system_node.name
         ));
+
         self.indent();
         self.newline();
         self.add_code(&format!(
@@ -1167,7 +1208,9 @@ impl GolangVisitor {
             self.first_letter_to_lower_case(&system_node.name),
         ));
         self.newline();
-        self.add_code("m.mom = mom");
+        if self.config.code.managed {
+            self.add_code("m._manager_ = manager");
+        }
         self.newline();
         self.newline();
         self.add_code("// Validate interfaces");
@@ -1532,7 +1575,7 @@ impl AstVisitor for GolangVisitor {
 
         if self.config.code.managed {
             self.newline();
-            self.add_code(&format!("mom {}", &self.config.code.mom));
+            self.add_code(&format!("_manager_ {}", &self.config.code.manager));
         }
         self.newline();
         self.add_code(&format!(
@@ -1609,10 +1652,9 @@ impl AstVisitor for GolangVisitor {
         }
 
         if self.config.code.marshal {
-            if self.config.code.managed {
-                // generate Load() factory
-                self.format_load_fn(&domain_vec, system_node);
-            }
+            // generate Load() factory
+            self.format_load_fn(&domain_vec, system_node);
+
             // generate MarshalJSON() factory
             self.generate_marshal_json_fn(&domain_vec);
             self.generate_marshal_fn(system_node);
