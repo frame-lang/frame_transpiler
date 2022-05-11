@@ -482,7 +482,126 @@ impl<'a> Parser<'a> {
 
         if self.match_token(&[TokenType::LBracket]) {
             match self.parameters() {
-                Ok(Some(parameters)) => domain_params_opt = Some(parameters),
+                Ok(Some(parameters)) => {
+                    if !self.is_building_symbol_table {
+                        // check system domain params override a domain variable and match type
+                        for param in &parameters {
+                            let name = &param.param_name;
+                            let domain_symbol_rcref_opt = self.arcanum.lookup(name,&IdentifierDeclScope::DomainBlock);
+                            if domain_symbol_rcref_opt.is_none() {
+                                self.error_at_current(&format!("System domain parameter '{}' does not exist in the domain.",name));
+                                let sync_tokens = &vec![
+                                    TokenType::InterfaceBlock,
+                                    TokenType::MachineBlock,
+                                    TokenType::ActionsBlock,
+                                    TokenType::DomainBlock,
+                                    TokenType::SystemEnd,
+                                ];
+                                self.synchronize(sync_tokens);
+                            } else {
+                                // domain var exists, check type matches
+                                let symbol_type_rcref = domain_symbol_rcref_opt.unwrap();
+                                let symbol_type = symbol_type_rcref.borrow();
+                                match &*symbol_type {
+                                    SymbolType::DomainVariable {domain_variable_symbol_rcref} => {
+                                        let domain_variable_symbol = domain_variable_symbol_rcref.borrow();
+                                        let domain_variable_symbol_type_node_opt = &domain_variable_symbol.var_type;
+                                        let param_type_node_opt = &param.param_type_opt;
+                                        if domain_variable_symbol_type_node_opt.is_none() && param_type_node_opt.is_none() {
+                                            // ok
+                                        } else if domain_variable_symbol_type_node_opt.is_some() && param_type_node_opt.is_some() {
+                                            // maybe ok, check types match
+                                            let domain_variable_type_node = domain_variable_symbol_type_node_opt.as_ref().unwrap();
+                                            let param_type_node = param_type_node_opt.as_ref().unwrap();
+                                            if domain_variable_type_node.get_type_str().ne(&param_type_node.get_type_str()) {
+                                                // error - one has a type and the other does not.
+                                                self.error_at_current(&format!("System domain parameter '{}' type does not match domain variable type.",name));
+                                                let sync_tokens = &vec![
+                                                    TokenType::InterfaceBlock,
+                                                    TokenType::MachineBlock,
+                                                    TokenType::ActionsBlock,
+                                                    TokenType::DomainBlock,
+                                                    TokenType::SystemEnd,
+                                                ];
+                                                self.synchronize(sync_tokens);
+                                            }
+                                        } else {
+                                            // error - one has a type and the other does not.
+                                            self.error_at_current(&format!("System domain parameter '{}' type does not match domain variable type.",name));
+                                            let sync_tokens = &vec![
+                                                TokenType::InterfaceBlock,
+                                                TokenType::MachineBlock,
+                                                TokenType::ActionsBlock,
+                                                TokenType::DomainBlock,
+                                                TokenType::SystemEnd,
+                                            ];
+                                            self.synchronize(sync_tokens);
+                                        }
+                                        // match &param.param_type_opt {
+                                        //     Some(param_type_node) => {
+                                        //         if var_symbol_type_node_opt.is_none() {
+                                        //             // param type exists but domain var type does not
+                                        //             self.error_at_current(&format!("System domain parameter '{}' type does not match domain variable type.",name));
+                                        //             let sync_tokens = &vec![
+                                        //                 TokenType::InterfaceBlock,
+                                        //                 TokenType::MachineBlock,
+                                        //                 TokenType::ActionsBlock,
+                                        //                 TokenType::DomainBlock,
+                                        //                 TokenType::SystemEnd,
+                                        //             ];
+                                        //             self.synchronize(sync_tokens);
+                                        //         } else {
+                                        //             // types exist for both, check they are the same
+                                        //             match var_symbol_type_node_opt {
+                                        //                 Some(domain_var_symbol_type_node) => {
+                                        //                     if !domain_var_symbol_type_node.get_type_str().eq(&param_type_node.get_type_str()) {
+                                        //                         self.error_at_current(&format!("System domain parameter '{}' type does not match domain variable type.",name));
+                                        //                         let sync_tokens = &vec![
+                                        //                             TokenType::InterfaceBlock,
+                                        //                             TokenType::MachineBlock,
+                                        //                             TokenType::ActionsBlock,
+                                        //                             TokenType::DomainBlock,
+                                        //                             TokenType::SystemEnd,
+                                        //                         ];
+                                        //                         self.synchronize(sync_tokens);
+                                        //                     } else {
+                                        //                         // ok!
+                                        //                     }
+                                        //                 }
+                                        //                 None => {
+                                        //                     if !domain_var_symbol_type_node.get_type_str().eq(&param_type_node.get_type_str()) {
+                                        //                         self.error_at_current(&format!("System domain parameter '{}' type does not match domain variable type.",name));
+                                        //                         let sync_tokens = &vec![
+                                        //                             TokenType::InterfaceBlock,
+                                        //                             TokenType::MachineBlock,
+                                        //                             TokenType::ActionsBlock,
+                                        //                             TokenType::DomainBlock,
+                                        //                             TokenType::SystemEnd,
+                                        //                         ];
+                                        //                         self.synchronize(sync_tokens);
+                                        //                     }
+                                        //                 }
+                                        //             }
+                                        //         }
+                                        //
+                                        //     }
+                                        //     None => {
+                                        //
+                                        //     }
+                                        // }
+                                    }
+                                    _ => {
+                                        self.error_at_current(&format!("Compiler error - wrong type found for '{}'.",name));
+                                    }
+                                }
+
+                            }
+
+
+                        }
+                    }
+                    domain_params_opt = Some(parameters)
+                },
                 Ok(None) => {}
                 Err(_) => {}
             }
