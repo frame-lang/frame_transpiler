@@ -882,6 +882,41 @@ impl JavaScriptVisitor {
             self.add_code(&"_transition_(state);".to_string());
         }
     }
+
+    fn generate_compartment(&mut self, system_name: &str) {
+        self.newline();
+        self.add_code("//=============== Compartment ==============//");
+        self.newline();
+        self.newline();
+        self.add_code(&format!("class {}Compartment {{", system_name));
+        self.newline();
+        self.indent();
+        self.newline();
+        self.add_code("constructor(state) {");
+        // self.newline();
+        self.indent();
+        self.newline();
+        self.add_code("this.state = state");
+        self.outdent();
+        self.newline();
+        self.add_code(&"}".to_string());
+        self.newline();
+        self.newline();
+        self.add_code("StateArgs = {};");
+        self.newline();
+        self.add_code("StateVars = {};");
+        self.newline();
+        self.add_code("EnterArgs = {};");
+        self.newline();
+        self.add_code("ExitArgs = {};");
+        self.newline();
+        self.add_code("_forwardEvent = FrameEvent.call(this)");
+        self.outdent();
+        self.newline();
+        self.add_code(&"}".to_string());
+        self.newline();
+        self.newline();
+    }
 }
 
 //* --------------------------------------------------------------------- *//
@@ -929,12 +964,13 @@ impl AstVisitor for JavaScriptVisitor {
         }
         self.add_code(&"}".to_string());
         self.newline();
-
         self.serialize.push("".to_string());
         self.serialize
             .push("that._serialize__do = function() {".to_string());
 
         self.deserialize.push("".to_string());
+
+        //compartment
 
         // @TODO: _do needs to be configurable.
         self.deserialize
@@ -995,6 +1031,8 @@ impl AstVisitor for JavaScriptVisitor {
         self.newline();
         self.add_code("};");
         self.newline();
+
+        self.generate_compartment(&system_node.name);
 
         self.generate_subclass();
     }
