@@ -338,7 +338,6 @@ impl GolangVisitor {
                             match attr.name.as_str() {
                                 "derive" => {
                                     for ident in &attr.idents {
-
                                         match ident.as_str() {
                                             // TODO: constants and figure out mom vs managed
                                             //  "Managed" => self.config.code.managed = true,
@@ -350,24 +349,26 @@ impl GolangVisitor {
                                 "managed" => {
                                     self.config.code.managed = true;
                                     if attr.idents.len() != 1 {
-                                        self.errors.push("Attribute 'managed' takes 1 parameter".to_string());
+                                        self.errors.push(
+                                            "Attribute 'managed' takes 1 parameter".to_string(),
+                                        );
                                     }
                                     match attr.idents.get(0) {
                                         Some(manager_type) => {
                                             self.config.code.manager = manager_type.clone();
                                         }
                                         None => {
-                                            self.errors.push("Attribute 'managed' missing manager type.".to_string());
+                                            self.errors.push(
+                                                "Attribute 'managed' missing manager type."
+                                                    .to_string(),
+                                            );
                                         }
                                     }
-
-
                                 }
                                 _ => {
                                     self.errors.push("Unknown attribute".to_string());
                                 }
                             }
-
                         }
                     }
                 }
@@ -1039,7 +1040,6 @@ impl GolangVisitor {
                     self.first_letter_to_upper_case(&system_node.name),
                 ));
             }
-
         } else {
             self.add_code(&format!(
                 "func New{}({}) {} {{",
@@ -1194,7 +1194,7 @@ impl GolangVisitor {
         self.newline();
         let mut manager_param = String::new();
         if self.config.code.managed {
-            manager_param = String::from(&format!("manager {}, ",self.config.code.manager));
+            manager_param = String::from(&format!("manager {}, ", self.config.code.manager));
         }
         self.add_code(&format!(
             "func Load{}({}data []byte) {} {{",
