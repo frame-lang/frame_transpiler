@@ -256,12 +256,14 @@ impl NodeElement for InterfaceMethodNode {
 
 //-----------------------------------------------------//
 
-#[derive(Clone)]
+#[derive(Clone,PartialEq)]
 pub struct ParameterNode {
     pub param_name: String,
     pub param_type_opt: Option<TypeNode>,
     pub scope: IdentifierDeclScope,
 }
+
+
 
 impl ParameterNode {
     pub fn new(
@@ -284,6 +286,15 @@ impl NodeElement for ParameterNode {
     }
 }
 
+// impl PartialEq for ParameterNode {
+//     fn eq(&self, other: &Self) -> bool {
+//         if self.param_name.ne(&other.param_name) {
+//             return false;
+//         }
+//
+//         return true;
+//     }
+// }
 //-----------------------------------------------------//
 
 pub struct ActionNode {
@@ -1478,7 +1489,7 @@ impl NodeElement for ExprListNode {
 //-----------------------------------------------------//
 
 // TODO!!: why aren't there MachineBlock, InterfaceBlock etc?
-// there is a misalighment of ParseScope vs IdentiferDeclScope?
+// there is a misalignment of ParseScope vs IdentiferDeclScope?
 // for instance States have a IdentiferDeclScope of None. Should be machine
 #[derive(Clone, PartialEq)]
 pub enum IdentifierDeclScope {
@@ -1573,7 +1584,7 @@ impl NodeElement for LiteralExprNode {
 
 // &String | &str | Widget<int> | `& mut String` | &`mut String` | *x
 
-#[derive(Clone)]
+#[derive(Clone,PartialEq)]
 pub struct TypeNode {
     #[allow(dead_code)]
     is_superstring: bool,
