@@ -451,9 +451,7 @@ impl<'a> Parser<'a> {
                 self.synchronize(sync_tokens);
             }
             match self.parameters() {
-                Ok(Some(parameters)) => {
-                    system_start_state_state_params_opt = Some(parameters)
-                },
+                Ok(Some(parameters)) => system_start_state_state_params_opt = Some(parameters),
                 Ok(None) => {}
                 Err(_) => {}
             }
@@ -489,9 +487,13 @@ impl<'a> Parser<'a> {
                         // check system domain params override a domain variable and match type
                         for param in &parameters {
                             let name = &param.param_name;
-                            let domain_symbol_rcref_opt = self.arcanum.lookup(name,&IdentifierDeclScope::DomainBlock);
+                            let domain_symbol_rcref_opt =
+                                self.arcanum.lookup(name, &IdentifierDeclScope::DomainBlock);
                             if domain_symbol_rcref_opt.is_none() {
-                                self.error_at_current(&format!("System domain parameter '{}' does not exist in the domain.",name));
+                                self.error_at_current(&format!(
+                                    "System domain parameter '{}' does not exist in the domain.",
+                                    name
+                                ));
                                 let sync_tokens = &vec![
                                     TokenType::InterfaceBlock,
                                     TokenType::MachineBlock,
@@ -505,17 +507,32 @@ impl<'a> Parser<'a> {
                                 let symbol_type_rcref = domain_symbol_rcref_opt.unwrap();
                                 let symbol_type = symbol_type_rcref.borrow();
                                 match &*symbol_type {
-                                    SymbolType::DomainVariable {domain_variable_symbol_rcref} => {
-                                        let domain_variable_symbol = domain_variable_symbol_rcref.borrow();
-                                        let domain_variable_symbol_type_node_opt = &domain_variable_symbol.var_type;
+                                    SymbolType::DomainVariable {
+                                        domain_variable_symbol_rcref,
+                                    } => {
+                                        let domain_variable_symbol =
+                                            domain_variable_symbol_rcref.borrow();
+                                        let domain_variable_symbol_type_node_opt =
+                                            &domain_variable_symbol.var_type;
                                         let param_type_node_opt = &param.param_type_opt;
-                                        if domain_variable_symbol_type_node_opt.is_none() && param_type_node_opt.is_none() {
+                                        if domain_variable_symbol_type_node_opt.is_none()
+                                            && param_type_node_opt.is_none()
+                                        {
                                             // ok
-                                        } else if domain_variable_symbol_type_node_opt.is_some() && param_type_node_opt.is_some() {
+                                        } else if domain_variable_symbol_type_node_opt.is_some()
+                                            && param_type_node_opt.is_some()
+                                        {
                                             // maybe ok, check types match
-                                            let domain_variable_type_node = domain_variable_symbol_type_node_opt.as_ref().unwrap();
-                                            let param_type_node = param_type_node_opt.as_ref().unwrap();
-                                            if domain_variable_type_node.get_type_str().ne(&param_type_node.get_type_str()) {
+                                            let domain_variable_type_node =
+                                                domain_variable_symbol_type_node_opt
+                                                    .as_ref()
+                                                    .unwrap();
+                                            let param_type_node =
+                                                param_type_node_opt.as_ref().unwrap();
+                                            if domain_variable_type_node
+                                                .get_type_str()
+                                                .ne(&param_type_node.get_type_str())
+                                            {
                                                 // error - one has a type and the other does not.
                                                 self.error_at_current(&format!("System domain parameter '{}' type does not match domain variable type.",name));
                                                 let sync_tokens = &vec![
@@ -541,17 +558,17 @@ impl<'a> Parser<'a> {
                                         }
                                     }
                                     _ => {
-                                        self.error_at_current(&format!("Compiler error - wrong type found for '{}'.",name));
+                                        self.error_at_current(&format!(
+                                            "Compiler error - wrong type found for '{}'.",
+                                            name
+                                        ));
                                     }
                                 }
-
                             }
-
-
                         }
                     }
                     domain_params_opt = Some(parameters)
-                },
+                }
                 Ok(None) => {}
                 Err(_) => {}
             }
@@ -577,12 +594,14 @@ impl<'a> Parser<'a> {
         if !self.is_building_symbol_table {
             // validate system start state params
             if let Some(machine_block_node) = machine_block_node_opt.as_ref() {
-                if machine_block_node.states.is_empty()  {
+                if machine_block_node.states.is_empty() {
                     if system_start_state_state_params_opt.is_none() {
                         // ok - no states or start state params
                     } else {
                         // error - no start state but start state params exist
-                        self.error_at_current(&format!("System start state parameters declared but no start state exists."));
+                        self.error_at_current(&format!(
+                            "System start state parameters declared but no start state exists."
+                        ));
                     }
 
                     if system_start_state_enter_params_opt.is_none() {
@@ -597,26 +616,37 @@ impl<'a> Parser<'a> {
                     if let Some(start_state_rcref) = start_state_rcref_opt {
                         let start_state = start_state_rcref.borrow();
 
-                        if start_state.params_opt.is_none() && system_start_state_state_params_opt.is_none() {
+                        if start_state.params_opt.is_none()
+                            && system_start_state_state_params_opt.is_none()
+                        {
                             // ok
-                        } else if start_state.params_opt.is_some() && system_start_state_state_params_opt.is_none() {
+                        } else if start_state.params_opt.is_some()
+                            && system_start_state_state_params_opt.is_none()
+                        {
                             // error - mismatched params
                             self.error_at_current(&format!("Start state parameters declared but no system start state parameters are declared."));
-                        } else if start_state.params_opt.is_none() && system_start_state_state_params_opt.is_some() {
-                            self.error_at_current(&format!("System start state parameters declared but no start state exists."));
+                        } else if start_state.params_opt.is_none()
+                            && system_start_state_state_params_opt.is_some()
+                        {
+                            self.error_at_current(&format!(
+                                "System start state parameters declared but no start state exists."
+                            ));
                         } else {
                             // both state and system have params. verify they match
-                            let system_start_state_state_params = system_start_state_state_params_opt.as_ref().unwrap();
+                            let system_start_state_state_params =
+                                system_start_state_state_params_opt.as_ref().unwrap();
                             let start_state_params_vec = start_state.params_opt.as_ref().unwrap();
-                          //  if let Some(start_state_params_vec) = &start_state.params_opt {
-                            if start_state_params_vec.len() != system_start_state_state_params.len() {
+                            //  if let Some(start_state_params_vec) = &start_state.params_opt {
+                            if start_state_params_vec.len() != system_start_state_state_params.len()
+                            {
                                 // error
                                 self.error_at_current(&format!("System start state params do not match actual start state params."));
                             } else {
                                 // loop through parameter lists and confirm identical
                                 let mut i = 0;
                                 for state_param in start_state_params_vec {
-                                    let system_start_state_state_param = system_start_state_state_params.get(i).unwrap();
+                                    let system_start_state_state_param =
+                                        system_start_state_state_params.get(i).unwrap();
                                     if system_start_state_state_param != state_param {
                                         // error
                                         self.error_at_current(&format!("System start state params do not match actual start state params."));
@@ -626,13 +656,14 @@ impl<'a> Parser<'a> {
                             }
                         }
                     }
-
                 }
             } else {
                 // no machine block therefore no states therefore no start state
                 if system_start_state_state_params_opt.is_some() {
                     // error - system start state params specified but no machine block
-                    self.error_at_current(&format!("System start state parameters declared but no start state exists."));
+                    self.error_at_current(&format!(
+                        "System start state parameters declared but no start state exists."
+                    ));
                 }
             }
         }

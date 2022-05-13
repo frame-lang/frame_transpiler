@@ -256,14 +256,12 @@ impl NodeElement for InterfaceMethodNode {
 
 //-----------------------------------------------------//
 
-#[derive(Clone,PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct ParameterNode {
     pub param_name: String,
     pub param_type_opt: Option<TypeNode>,
     pub scope: IdentifierDeclScope,
 }
-
-
 
 impl ParameterNode {
     pub fn new(
@@ -1584,7 +1582,7 @@ impl NodeElement for LiteralExprNode {
 
 // &String | &str | Widget<int> | `& mut String` | &`mut String` | *x
 
-#[derive(Clone,PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct TypeNode {
     #[allow(dead_code)]
     is_superstring: bool,
