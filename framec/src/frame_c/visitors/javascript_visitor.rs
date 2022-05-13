@@ -883,6 +883,8 @@ impl JavaScriptVisitor {
         }
     }
 
+    //* --------------------------------------------------------------------- *//
+
     fn generate_compartment(&mut self, system_name: &str) {
         self.newline();
         self.add_code("//=============== Compartment ==============//");
@@ -917,6 +919,124 @@ impl JavaScriptVisitor {
         self.newline();
         self.newline();
     }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn generate_new_fn(&mut self, domain_vec: &Vec<(String, String)>, system_node: &SystemNode) {
+        if system_node.get_first_state().is_some() {
+            self.indent();
+
+            self.newline();
+            self.newline();
+
+            self.add_code(&format!(
+                "this._state_ = this._s{}_;",
+                self.first_state_name
+            ));
+            self.newline();
+            self.newline();
+            self.add_code("// Create start state compartment");
+
+            self.newline();
+            self.add_code(&format!(
+                "this._compartment = new {}Compartment(this._state);",
+                system_node.name
+            ));
+            // if self.generate_state_context {
+            //     self.newline();
+            //     self.add_code(&"this._stateContext_ = StateContext(this._state_);".to_string());
+            // }
+        }
+
+        // Initialize state arguments.
+        match &system_node.start_state_state_params_opt {
+            Some(params) => {
+                for param in params {
+                    self.newline();
+                    self.add_code(&format!(
+                        "this._compartment_.StateArgs[\"{}\"] = {}",
+                        param.param_name, param.param_name,
+                    ));
+                }
+            }
+            None => {}
+        }
+
+        match system_node.get_first_state() {
+            Some(state_rcref) => {
+                let state_node = state_rcref.borrow();
+                match &state_node.vars_opt {
+                    Some(vars) => {
+                        for var_rcref in vars {
+                            let var_decl_node = var_rcref.borrow();
+                            let expr_t = var_decl_node.initializer_expr_t_opt.as_ref().unwrap();
+                            let mut expr_code = String::new();
+                            expr_t.accept_to_string(self, &mut expr_code);
+
+                            self.newline();
+                            self.add_code(&format!(
+                                "this._compartment_.StateVars[\"{}\"] = {}",
+                                var_decl_node.name, expr_code,
+                            ));
+                        }
+                    }
+                    None => {}
+                }
+            }
+            None => {}
+        }
+
+        self.newline();
+        self.newline();
+        self.add_code("// Initialize domain");
+
+        for x in domain_vec {
+            let domain_var_name = x.0.clone();
+            let mut domain_var_initializer = x.1.clone();
+            self.newline();
+            match &system_node.domain_params_opt {
+                Some(param_nodes) => {
+                    for param_node in param_nodes {
+                        if param_node.param_name == domain_var_name {
+                            // found domain var name in domain param list
+                            // init to param rather than default initial value
+                            domain_var_initializer = param_node.param_name.clone();
+                            break;
+                        }
+                    }
+                    self.add_code(&format!(
+                        "this.{} = {}",
+                        domain_var_name, domain_var_initializer
+                    ))
+                }
+                None => self.add_code(&format!(
+                    "this.{} = {}",
+                    domain_var_name, domain_var_initializer
+                )),
+            }
+        }
+        self.newline();
+        self.newline();
+
+        self.add_code("// Send system start event");
+
+        if let Some(enter_params) = &system_node.start_state_enter_params_opt {
+            self.newline();
+            self.add_code("this.params = {}");
+            for param in enter_params {
+                self.newline();
+                self.add_code(&format!(
+                    "this.params[\"{}\"] = {}",
+                    param.param_name, param.param_name,
+                ));
+            }
+            self.newline();
+            self.add_code("this._mux_(FrameEvent(\">\", params))");
+        } else {
+            self.newline();
+            self.add_code("this._mux_(FrameEvent(_message:\">\"))");
+        }
+    }
 }
 
 //* --------------------------------------------------------------------- *//
@@ -948,22 +1068,26 @@ impl AstVisitor for JavaScriptVisitor {
             None => {}
         }
 
-        if system_node.get_first_state().is_some() {
-            self.indent();
-            self.newline();
-            self.add_code(&format!(
-                "this._state_ = this._s{}_;",
-                self.first_state_name
-            ));
-            if self.generate_state_context {
-                self.newline();
-                self.add_code(&"this._stateContext_ = StateContext(this._state_);".to_string());
+        let mut domain_vec: Vec<(String, String)> = Vec::new();
+        if let Some(domain_block_node) = &system_node.domain_block_node_opt {
+            // get init expression and cache code
+            for var_rcref in &domain_block_node.member_variables {
+                let var_name = var_rcref.borrow().name.clone();
+                let var = var_rcref.borrow();
+                let var_init_expr = var.initializer_expr_t_opt.as_ref().unwrap();
+                let mut init_expression = String::new();
+                var_init_expr.accept_to_string(self, &mut init_expression);
+                // push for later initialization
+                domain_vec.push((var_name.clone(), init_expression));
             }
-            self.outdent();
-            self.newline();
         }
+
+        self.generate_new_fn(&domain_vec, system_node);
+        self.outdent();
+        self.newline();
         self.add_code(&"}".to_string());
         self.newline();
+
         self.serialize.push("".to_string());
         self.serialize
             .push("that._serialize__do = function() {".to_string());
@@ -1219,17 +1343,17 @@ impl AstVisitor for JavaScriptVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_domain_block_node(&mut self, domain_block_node: &DomainBlockNode) {
-        self.newline();
-        self.newline();
-        self.add_code("//===================== Domain Block ===================//");
-        self.newline();
+    // fn visit_domain_block_node(&mut self, domain_block_node: &DomainBlockNode) {
+    //     self.newline();
+    //     self.newline();
+    //     self.add_code("//===================== Domain Block ===================//");
+    //     self.newline();
 
-        for variable_decl_node_rcref in &domain_block_node.member_variables {
-            let variable_decl_node = variable_decl_node_rcref.borrow();
-            variable_decl_node.accept(self);
-        }
-    }
+    //     // for variable_decl_node_rcref in &domain_block_node.member_variables {
+    //     //     let variable_decl_node = variable_decl_node_rcref.borrow();
+    //     //     variable_decl_node.accept(self);
+    //     // }
+    // }
 
     //* --------------------------------------------------------------------- *//
 
