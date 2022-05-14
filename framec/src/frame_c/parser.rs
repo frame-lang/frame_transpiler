@@ -558,12 +558,10 @@ impl<'a> Parser<'a> {
                                         }
                                     }
                                     _ => {
-
                                         self.error_at_current(&format!(
                                             "Compiler error - wrong type found for '{}'.",
                                             name
                                         ));
-
                                     }
                                 }
                             }
@@ -608,7 +606,6 @@ impl<'a> Parser<'a> {
 
                     if system_enter_params_opt.is_none() {
                         // ok - no states or enter event params
-
                     } else {
                         // error - no start state but enter event params exist
                         self.error_at_current(&format!("System start state enter parameters declared but no start state exists."));
@@ -618,7 +615,6 @@ impl<'a> Parser<'a> {
                     let start_state_rcref_opt = machine_block_node.states.get(0);
                     if let Some(start_state_rcref) = start_state_rcref_opt {
                         let start_state = start_state_rcref.borrow();
-
 
                         if start_state.params_opt.is_none()
                             && system_start_state_state_params_opt.is_none()
@@ -655,7 +651,7 @@ impl<'a> Parser<'a> {
                                         // error
                                         self.error_at_current(&format!("System start state parameters do not match actual start state parameters."));
                                     }
-                                    i = i + 1;
+                                    i += 1;
                                 }
                             }
                         }
@@ -668,44 +664,57 @@ impl<'a> Parser<'a> {
                             let z = &y.event_symbol_rcref;
                             let a = z.borrow();
                             let enter_event_handler_params_opt = &a.params_opt;
-                            if enter_event_handler_params_opt.is_none()  {
+                            if enter_event_handler_params_opt.is_none() {
                                 if system_enter_params_opt.is_none() {
                                     // ok
                                 } else {
                                     // error
-                                    self.error_at_current(&format!("Start state enter handler has parameters but system enter parameters do not exist."));
-
+                                    self.error_at_current(&format!("System has enter parameters but start state enter handler does not."));
                                 }
-                            } else { // enter_event_handler_params_opt.is_some()
+                            } else {
+                                // enter_event_handler_params_opt.is_some()
 
                                 if system_enter_params_opt.is_none() {
                                     // error
                                     self.error_at_current(&format!("Start state has enter parameters but system does not define any."));
-                                } else { // system_enter_params_opt.is_some()
+                                } else {
+                                    // system_enter_params_opt.is_some()
                                     // compare system enter params w/ start state enter params
-                                    let system_enter_params = system_enter_params_opt.as_ref().unwrap();
-                                    let enter_event_handler_params = &enter_event_handler_params_opt.as_ref().unwrap();
-                                    if system_enter_params.len() != enter_event_handler_params.len() {
+                                    let system_enter_params =
+                                        system_enter_params_opt.as_ref().unwrap();
+                                    let enter_event_handler_params =
+                                        &enter_event_handler_params_opt.as_ref().unwrap();
+                                    if system_enter_params.len() != enter_event_handler_params.len()
+                                    {
                                         // error
                                         self.error_at_current(&format!("Start state and system enter parameters are different."));
                                     } else {
                                         let mut i = 0;
                                         for param in system_enter_params {
-                                            let parameter_symbol = enter_event_handler_params.get(i).unwrap();
+                                            let parameter_symbol =
+                                                enter_event_handler_params.get(i).unwrap();
                                             if parameter_symbol.name.ne(&param.param_name) {
                                                 // error
                                                 self.error_at_current(&format!("Start state and system enter parameters are different."));
-                                            } else if parameter_symbol.param_type_opt.is_none() && param.param_type_opt.is_none() {
+                                            } else if parameter_symbol.param_type_opt.is_none()
+                                                && param.param_type_opt.is_none()
+                                            {
                                                 // ok
-                                            } else if parameter_symbol.param_type_opt.is_none() && param.param_type_opt.is_some() {
+                                            } else if (parameter_symbol.param_type_opt.is_none()
+                                                && param.param_type_opt.is_some())
+                                                || (parameter_symbol.param_type_opt.is_some()
+                                                    && param.param_type_opt.is_none())
+                                            {
                                                 // error
                                                 self.error_at_current(&format!("Start state and system enter parameters are different."));
-                                            } else if parameter_symbol.param_type_opt.is_some() && param.param_type_opt.is_none() {
-                                                // error
-                                                self.error_at_current(&format!("Start state and system enter parameters are different."));
-                                            } else { // parameter_symbol.param_type_opt.is_some() && param.param_type_opt.is_some()
-                                                let param_symbol_type = parameter_symbol.param_type_opt.as_ref().unwrap();
-                                                let param_type = param.param_type_opt.as_ref().unwrap();
+                                            } else {
+                                                // parameter_symbol.param_type_opt.is_some() && param.param_type_opt.is_some()
+                                                let param_symbol_type = parameter_symbol
+                                                    .param_type_opt
+                                                    .as_ref()
+                                                    .unwrap();
+                                                let param_type =
+                                                    param.param_type_opt.as_ref().unwrap();
                                                 if param_symbol_type != param_type {
                                                     // error
                                                     self.error_at_current(&format!("System enter params do not match start state enter params."));
@@ -715,43 +724,15 @@ impl<'a> Parser<'a> {
                                         }
                                     }
                                 }
-
                             }
                         } else {
                             if system_enter_params_opt.is_some() {
-                                // error - no event handlers but there is are system enter event params
+                                // error - no event handlers but there are system enter event params
+                                self.error_at_current("System has enter parameters but the start state does not have an enter event handler.");
                             } else {
                                 // ok - no system enter event params
                             }
                         }
-                        // if start_state.params_opt.is_none() && system_start_state_enter_params_opt.is_none() {
-                        //     // ok
-                        // } else if start_state.params_opt.is_some() && system_start_state_enter_params_opt_opt.is_none() {
-                        //     // error - mismatched params
-                        //     self.error_at_current(&format!("Start state parameters declared but no system start state parameters are declared."));
-                        // } else if start_state.params_opt.is_none() && system_start_state_enter_params_opt_opt.is_some() {
-                        //     self.error_at_current(&format!("System start state parameters declared but no start state exists."));
-                        // } else {
-                        //     // both state and system have params. verify they match
-                        //     let system_start_state_enter_params_opt = system_start_state_enter_params_opt_opt.as_ref().unwrap();
-                        //     let start_state_params_vec = start_state.params_opt.as_ref().unwrap();
-                        //     //  if let Some(start_state_params_vec) = &start_state.params_opt {
-                        //     if start_state_params_vec.len() != system_start_state_enter_params_opt.len() {
-                        //         // error
-                        //         self.error_at_current(&format!("System start state params do not match actual start state params."));
-                        //     } else {
-                        //         // loop through parameter lists and confirm identical
-                        //         let mut i = 0;
-                        //         for state_param in start_state_params_vec {
-                        //             let system_start_state_state_param = system_start_state_enter_params_opt.get(i).unwrap();
-                        //             if system_start_state_state_param != state_param {
-                        //                 // error
-                        //                 self.error_at_current(&format!("System start state params do not match actual start state params."));
-                        //             }
-                        //             i = i + 1;
-                        //         }
-                        //     }
-                      //  }
                     }
                 }
             } else {
