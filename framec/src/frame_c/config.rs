@@ -164,7 +164,7 @@ impl Default for GolangCode {
             enter_args_member_name: String::from("enter_args"),
             exit_args_member_name: String::from("exit_args"),
 
-            frame_event_type_name: String::from("FrameEvent"),
+            frame_event_type_name: String::from("framelang.FrameEvent"),
             frame_event_variable_name: String::from("frame_event"),
             frame_event_args_attribute_name: String::from("arguments"),
             frame_event_args_type_name: String::from("FrameEventArgs"),

@@ -1083,20 +1083,26 @@ impl<'a> Parser<'a> {
         if self.match_token(&[TokenType::SuperString]) {
             let id = self.previous();
             let type_str = id.lexeme.clone();
-            Ok(TypeNode::new(true, false, type_str))
+            Ok(TypeNode::new(true, false, None,type_str))
         } else {
+
             if self.match_token(&[TokenType::And]) {
                 is_reference = true
             }
-            if !self.match_token(&[TokenType::Identifier]) {
-                self.error_at_current("Expected return type name.");
-                return Err(ParseError::new("TODO"));
+            let mut frame_event_part_opt = None;
+            if self.match_token(&[TokenType::At]) {
+                frame_event_part_opt = Some(FrameEventPart::Event {is_reference})
+            } else {
+                if !self.match_token(&[TokenType::Identifier]) {
+                    self.error_at_current("Expected return type name.");
+                    return Err(ParseError::new("TODO"));
+                }
             }
 
             let id = self.previous();
             let type_str = id.lexeme.clone();
 
-            Ok(TypeNode::new(false, is_reference, type_str))
+            Ok(TypeNode::new(false, is_reference, frame_event_part_opt,type_str))
         }
     }
 

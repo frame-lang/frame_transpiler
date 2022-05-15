@@ -1654,6 +1654,7 @@ impl StateSymbol {
     }
 }
 
+#[derive(PartialEq)]
 pub struct ParameterSymbol {
     pub name: String,
     pub param_type_opt: Option<TypeNode>,

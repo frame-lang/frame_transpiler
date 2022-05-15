@@ -718,6 +718,7 @@ pub enum StateCallType {
 
 //-----------------------------------------------------//
 
+#[derive(Clone, PartialEq)]
 pub enum FrameEventPart {
     Event {
         is_reference: bool,
@@ -1586,15 +1587,24 @@ impl NodeElement for LiteralExprNode {
 pub struct TypeNode {
     #[allow(dead_code)]
     is_superstring: bool,
-    is_reference: bool,
-    type_str: String,
+    pub(crate) is_reference: bool,
+    pub(crate) frame_event_part_opt: Option<FrameEventPart>,
+    pub(crate) type_str: String,
 }
 
+// pub trait FrameEventPartFormatter {
+//     fn formatFrameEventPart(frame_event_part:FrameEventPart) -> String;
+// }
+
 impl TypeNode {
-    pub fn new(is_superstring: bool, is_reference: bool, type_str: String) -> TypeNode {
+    pub fn new(is_superstring: bool,
+               is_reference: bool,
+               frame_event_part_opt:Option<FrameEventPart>,
+               type_str: String) -> TypeNode {
         TypeNode {
             is_superstring,
             is_reference,
+            frame_event_part_opt,
             type_str,
         }
     }
@@ -1608,6 +1618,7 @@ impl TypeNode {
 
         s.push_str(&*self.type_str);
         s
+
     }
 }
 
