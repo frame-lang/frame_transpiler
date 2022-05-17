@@ -424,10 +424,10 @@ impl<'a> Parser<'a> {
         if self.is_building_symbol_table {
             //           let st = self.get_current_symtab();
             let system_symbol = SystemSymbol::new(system_name.clone());
-            let x = Rc::new(RefCell::new(system_symbol));
+            let system_symbol_rcref = Rc::new(RefCell::new(system_symbol));
             // TODO: it would be better to find some way to bake the identifier scope into the SystemScope type
             self.arcanum
-                .enter_scope(ParseScopeType::System { system_symbol: x });
+                .enter_scope(ParseScopeType::System { system_symbol: system_symbol_rcref });
         } else {
             self.arcanum.set_parse_scope(&system_name);
         }
@@ -949,7 +949,9 @@ impl<'a> Parser<'a> {
         if self.match_token(&[TokenType::LBracket]) {
             match self.parameters() {
                 Ok(Some(parameters)) => params_opt = Some(parameters),
-                Ok(None) => return Err(ParseError::new("TODO")),
+                Ok(None) => {
+                    return Err(ParseError::new("TODO"))
+                },
                 Err(parse_error) => return Err(parse_error),
             }
         }
@@ -1203,6 +1205,10 @@ impl<'a> Parser<'a> {
 
         if !parameters.is_empty() {
             return Ok(Some(parameters));
+        }
+        else {
+            self.error_at_current("Error - empty list declaration.");
+            return Err(ParseError::new("Error - empty list declaration."))
         }
 
         Ok(None)
@@ -1922,9 +1928,9 @@ impl<'a> Parser<'a> {
         let line_number: usize;
 
         self.event_handler_has_transition = false;
-        let a = self.message();
+    //    let a = self.message();
 
-        match a {
+        match self.message() {
             Ok(MessageType::AnyMessage { line }) => {
                 line_number = line;
                 message_type = AnyMessage { line }
@@ -2018,6 +2024,16 @@ impl<'a> Parser<'a> {
                                 vec.push(param_symbol);
                             }
                             event_symbol_rcref.borrow_mut().params_opt = Some(vec);
+                        } else {
+                            // validate event handler's parameters match the event symbol's parameters
+                            if event_symbol_rcref.borrow().params_opt.is_none() && parameters.len() > 0 {
+                                self.error_at_current(&format!("Event handler {} parameters do not match a previous declaration."
+                                                               ,msg
+                                ));
+                            }
+                            for param_node in &parameters {
+
+                            }
                         }
 
                         let event_handler_params_scope_struct =
@@ -2077,21 +2093,24 @@ impl<'a> Parser<'a> {
                                                         "Bad parameter to event handler",
                                                     );
 
-                                                    let sync_tokens = &vec![
-                                                        TokenType::Pipe,
-                                                        TokenType::Caret,
-                                                        TokenType::State,
-                                                        TokenType::ActionsBlock,
-                                                        TokenType::DomainBlock,
-                                                        TokenType::SystemEnd,
-                                                    ];
-                                                    self.synchronize(sync_tokens);
+                                                    // let sync_tokens = &vec![
+                                                    //     TokenType::ElseContinue,
+                                                    //     TokenType::Caret,
+                                                    //     TokenType::State,
+                                                    //     TokenType::ActionsBlock,
+                                                    //     TokenType::DomainBlock,
+                                                    //     TokenType::SystemEnd,
+                                                    // ];
+                                                    // self.synchronize(sync_tokens);
                                                 }
                                             }
                                             None => {
-                                                return Err(ParseError::new(
-                                                    "Fatal error - Bad parameter.",
-                                                ));
+                                                self.error_at_current(
+                                                    "Incorrect number of parameters",
+                                                );
+                                                // return Err(ParseError::new(
+                                                //     "Fatal error - Bad parameter.",
+                                                // ));
                                             }
                                         }
                                     }
@@ -2145,6 +2164,14 @@ impl<'a> Parser<'a> {
                 Ok(None) => return Err(ParseError::new("TODO")),
                 Err(parse_error) => return Err(parse_error),
             }
+        } else { // no parameter list
+            let event_symbol_rcref =
+                self.arcanum.get_event(&msg, &self.state_name_opt).unwrap();
+            if event_symbol_rcref.borrow().params_opt.is_some() {
+                self.error_at_current(&format!("Event handler {} parameters do not match a previous declaration."
+                                               ,msg
+                ));
+            }
         }
 
         // Parse return type
@@ -2162,6 +2189,35 @@ impl<'a> Parser<'a> {
                 let event_symbol_rcref =
                     self.arcanum.get_event(&*msg, &self.state_name_opt).unwrap();
                 event_symbol_rcref.borrow_mut().ret_type_opt = return_type_opt;
+            } else {
+                let event_symbol_rcref =
+                    self.arcanum.get_event(&*msg, &self.state_name_opt).unwrap();
+                let symbol_rettype_node_opt = &event_symbol_rcref.borrow().ret_type_opt;
+                if symbol_rettype_node_opt.is_none() != return_type_opt.is_none() {
+                    self.error_at_current(&format!("Event handler {} return type does not match a previous declaration."
+                                                   ,msg
+                    ));
+                } else {
+                    let symbol_return_type = symbol_rettype_node_opt.as_ref().unwrap();
+                    let event_handler_return_type = return_type_opt.as_ref().unwrap();
+                    if symbol_return_type != event_handler_return_type {
+                        self.error_at_current(&format!("Event handler {} return type does not match a previous declaration."
+                                                       ,msg
+                        ));
+                    }
+                }
+
+            }
+        } else {
+            // no declared return type
+            let event_symbol_rcref =
+                self.arcanum.get_event(&*msg, &self.state_name_opt).unwrap();
+            let symbol_rettype_node_opt = &event_symbol_rcref.borrow().ret_type_opt;
+
+            if symbol_rettype_node_opt.is_some() {
+                self.error_at_current(&format!("Event handler {} return type does not match a previous declaration."
+                                               ,msg
+                ));
             }
         }
 
