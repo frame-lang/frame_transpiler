@@ -356,15 +356,19 @@ event handler for a message will define the signature:
     -machine-
 
     $Definition
-        |E1| [a:int] : string --- so this handler defines the E1 message signature
+        |E1| [a:int] : string --- this handler defines the E1 message signature
             ^
 
-    $DoesNotMatch
-        |E1| [a:int] : bool --- wrong! returns bool not a string
+    $DoesNotMatchReturn
+        |E1| [a:int] : bool     --- error! returns bool not a string
             ^
 
-    $Matches
-        |E1| [a:int] : string --- ok!
+    $DoesNotMatchParamType
+        |E1| [a:string] : string --- error! Param type doesn't match
+            ^
+
+    $DoesNotMatchParamName
+        |E1| [b:string] : string --- error! Param name doesn't match
             ^
 
 An important point is that it is the *message* name that has a signature, not
