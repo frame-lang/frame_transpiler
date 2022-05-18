@@ -18,7 +18,7 @@
             log("w" w)
             ^
 
-        |Inc|
+        |Inc|: i32
             w = w + 1
             log("w" w)
             ^(w)
@@ -51,7 +51,7 @@
             log("x" x)
             ^
 
-        |Inc|
+        |Inc|: i32
             x = x + 1
             log("x" x)
             ^(x)
@@ -82,7 +82,7 @@
             log("z" z)
             ^
 
-        |Inc|
+        |Inc|: i32
             z = z + 1
             log("z" z)
             ^(z)
