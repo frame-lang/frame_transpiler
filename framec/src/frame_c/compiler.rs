@@ -23,7 +23,7 @@ use std::path::{Path, PathBuf};
 
 // Re-export this enum here since it's part of the interface for the run functions. The definition
 // lives with visitors since adding a new visitor requires extending the enum and its trait impls.
-use crate::frame_c::ast::{AttributeNode};
+use crate::frame_c::ast::AttributeNode;
 pub use crate::frame_c::visitors::TargetLanguage;
 use std::convert::TryFrom;
 

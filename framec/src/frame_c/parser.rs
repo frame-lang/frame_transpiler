@@ -426,8 +426,9 @@ impl<'a> Parser<'a> {
             let system_symbol = SystemSymbol::new(system_name.clone());
             let system_symbol_rcref = Rc::new(RefCell::new(system_symbol));
             // TODO: it would be better to find some way to bake the identifier scope into the SystemScope type
-            self.arcanum
-                .enter_scope(ParseScopeType::System { system_symbol: system_symbol_rcref });
+            self.arcanum.enter_scope(ParseScopeType::System {
+                system_symbol: system_symbol_rcref,
+            });
         } else {
             self.arcanum.set_parse_scope(&system_name);
         }
@@ -949,9 +950,7 @@ impl<'a> Parser<'a> {
         if self.match_token(&[TokenType::LBracket]) {
             match self.parameters() {
                 Ok(Some(parameters)) => params_opt = Some(parameters),
-                Ok(None) => {
-                    return Err(ParseError::new("TODO"))
-                },
+                Ok(None) => return Err(ParseError::new("TODO")),
                 Err(parse_error) => return Err(parse_error),
             }
         }
@@ -1085,15 +1084,14 @@ impl<'a> Parser<'a> {
         if self.match_token(&[TokenType::SuperString]) {
             let id = self.previous();
             let type_str = id.lexeme.clone();
-            Ok(TypeNode::new(true, false, None,type_str))
+            Ok(TypeNode::new(true, false, None, type_str))
         } else {
-
             if self.match_token(&[TokenType::And]) {
                 is_reference = true
             }
             let mut frame_event_part_opt = None;
             if self.match_token(&[TokenType::At]) {
-                frame_event_part_opt = Some(FrameEventPart::Event {is_reference})
+                frame_event_part_opt = Some(FrameEventPart::Event { is_reference })
             } else {
                 if !self.match_token(&[TokenType::Identifier]) {
                     self.error_at_current("Expected return type name.");
@@ -1104,7 +1102,12 @@ impl<'a> Parser<'a> {
             let id = self.previous();
             let type_str = id.lexeme.clone();
 
-            Ok(TypeNode::new(false, is_reference, frame_event_part_opt,type_str))
+            Ok(TypeNode::new(
+                false,
+                is_reference,
+                frame_event_part_opt,
+                type_str,
+            ))
         }
     }
 
@@ -1205,13 +1208,10 @@ impl<'a> Parser<'a> {
 
         if !parameters.is_empty() {
             return Ok(Some(parameters));
-        }
-        else {
+        } else {
             self.error_at_current("Error - empty list declaration.");
-            return Err(ParseError::new("Error - empty list declaration."))
+            return Err(ParseError::new("Error - empty list declaration."));
         }
-
-        Ok(None)
     }
 
     /* --------------------------------------------------------------------- */
@@ -1928,7 +1928,7 @@ impl<'a> Parser<'a> {
         let line_number: usize;
 
         self.event_handler_has_transition = false;
-    //    let a = self.message();
+        //    let a = self.message();
 
         match self.message() {
             Ok(MessageType::AnyMessage { line }) => {
@@ -2026,13 +2026,12 @@ impl<'a> Parser<'a> {
                             event_symbol_rcref.borrow_mut().params_opt = Some(vec);
                         } else {
                             // validate event handler's parameters match the event symbol's parameters
-                            if event_symbol_rcref.borrow().params_opt.is_none() && parameters.len() > 0 {
+                            if event_symbol_rcref.borrow().params_opt.is_none()
+                                && parameters.len() > 0
+                            {
                                 self.error_at_current(&format!("Event handler {} parameters do not match a previous declaration."
                                                                ,msg
                                 ));
-                            }
-                            for param_node in &parameters {
-
                             }
                         }
 
@@ -2090,27 +2089,14 @@ impl<'a> Parser<'a> {
                                                 } else {
                                                     // TODO
                                                     self.error_at_current(
-                                                        "Bad parameter to event handler",
+                                                        "Parameters for event handler do not match declaration in interface or a previous event handler for the message.",
                                                     );
-
-                                                    // let sync_tokens = &vec![
-                                                    //     TokenType::ElseContinue,
-                                                    //     TokenType::Caret,
-                                                    //     TokenType::State,
-                                                    //     TokenType::ActionsBlock,
-                                                    //     TokenType::DomainBlock,
-                                                    //     TokenType::SystemEnd,
-                                                    // ];
-                                                    // self.synchronize(sync_tokens);
                                                 }
                                             }
                                             None => {
                                                 self.error_at_current(
                                                     "Incorrect number of parameters",
                                                 );
-                                                // return Err(ParseError::new(
-                                                //     "Fatal error - Bad parameter.",
-                                                // ));
                                             }
                                         }
                                     }
@@ -2164,12 +2150,13 @@ impl<'a> Parser<'a> {
                 Ok(None) => return Err(ParseError::new("TODO")),
                 Err(parse_error) => return Err(parse_error),
             }
-        } else { // no parameter list
-            let event_symbol_rcref =
-                self.arcanum.get_event(&msg, &self.state_name_opt).unwrap();
+        } else {
+            // no parameter list
+            let event_symbol_rcref = self.arcanum.get_event(&msg, &self.state_name_opt).unwrap();
             if event_symbol_rcref.borrow().params_opt.is_some() {
-                self.error_at_current(&format!("Event handler {} parameters do not match a previous declaration."
-                                               ,msg
+                self.error_at_current(&format!(
+                    "Event handler {} parameters do not match a previous declaration.",
+                    msg
                 ));
             }
         }
@@ -2194,29 +2181,30 @@ impl<'a> Parser<'a> {
                     self.arcanum.get_event(&*msg, &self.state_name_opt).unwrap();
                 let symbol_rettype_node_opt = &event_symbol_rcref.borrow().ret_type_opt;
                 if symbol_rettype_node_opt.is_none() != return_type_opt.is_none() {
-                    self.error_at_current(&format!("Event handler {} return type does not match a previous declaration."
-                                                   ,msg
+                    self.error_at_current(&format!(
+                        "Event handler {} return type does not match a previous declaration.",
+                        msg
                     ));
                 } else {
                     let symbol_return_type = symbol_rettype_node_opt.as_ref().unwrap();
                     let event_handler_return_type = return_type_opt.as_ref().unwrap();
                     if symbol_return_type != event_handler_return_type {
-                        self.error_at_current(&format!("Event handler {} return type does not match a previous declaration."
-                                                       ,msg
+                        self.error_at_current(&format!(
+                            "Event handler {} return type does not match a previous declaration.",
+                            msg
                         ));
                     }
                 }
-
             }
         } else {
             // no declared return type
-            let event_symbol_rcref =
-                self.arcanum.get_event(&*msg, &self.state_name_opt).unwrap();
+            let event_symbol_rcref = self.arcanum.get_event(&*msg, &self.state_name_opt).unwrap();
             let symbol_rettype_node_opt = &event_symbol_rcref.borrow().ret_type_opt;
 
             if symbol_rettype_node_opt.is_some() {
-                self.error_at_current(&format!("Event handler {} return type does not match a previous declaration."
-                                               ,msg
+                self.error_at_current(&format!(
+                    "Event handler {} return type does not match a previous declaration.",
+                    msg
                 ));
             }
         }

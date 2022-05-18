@@ -86,23 +86,20 @@ impl GolangVisitor {
         }
     }
 
-
     //* --------------------------------------------------------------------- *//
 
-    pub fn format_type(&self, type_node:&TypeNode) -> String {
+    pub fn format_type(&self, type_node: &TypeNode) -> String {
         let mut s = String::new();
 
         if let Some(frame_event_part) = &type_node.frame_event_part_opt {
             match frame_event_part {
-                FrameEventPart::Event {is_reference} => {
+                FrameEventPart::Event { is_reference } => {
                     if *is_reference {
                         s.push('&');
                     }
                     s.push_str(&*self.config.code.frame_event_type_name.clone());
                 }
-                _ => {
-
-                }
+                _ => {}
             }
         } else {
             if type_node.is_reference {
@@ -539,15 +536,15 @@ impl GolangVisitor {
             self.indent();
             self.newline();
             self.add_code(&format!(
-                "m._mux_(&{}{{Msg: \"<\", Params: m._compartment_.ExitArgs, Ret: nil}})"
-                , self.config.code.frame_event_type_name
+                "m._mux_(&{}{{Msg: \"<\", Params: m._compartment_.ExitArgs, Ret: nil}})",
+                self.config.code.frame_event_type_name
             ));
             self.newline();
             self.add_code("m._compartment_ = nextCompartment");
             self.newline();
             self.add_code(&format!(
-                "m._mux_(&{}{{Msg: \">\", Params: m._compartment_.EnterArgs, Ret: nil}})"
-                    , self.config.code.frame_event_type_name
+                "m._mux_(&{}{{Msg: \">\", Params: m._compartment_.EnterArgs, Ret: nil}})",
+                self.config.code.frame_event_type_name
             ));
             self.outdent();
             self.newline();
@@ -1207,14 +1204,14 @@ impl GolangVisitor {
         if let Some(_enter_params) = &system_node.start_state_enter_params_opt {
             self.newline();
             self.add_code(&format!(
-                "e := {}{{Msg:\">\", Params:m._compartment_.EnterArgs}}"
-                , self.config.code.frame_event_type_name
+                "e := {}{{Msg:\">\", Params:m._compartment_.EnterArgs}}",
+                self.config.code.frame_event_type_name
             ));
         } else {
             self.newline();
             self.add_code(&format!(
-                "e := {}{{Msg:\">\"}}"
-                , self.config.code.frame_event_type_name
+                "e := {}{{Msg:\">\"}}",
+                self.config.code.frame_event_type_name
             ));
         }
 
@@ -1403,8 +1400,8 @@ impl GolangVisitor {
         self.add_code("ExitArgs map[string]interface{}");
         self.newline();
         self.add_code(&format!(
-            "_forwardEvent_ *{}"
-            , self.config.code.frame_event_type_name
+            "_forwardEvent_ *{}",
+            self.config.code.frame_event_type_name
         ));
         self.outdent();
         self.newline();
@@ -1718,9 +1715,9 @@ impl AstVisitor for GolangVisitor {
         self.newline();
 
         self.add_code(&format!(
-            "func (m *{}Struct) _mux_(e *{}) {{"
-            , self.first_letter_to_lower_case(&system_node.name)
-            , self.config.code.frame_event_type_name
+            "func (m *{}Struct) _mux_(e *{}) {{",
+            self.first_letter_to_lower_case(&system_node.name),
+            self.config.code.frame_event_type_name
         ));
         self.indent();
 
@@ -1752,9 +1749,9 @@ impl AstVisitor for GolangVisitor {
             self.add_code("   nextCompartment._forwardEvent_.Msg == \">\" {");
             self.indent();
             self.newline();
-            self.add_code( &format!(
-                "m._mux_(&{}{{Msg: \"<\", Params: m._compartment_.ExitArgs, Ret: nil}})"
-                , self.config.code.frame_event_type_name
+            self.add_code(&format!(
+                "m._mux_(&{}{{Msg: \"<\", Params: m._compartment_.ExitArgs, Ret: nil}})",
+                self.config.code.frame_event_type_name
             ));
             self.newline();
             self.add_code("m._compartment_ = nextCompartment");
@@ -1934,9 +1931,8 @@ impl AstVisitor for GolangVisitor {
         }
         self.newline();
         self.add_code(&format!(
-            "e := {}{{Msg:\"{}\""
-            , self.config.code.frame_event_type_name
-            , method_name_or_alias,
+            "e := {}{{Msg:\"{}\"",
+            self.config.code.frame_event_type_name, method_name_or_alias,
         ));
         if interface_method_node.params.is_some() {
             self.add_code(", Params:params");
@@ -2018,15 +2014,19 @@ impl AstVisitor for GolangVisitor {
         self.current_state_name_opt = Some(state_node.name.clone());
         self.newline();
         self.newline();
-        let type_node = TypeNode::new(false
-                                        ,false
-                                        ,Some(FrameEventPart::Event { is_reference: false })
-                                        ,String::new());
+        let type_node = TypeNode::new(
+            false,
+            false,
+            Some(FrameEventPart::Event {
+                is_reference: false,
+            }),
+            String::new(),
+        );
         self.add_code(&format!(
-            "func (m *{}Struct) _{}_(e *{}) {{"
-            , self.first_letter_to_lower_case(&self.system_name)
-            , self.format_state_name(&state_node.name)
-            , self.format_type(&type_node)
+            "func (m *{}Struct) _{}_(e *{}) {{",
+            self.first_letter_to_lower_case(&self.system_name),
+            self.format_state_name(&state_node.name),
+            self.format_type(&type_node)
         ));
         self.indent();
 

@@ -1597,10 +1597,12 @@ pub struct TypeNode {
 // }
 
 impl TypeNode {
-    pub fn new(is_superstring: bool,
-               is_reference: bool,
-               frame_event_part_opt:Option<FrameEventPart>,
-               type_str: String) -> TypeNode {
+    pub fn new(
+        is_superstring: bool,
+        is_reference: bool,
+        frame_event_part_opt: Option<FrameEventPart>,
+        type_str: String,
+    ) -> TypeNode {
         TypeNode {
             is_superstring,
             is_reference,
@@ -1618,7 +1620,6 @@ impl TypeNode {
 
         s.push_str(&*self.type_str);
         s
-
     }
 }
 

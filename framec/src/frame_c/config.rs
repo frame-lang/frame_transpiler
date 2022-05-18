@@ -61,6 +61,7 @@ pub struct CodeGenConfig {
 pub struct CommonConfig {
     pub features: CommonFeatures,
     pub code: CommonCode,
+    pub attributes: CommonAttributes,
 }
 
 /// Code generation options specific to the Rust backend.
@@ -232,6 +233,21 @@ pub struct CommonFeatures {}
 /// Naming options for generated code shared among all backends.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CommonCode {}
+
+/// Naming options for generated code shared among all backends.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CommonAttributes {
+    pub allow_relaxed_event_signatures: bool,
+}
+
+impl Default for CommonAttributes {
+    fn default() -> Self {
+        CommonAttributes {
+            /// Throw error if event hander/interface signatures aren't identical for a message.
+            allow_relaxed_event_signatures: false,
+        }
+    }
+}
 
 /// Code generation options specific to the Golang backend.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
