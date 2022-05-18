@@ -309,67 +309,50 @@ all event handlers for that message must have an identical signature. If there
 isn't an interface method for the message, then the first event handler for
 the message defines the signature for the message.
 
-
 .. code-block::
 
     -interface-
 
-    write [data:string] : bool
+    M1 [a:string] : string         --- signature defintion for M1 message
 
     -machine-
 
-    $Ready
-        |write| [data:string] : bool
-            ^(writeData(data))
+    $Matches
+        |M1| [a:string] : string ^  --- ok!
 
-    $StillReady
-        |write| [data:string] : bool
-            ^(writeData(data))
+    $DoesNotMatchParamName
+        |M1| [b:string] : string ^  --- error! Param name doesn't match
 
-Above we can see that the ``write`` interface method defines the signature
-for all event handlers for the ``|write|`` messge. The followign would produce
-errors:
+    $DoesNotMatchParamType
+        |M1| [a:int] : string ^     --- error! Param type doesn't match
 
-.. code-block::
-
-    -interface-
-
-    write [data:string] : bool
-
-    -machine-
-
-    $Ready
-        |write| --- wrong! missing signature
-            ^(writeData(data))
-
-    $StillReady
-        |write| [data:int] : bool --- wrong! data type changed
-            ^(writeData(data))
+    $DoesNotMatchReturnType
+        |M1| [a:string] : bool ^    --- error! Return type doesn't match
 
 As mentioned above, if an interface method is not present, then the first
 event handler for a message will define the signature:
 
 .. code-block::
 
-    --- no interface definition for E1
+    -interface-
+
+    --- no interface definition for M1
 
     -machine-
 
     $Definition
-        |E1| [a:int] : string --- this handler defines the E1 message signature
-            ^
-
-    $DoesNotMatchReturn
-        |E1| [a:int] : bool     --- error! returns bool not a string
-            ^
-
-    $DoesNotMatchParamType
-        |E1| [a:string] : string --- error! Param type doesn't match
-            ^
+        |M1| [a:string] : string ^  --- signature defined here
 
     $DoesNotMatchParamName
-        |E1| [b:string] : string --- error! Param name doesn't match
-            ^
+        |M1| [b:string] : string ^  --- error! Param name doesn't match
+
+    $DoesNotMatchParamType
+        |M1| [a:int] : string ^     --- error! Param type doesn't match
+
+    $DoesNotMatchReturnType
+        |M1| [a:string] : bool ^    --- error! Return type doesn't match
+
+
 
 An important point is that it is the *message* name that has a signature, not
 the interface method. Interface methods, by default, generate a message with
