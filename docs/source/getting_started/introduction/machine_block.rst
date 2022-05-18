@@ -297,3 +297,90 @@ So if we wanted to be completely clear we could also write this:
 
     |setColor| [color:string]
         #.color = @[color] ^ --- using event parameter scope syntax
+
+Event Handler Signatures
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Event handler signatures are the parameters and return value for an event
+handler. All event handlers for a unique message must be identical, including
+the names of the variables. If there
+is an interface method that sends the message (as there usually is), then
+all event handlers for that message must have an identical signature. If there
+isn't an interface method for the message, then the first event handler for
+the message defines the signature for the message.
+
+
+.. code-block::
+
+    -interface-
+
+    write [data:string] : bool
+
+    -machine-
+
+    $Ready
+        |write| [data:string] : bool
+            ^(writeData(data))
+
+    $StillReady
+        |write| [data:string] : bool
+            ^(writeData(data))
+
+Above we can see that the ``write`` interface method defines the signature
+for all event handlers for the ``|write|`` messge. The followign would produce
+errors:
+
+.. code-block::
+
+    -interface-
+
+    write [data:string] : bool
+
+    -machine-
+
+    $Ready
+        |write| --- wrong! missing signature
+            ^(writeData(data))
+
+    $StillReady
+        |write| [data:int] : bool --- wrong! data type changed
+            ^(writeData(data))
+
+As mentioned above, if an interface method is not present, then the first
+event handler for a message will define the signature:
+
+.. code-block::
+
+    --- no interface definition for E1
+
+    -machine-
+
+    $Definition
+        |E1| [a:int] : string --- so this handler defines the E1 message signature
+            ^
+
+    $DoesNotMatch
+        |E1| [a:int] : bool --- wrong! returns bool not a string
+            ^
+
+    $Matches
+        |E1| [a:int] : string --- ok!
+            ^
+
+An important point is that it is the *message* name that has a signature, not
+the interface method. Interface methods, by default, generate a message with
+the same name, unless they have an alias:
+
+.. code-block::
+
+    -interface-
+
+    M1 : bool          --- message is "M1"
+    M2 @(|M3|) [a:int] --- message is "M3", not "M2"
+
+    -machine-
+
+    $S0
+        |M1| : bool  ^  --- ok!
+        |M2| [a:int] ^  --- error! there is no M2 message
+        |M3| [a:int] ^  --- ok!
