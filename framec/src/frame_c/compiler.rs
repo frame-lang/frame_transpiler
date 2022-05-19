@@ -322,7 +322,7 @@ impl Exe {
                         generate_enter_args || generate_state_context,
                         generate_state_stack,
                         generate_change_state,
-                        generate_transition_state,
+                        // generate_transition_state,
                         FRAMEC_VERSION,
                         comments,
                     );
