@@ -11,7 +11,25 @@ Controller Language Override Attribute
 Frame specs can override the command line language for the generated controller
 using the following ``language`` attribute:
 
-#[language="rust"]
+#[language="<language_id>"]
+
+Possible values for <language_id> are:
+
+=========== =================
+Code        Language
+=========== =================
+cpp         C++
+c_sharp     C# 
+gdscript    Godot script
+golang      Golang
+java_8      Java 8
+javascript  JavaScript
+plantuml    PlantUML
+python_3    Python 3
+rust        Rust
+smcat       State Machine Cat
+=========== =================
+
 
 Serialization
 -------------
