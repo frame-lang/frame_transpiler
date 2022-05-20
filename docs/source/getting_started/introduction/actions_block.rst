@@ -66,4 +66,20 @@ For our Lamp, we simply need two actions to drive the switch:
 
     ##
 
+Action Literals
+---------------
+
+Frame does not currently support any statements in actions and instead relies
+on developers to derive a child class or struct from the controller and
+override the action stubs. 
+
+However, Frame does permit the injection of code using its string literal
+syntax (`\`Some arbitrary string\``). Here is an example for Rust:
+
+.. code-block::
+
+    print[msg:&String] {`
+        println!("{}", &format!("{}",msg));
+    `}
+
 Next we will look at how these actions are called to implement behavior.
