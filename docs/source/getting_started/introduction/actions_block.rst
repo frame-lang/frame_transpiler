@@ -71,15 +71,19 @@ Action Literals
 
 Frame does not currently support any statements in actions and instead relies
 on developers to derive a child class or struct from the controller and
-override the action stubs. 
+override the action stubs.
 
 However, Frame does permit the injection of code using its string literal
-syntax (`\`Some arbitrary string\``). Here is an example for Rust:
+syntax `\`Some arbitrary string\``. Here is an example for Rust:
 
 .. code-block::
 
     print[msg:&String] {`
         println!("{}", &format!("{}",msg));
     `}
+
+This syntax permits passing through aribitrary code to the generated output.
+It is therefore possible to create fully functioning, but language specific, controllers
+from Frame specs.
 
 Next we will look at how these actions are called to implement behavior.
