@@ -63,7 +63,7 @@ language. At this time Frame does not enforce mutability itself but instead
 relies on the underlying language to do so.
 
 It may be necessary have an arbitrary string as a type. To do so, use the
-string literal syntax ``wierdVar:\`MyWierdType\```.
+string literal syntax ``weirdVar:`MyWeirdType```.
 
 If you transpile into a language that requires a type and you don’t provide one,
 a token such as `<?>` is substituted. Conversely, if you add a type and transpile
