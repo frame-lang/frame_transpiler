@@ -19,7 +19,7 @@ Possible values for <language_id> are:
 Code        Language
 =========== =================
 cpp         C++
-c_sharp     C# 
+c_sharp     C#
 gdscript    Godot script
 golang      Golang
 java_8      Java 8
@@ -37,7 +37,9 @@ Serialization
 Frame controllers can be made serializable by adding the ``Marshall`` attribute
 to the system spec:
 
-#[derive(Marshal)]
+.. code-block::
+
+    #[derive(Marshal)]
 
 Managed
 -------
