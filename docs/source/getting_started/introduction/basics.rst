@@ -65,6 +65,18 @@ relies on the underlying language to do so.
 It may be necessary have an arbitrary string as a type. To do so, use the
 string literal syntax ``weirdVar:`MyWeirdType```.
 
+.. code-block:: language
+
+    -interface-
+
+    foo [p1:`WeirdParamType`] : `WeirdRetVal`
+
+    -machine-
+
+    $Bar
+        |foo| [p1:`WeirdParamType`] : `WeirdRetVal` 
+
+
 If you transpile into a language that requires a type and you don’t provide one,
 a token such as `<?>` is substituted. Conversely, if you add a type and transpile
 into a language that doesn’t require one, the Framepiler ignores it.
