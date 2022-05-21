@@ -2,164 +2,168 @@
 Frame Grammar
 =============
 
-frame_spec: code_block? '#' IDENTIFIER body system_params'##' code_block?
+.. code-block::
 
-body: iface_block? machine_block? actions_block? domain_block?
 
-system_params: start_state_params? start_state_enter_params? domain_override_params
+    frame_spec: code_block? '#' IDENTIFIER body system_params'##' code_block?
 
-start_state_params: '$' parameter_list
+    body: iface_block? machine_block? actions_block? domain_block?
 
-start_state_enter_params '>' start_state_enter_params
+    system_params: start_state_params? start_state_enter_params? domain_override_params
 
-domain_override_params: parameter_list
+    start_state_params: '$' parameter_list
 
-iface_block: '-interface-' iface_method*
+    start_state_enter_params '>' start_state_enter_params
 
-iface_method: IDENTIFIER parameter_list? type? message_alias?
+    domain_override_params: parameter_list
 
-message_alias: '@' '(' message_selector ')'
+    iface_block: '-interface-' iface_method*
 
-machine_block: '-machine-' state*
+    iface_method: IDENTIFIER parameter_list? type? message_alias?
 
-state: state_name parameter_list? dispatch_clause? def* event_handler*
+    message_alias: '@' '(' message_selector ')'
 
-state_name: '$' IDENTIFIER
+    machine_block: '-machine-' state*
 
-dispatch_clause: '=>' state_name
+    state: state_name parameter_list? dispatch_clause? def* event_handler*
 
-event_handler: message_selector parameter_list? defs_or_stmts*
+    state_name: '$' IDENTIFIER
 
-event_handler_terminator
+    dispatch_clause: '=>' state_name
 
-message_selector: '|' STRING '|'
+    event_handler: message_selector parameter_list? defs_or_stmts*
 
-defs_or_stmts: def | stmt
+    event_handler_terminator
 
-event_handler_terminator: return_stmt | continue_stmt
+    message_selector: '|' STRING '|'
 
-return_stmt: '^' ( '(' expr ')' )?
+    defs_or_stmts: def | stmt
 
-continue_stmt: ':>'
+    event_handler_terminator: return_stmt | continue_stmt
 
-def: ( 'var' | 'const' ) IDENTIFIER type? '=' expr
+    return_stmt: '^' ( '(' expr ')' )?
 
-stmt:    transition_stmt
+    continue_stmt: ':>'
 
-| change_state_stmt
+    def: ( 'var' | 'const' ) IDENTIFIER type? '=' expr
 
-| test_stmt
+    stmt:    transition_stmt
 
-| state_stack_stmt
+    | change_state_stmt
 
-| expr_stmt
+    | test_stmt
 
-transition_stmt: exit_args? '->' enter_args? transition_label? '=>'? state_ref state_args?
+    | state_stack_stmt
 
-exit_args: expr_list
+    | expr_stmt
 
-enter_args: expr_list
+    transition_stmt: exit_args? '->' enter_args? transition_label? '=>'? state_ref state_args?
 
-transition_label: STRING
+    exit_args: expr_list
 
-state_ref: '$' IDENTIFIER
+    enter_args: expr_list
 
-state_args: expr_list
+    transition_label: STRING
 
-change_state_stmt: '->>' state_ref
+    state_ref: '$' IDENTIFIER
 
-test_stmt: ( bool_test | string_test | number_test ) '::'
+    state_args: expr_list
 
-bool_test: equality ( '?' | '?!' ) test_branch else_cont_branch* else_branch?
+    change_state_stmt: '->>' state_ref
 
-else_cont_branch: ':>' test_branch
+    test_stmt: ( bool_test | string_test | number_test ) '::'
 
-else_branch: ':' test_branch
+    bool_test: equality ( '?' | '?!' ) test_branch else_cont_branch* else_branch?
 
-test_branch: stmt* return_stmt?
+    else_cont_branch: ':>' test_branch
 
-string_test: equality '?~' string_match_branch+ else_branch?
+    else_branch: ':' test_branch
 
-string_match_branch: '/' str_patterns '/ stmt* ( return_stmt | ':>' )
+    test_branch: stmt* return_stmt?
 
-str_patterns: STRING ( '|' STRING )*
+    string_test: equality '?~' string_match_branch+ else_branch?
 
-number_test: equality '?#' number_match_branch+ else_branch?
+    string_match_branch: '/' str_patterns '/ stmt* ( return_stmt | ':>' )
 
-number_match_branch: '/' number_patterns '/ stmt* ( return_stmt | ':>' )
+    str_patterns: STRING ( '|' STRING )*
 
-number_patterns: NUMBER ( '|' NUMBER )*
+    number_test: equality '?#' number_match_branch+ else_branch?
 
-state_stack_stmt: state_stack_oper_expr
+    number_match_branch: '/' number_patterns '/ stmt* ( return_stmt | ':>' )
 
-expr: assignment
+    number_patterns: NUMBER ( '|' NUMBER )*
 
-assignment: equality ( '=' equality )?
+    state_stack_stmt: state_stack_oper_expr
 
-equality: comparison ( ( '!=' | '==' ) comparison )*
+    expr: assignment
 
-comparison: term ( ( '>' | '>=' | '<' | '<=' ) term )*
+    assignment: equality ( '=' equality )?
 
-term: factor ( ( '+' | '-' ) factor )*
+    equality: comparison ( ( '!=' | '==' ) comparison )*
 
-factor: logical_xor ( ( '*' | '/' ) logical_xor )*
+    comparison: term ( ( '>' | '>=' | '<' | '<=' ) term )*
 
-logical_xor: logical_or ( '&|' logical_or )*
+    term: factor ( ( '+' | '-' ) factor )*
 
-logical_or: logical_and ( '||' logical_and )*
+    factor: logical_xor ( ( '*' | '/' ) logical_xor )*
 
-logical_and: unary_expr ( '&&' unary_expr )*
+    logical_xor: logical_or ( '&|' logical_or )*
 
-unary_expr: ( '!' | '-' ) unary_expr
-|  '(' expr_list ')
+    logical_or: logical_and ( '||' logical_and )*
 
-| '#' '.' IDENTIFIER
+    logical_and: unary_expr ( '&&' unary_expr )*
 
-| '$' '[' IDENTIFIER ']
+    unary_expr: ( '!' | '-' ) unary_expr
 
-| '$' '.' IDENTIFIER
+    |  '(' expr_list ')
 
-| '||[' IDENTIFIER ']'
+    | '#' '.' IDENTIFIER
 
-| '||.' IDENTIFIER ']'
+    | '$' '[' IDENTIFIER ']
 
-| '&'? variable_or_call_expr
+    | '$' '.' IDENTIFIER
 
-| literal_expr
+    | '||[' IDENTIFIER ']'
 
-| state_stack_oper_expr
+    | '||.' IDENTIFIER ']'
 
-| frame_event_part_expr
+    | '&'? variable_or_call_expr
 
-| expr_list
+    | literal_expr
 
-| call_chain_expr
+    | state_stack_oper_expr
 
-call_chain_expr: 	variable_or_call_expr ( '.' variable_or_call_expr )*
+    | frame_event_part_expr
 
-variable_or_call_expr: IDENTIFIER expr_list?
+    | expr_list
 
-expr_list: '(' expr* ')'
+    | call_chain_expr
 
-literal_expr: NUMBER | STRING | 'true' | 'false' | 'null' | 'nil' | inline_code_block
+    call_chain_expr: 	variable_or_call_expr ( '.' variable_or_call_expr )*
 
-state_stack_oper_expr: '$$[+]' | '$$[-]'
+    variable_or_call_expr: IDENTIFIER expr_list?
 
-frame_event_part_expr: '@' ( '||' | '[' IDENTIFIER ']' | '^' )?
+    expr_list: '(' expr* ')'
 
+    literal_expr: NUMBER | STRING | 'true' | 'false' | 'null' | 'nil' | inline_code_block
 
-actions_block: '-actions-' action*
+    state_stack_oper_expr: '$$[+]' | '$$[-]'
 
-action: IDENTIFIER parameter_list? type? ( {` STRING `} )?
+    frame_event_part_expr: '@' ( '||' | '[' IDENTIFIER ']' | '^' )?
 
-domain_block: '-domain-' def*
 
-parameter_list: '[' parameter+ ']'
+    actions_block: '-actions-' action*
 
-parameter: IDENTIFIER type?
+    action: IDENTIFIER parameter_list? type? ( {` STRING `} )?
 
-type: ':' ( IDENTIFIER | inline_code_block )
+    domain_block: '-domain-' def*
 
-code_block: '```' STRING '```'
+    parameter_list: '[' parameter+ ']'
 
-inline_code_block: '`' STRING '`'
+    parameter: IDENTIFIER type?
+
+    type: ':' ( IDENTIFIER | inline_code_block )
+
+    code_block: '```' STRING '```'
+
+    inline_code_block: '`' STRING '`'
