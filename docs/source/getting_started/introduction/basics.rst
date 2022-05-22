@@ -75,7 +75,7 @@ Inline Code
 
 It may be necessary have an arbitrary string as a type. This is typically to
 support language specific type decorations. To do so, use the
-string literal syntax ``name:\`CharacterSequence\```.
+string literal syntax ``name:\`<CharacterSequence>\```.
 
 .. code-block:: language
 
