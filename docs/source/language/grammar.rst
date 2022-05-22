@@ -8,9 +8,9 @@ Frame Grammar
 
     attributes: '#' '[' meta_name_value_str ']'
 
-    meta_name_value_str: identifier | identifier = '"' string '""' | identifier ( meta_seq? )
+    meta_name_value_str: IDENTIFIER | IDENTIFIER = '"' STRING '""' | IDENTIFIER ( meta_seq? )
 
-    meta_seq: ( , identifier )* ,?
+    meta_seq: ( , IDENTIFIER )* ,?
 
     system_spec: code_block? '#' IDENTIFIER body system_params'##' code_block?
 

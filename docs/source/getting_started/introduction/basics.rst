@@ -15,6 +15,31 @@ Comments are single line and indicated by three (3) dashes:
     --- this is a single line comment
     --- so is this
 
+.. _variable_declarations:
+
+Variable Declarations
+---------------------
+
+Variable and constant declarations have the following format:
+
+.. code-block::
+
+    <var | const> <name> : <type_opt> = <intializer>
+
+    var x:int = 1
+    const name = "Steve"
+
+The type is optional but the initializer is required.
+
+Frame will transpile into the closest semantic equivalents in the target
+language. At this time Frame does not enforce mutability itself but instead
+relies on the underlying language to do so.
+
+
+If you transpile into a language that requires a type and you don’t provide one,
+a token such as `<?>` is substituted. Conversely, if you add a type and transpile
+into a language that doesn’t require one, the Framepiler ignores it.
+
 
 Parameter Declarations
 ----------------------
@@ -42,44 +67,28 @@ Therefore parameter lists can be declared either of these two ways:
 
     [param1:type1 param2:type2]
 
-.. _variable_declarations:
 
-Variable Declarations
----------------------
+.. _inline_code:
 
-Variable and constant declarations have the following format:
+Inline Code
+-----------
 
-.. code-block::
-
-    <var | const> <name> : <type_opt> = <intializer>
-
-    var x:int = 1
-    const name = "Steve"
-
-The type is optional but the initializer is required.
-
-Frame will transpile into the closest semantic equivalents in the target
-language. At this time Frame does not enforce mutability itself but instead
-relies on the underlying language to do so.
-
-It may be necessary have an arbitrary string as a type. To do so, use the
-string literal syntax ``weirdVar:`MyWeirdType```.
+It may be necessary have an arbitrary string as a type. This is typically to
+support language specific type decorations. To do so, use the
+string literal syntax ``name:\`CharacterSequence\```.
 
 .. code-block:: language
 
     -interface-
 
-    foo [p1:`WeirdParamType`] : `WeirdRetVal`
+    foo [p:`*T`] : `*X`
 
     -machine-
 
     $Bar
-        |foo| [p1:`WeirdParamType`] : `WeirdRetVal` 
+        |foo| [p:`*T`] : `*X`
 
 
-If you transpile into a language that requires a type and you don’t provide one,
-a token such as `<?>` is substituted. Conversely, if you add a type and transpile
-into a language that doesn’t require one, the Framepiler ignores it.
 
 .. _methods:
 
