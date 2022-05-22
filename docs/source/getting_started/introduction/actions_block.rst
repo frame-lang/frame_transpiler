@@ -66,8 +66,8 @@ For our Lamp, we simply need two actions to drive the switch:
 
     ##
 
-Action Literals
----------------
+Action Inline Code Blocks
+-------------------------
 
 Frame does not currently support any statements in actions and instead relies
 on developers to derive a child class or struct from the controller and
