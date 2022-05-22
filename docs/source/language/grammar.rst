@@ -4,8 +4,15 @@ Frame Grammar
 
 .. code-block::
 
+    frame_system: attributes* system_spec
 
-    frame_spec: code_block? '#' IDENTIFIER body system_params'##' code_block?
+    attributes: '#' '[' meta_name_value_str ']'
+
+    meta_name_value_str: identifier | identifier = '"' string '""' | identifier ( meta_seq? )
+
+    meta_seq: ( , identifier )* ,?
+
+    system_spec: code_block? '#' IDENTIFIER body system_params'##' code_block?
 
     body: iface_block? machine_block? actions_block? domain_block?
 
@@ -117,23 +124,14 @@ Frame Grammar
         |  '(' expr_list ')
         | '#' '.' IDENTIFIER
         | '$' '[' IDENTIFIER ']
-
         | '$' '.' IDENTIFIER
-
         | '||[' IDENTIFIER ']'
-
         | '||.' IDENTIFIER ']'
-
         | '&'? variable_or_call_expr
-
         | literal_expr
-
         | state_stack_oper_expr
-
         | frame_event_part_expr
-
         | expr_list
-
         | call_chain_expr
 
     call_chain_expr: 	variable_or_call_expr ( '.' variable_or_call_expr )*
