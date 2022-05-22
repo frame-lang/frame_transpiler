@@ -114,30 +114,27 @@ Frame Grammar
     logical_and: unary_expr ( '&&' unary_expr )*
 
     unary_expr: ( '!' | '-' ) unary_expr
+        |  '(' expr_list ')
+        | '#' '.' IDENTIFIER
+        | '$' '[' IDENTIFIER ']
 
-    |  '(' expr_list ')
+        | '$' '.' IDENTIFIER
 
-    | '#' '.' IDENTIFIER
+        | '||[' IDENTIFIER ']'
 
-    | '$' '[' IDENTIFIER ']
+        | '||.' IDENTIFIER ']'
 
-    | '$' '.' IDENTIFIER
+        | '&'? variable_or_call_expr
 
-    | '||[' IDENTIFIER ']'
+        | literal_expr
 
-    | '||.' IDENTIFIER ']'
+        | state_stack_oper_expr
 
-    | '&'? variable_or_call_expr
+        | frame_event_part_expr
 
-    | literal_expr
+        | expr_list
 
-    | state_stack_oper_expr
-
-    | frame_event_part_expr
-
-    | expr_list
-
-    | call_chain_expr
+        | call_chain_expr
 
     call_chain_expr: 	variable_or_call_expr ( '.' variable_or_call_expr )*
 
@@ -150,7 +147,6 @@ Frame Grammar
     state_stack_oper_expr: '$$[+]' | '$$[-]'
 
     frame_event_part_expr: '@' ( '||' | '[' IDENTIFIER ']' | '^' )?
-
 
     actions_block: '-actions-' action*
 
