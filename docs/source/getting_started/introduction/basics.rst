@@ -70,24 +70,38 @@ Therefore parameter lists can be declared either of these two ways:
 
 .. _inline_code:
 
-Inline Code
------------
+Inline Code Types
+-----------------
 
 It may be necessary have an arbitrary string as a type. This is typically to
 support language specific type decorations. To do so, use the
-string literal syntax ``name:`<CharacterSequence>```.
+inline code block syntax for the type: ``name:`<TypeCharacterSequence>```.
 
 .. code-block:: language
 
     -interface-
 
-    foo [p:`*T`] : `*X`
+    foo [p:`&T`] : `*X`
 
     -machine-
 
     $Bar
-        |foo| [p:`*T`] : `*X`
+        |foo| [p:`&T`] : `*X`
 
+
+Parameter By-Reference Type
+---------------------------
+
+As shown above, parameter types can escape any character sequence as a type.
+A common case is to use the ``&`` character for a pass-by-reference type.
+Therefore Frame directly supports
+this special character in its grammar. Both of the following declarations
+are valid and have identical output in Frame:
+
+.. code-block::
+
+    foo [p:`&T`]
+    bar [p:&T]
 
 
 .. _methods:
@@ -160,6 +174,28 @@ only hold arguments for function or method calls:
 .. code-block::
 
     foo(b a r)
+
+Code Blocks
+-----------
+
+To inject header and footer literal code that should pass through unaltered
+to the genrated controller, Frame provides a code block syntax using the
+``````` syntax :
+
+.. code-block::
+
+    ```
+    Header code
+    ```
+
+    #FrameSpec
+    ...
+    ##
+
+    ```
+    Footer code
+    ```
+
 
 Next
 ----
