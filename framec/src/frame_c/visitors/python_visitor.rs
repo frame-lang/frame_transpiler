@@ -1898,7 +1898,7 @@ impl AstVisitor for PythonVisitor {
                 }
             }
 
-            self.add_code(&") {".to_string());
+            self.add_code(&":".to_string());
             self.indent();
 
             match_branch_node.accept(self);
@@ -1952,7 +1952,7 @@ impl AstVisitor for PythonVisitor {
         &mut self,
         number_match_test_else_branch_node: &NumberMatchTestElseBranchNode,
     ) {
-        self.add_code(&"else {".to_string());
+        self.add_code(&"else:".to_string());
         self.indent();
 
         self.visit_decl_stmts(&number_match_test_else_branch_node.statements);
