@@ -884,10 +884,7 @@ impl JavaScriptVisitor {
             self.add_code("// Create and intialize start state compartment.");
             self.newline();
             self.newline();
-            self.add_code(&format!(
-                "this._state_ = this._s{}_;",
-                self.first_state_name
-            ));
+            self.add_code(&format!("this._state = this._s{}_;", self.first_state_name));
 
             // if self.generate_state_context {
             //     self.newline();
@@ -1087,6 +1084,7 @@ impl AstVisitor for JavaScriptVisitor {
             self.newline();
             //
             self.add_code("switch (this._compartment.state) {");
+            self.indent();
             for state_node_rcref in &machine_block_node.states {
                 let state_name = &format!("this._s{}_", &state_node_rcref.borrow().name);
                 self.newline();
@@ -1098,6 +1096,7 @@ impl AstVisitor for JavaScriptVisitor {
                 self.add_code(&"break;".to_string());
                 self.outdent();
             }
+            self.outdent();
             self.newline();
             self.add_code("}");
             self.newline();
@@ -1142,6 +1141,8 @@ impl AstVisitor for JavaScriptVisitor {
             self.newline();
             self.add_code("}");
             self.outdent();
+            self.newline();
+            self.add_code("}");
             self.newline();
         }
 
@@ -1424,7 +1425,7 @@ impl AstVisitor for JavaScriptVisitor {
 
         self.first_event_handler = true; // context for formatting
         self.newline();
-        self.add_code("switch(e._message) {");
+        self.add_code("switch (e._message) {");
         self.indent();
 
         if !state_node.evt_handlers_rcref.is_empty() {
@@ -1432,17 +1433,20 @@ impl AstVisitor for JavaScriptVisitor {
                 evt_handler_node.as_ref().borrow().accept(self);
             }
         }
-
+        self.outdent();
+        self.newline();
+        self.add_code("}");
         match &state_node.dispatch_opt {
             Some(dispatch) => {
                 dispatch.accept(self);
             }
             None => {}
         }
+
         self.outdent();
         self.newline();
         self.add_code("}");
-        self.outdent();
+        // self.outdent();
 
         self.current_state_name_opt = None;
     }
@@ -1454,31 +1458,11 @@ impl AstVisitor for JavaScriptVisitor {
         self.generate_comment(evt_handler_node.line);
         //        let mut generate_final_close_paren = true;
         if let MessageType::CustomMessage { message_node } = &evt_handler_node.msg_t {
-            // if self.first_event_handler {
             self.add_code(&format!("case \"{}\":", message_node.name));
-            //     } else {
-            //         self.add_code(&format!(
-            //             "else if (e._message == \"{}\") {{",
-            //             message_node.name
-            //         ));
-            //     }
-            // } else {
-            //     // AnyMessage ( ||* )
-            //     if self.first_event_handler {
-            //         // This logic is for when there is only the catch all event handler ||*
-            //         self.add_code(&"if (true) {".to_string());
-            //     } else {
-            //         // other event handlers preceded ||*
-            //         self.add_code(&"else {".to_string());
-            //     }
         }
         self.generate_comment(evt_handler_node.line);
 
         self.indent();
-        // if evt_handler_node.event_handler_has_transition && self.generate_state_context {
-        //     self.newline();
-        //     self.add_code(&"let stateContext = null;".to_string());
-        // }
 
         match &evt_handler_node.msg_t {
             MessageType::CustomMessage { .. } => {
@@ -1495,21 +1479,6 @@ impl AstVisitor for JavaScriptVisitor {
             }
             _ => {}
         }
-        // if let MessageType::CustomMessage {message_node} = &evt_handler_node.msg_t {
-        //
-        //     let (_, msg) = EventSymbol::get_event_msg(&self.symbol_config, &Some(evt_handler_node.state_name.clone()), &message_node.name);
-        //
-        //     // Note: this is a bit convoluted as we cant use self.add_code() inside the
-        //     // if statements as it is a double borrow (sigh).
-        //
-        //     let params_code: Vec<String> = Vec::new();
-        //
-        //     // NOW add the code. Sheesh.
-        //     for param_code in params_code {
-        //         self.newline();
-        //         self.add_code(&param_code);
-        //     }
-        // }
 
         // Generate statements
         self.visit_decl_stmts(&evt_handler_node.statements);
@@ -1517,8 +1486,6 @@ impl AstVisitor for JavaScriptVisitor {
         let terminator_node = &evt_handler_node.terminator_node;
         terminator_node.accept(self);
         self.outdent();
-        self.newline();
-        self.add_code(&"}".to_string());
 
         // this controls formatting here
         self.first_event_handler = false;
