@@ -1355,9 +1355,26 @@ impl AstVisitor for JavaScriptVisitor {
         self.add_code("//===================== Actions Block ===================//");
         self.newline();
 
-        for action_decl_node_rcref in &actions_block_node.actions {
-            let action_decl_node = action_decl_node_rcref.borrow();
-            action_decl_node.accept(self);
+        for action_rcref in &actions_block_node.actions {
+            let action_node = action_rcref.borrow();
+            if action_node.code_opt.is_some() {
+                action_node.accept_action_impl(self);
+            }
+
+            if action_node.code_opt.is_none() {
+                self.newline();
+                self.newline();
+                self.add_code("// Unimplemented Actions");
+                self.newline();
+            }
+        }
+
+        for action_rcref in &actions_block_node.actions {
+            let action_node = action_rcref.borrow();
+
+            if action_node.code_opt.is_none() {
+                action_node.accept_action_decl(self);
+            }
         }
     }
 
@@ -2429,8 +2446,36 @@ impl AstVisitor for JavaScriptVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_impl_node(&mut self, _action_decl_node: &ActionNode) {
-        panic!("visit_action_impl_node() not implemented.");
+    fn visit_action_impl_node(&mut self, action_node: &ActionNode) {
+        let mut subclass_code = String::new();
+
+        self.newline();
+        self.newline();
+
+        let action_name = self.format_action_name(&action_node.name);
+        self.add_code(&format!("{} (", action_name));
+        let mut separator = "";
+        match &action_node.params {
+            Some(params) => {
+                for param in params {
+                    self.add_code(&separator.to_string());
+                    subclass_code.push_str(&separator.to_string());
+                    separator = ", ";
+                    self.add_code(&param.param_name.to_string());
+                    subclass_code.push_str(&param.param_name.to_string());
+                }
+            }
+            None => {}
+        }
+
+        self.add_code(&") {".to_string());
+        // self.subclass_code.push(subclass_code);
+        self.indent();
+        self.newline();
+        self.add_code(action_node.code_opt.as_ref().unwrap().as_str());
+        self.outdent();
+        self.newline();
+        self.add_code("}");
     }
 
     //* --------------------------------------------------------------------- *//
