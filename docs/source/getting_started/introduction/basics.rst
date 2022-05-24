@@ -180,7 +180,7 @@ Code Blocks
 
 To inject header and footer literal code that should pass through unaltered
 to the genrated controller, Frame provides a code block syntax using the
-``````` syntax :
+``````` token:
 
 .. code-block::
 
