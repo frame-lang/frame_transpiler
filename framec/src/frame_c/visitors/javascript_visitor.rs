@@ -885,11 +885,6 @@ impl JavaScriptVisitor {
             self.newline();
             self.newline();
             self.add_code(&format!("this._state = this._s{}_;", self.first_state_name));
-
-            // if self.generate_state_context {
-            //     self.newline();
-            //     self.add_code(&"this._stateContext_ = StateContext(this._state_);".to_string());
-            // }
         }
 
         self.newline();
@@ -1013,7 +1008,42 @@ impl AstVisitor for JavaScriptVisitor {
         self.indent();
         self.newline();
         self.newline();
-        self.add_code(&format!("constructor () {{"));
+        self.add_code(&format!("constructor ("));
+
+        // format system params,if any.
+        let mut separator = String::new();
+        let mut new_params: String = match &system_node.start_state_state_params_opt {
+            Some(param_list) => {
+                let mut params = String::new();
+                for param_node in param_list {
+                    params.push_str(&format!("{}{}", separator, param_node.param_name));
+                    separator = String::from(",");
+                }
+                params
+            }
+            None => String::new(),
+        };
+
+        match &system_node.start_state_enter_params_opt {
+            Some(param_list) => {
+                for param_node in param_list {
+                    new_params.push_str(&format!("{}{}", separator, param_node.param_name));
+                    separator = String::from(",");
+                }
+            }
+            None => {}
+        };
+        match &system_node.domain_params_opt {
+            Some(param_list) => {
+                for param_node in param_list {
+                    new_params.push_str(&format!("{}{}", separator, param_node.param_name));
+                    separator = String::from(",");
+                }
+            }
+            None => {}
+        };
+
+        self.add_code(&format!("{}) {{", new_params));
         // First state name needed for machinery.
         // Don't generate if there isn't at least one state.
         match system_node.get_first_state() {
@@ -1063,8 +1093,10 @@ impl AstVisitor for JavaScriptVisitor {
             "class {}Controller extends {} {{\n",
             system_node.name, system_node.name
         ));
-        self.subclass_code.push("\tconstructor() {".to_string());
-        self.subclass_code.push("\t  super()".to_string());
+        self.subclass_code
+            .push(format!("\tconstructor({}) {{", new_params));
+        self.subclass_code
+            .push(format!("\t  super({})", new_params));
         self.subclass_code.push("\t}".to_string());
         if let Some(interface_block_node) = &system_node.interface_block_node_opt {
             interface_block_node.accept(self);
@@ -1353,24 +1385,21 @@ impl AstVisitor for JavaScriptVisitor {
         self.newline();
         self.newline();
         self.add_code("//===================== Actions Block ===================//");
-        self.newline();
 
         for action_rcref in &actions_block_node.actions {
             let action_node = action_rcref.borrow();
             if action_node.code_opt.is_some() {
                 action_node.accept_action_impl(self);
             }
-
-            if action_node.code_opt.is_none() {
-                self.newline();
-                self.add_code("// Unimplemented Actions");
-                self.newline();
-            }
         }
+
+        self.newline();
+        self.newline();
+        self.add_code("// Unimplemented Actions");
+        self.newline();
 
         for action_rcref in &actions_block_node.actions {
             let action_node = action_rcref.borrow();
-
             if action_node.code_opt.is_none() {
                 action_node.accept_action_decl(self);
             }
