@@ -1363,7 +1363,6 @@ impl AstVisitor for JavaScriptVisitor {
 
             if action_node.code_opt.is_none() {
                 self.newline();
-                self.newline();
                 self.add_code("// Unimplemented Actions");
                 self.newline();
             }
