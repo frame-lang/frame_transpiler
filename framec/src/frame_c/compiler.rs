@@ -318,11 +318,11 @@ impl Exe {
                 TargetLanguage::JavaScript => {
                     let mut visitor = JavaScriptVisitor::new(
                         semantic_parser.get_arcanum(),
-                        generate_exit_args,
-                        generate_enter_args || generate_state_context,
+                        // generate_exit_args,
+                        // generate_enter_args || generate_state_context,
                         generate_state_stack,
                         generate_change_state,
-                        generate_transition_state,
+                        // generate_transition_state,
                         FRAMEC_VERSION,
                         comments,
                     );

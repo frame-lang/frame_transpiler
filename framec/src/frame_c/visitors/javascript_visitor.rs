@@ -30,11 +30,11 @@ pub struct JavaScriptVisitor {
     has_states: bool,
     errors: Vec<String>,
     visiting_call_chain_literal_variable: bool,
-    generate_exit_args: bool,
-    generate_state_context: bool,
+    // generate_exit_args: bool,
+    // generate_state_context: bool,
     generate_state_stack: bool,
     generate_change_state: bool,
-    generate_transition_state: bool,
+    // generate_transition_state: bool,
 }
 
 impl JavaScriptVisitor {
@@ -42,11 +42,11 @@ impl JavaScriptVisitor {
 
     pub fn new(
         arcanium: Arcanum,
-        generate_exit_args: bool,
-        generate_state_context: bool,
+        // generate_exit_args: bool,
+        // generate_state_context: bool,
         generate_state_stack: bool,
         generate_change_state: bool,
-        generate_transition_state: bool,
+        // generate_transition_state: bool,
         compiler_version: &str,
         comments: Vec<Token>,
     ) -> JavaScriptVisitor {
@@ -76,11 +76,11 @@ impl JavaScriptVisitor {
             visiting_call_chain_literal_variable: false,
             errors: Vec::new(),
             subclass_code: Vec::new(),
-            generate_exit_args,
-            generate_state_context,
+            // generate_exit_args,
+            // generate_state_context,
             generate_state_stack,
             generate_change_state,
-            generate_transition_state,
+            // generate_transition_state,
         }
     }
 
@@ -159,7 +159,7 @@ impl JavaScriptVisitor {
                     code.push('(');
                 }
                 code.push_str(&format!(
-                    "this._stateContext_.getStateArg(\"{}\")",
+                    "this._compartment.StateArgs[\"{}\"]",
                     variable_node.id_node.name.lexeme
                 ));
                 if self.visiting_call_chain_literal_variable {
@@ -177,7 +177,7 @@ impl JavaScriptVisitor {
                     code.push('(');
                 }
                 code.push_str(&format!(
-                    " this._stateContext_.getStateVar(\"{}\")",
+                    "this._compartment.StateVars[\"{}\"]",
                     variable_node.id_node.name.lexeme
                 ));
                 if self.visiting_call_chain_literal_variable {
@@ -338,132 +338,63 @@ impl JavaScriptVisitor {
         self.add_code("//=============== Machinery and Mechanisms ==============//");
         self.newline();
         if system_node.get_first_state().is_some() {
-            // self.newline();
-            // self.add_code(&format!("let _state_ = _s{}_;", self.first_state_name));
-            if self.generate_state_context {
-                // self.newline();
-                // self.add_code(&"let _stateContext_ = StateContext(_state_);".to_string());
-                // self.newline();
-                if self.has_states {
-                    if let Some(state_symbol_rcref) =
-                        self.arcanium.get_state(&self.first_state_name)
-                    {
-                        // self.newline();
-                        let state_symbol = state_symbol_rcref.borrow();
-                        let state_node = &state_symbol.state_node.as_ref().unwrap().borrow();
-                        // generate local state variables
-                        if state_node.vars_opt.is_some() {
-                            for var_rcref in state_node.vars_opt.as_ref().unwrap() {
-                                let var = var_rcref.borrow();
-                                let _var_type = match &var.type_opt {
-                                    Some(var_type) => var_type.get_type_str(),
-                                    None => String::from("<?>"),
-                                };
-                                let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
-                                let mut expr_code = String::new();
-                                expr_t.accept_to_string(self, &mut expr_code);
-                                self.newline();
-                                self.add_code(&format!(
-                                    "this._stateContext_.addStateVar(\"{}\",{});",
-                                    var.name, expr_code
-                                ));
-                                self.newline();
-                            }
-                        }
-                    }
-                }
-            }
-            if self.generate_transition_state {
-                self.newline();
-                if self.generate_state_context {
-                    if self.generate_exit_args {
-                        self.add_code(
-                            &"_transition_(newState,exitArgs, stateContext) {".to_string(),
-                        );
-                    } else {
-                        self.add_code(&"_transition_(newState, stateContext) {".to_string());
-                    }
-                } else if self.generate_exit_args {
-                    self.add_code(&"_transition_function(newState,exitArgs) {".to_string());
-                } else {
-                    self.add_code(&"_transition_(newState) {".to_string());
-                }
-                self.indent();
-                self.newline();
-                if self.generate_exit_args {
-                    self.add_code(&"let exitEvent = FrameEvent(\"<\",exitArgs);".to_string());
-                } else {
-                    self.add_code(&"let exitEvent = FrameEvent(\"<\",null);".to_string());
-                }
-                self.newline();
-                self.add_code(&"this._state_(exitEvent);".to_string());
-                self.newline();
-                self.add_code(&"this._state_ = newState;".to_string());
-                self.newline();
-                if self.generate_state_context {
-                    self.add_code(&"this._stateContext_ = stateContext;".to_string());
-                    self.newline();
-                    self.add_code(
-                        &"let enterEvent = FrameEvent(\">\",this._stateContext_.getEnterArgs());"
-                            .to_string(),
-                    );
-                    self.newline();
-                } else {
-                    self.add_code(&"let enterEvent = FrameEvent(\">\",null);".to_string());
-                    self.newline();
-                }
-                self.add_code(&"this._state_(enterEvent);".to_string());
-                self.outdent();
-                self.newline();
-                self.add_code(&"}".to_string());
-            }
+            self.newline();
+            self.add_code("_transition_(compartment) {");
+            self.indent();
+            self.newline();
+            self.add_code("this._nextCompartment = compartment;");
+            self.outdent();
+            self.newline();
+            self.add_code("}");
+
+            self.newline();
+            self.newline();
+            self.add_code("_do_transition_(nextCompartment) {");
+
+            self.indent();
+            self.newline();
+            self.add_code("this._mux_(FrameEvent(\"<\", this._compartment.ExitArgs));");
+            self.newline();
+            self.add_code("this._compartment = nextCompartment;");
+            self.newline();
+            self.add_code("this._mux_(FrameEvent(\">\", this._compartment.EnterArgs));");
+            self.outdent();
+            self.newline();
+            self.add_code("}");
+            // _stateStack
             if self.generate_state_stack {
                 self.newline();
                 self.newline();
-                self.add_code(&"_stateStack_ = [];".to_string());
-                self.newline();
-                self.newline();
-                self.add_code(&"_stateStack_push_(stateData) {".to_string());
+                self.add_code("_stateStack_push_(compartment) {");
                 self.indent();
                 self.newline();
-                self.add_code(&"this._stateStack_.push(stateData);".to_string());
+                self.add_code(&"this._stateStack.push(compartment);".to_string());
                 self.outdent();
                 self.newline();
                 self.add_code(&"}".to_string());
                 self.newline();
                 self.newline();
-                self.add_code(&"_stateStack_pop_() {".to_string());
+                self.add_code("_stateStack_pop_(){");
                 self.indent();
                 self.newline();
-                self.add_code(&"return this._stateStack_.pop();".to_string());
+                self.add_code(&"return this._stateStack.pop();".to_string());
                 self.outdent();
                 self.newline();
                 self.add_code(&"}".to_string());
             }
+
             if self.generate_change_state {
                 self.newline();
                 self.newline();
-                self.add_code(&"_changeState_(newState) {".to_string());
+                self.add_code("_changeState_(compartment) {");
                 self.indent();
                 self.newline();
-                self.add_code(&"this._state_ = newState;".to_string());
+                self.add_code(&"this._compartment = compartment;".to_string());
                 self.outdent();
                 self.newline();
                 self.add_code(&"}".to_string());
             }
-
-            if self.arcanium.is_serializable() {
-                self.newline();
-                for line in self.serialize.iter() {
-                    self.code.push_str(&*line.to_string());
-                    self.code.push_str(&*format!("\n{}", self.dent()));
-                }
-
-                for line in self.deserialize.iter() {
-                    self.code.push_str(&*line.to_string());
-                    self.code.push_str(&*format!("\n{}", self.dent()));
-                }
-            }
+            self.newline();
         }
     }
 
@@ -554,20 +485,12 @@ impl JavaScriptVisitor {
             None => {}
         }
 
-        if self.generate_state_context {
-            self.add_code(&format!(
-                "stateContext = StateContext(this.{});",
-                state_ref_code
-            ));
-            self.newline();
-        }
-
         // -- Exit Arguments --
 
-        let mut has_exit_args = false;
+        // let mut has_exit_args = false;
         if let Some(exit_args) = &transition_statement.exit_args_opt {
             if !exit_args.exprs_t.is_empty() {
-                has_exit_args = true;
+                // has_exit_args = true;
 
                 // Note - searching for event keyed with "State:<"
                 // e.g. "S1:<"
@@ -587,8 +510,8 @@ impl JavaScriptVisitor {
                                 panic!("Fatal error: misaligned parameters to arguments.")
                             }
                             let mut param_symbols_it = event_params.iter();
-                            self.add_code("let exitArgs = {};");
-                            self.newline();
+                            // self.add_code("let exitArgs = {};");
+                            // self.newline();
                             // Loop through the ARGUMENTS...
                             for expr_t in &exit_args.exprs_t {
                                 // ...and validate w/ the PARAMETERS
@@ -601,7 +524,7 @@ impl JavaScriptVisitor {
                                         let mut expr = String::new();
                                         expr_t.accept_to_string(self, &mut expr);
                                         self.add_code(&format!(
-                                            "exitArgs[\"{}\"] = {};",
+                                            "this._compartment.ExitArgs[\"{}\"] = {};",
                                             p.name, expr
                                         ));
                                         self.newline();
@@ -622,6 +545,19 @@ impl JavaScriptVisitor {
         }
 
         // -- Enter Arguments --
+
+        // if self.generate_state_context {
+        self.add_code(&format!(
+            "let compartment =  new {}Compartment(this.{});",
+            self.system_name, state_ref_code
+        ));
+        self.newline();
+        // }
+
+        if transition_statement.forward_event {
+            self.newline();
+            self.add_code("compartment._forwardEvent = e");
+        }
 
         let enter_args_opt = match &transition_statement.target_state_context_t {
             StateContextType::StateRef { state_context_node } => &state_context_node.enter_args_opt,
@@ -653,7 +589,7 @@ impl JavaScriptVisitor {
                                     let mut expr = String::new();
                                     expr_t.accept_to_string(self, &mut expr);
                                     self.add_code(&format!(
-                                        "stateContext.addEnterArg(\"{}\",{});",
+                                        "compartment.EnterArgs[\"{}\"] = {}",
                                         p.name, expr
                                     ));
                                     self.newline();
@@ -700,7 +636,7 @@ impl JavaScriptVisitor {
                                     let mut expr = String::new();
                                     expr_t.accept_to_string(self, &mut expr);
                                     self.add_code(&format!(
-                                        "stateContext.addStateArg(\"{}\",{});",
+                                        "compartment.StateArgs[\"{}\"] = {}",
                                         param_symbol.name, expr
                                     ));
                                     self.newline();
@@ -743,7 +679,7 @@ impl JavaScriptVisitor {
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
                             self.add_code(&format!(
-                                "stateContext.addStateVar(\"{}\",{});",
+                                "compartment.StateVars[\"{}\"] = {}",
                                 var.name, expr_code
                             ));
                             self.newline();
@@ -755,32 +691,35 @@ impl JavaScriptVisitor {
                 //                code = target_state_vars.clone();
             }
         }
-        let exit_args = if has_exit_args { "exitArgs" } else { "null" };
-        if self.generate_state_context {
-            if self.generate_exit_args {
-                self.add_code(&format!(
-                    "this._transition_(this.{},{},stateContext);",
-                    self.format_target_state_name(target_state_name),
-                    exit_args
-                ));
-            } else {
-                self.add_code(&format!(
-                    "this._transition_(this.{},stateContext);",
-                    self.format_target_state_name(target_state_name)
-                ));
-            }
-        } else if self.generate_exit_args {
-            self.add_code(&format!(
-                "this._transition_(this.{},{});",
-                self.format_target_state_name(target_state_name),
-                exit_args
-            ));
-        } else {
-            self.add_code(&format!(
-                "this._transition_(this.{});",
-                self.format_target_state_name(target_state_name)
-            ));
-        }
+        // let exit_args = if has_exit_args { "exitArgs" } else { "null" };
+        // if self.generate_state_context {
+        //     if self.generate_exit_args {
+        //         self.add_code(&format!(
+        //             "this._transition_(this.{},{},stateContext);",
+        //             self.format_target_state_name(target_state_name),
+        //             exit_args
+        //         ));
+        //     } else {
+        //         self.add_code(&format!(
+        //             "this._transition_(this.{},stateContext);",
+        //             self.format_target_state_name(target_state_name)
+        //         ));
+        //     }
+        // } else if self.generate_exit_args {
+        //     self.add_code(&format!(
+        //         "this._transition_(this.{},{});",
+        //         self.format_target_state_name(target_state_name),
+        //         exit_args
+        //     ));
+        // } else {
+        //     self.add_code(&format!(
+        //         "this._transition_(this.{});",
+        //         self.format_target_state_name(target_state_name)
+        //     ));
+        // }
+
+        self.newline();
+        self.add_code("this._transition_(compartment)");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -829,8 +768,8 @@ impl JavaScriptVisitor {
                                 panic!("Fatal error: misaligned parameters to arguments.")
                             }
                             let mut param_symbols_it = event_params.iter();
-                            self.add_code("FrameEventParams exitArgs = new FrameEventParams();");
-                            self.newline();
+                            // self.add_code("FrameEventParams exitArgs = new FrameEventParams();");
+                            // self.newline();
                             // Loop through the ARGUMENTS...
                             for expr_t in &exit_args.exprs_t {
                                 // ...and validate w/ the PARAMETERS
@@ -843,7 +782,7 @@ impl JavaScriptVisitor {
                                         let mut expr = String::new();
                                         expr_t.accept_to_string(self, &mut expr);
                                         self.add_code(&format!(
-                                            "exitArgs[\"{}\"] = {};",
+                                            "this._compartment.ExitArgs[\"{}\"] = {};",
                                             p.name, expr
                                         ));
                                         self.newline();
@@ -862,25 +801,29 @@ impl JavaScriptVisitor {
                 }
             }
         }
-        if self.generate_state_context {
-            self.add_code(&"let stateContext = this._stateStack_pop();".to_string());
-        } else {
-            self.add_code(&"let state = this._stateStack_pop_();".to_string());
-        }
+
+        self.add_code("let compartment = this._stateStack_pop_()");
         self.newline();
-        if self.generate_exit_args {
-            if self.generate_state_context {
-                self.add_code(
-                    &"_transition_(stateContext.state,exitArgs,stateContext);".to_string(),
-                );
-            } else {
-                self.add_code(&"_transition_(state,exitArgs);".to_string());
-            }
-        } else if self.generate_state_context {
-            self.add_code(&"_transition_(stateContext.state,stateContext);".to_string());
-        } else {
-            self.add_code(&"_transition_(state);".to_string());
-        }
+        self.add_code("this._transition_(compartment)");
+        // if self.generate_state_context {
+        //     self.add_code(&"let stateContext = this._stateStack_pop();".to_string());
+        // } else {
+        //     self.add_code(&"let state = this._stateStack_pop_();".to_string());
+        // }
+        // self.newline();
+        // if self.generate_exit_args {
+        //     if self.generate_state_context {
+        //         self.add_code(
+        //             &"_transition_(stateContext.state,exitArgs,stateContext);".to_string(),
+        //         );
+        //     } else {
+        //         self.add_code(&"_transition_(state,exitArgs);".to_string());
+        //     }
+        // } else if self.generate_state_context {
+        //     self.add_code(&"_transition_(stateContext.state,stateContext);".to_string());
+        // } else {
+        //     self.add_code(&"_transition_(state);".to_string());
+        // }
     }
 
     //* --------------------------------------------------------------------- *//
@@ -929,24 +872,33 @@ impl JavaScriptVisitor {
             self.newline();
             self.newline();
 
-            self.add_code(&format!(
-                "this._state_ = this._s{}_;",
-                self.first_state_name
-            ));
-            self.newline();
-            self.newline();
-            self.add_code("// Create start state compartment");
+            if self.generate_state_stack {
+                self.add_code("// Create state stack.");
+                self.newline();
+                self.newline();
+                self.add_code("this._stateStack = [];");
+                self.newline();
+                self.newline();
+            }
 
+            self.add_code("// Create and intialize start state compartment.");
             self.newline();
-            self.add_code(&format!(
-                "this._compartment = new {}Compartment(this._state);",
-                system_node.name
-            ));
+            self.newline();
+            self.add_code(&format!("this._state = this._s{}_;", self.first_state_name));
+
             // if self.generate_state_context {
             //     self.newline();
             //     self.add_code(&"this._stateContext_ = StateContext(this._state_);".to_string());
             // }
         }
+
+        self.newline();
+        self.add_code(&format!(
+            "this._compartment = new {}Compartment(this._state);",
+            system_node.name
+        ));
+        self.newline();
+        self.add_code("this._nextCompartment = null;");
 
         // Initialize state arguments.
         match &system_node.start_state_state_params_opt {
@@ -954,7 +906,7 @@ impl JavaScriptVisitor {
                 for param in params {
                     self.newline();
                     self.add_code(&format!(
-                        "this._compartment_.StateArgs[\"{}\"] = {}",
+                        "this._compartment.StateArgs[\"{}\"] = {};",
                         param.param_name, param.param_name,
                     ));
                 }
@@ -975,7 +927,7 @@ impl JavaScriptVisitor {
 
                             self.newline();
                             self.add_code(&format!(
-                                "this._compartment_.StateVars[\"{}\"] = {}",
+                                "this._compartment.StateVars[\"{}\"] = {};",
                                 var_decl_node.name, expr_code,
                             ));
                         }
@@ -984,6 +936,16 @@ impl JavaScriptVisitor {
                 }
             }
             None => {}
+        }
+
+        if let Some(enter_params) = &system_node.start_state_enter_params_opt {
+            for param in enter_params {
+                self.newline();
+                self.add_code(&format!(
+                    "this._compartment.EnterArgs[\"{}\"] = {};",
+                    param.param_name, param.param_name,
+                ));
+            }
         }
 
         self.newline();
@@ -1005,12 +967,12 @@ impl JavaScriptVisitor {
                         }
                     }
                     self.add_code(&format!(
-                        "this.{} = {}",
+                        "this.{} = {};",
                         domain_var_name, domain_var_initializer
                     ))
                 }
                 None => self.add_code(&format!(
-                    "this.{} = {}",
+                    "this.{} = {};",
                     domain_var_name, domain_var_initializer
                 )),
             }
@@ -1020,22 +982,16 @@ impl JavaScriptVisitor {
 
         self.add_code("// Send system start event");
 
-        if let Some(enter_params) = &system_node.start_state_enter_params_opt {
+        if let Some(_enter_params) = &system_node.start_state_enter_params_opt {
             self.newline();
-            self.add_code("this.params = {}");
-            for param in enter_params {
-                self.newline();
-                self.add_code(&format!(
-                    "this.params[\"{}\"] = {}",
-                    param.param_name, param.param_name,
-                ));
-            }
-            self.newline();
-            self.add_code("this._mux_(FrameEvent(\">\", params))");
+            self.add_code("this._frameEvent = FrameEvent(\">\", this._compartment.EnterArgs);");
         } else {
             self.newline();
-            self.add_code("this._mux_(FrameEvent(_message:\">\"))");
+            self.add_code("this._frameEvent = FrameEvent(\">\", null);");
         }
+
+        self.newline();
+        self.add_code("this._mux_(this._frameEvent);");
     }
 }
 
@@ -1112,6 +1068,82 @@ impl AstVisitor for JavaScriptVisitor {
         self.subclass_code.push("\t}".to_string());
         if let Some(interface_block_node) = &system_node.interface_block_node_opt {
             interface_block_node.accept(self);
+        }
+
+        // generate _mux_
+
+        self.newline();
+        self.add_code("//====================== Multiplexer ====================//");
+        self.newline();
+        self.newline();
+
+        self.add_code("_mux_(e) {");
+        self.indent();
+
+        if let Some(machine_block_node) = &system_node.machine_block_node_opt {
+            self.newline();
+            //
+            self.add_code("switch (this._compartment.state) {");
+            self.indent();
+            for state_node_rcref in &machine_block_node.states {
+                let state_name = &format!("this._s{}_", &state_node_rcref.borrow().name);
+                self.newline();
+                self.add_code(&format!("case {}:", state_name));
+                self.indent();
+                self.newline();
+                self.add_code(&format!("{}(e);", state_name));
+                self.newline();
+                self.add_code(&"break;".to_string());
+                self.outdent();
+            }
+            self.outdent();
+            self.newline();
+            self.add_code("}");
+            self.newline();
+            self.newline();
+            self.add_code("if( this._nextCompartment != null) {");
+            self.indent();
+            self.newline();
+            self.add_code("let nextCompartment = this._nextCompartment");
+            self.newline();
+            self.add_code("this._nextCompartment = null");
+            self.newline();
+            self.add_code("if (nextCompartment._forwardEvent != null && ");
+            self.newline();
+            self.add_code("   nextCompartment._forwardEvent._message == \">\") {");
+            self.indent();
+            self.newline();
+            self.add_code("this._mux_(FrameEvent( \"<\", this._compartment.ExitArgs))");
+            self.newline();
+            self.add_code("this._compartment = nextCompartment");
+            self.newline();
+            self.add_code("this._mux_(nextCompartment._forwardEvent)");
+            self.outdent();
+            self.newline();
+            self.add_code("} else {");
+            self.indent();
+            self.newline();
+            self.add_code("this._do_transition_(nextCompartment)");
+            self.newline();
+            self.add_code("if (nextCompartment._forwardEvent != null) {");
+            self.indent();
+            self.newline();
+            self.add_code("this._mux_(nextCompartment._forwardEvent)");
+            self.outdent();
+            self.newline();
+            self.add_code("}");
+            self.outdent();
+            self.newline();
+            self.add_code("}");
+            self.newline();
+            self.add_code("nextCompartment._forwardEvent_ = null");
+            self.outdent();
+            self.newline();
+            self.add_code("}");
+            self.outdent();
+            self.newline();
+            self.add_code("}");
+            self.newline();
         }
 
         if let Some(machine_block_node) = &system_node.machine_block_node_opt {
@@ -1269,7 +1301,7 @@ impl AstVisitor for JavaScriptVisitor {
             ));
         }
         self.newline();
-        self.add_code(&"this._state_(e);".to_string());
+        self.add_code(&"this._mux_(e);".to_string());
 
         match &interface_method_node.return_type_opt {
             Some(_return_type) => {
@@ -1323,9 +1355,25 @@ impl AstVisitor for JavaScriptVisitor {
         self.add_code("//===================== Actions Block ===================//");
         self.newline();
 
-        for action_decl_node_rcref in &actions_block_node.actions {
-            let action_decl_node = action_decl_node_rcref.borrow();
-            action_decl_node.accept(self);
+        for action_rcref in &actions_block_node.actions {
+            let action_node = action_rcref.borrow();
+            if action_node.code_opt.is_some() {
+                action_node.accept_action_impl(self);
+            }
+
+            if action_node.code_opt.is_none() {
+                self.newline();
+                self.add_code("// Unimplemented Actions");
+                self.newline();
+            }
+        }
+
+        for action_rcref in &actions_block_node.actions {
+            let action_node = action_rcref.borrow();
+
+            if action_node.code_opt.is_none() {
+                action_node.accept_action_decl(self);
+            }
         }
     }
 
@@ -1365,6 +1413,7 @@ impl AstVisitor for JavaScriptVisitor {
         self.add_code(&format!("_s{}_(e) {{", state_node.name));
         self.indent();
 
+        // TODO: DEAD CODE
         self.serialize.push(format!(
             "\tif (_state_ == _s{}_) stateName = \"{}\"",
             state_node.name, state_node.name
@@ -1374,6 +1423,7 @@ impl AstVisitor for JavaScriptVisitor {
             "\t\tcase \"{}\": _state_ = _s{}_; break;",
             state_node.name, state_node.name
         ));
+        // TODO: DEAD CODE
 
         // @TODO: remove if not needed
         // let state_symbol = match self.arcanium.get_state(&state_node.name) {
@@ -1390,13 +1440,18 @@ impl AstVisitor for JavaScriptVisitor {
         }
 
         self.first_event_handler = true; // context for formatting
+        self.newline();
+        self.add_code("switch (e._message) {");
+        self.indent();
 
         if !state_node.evt_handlers_rcref.is_empty() {
             for evt_handler_node in &state_node.evt_handlers_rcref {
                 evt_handler_node.as_ref().borrow().accept(self);
             }
         }
-
+        self.outdent();
+        self.newline();
+        self.add_code("}");
         match &state_node.dispatch_opt {
             Some(dispatch) => {
                 dispatch.accept(self);
@@ -1407,6 +1462,7 @@ impl AstVisitor for JavaScriptVisitor {
         self.outdent();
         self.newline();
         self.add_code("}");
+        // self.outdent();
 
         self.current_state_name_opt = None;
     }
@@ -1418,31 +1474,11 @@ impl AstVisitor for JavaScriptVisitor {
         self.generate_comment(evt_handler_node.line);
         //        let mut generate_final_close_paren = true;
         if let MessageType::CustomMessage { message_node } = &evt_handler_node.msg_t {
-            if self.first_event_handler {
-                self.add_code(&format!("if (e._message == \"{}\") {{", message_node.name));
-            } else {
-                self.add_code(&format!(
-                    "else if (e._message == \"{}\") {{",
-                    message_node.name
-                ));
-            }
-        } else {
-            // AnyMessage ( ||* )
-            if self.first_event_handler {
-                // This logic is for when there is only the catch all event handler ||*
-                self.add_code(&"if (true) {".to_string());
-            } else {
-                // other event handlers preceded ||*
-                self.add_code(&"else {".to_string());
-            }
+            self.add_code(&format!("case \"{}\":", message_node.name));
         }
         self.generate_comment(evt_handler_node.line);
 
         self.indent();
-        if evt_handler_node.event_handler_has_transition && self.generate_state_context {
-            self.newline();
-            self.add_code(&"let stateContext = null;".to_string());
-        }
 
         match &evt_handler_node.msg_t {
             MessageType::CustomMessage { .. } => {
@@ -1459,21 +1495,6 @@ impl AstVisitor for JavaScriptVisitor {
             }
             _ => {}
         }
-        // if let MessageType::CustomMessage {message_node} = &evt_handler_node.msg_t {
-        //
-        //     let (_, msg) = EventSymbol::get_event_msg(&self.symbol_config, &Some(evt_handler_node.state_name.clone()), &message_node.name);
-        //
-        //     // Note: this is a bit convoluted as we cant use self.add_code() inside the
-        //     // if statements as it is a double borrow (sigh).
-        //
-        //     let params_code: Vec<String> = Vec::new();
-        //
-        //     // NOW add the code. Sheesh.
-        //     for param_code in params_code {
-        //         self.newline();
-        //         self.add_code(&param_code);
-        //     }
-        // }
 
         // Generate statements
         self.visit_decl_stmts(&evt_handler_node.statements);
@@ -1481,8 +1502,6 @@ impl AstVisitor for JavaScriptVisitor {
         let terminator_node = &evt_handler_node.terminator_node;
         terminator_node.accept(self);
         self.outdent();
-        self.newline();
-        self.add_code(&"}".to_string());
 
         // this controls formatting here
         self.first_event_handler = false;
@@ -2323,18 +2342,19 @@ impl AstVisitor for JavaScriptVisitor {
         {
             StateStackOperationType::Push => {
                 self.newline();
-                if self.generate_state_context {
-                    self.add_code(&"this._stateStack_push_(this._stateContext_);".to_string());
-                } else {
-                    self.add_code(&"this._stateStack_push_(this._state_);".to_string());
-                }
+                // if self.generate_state_context {
+                self.add_code(&"this._stateStack_push_(this._compartment);".to_string());
+                // } else {
+                //     self.add_code(&"this._stateStack_push_(this._state);".to_string());
+                // }
             }
             StateStackOperationType::Pop => {
-                if self.generate_state_context {
-                    self.add_code(&"let stateContext = this._stateStack_pop_()".to_string());
-                } else {
-                    self.add_code(&"FrameState state = this._stateStack_pop_()".to_string());
-                }
+                // FIXME: not tested
+                // if self.generate_state_context {
+                self.add_code(&"let compartment = this._stateStack_pop_()".to_string());
+                // } else {
+                //     self.add_code(&"FrameState state = this._stateStack_pop_()".to_string());
+                // }
             }
         }
     }
@@ -2425,8 +2445,36 @@ impl AstVisitor for JavaScriptVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_impl_node(&mut self, _action_decl_node: &ActionNode) {
-        panic!("visit_action_impl_node() not implemented.");
+    fn visit_action_impl_node(&mut self, action_node: &ActionNode) {
+        let mut subclass_code = String::new();
+
+        self.newline();
+        self.newline();
+
+        let action_name = self.format_action_name(&action_node.name);
+        self.add_code(&format!("{} (", action_name));
+        let mut separator = "";
+        match &action_node.params {
+            Some(params) => {
+                for param in params {
+                    self.add_code(&separator.to_string());
+                    subclass_code.push_str(&separator.to_string());
+                    separator = ", ";
+                    self.add_code(&param.param_name.to_string());
+                    subclass_code.push_str(&param.param_name.to_string());
+                }
+            }
+            None => {}
+        }
+
+        self.add_code(&") {".to_string());
+        // self.subclass_code.push(subclass_code);
+        self.indent();
+        self.newline();
+        self.add_code(action_node.code_opt.as_ref().unwrap().as_str());
+        self.outdent();
+        self.newline();
+        self.add_code("}");
     }
 
     //* --------------------------------------------------------------------- *//

@@ -968,7 +968,7 @@ impl GolangVisitor {
                                         self.newline();
                                         expr_t.accept_to_string(self, &mut expr);
                                         self.add_code(&format!(
-                                            "m._compartment_.AddExitArg(\"{}\", {})",
+                                            "m._compartment_.ExitArgs(\"{}\", {})",
                                             p.name, expr
                                         ));
                                     }
