@@ -225,7 +225,7 @@ impl CsVisitorForBob {
     fn format_parameter_list(&mut self, params: &Vec<ParameterNode>) {
         let mut separator = "";
         for param in params {
-            self.add_code(&separator.to_string());
+            self.add_code(separator);
             let param_type: String = match &param.param_type_opt {
                 Some(ret_type) => ret_type.get_type_str(),
                 None => String::from("<?>"),
@@ -244,7 +244,7 @@ impl CsVisitorForBob {
     ) {
         let mut separator = "";
         for param in params {
-            output.push_str(&separator.to_string());
+            output.push_str(separator);
             let param_type: String = match &param.param_type_opt {
                 Some(ret_type) => ret_type.get_type_str(),
                 None => String::from("<?>"),
@@ -927,23 +927,23 @@ impl CsVisitorForBob {
         }
 
         if self.generate_state_context {
-            self.add_code(&"StateContext stateContext = _stateStack_pop_();".to_string());
+            self.add_code("StateContext stateContext = _stateStack_pop_();");
         } else {
-            self.add_code(&"FrameState state = _stateStack_pop_();".to_string());
+            self.add_code("FrameState state = _stateStack_pop_();");
         }
         self.newline();
         if self.generate_exit_args {
             if self.generate_state_context {
                 self.add_code(
-                    &"_transition_(stateContext.state,exitArgs,stateContext);".to_string(),
+                    "_transition_(stateContext.state,exitArgs,stateContext);",
                 );
             } else {
-                self.add_code(&"_transition_(state,exitArgs);".to_string());
+                self.add_code("_transition_(state,exitArgs);");
             }
         } else if self.generate_state_context {
-            self.add_code(&"_transition_(stateContext.state,stateContext);".to_string());
+            self.add_code("_transition_(stateContext.state,stateContext);");
         } else {
-            self.add_code(&"_transition_(state);".to_string());
+            self.add_code("_transition_(state);");
         }
     }
 }
@@ -969,7 +969,7 @@ impl AstVisitor for CsVisitorForBob {
         ));
         self.indent();
         self.newline();
-        self.add_code(&"public FrameController self;".to_string());
+        self.add_code("public FrameController self;");
         self.newline();
         self.newline();
 
@@ -989,7 +989,7 @@ impl AstVisitor for CsVisitorForBob {
             self.add_code(&format!("public {}Base() {{", system_node.name));
             self.indent();
             self.newline();
-            self.add_code(&"self = this;".to_string());
+            self.add_code("self = this;");
             self.newline();
             self.add_code(&format!("_state_ = _s{}_;", self.first_state_name));
             if self.generate_state_context {
@@ -1025,7 +1025,7 @@ impl AstVisitor for CsVisitorForBob {
 
             self.outdent();
             self.newline();
-            self.add_code(&"}".to_string());
+            self.add_code("}");
             self.newline();
         }
 
@@ -1224,7 +1224,7 @@ impl AstVisitor for CsVisitorForBob {
             method_name_or_alias, params_param_code
         ));
         self.newline();
-        self.add_code(&"_state_(e);".to_string());
+        self.add_code("_state_(e);");
 
         match &interface_method_node.return_type_opt {
             Some(return_type) => {
@@ -1239,7 +1239,7 @@ impl AstVisitor for CsVisitorForBob {
 
         self.outdent();
         self.newline();
-        self.add_code(&"}".to_string());
+        self.add_code("}");
         self.newline();
     }
 
@@ -1394,10 +1394,10 @@ impl AstVisitor for CsVisitorForBob {
             // AnyMessage ( ||* )
             if self.first_event_handler {
                 // This logic is for when there is only the catch all event handler ||*
-                self.add_code(&"if (true) {".to_string());
+                self.add_code("if (true) {");
             } else {
                 // other event handlers preceded ||*
-                self.add_code(&"else {".to_string());
+                self.add_code("else {");
             }
         }
         self.generate_comment(evt_handler_node.line);
@@ -1405,7 +1405,7 @@ impl AstVisitor for CsVisitorForBob {
         self.indent();
         if evt_handler_node.event_handler_has_transition && self.generate_state_context {
             self.newline();
-            self.add_code(&"StateContext stateContext = null;".to_string());
+            self.add_code("StateContext stateContext = null;");
         }
 
         match &evt_handler_node.msg_t {
@@ -1447,7 +1447,7 @@ impl AstVisitor for CsVisitorForBob {
         self.outdent();
 
         self.newline();
-        self.add_code(&"}".to_string());
+        self.add_code("}");
 
         // this controls formatting here
         self.first_event_handler = false;
@@ -1464,7 +1464,7 @@ impl AstVisitor for CsVisitorForBob {
         match &evt_handler_terminator_node.terminator_type {
             TerminatorType::Return => match &evt_handler_terminator_node.return_expr_t_opt {
                 Some(expr_t) => {
-                    self.add_code(&"e.Return = ".to_string());
+                    self.add_code("e.Return = ");
                     expr_t.accept(self);
                     self.newline();
                     self.add_code("return;");
@@ -1483,7 +1483,7 @@ impl AstVisitor for CsVisitorForBob {
     fn visit_call_statement_node(&mut self, method_call_statement: &CallStmtNode) {
         self.newline();
         method_call_statement.call_expr_node.accept(self);
-        self.add_code(&";".to_string());
+        self.add_code(";");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1492,7 +1492,7 @@ impl AstVisitor for CsVisitorForBob {
         if let Some(call_chain) = &method_call.call_chain {
             for callable in call_chain {
                 callable.callable_accept(self);
-                self.add_code(&".".to_string());
+                self.add_code(".");
             }
         }
 
@@ -1513,7 +1513,7 @@ impl AstVisitor for CsVisitorForBob {
         if let Some(call_chain) = &method_call.call_chain {
             for callable in call_chain {
                 callable.callable_accept(self);
-                output.push_str(&".".to_string());
+                output.push('.');
             }
         }
 
@@ -1528,15 +1528,15 @@ impl AstVisitor for CsVisitorForBob {
 
     fn visit_call_expr_list_node(&mut self, call_expr_list: &CallExprListNode) {
         let mut separator = "";
-        self.add_code(&"(".to_string());
+        self.add_code("(");
 
         for expr in &call_expr_list.exprs_t {
-            self.add_code(&separator.to_string());
+            self.add_code(separator);
             expr.accept(self);
             separator = ",";
         }
 
-        self.add_code(&")".to_string());
+        self.add_code(")");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1547,15 +1547,15 @@ impl AstVisitor for CsVisitorForBob {
         output: &mut String,
     ) {
         let mut separator = "";
-        output.push_str(&"(".to_string());
+        output.push('(');
 
         for expr in &call_expr_list.exprs_t {
-            output.push_str(&separator.to_string());
+            output.push_str(separator);
             expr.accept_to_string(self, output);
             separator = ",";
         }
 
-        output.push_str(&")".to_string());
+        output.push(')');
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1585,7 +1585,7 @@ impl AstVisitor for CsVisitorForBob {
     fn visit_action_call_statement_node(&mut self, action_call_stmt_node: &ActionCallStmtNode) {
         self.newline();
         action_call_stmt_node.action_call_expr_node.accept(self);
-        self.add_code(&";".to_string());
+        self.add_code(";");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1675,16 +1675,16 @@ impl AstVisitor for CsVisitorForBob {
             branch_node.expr_t.accept(self);
 
             if branch_node.is_negated {
-                self.add_code(&")".to_string());
+                self.add_code(")");
             }
-            self.add_code(&") {".to_string());
+            self.add_code(") {");
             self.indent();
 
             branch_node.accept(self);
 
             self.outdent();
             self.newline();
-            self.add_code(&"}".to_string());
+            self.add_code("}");
 
             if_or_else_if = " else if ";
         }
@@ -1705,7 +1705,7 @@ impl AstVisitor for CsVisitorForBob {
         method_call_chain_literal_stmt_node
             .call_chain_literal_expr_node
             .accept(self);
-        self.add_code(&";".to_string());
+        self.add_code(";");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1719,7 +1719,7 @@ impl AstVisitor for CsVisitorForBob {
         let mut separator = "";
 
         for node in &method_call_chain_expression_node.call_chain {
-            self.add_code(&separator.to_string());
+            self.add_code(separator);
             match &node {
                 CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
                     id_node.accept(self);
@@ -1757,7 +1757,7 @@ impl AstVisitor for CsVisitorForBob {
         let mut separator = "";
 
         for node in &method_call_chain_expression_node.call_chain {
-            output.push_str(&separator.to_string());
+            output.push_str(separator);
             match &node {
                 CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
                     id_node.accept_to_string(self, output);
@@ -1797,7 +1797,7 @@ impl AstVisitor for CsVisitorForBob {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code(&"e.Return = ".to_string());
+                            self.add_code("e.Return = ");
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
@@ -1820,7 +1820,7 @@ impl AstVisitor for CsVisitorForBob {
         &mut self,
         bool_test_else_branch_node: &BoolTestElseBranchNode,
     ) {
-        self.add_code(&" else {".to_string());
+        self.add_code(" else {");
         self.indent();
 
         self.visit_decl_stmts(&bool_test_else_branch_node.statements);
@@ -1832,7 +1832,7 @@ impl AstVisitor for CsVisitorForBob {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code(&"e.Return = ".to_string());
+                            self.add_code("e.Return = ");
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
@@ -1850,7 +1850,7 @@ impl AstVisitor for CsVisitorForBob {
 
         self.outdent();
         self.newline();
-        self.add_code(&"}".to_string());
+        self.add_code("}");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1901,7 +1901,7 @@ impl AstVisitor for CsVisitorForBob {
                     self.add_code(&format!(" == \"{}\")", match_string));
                     first_match = false;
                 } else {
-                    self.add_code(&" || (".to_string());
+                    self.add_code(" || (");
                     match &string_match_test_node.expr_t {
                         ExprType::CallExprT {
                             call_expr_node: method_call_expr_node,
@@ -1918,14 +1918,14 @@ impl AstVisitor for CsVisitorForBob {
                     self.add_code(&format!(" == \"{}\")", match_string));
                 }
             }
-            self.add_code(&" {".to_string());
+            self.add_code(" {");
             self.indent();
 
             match_branch_node.accept(self);
 
             self.outdent();
             self.newline();
-            self.add_code(&"}".to_string());
+            self.add_code("}");
 
             if_or_else_if = " else if";
         }
@@ -1950,7 +1950,7 @@ impl AstVisitor for CsVisitorForBob {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code(&"e.Return = ".to_string());
+                            self.add_code("e.Return = ");
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
@@ -1973,7 +1973,7 @@ impl AstVisitor for CsVisitorForBob {
         &mut self,
         string_match_test_else_branch_node: &StringMatchTestElseBranchNode,
     ) {
-        self.add_code(&" else {".to_string());
+        self.add_code(" else {");
         self.indent();
 
         self.visit_decl_stmts(&string_match_test_else_branch_node.statements);
@@ -1985,7 +1985,7 @@ impl AstVisitor for CsVisitorForBob {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code(&"e.Return = ".to_string());
+                            self.add_code("e.Return = ");
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
@@ -2003,7 +2003,7 @@ impl AstVisitor for CsVisitorForBob {
 
         self.outdent();
         self.newline();
-        self.add_code(&"}".to_string());
+        self.add_code("}");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2054,7 +2054,7 @@ impl AstVisitor for CsVisitorForBob {
                     self.add_code(&format!(" == {})", match_number.match_pattern_number));
                     first_match = false;
                 } else {
-                    self.add_code(&" || (".to_string());
+                    self.add_code(" || (");
                     match &number_match_test_node.expr_t {
                         ExprType::CallExprT {
                             call_expr_node: method_call_expr_node,
@@ -2072,14 +2072,14 @@ impl AstVisitor for CsVisitorForBob {
                 }
             }
 
-            self.add_code(&") {".to_string());
+            self.add_code(") {");
             self.indent();
 
             match_branch_node.accept(self);
 
             self.outdent();
             self.newline();
-            self.add_code(&"}".to_string());
+            self.add_code("}");
 
             //           self.indent();
 
@@ -2107,7 +2107,7 @@ impl AstVisitor for CsVisitorForBob {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code(&"e.Return = ".to_string());
+                            self.add_code("e.Return = ");
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
@@ -2130,7 +2130,7 @@ impl AstVisitor for CsVisitorForBob {
         &mut self,
         number_match_test_else_branch_node: &NumberMatchTestElseBranchNode,
     ) {
-        self.add_code(&" else {".to_string());
+        self.add_code(" else {");
         self.indent();
 
         self.visit_decl_stmts(&number_match_test_else_branch_node.statements);
@@ -2142,7 +2142,7 @@ impl AstVisitor for CsVisitorForBob {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code(&"e.Return = ".to_string());
+                            self.add_code("e.Return = ");
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
@@ -2160,7 +2160,7 @@ impl AstVisitor for CsVisitorForBob {
 
         self.outdent();
         self.newline();
-        self.add_code(&"}".to_string());
+        self.add_code("}");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2176,13 +2176,13 @@ impl AstVisitor for CsVisitorForBob {
 
     fn visit_expression_list_node(&mut self, expr_list: &ExprListNode) {
         let mut separator = "";
-        self.add_code(&"(".to_string());
+        self.add_code("(");
         for expr in &expr_list.exprs_t {
-            self.add_code(&separator.to_string());
+            self.add_code(separator);
             expr.accept(self);
             separator = ",";
         }
-        self.add_code(&")".to_string());
+        self.add_code(")");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2195,13 +2195,13 @@ impl AstVisitor for CsVisitorForBob {
         //        self.add_code(&format!("{}(e);\n",dispatch_node.target_state_ref.name));
 
         let mut separator = "";
-        output.push_str(&"(".to_string());
+        output.push('(');
         for expr in &expr_list.exprs_t {
-            output.push_str(&separator.to_string());
+            output.push_str(separator);
             expr.accept_to_string(self, output);
             separator = ",";
         }
-        output.push_str(&")".to_string());
+        output.push(')');
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2300,16 +2300,16 @@ impl AstVisitor for CsVisitorForBob {
             StateStackOperationType::Push => {
                 self.newline();
                 if self.generate_state_context {
-                    self.add_code(&"_stateStack_push_(_state_context_);".to_string());
+                    self.add_code("_stateStack_push_(_state_context_);");
                 } else {
-                    self.add_code(&"_stateStack_push_(_state_);".to_string());
+                    self.add_code("_stateStack_push_(_state_);");
                 }
             }
             StateStackOperationType::Pop => {
                 if self.generate_state_context {
-                    self.add_code(&"let stateContext = _stateStack_pop_()".to_string());
+                    self.add_code("let stateContext = _stateStack_pop_()");
                 } else {
-                    self.add_code(&"let state = _stateStack_pop_()".to_string());
+                    self.add_code("let state = _stateStack_pop_()");
                 }
             }
         }
@@ -2328,10 +2328,10 @@ impl AstVisitor for CsVisitorForBob {
         match frame_event_part {
             FrameEventPart::Event {
                 is_reference: _is_reference,
-            } => self.add_code(&"e".to_string()),
+            } => self.add_code("e"),
             FrameEventPart::Message {
                 is_reference: _is_reference,
-            } => self.add_code(&"e._message".to_string()),
+            } => self.add_code("e._message"),
             FrameEventPart::Param {
                 param_symbol_rcref,
                 is_reference: _is_reference,
@@ -2341,7 +2341,7 @@ impl AstVisitor for CsVisitorForBob {
             )),
             FrameEventPart::Return {
                 is_reference: _is_reference,
-            } => self.add_code(&"e._return".to_string()),
+            } => self.add_code("e._return"),
         }
     }
 
@@ -2404,8 +2404,8 @@ impl AstVisitor for CsVisitorForBob {
             None => {}
         }
 
-        self.add_code(&") { throw new NotImplementedException(); }".to_string());
-        action_code.push_str(&") { throw new NotImplementedException(); }".to_string());
+        self.add_code(") { throw new NotImplementedException(); }");
+        action_code.push_str(") { throw new NotImplementedException(); }");
         self.subclass_code.push(action_code);
     }
 

@@ -368,19 +368,19 @@ impl JavaScriptVisitor {
                 self.add_code("_stateStack_push_(compartment) {");
                 self.indent();
                 self.newline();
-                self.add_code(&"this._stateStack.push(compartment);".to_string());
+                self.add_code("this._stateStack.push(compartment);");
                 self.outdent();
                 self.newline();
-                self.add_code(&"}".to_string());
+                self.add_code("}");
                 self.newline();
                 self.newline();
                 self.add_code("_stateStack_pop_(){");
                 self.indent();
                 self.newline();
-                self.add_code(&"return this._stateStack.pop();".to_string());
+                self.add_code("return this._stateStack.pop();");
                 self.outdent();
                 self.newline();
-                self.add_code(&"}".to_string());
+                self.add_code("}");
             }
 
             if self.generate_change_state {
@@ -389,10 +389,10 @@ impl JavaScriptVisitor {
                 self.add_code("_changeState_(compartment) {");
                 self.indent();
                 self.newline();
-                self.add_code(&"this._compartment = compartment;".to_string());
+                self.add_code("this._compartment = compartment;");
                 self.outdent();
                 self.newline();
-                self.add_code(&"}".to_string());
+                self.add_code("}");
             }
             self.newline();
         }
@@ -846,7 +846,7 @@ impl JavaScriptVisitor {
         self.add_code("this.state = state");
         self.outdent();
         self.newline();
-        self.add_code(&"}".to_string());
+        self.add_code("}");
         self.newline();
         self.newline();
         self.add_code("StateArgs = {};");
@@ -860,7 +860,7 @@ impl JavaScriptVisitor {
         self.add_code("_forwardEvent = FrameEvent.call(this)");
         self.outdent();
         self.newline();
-        self.add_code(&"}".to_string());
+        self.add_code("}");
         self.newline();
         self.newline();
     }
@@ -1010,7 +1010,7 @@ impl AstVisitor for JavaScriptVisitor {
         self.indent();
         self.newline();
         self.newline();
-        self.add_code(&format!("constructor ("));
+        self.add_code("constructor (");
 
         // format system params,if any.
         let mut separator = String::new();
@@ -1073,7 +1073,7 @@ impl AstVisitor for JavaScriptVisitor {
         self.generate_new_fn(&domain_vec, system_node);
         self.outdent();
         self.newline();
-        self.add_code(&"}".to_string());
+        self.add_code("}");
         self.newline();
 
         self.serialize.push("".to_string());
@@ -1127,7 +1127,7 @@ impl AstVisitor for JavaScriptVisitor {
                 self.newline();
                 self.add_code(&format!("{}(e);", state_name));
                 self.newline();
-                self.add_code(&"break;".to_string());
+                self.add_code("break;");
                 self.outdent();
             }
             self.outdent();
@@ -1335,19 +1335,19 @@ impl AstVisitor for JavaScriptVisitor {
             ));
         }
         self.newline();
-        self.add_code(&"this._mux_(e);".to_string());
+        self.add_code("this._mux_(e);");
 
         match &interface_method_node.return_type_opt {
             Some(_return_type) => {
                 self.newline();
-                self.add_code(&"return e._return;".to_string());
+                self.add_code("return e._return;");
             }
             None => {}
         }
 
         self.outdent();
         self.newline();
-        self.add_code(&"}".to_string());
+        self.add_code("}");
         self.newline();
     }
 
@@ -1560,7 +1560,7 @@ impl AstVisitor for JavaScriptVisitor {
         match &evt_handler_terminator_node.terminator_type {
             TerminatorType::Return => match &evt_handler_terminator_node.return_expr_t_opt {
                 Some(expr_t) => {
-                    self.add_code(&"e._return = ".to_string());
+                    self.add_code("e._return = ");
                     expr_t.accept(self);
                     self.newline();
                     self.add_code("return;");
@@ -1579,7 +1579,7 @@ impl AstVisitor for JavaScriptVisitor {
     fn visit_call_statement_node(&mut self, method_call_statement: &CallStmtNode) {
         self.newline();
         method_call_statement.call_expr_node.accept(self);
-        self.add_code(&";".to_string());
+        self.add_code(";");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1588,7 +1588,7 @@ impl AstVisitor for JavaScriptVisitor {
         if let Some(call_chain) = &method_call.call_chain {
             for callable in call_chain {
                 callable.callable_accept(self);
-                self.add_code(&".".to_string());
+                self.add_code(".");
             }
         }
 
@@ -1609,7 +1609,7 @@ impl AstVisitor for JavaScriptVisitor {
         if let Some(call_chain) = &method_call.call_chain {
             for callable in call_chain {
                 callable.callable_accept(self);
-                output.push_str(&".".to_string());
+                output.push('.');
             }
         }
 
@@ -1624,15 +1624,15 @@ impl AstVisitor for JavaScriptVisitor {
 
     fn visit_call_expr_list_node(&mut self, call_expr_list: &CallExprListNode) {
         let mut separator = "";
-        self.add_code(&"(".to_string());
+        self.add_code("(");
 
         for expr in &call_expr_list.exprs_t {
-            self.add_code(&separator.to_string());
+            self.add_code(separator);
             expr.accept(self);
             separator = ",";
         }
 
-        self.add_code(&")".to_string());
+        self.add_code(")");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1643,15 +1643,15 @@ impl AstVisitor for JavaScriptVisitor {
         output: &mut String,
     ) {
         let mut separator = "";
-        output.push_str(&"(".to_string());
+        output.push('(');
 
         for expr in &call_expr_list.exprs_t {
-            output.push_str(&separator.to_string());
+            output.push_str(separator);
             expr.accept_to_string(self, output);
             separator = ",";
         }
 
-        output.push_str(&")".to_string());
+        output.push(')');
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1661,7 +1661,7 @@ impl AstVisitor for JavaScriptVisitor {
             "this.{}",
             self.format_action_name(&action_call.identifier.name.lexeme)
         );
-        self.add_code(&action_name);
+        self.add_code(action_name);
         action_call.call_expr_list.accept(self);
 
         self.add_code("");
@@ -1678,7 +1678,7 @@ impl AstVisitor for JavaScriptVisitor {
             "this.{}",
             self.format_action_name(&action_call.identifier.name.lexeme)
         );
-        output.push_str(&action_name);
+        output.push_str(action_name);
         action_call.call_expr_list.accept_to_string(self, output);
     }
 
@@ -1687,7 +1687,7 @@ impl AstVisitor for JavaScriptVisitor {
     fn visit_action_call_statement_node(&mut self, action_call_stmt_node: &ActionCallStmtNode) {
         self.newline();
         action_call_stmt_node.action_call_expr_node.accept(self);
-        self.add_code(&";".to_string());
+        self.add_code(";");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1778,16 +1778,16 @@ impl AstVisitor for JavaScriptVisitor {
             branch_node.expr_t.accept(self);
 
             if branch_node.is_negated {
-                self.add_code(&")".to_string());
+                self.add_code(")");
             }
-            self.add_code(&") {".to_string());
+            self.add_code(") {");
             self.indent();
 
             branch_node.accept(self);
 
             self.outdent();
             self.newline();
-            self.add_code(&"}".to_string());
+            self.add_code("}");
 
             if_or_else_if = " else if ";
         }
@@ -1808,7 +1808,7 @@ impl AstVisitor for JavaScriptVisitor {
         method_call_chain_literal_stmt_node
             .call_chain_literal_expr_node
             .accept(self);
-        self.add_code(&";".to_string());
+        self.add_code(";");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1822,7 +1822,7 @@ impl AstVisitor for JavaScriptVisitor {
         let mut separator = "";
 
         for node in &method_call_chain_expression_node.call_chain {
-            self.add_code(&separator.to_string());
+            self.add_code(separator);
             match &node {
                 CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
                     id_node.accept(self);
@@ -1860,7 +1860,7 @@ impl AstVisitor for JavaScriptVisitor {
         let mut separator = "";
 
         for node in &method_call_chain_expression_node.call_chain {
-            output.push_str(&separator.to_string());
+            output.push_str(separator);
             match &node {
                 CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
                     id_node.accept_to_string(self, output);
@@ -1900,7 +1900,7 @@ impl AstVisitor for JavaScriptVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code(&"e._return = ".to_string());
+                            self.add_code("e._return = ");
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
@@ -1923,7 +1923,7 @@ impl AstVisitor for JavaScriptVisitor {
         &mut self,
         bool_test_else_branch_node: &BoolTestElseBranchNode,
     ) {
-        self.add_code(&" else {".to_string());
+        self.add_code(" else {");
         self.indent();
 
         self.visit_decl_stmts(&bool_test_else_branch_node.statements);
@@ -1935,7 +1935,7 @@ impl AstVisitor for JavaScriptVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code(&"e._return = ".to_string());
+                            self.add_code("e._return = ");
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
@@ -1953,7 +1953,7 @@ impl AstVisitor for JavaScriptVisitor {
 
         self.outdent();
         self.newline();
-        self.add_code(&"}".to_string());
+        self.add_code("}");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1995,7 +1995,7 @@ impl AstVisitor for JavaScriptVisitor {
                     self.add_code(&format!(" == \"{}\")", match_string));
                     first_match = false;
                 } else {
-                    self.add_code(&" || (".to_string());
+                    self.add_code(" || (");
                     match &string_match_test_node.expr_t {
                         ExprType::CallExprT {
                             call_expr_node: method_call_expr_node,
@@ -2012,14 +2012,14 @@ impl AstVisitor for JavaScriptVisitor {
                     self.add_code(&format!(" == \"{}\")", match_string));
                 }
             }
-            self.add_code(&") {".to_string());
+            self.add_code(") {");
             self.indent();
 
             match_branch_node.accept(self);
 
             self.outdent();
             self.newline();
-            self.add_code(&"}".to_string());
+            self.add_code("}");
 
             if_or_else_if = " else if";
         }
@@ -2046,7 +2046,7 @@ impl AstVisitor for JavaScriptVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code(&"e._return = ".to_string());
+                            self.add_code("e._return = ");
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
@@ -2069,7 +2069,7 @@ impl AstVisitor for JavaScriptVisitor {
         &mut self,
         string_match_test_else_branch_node: &StringMatchTestElseBranchNode,
     ) {
-        self.add_code(&" else {".to_string());
+        self.add_code(" else {");
         self.indent();
 
         self.visit_decl_stmts(&string_match_test_else_branch_node.statements);
@@ -2081,7 +2081,7 @@ impl AstVisitor for JavaScriptVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code(&"e._return = ".to_string());
+                            self.add_code("e._return = ");
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
@@ -2099,7 +2099,7 @@ impl AstVisitor for JavaScriptVisitor {
 
         self.outdent();
         self.newline();
-        self.add_code(&"}".to_string());
+        self.add_code("}");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2140,7 +2140,7 @@ impl AstVisitor for JavaScriptVisitor {
                     self.add_code(&format!(" == {})", match_number.match_pattern_number));
                     first_match = false;
                 } else {
-                    self.add_code(&" || (".to_string());
+                    self.add_code(" || (");
                     match &number_match_test_node.expr_t {
                         ExprType::CallExprT {
                             call_expr_node: method_call_expr_node,
@@ -2158,14 +2158,14 @@ impl AstVisitor for JavaScriptVisitor {
                 }
             }
 
-            self.add_code(&") {".to_string());
+            self.add_code(") {");
             self.indent();
 
             match_branch_node.accept(self);
 
             self.outdent();
             self.newline();
-            self.add_code(&"}".to_string());
+            self.add_code("}");
 
             //           self.indent();
 
@@ -2193,7 +2193,7 @@ impl AstVisitor for JavaScriptVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code(&"e._return = ".to_string());
+                            self.add_code("e._return = ");
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
@@ -2216,7 +2216,7 @@ impl AstVisitor for JavaScriptVisitor {
         &mut self,
         number_match_test_else_branch_node: &NumberMatchTestElseBranchNode,
     ) {
-        self.add_code(&" else {".to_string());
+        self.add_code(" else {");
         self.indent();
 
         self.visit_decl_stmts(&number_match_test_else_branch_node.statements);
@@ -2228,7 +2228,7 @@ impl AstVisitor for JavaScriptVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code(&"e._return = ".to_string());
+                            self.add_code("e._return = ");
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
@@ -2246,7 +2246,7 @@ impl AstVisitor for JavaScriptVisitor {
 
         self.outdent();
         self.newline();
-        self.add_code(&"}".to_string());
+        self.add_code("}");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2262,13 +2262,13 @@ impl AstVisitor for JavaScriptVisitor {
 
     fn visit_expression_list_node(&mut self, expr_list: &ExprListNode) {
         let mut separator = "";
-        self.add_code(&"(".to_string());
+        self.add_code("(");
         for expr in &expr_list.exprs_t {
-            self.add_code(&separator.to_string());
+            self.add_code(separator);
             expr.accept(self);
             separator = ",";
         }
-        self.add_code(&")".to_string());
+        self.add_code(")");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2281,13 +2281,13 @@ impl AstVisitor for JavaScriptVisitor {
         //        self.add_code(&format!("{}(e);\n",dispatch_node.target_state_ref.name));
 
         let mut separator = "";
-        output.push_str(&"(".to_string());
+        output.push('(');
         for expr in &expr_list.exprs_t {
-            output.push_str(&separator.to_string());
+            output.push_str(separator);
             expr.accept_to_string(self, output);
             separator = ",";
         }
-        output.push_str(&")".to_string());
+        output.push(')');
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2386,7 +2386,7 @@ impl AstVisitor for JavaScriptVisitor {
             StateStackOperationType::Push => {
                 self.newline();
                 // if self.generate_state_context {
-                self.add_code(&"this._stateStack_push_(this._compartment);".to_string());
+                self.add_code("this._stateStack_push_(this._compartment);");
                 // } else {
                 //     self.add_code(&"this._stateStack_push_(this._state);".to_string());
                 // }
@@ -2394,7 +2394,7 @@ impl AstVisitor for JavaScriptVisitor {
             StateStackOperationType::Pop => {
                 // FIXME: not tested
                 // if self.generate_state_context {
-                self.add_code(&"let compartment = this._stateStack_pop_()".to_string());
+                self.add_code("let compartment = this._stateStack_pop_()");
                 // } else {
                 //     self.add_code(&"FrameState state = this._stateStack_pop_()".to_string());
                 // }
@@ -2415,10 +2415,10 @@ impl AstVisitor for JavaScriptVisitor {
         match frame_event_part {
             FrameEventPart::Event {
                 is_reference: _is_reference,
-            } => self.add_code(&"e".to_string()),
+            } => self.add_code("e"),
             FrameEventPart::Message {
                 is_reference: _is_reference,
-            } => self.add_code(&"e._message".to_string()),
+            } => self.add_code("e._message"),
             FrameEventPart::Param {
                 param_symbol_rcref,
                 is_reference: _is_reference,
@@ -2428,7 +2428,7 @@ impl AstVisitor for JavaScriptVisitor {
             )),
             FrameEventPart::Return {
                 is_reference: _is_reference,
-            } => self.add_code(&"e._return".to_string()),
+            } => self.add_code("e._return"),
         }
     }
 
@@ -2473,17 +2473,17 @@ impl AstVisitor for JavaScriptVisitor {
         let mut separator = "";
         if let Some(params) = &action_decl_node.params {
             for param in params {
-                self.add_code(&separator.to_string());
-                subclass_code.push_str(&separator.to_string());
+                self.add_code(separator);
+                subclass_code.push_str(separator);
                 separator = ",";
                 self.add_code(&param.param_name.to_string());
                 subclass_code.push_str(&param.param_name.to_string());
             }
         }
-        subclass_code.push_str(&") {}".to_string());
+        subclass_code.push_str(") {}");
         self.subclass_code.push(subclass_code);
 
-        self.add_code(&") { throw new Error('Action not implemented.'); }".to_string());
+        self.add_code(") { throw new Error('Action not implemented.'); }");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2500,8 +2500,8 @@ impl AstVisitor for JavaScriptVisitor {
         match &action_node.params {
             Some(params) => {
                 for param in params {
-                    self.add_code(&separator.to_string());
-                    subclass_code.push_str(&separator.to_string());
+                    self.add_code(separator);
+                    subclass_code.push_str(separator);
                     separator = ", ";
                     self.add_code(&param.param_name.to_string());
                     subclass_code.push_str(&param.param_name.to_string());
@@ -2510,7 +2510,7 @@ impl AstVisitor for JavaScriptVisitor {
             None => {}
         }
 
-        self.add_code(&") {".to_string());
+        self.add_code(") {");
         // self.subclass_code.push(subclass_code);
         self.indent();
         self.newline();
