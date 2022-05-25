@@ -556,8 +556,10 @@ impl JavaScriptVisitor {
 
         if transition_statement.forward_event {
             self.newline();
-            self.add_code("compartment._forwardEvent = e");
+            self.add_code("compartment._forwardEvent = e;");
         }
+
+        self.newline();
 
         let enter_args_opt = match &transition_statement.target_state_context_t {
             StateContextType::StateRef { state_context_node } => &state_context_node.enter_args_opt,
@@ -589,7 +591,7 @@ impl JavaScriptVisitor {
                                     let mut expr = String::new();
                                     expr_t.accept_to_string(self, &mut expr);
                                     self.add_code(&format!(
-                                        "compartment.EnterArgs[\"{}\"] = {}",
+                                        "compartment.EnterArgs[\"{}\"] = {};",
                                         p.name, expr
                                     ));
                                     self.newline();
@@ -636,7 +638,7 @@ impl JavaScriptVisitor {
                                     let mut expr = String::new();
                                     expr_t.accept_to_string(self, &mut expr);
                                     self.add_code(&format!(
-                                        "compartment.StateArgs[\"{}\"] = {}",
+                                        "compartment.StateArgs[\"{}\"] = {};",
                                         param_symbol.name, expr
                                     ));
                                     self.newline();
@@ -679,7 +681,7 @@ impl JavaScriptVisitor {
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
                             self.add_code(&format!(
-                                "compartment.StateVars[\"{}\"] = {}",
+                                "compartment.StateVars[\"{}\"] = {};",
                                 var.name, expr_code
                             ));
                             self.newline();
@@ -719,7 +721,7 @@ impl JavaScriptVisitor {
         // }
 
         self.newline();
-        self.add_code("this._transition_(compartment)");
+        self.add_code("this._transition_(compartment);");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1168,7 +1170,7 @@ impl AstVisitor for JavaScriptVisitor {
             self.newline();
             self.add_code("}");
             self.newline();
-            self.add_code("nextCompartment._forwardEvent_ = null");
+            self.add_code("nextCompartment._forwardEvent = null");
             self.outdent();
             self.newline();
             self.add_code("}");
@@ -1509,6 +1511,12 @@ impl AstVisitor for JavaScriptVisitor {
 
         self.indent();
 
+        // Switch case error : Cannot redeclare block-scoped variable
+        // -----
+        self.newline();
+        self.add_code("{");
+        // -----
+
         match &evt_handler_node.msg_t {
             MessageType::CustomMessage { .. } => {
                 // Note: this is a bit convoluted as we cant use self.add_code() inside the
@@ -1530,6 +1538,12 @@ impl AstVisitor for JavaScriptVisitor {
 
         let terminator_node = &evt_handler_node.terminator_node;
         terminator_node.accept(self);
+        // Switch case error : Cannot redeclare block-scoped variable
+        // -----
+        self.newline();
+        self.add_code("}");
+        self.newline();
+        // -----
         self.outdent();
 
         // this controls formatting here
