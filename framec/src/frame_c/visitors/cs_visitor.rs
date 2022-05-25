@@ -218,7 +218,7 @@ impl CsVisitor {
     fn format_parameter_list(&mut self, params: &Vec<ParameterNode>) {
         let mut separator = "";
         for param in params {
-            self.add_code(separator);
+            self.add_code(&separator.to_string());
             let param_type: String = match &param.param_type_opt {
                 Some(ret_type) => ret_type.get_type_str(),
                 None => String::from("<?>"),
@@ -237,8 +237,8 @@ impl CsVisitor {
     ) {
         let mut separator = "";
         for param in params {
-            self.add_code(separator);
-            subclass_actions.push_str(separator);
+            self.add_code(&separator.to_string());
+            subclass_actions.push_str(&separator.to_string());
             let param_type: String = match &param.param_type_opt {
                 Some(ret_type) => ret_type.get_type_str(),
                 None => String::from("<?>"),
@@ -362,120 +362,122 @@ impl CsVisitor {
         self.newline();
         if system_node.get_first_state().is_some() {
             self.newline();
-            self.add_code("private delegate void FrameState(FrameEvent e);");
+            self.add_code(&"private delegate void FrameState(FrameEvent e);".to_string());
             self.newline();
-            self.add_code("private FrameState _state_;");
+            self.add_code(&"private FrameState _state_;".to_string());
             if self.generate_state_context {
                 self.newline();
-                self.add_code("private StateContext _stateContext_;");
+                self.add_code(&"private StateContext _stateContext_;".to_string());
             }
             if self.generate_transition_state {
                 self.newline();
                 self.newline();
                 if self.generate_state_context {
                     if self.generate_exit_args {
-                        self.add_code("private void _transition_(FrameState newState,Dictionary<String,object> exitArgs, StateContext stateContext) {");
+                        self.add_code(&"private void _transition_(FrameState newState,Dictionary<String,object> exitArgs, StateContext stateContext) {".to_string());
                     } else {
-                        self.add_code("private void _transition_(FrameState newState, StateContext stateContext) {");
+                        self.add_code(&"private void _transition_(FrameState newState, StateContext stateContext) {".to_string());
                     }
                 } else if self.generate_exit_args {
-                    self.add_code("private void _transition_(FrameState newState,Dictionary<String,object> exitArgs) {");
+                    self.add_code(&"private void _transition_(FrameState newState,Dictionary<String,object> exitArgs) {".to_string());
                 } else {
-                    self.add_code("private void _transition_(FrameState newState) {");
+                    self.add_code(&"private void _transition_(FrameState newState) {".to_string());
                 }
                 self.indent();
                 self.newline();
                 if self.generate_exit_args {
                     self.add_code(
-                        "FrameEvent exitEvent = new FrameEvent(\"<\",exitArgs);",
+                        &"FrameEvent exitEvent = new FrameEvent(\"<\",exitArgs);".to_string(),
                     );
                 } else {
                     self.add_code(
-                        "FrameEvent exitEvent = new FrameEvent(\"<\",null);",
+                        &"FrameEvent exitEvent = new FrameEvent(\"<\",null);".to_string(),
                     );
                 }
                 self.newline();
-                self.add_code("_state_(exitEvent);");
+                self.add_code(&"_state_(exitEvent);".to_string());
                 self.newline();
-                self.add_code("_state_ = newState;");
+                self.add_code(&"_state_ = newState;".to_string());
                 self.newline();
                 if self.generate_state_context {
-                    self.add_code("_stateContext_ = stateContext;");
+                    self.add_code(&"_stateContext_ = stateContext;".to_string());
                     self.newline();
-                    self.add_code("FrameEvent enterEvent = new FrameEvent(\">\",_stateContext_.getEnterArgs());");
+                    self.add_code(&"FrameEvent enterEvent = new FrameEvent(\">\",_stateContext_.getEnterArgs());".to_string());
                     self.newline();
                 } else {
                     self.add_code(
-                        "FrameEvent enterEvent = new FrameEvent(\">\",null);",
+                        &"FrameEvent enterEvent = new FrameEvent(\">\",null);".to_string(),
                     );
                     self.newline();
                 }
-                self.add_code("_state_(enterEvent);");
+                self.add_code(&"_state_(enterEvent);".to_string());
                 self.outdent();
                 self.newline();
-                self.add_code("}");
+                self.add_code(&"}".to_string());
             }
             if self.generate_state_stack {
                 self.newline();
                 self.newline();
                 if self.generate_state_context {
                     self.add_code(
-                        "private Stack<StateContext> _stateStack_ = new Stack<StateContext>();",
+                        &"private Stack<StateContext> _stateStack_ = new Stack<StateContext>();"
+                            .to_string(),
                     );
                     self.newline();
                     self.newline();
                     self.add_code(
-                        "private void _stateStack_push_(StateContext stateContext) {",
+                        &"private void _stateStack_push_(StateContext stateContext) {".to_string(),
                     );
                     self.indent();
                     self.newline();
-                    self.add_code("_stateStack_.Push(stateContext);");
+                    self.add_code(&"_stateStack_.Push(stateContext);".to_string());
                     self.outdent();
                     self.newline();
-                    self.add_code("}");
+                    self.add_code(&"}".to_string());
                     self.newline();
                     self.newline();
-                    self.add_code("private StateContext _stateStack_pop_() {");
+                    self.add_code(&"private StateContext _stateStack_pop_() {".to_string());
                     self.indent();
                     self.newline();
-                    self.add_code("return _stateStack_.Pop();");
+                    self.add_code(&"return _stateStack_.Pop();".to_string());
                 } else {
                     self.add_code(
-                        "private Stack<FrameState> _stateStack_ = new Stack<FrameState>();",
+                        &"private Stack<FrameState> _stateStack_ = new Stack<FrameState>();"
+                            .to_string(),
                     );
                     self.newline();
                     self.newline();
                     self.add_code(
-                        "private void _stateStack_push_(FrameState state) {",
+                        &"private void _stateStack_push_(FrameState state) {".to_string(),
                     );
                     self.indent();
                     self.newline();
-                    self.add_code("_stateStack_.Push(state);");
+                    self.add_code(&"_stateStack_.Push(state);".to_string());
                     self.outdent();
                     self.newline();
-                    self.add_code("}");
+                    self.add_code(&"}".to_string());
                     self.newline();
                     self.newline();
-                    self.add_code("private FrameState _stateStack_pop_() {");
+                    self.add_code(&"private FrameState _stateStack_pop_() {".to_string());
                     self.indent();
                     self.newline();
-                    self.add_code("return _stateStack_.Pop();");
+                    self.add_code(&"return _stateStack_.Pop();".to_string());
                 }
 
                 self.outdent();
                 self.newline();
-                self.add_code("}");
+                self.add_code(&"}".to_string());
             }
             if self.generate_change_state {
                 self.newline();
                 self.newline();
-                self.add_code("private void _changeState_(FrameState newState) {");
+                self.add_code(&"private void _changeState_(FrameState newState) {".to_string());
                 self.indent();
                 self.newline();
-                self.add_code("_state_ = newState;");
+                self.add_code(&"_state_ = newState;".to_string());
                 self.outdent();
                 self.newline();
-                self.add_code("}");
+                self.add_code(&"}".to_string());
             }
             self.newline();
 
@@ -893,23 +895,23 @@ impl CsVisitor {
         }
 
         if self.generate_state_context {
-            self.add_code("StateContext stateContext = _stateStack_pop_();");
+            self.add_code(&"StateContext stateContext = _stateStack_pop_();".to_string());
         } else {
-            self.add_code("FrameState state = _stateStack_pop_();");
+            self.add_code(&"FrameState state = _stateStack_pop_();".to_string());
         }
         self.newline();
         if self.generate_exit_args {
             if self.generate_state_context {
                 self.add_code(
-                    "_transition_(stateContext.state,exitArgs,stateContext);",
+                    &"_transition_(stateContext.state,exitArgs,stateContext);".to_string(),
                 );
             } else {
-                self.add_code("_transition_(state,exitArgs);");
+                self.add_code(&"_transition_(state,exitArgs);".to_string());
             }
         } else if self.generate_state_context {
-            self.add_code("_transition_(stateContext.state,stateContext);");
+            self.add_code(&"_transition_(stateContext.state,stateContext);".to_string());
         } else {
-            self.add_code("_transition_(state);");
+            self.add_code(&"_transition_(state);".to_string());
         }
     }
 }
@@ -979,7 +981,7 @@ impl AstVisitor for CsVisitor {
 
             self.outdent();
             self.newline();
-            self.add_code("}");
+            self.add_code(&"}".to_string());
             self.newline();
         }
 
@@ -1173,7 +1175,7 @@ impl AstVisitor for CsVisitor {
             method_name_or_alias, params_param_code
         ));
         self.newline();
-        self.add_code("_state_(e);");
+        self.add_code(&"_state_(e);".to_string());
 
         match &interface_method_node.return_type_opt {
             Some(return_type) => {
@@ -1188,7 +1190,7 @@ impl AstVisitor for CsVisitor {
 
         self.outdent();
         self.newline();
-        self.add_code("}");
+        self.add_code(&"}".to_string());
         self.newline();
     }
 
@@ -1341,10 +1343,10 @@ impl AstVisitor for CsVisitor {
             // AnyMessage ( ||* )
             if self.first_event_handler {
                 // This logic is for when there is only the catch all event handler ||*
-                self.add_code("if (true) {");
+                self.add_code(&"if (true) {".to_string());
             } else {
                 // other event handlers preceded ||*
-                self.add_code("else {");
+                self.add_code(&"else {".to_string());
             }
         }
         self.generate_comment(evt_handler_node.line);
@@ -1352,7 +1354,7 @@ impl AstVisitor for CsVisitor {
         self.indent();
         if evt_handler_node.event_handler_has_transition && self.generate_state_context {
             self.newline();
-            self.add_code("StateContext stateContext = null;");
+            self.add_code(&"StateContext stateContext = null;".to_string());
         }
 
         match &evt_handler_node.msg_t {
@@ -1378,7 +1380,7 @@ impl AstVisitor for CsVisitor {
         terminator_node.accept(self);
         self.outdent();
         self.newline();
-        self.add_code("}");
+        self.add_code(&"}".to_string());
 
         // this controls formatting here
         self.first_event_handler = false;
@@ -1395,7 +1397,7 @@ impl AstVisitor for CsVisitor {
         match &evt_handler_terminator_node.terminator_type {
             TerminatorType::Return => match &evt_handler_terminator_node.return_expr_t_opt {
                 Some(expr_t) => {
-                    self.add_code("e._return = ");
+                    self.add_code(&"e._return = ".to_string());
                     expr_t.accept(self);
                     self.add_code(";");
                     self.newline();
@@ -1415,7 +1417,7 @@ impl AstVisitor for CsVisitor {
     fn visit_call_statement_node(&mut self, method_call_statement: &CallStmtNode) {
         self.newline();
         method_call_statement.call_expr_node.accept(self);
-        self.add_code(";");
+        self.add_code(&";".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1424,7 +1426,7 @@ impl AstVisitor for CsVisitor {
         if let Some(call_chain) = &method_call.call_chain {
             for callable in call_chain {
                 callable.callable_accept(self);
-                self.add_code(".");
+                self.add_code(&".".to_string());
             }
         }
 
@@ -1445,7 +1447,7 @@ impl AstVisitor for CsVisitor {
         if let Some(call_chain) = &method_call.call_chain {
             for callable in call_chain {
                 callable.callable_accept(self);
-                output.push('.');
+                output.push_str(&".".to_string());
             }
         }
 
@@ -1460,15 +1462,15 @@ impl AstVisitor for CsVisitor {
 
     fn visit_call_expr_list_node(&mut self, call_expr_list: &CallExprListNode) {
         let mut separator = "";
-        self.add_code("(");
+        self.add_code(&"(".to_string());
 
         for expr in &call_expr_list.exprs_t {
-            self.add_code(separator);
+            self.add_code(&separator.to_string());
             expr.accept(self);
             separator = ",";
         }
 
-        self.add_code(")");
+        self.add_code(&")".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1479,15 +1481,15 @@ impl AstVisitor for CsVisitor {
         output: &mut String,
     ) {
         let mut separator = "";
-        output.push('(');
+        output.push_str(&"(".to_string());
 
         for expr in &call_expr_list.exprs_t {
-            output.push_str(separator);
+            output.push_str(&separator.to_string());
             expr.accept_to_string(self, output);
             separator = ",";
         }
 
-        output.push(')');
+        output.push_str(&")".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1515,7 +1517,7 @@ impl AstVisitor for CsVisitor {
     fn visit_action_call_statement_node(&mut self, action_call_stmt_node: &ActionCallStmtNode) {
         self.newline();
         action_call_stmt_node.action_call_expr_node.accept(self);
-        self.add_code(";");
+        self.add_code(&";".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1605,16 +1607,16 @@ impl AstVisitor for CsVisitor {
             branch_node.expr_t.accept(self);
 
             if branch_node.is_negated {
-                self.add_code(")");
+                self.add_code(&")".to_string());
             }
-            self.add_code(") {");
+            self.add_code(&") {".to_string());
             self.indent();
 
             branch_node.accept(self);
 
             self.outdent();
             self.newline();
-            self.add_code("}");
+            self.add_code(&"}".to_string());
 
             if_or_else_if = " else if ";
         }
@@ -1635,7 +1637,7 @@ impl AstVisitor for CsVisitor {
         method_call_chain_literal_stmt_node
             .call_chain_literal_expr_node
             .accept(self);
-        self.add_code(";");
+        self.add_code(&";".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1649,7 +1651,7 @@ impl AstVisitor for CsVisitor {
         let mut separator = "";
 
         for node in &method_call_chain_expression_node.call_chain {
-            self.add_code(separator);
+            self.add_code(&separator.to_string());
             match &node {
                 CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
                     id_node.accept(self);
@@ -1687,7 +1689,7 @@ impl AstVisitor for CsVisitor {
         let mut separator = "";
 
         for node in &method_call_chain_expression_node.call_chain {
-            output.push_str(separator);
+            output.push_str(&separator.to_string());
             match &node {
                 CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
                     id_node.accept_to_string(self, output);
@@ -1727,7 +1729,7 @@ impl AstVisitor for CsVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code("e._return = ");
+                            self.add_code(&"e._return = ".to_string());
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
@@ -1750,7 +1752,7 @@ impl AstVisitor for CsVisitor {
         &mut self,
         bool_test_else_branch_node: &BoolTestElseBranchNode,
     ) {
-        self.add_code(" else {");
+        self.add_code(&" else {".to_string());
         self.indent();
 
         self.visit_decl_stmts(&bool_test_else_branch_node.statements);
@@ -1762,7 +1764,7 @@ impl AstVisitor for CsVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code("e._return = ");
+                            self.add_code(&"e._return = ".to_string());
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
@@ -1780,7 +1782,7 @@ impl AstVisitor for CsVisitor {
 
         self.outdent();
         self.newline();
-        self.add_code("}");
+        self.add_code(&"}".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1831,7 +1833,7 @@ impl AstVisitor for CsVisitor {
                     self.add_code(&format!(" == \"{}\")", match_string));
                     first_match = false;
                 } else {
-                    self.add_code(" || (");
+                    self.add_code(&" || (".to_string());
                     match &string_match_test_node.expr_t {
                         ExprType::CallExprT {
                             call_expr_node: method_call_expr_node,
@@ -1848,14 +1850,14 @@ impl AstVisitor for CsVisitor {
                     self.add_code(&format!(" == \"{}\")", match_string));
                 }
             }
-            self.add_code(" {");
+            self.add_code(&" {".to_string());
             self.indent();
 
             match_branch_node.accept(self);
 
             self.outdent();
             self.newline();
-            self.add_code("}");
+            self.add_code(&"}".to_string());
 
             if_or_else_if = " else if";
         }
@@ -1880,7 +1882,7 @@ impl AstVisitor for CsVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code("e._return = ");
+                            self.add_code(&"e._return = ".to_string());
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
@@ -1903,7 +1905,7 @@ impl AstVisitor for CsVisitor {
         &mut self,
         string_match_test_else_branch_node: &StringMatchTestElseBranchNode,
     ) {
-        self.add_code(" else {");
+        self.add_code(&" else {".to_string());
         self.indent();
 
         self.visit_decl_stmts(&string_match_test_else_branch_node.statements);
@@ -1915,7 +1917,7 @@ impl AstVisitor for CsVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code("e._return = ");
+                            self.add_code(&"e._return = ".to_string());
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
@@ -1933,7 +1935,7 @@ impl AstVisitor for CsVisitor {
 
         self.outdent();
         self.newline();
-        self.add_code("}");
+        self.add_code(&"}".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1984,7 +1986,7 @@ impl AstVisitor for CsVisitor {
                     self.add_code(&format!(" == {})", match_number.match_pattern_number));
                     first_match = false;
                 } else {
-                    self.add_code(" || (");
+                    self.add_code(&" || (".to_string());
                     match &number_match_test_node.expr_t {
                         ExprType::CallExprT {
                             call_expr_node: method_call_expr_node,
@@ -2002,14 +2004,14 @@ impl AstVisitor for CsVisitor {
                 }
             }
 
-            self.add_code(") {");
+            self.add_code(&") {".to_string());
             self.indent();
 
             match_branch_node.accept(self);
 
             self.outdent();
             self.newline();
-            self.add_code("}");
+            self.add_code(&"}".to_string());
 
             if_or_else_if = " else if";
         }
@@ -2035,7 +2037,7 @@ impl AstVisitor for CsVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code("e._return = ");
+                            self.add_code(&"e._return = ".to_string());
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
@@ -2058,7 +2060,7 @@ impl AstVisitor for CsVisitor {
         &mut self,
         number_match_test_else_branch_node: &NumberMatchTestElseBranchNode,
     ) {
-        self.add_code(" else {");
+        self.add_code(&" else {".to_string());
         self.indent();
 
         self.visit_decl_stmts(&number_match_test_else_branch_node.statements);
@@ -2070,7 +2072,7 @@ impl AstVisitor for CsVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code("e._return = ");
+                            self.add_code(&"e._return = ".to_string());
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
@@ -2088,7 +2090,7 @@ impl AstVisitor for CsVisitor {
 
         self.outdent();
         self.newline();
-        self.add_code("}");
+        self.add_code(&"}".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2104,13 +2106,13 @@ impl AstVisitor for CsVisitor {
 
     fn visit_expression_list_node(&mut self, expr_list: &ExprListNode) {
         let mut separator = "";
-        self.add_code("(");
+        self.add_code(&"(".to_string());
         for expr in &expr_list.exprs_t {
-            self.add_code(separator);
+            self.add_code(&separator.to_string());
             expr.accept(self);
             separator = ",";
         }
-        self.add_code(")");
+        self.add_code(&")".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2123,13 +2125,13 @@ impl AstVisitor for CsVisitor {
         //        self.add_code(&format!("{}(e);\n",dispatch_node.target_state_ref.name));
 
         let mut separator = "";
-        output.push('(');
+        output.push_str(&"(".to_string());
         for expr in &expr_list.exprs_t {
-            output.push_str(separator);
+            output.push_str(&separator.to_string());
             expr.accept_to_string(self, output);
             separator = ",";
         }
-        output.push(')');
+        output.push_str(&")".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2228,16 +2230,16 @@ impl AstVisitor for CsVisitor {
             StateStackOperationType::Push => {
                 self.newline();
                 if self.generate_state_context {
-                    self.add_code("_stateStack_push_(_state_context_);");
+                    self.add_code(&"_stateStack_push_(_state_context_);".to_string());
                 } else {
-                    self.add_code("_stateStack_push_(_state_);");
+                    self.add_code(&"_stateStack_push_(_state_);".to_string());
                 }
             }
             StateStackOperationType::Pop => {
                 if self.generate_state_context {
-                    self.add_code("StateContext stateContext = _stateStack_pop_()");
+                    self.add_code(&"StateContext stateContext = _stateStack_pop_()".to_string());
                 } else {
-                    self.add_code("FrameState state = _stateStack_pop_()");
+                    self.add_code(&"FrameState state = _stateStack_pop_()".to_string());
                 }
             }
         }
@@ -2256,10 +2258,10 @@ impl AstVisitor for CsVisitor {
         match frame_event_part {
             FrameEventPart::Event {
                 is_reference: _is_reference,
-            } => self.add_code("e"),
+            } => self.add_code(&"e".to_string()),
             FrameEventPart::Message {
                 is_reference: _is_reference,
-            } => self.add_code("e._message"),
+            } => self.add_code(&"e._message".to_string()),
             FrameEventPart::Param {
                 param_symbol_rcref,
                 is_reference: _is_reference,
@@ -2269,7 +2271,7 @@ impl AstVisitor for CsVisitor {
             )),
             FrameEventPart::Return {
                 is_reference: _is_reference,
-            } => self.add_code("e._return"),
+            } => self.add_code(&"e._return".to_string()),
         }
     }
 
@@ -2331,10 +2333,10 @@ impl AstVisitor for CsVisitor {
             }
             None => {}
         }
-        subclass_code.push_str(") {}");
+        subclass_code.push_str(&") {}".to_string());
         self.subclass_code.push(subclass_code);
 
-        self.add_code(") { throw new NotImplementedException(); }");
+        self.add_code(&") { throw new NotImplementedException(); }".to_string());
     }
 
     //* --------------------------------------------------------------------- *//

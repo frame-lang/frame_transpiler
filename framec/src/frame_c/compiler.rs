@@ -71,7 +71,7 @@ impl Exe {
     ) -> Result<String, RunError> {
         match fs::read_to_string(input_path) {
             Ok(content) => {
-                Exe::debug_print(&content);
+                Exe::debug_print(&(&content).to_string());
                 self.run(config_path, input_path.to_str(), content, target_language)
             }
             Err(err) => {
@@ -93,7 +93,7 @@ impl Exe {
         let mut stdin = io::stdin(); // We get `Stdin` here.
         match stdin.read_to_string(&mut buffer) {
             Ok(_size) => {
-                Exe::debug_print(&buffer);
+                Exe::debug_print(&(&buffer).to_string());
                 self.run(config_path, None, buffer, target_language)
             }
             Err(err) => {

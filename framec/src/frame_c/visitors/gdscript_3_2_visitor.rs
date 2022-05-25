@@ -158,7 +158,7 @@ impl GdScript32Visitor {
     fn format_parameter_list(&mut self, params: &Vec<ParameterNode>) {
         let mut separator = "";
         for param in params {
-            self.add_code(separator);
+            self.add_code(&separator.to_string());
             self.add_code(&param.param_name.to_string());
             separator = ",";
         }
@@ -290,10 +290,10 @@ impl GdScript32Visitor {
             //           self.newline();
             //           self.add_code(&format!("private delegate void FrameState(FrameEvent e);"));
             self.newline();
-            self.add_code("var _state_ = null");
+            self.add_code(&"var _state_ = null".to_string());
             if self.generate_state_context {
                 self.newline();
-                self.add_code("var _stateContext_ = null");
+                self.add_code(&"var _stateContext_ = null".to_string());
             }
             if self.generate_transition_state {
                 self.newline();
@@ -301,38 +301,38 @@ impl GdScript32Visitor {
                 if self.generate_state_context {
                     if self.generate_exit_args {
                         self.add_code(
-                            "func _transition_(newState, exitArgs, stateContext):",
+                            &"func _transition_(newState, exitArgs, stateContext):".to_string(),
                         );
                     } else {
-                        self.add_code("func _transition_(newState, stateContext):");
+                        self.add_code(&"func _transition_(newState, stateContext):".to_string());
                     }
                 } else if self.generate_exit_args {
-                    self.add_code("func _transition_(newState, exitArgs):");
+                    self.add_code(&"func _transition_(newState, exitArgs):".to_string());
                 } else {
-                    self.add_code("func _transition_(newState):");
+                    self.add_code(&"func _transition_(newState):".to_string());
                 }
                 self.indent();
                 self.newline();
                 if self.generate_exit_args {
-                    self.add_code("var exitEvent = FrameEvent.new(\"<\",exitArgs)");
+                    self.add_code(&"var exitEvent = FrameEvent.new(\"<\",exitArgs)".to_string());
                 } else {
-                    self.add_code("var exitEvent = FrameEvent.new(\"<\",null)");
+                    self.add_code(&"var exitEvent = FrameEvent.new(\"<\",null)".to_string());
                 }
                 self.newline();
-                self.add_code("self._state_.call_func(exitEvent)");
+                self.add_code(&"self._state_.call_func(exitEvent)".to_string());
                 self.newline();
-                self.add_code("self._state_ = newState");
+                self.add_code(&"self._state_ = newState".to_string());
                 self.newline();
                 if self.generate_state_context {
-                    self.add_code("self._stateContext_ = stateContext");
+                    self.add_code(&"self._stateContext_ = stateContext".to_string());
                     self.newline();
-                    self.add_code("var enterEvent = FrameEvent.new(\">\",self._stateContext_.getEnterArgs())");
+                    self.add_code(&"var enterEvent = FrameEvent.new(\">\",self._stateContext_.getEnterArgs())".to_string());
                     self.newline();
                 } else {
-                    self.add_code("var enterEvent = FrameEvent.new(\">\",null)");
+                    self.add_code(&"var enterEvent = FrameEvent.new(\">\",null)".to_string());
                     self.newline();
                 }
-                self.add_code("self._state_.call_func(enterEvent)");
+                self.add_code(&"self._state_.call_func(enterEvent)".to_string());
                 self.outdent();
                 self.newline();
                 // self.add_code(&format!("}}"));
@@ -341,38 +341,38 @@ impl GdScript32Visitor {
                 self.newline();
                 self.newline();
                 if self.generate_state_context {
-                    self.add_code("var _stateStack_ = null");
+                    self.add_code(&"var _stateStack_ = null".to_string());
                     self.newline();
                     self.newline();
-                    self.add_code("func _stateStack_push_(stateContext):");
+                    self.add_code(&"func _stateStack_push_(stateContext):".to_string());
                     self.indent();
                     self.newline();
-                    self.add_code("self._stateStack_.append(stateContext)");
+                    self.add_code(&"self._stateStack_.append(stateContext)".to_string());
                     self.outdent();
                     self.newline();
                     //           self.add_code(&format!("}}"));
                     self.newline();
                     self.newline();
-                    self.add_code("func _stateStack_pop_():");
+                    self.add_code(&"func _stateStack_pop_():".to_string());
                     self.indent();
                     self.newline();
-                    self.add_code("return self._stateStack_.back()");
+                    self.add_code(&"return self._stateStack_.back()".to_string());
                 } else {
                     self.newline();
                     self.newline();
-                    self.add_code("func _stateStack_push_(state):");
+                    self.add_code(&"func _stateStack_push_(state):".to_string());
                     self.indent();
                     self.newline();
-                    self.add_code("self._stateStack_.append(state)");
+                    self.add_code(&"self._stateStack_.append(state)".to_string());
                     self.outdent();
                     self.newline();
                     //                    self.add_code(&format!("}}"));
                     self.newline();
                     self.newline();
-                    self.add_code("func _stateStack_pop_():");
+                    self.add_code(&"func _stateStack_pop_():".to_string());
                     self.indent();
                     self.newline();
-                    self.add_code("return self._stateStack_.pop()");
+                    self.add_code(&"return self._stateStack_.pop()".to_string());
                 }
 
                 self.outdent();
@@ -382,10 +382,10 @@ impl GdScript32Visitor {
             if self.generate_change_state {
                 self.newline();
                 self.newline();
-                self.add_code("func _changeState_(newState):");
+                self.add_code(&"func _changeState_(newState):".to_string());
                 self.indent();
                 self.newline();
-                self.add_code("self._state_ = newState");
+                self.add_code(&"self._state_ = newState".to_string());
                 self.outdent();
                 self.newline();
                 //                self.add_code(&format!("}}"));
@@ -800,23 +800,23 @@ impl GdScript32Visitor {
         }
 
         if self.generate_state_context {
-            self.add_code("var stateContext = self._stateStack_pop_()");
+            self.add_code(&"var stateContext = self._stateStack_pop_()".to_string());
         } else {
-            self.add_code("var state = self._stateStack_pop_()");
+            self.add_code(&"var state = self._stateStack_pop_()".to_string());
         }
         self.newline();
         if self.generate_exit_args {
             if self.generate_state_context {
                 self.add_code(
-                    "self._transition_(stateContext.state,exitArgs,stateContext)",
+                    &"self._transition_(stateContext.state,exitArgs,stateContext)".to_string(),
                 );
             } else {
-                self.add_code("self._transition_(state,exitArgs)");
+                self.add_code(&"self._transition_(state,exitArgs)".to_string());
             }
         } else if self.generate_state_context {
-            self.add_code("self._transition_(stateContext.state,stateContext)");
+            self.add_code(&"self._transition_(stateContext.state,stateContext)".to_string());
         } else {
-            self.add_code("self._transition_(state)");
+            self.add_code(&"self._transition_(state)".to_string());
         }
     }
 }
@@ -851,7 +851,7 @@ impl AstVisitor for GdScript32Visitor {
 
         if self.has_states {
             self.newline();
-            self.add_code("func _init():");
+            self.add_code(&"func _init():".to_string());
             self.indent();
             self.newline();
             self.add_code(&format!(
@@ -861,7 +861,7 @@ impl AstVisitor for GdScript32Visitor {
 
             if self.generate_state_context {
                 self.newline();
-                self.add_code("self._stateContext_ = StateContext.new(self._state_)");
+                self.add_code(&"self._stateContext_ = StateContext.new(self._state_)".to_string());
                 if let Some(state_symbol_rcref) = self.arcanium.get_state(&self.first_state_name) {
                     //   self.newline();
                     let state_symbol = state_symbol_rcref.borrow();
@@ -885,7 +885,7 @@ impl AstVisitor for GdScript32Visitor {
 
             if self.generate_state_stack {
                 self.newline();
-                self.add_code("self._stateStack_ = []");
+                self.add_code(&"self._stateStack_ = []".to_string());
             }
 
             self.outdent();
@@ -1063,12 +1063,12 @@ impl AstVisitor for GdScript32Visitor {
             method_name_or_alias, params_param_code
         ));
         self.newline();
-        self.add_code("self._state_.call_func(e)");
+        self.add_code(&"self._state_.call_func(e)".to_string());
 
         match &interface_method_node.return_type_opt {
             Some(_) => {
                 self.newline();
-                self.add_code("return e._return");
+                self.add_code(&"return e._return".to_string());
             }
             None => {}
         }
@@ -1226,10 +1226,10 @@ impl AstVisitor for GdScript32Visitor {
             // AnyMessage ( ||* )
             if self.first_event_handler {
                 // This logic is for when there is only the catch all event handler ||*
-                self.add_code("if true:");
+                self.add_code(&"if true:".to_string());
             } else {
                 // other event handlers preceded ||*
-                self.add_code("else:");
+                self.add_code(&"else:".to_string());
             }
         }
         self.generate_comment(evt_handler_node.line);
@@ -1276,7 +1276,7 @@ impl AstVisitor for GdScript32Visitor {
         match &evt_handler_terminator_node.terminator_type {
             TerminatorType::Return => match &evt_handler_terminator_node.return_expr_t_opt {
                 Some(expr_t) => {
-                    self.add_code("e._return = ");
+                    self.add_code(&"e._return = ".to_string());
                     expr_t.accept(self);
                     self.newline();
                     self.add_code("return");
@@ -1305,7 +1305,7 @@ impl AstVisitor for GdScript32Visitor {
         if let Some(call_chain) = &method_call.call_chain {
             for callable in call_chain {
                 callable.callable_accept(self);
-                self.add_code(".");
+                self.add_code(&".".to_string());
             }
         }
 
@@ -1326,7 +1326,7 @@ impl AstVisitor for GdScript32Visitor {
         if let Some(call_chain) = &method_call.call_chain {
             for callable in call_chain {
                 callable.callable_accept(self);
-                output.push('.');
+                output.push_str(&".".to_string());
             }
         }
 
@@ -1341,15 +1341,15 @@ impl AstVisitor for GdScript32Visitor {
 
     fn visit_call_expr_list_node(&mut self, call_expr_list: &CallExprListNode) {
         let mut separator = "";
-        self.add_code("(");
+        self.add_code(&"(".to_string());
 
         for expr in &call_expr_list.exprs_t {
-            self.add_code(separator);
+            self.add_code(&separator.to_string());
             expr.accept(self);
             separator = ",";
         }
 
-        self.add_code(")");
+        self.add_code(&")".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1360,15 +1360,15 @@ impl AstVisitor for GdScript32Visitor {
         output: &mut String,
     ) {
         let mut separator = "";
-        output.push('(');
+        output.push_str(&"(".to_string());
 
         for expr in &call_expr_list.exprs_t {
-            output.push_str(separator);
+            output.push_str(&separator.to_string());
             expr.accept_to_string(self, output);
             separator = ",";
         }
 
-        output.push(')');
+        output.push_str(&")".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1489,9 +1489,9 @@ impl AstVisitor for GdScript32Visitor {
             branch_node.expr_t.accept(self);
 
             if branch_node.is_negated {
-                self.add_code(")");
+                self.add_code(&")".to_string());
             }
-            self.add_code(":");
+            self.add_code(&":".to_string());
             self.indent();
 
             branch_node.accept(self);
@@ -1531,7 +1531,7 @@ impl AstVisitor for GdScript32Visitor {
         let mut separator = "";
 
         for node in &method_call_chain_expression_node.call_chain {
-            self.add_code(separator);
+            self.add_code(&separator.to_string());
             match &node {
                 CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
                     id_node.accept(self);
@@ -1569,7 +1569,7 @@ impl AstVisitor for GdScript32Visitor {
         let mut separator = "";
 
         for node in &method_call_chain_expression_node.call_chain {
-            output.push_str(separator);
+            output.push_str(&separator.to_string());
             match &node {
                 CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
                     id_node.accept_to_string(self, output);
@@ -1609,7 +1609,7 @@ impl AstVisitor for GdScript32Visitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code("e._return = ");
+                            self.add_code(&"e._return = ".to_string());
                             expr_t.accept(self);
                             self.newline();
                             self.add_code("return");
@@ -1631,7 +1631,7 @@ impl AstVisitor for GdScript32Visitor {
         &mut self,
         bool_test_else_branch_node: &BoolTestElseBranchNode,
     ) {
-        self.add_code("else:");
+        self.add_code(&"else:".to_string());
         self.indent();
 
         self.visit_decl_stmts(&bool_test_else_branch_node.statements);
@@ -1643,7 +1643,7 @@ impl AstVisitor for GdScript32Visitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code("e._return = ");
+                            self.add_code(&"e._return = ".to_string());
                             expr_t.accept(self);
                             self.newline();
                             self.add_code("return");
@@ -1710,7 +1710,7 @@ impl AstVisitor for GdScript32Visitor {
                     self.add_code(&format!(" == \"{}\")", match_string));
                     first_match = false;
                 } else {
-                    self.add_code(" || (");
+                    self.add_code(&" || (".to_string());
                     match &string_match_test_node.expr_t {
                         ExprType::CallExprT {
                             call_expr_node: method_call_expr_node,
@@ -1727,7 +1727,7 @@ impl AstVisitor for GdScript32Visitor {
                     self.add_code(&format!(" == \"{}\")", match_string));
                 }
             }
-            self.add_code(":");
+            self.add_code(&":".to_string());
             self.indent();
 
             match_branch_node.accept(self);
@@ -1758,7 +1758,7 @@ impl AstVisitor for GdScript32Visitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code("e._return = ");
+                            self.add_code(&"e._return = ".to_string());
                             expr_t.accept(self);
                             self.newline();
                             self.add_code("return");
@@ -1780,7 +1780,7 @@ impl AstVisitor for GdScript32Visitor {
         &mut self,
         string_match_test_else_branch_node: &StringMatchTestElseBranchNode,
     ) {
-        self.add_code("else:");
+        self.add_code(&"else:".to_string());
         self.indent();
 
         self.visit_decl_stmts(&string_match_test_else_branch_node.statements);
@@ -1792,7 +1792,7 @@ impl AstVisitor for GdScript32Visitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code("e._return = ");
+                            self.add_code(&"e._return = ".to_string());
                             expr_t.accept(self);
                             self.newline();
                             self.add_code("return");
@@ -1859,7 +1859,7 @@ impl AstVisitor for GdScript32Visitor {
                     self.add_code(&format!(" == {})", match_number.match_pattern_number));
                     first_match = false;
                 } else {
-                    self.add_code(" || (");
+                    self.add_code(&" || (".to_string());
                     match &number_match_test_node.expr_t {
                         ExprType::CallExprT {
                             call_expr_node: method_call_expr_node,
@@ -1877,7 +1877,7 @@ impl AstVisitor for GdScript32Visitor {
                 }
             }
 
-            self.add_code(") {");
+            self.add_code(&") {".to_string());
             self.indent();
 
             match_branch_node.accept(self);
@@ -1909,7 +1909,7 @@ impl AstVisitor for GdScript32Visitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code("e._return = ");
+                            self.add_code(&"e._return = ".to_string());
                             expr_t.accept(self);
                             self.newline();
                             self.add_code("return");
@@ -1931,7 +1931,7 @@ impl AstVisitor for GdScript32Visitor {
         &mut self,
         number_match_test_else_branch_node: &NumberMatchTestElseBranchNode,
     ) {
-        self.add_code(" else {");
+        self.add_code(&" else {".to_string());
         self.indent();
 
         self.visit_decl_stmts(&number_match_test_else_branch_node.statements);
@@ -1944,7 +1944,7 @@ impl AstVisitor for GdScript32Visitor {
                     TerminatorType::Return => {
                         match &branch_terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
-                                self.add_code("e._return = ");
+                                self.add_code(&"e._return = ".to_string());
                                 expr_t.accept(self);
                                 //    self.add_code(";");
                                 self.newline();
@@ -1978,13 +1978,13 @@ impl AstVisitor for GdScript32Visitor {
 
     fn visit_expression_list_node(&mut self, expr_list: &ExprListNode) {
         let mut separator = "";
-        self.add_code("(");
+        self.add_code(&"(".to_string());
         for expr in &expr_list.exprs_t {
-            self.add_code(separator);
+            self.add_code(&separator.to_string());
             expr.accept(self);
             separator = ",";
         }
-        self.add_code(")");
+        self.add_code(&")".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1997,13 +1997,13 @@ impl AstVisitor for GdScript32Visitor {
         //        self.add_code(&format!("{}(e);\n",dispatch_node.target_state_ref.name));
 
         let mut separator = "";
-        output.push('(');
+        output.push_str(&"(".to_string());
         for expr in &expr_list.exprs_t {
-            output.push_str(separator);
+            output.push_str(&separator.to_string());
             expr.accept_to_string(self, output);
             separator = ",";
         }
-        output.push(')');
+        output.push_str(&")".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2102,16 +2102,16 @@ impl AstVisitor for GdScript32Visitor {
             StateStackOperationType::Push => {
                 self.newline();
                 if self.generate_state_context {
-                    self.add_code("self._stateStack_push_(self._stateContext_)");
+                    self.add_code(&"self._stateStack_push_(self._stateContext_)".to_string());
                 } else {
-                    self.add_code("self._stateStack_push_(self._state_)");
+                    self.add_code(&"self._stateStack_push_(self._state_)".to_string());
                 }
             }
             StateStackOperationType::Pop => {
                 if self.generate_state_context {
-                    self.add_code("var stateContext = self._stateStack_pop_()");
+                    self.add_code(&"var stateContext = self._stateStack_pop_()".to_string());
                 } else {
-                    self.add_code("var state = _stateStack_pop_()");
+                    self.add_code(&"var state = _stateStack_pop_()".to_string());
                 }
             }
         }
@@ -2130,10 +2130,10 @@ impl AstVisitor for GdScript32Visitor {
         match frame_event_part {
             FrameEventPart::Event {
                 is_reference: _is_reference,
-            } => self.add_code("e"),
+            } => self.add_code(&"e".to_string()),
             FrameEventPart::Message {
                 is_reference: _is_reference,
-            } => self.add_code("e._message"),
+            } => self.add_code(&"e._message".to_string()),
             FrameEventPart::Param {
                 param_symbol_rcref,
                 is_reference: _is_reference,
@@ -2143,7 +2143,7 @@ impl AstVisitor for GdScript32Visitor {
             )),
             FrameEventPart::Return {
                 is_reference: _is_reference,
-            } => self.add_code("e._return"),
+            } => self.add_code(&"e._return".to_string()),
         }
     }
 
@@ -2191,10 +2191,10 @@ impl AstVisitor for GdScript32Visitor {
             None => {}
         }
 
-        self.add_code("):");
+        self.add_code(&"):".to_string());
         self.indent();
         self.newline();
-        self.add_code("assert(true,\"Error - unimplemented action\")");
+        self.add_code(&"assert(true,\"Error - unimplemented action\")".to_string());
         self.outdent();
         self.newline();
     }

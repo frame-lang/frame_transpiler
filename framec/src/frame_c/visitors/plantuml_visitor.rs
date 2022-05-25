@@ -225,7 +225,7 @@ impl PlantUmlVisitor {
     fn format_parameter_list(&mut self, params: &Vec<ParameterNode>) {
         let mut separator = "";
         for param in params {
-            self.add_code(separator);
+            self.add_code(&separator.to_string());
             let param_type: String = match &param.param_type_opt {
                 Some(ret_type) => ret_type.get_type_str(),
                 None => String::from("<?>"),
@@ -847,7 +847,7 @@ impl AstVisitor for PlantUmlVisitor {
         let _ = self.compiler_version.clone(); // hack to shut the compiler up
                                                // self.add_code(&format!("// {}",self.compiler_version));
                                                // self.newline();
-        self.add_code("@startuml\n");
+        self.add_code(&"@startuml\n".to_string());
         // self.indent();
         // self.newline();
         //        self.add_code(&format!("public FrameController self;"));
@@ -1043,7 +1043,7 @@ impl AstVisitor for PlantUmlVisitor {
             method_name_or_alias, params_param_code
         ));
         self.newline();
-        self.add_code("_state_(e);");
+        self.add_code(&"_state_(e);".to_string());
 
         match &interface_method_node.return_type_opt {
             Some(return_type) => {
@@ -1058,7 +1058,7 @@ impl AstVisitor for PlantUmlVisitor {
 
         self.outdent();
         self.newline();
-        self.add_code("}");
+        self.add_code(&"}".to_string());
         self.newline();
     }
 
@@ -1246,7 +1246,7 @@ impl AstVisitor for PlantUmlVisitor {
     fn visit_call_statement_node(&mut self, method_call_statement: &CallStmtNode) {
         self.newline();
         method_call_statement.call_expr_node.accept(self);
-        self.add_code(";");
+        self.add_code(&";".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1255,7 +1255,7 @@ impl AstVisitor for PlantUmlVisitor {
         if let Some(call_chain) = &method_call.call_chain {
             for callable in call_chain {
                 callable.callable_accept(self);
-                self.add_code(".");
+                self.add_code(&".".to_string());
             }
         }
 
@@ -1263,7 +1263,7 @@ impl AstVisitor for PlantUmlVisitor {
 
         method_call.call_expr_list.accept(self);
 
-        self.add_code(")");
+        self.add_code(&")".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1276,7 +1276,7 @@ impl AstVisitor for PlantUmlVisitor {
         if let Some(call_chain) = &method_call.call_chain {
             for callable in call_chain {
                 callable.callable_accept(self);
-                output.push('.');
+                output.push_str(&".".to_string());
             }
         }
 
@@ -1284,7 +1284,7 @@ impl AstVisitor for PlantUmlVisitor {
 
         method_call.call_expr_list.accept_to_string(self, output);
 
-        output.push(')');
+        output.push_str(&")".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1310,22 +1310,22 @@ impl AstVisitor for PlantUmlVisitor {
 
         action_call.call_expr_list.accept_to_string(self, output);
 
-        output.push(')');
+        output.push_str(&")".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
 
     fn visit_call_expr_list_node(&mut self, call_expr_list: &CallExprListNode) {
         let mut separator = "";
-        self.add_code("(");
+        self.add_code(&"(".to_string());
 
         for expr in &call_expr_list.exprs_t {
-            self.add_code(separator);
+            self.add_code(&separator.to_string());
             expr.accept(self);
             separator = ",";
         }
 
-        self.add_code(")");
+        self.add_code(&")".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1336,15 +1336,15 @@ impl AstVisitor for PlantUmlVisitor {
         output: &mut String,
     ) {
         let mut separator = "";
-        output.push('(');
+        output.push_str(&"(".to_string());
 
         for expr in &call_expr_list.exprs_t {
-            output.push_str(separator);
+            output.push_str(&separator.to_string());
             expr.accept_to_string(self, output);
             separator = ",";
         }
 
-        output.push(')');
+        output.push_str(&")".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1352,7 +1352,7 @@ impl AstVisitor for PlantUmlVisitor {
     fn visit_action_call_statement_node(&mut self, action_call_stmt_node: &ActionCallStmtNode) {
         self.newline();
         action_call_stmt_node.action_call_expr_node.accept(self);
-        self.add_code(";");
+        self.add_code(&";".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1467,7 +1467,7 @@ impl AstVisitor for PlantUmlVisitor {
         method_call_chain_literal_stmt_node
             .call_chain_literal_expr_node
             .accept(self);
-        self.add_code(";");
+        self.add_code(&";".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1915,7 +1915,7 @@ impl AstVisitor for PlantUmlVisitor {
 
         let mut separator = "";
         for expr in &expr_list.exprs_t {
-            output.push_str(separator);
+            output.push_str(&separator.to_string());
             expr.accept_to_string(self, output);
             separator = ",";
         }
@@ -2037,10 +2037,10 @@ impl AstVisitor for PlantUmlVisitor {
         match frame_event_part {
             FrameEventPart::Event {
                 is_reference: _is_reference,
-            } => self.add_code("e"),
+            } => self.add_code(&"e".to_string()),
             FrameEventPart::Message {
                 is_reference: _is_reference,
-            } => self.add_code("e._message"),
+            } => self.add_code(&"e._message".to_string()),
             FrameEventPart::Param {
                 param_symbol_rcref,
                 is_reference: _is_reference,
@@ -2050,7 +2050,7 @@ impl AstVisitor for PlantUmlVisitor {
             )),
             FrameEventPart::Return {
                 is_reference: _is_reference,
-            } => self.add_code("e._return"),
+            } => self.add_code(&"e._return".to_string()),
         }
     }
 
@@ -2102,7 +2102,7 @@ impl AstVisitor for PlantUmlVisitor {
             None => {}
         }
 
-        self.add_code(") {}");
+        self.add_code(&") {}".to_string());
     }
 
     //* --------------------------------------------------------------------- *//

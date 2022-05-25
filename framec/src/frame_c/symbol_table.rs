@@ -608,18 +608,18 @@ impl Arcanum {
     }
 
     pub fn debug_print_current_symbols(&self, symbol_table_rcref: Rc<RefCell<SymbolTable>>) {
-        Exe::debug_print("<------------------->");
+        Exe::debug_print(&"<------------------->".to_string());
         self.do_debug_print_current_symbols(symbol_table_rcref);
-        Exe::debug_print("<------------------->");
+        Exe::debug_print(&"<------------------->".to_string());
     }
 
     fn do_debug_print_current_symbols(&self, symbol_table_rcref: Rc<RefCell<SymbolTable>>) {
         let symbol_table = symbol_table_rcref.borrow();
 
-        Exe::debug_print("---------------------");
+        Exe::debug_print(&"---------------------".to_string());
         Exe::debug_print(&format!("SymbolTable {}", symbol_table.name));
         for key in symbol_table.symbols.keys() {
-            Exe::debug_print(key);
+            Exe::debug_print(&key.to_string());
         }
 
         if let Some(parent_symbol_table_rcref) = &symbol_table.parent_symtab_rcref_opt {
