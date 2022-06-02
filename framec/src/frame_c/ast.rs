@@ -1272,11 +1272,13 @@ impl NodeElement for ActionCallExprNode {
 
 pub struct CallChainLiteralExprNode {
     pub call_chain: VecDeque<CallChainLiteralNodeType>,
+    pub is_new_expr: bool
 }
 
 impl CallChainLiteralExprNode {
-    pub fn new(call_chain: VecDeque<CallChainLiteralNodeType>) -> CallChainLiteralExprNode {
-        CallChainLiteralExprNode { call_chain }
+    pub fn new(call_chain: VecDeque<CallChainLiteralNodeType>
+               ) -> CallChainLiteralExprNode {
+        CallChainLiteralExprNode { call_chain,  is_new_expr: false }
     }
 }
 

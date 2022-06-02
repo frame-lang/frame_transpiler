@@ -1751,15 +1751,6 @@ impl<'a> Parser<'a> {
         // @TODO - add reference syntax
         while self.match_token(&[TokenType::Identifier]) {
             match self.variable_or_call_expr(IdentifierDeclScope::None) {
-                // Ok(Some(VariableExprT { var_node: id_node }))
-                //     => {
-                //     // TODO: better error handling
-                //     return Err(ParseError::new("TODO"));
-                // },
-                // Ok(Some(CallExprT { call_expr_node }))
-                //     => calls.push(CallExprT{call_expr_node}),
-                // Ok(Some(ActionCallExprT { action_call_expr_node}))
-                //     => calls.push(action_call_expr_node),
                 Ok(Some(CallChainLiteralExprT {
                     call_chain_expr_node,
                 })) => calls.push(call_chain_expr_node),
@@ -3348,6 +3339,26 @@ impl<'a> Parser<'a> {
             let symbol_type_rcref_opt = self.arcanum.lookup(&id_node.name.lexeme, &var_scope);
             let var_node = VariableNode::new(id_node, var_scope, symbol_type_rcref_opt);
             return Ok(Some(VariableExprT { var_node }));
+        } else if self.match_token(&[TokenType::New]) {
+
+            if self.match_token(&[TokenType::Identifier]) {
+                match self.variable_or_call_expr(IdentifierDeclScope::None) {
+                     Ok(Some(CallChainLiteralExprT {
+                                 mut call_chain_expr_node,
+                            })) => {
+                         call_chain_expr_node.is_new_expr = true;
+                         return Ok(Some(CallChainLiteralExprT {
+                             call_chain_expr_node
+                         }));
+                     },
+                    Ok(Some(_)) => return Err(ParseError::new("TODO")),
+                    Err(parse_error) => return Err(parse_error),
+                    Ok(None) => {} // continue
+                }
+            } else {
+                self.error_at_current("Expected class.");
+                return Err(ParseError::new("TODO"));
+            }
         } else {
             // self.error_at_current("Expected identifier.");
             // return Err(ParseError::new("TODO"));
