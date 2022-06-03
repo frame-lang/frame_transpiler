@@ -39,7 +39,7 @@ pub struct JavaScriptVisitor {
     /* Persistence */
     pub managed: bool, // Generate Managed code
     pub marshal: bool, // Generate JSON code
-    pub manager: String
+    pub manager: String,
 }
 
 impl JavaScriptVisitor {
@@ -1974,7 +1974,7 @@ impl AstVisitor for JavaScriptVisitor {
         // TODO: maybe put this in an AST node
 
         let mut separator = "";
-        
+
         for node in &method_call_chain_expression_node.call_chain {
             self.add_code(&separator.to_string());
             match &node {
@@ -1982,11 +1982,8 @@ impl AstVisitor for JavaScriptVisitor {
                     id_node.accept(self);
                 }
                 CallChainLiteralNodeType::CallT { call } => {
-                    
                     match &method_call_chain_expression_node.is_new_expr {
-                        true => {
-                            self.add_code("new ")
-                        },
+                        true => self.add_code("new "),
                         false => {}
                     }
 
