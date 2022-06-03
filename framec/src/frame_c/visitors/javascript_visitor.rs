@@ -35,6 +35,11 @@ pub struct JavaScriptVisitor {
     generate_state_stack: bool,
     generate_change_state: bool,
     // generate_transition_state: bool,
+
+    /* Persistence */
+    pub managed: bool, // Generate Managed code
+    pub marshal: bool, // Generate JSON code
+    pub manager: String
 }
 
 impl JavaScriptVisitor {
@@ -81,6 +86,11 @@ impl JavaScriptVisitor {
             generate_state_stack,
             generate_change_state,
             // generate_transition_state,
+
+            /* Persistence */
+            managed: false, // Generate Managed code
+            marshal: false, // Generate Json code
+            manager: String::new(),
         }
     }
 
@@ -145,6 +155,9 @@ impl JavaScriptVisitor {
         let mut code = String::new();
 
         match variable_node.scope {
+            IdentifierDeclScope::System => {
+                code.push_str(&format!("this"));
+            }
             IdentifierDeclScope::DomainBlock => {
                 code.push_str(&format!("this.{}", variable_node.id_node.name.lexeme));
             }
@@ -235,6 +248,64 @@ impl JavaScriptVisitor {
     //* --------------------------------------------------------------------- *//
 
     pub fn run(&mut self, system_node: &SystemNode) {
+        match &system_node.attributes_opt {
+            Some(attributes) => {
+                for value in (*attributes).values() {
+                    match value {
+                        AttributeNode::MetaNameValueStr { attr } => {
+                            match attr.name.as_str() {
+                                // TODO: constants
+                                // "stateType" => self.config.code.state_type = attr.value.clone(),
+                                "managed" => {
+                                    self.manager = attr.value.clone();
+                                    self.managed = true;
+                                }
+                                _ => {}
+                            }
+                        }
+                        AttributeNode::MetaListIdents { attr } => {
+                            match attr.name.as_str() {
+                                "derive" => {
+                                    for ident in &attr.idents {
+                                        match ident.as_str() {
+                                            // TODO: constants and figure out mom vs managed
+                                            //  "Managed" => self.managed = true,
+                                            "Marshal" => self.marshal = true,
+                                            _ => {}
+                                        }
+                                    }
+                                }
+                                "managed" => {
+                                    self.managed = true;
+                                    if attr.idents.len() != 1 {
+                                        self.errors.push(
+                                            "Attribute 'managed' takes 1 parameter".to_string(),
+                                        );
+                                    }
+                                    match attr.idents.get(0) {
+                                        Some(manager_type) => {
+                                            self.manager = manager_type.clone();
+                                        }
+                                        None => {
+                                            self.errors.push(
+                                                "Attribute 'managed' missing manager type."
+                                                    .to_string(),
+                                            );
+                                        }
+                                    }
+                                }
+                                _ => {
+                                    self.errors.push("Unknown attribute".to_string());
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // self.config.code.marshal_system_state_var = format!("{}State", &system_node.name);
+            }
+            None => {}
+        }
         system_node.accept(self);
     }
 
@@ -889,6 +960,11 @@ impl JavaScriptVisitor {
             self.add_code(&format!("this._state = this._s{}_;", self.first_state_name));
         }
 
+        if self.managed {
+            self.newline();
+            self.add_code("this._manager = manager");
+        }
+
         self.newline();
         self.add_code(&format!(
             "this._compartment = new {}Compartment(this._state);",
@@ -990,6 +1066,66 @@ impl JavaScriptVisitor {
         self.newline();
         self.add_code("this._mux_(this._frameEvent);");
     }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn format_load_fn(&mut self, system_node: &SystemNode) {
+        self.newline();
+        self.newline();
+        let mut manager_param = "";
+        if self.managed {
+            manager_param = "manager";
+        }
+        self.add_code(&format!(
+            "static load{}({}, data){{",
+            system_node.name, manager_param
+        ));
+
+        self.indent();
+        self.newline();
+        self.newline();
+        if self.managed {
+            self.add_code("data._manager = manager");
+        }
+        // self.newline();
+        // self.newline();
+        // self.add_code("// Initialize machine");
+        // self.newline();
+        // // self.add_code("data._compartment = ._compartment");
+        // self.newline();
+        // // for x in domain_vec {
+        // //     self.newline();
+        // //     self.add_code(&format!("this.{} = parseObj.{}", x.0, x.0))
+        // // }
+        // self.newline();
+        self.newline();
+        self.add_code("return data");
+        self.newline();
+
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn generate_json_fn(&mut self) {
+        self.newline();
+        self.newline();
+        self.add_code("marshal() {");
+        self.indent();
+        self.newline();
+        self.newline();
+        self.add_code("let data = this");
+        self.newline();
+        self.add_code("return data");
+        self.newline();
+
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.newline();
+    }
 }
 
 //* --------------------------------------------------------------------- *//
@@ -1045,7 +1181,16 @@ impl AstVisitor for JavaScriptVisitor {
             None => {}
         };
 
-        self.add_code(&format!("{}) {{", new_params));
+        if self.managed {
+            if new_params.is_empty() {
+                self.add_code("manager) {");
+            } else {
+                self.add_code(&format!("manager,{}) {{", new_params));
+            }
+        } else {
+            self.add_code(&format!("{}) {{", new_params));
+        }
+
         // First state name needed for machinery.
         // Don't generate if there isn't at least one state.
         match system_node.get_first_state() {
@@ -1102,6 +1247,15 @@ impl AstVisitor for JavaScriptVisitor {
         self.subclass_code.push("\t}".to_string());
         if let Some(interface_block_node) = &system_node.interface_block_node_opt {
             interface_block_node.accept(self);
+        }
+
+        if self.marshal {
+            // generate Load() factory
+            self.format_load_fn(system_node);
+
+            // generate MarshalJSON() factory
+            // self.generate_marshal_json_fn(&domain_vec);
+            self.generate_json_fn();
         }
 
         // generate _mux_
@@ -1820,7 +1974,7 @@ impl AstVisitor for JavaScriptVisitor {
         // TODO: maybe put this in an AST node
 
         let mut separator = "";
-
+        
         for node in &method_call_chain_expression_node.call_chain {
             self.add_code(&separator.to_string());
             match &node {
@@ -1828,6 +1982,14 @@ impl AstVisitor for JavaScriptVisitor {
                     id_node.accept(self);
                 }
                 CallChainLiteralNodeType::CallT { call } => {
+                    
+                    match &method_call_chain_expression_node.is_new_expr {
+                        true => {
+                            self.add_code("new ")
+                        },
+                        false => {}
+                    }
+
                     call.accept(self);
                 }
                 CallChainLiteralNodeType::InterfaceMethodCallT {
