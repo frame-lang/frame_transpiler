@@ -3620,25 +3620,33 @@ impl<'a> Parser<'a> {
 
                                     match interface_method_symbol_opt {
                                         Some(interface_method_symbol) => {
-                                            let mut interface_method_call_expr_node =
-                                                InterfaceMethodCallExprNode::new(
-                                                    method_call_expr_node,
+                                            // if it is the first node in the call chain and matches
+                                            // an interface identifier then add an InterfaceMethodCallT
+                                            // TODO - need to check parameters to confirm it matches
+                                            // the interface signature.
+                                            if is_first_node {
+                                                let mut interface_method_call_expr_node =
+                                                    InterfaceMethodCallExprNode::new(
+                                                        method_call_expr_node,
+                                                    );
+                                                interface_method_call_expr_node.set_interface_symbol(
+                                                    &Rc::clone(&interface_method_symbol),
                                                 );
-                                            interface_method_call_expr_node.set_interface_symbol(
-                                                &Rc::clone(&interface_method_symbol),
-                                            );
-                                            call_chain.push_back(
-                                                CallChainLiteralNodeType::InterfaceMethodCallT {
-                                                    interface_method_call_expr_node,
-                                                },
-                                            );
+                                                call_chain.push_back(
+                                                    CallChainLiteralNodeType::InterfaceMethodCallT {
+                                                        interface_method_call_expr_node,
+                                                    },
+                                                );
+                                            } else {
+                                                // not an interface call so just add a CallT
+                                                let call_t = CallChainLiteralNodeType::CallT {
+                                                    call: method_call_expr_node,
+                                                };
+                                                call_chain.push_back(call_t);
+                                            }
+
                                         }
                                         None => {
-                                            // external call
-                                            // if method_call_expr_node.identifier.scope == IdentifierDeclScope::DomainBlock {
-                                            //     // change to interface block as it is a method call #.iface()
-                                            //     method_call_expr_node.identifier.scope = IdentifierDeclScope::InterfaceBlock;
-                                            // }
                                             let call_t = CallChainLiteralNodeType::CallT {
                                                 call: method_call_expr_node,
                                             };
