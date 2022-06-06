@@ -1173,10 +1173,14 @@ impl AstVisitor for JavaScriptVisitor {
         for x in &domain_vec {
             let domain_var_name = x.0.clone();
             self.add_code(&format!("#{};", domain_var_name));
-
             self.newline();
         }
-        self.newline();
+
+        if self.generate_state_stack {
+            self.add_code("#stateStack");
+            self.newline();
+        }
+
         self.newline();
         self.add_code(&format!("constructor ("));
 
