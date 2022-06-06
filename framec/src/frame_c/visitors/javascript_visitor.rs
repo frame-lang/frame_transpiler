@@ -159,7 +159,7 @@ impl JavaScriptVisitor {
                 code.push_str(&format!("this"));
             }
             IdentifierDeclScope::DomainBlock => {
-                code.push_str(&format!("this.{}", variable_node.id_node.name.lexeme));
+                code.push_str(&format!("this.#{}", variable_node.id_node.name.lexeme));
             }
             IdentifierDeclScope::StateParam => {
                 let var_node = variable_node;
@@ -172,7 +172,7 @@ impl JavaScriptVisitor {
                     code.push('(');
                 }
                 code.push_str(&format!(
-                    "this._compartment.StateArgs[\"{}\"]",
+                    "this.#compartment.StateArgs[\"{}\"]",
                     variable_node.id_node.name.lexeme
                 ));
                 if self.visiting_call_chain_literal_variable {
@@ -190,7 +190,7 @@ impl JavaScriptVisitor {
                     code.push('(');
                 }
                 code.push_str(&format!(
-                    "this._compartment.StateVars[\"{}\"]",
+                    "this.#compartment.StateVars[\"{}\"]",
                     variable_node.id_node.name.lexeme
                 ));
                 if self.visiting_call_chain_literal_variable {
@@ -410,45 +410,45 @@ impl JavaScriptVisitor {
         self.newline();
         if system_node.get_first_state().is_some() {
             self.newline();
-            self.add_code("_transition_(compartment) {");
+            self.add_code("#transition(compartment) {");
             self.indent();
             self.newline();
-            self.add_code("this._nextCompartment = compartment;");
+            self.add_code("this.#nextCompartment = compartment;");
             self.outdent();
             self.newline();
             self.add_code("}");
 
             self.newline();
             self.newline();
-            self.add_code("_do_transition_(nextCompartment) {");
+            self.add_code("#doTransition(nextCompartment) {");
 
             self.indent();
             self.newline();
-            self.add_code("this._mux_(FrameEvent(\"<\", this._compartment.ExitArgs));");
+            self.add_code("this.#mux(FrameEvent(\"<\", this.#compartment.ExitArgs));");
             self.newline();
-            self.add_code("this._compartment = nextCompartment;");
+            self.add_code("this.#compartment = nextCompartment;");
             self.newline();
-            self.add_code("this._mux_(FrameEvent(\">\", this._compartment.EnterArgs));");
+            self.add_code("this.#mux(FrameEvent(\">\", this.#compartment.EnterArgs));");
             self.outdent();
             self.newline();
             self.add_code("}");
-            // _stateStack
+            // #stateStack
             if self.generate_state_stack {
                 self.newline();
                 self.newline();
-                self.add_code("_stateStack_push_(compartment) {");
+                self.add_code("#stateStack_push(compartment) {");
                 self.indent();
                 self.newline();
-                self.add_code(&"this._stateStack.push(compartment);".to_string());
+                self.add_code(&"this.#stateStack.push(compartment);".to_string());
                 self.outdent();
                 self.newline();
                 self.add_code(&"}".to_string());
                 self.newline();
                 self.newline();
-                self.add_code("_stateStack_pop_(){");
+                self.add_code("#stateStack_pop(){");
                 self.indent();
                 self.newline();
-                self.add_code(&"return this._stateStack.pop();".to_string());
+                self.add_code(&"return this.#stateStack.pop();".to_string());
                 self.outdent();
                 self.newline();
                 self.add_code(&"}".to_string());
@@ -457,10 +457,10 @@ impl JavaScriptVisitor {
             if self.generate_change_state {
                 self.newline();
                 self.newline();
-                self.add_code("_changeState_(compartment) {");
+                self.add_code("#changeState(compartment) {");
                 self.indent();
                 self.newline();
-                self.add_code(&"this._compartment = compartment;".to_string());
+                self.add_code(&"this.#compartment = compartment;".to_string());
                 self.outdent();
                 self.newline();
                 self.add_code(&"}".to_string());
@@ -527,7 +527,7 @@ impl JavaScriptVisitor {
 
         self.newline();
         self.add_code(&format!(
-            "this._changeState_(this.{});",
+            "this.#changeState(this.{});",
             self.format_target_state_name(target_state_name)
         ));
     }
@@ -595,7 +595,7 @@ impl JavaScriptVisitor {
                                         let mut expr = String::new();
                                         expr_t.accept_to_string(self, &mut expr);
                                         self.add_code(&format!(
-                                            "this._compartment.ExitArgs[\"{}\"] = {};",
+                                            "this.#compartment.ExitArgs[\"{}\"] = {};",
                                             p.name, expr
                                         ));
                                         self.newline();
@@ -768,37 +768,37 @@ impl JavaScriptVisitor {
         // if self.generate_state_context {
         //     if self.generate_exit_args {
         //         self.add_code(&format!(
-        //             "this._transition_(this.{},{},stateContext);",
+        //             "this.#transition(this.{},{},stateContext);",
         //             self.format_target_state_name(target_state_name),
         //             exit_args
         //         ));
         //     } else {
         //         self.add_code(&format!(
-        //             "this._transition_(this.{},stateContext);",
+        //             "this.#transition(this.{},stateContext);",
         //             self.format_target_state_name(target_state_name)
         //         ));
         //     }
         // } else if self.generate_exit_args {
         //     self.add_code(&format!(
-        //         "this._transition_(this.{},{});",
+        //         "this.#transition(this.{},{});",
         //         self.format_target_state_name(target_state_name),
         //         exit_args
         //     ));
         // } else {
         //     self.add_code(&format!(
-        //         "this._transition_(this.{});",
+        //         "this.#transition(this.{});",
         //         self.format_target_state_name(target_state_name)
         //     ));
         // }
 
         self.newline();
-        self.add_code("this._transition_(compartment);");
+        self.add_code("this.#transition(compartment);");
     }
 
     //* --------------------------------------------------------------------- *//
 
     fn format_target_state_name(&self, state_name: &str) -> String {
-        format!("_s{}_", state_name)
+        format!("#s{}_", state_name)
     }
 
     //* --------------------------------------------------------------------- *//
@@ -855,7 +855,7 @@ impl JavaScriptVisitor {
                                         let mut expr = String::new();
                                         expr_t.accept_to_string(self, &mut expr);
                                         self.add_code(&format!(
-                                            "this._compartment.ExitArgs[\"{}\"] = {};",
+                                            "this.#compartment.ExitArgs[\"{}\"] = {};",
                                             p.name, expr
                                         ));
                                         self.newline();
@@ -875,9 +875,9 @@ impl JavaScriptVisitor {
             }
         }
 
-        self.add_code("let compartment = this._stateStack_pop_()");
+        self.add_code("let compartment = this.#stateStack_pop()");
         self.newline();
-        self.add_code("this._transition_(compartment)");
+        self.add_code("this.#transition(compartment)");
         // if self.generate_state_context {
         //     self.add_code(&"let stateContext = this._stateStack_pop();".to_string());
         // } else {
@@ -887,15 +887,15 @@ impl JavaScriptVisitor {
         // if self.generate_exit_args {
         //     if self.generate_state_context {
         //         self.add_code(
-        //             &"_transition_(stateContext.state,exitArgs,stateContext);".to_string(),
+        //             &"#transition(stateContext.state,exitArgs,stateContext);".to_string(),
         //         );
         //     } else {
-        //         self.add_code(&"_transition_(state,exitArgs);".to_string());
+        //         self.add_code(&"#transition(state,exitArgs);".to_string());
         //     }
         // } else if self.generate_state_context {
-        //     self.add_code(&"_transition_(stateContext.state,stateContext);".to_string());
+        //     self.add_code(&"#transition(stateContext.state,stateContext);".to_string());
         // } else {
-        //     self.add_code(&"_transition_(state);".to_string());
+        //     self.add_code(&"#transition(state);".to_string());
         // }
     }
 
@@ -949,7 +949,7 @@ impl JavaScriptVisitor {
                 self.add_code("// Create state stack.");
                 self.newline();
                 self.newline();
-                self.add_code("this._stateStack = [];");
+                self.add_code("this.#stateStack = [];");
                 self.newline();
                 self.newline();
             }
@@ -957,7 +957,7 @@ impl JavaScriptVisitor {
             self.add_code("// Create and intialize start state compartment.");
             self.newline();
             self.newline();
-            self.add_code(&format!("this._state = this._s{}_;", self.first_state_name));
+            self.add_code(&format!("this.#state = this.#s{}_;", self.first_state_name));
         }
 
         if self.managed {
@@ -967,11 +967,11 @@ impl JavaScriptVisitor {
 
         self.newline();
         self.add_code(&format!(
-            "this._compartment = new {}Compartment(this._state);",
+            "this.#compartment = new {}Compartment(this.#state);",
             system_node.name
         ));
         self.newline();
-        self.add_code("this._nextCompartment = null;");
+        self.add_code("this.#nextCompartment = null;");
 
         // Initialize state arguments.
         match &system_node.start_state_state_params_opt {
@@ -979,7 +979,7 @@ impl JavaScriptVisitor {
                 for param in params {
                     self.newline();
                     self.add_code(&format!(
-                        "this._compartment.StateArgs[\"{}\"] = {};",
+                        "this.#compartment.StateArgs[\"{}\"] = {};",
                         param.param_name, param.param_name,
                     ));
                 }
@@ -1000,7 +1000,7 @@ impl JavaScriptVisitor {
 
                             self.newline();
                             self.add_code(&format!(
-                                "this._compartment.StateVars[\"{}\"] = {};",
+                                "this.#compartment.StateVars[\"{}\"] = {};",
                                 var_decl_node.name, expr_code,
                             ));
                         }
@@ -1015,7 +1015,7 @@ impl JavaScriptVisitor {
             for param in enter_params {
                 self.newline();
                 self.add_code(&format!(
-                    "this._compartment.EnterArgs[\"{}\"] = {};",
+                    "this.#compartment.EnterArgs[\"{}\"] = {};",
                     param.param_name, param.param_name,
                 ));
             }
@@ -1040,12 +1040,12 @@ impl JavaScriptVisitor {
                         }
                     }
                     self.add_code(&format!(
-                        "this.{} = {};",
+                        "this.#{} = {};",
                         domain_var_name, domain_var_initializer
                     ))
                 }
                 None => self.add_code(&format!(
-                    "this.{} = {};",
+                    "this.#{} = {};",
                     domain_var_name, domain_var_initializer
                 )),
             }
@@ -1057,14 +1057,14 @@ impl JavaScriptVisitor {
 
         if let Some(_enter_params) = &system_node.start_state_enter_params_opt {
             self.newline();
-            self.add_code("this._frameEvent = FrameEvent(\">\", this._compartment.EnterArgs);");
+            self.add_code("const frameEvent = FrameEvent(\">\", this.#compartment.EnterArgs);");
         } else {
             self.newline();
-            self.add_code("this._frameEvent = FrameEvent(\">\", null);");
+            self.add_code("const frameEvent = FrameEvent(\">\", null);");
         }
 
         self.newline();
-        self.add_code("this._mux_(this._frameEvent);");
+        self.add_code("this.#mux(frameEvent);");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1091,7 +1091,7 @@ impl JavaScriptVisitor {
         // self.newline();
         // self.add_code("// Initialize machine");
         // self.newline();
-        // // self.add_code("data._compartment = ._compartment");
+        // // self.add_code("data.#compartment = .#compartment");
         // self.newline();
         // // for x in domain_vec {
         // //     self.newline();
@@ -1134,6 +1134,21 @@ impl AstVisitor for JavaScriptVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_system_node(&mut self, system_node: &SystemNode) {
+        // domain variable vector
+        let mut domain_vec: Vec<(String, String)> = Vec::new();
+        if let Some(domain_block_node) = &system_node.domain_block_node_opt {
+            // get init expression and cache code
+            for var_rcref in &domain_block_node.member_variables {
+                let var_name = var_rcref.borrow().name.clone();
+                let var = var_rcref.borrow();
+                let var_init_expr = var.initializer_expr_t_opt.as_ref().unwrap();
+                let mut init_expression = String::new();
+                var_init_expr.accept_to_string(self, &mut init_expression);
+                // push for later initialization
+                domain_vec.push((var_name.clone(), init_expression));
+            }
+        }
+
         self.system_name = system_node.name.clone();
         self.add_code(&format!("// {}", self.compiler_version));
         self.newline();
@@ -1144,6 +1159,23 @@ impl AstVisitor for JavaScriptVisitor {
         self.newline();
         self.add_code(&format!("class {} {{", system_node.name));
         self.indent();
+        self.newline();
+        self.newline();
+        self.add_code("// creating private properties");
+        self.newline();
+        self.newline();
+        self.add_code("#state");
+        self.newline();
+        self.add_code("#compartment");
+        self.newline();
+        self.add_code("#nextCompartment");
+        self.newline();
+        for x in &domain_vec {
+            let domain_var_name = x.0.clone();
+            self.add_code(&format!("#{};", domain_var_name));
+
+            self.newline();
+        }
         self.newline();
         self.newline();
         self.add_code(&format!("constructor ("));
@@ -1201,20 +1233,6 @@ impl AstVisitor for JavaScriptVisitor {
             None => {}
         }
 
-        let mut domain_vec: Vec<(String, String)> = Vec::new();
-        if let Some(domain_block_node) = &system_node.domain_block_node_opt {
-            // get init expression and cache code
-            for var_rcref in &domain_block_node.member_variables {
-                let var_name = var_rcref.borrow().name.clone();
-                let var = var_rcref.borrow();
-                let var_init_expr = var.initializer_expr_t_opt.as_ref().unwrap();
-                let mut init_expression = String::new();
-                var_init_expr.accept_to_string(self, &mut init_expression);
-                // push for later initialization
-                domain_vec.push((var_name.clone(), init_expression));
-            }
-        }
-
         self.generate_new_fn(&domain_vec, system_node);
         self.outdent();
         self.newline();
@@ -1240,10 +1258,25 @@ impl AstVisitor for JavaScriptVisitor {
             "class {}Controller extends {} {{\n",
             system_node.name, system_node.name
         ));
-        self.subclass_code
-            .push(format!("\tconstructor({}) {{", new_params));
-        self.subclass_code
-            .push(format!("\t  super({})", new_params));
+
+        if self.managed {
+            if new_params.is_empty() {
+                self.subclass_code
+                    .push(format!("\tconstructor(manager) {{"));
+                self.subclass_code.push(format!("\t  super(manager)"));
+            } else {
+                self.subclass_code
+                    .push(format!("\tconstructor(manager,{}) {{", new_params));
+                self.subclass_code
+                    .push(format!("\t  super(manager{})", new_params));
+            }
+        } else {
+            self.subclass_code
+                .push(format!("\tconstructor({}) {{", new_params));
+            self.subclass_code
+                .push(format!("\t  super({})", new_params));
+        }
+
         self.subclass_code.push("\t}".to_string());
         if let Some(interface_block_node) = &system_node.interface_block_node_opt {
             interface_block_node.accept(self);
@@ -1252,29 +1285,26 @@ impl AstVisitor for JavaScriptVisitor {
         if self.marshal {
             // generate Load() factory
             self.format_load_fn(system_node);
-
-            // generate MarshalJSON() factory
-            // self.generate_marshal_json_fn(&domain_vec);
             self.generate_json_fn();
         }
 
-        // generate _mux_
+        // generate #mux
 
         self.newline();
         self.add_code("//====================== Multiplexer ====================//");
         self.newline();
         self.newline();
 
-        self.add_code("_mux_(e) {");
+        self.add_code("#mux(e) {");
         self.indent();
 
         if let Some(machine_block_node) = &system_node.machine_block_node_opt {
             self.newline();
             //
-            self.add_code("switch (this._compartment.state) {");
+            self.add_code("switch (this.#compartment.state) {");
             self.indent();
             for state_node_rcref in &machine_block_node.states {
-                let state_name = &format!("this._s{}_", &state_node_rcref.borrow().name);
+                let state_name = &format!("this.#s{}_", &state_node_rcref.borrow().name);
                 self.newline();
                 self.add_code(&format!("case {}:", state_name));
                 self.indent();
@@ -1289,34 +1319,34 @@ impl AstVisitor for JavaScriptVisitor {
             self.add_code("}");
             self.newline();
             self.newline();
-            self.add_code("if( this._nextCompartment != null) {");
+            self.add_code("if( this.#nextCompartment != null) {");
             self.indent();
             self.newline();
-            self.add_code("let nextCompartment = this._nextCompartment");
+            self.add_code("let nextCompartment = this.#nextCompartment");
             self.newline();
-            self.add_code("this._nextCompartment = null");
+            self.add_code("this.#nextCompartment = null");
             self.newline();
             self.add_code("if (nextCompartment._forwardEvent != null && ");
             self.newline();
             self.add_code("   nextCompartment._forwardEvent._message == \">\") {");
             self.indent();
             self.newline();
-            self.add_code("this._mux_(FrameEvent( \"<\", this._compartment.ExitArgs))");
+            self.add_code("this.#mux(FrameEvent( \"<\", this.#compartment.ExitArgs))");
             self.newline();
-            self.add_code("this._compartment = nextCompartment");
+            self.add_code("this.#compartment = nextCompartment");
             self.newline();
-            self.add_code("this._mux_(nextCompartment._forwardEvent)");
+            self.add_code("this.#mux(nextCompartment._forwardEvent)");
             self.outdent();
             self.newline();
             self.add_code("} else {");
             self.indent();
             self.newline();
-            self.add_code("this._do_transition_(nextCompartment)");
+            self.add_code("this.#doTransition(nextCompartment)");
             self.newline();
             self.add_code("if (nextCompartment._forwardEvent != null) {");
             self.indent();
             self.newline();
-            self.add_code("this._mux_(nextCompartment._forwardEvent)");
+            self.add_code("this.#mux(nextCompartment._forwardEvent)");
             self.outdent();
             self.newline();
             self.add_code("}");
@@ -1489,7 +1519,7 @@ impl AstVisitor for JavaScriptVisitor {
             ));
         }
         self.newline();
-        self.add_code(&"this._mux_(e);".to_string());
+        self.add_code(&"this.#mux(e);".to_string());
 
         match &interface_method_node.return_type_opt {
             Some(_return_type) => {
@@ -1595,7 +1625,7 @@ impl AstVisitor for JavaScriptVisitor {
         self.current_state_name_opt = Some(state_node.name.clone());
         self.newline();
         self.newline();
-        self.add_code(&format!("_s{}_(e) {{", state_node.name));
+        self.add_code(&format!("#s{}_(e) {{", state_node.name));
         self.indent();
 
         // TODO: DEAD CODE
@@ -1889,7 +1919,7 @@ impl AstVisitor for JavaScriptVisitor {
     fn visit_dispatch_node(&mut self, dispatch_node: &DispatchNode) {
         self.newline();
         self.add_code(&format!(
-            "this._s{}_(e);",
+            "this.#s{}_(e);",
             dispatch_node.target_state_ref.name
         ));
         self.generate_comment(dispatch_node.line);
@@ -2545,17 +2575,17 @@ impl AstVisitor for JavaScriptVisitor {
             StateStackOperationType::Push => {
                 self.newline();
                 // if self.generate_state_context {
-                self.add_code(&"this._stateStack_push_(this._compartment);".to_string());
+                self.add_code(&"this.#stateStack_push(this.#compartment);".to_string());
                 // } else {
-                //     self.add_code(&"this._stateStack_push_(this._state);".to_string());
+                //     self.add_code(&"this.#stateStack_push(this._state);".to_string());
                 // }
             }
             StateStackOperationType::Pop => {
                 // FIXME: not tested
                 // if self.generate_state_context {
-                self.add_code(&"let compartment = this._stateStack_pop_()".to_string());
+                self.add_code(&"let compartment = this.#stateStack_pop()".to_string());
                 // } else {
-                //     self.add_code(&"FrameState state = this._stateStack_pop_()".to_string());
+                //     self.add_code(&"FrameState state = this.#stateStack_pop()".to_string());
                 // }
             }
         }
