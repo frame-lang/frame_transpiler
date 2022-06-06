@@ -3629,9 +3629,10 @@ impl<'a> Parser<'a> {
                                                     InterfaceMethodCallExprNode::new(
                                                         method_call_expr_node,
                                                     );
-                                                interface_method_call_expr_node.set_interface_symbol(
-                                                    &Rc::clone(&interface_method_symbol),
-                                                );
+                                                interface_method_call_expr_node
+                                                    .set_interface_symbol(&Rc::clone(
+                                                        &interface_method_symbol,
+                                                    ));
                                                 call_chain.push_back(
                                                     CallChainLiteralNodeType::InterfaceMethodCallT {
                                                         interface_method_call_expr_node,
@@ -3644,7 +3645,6 @@ impl<'a> Parser<'a> {
                                                 };
                                                 call_chain.push_back(call_t);
                                             }
-
                                         }
                                         None => {
                                             let call_t = CallChainLiteralNodeType::CallT {
