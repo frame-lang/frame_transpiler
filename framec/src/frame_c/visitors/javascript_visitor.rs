@@ -941,8 +941,6 @@ impl JavaScriptVisitor {
     fn generate_new_fn(&mut self, domain_vec: &Vec<(String, String)>, system_node: &SystemNode) {
         self.indent();
         if system_node.get_first_state().is_some() {
-            
-
             self.newline();
             self.newline();
 
