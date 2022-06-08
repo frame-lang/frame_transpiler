@@ -939,8 +939,9 @@ impl JavaScriptVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn generate_new_fn(&mut self, domain_vec: &Vec<(String, String)>, system_node: &SystemNode) {
+        self.indent();
         if system_node.get_first_state().is_some() {
-            self.indent();
+            
 
             self.newline();
             self.newline();
@@ -1402,10 +1403,10 @@ impl AstVisitor for JavaScriptVisitor {
         if self.generate_comment(system_node.line) {
             self.newline();
         }
-        self.outdent();
         if self.generate_comment(system_node.line) {
             self.newline();
         }
+        self.outdent();
         self.newline();
         self.add_code("};");
         self.newline();
@@ -2522,6 +2523,9 @@ impl AstVisitor for JavaScriptVisitor {
             }
             TokenType::Null => {
                 output.push_str("null");
+            }
+            TokenType::SuperString => {
+                output.push_str(&literal_expression_node.value.to_string());
             }
             _ => panic!("TODO"),
         }
