@@ -159,7 +159,7 @@ impl JavaScriptVisitor {
                 code.push_str(&format!("this"));
             }
             IdentifierDeclScope::DomainBlock => {
-                code.push_str(&format!("this.#{}", variable_node.id_node.name.lexeme));
+                code.push_str(&format!("this.{}", variable_node.id_node.name.lexeme));
             }
             IdentifierDeclScope::StateParam => {
                 let var_node = variable_node;
@@ -1039,12 +1039,12 @@ impl JavaScriptVisitor {
                         }
                     }
                     self.add_code(&format!(
-                        "this.#{} = {};",
+                        "this.{} = {};",
                         domain_var_name, domain_var_initializer
                     ))
                 }
                 None => self.add_code(&format!(
-                    "this.#{} = {};",
+                    "this.{} = {};",
                     domain_var_name, domain_var_initializer
                 )),
             }
@@ -1169,11 +1169,11 @@ impl AstVisitor for JavaScriptVisitor {
         self.newline();
         self.add_code("#nextCompartment");
         self.newline();
-        for x in &domain_vec {
-            let domain_var_name = x.0.clone();
-            self.add_code(&format!("#{};", domain_var_name));
+        // for x in &domain_vec {
+        //     let domain_var_name = x.0.clone();
+        //     self.add_code(&format!("{};", domain_var_name));
             self.newline();
-        }
+        // }
 
         if self.generate_state_stack {
             self.add_code("#stateStack");
