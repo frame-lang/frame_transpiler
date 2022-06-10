@@ -628,6 +628,23 @@ impl GolangVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    /// Generate a return statement within a handler. Call this rather than adding a return
+    /// statement directly to ensure that the control-flow state is properly maintained.
+    fn generate_return(&mut self) {
+        self.newline();
+        self.add_code("return");
+        self.config.code.this_branch_transitioned = false;
+    }
+
+    /// Generate a return statement if the current branch contained a transition or change-state.
+    fn generate_return_if_transitioned(&mut self) {
+        if self.config.code.this_branch_transitioned {
+            self.generate_return();
+        }
+    }
+
+    //* --------------------------------------------------------------------- *//
+
     fn generate_comment(&mut self, line: usize) {
         // can't use self.newline() or self.add_code() due to double borrow.
         let mut generated_comment = false;
@@ -2122,14 +2139,13 @@ impl AstVisitor for GolangVisitor {
                 Some(expr_t) => {
                     self.add_code(&"e.Ret = ".to_string());
                     expr_t.accept(self);
-                    self.newline();
-                    self.add_code("return");
+                    self.generate_return();
                     self.newline();
                 }
-                None => self.add_code("return"),
+                None => self.generate_return(),
             },
             TerminatorType::Continue => {
-                // self.add_code("break;")
+                self.generate_return_if_transitioned();
             }
         }
     }
@@ -2251,6 +2267,8 @@ impl AstVisitor for GolangVisitor {
                 self.generate_state_stack_pop_transition(transition_statement)
             }
         };
+
+        self.config.code.this_branch_transitioned = true;
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2273,6 +2291,8 @@ impl AstVisitor for GolangVisitor {
                 .errors
                 .push("Fatal error - change state stack pop not implemented.".to_string()),
         };
+
+        self.config.code.this_branch_transitioned = true;
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2336,7 +2356,7 @@ impl AstVisitor for GolangVisitor {
             self.indent();
 
             branch_node.accept(self);
-
+            self.generate_return_if_transitioned();
             self.outdent();
             self.newline();
             self.add_code(&"}".to_string());
@@ -2352,11 +2372,42 @@ impl AstVisitor for GolangVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    // NOTE: Interface method calls must be treated specially since they may transition.
+    //
+    // The current approach is conservative, essentially assuming that an interface method call
+    // always transitions. This assumption imposes the following restrictions:
+    //
+    //  * Interface method calls cannot occur in a chain (they must be a standalone call).
+    //  * Interface method calls terminate the execution of their handler (like transitions).
+    //
+    // It would be possible to lift these restrictions and track the execution of a handler more
+    // precisely, but this would require embedding some logic in the generated code and would make
+    // handlers harder to reason about. The conservative approach has the advantage of both
+    // simplifying the implementation and reasoning about Frame programs.
+
     fn visit_call_chain_literal_statement_node(
         &mut self,
         method_call_chain_literal_stmt_node: &CallChainLiteralStmtNode,
     ) {
         self.newline();
+
+        // special case for interface method calls
+        let call_chain = &method_call_chain_literal_stmt_node
+            .call_chain_literal_expr_node
+            .call_chain;
+        if call_chain.len() == 1 {
+            if let CallChainLiteralNodeType::InterfaceMethodCallT {
+                interface_method_call_expr_node,
+            } = &call_chain[0]
+            {
+                self.config.code.this_branch_transitioned = true;
+                interface_method_call_expr_node.accept(self);
+                self.generate_return();
+                return;
+            }
+        }
+
+        // standard case
         method_call_chain_literal_stmt_node
             .call_chain_literal_expr_node
             .accept(self);
@@ -2454,17 +2505,18 @@ impl AstVisitor for GolangVisitor {
                         Some(expr_t) => {
                             self.add_code(&"e.Ret = ".to_string());
                             expr_t.accept(self);
-                            self.newline();
-                            self.add_code("return");
+                            self.generate_return();
                         }
-                        None => self.add_code("return"),
+                        None => self.generate_return(),
                     },
                     TerminatorType::Continue => {
-                        self.add_code("break");
+                        self.generate_return_if_transitioned();
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
     }
 
@@ -2488,17 +2540,18 @@ impl AstVisitor for GolangVisitor {
                         Some(expr_t) => {
                             self.add_code(&"e.Ret = ".to_string());
                             expr_t.accept(self);
-                            self.newline();
-                            self.add_code("return");
+                            self.generate_return();
                         }
-                        None => self.add_code("return"),
+                        None => self.generate_return(),
                     },
                     TerminatorType::Continue => {
-                        self.add_code("break");
+                        self.generate_return_if_transitioned();
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
 
         self.outdent();
@@ -2575,6 +2628,7 @@ impl AstVisitor for GolangVisitor {
             self.indent();
 
             match_branch_node.accept(self);
+            self.generate_return_if_transitioned();
 
             self.outdent();
             self.newline();
@@ -2606,17 +2660,18 @@ impl AstVisitor for GolangVisitor {
                             self.add_code(&"e.Ret = ".to_string());
                             expr_t.accept(self);
                             //                            self.add_code(";");
-                            self.newline();
-                            self.add_code("return");
+                            self.generate_return();
                         }
-                        None => self.add_code("return"),
+                        None => self.generate_return(),
                     },
                     TerminatorType::Continue => {
-                        self.add_code("break");
+                        self.generate_return_if_transitioned();
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
     }
 
@@ -2641,17 +2696,18 @@ impl AstVisitor for GolangVisitor {
                             self.add_code(&"e.Ret = ".to_string());
                             expr_t.accept(self);
                             //                           self.add_code(";");
-                            self.newline();
-                            self.add_code("return");
+                            self.generate_return();
                         }
-                        None => self.add_code("return"),
+                        None => self.generate_return(),
                     },
                     TerminatorType::Continue => {
-                        self.add_code("break");
+                        self.generate_return_if_transitioned();
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
 
         self.outdent();
@@ -2729,6 +2785,7 @@ impl AstVisitor for GolangVisitor {
             self.indent();
 
             match_branch_node.accept(self);
+            self.generate_return_if_transitioned();
 
             self.outdent();
             self.newline();
@@ -2761,17 +2818,18 @@ impl AstVisitor for GolangVisitor {
                             self.add_code(&"e.Ret = ".to_string());
                             expr_t.accept(self);
                             //                            self.add_code(";");
-                            self.newline();
-                            self.add_code("return");
+                            self.generate_return();
                         }
-                        None => self.add_code("return"),
+                        None => self.generate_return(),
                     },
                     TerminatorType::Continue => {
-                        self.add_code("break");
+                        self.generate_return_if_transitioned();
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
     }
 
@@ -2796,17 +2854,18 @@ impl AstVisitor for GolangVisitor {
                             self.add_code(&"e.Ret = ".to_string());
                             expr_t.accept(self);
                             //                            self.add_code(";");
-                            self.newline();
-                            self.add_code("return");
+                            self.generate_return();
                         }
-                        None => self.add_code("return"),
+                        None => self.generate_return(),
                     },
                     TerminatorType::Continue => {
-                        self.add_code("break");
+                        self.generate_return_if_transitioned();
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
 
         self.outdent();
@@ -2896,6 +2955,9 @@ impl AstVisitor for GolangVisitor {
             }
             TokenType::Null => {
                 output.push_str("nil");
+            }
+            TokenType::SuperString => {
+                output.push_str(&literal_expression_node.value.to_string());
             }
             _ => self
                 .errors

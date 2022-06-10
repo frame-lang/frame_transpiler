@@ -146,6 +146,8 @@ pub struct GolangCode {
     pub system_struct_type: String,
     pub manager: String,
     pub compartment_type: String,
+
+    pub this_branch_transitioned: bool,
 }
 
 impl Default for GolangCode {
@@ -223,6 +225,8 @@ impl Default for GolangCode {
             system_struct_type: String::new(),
             manager: String::new(),
             compartment_type: String::new(),
+
+            this_branch_transitioned: false,
         }
     }
 }

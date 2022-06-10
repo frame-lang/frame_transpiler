@@ -37,9 +37,12 @@ pub struct JavaScriptVisitor {
     // generate_transition_state: bool,
 
     /* Persistence */
-    pub managed: bool, // Generate Managed code
-    pub marshal: bool, // Generate JSON code
-    pub manager: String,
+    managed: bool, // Generate Managed code
+    marshal: bool, // Generate JSON code
+    manager: String,
+
+    // keeping track of traversal context
+    this_branch_transitioned: bool,
 }
 
 impl JavaScriptVisitor {
@@ -91,6 +94,8 @@ impl JavaScriptVisitor {
             managed: false, // Generate Managed code
             marshal: false, // Generate Json code
             manager: String::new(),
+
+            this_branch_transitioned: false,
         }
     }
 
@@ -475,6 +480,22 @@ impl JavaScriptVisitor {
         for line in self.subclass_code.iter() {
             self.code.push_str(&*line.to_string());
             self.code.push_str(&*format!("\n{}", self.dent()));
+        }
+    }
+    //* --------------------------------------------------------------------- *//
+
+    /// Generate a return statement within a handler. Call this rather than adding a return
+    /// statement directly to ensure that the control-flow state is properly maintained.
+    fn generate_return(&mut self) {
+        self.newline();
+        self.add_code("return;");
+        self.this_branch_transitioned = false;
+    }
+
+    /// Generate a return statement if the current branch contained a transition or change-state.
+    fn generate_return_if_transitioned(&mut self) {
+        if self.this_branch_transitioned {
+            self.generate_return();
         }
     }
 
@@ -1172,7 +1193,7 @@ impl AstVisitor for JavaScriptVisitor {
         // for x in &domain_vec {
         //     let domain_var_name = x.0.clone();
         //     self.add_code(&format!("{};", domain_var_name));
-            self.newline();
+        self.newline();
         // }
 
         if self.generate_state_stack {
@@ -1745,18 +1766,18 @@ impl AstVisitor for JavaScriptVisitor {
     ) {
         self.newline();
         match &evt_handler_terminator_node.terminator_type {
-            TerminatorType::Return => match &evt_handler_terminator_node.return_expr_t_opt {
-                Some(expr_t) => {
-                    self.add_code(&"e._return = ".to_string());
-                    expr_t.accept(self);
-                    self.newline();
-                    self.add_code("return;");
-                    self.newline();
-                }
-                None => self.add_code("return;"),
-            },
+            TerminatorType::Return => {
+                match &evt_handler_terminator_node.return_expr_t_opt {
+                    Some(expr_t) => {
+                        self.add_code(&"e._return = ".to_string());
+                        expr_t.accept(self);
+                        self.generate_return();
+                    }
+                    None => self.generate_return(),
+                };
+            }
             TerminatorType::Continue => {
-                // self.add_code("break;")
+                self.generate_return_if_transitioned();
             }
         }
     }
@@ -1888,6 +1909,7 @@ impl AstVisitor for JavaScriptVisitor {
                 self.generate_state_stack_pop_transition(transition_statement)
             }
         };
+        self.this_branch_transitioned = true;
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1908,6 +1930,7 @@ impl AstVisitor for JavaScriptVisitor {
             }
             StateContextType::StateStackPop {} => panic!("TODO - not implemented"),
         };
+        self.this_branch_transitioned = true;
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1971,6 +1994,7 @@ impl AstVisitor for JavaScriptVisitor {
             self.indent();
 
             branch_node.accept(self);
+            self.generate_return_if_transitioned();
 
             self.outdent();
             self.newline();
@@ -1987,11 +2011,42 @@ impl AstVisitor for JavaScriptVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    // NOTE: Interface method calls must be treated specially since they may transition.
+    //
+    // The current approach is conservative, essentially assuming that an interface method call
+    // always transitions. This assumption imposes the following restrictions:
+    //
+    //  * Interface method calls cannot occur in a chain (they must be a standalone call).
+    //  * Interface method calls terminate the execution of their handler (like transitions).
+    //
+    // It would be possible to lift these restrictions and track the execution of a handler more
+    // precisely, but this would require embedding some logic in the generated code and would make
+    // handlers harder to reason about. The conservative approach has the advantage of both
+    // simplifying the implementation and reasoning about Frame programs.
     fn visit_call_chain_literal_statement_node(
         &mut self,
         method_call_chain_literal_stmt_node: &CallChainLiteralStmtNode,
     ) {
         self.newline();
+
+        // special case for interface method calls
+        let call_chain = &method_call_chain_literal_stmt_node
+            .call_chain_literal_expr_node
+            .call_chain;
+        if call_chain.len() == 1 {
+            if let CallChainLiteralNodeType::InterfaceMethodCallT {
+                interface_method_call_expr_node,
+            } = &call_chain[0]
+            {
+                self.this_branch_transitioned = true;
+                interface_method_call_expr_node.accept(self);
+                self.add_code(";");
+                self.generate_return();
+                return;
+            }
+        }
+
+        // standard case
         method_call_chain_literal_stmt_node
             .call_chain_literal_expr_node
             .accept(self);
@@ -2095,17 +2150,18 @@ impl AstVisitor for JavaScriptVisitor {
                             self.add_code(&"e._return = ".to_string());
                             expr_t.accept(self);
                             self.add_code(";");
-                            self.newline();
-                            self.add_code("return;");
+                            self.generate_return()
                         }
-                        None => self.add_code("return;"),
+                        None => self.generate_return(),
                     },
                     TerminatorType::Continue => {
-                        self.add_code("break;");
+                        self.generate_return_if_transitioned();
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
     }
 
@@ -2130,17 +2186,18 @@ impl AstVisitor for JavaScriptVisitor {
                             self.add_code(&"e._return = ".to_string());
                             expr_t.accept(self);
                             self.add_code(";");
-                            self.newline();
-                            self.add_code("return;");
+                            self.generate_return();
                         }
-                        None => self.add_code("return;"),
+                        None => self.generate_return(),
                     },
                     TerminatorType::Continue => {
-                        self.add_code("break;");
+                        self.generate_return_if_transitioned();
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
 
         self.outdent();
@@ -2208,6 +2265,7 @@ impl AstVisitor for JavaScriptVisitor {
             self.indent();
 
             match_branch_node.accept(self);
+            self.generate_return_if_transitioned();
 
             self.outdent();
             self.newline();
@@ -2241,17 +2299,18 @@ impl AstVisitor for JavaScriptVisitor {
                             self.add_code(&"e._return = ".to_string());
                             expr_t.accept(self);
                             self.add_code(";");
-                            self.newline();
-                            self.add_code("return;");
+                            self.generate_return();
                         }
-                        None => self.add_code("return;"),
+                        None => self.generate_return(),
                     },
                     TerminatorType::Continue => {
-                        self.add_code("break;");
+                        self.generate_return_if_transitioned();
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
     }
 
@@ -2276,17 +2335,18 @@ impl AstVisitor for JavaScriptVisitor {
                             self.add_code(&"e._return = ".to_string());
                             expr_t.accept(self);
                             self.add_code(";");
-                            self.newline();
-                            self.add_code("return;");
+                            self.generate_return();
                         }
-                        None => self.add_code("return;"),
+                        None => self.generate_return(),
                     },
                     TerminatorType::Continue => {
-                        self.add_code("break;");
+                        self.generate_return_if_transitioned();
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
 
         self.outdent();
@@ -2354,6 +2414,7 @@ impl AstVisitor for JavaScriptVisitor {
             self.indent();
 
             match_branch_node.accept(self);
+            self.generate_return_if_transitioned();
 
             self.outdent();
             self.newline();
@@ -2388,17 +2449,18 @@ impl AstVisitor for JavaScriptVisitor {
                             self.add_code(&"e._return = ".to_string());
                             expr_t.accept(self);
                             self.add_code(";");
-                            self.newline();
-                            self.add_code("return;");
+                            self.generate_return();
                         }
-                        None => self.add_code("return;"),
+                        None => self.generate_return(),
                     },
                     TerminatorType::Continue => {
-                        self.add_code("break;");
+                        self.generate_return_if_transitioned();
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
     }
 
@@ -2423,17 +2485,18 @@ impl AstVisitor for JavaScriptVisitor {
                             self.add_code(&"e._return = ".to_string());
                             expr_t.accept(self);
                             self.add_code(";");
-                            self.newline();
-                            self.add_code("return;");
+                            self.generate_return();
                         }
-                        None => self.add_code("return;"),
+                        None => self.generate_return(),
                     },
                     TerminatorType::Continue => {
-                        self.add_code("break;");
+                        self.generate_return_if_transitioned();
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
 
         self.outdent();
