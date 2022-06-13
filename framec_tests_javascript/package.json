@@ -1,0 +1,21 @@
+{
+  "dependencies": {
+    "sinon": "^14.0.0"
+  },
+  "name": "testingjs",
+  "version": "1.0.0",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "mocha"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "mocha": "^10.0.0"
+  }
+}
