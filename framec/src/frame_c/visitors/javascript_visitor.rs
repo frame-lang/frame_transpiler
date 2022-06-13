@@ -499,6 +499,15 @@ impl JavaScriptVisitor {
         }
     }
 
+    // Generate a break statement if the current branch doesnot contain a transition or change-state.
+
+    fn generate_break_if_not_transitioned(&mut self) {
+        if !self.this_branch_transitioned {
+            self.newline();
+            self.add_code("break;");
+        }
+    }
+
     //* --------------------------------------------------------------------- *//
 
     fn generate_comment(&mut self, line: usize) -> bool {
@@ -1778,6 +1787,7 @@ impl AstVisitor for JavaScriptVisitor {
             }
             TerminatorType::Continue => {
                 self.generate_return_if_transitioned();
+                self.generate_break_if_not_transitioned();
             }
         }
     }
@@ -2156,6 +2166,7 @@ impl AstVisitor for JavaScriptVisitor {
                     },
                     TerminatorType::Continue => {
                         self.generate_return_if_transitioned();
+                        self.generate_break_if_not_transitioned();
                     }
                 }
             }
@@ -2192,6 +2203,7 @@ impl AstVisitor for JavaScriptVisitor {
                     },
                     TerminatorType::Continue => {
                         self.generate_return_if_transitioned();
+                        self.generate_break_if_not_transitioned();
                     }
                 }
             }
@@ -2305,6 +2317,7 @@ impl AstVisitor for JavaScriptVisitor {
                     },
                     TerminatorType::Continue => {
                         self.generate_return_if_transitioned();
+                        self.generate_break_if_not_transitioned();
                     }
                 }
             }
@@ -2341,6 +2354,7 @@ impl AstVisitor for JavaScriptVisitor {
                     },
                     TerminatorType::Continue => {
                         self.generate_return_if_transitioned();
+                        self.generate_break_if_not_transitioned();
                     }
                 }
             }
@@ -2455,6 +2469,7 @@ impl AstVisitor for JavaScriptVisitor {
                     },
                     TerminatorType::Continue => {
                         self.generate_return_if_transitioned();
+                        self.generate_break_if_not_transitioned();
                     }
                 }
             }
@@ -2491,6 +2506,7 @@ impl AstVisitor for JavaScriptVisitor {
                     },
                     TerminatorType::Continue => {
                         self.generate_return_if_transitioned();
+                        self.generate_break_if_not_transitioned();
                     }
                 }
             }
