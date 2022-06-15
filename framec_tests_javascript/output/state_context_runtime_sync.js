@@ -291,3 +291,5 @@ class StateContextSmController extends StateContextSm {
 };
 
 ********************/
+
+module.exports = StateContextSm

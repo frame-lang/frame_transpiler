@@ -412,3 +412,5 @@ class RustNamingController extends RustNaming {
 };
 
 ********************/
+
+module.exports = RustNaming

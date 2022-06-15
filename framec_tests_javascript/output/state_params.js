@@ -216,3 +216,5 @@ class StateParamsController extends StateParams {
 };
 
 ********************/
+
+module.exports = StateParams

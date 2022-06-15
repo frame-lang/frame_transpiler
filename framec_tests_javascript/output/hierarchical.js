@@ -422,3 +422,5 @@ class HierarchicalController extends Hierarchical {
 };
 
 ********************/
+
+module.exports = Hierarchical

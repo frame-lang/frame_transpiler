@@ -180,12 +180,12 @@ class VarScope {
             case "nn":
                 {
                 let e = "|nn|.e";
-                this.log_do(this.a.clone());
-                this.log_do((this.#compartment.StateArgs["b"]).clone());
-                this.log_do((this.#compartment.StateVars["c"]).clone());
-                this.log_do((e._parameters["d"]).clone());
-                this.log_do(e.clone());
-                this.log_do(this.x.clone());
+                this.log_do(this.a);
+                this.log_do((this.#compartment.StateArgs["b"]));
+                this.log_do((this.#compartment.StateVars["c"]));
+                this.log_do(e._parameters["d"]);
+                this.log_do(e);
+                this.log_do(this.x);
                 
                 return;
                 }
@@ -194,12 +194,12 @@ class VarScope {
                 {
                 let e = "|ny|.e";
                 let x = "|ny|.x";
-                this.log_do(this.a.clone());
-                this.log_do((this.#compartment.StateArgs["b"]).clone());
-                this.log_do((this.#compartment.StateVars["c"]).clone());
-                this.log_do((e._parameters["d"]).clone());
-                this.log_do(e.clone());
-                this.log_do(x.clone());
+                this.log_do(this.a);
+                this.log_do((this.#compartment.StateArgs["b"]));
+                this.log_do((this.#compartment.StateVars["c"]));
+                this.log_do((e._parameters["d"]));
+                this.log_do(e);
+                this.log_do(x);
                 
                 return;
                 }
@@ -207,12 +207,12 @@ class VarScope {
             case "yn":
                 {
                 let e = "|yn|.e";
-                this.log_do(this.a.clone());
-                this.log_do((this.#compartment.StateArgs["b"]).clone());
-                this.log_do((this.#compartment.StateVars["c"]).clone());
-                this.log_do((e._parameters["d"]).clone());
-                this.log_do(e.clone());
-                this.log_do((e._parameters["x"]).clone());
+                this.log_do(this.a);
+                this.log_do((this.#compartment.StateArgs["b"]));
+                this.log_do((this.#compartment.StateVars["c"]));
+                this.log_do((e._parameters["d"]));
+                this.log_do(e);
+                this.log_do((e._parameters["x"]));
                 
                 return;
                 }
@@ -221,12 +221,12 @@ class VarScope {
                 {
                 let e = "|yy|.e";
                 let x = "|yy|.x";
-                this.log_do(this.a.clone());
-                this.log_do((this.#compartment.StateArgs["b"]).clone());
-                this.log_do((this.#compartment.StateVars["c"]).clone());
-                this.log_do((e._parameters["d"]).clone());
-                this.log_do(e.clone());
-                this.log_do(x.clone());
+                this.log_do(this.a);
+                this.log_do((this.#compartment.StateArgs["b"]));
+                this.log_do((this.#compartment.StateVars["c"]));
+                this.log_do((e._parameters["d"]));
+                this.log_do(e);
+                this.log_do(x);
                 
                 return;
                 }
@@ -234,14 +234,14 @@ class VarScope {
             case "sigils":
                 {
                 let x = "|sigils|.x";
-                this.log_do(this.x.clone());
+                this.log_do(this.x);
                 
                 return;
                 }
                 
         }
-    }  //  log(||[x].clone())
-	  //  log(||.x.clone())
+    }  //  log(||[x])
+	  //  log(||.x)
 	
     
     #sNY_(e) {
@@ -249,12 +249,12 @@ class VarScope {
             case "nn":
                 {
                 let e = "|nn|.e";
-                this.log_do(this.a.clone());
-                this.log_do((this.#compartment.StateArgs["b"]).clone());
-                this.log_do((this.#compartment.StateVars["c"]).clone());
-                this.log_do((e._parameters["d"]).clone());
-                this.log_do(e.clone());
-                this.log_do((this.#compartment.StateVars["x"]).clone());
+                this.log_do(this.a);
+                this.log_do((this.#compartment.StateArgs["b"]));
+                this.log_do((this.#compartment.StateVars["c"]));
+                this.log_do((e._parameters["d"]));
+                this.log_do(e);
+                this.log_do((this.#compartment.StateVars["x"]));
                 
                 return;
                 }
@@ -263,12 +263,12 @@ class VarScope {
                 {
                 let e = "|ny|.e";
                 let x = "|ny|.x";
-                this.log_do(this.a.clone());
-                this.log_do((this.#compartment.StateArgs["b"]).clone());
-                this.log_do((this.#compartment.StateVars["c"]).clone());
-                this.log_do((e._parameters["d"]).clone());
-                this.log_do(e.clone());
-                this.log_do(x.clone());
+                this.log_do(this.a);
+                this.log_do((this.#compartment.StateArgs["b"]));
+                this.log_do((this.#compartment.StateVars["c"]));
+                this.log_do((e._parameters["d"]));
+                this.log_do(e);
+                this.log_do(x);
                 
                 return;
                 }
@@ -276,12 +276,12 @@ class VarScope {
             case "yn":
                 {
                 let e = "|yn|.e";
-                this.log_do(this.a.clone());
-                this.log_do((this.#compartment.StateArgs["b"]).clone());
-                this.log_do((this.#compartment.StateVars["c"]).clone());
-                this.log_do((e._parameters["d"]).clone());
-                this.log_do(e.clone());
-                this.log_do((e._parameters["x"]).clone());
+                this.log_do(this.a);
+                this.log_do((this.#compartment.StateArgs["b"]));
+                this.log_do((this.#compartment.StateVars["c"]));
+                this.log_do((e._parameters["d"]));
+                this.log_do(e);
+                this.log_do((e._parameters["x"]));
                 
                 return;
                 }
@@ -290,12 +290,12 @@ class VarScope {
                 {
                 let e = "|yy|.e";
                 let x = "|yy|.x";
-                this.log_do(this.a.clone());
-                this.log_do((this.#compartment.StateArgs["b"]).clone());
-                this.log_do((this.#compartment.StateVars["c"]).clone());
-                this.log_do((e._parameters["d"]).clone());
-                this.log_do(e.clone());
-                this.log_do(x.clone());
+                this.log_do(this.a);
+                this.log_do((this.#compartment.StateArgs["b"]));
+                this.log_do((this.#compartment.StateVars["c"]));
+                this.log_do((e._parameters["d"]));
+                this.log_do(e);
+                this.log_do(x);
                 
                 return;
                 }
@@ -303,15 +303,15 @@ class VarScope {
             case "sigils":
                 {
                 let x = "|sigils|.x";
-                this.log_do(this.x.clone());
+                this.log_do(this.x);
                 
                 return;
                 }
                 
         }
-    }  //  log($.x.clone())
-	  //  log(||[x].clone())
-	  //  log(||.x.clone())
+    }  //  log($.x)
+	  //  log(||[x])
+	  //  log(||.x)
 	
     
     #sYN_(e) {
@@ -319,12 +319,12 @@ class VarScope {
             case "nn":
                 {
                 let e = "|nn|.e";
-                this.log_do(this.a.clone());
-                this.log_do((this.#compartment.StateArgs["b"]).clone());
-                this.log_do((this.#compartment.StateVars["c"]).clone());
-                this.log_do((e._parameters["d"]).clone());
-                this.log_do(e.clone());
-                this.log_do((this.#compartment.StateArgs["x"]).clone());
+                this.log_do(this.a);
+                this.log_do((this.#compartment.StateArgs["b"]));
+                this.log_do((this.#compartment.StateVars["c"]));
+                this.log_do((e._parameters["d"]));
+                this.log_do(e);
+                this.log_do((this.#compartment.StateArgs["x"]));
                 
                 return;
                 }
@@ -333,12 +333,12 @@ class VarScope {
                 {
                 let e = "|ny|.e";
                 let x = "|ny|.x";
-                this.log_do(this.a.clone());
-                this.log_do((this.#compartment.StateArgs["b"]).clone());
-                this.log_do((this.#compartment.StateVars["c"]).clone());
-                this.log_do((e._parameters["d"]).clone());
-                this.log_do(e.clone());
-                this.log_do(x.clone());
+                this.log_do(this.a);
+                this.log_do((this.#compartment.StateArgs["b"]));
+                this.log_do((this.#compartment.StateVars["c"]));
+                this.log_do((e._parameters["d"]));
+                this.log_do(e);
+                this.log_do(x);
                 
                 return;
                 }
@@ -346,12 +346,12 @@ class VarScope {
             case "yn":
                 {
                 let e = "|yn|.e";
-                this.log_do(this.a.clone());
-                this.log_do((this.#compartment.StateArgs["b"]).clone());
-                this.log_do((this.#compartment.StateVars["c"]).clone());
-                this.log_do((e._parameters["d"]).clone());
-                this.log_do(e.clone());
-                this.log_do((e._parameters["x"]).clone());
+                this.log_do(this.a);
+                this.log_do((this.#compartment.StateArgs["b"]));
+                this.log_do((this.#compartment.StateVars["c"]));
+                this.log_do((e._parameters["d"]));
+                this.log_do(e);
+                this.log_do((e._parameters["x"]));
                 
                 return;
                 }
@@ -360,12 +360,12 @@ class VarScope {
                 {
                 let e = "|yy|.e";
                 let x = "|yy|.x";
-                this.log_do(this.a.clone());
-                this.log_do((this.#compartment.StateArgs["b"]).clone());
-                this.log_do((this.#compartment.StateVars["c"]).clone());
-                this.log_do((e._parameters["d"]).clone());
-                this.log_do(e.clone());
-                this.log_do(x.clone());
+                this.log_do(this.a);
+                this.log_do((this.#compartment.StateArgs["b"]));
+                this.log_do((this.#compartment.StateVars["c"]));
+                this.log_do((e._parameters["d"]));
+                this.log_do(e);
+                this.log_do(x);
                 
                 return;
                 }
@@ -373,15 +373,15 @@ class VarScope {
             case "sigils":
                 {
                 let x = "|sigils|.x";
-                this.log_do(this.x.clone());
+                this.log_do(this.x);
                 
                 return;
                 }
                 
         }
-    }  //  log($[x].clone())
-	  //  log(||[x].clone())
-	  //  log(||.x.clone())
+    }  //  log($[x])
+	  //  log(||[x])
+	  //  log(||.x)
 	
     
     #sYY_(e) {
@@ -389,12 +389,12 @@ class VarScope {
             case "nn":
                 {
                 let e = "|nn|.e";
-                this.log_do(this.a.clone());
-                this.log_do((this.#compartment.StateArgs["b"]).clone());
-                this.log_do((this.#compartment.StateVars["c"]).clone());
-                this.log_do((e._parameters["d"]).clone());
-                this.log_do(e.clone());
-                this.log_do((this.#compartment.StateVars["x"]).clone());
+                this.log_do(this.a);
+                this.log_do((this.#compartment.StateArgs["b"]));
+                this.log_do((this.#compartment.StateVars["c"]));
+                this.log_do((e._parameters["d"]));
+                this.log_do(e);
+                this.log_do((this.#compartment.StateVars["x"]));
                 
                 return;
                 }
@@ -403,12 +403,12 @@ class VarScope {
                 {
                 let e = "|ny|.e";
                 let x = "|ny|.x";
-                this.log_do(this.a.clone());
-                this.log_do((this.#compartment.StateArgs["b"]).clone());
-                this.log_do((this.#compartment.StateVars["c"]).clone());
-                this.log_do((e._parameters["d"]).clone());
-                this.log_do(e.clone());
-                this.log_do(x.clone());
+                this.log_do(this.a);
+                this.log_do((this.#compartment.StateArgs["b"]));
+                this.log_do((this.#compartment.StateVars["c"]));
+                this.log_do((e._parameters["d"]));
+                this.log_do(e);
+                this.log_do(x);
                 
                 return;
                 }
@@ -416,12 +416,12 @@ class VarScope {
             case "yn":
                 {
                 let e = "|yn|.e";
-                this.log_do(this.a.clone());
-                this.log_do((this.#compartment.StateArgs["b"]).clone());
-                this.log_do((this.#compartment.StateVars["c"]).clone());
-                this.log_do((e._parameters["d"]).clone());
-                this.log_do(e.clone());
-                this.log_do((e._parameters["x"]).clone());
+                this.log_do(this.a);
+                this.log_do((this.#compartment.StateArgs["b"]));
+                this.log_do((this.#compartment.StateVars["c"]));
+                this.log_do((e._parameters["d"]));
+                this.log_do(e);
+                this.log_do((e._parameters["x"]));
                 
                 return;
                 }
@@ -430,12 +430,12 @@ class VarScope {
                 {
                 let e = "|yy|.e";
                 let x = "|yy|.x";
-                this.log_do(this.a.clone());
-                this.log_do((this.#compartment.StateArgs["b"]).clone());
-                this.log_do((this.#compartment.StateVars["c"]).clone());
-                this.log_do((e._parameters["d"]).clone());
-                this.log_do(e.clone());
-                this.log_do(x.clone());
+                this.log_do(this.a);
+                this.log_do((this.#compartment.StateArgs["b"]));
+                this.log_do((this.#compartment.StateVars["c"]));
+                this.log_do((e._parameters["d"]));
+                this.log_do(e);
+                this.log_do(x);
                 
                 return;
                 }
@@ -443,7 +443,7 @@ class VarScope {
             case "sigils":
                 {
                 let x = "|sigils|.x";
-                this.log_do(this.x.clone());
+                this.log_do(this.x);
                 
                 return;
                 }
@@ -470,10 +470,10 @@ class VarScope {
     }
     
     
-      //  log($[x].clone())
-	  //  log($.x.clone())
-	  //  log(||[x].clone())
-	  //  log(||.x.clone())
+      //  log($[x])
+	  //  log($.x)
+	  //  log(||[x])
+	  //  log(||.x)
 	
     
 };
@@ -505,3 +505,5 @@ class VarScopeController extends VarScope {
 };
 
 ********************/
+
+module.exports = VarScope

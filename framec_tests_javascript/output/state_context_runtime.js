@@ -187,10 +187,16 @@ class StateContextSm {
                 }
                 
               //  FIXME: Swapping this to 10 * arg causes a parse error!
+
 			case "Change":
                 {
                 let tmp = this.#compartment.StateVars["x"] + e._parameters["arg"];
-                this.#changeState(this.#sBar_);
+                // FIXME: not handling changestate
+                let compartment = new StateContextSmCompartment(this.#sBar_)
+                compartment.StateArgs['y'] = tmp
+                compartment.StateVars['z'] = 0
+                
+                this.#changeState(compartment);
                 
                 return;
                 }
@@ -228,9 +234,12 @@ class StateContextSm {
                 
             case "Change":
                 {
+                    // FIXME: Change state
                 let tmp = this.#compartment.StateArgs["y"] + this.#compartment.StateVars["z"] + e._parameters["arg"];
                 this.log_do("tmp",tmp);
-                this.#changeState(this.#sInit_);
+                let compartment = new StateContextSmCompartment(this.#sInit_);
+                compartment.StateVars['w'] = 0
+                this.#changeState(compartment);
                 
                 return;
                 }
@@ -291,3 +300,5 @@ class StateContextSmController extends StateContextSm {
 };
 
 ********************/
+
+module.exports = StateContextSm

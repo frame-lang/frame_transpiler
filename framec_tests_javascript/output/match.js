@@ -429,3 +429,5 @@ class MatchController extends Match {
 };
 
 ********************/
+
+module.exports = Match
