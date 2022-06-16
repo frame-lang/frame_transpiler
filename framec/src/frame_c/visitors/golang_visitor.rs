@@ -1149,6 +1149,28 @@ impl GolangVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    fn generate_state_stack_pop_change_state(
+        &mut self,
+        change_state_stmt_node: &ChangeStateStatementNode,
+    ) {
+        self.newline();
+        match &change_state_stmt_node.label_opt {
+            Some(label) => {
+                self.add_code(&format!("// {}", label));
+                self.newline();
+            }
+            None => {}
+        }
+
+        self.add_code("compartment := m._stateStack_pop_()");
+        self.newline();
+        self.add_code("m._changeState_(compartment)");
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    //* --------------------------------------------------------------------- *//
+
     fn generate_new_fn(&mut self, domain_vec: &Vec<(String, String)>, system_node: &SystemNode) {
         self.newline();
         self.newline();
@@ -2423,9 +2445,9 @@ impl AstVisitor for GolangVisitor {
             StateContextType::StateRef { .. } => {
                 self.generate_state_ref_change_state(change_state_stmt_node)
             }
-            StateContextType::StateStackPop {} => self
-                .errors
-                .push("Fatal error - change state stack pop not implemented.".to_string()),
+            StateContextType::StateStackPop {} => {
+                self.generate_state_stack_pop_change_state(change_state_stmt_node)
+            }
         };
 
         self.config.code.this_branch_transitioned = true;

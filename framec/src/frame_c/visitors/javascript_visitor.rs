@@ -1056,6 +1056,26 @@ impl JavaScriptVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    fn generate_state_stack_pop_change_state(
+        &mut self,
+        change_state_stmt_node: &ChangeStateStatementNode,
+    ) {
+        self.newline();
+        match &change_state_stmt_node.label_opt {
+            Some(label) => {
+                self.add_code(&format!("// {}", label));
+                self.newline();
+            }
+            None => {}
+        }
+
+        self.add_code("let compartment = this.#stateStack_pop()");
+        self.newline();
+        self.add_code("this.#changeState(compartment)");
+    }
+
+    //* --------------------------------------------------------------------- *//
+
     fn generate_compartment(&mut self, system_name: &str) {
         self.newline();
         self.add_code("//=============== Compartment ==============//");
@@ -2063,7 +2083,9 @@ impl AstVisitor for JavaScriptVisitor {
             StateContextType::StateRef { .. } => {
                 self.generate_state_ref_change_state(change_state_stmt_node)
             }
-            StateContextType::StateStackPop {} => panic!("TODO - not implemented"),
+            StateContextType::StateStackPop {} => {
+                self.generate_state_stack_pop_change_state(change_state_stmt_node)
+            }
         };
         self.this_branch_transitioned = true;
     }
