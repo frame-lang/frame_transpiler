@@ -119,7 +119,6 @@ class StateContextSm {
                 
             case "Start":
                 {
-                // transition 1
                 let compartment =  new StateContextSmCompartment(this.#sFoo_);
                 
                 compartment.EnterArgs["a"] = 3;
@@ -173,7 +172,6 @@ class StateContextSm {
             case "Next":
                 {
                 let tmp = e._parameters["arg"] * 10;
-                // transition 2
                 this.#compartment.ExitArgs["c"] = 10;
                 let compartment =  new StateContextSmCompartment(this.#sBar_);
                 
@@ -187,14 +185,12 @@ class StateContextSm {
                 }
                 
               //  FIXME: Swapping this to 10 * arg causes a parse error!
-
 			case "Change":
                 {
                 let tmp = this.#compartment.StateVars["x"] + e._parameters["arg"];
-                // FIXME: not handling changestate
-                let compartment = new StateContextSmCompartment(this.#sBar_)
-                compartment.StateArgs['y'] = tmp
-                compartment.StateVars['z'] = 0
+                let compartment =  new StateContextSmCompartment(this.#sBar_);
+                compartment.StateArgs["y"] = tmp;
+                compartment.StateVars["z"] = 0;
                 
                 this.#changeState(compartment);
                 
@@ -234,11 +230,11 @@ class StateContextSm {
                 
             case "Change":
                 {
-                    // FIXME: Change state
                 let tmp = this.#compartment.StateArgs["y"] + this.#compartment.StateVars["z"] + e._parameters["arg"];
                 this.log_do("tmp",tmp);
-                let compartment = new StateContextSmCompartment(this.#sInit_);
-                compartment.StateVars['w'] = 0
+                let compartment =  new StateContextSmCompartment(this.#sInit_);
+                compartment.StateVars["w"] = 0;
+                
                 this.#changeState(compartment);
                 
                 return;
@@ -272,7 +268,6 @@ class StateContextSm {
     
     
 };
-
 //=============== Compartment ==============//
 
 class StateContextSmCompartment {
