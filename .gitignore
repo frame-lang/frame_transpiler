@@ -8,4 +8,4 @@
 ./config.yaml
 target
 
-framec_tests_javascript/node_modules
+framec_tests/javascript/node_modules
