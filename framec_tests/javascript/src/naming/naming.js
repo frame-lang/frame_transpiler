@@ -3,7 +3,7 @@
 
 const FrameEvent = require("../framelang/FrameEvent")
 
-class RustNaming {
+class Naming {
     
     // creating private properties
     
@@ -17,7 +17,7 @@ class RustNaming {
         // Create and intialize start state compartment.
         
         this.#state = this.#sInit_;
-        this.#compartment = new RustNamingCompartment(this.#state);
+        this.#compartment = new NamingCompartment(this.#state);
         this.#nextCompartment = null;
         
         // Initialize domain
@@ -101,7 +101,7 @@ class RustNaming {
         switch (e._message) {
             case "snake_event":
                 {
-                let compartment =  new RustNamingCompartment(this.#ssnake_state_);
+                let compartment =  new NamingCompartment(this.#ssnake_state_);
                 
                 compartment.StateArgs["snake_state_param"] = e._parameters["snake_param"];
                 compartment.StateVars["snake_state_var"] = this.snake_domain_var + this.CamelDomainVar + this.domainVar123 + 100;
@@ -113,7 +113,7 @@ class RustNaming {
                 
             case "CamelEvent":
                 {
-                let compartment =  new RustNamingCompartment(this.#sCamelState_);
+                let compartment =  new NamingCompartment(this.#sCamelState_);
                 
                 compartment.StateArgs["CamelStateParam"] = e._parameters["CamelParam"];
                 compartment.StateVars["CamelStateVar"] = this.snake_domain_var + this.CamelDomainVar + this.domainVar123 + 200;
@@ -125,7 +125,7 @@ class RustNaming {
                 
             case "event123":
                 {
-                let compartment =  new RustNamingCompartment(this.#sstate123_);
+                let compartment =  new NamingCompartment(this.#sstate123_);
                 
                 compartment.StateArgs["stateParam123"] = e._parameters["param123"];
                 compartment.StateVars["stateVar123"] = this.snake_domain_var + this.CamelDomainVar + this.domainVar123 + 300;
@@ -162,7 +162,7 @@ class RustNaming {
                 {
                 let snake_local_var = this.#compartment.StateVars["snake_state_var"] + this.#compartment.StateArgs["snake_state_param"] + e._parameters["snake_param"];
                 this.snake_action_do(snake_local_var);
-                let compartment =  new RustNamingCompartment(this.#sFinal_);
+                let compartment =  new NamingCompartment(this.#sFinal_);
                 
                 compartment.StateArgs["result"] = snake_local_var;
                 
@@ -175,7 +175,7 @@ class RustNaming {
                 {
                 let CamelLocalVar = this.#compartment.StateVars["snake_state_var"] + this.#compartment.StateArgs["snake_state_param"] + e._parameters["CamelParam"];
                 this.CamelAction_do(CamelLocalVar);
-                let compartment =  new RustNamingCompartment(this.#sFinal_);
+                let compartment =  new NamingCompartment(this.#sFinal_);
                 
                 compartment.StateArgs["result"] = CamelLocalVar;
                 
@@ -188,7 +188,7 @@ class RustNaming {
                 {
                 let localVar123 = this.#compartment.StateVars["snake_state_var"] + this.#compartment.StateArgs["snake_state_param"] + e._parameters["param123"];
                 this.action123_do(localVar123);
-                let compartment =  new RustNamingCompartment(this.#sFinal_);
+                let compartment =  new NamingCompartment(this.#sFinal_);
                 
                 compartment.StateArgs["result"] = localVar123;
                 
@@ -224,7 +224,7 @@ class RustNaming {
                 {
                 let snake_local_var = this.#compartment.StateVars["CamelStateVar"] + this.#compartment.StateArgs["CamelStateParam"] + e._parameters["snake_param"];
                 this.snake_action_do(snake_local_var);
-                let compartment =  new RustNamingCompartment(this.#sFinal_);
+                let compartment =  new NamingCompartment(this.#sFinal_);
                 
                 compartment.StateArgs["result"] = snake_local_var;
                 
@@ -237,7 +237,7 @@ class RustNaming {
                 {
                 let CamelLocalVar = this.#compartment.StateVars["CamelStateVar"] + this.#compartment.StateArgs["CamelStateParam"] + e._parameters["CamelParam"];
                 this.CamelAction_do(CamelLocalVar);
-                let compartment =  new RustNamingCompartment(this.#sFinal_);
+                let compartment =  new NamingCompartment(this.#sFinal_);
                 
                 compartment.StateArgs["result"] = CamelLocalVar;
                 
@@ -250,7 +250,7 @@ class RustNaming {
                 {
                 let localVar123 = this.#compartment.StateVars["CamelStateVar"] + this.#compartment.StateArgs["CamelStateParam"] + e._parameters["param123"];
                 this.action123_do(localVar123);
-                let compartment =  new RustNamingCompartment(this.#sFinal_);
+                let compartment =  new NamingCompartment(this.#sFinal_);
                 
                 compartment.StateArgs["result"] = localVar123;
                 
@@ -286,7 +286,7 @@ class RustNaming {
                 {
                 let snake_local_var = this.#compartment.StateVars["stateVar123"] + this.#compartment.StateArgs["stateParam123"] + e._parameters["snake_param"];
                 this.snake_action_do(snake_local_var);
-                let compartment =  new RustNamingCompartment(this.#sFinal_);
+                let compartment =  new NamingCompartment(this.#sFinal_);
                 
                 compartment.StateArgs["result"] = snake_local_var;
                 
@@ -299,7 +299,7 @@ class RustNaming {
                 {
                 let CamelLocalVar = this.#compartment.StateVars["stateVar123"] + this.#compartment.StateArgs["stateParam123"] + e._parameters["CamelParam"];
                 this.CamelAction_do(CamelLocalVar);
-                let compartment =  new RustNamingCompartment(this.#sFinal_);
+                let compartment =  new NamingCompartment(this.#sFinal_);
                 
                 compartment.StateArgs["result"] = CamelLocalVar;
                 
@@ -312,7 +312,7 @@ class RustNaming {
                 {
                 let localVar123 = this.#compartment.StateVars["stateVar123"] + this.#compartment.StateArgs["stateParam123"] + e._parameters["param123"];
                 this.action123_do(localVar123);
-                let compartment =  new RustNamingCompartment(this.#sFinal_);
+                let compartment =  new NamingCompartment(this.#sFinal_);
                 
                 compartment.StateArgs["result"] = localVar123;
                 
@@ -346,7 +346,7 @@ class RustNaming {
             case ">":
                 {
                 this.logFinal_do((this.#compartment.StateArgs["result"]));
-                let compartment =  new RustNamingCompartment(this.#sInit_);
+                let compartment =  new NamingCompartment(this.#sInit_);
                 
                 
                 this.#transition(compartment);
@@ -384,7 +384,7 @@ class RustNaming {
 
 //=============== Compartment ==============//
 
-class RustNamingCompartment {
+class NamingCompartment {
 
     constructor(state) {
         this.state = state
@@ -400,7 +400,7 @@ class RustNamingCompartment {
 
 /********************
 
-class RustNamingController extends RustNaming {
+class NamingController extends Naming {
 
 	constructor() {
 	  super()
@@ -413,4 +413,4 @@ class RustNamingController extends RustNaming {
 
 ********************/
 
-module.exports = RustNaming
+module.exports = Naming
