@@ -1,7 +1,7 @@
 const { describe, it } = require("mocha");
 const assert = require("assert");
 
-const Branch = require("../output/branch");
+const Branch = require("./branch");
 
 class BranchController extends Branch {
   constructor() {

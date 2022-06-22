@@ -1,7 +1,7 @@
 const { describe, it } = require("mocha");
 const assert = require("assert");
 
-const Hierarchical = require("../output/hierarchical");
+const Hierarchical = require("./hierarchical");
 
 class HierarchicalController extends Hierarchical {
   constructor() {

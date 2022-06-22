@@ -1,6 +1,6 @@
 const { describe, it } = require("mocha");
 const assert = require("assert");
-const StateParams = require("../output/state_params");
+const StateParams = require("./state_params");
 
 class StateParamsController extends StateParams {
   constructor() {

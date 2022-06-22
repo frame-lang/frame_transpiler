@@ -1,7 +1,9 @@
 // emitted from framec_v0.10.0
 // get include files at https://github.com/frame-lang/frame-ancillary-files
 
-const FrameEvent = require("../framelang/FrameEvent")
+const FrameEvent = require("../framelang/FrameEvent");
+
+
 
 class StateContextSm {
     
@@ -268,6 +270,7 @@ class StateContextSm {
     
     
 };
+
 //=============== Compartment ==============//
 
 class StateContextSmCompartment {

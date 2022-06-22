@@ -1,6 +1,6 @@
 const { describe, it } = require("mocha");
 const assert = require("assert");
-const StateContextSm = require("../output/state_context_runtime");
+const StateContextSm = require("./state_context");
 
 class StateContextSmController extends StateContextSm {
 

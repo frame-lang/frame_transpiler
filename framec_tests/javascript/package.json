@@ -9,7 +9,7 @@
     "test": "test"
   },
   "scripts": {
-    "test": "mocha"
+    "test": "mocha src/**/*.spec.js"
   },
   "keywords": [],
   "author": "",

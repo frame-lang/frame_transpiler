@@ -1,4 +1,4 @@
-const Basic = require('../output/basic')
+const Basic = require('./basic')
 
 const assert = require('assert');
 const { it , describe} = require('mocha');

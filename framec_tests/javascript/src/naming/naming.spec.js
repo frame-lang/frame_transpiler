@@ -1,8 +1,8 @@
 const { describe, it } = require("mocha");
 const assert = require("assert");
-const RustNaming = require("../output/rust_naming_off");
+const Naming = require("./naming");
 
-class RustNamingController extends RustNaming {
+class NamingController extends Naming {
   constructor() {
     super();
   }
@@ -20,11 +20,11 @@ class RustNamingController extends RustNaming {
   }
 }
 
-describe("Rust naming off", () => {
+describe("Naming", () => {
   /// Test that the generated state machine works and that events are
   /// named as expected.
   it("Follow rust naming works", () => {
-    let sm = new RustNamingController();
+    let sm = new NamingController();
 
     sm.snake_event(1);
     sm.snake_event(2);
@@ -59,7 +59,7 @@ describe("Rust naming off", () => {
 
   /// Test that dynamic interface calls are renamed correctly.
   it("Interface calls", () => {
-    let sm = new RustNamingController();
+    let sm = new NamingController();
     sm.call("snake_event", 1);
     sm.call("CamelEvent", 2);
     sm.call("event123", 3);

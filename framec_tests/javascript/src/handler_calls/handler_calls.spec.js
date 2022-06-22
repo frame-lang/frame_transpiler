@@ -1,6 +1,6 @@
 const { describe, it } = require("mocha");
 const assert = require("assert");
-const HandlerCalls = require("../output/handler_calls");
+const HandlerCalls = require("./handler_calls");
 
 class HandlerCallsConstroller extends HandlerCalls {
 

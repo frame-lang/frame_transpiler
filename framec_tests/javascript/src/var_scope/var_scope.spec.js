@@ -1,6 +1,6 @@
 const { describe, it } = require("mocha");
 const assert = require("assert");
-const VarScope = require("../output/var_scope");
+const VarScope = require("./var_scope");
 
 class VarScopeController extends VarScope {
   constructor() {

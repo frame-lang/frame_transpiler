@@ -1,7 +1,7 @@
 const { describe, it } = require("mocha");
 const assert = require("assert");
 
-const EventHandler = require("../output/event_handler");
+const EventHandler = require("./event_handler");
 
 class EventHandlerController extends EventHandler {
 

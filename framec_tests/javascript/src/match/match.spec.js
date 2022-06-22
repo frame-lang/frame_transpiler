@@ -1,6 +1,6 @@
 const { describe, it } = require("mocha");
 const assert = require("assert");
-const Match = require("../output/match");
+const Match = require("./match");
 
 class MatchController extends Match {
   constructor() {
