@@ -23,7 +23,7 @@ class NamingController extends Naming {
 describe("Naming", () => {
   /// Test that the generated state machine works and that events are
   /// named as expected.
-  it("Follow rust naming works", () => {
+  it("Follow naming works", () => {
     let sm = new NamingController();
 
     sm.snake_event(1);
