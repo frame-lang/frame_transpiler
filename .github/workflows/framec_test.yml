@@ -31,6 +31,6 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node }}
-      - run: cd $(pwd)/frame_transpiler/framec_tests/javascript
+      - run: cd framec_tests/javascript
       - run: npm install
       - run: npm test
