@@ -5,6 +5,7 @@
 #![allow(clippy::ptr_arg)]
 #![allow(non_snake_case)]
 
+use crate::config::*;
 use crate::frame_c::ast::*;
 use crate::frame_c::scanner::{Token, TokenType};
 use crate::frame_c::symbol_table::*;
@@ -43,6 +44,8 @@ pub struct JavaScriptVisitor {
 
     // keeping track of traversal context
     this_branch_transitioned: bool,
+    // config
+    config: JavascriptConfig,
 }
 
 impl JavaScriptVisitor {
@@ -57,6 +60,7 @@ impl JavaScriptVisitor {
         // generate_transition_state: bool,
         compiler_version: &str,
         comments: Vec<Token>,
+        config: FrameConfig,
     ) -> JavaScriptVisitor {
         // These closures are needed to do the same actions as add_code() and newline()
         // when inside a borrowed self reference as they modify self.
@@ -64,6 +68,8 @@ impl JavaScriptVisitor {
         // let mut newline_cl = |target:&mut String, s:&String, d:usize| {
         //     target.push_str(&*format!("\n{}",(0..d).map(|_| "\t").collect::<String>()));
         // };
+
+        let js_config = config.codegen.javascript;
 
         JavaScriptVisitor {
             compiler_version: compiler_version.to_string(),
@@ -96,6 +102,8 @@ impl JavaScriptVisitor {
             manager: String::new(),
 
             this_branch_transitioned: false,
+
+            config: js_config,
         }
     }
 
@@ -164,7 +172,11 @@ impl JavaScriptVisitor {
                 code.push_str("this");
             }
             IdentifierDeclScope::DomainBlock => {
-                code.push_str(&format!("this.{}", variable_node.id_node.name.lexeme));
+                if self.config.code.public_domain {
+                    code.push_str(&format!("this.{}", variable_node.id_node.name.lexeme));
+                } else {
+                    code.push_str(&format!("this.#{}", variable_node.id_node.name.lexeme));
+                }
             }
             IdentifierDeclScope::StateParam => {
                 let var_node = variable_node;
@@ -1195,6 +1207,11 @@ impl JavaScriptVisitor {
             }
         }
 
+        if self.config.code.public_state_info {
+            self.newline();
+            self.add_code("this.state = this.#compartment.state.name");
+        }
+
         self.newline();
         self.newline();
         self.add_code("// Initialize domain");
@@ -1213,15 +1230,31 @@ impl JavaScriptVisitor {
                             break;
                         }
                     }
-                    self.add_code(&format!(
-                        "this.{} = {};",
-                        domain_var_name, domain_var_initializer
-                    ))
+                    if self.config.code.public_domain {
+                        self.add_code(&format!(
+                            "this.{} = {};",
+                            domain_var_name, domain_var_initializer
+                        ))
+                    } else {
+                        self.add_code(&format!(
+                            "this.#{} = {};",
+                            domain_var_name, domain_var_initializer
+                        ))
+                    }
                 }
-                None => self.add_code(&format!(
-                    "this.{} = {};",
-                    domain_var_name, domain_var_initializer
-                )),
+                None => {
+                    if self.config.code.public_domain {
+                        self.add_code(&format!(
+                            "this.{} = {};",
+                            domain_var_name, domain_var_initializer
+                        ))
+                    } else {
+                        self.add_code(&format!(
+                            "this.#{} = {};",
+                            domain_var_name, domain_var_initializer
+                        ))
+                    }
+                }
             }
         }
         self.newline();
@@ -1331,6 +1364,37 @@ impl AstVisitor for JavaScriptVisitor {
         );
         self.newline();
         self.newline();
+        if self.config.code.generate_import_export {
+            // function FrameEvent(message, parameters) {
+
+            //     var that = {};
+
+            //     that._message = message;
+            //     that._parameters = parameters;
+            //     that._return = null;
+
+            //     return that;
+            // }
+            self.add_code("function FrameEvent(message, parameters) {");
+            self.newline();
+            self.indent();
+            self.newline();
+            self.add_code("var that = {};");
+            self.newline();
+            self.add_code("that._message = message;");
+            self.newline();
+            self.add_code("that._parameters = parameters;");
+            self.newline();
+            self.add_code("that._return = null;");
+            self.newline();
+            self.add_code("return that;");
+            self.newline();
+            self.outdent();
+            self.newline();
+            self.add_code("}");
+            self.newline();
+            self.newline();
+        }
         self.add_code(&format!("class {} {{", system_node.name));
         self.indent();
         self.newline();
@@ -1344,12 +1408,14 @@ impl AstVisitor for JavaScriptVisitor {
         self.newline();
         self.add_code("#nextCompartment");
         self.newline();
-        // for x in &domain_vec {
-        //     let domain_var_name = x.0.clone();
-        //     self.add_code(&format!("{};", domain_var_name));
-        self.newline();
-        // }
 
+        if !self.config.code.public_domain {
+            for x in &domain_vec {
+                let domain_var_name = x.0.clone();
+                self.add_code(&format!("#{};", domain_var_name));
+                self.newline();
+            }
+        }
         if self.generate_state_stack {
             self.add_code("#stateStack");
             self.newline();
@@ -1587,6 +1653,12 @@ impl AstVisitor for JavaScriptVisitor {
         self.generate_compartment(&system_node.name);
 
         self.generate_subclass();
+
+        if self.config.code.generate_import_export {
+            self.newline();
+            self.add_code(&format!("module.exports = {}", system_node.name));
+            self.newline();
+        }
     }
 
     //* --------------------------------------------------------------------- *//

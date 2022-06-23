@@ -54,6 +54,7 @@ pub struct CodeGenConfig {
     pub rust: RustConfig,
     pub golang: GolangConfig,
     pub smcat: SmcatConfig,
+    pub javascript: JavascriptConfig,
 }
 
 /// Code generation options shared among all backends.
@@ -230,6 +231,37 @@ impl Default for GolangCode {
         }
     }
 }
+
+/// Code generation options specific to the Javascript backend.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct JavascriptConfig {
+    pub code: JavascriptCode,
+}
+
+/// Naming options for generated code specific to the javascript backend. These options can be used to
+/// tweak the names of types, methods, fields, and variables in generated code.
+///
+/// These options are "use at your own risk" for now since we are not testing Frame with anything
+/// other than the defaults. Unless you have some strong reason to do otherwise, it's probably best
+/// to leave them be. :-)
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct JavascriptCode {
+    pub public_domain: bool,
+    pub public_state_info: bool,
+    pub generate_import_export: bool,
+}
+
+impl Default for JavascriptCode {
+    fn default() -> Self {
+        JavascriptCode {
+            public_domain: false,
+            public_state_info: false,
+            generate_import_export: false,
+        }
+    }
+}
+
 /// Code generation features shared among all backends.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CommonFeatures {}
