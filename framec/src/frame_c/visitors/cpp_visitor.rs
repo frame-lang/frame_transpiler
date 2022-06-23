@@ -217,7 +217,7 @@ impl CppVisitor {
     fn format_parameter_list(&mut self, params: &Vec<ParameterNode>) {
         let mut separator = "";
         for param in params {
-            self.add_code(&separator.to_string());
+            self.add_code(separator);
             let param_type: String = match &param.param_type_opt {
                 Some(ret_type) => ret_type.get_type_str(),
                 None => String::from("<?>"),
@@ -339,14 +339,14 @@ impl CppVisitor {
         self.add_code("//=============== Machinery and Mechanisms ==============//");
         self.newline();
         self.newline();
-        self.add_code(&"public:".to_string());
+        self.add_code("public:");
         self.newline();
         self.add_code(&format!("virtual ~{}() {{}};", system_node.name));
         self.newline();
         if let Some(_first_state) = system_node.get_first_state() {
             self.newline();
             self.newline();
-            self.add_code(&"private:".to_string());
+            self.add_code("private:");
             self.newline();
             self.newline();
             self.add_code(&format!(
@@ -354,98 +354,96 @@ impl CppVisitor {
                 self.system_name
             ));
             self.newline();
-            self.add_code(&"typedef map<string,void*> FrameMap;".to_string());
+            self.add_code("typedef map<string,void*> FrameMap;");
             self.newline();
             self.newline();
             self.newline();
             //            self.add_code(&format!("FrameState _state_ = &{}::_s{}_;",system_node.name, first_state.borrow().name ));
-            self.add_code(&"FrameState _state_;".to_string());
+            self.add_code("FrameState _state_;");
             self.newline();
-            self.add_code(&"StateContext* _pStateContext_;".to_string());
+            self.add_code("StateContext* _pStateContext_;");
             self.newline();
             self.newline();
             if self.generate_transition_state {
                 if self.generate_state_context {
                     if self.generate_exit_args {
-                        self.add_code(&"private void _transition_(FrameState newState,Dictionary<string,object> exitArgs, StateContext stateContext) {".to_string());
+                        self.add_code("private void _transition_(FrameState newState,Dictionary<string,object> exitArgs, StateContext stateContext) {");
                     } else {
-                        self.add_code(&"private void _transition_(FrameState newState, StateContext stateContext) {".to_string());
+                        self.add_code("private void _transition_(FrameState newState, StateContext stateContext) {");
                     }
                 } else if self.generate_exit_args {
-                    self.add_code(&"private void _transition_(FrameState newState,Dictionary<string,object> exitArgs) {".to_string());
+                    self.add_code("private void _transition_(FrameState newState,Dictionary<string,object> exitArgs) {");
                 } else {
-                    self.add_code(&"private void _transition_(FrameState newState) {".to_string());
+                    self.add_code("private void _transition_(FrameState newState) {");
                 }
                 self.indent();
                 self.newline();
                 if self.generate_exit_args {
-                    self.add_code(&"FrameEvent exitEvent(\"<\",exitArgs);".to_string());
+                    self.add_code("FrameEvent exitEvent(\"<\",exitArgs);");
                 } else {
-                    self.add_code(&"FrameEvent exitEvent(\"<\",nullptr);".to_string());
+                    self.add_code("FrameEvent exitEvent(\"<\",nullptr);");
                 }
                 self.newline();
-                self.add_code(&"_state_ = newState;".to_string());
+                self.add_code("_state_ = newState;");
                 self.newline();
-                self.add_code(&"if (_pStateContext_ && !_pStateContext_->isOnStateStack()) delete _pStateContext_;".to_string());
+                self.add_code("if (_pStateContext_ && !_pStateContext_->isOnStateStack()) delete _pStateContext_;");
                 self.newline();
                 if self.generate_state_context {
-                    self.add_code(&"_pStateContext_ = pContext;".to_string());
+                    self.add_code("_pStateContext_ = pContext;");
                     self.newline();
-                    self.add_code(
-                        &"FrameEvent enterEvent(\">\", pContext->enterArgs);".to_string(),
-                    );
+                    self.add_code("FrameEvent enterEvent(\">\", pContext->enterArgs);");
                 } else {
-                    self.add_code(&"FrameEvent enterEvent(\">\",nullptr);".to_string());
+                    self.add_code("FrameEvent enterEvent(\">\",nullptr);");
                     self.newline();
                 }
                 self.newline();
-                self.add_code(&"(this->*_state_)(enterEvent);".to_string());
+                self.add_code("(this->*_state_)(enterEvent);");
                 self.outdent();
                 self.newline();
-                self.add_code(&"}".to_string());
+                self.add_code("}");
             }
             if self.generate_state_stack {
                 self.newline();
                 self.newline();
-                self.add_code(&"std::vector<StateContext*> _stateStack_;".to_string());
+                self.add_code("std::vector<StateContext*> _stateStack_;");
                 self.newline();
                 self.newline();
-                self.add_code(&"void _stateStack_push(StateContext* pStateContext) {".to_string());
+                self.add_code("void _stateStack_push(StateContext* pStateContext) {");
                 self.indent();
                 self.newline();
-                self.add_code(&"pStateContext->setOnStateStack(true);".to_string());
+                self.add_code("pStateContext->setOnStateStack(true);");
                 self.newline();
-                self.add_code(&"_stateStack_.push_back(pStateContext);".to_string());
+                self.add_code("_stateStack_.push_back(pStateContext);");
                 self.outdent();
                 self.newline();
-                self.add_code(&"}".to_string());
+                self.add_code("}");
                 self.newline();
                 self.newline();
-                self.add_code(&"StateContext* _stateStack_pop() {".to_string());
+                self.add_code("StateContext* _stateStack_pop() {");
                 self.indent();
                 self.newline();
-                self.add_code(&"pStateContext =  _stateStack_.back();".to_string());
+                self.add_code("pStateContext =  _stateStack_.back();");
                 self.newline();
-                self.add_code(&"_stateStack_.pop_back();".to_string());
+                self.add_code("_stateStack_.pop_back();");
                 self.newline();
-                self.add_code(&"pStateContext->setOnStateStack(false);".to_string());
+                self.add_code("pStateContext->setOnStateStack(false);");
                 self.newline();
-                self.add_code(&"return pStateContext;".to_string());
+                self.add_code("return pStateContext;");
                 self.outdent();
                 self.newline();
-                self.add_code(&"}".to_string());
+                self.add_code("}");
                 self.newline();
             }
             if self.generate_change_state {
                 self.newline();
                 self.newline();
-                self.add_code(&"private void _changeState_(FrameState newState) {".to_string());
+                self.add_code("private void _changeState_(FrameState newState) {");
                 self.indent();
                 self.newline();
-                self.add_code(&"_state_ = newState;".to_string());
+                self.add_code("_state_ = newState;");
                 self.outdent();
                 self.newline();
-                self.add_code(&"}".to_string());
+                self.add_code("}");
             }
         }
     }
@@ -848,24 +846,22 @@ impl CppVisitor {
         }
 
         if self.generate_state_context {
-            self.add_code(&"StateContext* pStateContext = _stateStack_pop_();".to_string());
+            self.add_code("StateContext* pStateContext = _stateStack_pop_();");
         } else {
-            self.add_code(&"FrameState* pState = _stateStack_pop_();".to_string());
+            self.add_code("FrameState* pState = _stateStack_pop_();");
         }
         //       self.add_code(&format!("StateContext* pStateContext = _stateStack_pop();"));
         self.newline();
         if self.generate_exit_args {
             if self.generate_state_context {
-                self.add_code(
-                    &"_transition_(pStateContext->state,exitArgs,pStateContext);".to_string(),
-                );
+                self.add_code("_transition_(pStateContext->state,exitArgs,pStateContext);");
             } else {
-                self.add_code(&"_transition_(pState,exitArgs);".to_string());
+                self.add_code("_transition_(pState,exitArgs);");
             }
         } else if self.generate_state_context {
-            self.add_code(&"_transition_(pStateContext->state,pStateContext);".to_string());
+            self.add_code("_transition_(pStateContext->state,pStateContext);");
         } else {
-            self.add_code(&"_transition_(pState);".to_string());
+            self.add_code("_transition_(pState);");
         }
     }
 }
@@ -888,10 +884,10 @@ impl AstVisitor for CppVisitor {
         self.newline();
         self.indent();
         self.newline();
-        self.add_code(&"class StateContext;".to_string());
+        self.add_code("class StateContext;");
         self.newline();
         self.newline();
-        self.add_code(&"public:".to_string());
+        self.add_code("public:");
         self.newline();
         self.newline();
 
@@ -916,7 +912,7 @@ impl AstVisitor for CppVisitor {
             ));
             if self.generate_state_context {
                 self.newline();
-                self.add_code(&"_pStateContext_ = new StateContext(_state_);".to_string());
+                self.add_code("_pStateContext_ = new StateContext(_state_);");
                 if self.has_states {
                     if let Some(state_symbol_rcref) =
                         self.arcanium.get_state(&self.first_state_name)
@@ -948,7 +944,7 @@ impl AstVisitor for CppVisitor {
 
             self.outdent();
             self.newline();
-            self.add_code(&"}".to_string());
+            self.add_code("}");
             self.newline();
         }
 
@@ -1106,7 +1102,7 @@ impl AstVisitor for CppVisitor {
             method_name_or_alias, params_param_code
         ));
         self.newline();
-        self.add_code(&"(this->*_state_)(e);".to_string());
+        self.add_code("(this->*_state_)(e);");
 
         match &interface_method_node.return_type_opt {
             Some(return_type) => {
@@ -1118,7 +1114,7 @@ impl AstVisitor for CppVisitor {
 
         self.outdent();
         self.newline();
-        self.add_code(&"}".to_string());
+        self.add_code("}");
         self.newline();
     }
 
@@ -1252,10 +1248,10 @@ impl AstVisitor for CppVisitor {
             // AnyMessage ( ||* )
             if self.first_event_handler {
                 // This logic is for when there is only the catch all event handler ||*
-                self.add_code(&"if (true) {".to_string());
+                self.add_code("if (true) {");
             } else {
                 // other event handlers preceded ||*
-                self.add_code(&"else {".to_string());
+                self.add_code("else {");
             }
         }
         self.generate_comment(evt_handler_node.line);
@@ -1263,7 +1259,7 @@ impl AstVisitor for CppVisitor {
         self.indent();
         if evt_handler_node.event_handler_has_transition && self.generate_state_context {
             self.newline();
-            self.add_code(&"auto pStateContext = null;".to_string());
+            self.add_code("auto pStateContext = null;");
         }
 
         match &evt_handler_node.msg_t {
@@ -1307,7 +1303,7 @@ impl AstVisitor for CppVisitor {
         self.outdent();
 
         self.newline();
-        self.add_code(&"}".to_string());
+        self.add_code("}");
 
         // this controls formatting here
         self.first_event_handler = false;
@@ -1348,7 +1344,7 @@ impl AstVisitor for CppVisitor {
     fn visit_call_statement_node(&mut self, method_call_statement: &CallStmtNode) {
         self.newline();
         method_call_statement.call_expr_node.accept(self);
-        self.add_code(&";".to_string());
+        self.add_code(";");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1357,7 +1353,7 @@ impl AstVisitor for CppVisitor {
         if let Some(call_chain) = &method_call.call_chain {
             for callable in call_chain {
                 callable.callable_accept(self);
-                self.add_code(&".".to_string());
+                self.add_code(".");
             }
         }
 
@@ -1378,7 +1374,7 @@ impl AstVisitor for CppVisitor {
         if let Some(call_chain) = &method_call.call_chain {
             for callable in call_chain {
                 callable.callable_accept(self);
-                output.push_str(&".".to_string());
+                output.push('.');
             }
         }
 
@@ -1393,15 +1389,15 @@ impl AstVisitor for CppVisitor {
 
     fn visit_call_expr_list_node(&mut self, call_expr_list: &CallExprListNode) {
         let mut separator = "";
-        self.add_code(&"(".to_string());
+        self.add_code("(");
 
         for expr in &call_expr_list.exprs_t {
-            self.add_code(&separator.to_string());
+            self.add_code(separator);
             expr.accept(self);
             separator = ",";
         }
 
-        self.add_code(&")".to_string());
+        self.add_code(")");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1412,15 +1408,15 @@ impl AstVisitor for CppVisitor {
         output: &mut String,
     ) {
         let mut separator = "";
-        output.push_str(&"(".to_string());
+        output.push('(');
 
         for expr in &call_expr_list.exprs_t {
-            output.push_str(&separator.to_string());
+            output.push_str(separator);
             expr.accept_to_string(self, output);
             separator = ",";
         }
 
-        output.push_str(&")".to_string());
+        output.push(')');
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1448,7 +1444,7 @@ impl AstVisitor for CppVisitor {
     fn visit_action_call_statement_node(&mut self, action_call_stmt_node: &ActionCallStmtNode) {
         self.newline();
         action_call_stmt_node.action_call_expr_node.accept(self);
-        self.add_code(&";".to_string());
+        self.add_code(";");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1536,16 +1532,16 @@ impl AstVisitor for CppVisitor {
             branch_node.expr_t.accept(self);
 
             if branch_node.is_negated {
-                self.add_code(&")".to_string());
+                self.add_code(")");
             }
-            self.add_code(&") {".to_string());
+            self.add_code(") {");
             self.indent();
 
             branch_node.accept(self);
 
             self.outdent();
             self.newline();
-            self.add_code(&"}".to_string());
+            self.add_code("}");
 
             if_or_else_if = " else if ";
         }
@@ -1566,7 +1562,7 @@ impl AstVisitor for CppVisitor {
         method_call_chain_literal_stmt_node
             .call_chain_literal_expr_node
             .accept(self);
-        self.add_code(&";".to_string());
+        self.add_code(";");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1580,7 +1576,7 @@ impl AstVisitor for CppVisitor {
         let mut separator = "";
 
         for node in &method_call_chain_expression_node.call_chain {
-            self.add_code(&separator.to_string());
+            self.add_code(separator);
             match &node {
                 CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
                     id_node.accept(self);
@@ -1618,7 +1614,7 @@ impl AstVisitor for CppVisitor {
         let mut separator = "";
 
         for node in &method_call_chain_expression_node.call_chain {
-            output.push_str(&separator.to_string());
+            output.push_str(separator);
             match &node {
                 CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
                     id_node.accept_to_string(self, output);
@@ -1684,7 +1680,7 @@ impl AstVisitor for CppVisitor {
         &mut self,
         bool_test_else_branch_node: &BoolTestElseBranchNode,
     ) {
-        self.add_code(&" else {".to_string());
+        self.add_code(" else {");
         self.indent();
 
         self.visit_decl_stmts(&bool_test_else_branch_node.statements);
@@ -1716,7 +1712,7 @@ impl AstVisitor for CppVisitor {
 
         self.outdent();
         self.newline();
-        self.add_code(&"}".to_string());
+        self.add_code("}");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1757,7 +1753,7 @@ impl AstVisitor for CppVisitor {
                     self.add_code(&format!(" == \"{}\")", match_string));
                     first_match = false;
                 } else {
-                    self.add_code(&" || (".to_string());
+                    self.add_code(" || (");
                     match &string_match_test_node.expr_t {
                         ExprType::CallExprT {
                             call_expr_node: method_call_expr_node,
@@ -1774,14 +1770,14 @@ impl AstVisitor for CppVisitor {
                     self.add_code(&format!(" == \"{}\")", match_string));
                 }
             }
-            self.add_code(&" {".to_string());
+            self.add_code(" {");
             self.indent();
 
             match_branch_node.accept(self);
 
             self.outdent();
             self.newline();
-            self.add_code(&"}".to_string());
+            self.add_code("}");
 
             if_or_else_if = " else if";
         }
@@ -1832,7 +1828,7 @@ impl AstVisitor for CppVisitor {
         &mut self,
         string_match_test_else_branch_node: &StringMatchTestElseBranchNode,
     ) {
-        self.add_code(&" else {".to_string());
+        self.add_code(" else {");
         self.indent();
 
         self.visit_decl_stmts(&string_match_test_else_branch_node.statements);
@@ -1865,7 +1861,7 @@ impl AstVisitor for CppVisitor {
 
         self.outdent();
         self.newline();
-        self.add_code(&"}".to_string());
+        self.add_code("}");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1906,7 +1902,7 @@ impl AstVisitor for CppVisitor {
                     self.add_code(&format!(" == {})", match_number.match_pattern_number));
                     first_match = false;
                 } else {
-                    self.add_code(&" || (".to_string());
+                    self.add_code(" || (");
                     match &number_match_test_node.expr_t {
                         ExprType::CallExprT {
                             call_expr_node: method_call_expr_node,
@@ -1924,14 +1920,14 @@ impl AstVisitor for CppVisitor {
                 }
             }
 
-            self.add_code(&") {".to_string());
+            self.add_code(") {");
             self.indent();
 
             match_branch_node.accept(self);
 
             self.outdent();
             self.newline();
-            self.add_code(&"}".to_string());
+            self.add_code("}");
 
             //           self.indent();
 
@@ -1985,7 +1981,7 @@ impl AstVisitor for CppVisitor {
         &mut self,
         number_match_test_else_branch_node: &NumberMatchTestElseBranchNode,
     ) {
-        self.add_code(&" else {".to_string());
+        self.add_code(" else {");
         self.indent();
 
         self.visit_decl_stmts(&number_match_test_else_branch_node.statements);
@@ -2017,7 +2013,7 @@ impl AstVisitor for CppVisitor {
 
         self.outdent();
         self.newline();
-        self.add_code(&"}".to_string());
+        self.add_code("}");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2033,13 +2029,13 @@ impl AstVisitor for CppVisitor {
 
     fn visit_expression_list_node(&mut self, expr_list: &ExprListNode) {
         let mut separator = "";
-        self.add_code(&"(".to_string());
+        self.add_code("(");
         for expr in &expr_list.exprs_t {
-            self.add_code(&separator.to_string());
+            self.add_code(separator);
             expr.accept(self);
             separator = ",";
         }
-        self.add_code(&")".to_string());
+        self.add_code(")");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2052,13 +2048,13 @@ impl AstVisitor for CppVisitor {
         //        self.add_code(&format!("{}(e);\n",dispatch_node.target_state_ref.name));
 
         let mut separator = "";
-        output.push_str(&"{".to_string());
+        output.push('{');
         for expr in &expr_list.exprs_t {
-            output.push_str(&separator.to_string());
+            output.push_str(separator);
             expr.accept_to_string(self, output);
             separator = ",";
         }
-        output.push_str(&"}".to_string());
+        output.push('}');
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2157,16 +2153,16 @@ impl AstVisitor for CppVisitor {
             StateStackOperationType::Push => {
                 self.newline();
                 if self.generate_state_context {
-                    self.add_code(&"_stateStack_push_(_state_context_);".to_string());
+                    self.add_code("_stateStack_push_(_state_context_);");
                 } else {
-                    self.add_code(&"_stateStack_push_(_state_);".to_string());
+                    self.add_code("_stateStack_push_(_state_);");
                 }
             }
             StateStackOperationType::Pop => {
                 if self.generate_state_context {
-                    self.add_code(&"_pStateStack_ = _stateStack_pop_()".to_string());
+                    self.add_code("_pStateStack_ = _stateStack_pop_()");
                 } else {
-                    self.add_code(&"let state = _stateStack_pop_()".to_string());
+                    self.add_code("let state = _stateStack_pop_()");
                 }
             }
         }
@@ -2187,10 +2183,10 @@ impl AstVisitor for CppVisitor {
         match frame_event_part {
             FrameEventPart::Event {
                 is_reference: _is_reference,
-            } => self.add_code(&"e".to_string()),
+            } => self.add_code("e"),
             FrameEventPart::Message {
                 is_reference: _is_reference,
-            } => self.add_code(&"e._message".to_string()),
+            } => self.add_code("e._message"),
             FrameEventPart::Param {
                 param_symbol_rcref,
                 is_reference: _is_reference,
@@ -2200,7 +2196,7 @@ impl AstVisitor for CppVisitor {
             )),
             FrameEventPart::Return {
                 is_reference: _is_reference,
-            } => self.add_code(&"e._return".to_string()),
+            } => self.add_code("e._return"),
         }
     }
 
@@ -2251,7 +2247,7 @@ impl AstVisitor for CppVisitor {
             None => {}
         }
 
-        self.add_code(&") {}".to_string());
+        self.add_code(") {}");
     }
 
     //* --------------------------------------------------------------------- *//

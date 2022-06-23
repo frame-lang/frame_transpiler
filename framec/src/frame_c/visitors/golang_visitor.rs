@@ -203,7 +203,7 @@ impl GolangVisitor {
 
         match variable_node.scope {
             IdentifierDeclScope::System => {
-                code.push_str(&format!("m"));
+                code.push('m');
             }
             IdentifierDeclScope::DomainBlock => {
                 code.push_str(&format!("m.{}", variable_node.id_node.name.lexeme));
@@ -303,7 +303,7 @@ impl GolangVisitor {
 
         let mut separator = "";
         for param in params {
-            self.add_code(&separator.to_string());
+            self.add_code(separator);
             let param_type: String = match &param.param_type_opt {
                 Some(ret_type) => self.format_type(ret_type),
                 None => String::from("<?>"),
@@ -322,8 +322,8 @@ impl GolangVisitor {
     ) {
         let mut separator = "";
         for param in params {
-            self.add_code(&separator.to_string());
-            subclass_actions.push_str(&separator.to_string());
+            self.add_code(separator);
+            subclass_actions.push_str(separator);
             let param_type: String = match &param.param_type_opt {
                 Some(type_node) => self.format_type(type_node),
                 None => String::from("<?>"),
@@ -560,10 +560,10 @@ impl GolangVisitor {
                 ));
                 self.indent();
                 self.newline();
-                self.add_code(&"m._stateStack_.Push(compartment)".to_string());
+                self.add_code("m._stateStack_.Push(compartment)");
                 self.outdent();
                 self.newline();
-                self.add_code(&"}".to_string());
+                self.add_code("}");
                 self.newline();
                 self.newline();
                 self.add_code(&format!(
@@ -573,7 +573,7 @@ impl GolangVisitor {
                 ));
                 self.indent();
                 self.newline();
-                self.add_code(&"compartment,_ := m._stateStack_.Front()".to_string());
+                self.add_code("compartment,_ := m._stateStack_.Front()");
                 self.newline();
 
                 self.add_code(&format!(
@@ -582,7 +582,7 @@ impl GolangVisitor {
                 ));
                 self.outdent();
                 self.newline();
-                self.add_code(&"}".to_string());
+                self.add_code("}");
             }
             if self.generate_change_state {
                 self.newline();
@@ -594,10 +594,10 @@ impl GolangVisitor {
                 ));
                 self.indent();
                 self.newline();
-                self.add_code(&"m._compartment_ = compartment".to_string());
+                self.add_code("m._compartment_ = compartment");
                 self.outdent();
                 self.newline();
-                self.add_code(&"}".to_string());
+                self.add_code("}");
             }
             self.newline();
         }
@@ -1340,7 +1340,7 @@ impl GolangVisitor {
             }
         }
 
-        if domain_vec.len() > 0 {
+        if !domain_vec.is_empty() {
             self.newline();
             self.newline();
             self.add_code("// Override domain variables.");
@@ -1677,10 +1677,7 @@ impl AstVisitor for GolangVisitor {
             let len = machine_block_node.states.len();
             let mut current = 0;
             for state_node_rcref in &machine_block_node.states {
-                self.add_code(&format!(
-                    "{}",
-                    &self.format_state_name(&state_node_rcref.borrow().name)
-                ));
+                self.add_code(&self.format_state_name(&state_node_rcref.borrow().name));
                 // self.format_state_name(&state_node_rcref.borrow().name);
                 if current == 0 {
                     self.add_code(&format!(" {} = iota", state_prefix));
@@ -1805,7 +1802,7 @@ impl AstVisitor for GolangVisitor {
         ));
         if self.generate_state_stack {
             self.newline();
-            self.add_code(&"_stateStack_ *Stack".to_string());
+            self.add_code("_stateStack_ *Stack");
         }
 
         // declare member variables
@@ -1830,7 +1827,7 @@ impl AstVisitor for GolangVisitor {
 
         if self.config.code.marshal {
             self.newline();
-            self.add_code(&format!("type marshalStruct struct {{"));
+            self.add_code("type marshalStruct struct {");
             self.indent();
             self.newline();
             // TODO - CHANGE CONFIG
@@ -2114,7 +2111,7 @@ impl AstVisitor for GolangVisitor {
         }
         self.add_code("}");
         self.newline();
-        self.add_code(&"m._mux_(&e)".to_string());
+        self.add_code("m._mux_(&e)");
 
         match &interface_method_node.return_type_opt {
             Some(return_type) => {
@@ -2126,7 +2123,7 @@ impl AstVisitor for GolangVisitor {
 
         self.outdent();
         self.newline();
-        self.add_code(&"}".to_string());
+        self.add_code("}");
         self.newline();
     }
 
@@ -2295,7 +2292,7 @@ impl AstVisitor for GolangVisitor {
         match &evt_handler_terminator_node.terminator_type {
             TerminatorType::Return => match &evt_handler_terminator_node.return_expr_t_opt {
                 Some(expr_t) => {
-                    self.add_code(&"e.Ret = ".to_string());
+                    self.add_code("e.Ret = ");
                     expr_t.accept(self);
                     self.generate_return();
                     self.newline();
@@ -2321,7 +2318,7 @@ impl AstVisitor for GolangVisitor {
         if let Some(call_chain) = &method_call.call_chain {
             for callable in call_chain {
                 callable.callable_accept(self);
-                self.add_code(&".".to_string());
+                self.add_code(".");
             }
         }
 
@@ -2342,7 +2339,7 @@ impl AstVisitor for GolangVisitor {
         if let Some(call_chain) = &method_call.call_chain {
             for callable in call_chain {
                 callable.callable_accept(self);
-                output.push_str(&".".to_string());
+                output.push('.');
             }
         }
 
@@ -2357,15 +2354,15 @@ impl AstVisitor for GolangVisitor {
 
     fn visit_call_expr_list_node(&mut self, call_expr_list: &CallExprListNode) {
         let mut separator = "";
-        self.add_code(&"(".to_string());
+        self.add_code("(");
 
         for expr in &call_expr_list.exprs_t {
-            self.add_code(&separator.to_string());
+            self.add_code(separator);
             expr.accept(self);
             separator = ",";
         }
 
-        self.add_code(&")".to_string());
+        self.add_code(")");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2376,15 +2373,15 @@ impl AstVisitor for GolangVisitor {
         output: &mut String,
     ) {
         let mut separator = "";
-        output.push_str(&"(".to_string());
+        output.push('(');
 
         for expr in &call_expr_list.exprs_t {
-            output.push_str(&separator.to_string());
+            output.push_str(separator);
             expr.accept_to_string(self, output);
             separator = ",";
         }
 
-        output.push_str(&")".to_string());
+        output.push(')');
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2502,22 +2499,22 @@ impl AstVisitor for GolangVisitor {
             if branch_node.is_negated {
                 self.add_code(&format!("{}!(", if_or_else_if));
             } else {
-                self.add_code(&if_or_else_if.to_string());
+                self.add_code(if_or_else_if);
             }
 
             branch_node.expr_t.accept(self);
 
             if branch_node.is_negated {
-                self.add_code(&")".to_string());
+                self.add_code(")");
             }
-            self.add_code(&" {".to_string());
+            self.add_code(" {");
             self.indent();
 
             branch_node.accept(self);
             self.generate_return_if_transitioned();
             self.outdent();
             self.newline();
-            self.add_code(&"}".to_string());
+            self.add_code("}");
 
             if_or_else_if = " else if ";
         }
@@ -2582,7 +2579,7 @@ impl AstVisitor for GolangVisitor {
         let mut separator = "";
 
         for node in &method_call_chain_expression_node.call_chain {
-            self.add_code(&separator.to_string());
+            self.add_code(separator);
             match &node {
                 CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
                     id_node.accept(self);
@@ -2620,7 +2617,7 @@ impl AstVisitor for GolangVisitor {
         let mut separator = "";
 
         for node in &method_call_chain_expression_node.call_chain {
-            output.push_str(&separator.to_string());
+            output.push_str(separator);
             match &node {
                 CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
                     id_node.accept_to_string(self, output);
@@ -2661,7 +2658,7 @@ impl AstVisitor for GolangVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code(&"e.Ret = ".to_string());
+                            self.add_code("e.Ret = ");
                             expr_t.accept(self);
                             self.generate_return();
                         }
@@ -2684,7 +2681,7 @@ impl AstVisitor for GolangVisitor {
         &mut self,
         bool_test_else_branch_node: &BoolTestElseBranchNode,
     ) {
-        self.add_code(&" else {".to_string());
+        self.add_code(" else {");
         self.indent();
 
         self.visit_decl_stmts(&bool_test_else_branch_node.statements);
@@ -2696,7 +2693,7 @@ impl AstVisitor for GolangVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code(&"e.Ret = ".to_string());
+                            self.add_code("e.Ret = ");
                             expr_t.accept(self);
                             self.generate_return();
                         }
@@ -2714,7 +2711,7 @@ impl AstVisitor for GolangVisitor {
 
         self.outdent();
         self.newline();
-        self.add_code(&"}".to_string());
+        self.add_code("}");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2765,7 +2762,7 @@ impl AstVisitor for GolangVisitor {
                     self.add_code(&format!(" == \"{}\"", match_string));
                     first_match = false;
                 } else {
-                    self.add_code(&" || ".to_string());
+                    self.add_code(" || ");
                     match &string_match_test_node.expr_t {
                         ExprType::CallExprT {
                             call_expr_node: method_call_expr_node,
@@ -2782,7 +2779,7 @@ impl AstVisitor for GolangVisitor {
                     self.add_code(&format!(" == \"{}\"", match_string));
                 }
             }
-            self.add_code(&" {".to_string());
+            self.add_code(" {");
             self.indent();
 
             match_branch_node.accept(self);
@@ -2790,7 +2787,7 @@ impl AstVisitor for GolangVisitor {
 
             self.outdent();
             self.newline();
-            self.add_code(&"}".to_string());
+            self.add_code("}");
 
             if_or_else_if = " else if";
         }
@@ -2815,7 +2812,7 @@ impl AstVisitor for GolangVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code(&"e.Ret = ".to_string());
+                            self.add_code("e.Ret = ");
                             expr_t.accept(self);
                             //                            self.add_code(";");
                             self.generate_return();
@@ -2839,7 +2836,7 @@ impl AstVisitor for GolangVisitor {
         &mut self,
         string_match_test_else_branch_node: &StringMatchTestElseBranchNode,
     ) {
-        self.add_code(&" else {".to_string());
+        self.add_code(" else {");
         self.indent();
 
         self.visit_decl_stmts(&string_match_test_else_branch_node.statements);
@@ -2851,7 +2848,7 @@ impl AstVisitor for GolangVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code(&"e.Ret = ".to_string());
+                            self.add_code("e.Ret = ");
                             expr_t.accept(self);
                             //                           self.add_code(";");
                             self.generate_return();
@@ -2870,7 +2867,7 @@ impl AstVisitor for GolangVisitor {
 
         self.outdent();
         self.newline();
-        self.add_code(&"}".to_string());
+        self.add_code("}");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2921,7 +2918,7 @@ impl AstVisitor for GolangVisitor {
                     self.add_code(&format!(" == {}", match_number.match_pattern_number));
                     first_match = false;
                 } else {
-                    self.add_code(&" || ".to_string());
+                    self.add_code(" || ");
                     match &number_match_test_node.expr_t {
                         ExprType::CallExprT {
                             call_expr_node: method_call_expr_node,
@@ -2939,7 +2936,7 @@ impl AstVisitor for GolangVisitor {
                 }
             }
 
-            self.add_code(&" {".to_string());
+            self.add_code(" {");
             self.indent();
 
             match_branch_node.accept(self);
@@ -2947,7 +2944,7 @@ impl AstVisitor for GolangVisitor {
 
             self.outdent();
             self.newline();
-            self.add_code(&"}".to_string());
+            self.add_code("}");
 
             if_or_else_if = " else if";
         }
@@ -2973,7 +2970,7 @@ impl AstVisitor for GolangVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code(&"e.Ret = ".to_string());
+                            self.add_code("e.Ret = ");
                             expr_t.accept(self);
                             //                            self.add_code(";");
                             self.generate_return();
@@ -2997,7 +2994,7 @@ impl AstVisitor for GolangVisitor {
         &mut self,
         number_match_test_else_branch_node: &NumberMatchTestElseBranchNode,
     ) {
-        self.add_code(&" else {".to_string());
+        self.add_code(" else {");
         self.indent();
 
         self.visit_decl_stmts(&number_match_test_else_branch_node.statements);
@@ -3009,7 +3006,7 @@ impl AstVisitor for GolangVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code(&"e.Ret = ".to_string());
+                            self.add_code("e.Ret = ");
                             expr_t.accept(self);
                             //                            self.add_code(";");
                             self.generate_return();
@@ -3028,7 +3025,7 @@ impl AstVisitor for GolangVisitor {
 
         self.outdent();
         self.newline();
-        self.add_code(&"}".to_string());
+        self.add_code("}");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -3044,13 +3041,13 @@ impl AstVisitor for GolangVisitor {
 
     fn visit_expression_list_node(&mut self, expr_list: &ExprListNode) {
         let mut separator = "";
-        self.add_code(&"(".to_string());
+        self.add_code("(");
         for expr in &expr_list.exprs_t {
-            self.add_code(&separator.to_string());
+            self.add_code(separator);
             expr.accept(self);
             separator = ",";
         }
-        self.add_code(&")".to_string());
+        self.add_code(")");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -3063,13 +3060,13 @@ impl AstVisitor for GolangVisitor {
         //        self.add_code(&format!("{}(e);\n",dispatch_node.target_state_ref.name));
 
         let mut separator = "";
-        output.push_str(&"(".to_string());
+        output.push('(');
         for expr in &expr_list.exprs_t {
-            output.push_str(&separator.to_string());
+            output.push_str(separator);
             expr.accept_to_string(self, output);
             separator = ",";
         }
-        output.push_str(&")".to_string());
+        output.push(')');
     }
 
     //* --------------------------------------------------------------------- *//
@@ -3170,7 +3167,7 @@ impl AstVisitor for GolangVisitor {
         {
             StateStackOperationType::Push => {
                 self.newline();
-                self.add_code(&"m._stateStack_push_(m._compartment_)".to_string());
+                self.add_code("m._stateStack_push_(m._compartment_)");
             }
             StateStackOperationType::Pop => {
                 self.add_code(&format!(
@@ -3194,10 +3191,10 @@ impl AstVisitor for GolangVisitor {
         match frame_event_part {
             FrameEventPart::Event {
                 is_reference: _is_reference,
-            } => self.add_code(&"e".to_string()),
+            } => self.add_code("e"),
             FrameEventPart::Message {
                 is_reference: _is_reference,
-            } => self.add_code(&"e.Msg".to_string()),
+            } => self.add_code("e.Msg"),
             FrameEventPart::Param {
                 param_symbol_rcref,
                 is_reference: _is_reference,
@@ -3251,7 +3248,7 @@ impl AstVisitor for GolangVisitor {
             FrameEventPart::Return {
                 is_reference: _is_reference,
             } => {
-                self.add_code(&"e.Ret".to_string());
+                self.add_code("e.Ret");
                 if self.expr_context == Rvalue || self.expr_context == ExprContext::None {
                     self.add_code(&format!(".({})", &self.current_event_ret_type));
                 }

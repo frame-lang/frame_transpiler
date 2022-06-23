@@ -290,7 +290,7 @@ impl<'a> Parser<'a> {
         let mut error_msg = format!("[line {}] Error", token.line);
 
         match token.token_type {
-            TokenType::Eof => error_msg.push_str(&" at end".to_string()),
+            TokenType::Eof => error_msg.push_str(" at end"),
             TokenType::Error => error_msg.push_str(&format!(" at '{}'", token.lexeme)),
             _ => error_msg.push_str(&format!(" at '{}'", token.lexeme)),
         }
@@ -600,16 +600,16 @@ impl<'a> Parser<'a> {
                         // ok - no states or start state params
                     } else {
                         // error - no start state but start state params exist
-                        self.error_at_current(&format!(
-                            "System start state parameters declared but no start state exists."
-                        ));
+                        self.error_at_current(
+                            "System start state parameters declared but no start state exists.",
+                        );
                     }
 
                     if system_enter_params_opt.is_none() {
                         // ok - no states or enter event params
                     } else {
                         // error - no start state but enter event params exist
-                        self.error_at_current(&format!("System start state enter parameters declared but no start state exists."));
+                        self.error_at_current("System start state enter parameters declared but no start state exists.");
                     }
                 } else {
                     // there are states
@@ -625,13 +625,13 @@ impl<'a> Parser<'a> {
                             && system_start_state_state_params_opt.is_none()
                         {
                             // error - mismatched params
-                            self.error_at_current(&format!("Start state parameters declared but no system start state parameters are declared."));
+                            self.error_at_current("Start state parameters declared but no system start state parameters are declared.");
                         } else if start_state.params_opt.is_none()
                             && system_start_state_state_params_opt.is_some()
                         {
-                            self.error_at_current(&format!(
-                                "System start state parameters declared but no start state exists."
-                            ));
+                            self.error_at_current(
+                                "System start state parameters declared but no start state exists.",
+                            );
                         } else {
                             // both state and system have params. verify they match
                             let system_start_state_state_params =
@@ -641,18 +641,18 @@ impl<'a> Parser<'a> {
                             if start_state_params_vec.len() != system_start_state_state_params.len()
                             {
                                 // error
-                                self.error_at_current(&format!("System start state parameters do not match actual start state parameters."));
+                                self.error_at_current("System start state parameters do not match actual start state parameters.");
                             } else {
                                 // loop through parameter lists and confirm identical
-                                let mut i = 0;
-                                for state_param in start_state_params_vec {
+                                // let mut i = 0;
+                                for (i, state_param) in start_state_params_vec.iter().enumerate() {
                                     let system_start_state_state_param =
                                         system_start_state_state_params.get(i).unwrap();
                                     if system_start_state_state_param != state_param {
                                         // error
-                                        self.error_at_current(&format!("System start state parameters do not match actual start state parameters."));
+                                        self.error_at_current("System start state parameters do not match actual start state parameters.");
                                     }
-                                    i += 1;
+                                    // i += 1;
                                 }
                             }
                         }
@@ -670,14 +670,14 @@ impl<'a> Parser<'a> {
                                     // ok
                                 } else {
                                     // error
-                                    self.error_at_current(&format!("System has enter parameters but start state enter handler does not."));
+                                    self.error_at_current("System has enter parameters but start state enter handler does not.");
                                 }
                             } else {
                                 // enter_event_handler_params_opt.is_some()
 
                                 if system_enter_params_opt.is_none() {
                                     // error
-                                    self.error_at_current(&format!("Start state has enter parameters but system does not define any."));
+                                    self.error_at_current("Start state has enter parameters but system does not define any.");
                                 } else {
                                     // system_enter_params_opt.is_some()
                                     // compare system enter params w/ start state enter params
@@ -688,15 +688,15 @@ impl<'a> Parser<'a> {
                                     if system_enter_params.len() != enter_event_handler_params.len()
                                     {
                                         // error
-                                        self.error_at_current(&format!("Start state and system enter parameters are different."));
+                                        self.error_at_current("Start state and system enter parameters are different.");
                                     } else {
-                                        let mut i = 0;
-                                        for param in system_enter_params {
+                                        // let mut i = 0;
+                                        for (i, param) in system_enter_params.iter().enumerate() {
                                             let parameter_symbol =
                                                 enter_event_handler_params.get(i).unwrap();
                                             if parameter_symbol.name.ne(&param.param_name) {
                                                 // error
-                                                self.error_at_current(&format!("Start state and system enter parameters are different."));
+                                                self.error_at_current("Start state and system enter parameters are different.");
                                             } else if parameter_symbol.param_type_opt.is_none()
                                                 && param.param_type_opt.is_none()
                                             {
@@ -707,7 +707,7 @@ impl<'a> Parser<'a> {
                                                     && param.param_type_opt.is_none())
                                             {
                                                 // error
-                                                self.error_at_current(&format!("Start state and system enter parameters are different."));
+                                                self.error_at_current("Start state and system enter parameters are different.");
                                             } else {
                                                 // parameter_symbol.param_type_opt.is_some() && param.param_type_opt.is_some()
                                                 let param_symbol_type = parameter_symbol
@@ -718,21 +718,19 @@ impl<'a> Parser<'a> {
                                                     param.param_type_opt.as_ref().unwrap();
                                                 if param_symbol_type != param_type {
                                                     // error
-                                                    self.error_at_current(&format!("System enter params do not match start state enter params."));
+                                                    self.error_at_current("System enter params do not match start state enter params.");
                                                 }
                                             }
-                                            i = i + 1;
+                                            // i = i + 1;
                                         }
                                     }
                                 }
                             }
+                        } else if system_enter_params_opt.is_some() {
+                            // error - no event handlers but there are system enter event params
+                            self.error_at_current("System has enter parameters but the start state does not have an enter event handler.");
                         } else {
-                            if system_enter_params_opt.is_some() {
-                                // error - no event handlers but there are system enter event params
-                                self.error_at_current("System has enter parameters but the start state does not have an enter event handler.");
-                            } else {
-                                // ok - no system enter event params
-                            }
+                            // ok - no system enter event params
                         }
                     }
                 }
@@ -740,9 +738,9 @@ impl<'a> Parser<'a> {
                 // no machine block therefore no states therefore no start state
                 if system_start_state_state_params_opt.is_some() {
                     // error - system start state params specified but no machine block
-                    self.error_at_current(&format!(
-                        "System start state parameters declared but no start state exists."
-                    ));
+                    self.error_at_current(
+                        "System start state parameters declared but no start state exists.",
+                    );
                 }
             }
         }
@@ -1092,11 +1090,9 @@ impl<'a> Parser<'a> {
             let mut frame_event_part_opt = None;
             if self.match_token(&[TokenType::At]) {
                 frame_event_part_opt = Some(FrameEventPart::Event { is_reference })
-            } else {
-                if !self.match_token(&[TokenType::Identifier]) {
-                    self.error_at_current("Expected return type name.");
-                    return Err(ParseError::new("TODO"));
-                }
+            } else if !self.match_token(&[TokenType::Identifier]) {
+                self.error_at_current("Expected return type name.");
+                return Err(ParseError::new("TODO"));
             }
 
             let id = self.previous();
@@ -1207,10 +1203,10 @@ impl<'a> Parser<'a> {
         }
 
         if !parameters.is_empty() {
-            return Ok(Some(parameters));
+            Ok(Some(parameters))
         } else {
             self.error_at_current("Error - empty list declaration.");
-            return Err(ParseError::new("Error - empty list declaration."));
+            Err(ParseError::new("Error - empty list declaration."))
         }
     }
 
@@ -2018,7 +2014,7 @@ impl<'a> Parser<'a> {
                         } else {
                             // validate event handler's parameters match the event symbol's parameters
                             if event_symbol_rcref.borrow().params_opt.is_none()
-                                && parameters.len() > 0
+                                && !parameters.is_empty()
                             {
                                 self.error_at_current(&format!("Event handler {} parameters do not match a previous declaration."
                                                                ,msg
@@ -2432,7 +2428,7 @@ impl<'a> Parser<'a> {
             Some(expr_t) => {
                 if self.is_bool_test() {
                     if !self.is_testable_expression(&expr_t) {
-                        self.error_at_current(&"Not a testable expression.".to_string());
+                        self.error_at_current("Not a testable expression.");
                         return Err(ParseError::new("TODO"));
                     }
                     let result = self.bool_test(expr_t);
@@ -2450,7 +2446,7 @@ impl<'a> Parser<'a> {
                     };
                 } else if self.is_string_match_test() {
                     if !self.is_testable_expression(&expr_t) {
-                        self.error_at_current(&"Not a testable expression.".to_string());
+                        self.error_at_current("Not a testable expression.");
                         return Err(ParseError::new("TODO"));
                     }
                     let result = self.string_match_test(expr_t);
@@ -2470,7 +2466,7 @@ impl<'a> Parser<'a> {
                     };
                 } else if self.is_number_match_test() {
                     if !self.is_testable_expression(&expr_t) {
-                        self.error_at_current(&"Not a testable expression.".to_string());
+                        self.error_at_current("Not a testable expression.");
                         return Err(ParseError::new("TODO"));
                     }
                     let result = self.number_match_test(expr_t);
@@ -3669,8 +3665,8 @@ impl<'a> Parser<'a> {
                 } else {
                     // variables (or parameters) must be
                     // the first (or only) node in the call chain
-                    let symbol_type_rcref_opt: Option<Rc<RefCell<SymbolType>>>;
-                    symbol_type_rcref_opt = self
+
+                    let symbol_type_rcref_opt: Option<Rc<RefCell<SymbolType>>> = self
                         .arcanum
                         .lookup(&id_node.name.lexeme, &explicit_scope)
                         .clone();
@@ -3713,10 +3709,9 @@ impl<'a> Parser<'a> {
         identifier_node: &IdentifierNode,
         explicit_scope: &IdentifierDeclScope,
     ) -> Result<IdentifierDeclScope, ParseError> {
-        let symbol_type_rcref_opt: Option<Rc<RefCell<SymbolType>>>;
         let mut scope: IdentifierDeclScope = IdentifierDeclScope::None;
         // find the variable in the arcanum
-        symbol_type_rcref_opt = self
+        let symbol_type_rcref_opt: Option<Rc<RefCell<SymbolType>>> = self
             .arcanum
             .lookup(&identifier_node.name.lexeme, explicit_scope);
         match &symbol_type_rcref_opt {
