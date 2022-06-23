@@ -44,12 +44,12 @@ jobs:
         with:
           command: test
   test_js:
-    run-on: ubuntu-latest
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         node: [ 12, 14, 16 ]
     name: Test Javascript Node ${{ matrix.node }}
-     steps:
+    steps:
       - uses: actions/checkout@v3
       - name: Setup node
         uses: actions/setup-node@v3
