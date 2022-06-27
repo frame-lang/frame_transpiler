@@ -1,7 +1,15 @@
 // emitted from framec_v0.10.0
 // get include files at https://github.com/frame-lang/frame-ancillary-files
 
-const FrameEvent = require("../framelang/FrameEvent")
+function FrameEvent(message, parameters) {
+
+    var that = {};
+    that._message = message;
+    that._parameters = parameters;
+    that._return = null;
+    return that;
+    
+}
 
 class Branch {
     
@@ -11,7 +19,6 @@ class Branch {
     #compartment
     #nextCompartment
     
-    
     constructor () {
         
         // Create and intialize start state compartment.
@@ -19,6 +26,7 @@ class Branch {
         this.#state = this.#sI_;
         this.#compartment = new BranchCompartment(this.#state);
         this.#nextCompartment = null;
+        this.state = this.#compartment.state.name
         
         // Initialize domain
         this.tape = [];
@@ -529,4 +537,5 @@ class BranchController extends Branch {
 };
 
 ********************/
+
 module.exports = Branch

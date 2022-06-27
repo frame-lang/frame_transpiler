@@ -37,5 +37,14 @@ describe("Basic",  function () {
     sm.B()
     assert.deepStrictEqual(sm.exit_log, ["S0", "S1"], "Exit events are sent to the old state on transition")
    })
+
+   it("Current state", ()=> {
+     let sm = new BasicController()
+     assert(sm.state, '#sS0_')
+     sm.A()
+     assert(sm.state, '#sS1_')
+     sm.B()
+     assert(sm.state, '#sS0_')
+   })
     
   })
