@@ -2009,13 +2009,10 @@ impl AstVisitor for GolangVisitor {
         &mut self,
         interface_method_call_expr_node: &InterfaceMethodCallExprNode,
     ) {
-        self.add_code(
-            &interface_method_call_expr_node
-                .identifier
-                .name
-                .lexeme
-                .to_string(),
-        );
+        self.add_code(&format!(
+            "m.{}",
+            interface_method_call_expr_node.identifier.name.lexeme
+        ));
         interface_method_call_expr_node.call_expr_list.accept(self);
 
         // TODO: review this return as I think it is a nop.
@@ -2029,11 +2026,10 @@ impl AstVisitor for GolangVisitor {
         output: &mut String,
     ) {
         output.push_str(
-            &interface_method_call_expr_node
-                .identifier
-                .name
-                .lexeme
-                .to_string(),
+            &format!(
+                "m.{}",
+                interface_method_call_expr_node.identifier.name.lexeme
+            )
         );
         interface_method_call_expr_node
             .call_expr_list
