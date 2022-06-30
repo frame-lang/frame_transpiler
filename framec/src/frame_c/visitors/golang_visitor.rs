@@ -573,7 +573,7 @@ impl GolangVisitor {
                 ));
                 self.indent();
                 self.newline();
-                self.add_code("compartment,_ := m._stateStack_.Front()");
+                self.add_code("compartment := m._stateStack_.Pop()");
                 self.newline();
 
                 self.add_code(&format!(
@@ -1398,6 +1398,10 @@ impl GolangVisitor {
         self.newline();
         self.add_code("}");
         self.newline();
+
+        if self.generate_state_stack {
+            self.generate_stack();
+        }
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1612,6 +1616,55 @@ impl GolangVisitor {
     }
 
     //* --------------------------------------------------------------------- *//
+
+    // This method will generate a stack with @methods Push and Pop.
+    fn generate_stack(&mut self) {
+        self.newline();
+        self.add_code("type Stack struct {");
+        self.indent();
+        self.newline();
+        self.add_code("stack *list.List");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.newline();
+        self.newline();
+        self.add_code(&format!(
+            "func (s *Stack) Push(compartment *{}) {{",
+            self.config.code.compartment_type
+        ));
+        self.indent();
+        self.newline();
+        self.add_code("s.stack.PushBack(compartment)");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.newline();
+        self.newline();
+        self.add_code("func (s *Stack) Pop() any {");
+        self.newline();
+        self.indent();
+        self.newline();
+        self.add_code("if s.stack.Len() == 0 {");
+        self.indent();
+        self.newline();
+        self.add_code("return nil");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.newline();
+        self.newline();
+        self.add_code("tail := s.stack.Back()");
+        self.newline();
+        self.add_code("val := tail.Value");
+        self.newline();
+        self.add_code("s.stack.Remove(tail)");
+        self.newline();
+        self.add_code("return val");
+        self.outdent();
+        self.newline();
+        self.add_code("}")
+    }
 }
 
 //* --------------------------------------------------------------------- *//
@@ -2011,7 +2064,13 @@ impl AstVisitor for GolangVisitor {
     ) {
         self.add_code(&format!(
             "m.{}",
-            interface_method_call_expr_node.identifier.name.lexeme
+            self.first_letter_to_upper_case(
+                &interface_method_call_expr_node
+                    .identifier
+                    .name
+                    .lexeme
+                    .to_string()
+            )
         ));
         interface_method_call_expr_node.call_expr_list.accept(self);
 
@@ -2025,12 +2084,16 @@ impl AstVisitor for GolangVisitor {
         interface_method_call_expr_node: &InterfaceMethodCallExprNode,
         output: &mut String,
     ) {
-        output.push_str(
-            &format!(
-                "m.{}",
-                interface_method_call_expr_node.identifier.name.lexeme
+        output.push_str(&format!(
+            "m.{}",
+            self.first_letter_to_upper_case(
+                &interface_method_call_expr_node
+                    .identifier
+                    .name
+                    .lexeme
+                    .to_string()
             )
-        );
+        ));
         interface_method_call_expr_node
             .call_expr_list
             .accept_to_string(self, output);
