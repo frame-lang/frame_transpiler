@@ -2,21 +2,19 @@ use anyhow::Result;
 use frame_build::*;
 use std::path::PathBuf;
 
-struct Path{
+struct Path {
     golang: PathBuf,
-    javascript: PathBuf
+    javascript: PathBuf,
 }
 
-impl Path{
+impl Path {
     fn get_path() -> Path {
-      Path {
-          golang : PathBuf::from("golang"),
-          javascript: PathBuf::from("javascript")
-      }
+        Path {
+            golang: PathBuf::from("golang"),
+            javascript: PathBuf::from("javascript"),
+        }
     }
 }
-
-
 
 fn main() -> Result<()> {
     let path = Path::get_path();
@@ -34,7 +32,7 @@ fn main() -> Result<()> {
         .input_dir(&path.golang)
         .output_dir(&path.golang)
         .run()?;
-        FrameBuild::new()
+    FrameBuild::new()
         .set_targets(&[TargetLanguage::JavaScript])
         .input_dir(&path.javascript)
         .output_dir(&path.javascript)
