@@ -576,10 +576,7 @@ impl GolangVisitor {
                 self.add_code("compartment := m._stateStack_.Pop()");
                 self.newline();
 
-                self.add_code(&format!(
-                    "return compartment.(*{})",
-                    self.config.code.compartment_type
-                ));
+                self.add_code("return compartment");
                 self.outdent();
                 self.newline();
                 self.add_code("}");
@@ -1279,7 +1276,10 @@ impl GolangVisitor {
             self.newline();
             self.add_code("// History mechanism used in spec. Create state stack.");
             self.newline();
-            self.add_code("m._stateStack_ = &Stack{stack: list.New()}");
+            self.add_code(&format!(
+                "m._stateStack_ = &Stack{{stack: make([]{}, 0)}}",
+                self.config.code.compartment_type
+            ));
             self.newline();
         }
         self.newline();
@@ -1623,7 +1623,7 @@ impl GolangVisitor {
         self.add_code("type Stack struct {");
         self.indent();
         self.newline();
-        self.add_code("stack *list.List");
+        self.add_code(&format!("stack []{}", self.config.code.compartment_type));
         self.outdent();
         self.newline();
         self.add_code("}");
@@ -1635,32 +1635,38 @@ impl GolangVisitor {
         ));
         self.indent();
         self.newline();
-        self.add_code("s.stack.PushBack(compartment)");
+        self.add_code("s.stack = append(s.stack, *compartment)");
         self.outdent();
         self.newline();
         self.add_code("}");
         self.newline();
         self.newline();
-        self.add_code("func (s *Stack) Pop() any {");
+        self.add_code(&format!(
+            "func (s *Stack) Pop() *{} {{",
+            self.config.code.compartment_type
+        ));
         self.newline();
         self.indent();
         self.newline();
-        self.add_code("if s.stack.Len() == 0 {");
+        self.add_code("l := len(s.stack)");
+        self.newline();
+        self.add_code("if l == 0 {");
         self.indent();
         self.newline();
-        self.add_code("return nil");
+        self.add_code(&format!(
+            "panic({})",
+            "\"Attempted to pop when history stack is empty\""
+        ));
         self.outdent();
         self.newline();
         self.add_code("}");
         self.newline();
         self.newline();
-        self.add_code("tail := s.stack.Back()");
+        self.add_code("res := s.stack[l-1]");
         self.newline();
-        self.add_code("val := tail.Value");
+        self.add_code("s.stack = s.stack[:l-1]");
         self.newline();
-        self.add_code("s.stack.Remove(tail)");
-        self.newline();
-        self.add_code("return val");
+        self.add_code("return &res");
         self.outdent();
         self.newline();
         self.add_code("}")
