@@ -170,44 +170,71 @@ func TestPopRestoresStateVariables(t *testing.T) {
 /* Test that push stores a snapshot of the current values of state variables. Any changes to
 state variables after a push should not be reflected after that state is popped. */
 
-func TestPushStoresStateVariableSnapshot(t *testing.T) {
-	sm := NewStateContextStack()
-	x := sm.(*stateContextStackStruct)
-	sm.Inc()
-	sm.Inc()
-	sm.Push()
-	assert.Equal(t, StateContextStackState_A, x._compartment_.State)
-	assert.Equal(t, 2, sm.Value())
-	sm.Inc()
-	sm.Inc()
-	assert.Equal(t, 4, sm.Value())
+// func TestPushStoresStateVariableSnapshot(t *testing.T) {
+// 	sm := NewStateContextStack()
+// 	x := sm.(*stateContextStackStruct)
+// 	sm.Inc()
+// 	sm.Inc()
+// 	sm.Push()
+// 	assert.Equal(t, StateContextStackState_A, x._compartment_.State)
+// 	assert.Equal(t, 2, sm.Value())
+// 	sm.Inc()
+// 	sm.Inc()
+// 	assert.Equal(t, 4, sm.Value())
 
-	sm.To_b()
-	sm.Inc()
-	sm.Push()
-	assert.Equal(t, StateContextStackState_B, x._compartment_.State)
-	assert.Equal(t, 5, sm.Value())
-	sm.Inc()
-	sm.Inc()
-	assert.Equal(t, 15, sm.Value()) // these changes should be forgotten
+// 	sm.To_b()
+// 	sm.Inc()
+// 	sm.Push()
+// 	assert.Equal(t, StateContextStackState_B, x._compartment_.State)
+// 	assert.Equal(t, 5, sm.Value())
+// 	sm.Inc()
+// 	sm.Inc()
+// 	assert.Equal(t, 15, sm.Value()) // these changes should be forgotten
 
-	sm.To_c()
-	sm.Inc()
-	sm.Inc()
-	sm.Inc()
-	sm.Push()
-	assert.Equal(t, StateContextStackState_C, x._compartment_.State)
-	assert.Equal(t, 30, sm.Value())
-	sm.Inc()
-	assert.Equal(t, 40, sm.Value()) // forgotten
+// 	sm.To_c()
+// 	sm.Inc()
+// 	sm.Inc()
+// 	sm.Inc()
+// 	sm.Push()
+// 	assert.Equal(t, StateContextStackState_C, x._compartment_.State)
+// 	assert.Equal(t, 30, sm.Value())
+// 	sm.Inc()
+// 	assert.Equal(t, 40, sm.Value()) // forgotten
 
-	sm.To_a()
-	sm.Inc()
-	assert.Equal(t, StateContextStackState_A, x._compartment_.State)
-	assert.Equal(t, 1, sm.Value())
+// 	sm.To_a()
+// 	sm.Inc()
+// 	assert.Equal(t, StateContextStackState_A, x._compartment_.State)
+// 	assert.Equal(t, 1, sm.Value())
 
-	sm.Pop()
-	assert.Equal(t, StateContextStackState_C, x._compartment_.State)
-	assert.Equal(t, 30, sm.Value())
+// 	sm.Pop()
+// 	assert.Equal(t, StateContextStackState_C, x._compartment_.State)
+// 	assert.Equal(t, 30, sm.Value())
 
-}
+// 	sm.Pop()
+// 	assert.Equal(t, StateContextStackState_B, x._compartment_.State)
+// 	assert.Equal(t, 5, sm.Value())
+
+// 	sm.To_a()
+// 	sm.Inc()
+// 	sm.Inc()
+// 	sm.Inc()
+// 	sm.Push()
+// 	assert.Equal(t, StateContextStackState_A, x._compartment_.State)
+// 	assert.Equal(t, 3, sm.Value())
+// 	sm.Inc()
+// 	assert.Equal(t, 4, sm.Value()) // forgotten
+
+// 	sm.To_c()
+// 	sm.Inc()
+// 	assert.Equal(t, StateContextStackState_C, x._compartment_.State)
+// 	assert.Equal(t, 10, sm.Value())
+
+// 	sm.Pop()
+// 	assert.Equal(t, StateContextStackState_A, x._compartment_.State)
+// 	assert.Equal(t, 3, sm.Value())
+
+// 	sm.Pop()
+// 	assert.Equal(t, StateContextStackState_A, x._compartment_.State)
+// 	assert.Equal(t, 2, sm.Value())
+
+// }
