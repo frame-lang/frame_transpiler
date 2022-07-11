@@ -303,107 +303,54 @@ impl PythonVisitor {
         self.add_code("# =============== Machinery and Mechanisms ============== #");
         self.newline();
         if system_node.get_first_state().is_some() {
-            //           self.newline();
-            //           self.add_code(&format!("private delegate void FrameState(FrameEvent e);"));
-            //            self.newline();
-            //            self.add_code(&format!("private FrameState _state_;"));
-            if self.generate_state_context {
-                //                self.newline();
-                //                self.add_code(&format!("private StateContext _stateContext_;"));
-            }
-            if self.generate_transition_state {
-                //               self.newline();
-                self.newline();
-                if self.generate_state_context {
-                    if self.generate_exit_args {
-                        self.add_code("def _transition_(self, newState, exitArgs, stateContext):");
-                    } else {
-                        self.add_code("def _transition_(self, newState, stateContext):");
-                    }
-                } else if self.generate_exit_args {
-                    self.add_code("def _transition_(self, newState, exitArgs):");
-                } else {
-                    self.add_code("def _transition_(self, newState):");
-                }
-                self.indent();
-                self.newline();
-                if self.generate_exit_args {
-                    self.add_code("exitEvent = FrameEvent(\"<\",exitArgs)");
-                } else {
-                    self.add_code("exitEvent = FrameEvent(\"<\",None)");
-                }
-                self.newline();
-                self.add_code("self._state_(exitEvent)");
-                self.newline();
-                self.add_code("self._state_ = newState");
-                self.newline();
-                if self.generate_state_context {
-                    self.add_code("self._stateContext_ = stateContext");
-                    self.newline();
-                    self.add_code(
-                        "enterEvent = FrameEvent(\">\",self._stateContext_.getEnterArgs())",
-                    );
-                    self.newline();
-                } else {
-                    self.add_code("enterEvent = FrameEvent(\">\",None)");
-                    self.newline();
-                }
-                self.add_code("self._state_(enterEvent)");
-                self.outdent();
-                self.newline();
-                // self.add_code(&format!("}}"));
-            }
+            self.newline();
+            self.add_code("def transition(self, compartment):");
+            self.indent();
+            self.newline();
+            self.add_code("self.next_compartment = compartment");
+            self.outdent();
+
+            self.newline();
+            self.newline();
+            self.add_code("def do_transition(self, next_compartment):");
+
+            self.indent();
+            self.newline();
+            self.add_code("self.mux(FrameEvent(\"<\", self.compartment.exit_args))");
+            self.newline();
+            self.add_code("self.compartment = next_compartment");
+            self.newline();
+            self.add_code("self.mux(FrameEvent(\">\", self.compartment.enter_args))");
+            self.outdent();
+
             if self.generate_state_stack {
                 self.newline();
                 self.newline();
-                if self.generate_state_context {
-                    self.newline();
-                    self.newline();
-                    self.add_code("def _stateStack_push_(self, stateContext):");
-                    self.indent();
-                    self.newline();
-                    self.add_code("self._stateStack_.append(stateContext)");
-                    self.outdent();
-                    self.newline();
-                    //           self.add_code(&format!("}}"));
-                    self.newline();
-                    self.newline();
-                    self.add_code("def _stateStack_pop_(self):");
-                    self.indent();
-                    self.newline();
-                    self.add_code("return self._stateStack_.pop()");
-                } else {
-                    self.newline();
-                    self.newline();
-                    self.add_code("def _stateStack_push_(self, state):");
-                    self.indent();
-                    self.newline();
-                    self.add_code("self._stateStack_.append(state)");
-                    self.outdent();
-                    self.newline();
-                    //                    self.add_code(&format!("}}"));
-                    self.newline();
-                    self.newline();
-                    self.add_code("def _stateStack_pop_(self):");
-                    self.indent();
-                    self.newline();
-                    self.add_code("return self._stateStack_.pop()");
-                }
-
+                self.add_code("def stateStack_push(self, compartment):");
+                self.indent();
+                self.newline();
+                self.add_code("self.state_stack.push(compartment)");
                 self.outdent();
                 self.newline();
-                //                self.add_code(&format!("}}"));
+                self.add_code("}");
+                self.newline();
+                self.newline();
+                self.add_code("def stateStack_pop(self):");
+                self.indent();
+                self.newline();
+                self.add_code("return self.state_stack.pop()");
+                self.outdent();
+                self.newline();
             }
             if self.generate_change_state {
                 self.newline();
                 self.newline();
-                self.add_code("def _changeState_(newState):");
+                self.add_code("def change_state(self, new_compartment):");
                 self.indent();
                 self.newline();
-                self.add_code("self._state_ = newState");
+                self.add_code("self.compartment = new_compartment");
                 self.outdent();
                 self.newline();
-                //                self.add_code(&format!("}}"));
             }
             self.newline();
 
@@ -557,7 +504,7 @@ impl PythonVisitor {
                                         let mut expr = String::new();
                                         expr_t.accept_to_string(self, &mut expr);
                                         self.add_code(&format!(
-                                            "exitArgs[\"{}\"] = {};",
+                                            "exitArgs[\"{}\"] = {}",
                                             p.name, expr
                                         ));
                                         self.newline();
@@ -792,7 +739,7 @@ impl PythonVisitor {
                                         let mut expr = String::new();
                                         expr_t.accept_to_string(self, &mut expr);
                                         self.add_code(&format!(
-                                            "exitArgs[\"{}\"] = {};",
+                                            "exitArgs[\"{}\"] = {}",
                                             p.name, expr
                                         ));
                                         self.newline();
@@ -832,6 +779,164 @@ impl PythonVisitor {
             self.add_code("self._transition_(state)");
         }
     }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn generate_compartment(&mut self, system_name: &str) {
+        self.newline();
+        self.add_code("# ===================== Compartment =================== #");
+        self.newline();
+        self.newline();
+        self.add_code(&format!("class {}Compartment:", system_name));
+        self.newline();
+        self.indent();
+        self.newline();
+        self.add_code("def __init__(self, state):");
+        // self.newline();
+        self.indent();
+        self.newline();
+        self.add_code("self.state = state");
+        self.newline();
+        self.add_code("self.state_args = {}");
+        self.newline();
+        self.add_code("self.state_vars = {}");
+        self.newline();
+        self.add_code("self.enter_args = {}");
+        self.newline();
+        self.add_code("self.exit_args = {}");
+        self.newline();
+        self.add_code("self.forward_event = FrameEvent(None, None)");
+        self.outdent();
+        self.newline();
+        self.outdent();
+        self.newline();
+        self.newline();
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn generate_new_fn(&mut self, system_node: &SystemNode) {
+        self.indent();
+        if system_node.get_first_state().is_some() {
+            self.newline();
+            self.newline();
+
+            if self.generate_state_stack {
+                self.add_code("// Create state stack.");
+                self.newline();
+                self.newline();
+                self.add_code("self.state_stack = []");
+                self.newline();
+                self.newline();
+            }
+
+            self.add_code("# Create and intialize start state compartment.");
+            self.newline();
+            self.add_code(&format!(
+                "self.state = self.{}",
+                self.format_target_state_name(&self.first_state_name.to_string())
+            ));
+        } else {
+            self.add_code("# Create and intialize start state compartment.");
+            self.newline();
+            self.newline();
+            self.add_code("self.state = None");
+        }
+
+        // if self.managed {
+        //     self.newline();
+        //     self.add_code("this._manager = manager");
+        // }
+
+        self.newline();
+        self.add_code(&format!(
+            "self.compartment = {}Compartment(self.state)",
+            system_node.name
+        ));
+        self.newline();
+        self.add_code("self.next_compartment = None");
+
+        // Initialize state arguments.
+        match &system_node.start_state_state_params_opt {
+            Some(params) => {
+                for param in params {
+                    self.newline();
+                    self.add_code(&format!(
+                        "self.compartment.state_args[\"{}\"] = {}",
+                        param.param_name, param.param_name,
+                    ));
+                }
+            }
+            None => {}
+        }
+
+        match system_node.get_first_state() {
+            Some(state_rcref) => {
+                let state_node = state_rcref.borrow();
+                match &state_node.vars_opt {
+                    Some(vars) => {
+                        for var_rcref in vars {
+                            let var_decl_node = var_rcref.borrow();
+                            let expr_t = var_decl_node.initializer_expr_t_opt.as_ref().unwrap();
+                            let mut expr_code = String::new();
+                            expr_t.accept_to_string(self, &mut expr_code);
+
+                            self.newline();
+                            self.add_code(&format!(
+                                "self.compartment.state_vars[\"{}\"] = {}",
+                                var_decl_node.name, expr_code,
+                            ));
+                        }
+                    }
+                    None => {}
+                }
+            }
+            None => {}
+        }
+
+        if let Some(enter_params) = &system_node.start_state_enter_params_opt {
+            for param in enter_params {
+                self.newline();
+                self.add_code(&format!(
+                    "self.compartment.enter_args[\"{}\"] = {}",
+                    param.param_name, param.param_name,
+                ));
+            }
+        }
+
+        // if self.config.code.public_state_info {
+        //     self.newline();
+        //     self.add_code("this.state = this.#compartment.state.name");
+        // }
+
+        self.newline();
+        self.newline();
+        self.add_code("# Initialize domain");
+
+        if let Some(domain_block_node) = &system_node.domain_block_node_opt {
+            domain_block_node.accept(self);
+        } else {
+            self.newline();
+        }
+        self.newline();
+        self.add_code("# Send system start event");
+
+        if let Some(_enter_params) = &system_node.start_state_enter_params_opt {
+            self.newline();
+            self.add_code("frame_event = FrameEvent(\">\", self.compartment.enter_args)");
+        } else {
+            self.newline();
+            self.add_code("frame_event = FrameEvent(\">\", null)");
+        }
+
+        self.newline();
+        self.add_code("self.mux(frame_event)");
+
+        self.outdent();
+        self.newline();
+    }
+
+    //* --------------------------------------------------------------------- *//
 }
 
 //* --------------------------------------------------------------------- *//
@@ -840,6 +945,21 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_system_node(&mut self, system_node: &SystemNode) {
+        // domain variable vector
+        let mut domain_vec: Vec<(String, String)> = Vec::new();
+        if let Some(domain_block_node) = &system_node.domain_block_node_opt {
+            // get init expression and cache code
+            for var_rcref in &domain_block_node.member_variables {
+                let var_name = var_rcref.borrow().name.clone();
+                let var = var_rcref.borrow();
+                let var_init_expr = var.initializer_expr_t_opt.as_ref().unwrap();
+                let mut init_expression = String::new();
+                var_init_expr.accept_to_string(self, &mut init_expression);
+                // push for later initialization
+                domain_vec.push((var_name.clone(), init_expression));
+            }
+        }
+
         self.system_name = system_node.name.clone();
         self.add_code(&format!("# {}", self.compiler_version));
         self.newline();
@@ -860,53 +980,63 @@ impl AstVisitor for PythonVisitor {
             None => {}
         }
 
-        // generate constructor
+        // format system params,if any.
+        let mut separator = String::new();
+        let mut new_params: String = match &system_node.start_state_state_params_opt {
+            Some(param_list) => {
+                let mut params = String::new();
+                for param_node in param_list {
+                    params.push_str(&format!("{}{}", separator, param_node.param_name));
+                    separator = String::from(",");
+                }
+                params
+            }
+            None => String::new(),
+        };
 
-        if self.has_states {
-            self.newline();
-            self.add_code("def __init__(self):");
-            self.indent();
-            self.newline();
-            self.add_code(&format!("self._state_ = self._s{}_", self.first_state_name));
-            if self.generate_state_context {
-                self.newline();
-                self.add_code(&format!(
-                    "self._stateContext_ = StateContext(self._s{}_)",
-                    self.first_state_name
-                ));
-                if let Some(state_symbol_rcref) = self.arcanium.get_state(&self.first_state_name) {
-                    //   self.newline();
-                    let state_symbol = state_symbol_rcref.borrow();
-                    let state_node = &state_symbol.state_node.as_ref().unwrap().borrow();
-                    // generate local state variables
-                    if state_node.vars_opt.is_some() {
-                        for var_rcref in state_node.vars_opt.as_ref().unwrap() {
-                            let var = var_rcref.borrow();
-                            let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
-                            let mut expr_code = String::new();
-                            expr_t.accept_to_string(self, &mut expr_code);
-                            self.newline();
-                            self.add_code(&format!(
-                                "self._stateContext_.addStateVar(\"{}\",{})",
-                                var.name, expr_code
-                            ));
-                        }
-                    }
+        match &system_node.start_state_enter_params_opt {
+            Some(param_list) => {
+                for param_node in param_list {
+                    new_params.push_str(&format!("{}{}", separator, param_node.param_name));
+                    separator = String::from(",");
                 }
             }
-
-            if self.generate_state_stack {
-                self.newline();
-                self.add_code("self._stateStack_ = []");
+            None => {}
+        };
+        match &system_node.domain_params_opt {
+            Some(param_list) => {
+                for param_node in param_list {
+                    new_params.push_str(&format!("{}{}", separator, param_node.param_name));
+                    separator = String::from(",");
+                }
             }
+            None => {}
+        };
 
-            if let Some(domain_block_node) = &system_node.domain_block_node_opt {
-                domain_block_node.accept(self);
-            }
+        // if self.managed {
+        //     if new_params.is_empty() {
+        //         self.add_code("manager) {");
+        //     } else {
+        //         self.add_code(&format!("manager,{}) {{", new_params));
+        //     }
+        // } else {
+        // self.add_code(&format!("{}) {{", new_params));
+        // }
 
-            self.outdent();
-            self.newline();
-        }
+        // generate constructor
+
+        // if self.has_states {
+        self.newline();
+        self.add_code(&format!("def __init__(self, {}):", new_params));
+
+        self.generate_new_fn(&system_node);
+
+        // if self.generate_state_stack {
+        //     self.newline();
+        //     self.add_code("self._stateStack_ = []");
+        // }
+
+        // }
 
         // end of generate constructor
 
@@ -926,9 +1056,108 @@ impl AstVisitor for PythonVisitor {
             "#class {}Controller({}):",
             system_node.name, system_node.name
         ));
+        // if self.managed {
+        //     if new_params.is_empty() {
+        //         self.subclass_code
+        //             .push("\tconstructor(manager) {".to_string());
+        //         self.subclass_code.push("\t  super(manager)".to_string());
+        //     } else {
+        //         self.subclass_code
+        //             .push(format!("\tconstructor(manager,{}) {{", new_params));
+        //         self.subclass_code
+        //             .push(format!("\t  super(manager{})", new_params));
+        //     }
+        // } else {
+        self.subclass_code
+            .push(format!("\t#def __init__(self,{}):", new_params));
+        self.subclass_code
+            .push(format!("\t    #super().__init__({})", new_params));
+        // }
 
         if let Some(interface_block_node) = &system_node.interface_block_node_opt {
             interface_block_node.accept(self);
+        }
+
+        // generate mux
+
+        self.newline();
+        self.add_code("# ====================== Multiplexer ==================== #");
+        self.newline();
+        self.newline();
+
+        self.add_code("def mux(self, e):");
+        self.indent();
+
+        if let Some(machine_block_node) = &system_node.machine_block_node_opt {
+            self.newline();
+            //
+            let mut current_index = 0;
+            let len = machine_block_node.states.len();
+            for state_node_rcref in &machine_block_node.states {
+                let state_name = &format!(
+                    "self.{}",
+                    self.format_target_state_name(&state_node_rcref.borrow().name)
+                );
+                if current_index == 0 {
+                    self.add_code(&format!("if self.compartment.state == {}:", state_name));
+                } else {
+                    self.add_code(&format!("elif self.compartment.state == {}:", state_name));
+                }
+                self.indent();
+                self.newline();
+                self.add_code(&format!("{}(e)", state_name));
+                self.outdent();
+                if current_index != len {
+                    self.newline();
+                }
+
+                current_index += 1
+            }
+
+            self.newline();
+            self.add_code("if self.next_compartment != None:");
+            self.indent();
+            self.newline();
+            self.add_code("next_compartment = self.next_compartment");
+            self.newline();
+            self.add_code("self.next_compartment = None");
+            self.newline();
+            self.add_code("if(next_compartment.forward_event != None and ");
+            self.newline();
+            self.add_code("   next_compartment.forward_event._message == \">\"):");
+            self.indent();
+            self.newline();
+            self.add_code("self.mux(FrameEvent( \"<\", self.compartment.exit_args))");
+            self.newline();
+            self.add_code("self.compartment = next_compartment");
+            self.newline();
+            self.add_code("self.mux(next_compartment.forward_event)");
+            self.outdent();
+            self.newline();
+            self.add_code("else:");
+            self.indent();
+            self.newline();
+            self.add_code("self.do_transition(next_compartment)");
+            self.newline();
+            self.add_code("if next_compartment.forward_event != None:");
+            self.indent();
+            self.newline();
+            self.add_code("self.mux(next_compartment.forward_event)");
+            self.outdent();
+            // self.newline();
+            // self.add_code("}");
+            self.outdent();
+            // self.newline();
+            // self.add_code("}");
+            self.newline();
+            self.add_code("next_compartment.forward_event = None");
+            self.outdent();
+            // self.newline();
+            // self.add_code("}");
+            self.outdent();
+            // self.newline();
+            // self.add_code("}");
+            self.newline();
         }
 
         if let Some(machine_block_node) = &system_node.machine_block_node_opt {
@@ -961,6 +1190,8 @@ impl AstVisitor for PythonVisitor {
         // self.newline();
         self.outdent();
         self.newline();
+
+        self.generate_compartment(&system_node.name);
 
         self.generate_subclass();
     }
@@ -1062,7 +1293,7 @@ impl AstVisitor for PythonVisitor {
                     for param in params {
                         let pname = &param.param_name;
                         self.newline();
-                        self.add_code(&format!("parameters[\"{}\"] = {};\n", pname, pname));
+                        self.add_code(&format!("parameters[\"{}\"] = {}\n", pname, pname));
                     }
                 }
                 None => {}
@@ -1077,7 +1308,7 @@ impl AstVisitor for PythonVisitor {
             method_name_or_alias, params_param_code
         ));
         self.newline();
-        self.add_code("self._state_(e)");
+        self.add_code("self.mux(e)");
 
         match &interface_method_node.return_type_opt {
             Some(_) => {
@@ -1151,15 +1382,16 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_domain_block_node(&mut self, domain_block_node: &DomainBlockNode) {
-        self.newline();
-        self.newline();
-        self.add_code("# ===================== Domain Block =================== #");
+        // self.newline();
+        // self.newline();
+        // self.add_code("# ===================== Domain Block =================== #");
         self.newline();
 
         for variable_decl_node_rcref in &domain_block_node.member_variables {
             let variable_decl_node = variable_decl_node_rcref.borrow();
             variable_decl_node.accept(self);
         }
+        self.newline();
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2244,18 +2476,18 @@ impl AstVisitor for PythonVisitor {
         var_init_expr.accept_to_string(self, &mut code);
         match &variable_decl_node.identifier_decl_scope {
             IdentifierDeclScope::DomainBlock => {
-                self.add_code(&format!("self.{} = {};", var_name, code));
+                self.add_code(&format!("self.{} = {}", var_name, code));
             }
             IdentifierDeclScope::EventHandlerVar => {
-                self.add_code(&format!("{} = {};", var_name, code));
+                self.add_code(&format!("{} = {}", var_name, code));
             }
             _ => panic!("Error - unexpected scope for variable declaration"),
         }
 
         self.serialize
-            .push(format!("\tbag.domain[\"{}\"] = {};", var_name, var_name));
+            .push(format!("\tbag.domain[\"{}\"] = {}", var_name, var_name));
         self.deserialize
-            .push(format!("\t{} = bag.domain[\"{}\"];", var_name, var_name));
+            .push(format!("\t{} = bag.domain[\"{}\"]", var_name, var_name));
     }
 
     //* --------------------------------------------------------------------- *//
