@@ -35,7 +35,7 @@ pub struct PythonVisitor {
     generate_state_context: bool,
     generate_state_stack: bool,
     generate_change_state: bool,
-    generate_transition_state: bool,
+    // generate_transition_state: bool,
     event_handler_has_code: bool,
 }
 
@@ -48,7 +48,7 @@ impl PythonVisitor {
         generate_state_context: bool,
         generate_state_stack: bool,
         generate_change_state: bool,
-        generate_transition_state: bool,
+        // generate_transition_state: bool,
         compiler_version: &str,
         comments: Vec<Token>,
     ) -> PythonVisitor {
@@ -76,7 +76,7 @@ impl PythonVisitor {
             generate_state_context,
             generate_state_stack,
             generate_change_state,
-            generate_transition_state,
+            // generate_transition_state,
             event_handler_has_code: false,
         }
     }
@@ -101,6 +101,9 @@ impl PythonVisitor {
         let mut code = String::new();
 
         match variable_node.scope {
+            IdentifierDeclScope::System => {
+                code.push_str("self");
+            }
             IdentifierDeclScope::DomainBlock => {
                 code.push_str(&format!("self.{}", variable_node.id_node.name.lexeme));
             }
@@ -109,7 +112,7 @@ impl PythonVisitor {
                     code.push('(');
                 }
                 code.push_str(&format!(
-                    "self._stateContext_.getStateArg(\"{}\")",
+                    "self.compartment.state_args[\"{}\"]",
                     variable_node.id_node.name.lexeme
                 ));
                 if self.visiting_call_chain_literal_variable {
@@ -121,7 +124,7 @@ impl PythonVisitor {
                     code.push('(');
                 }
                 code.push_str(&format!(
-                    "self._stateContext_.getStateVar(\"{}\")",
+                    "self.compartment.state_vars[\"{}\"]",
                     variable_node.id_node.name.lexeme
                 ));
                 if self.visiting_call_chain_literal_variable {
@@ -133,7 +136,7 @@ impl PythonVisitor {
                 //     code.push_str("(");
                 // }
                 code.push_str(&format!(
-                    "e.params[\"{}\"]",
+                    "e._parameters[\"{}\"]",
                     variable_node.id_node.name.lexeme
                 ));
                 // if self.visiting_call_chain_literal_variable {
@@ -427,7 +430,7 @@ impl PythonVisitor {
 
         self.newline();
         self.add_code(&format!(
-            "self._changeState_({});",
+            "self._changeState_({})",
             self.format_target_state_name(target_state_name)
         ));
     }
@@ -441,7 +444,6 @@ impl PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn generate_state_ref_transition(&mut self, transition_statement: &TransitionStatementNode) {
-        self.newline();
         let target_state_name = match &transition_statement.target_state_context_t {
             StateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_node.name
@@ -451,6 +453,10 @@ impl PythonVisitor {
                 ""
             }
         };
+
+        let state_ref_code = self.generate_state_ref_code(target_state_name);
+
+        self.newline();
         match &transition_statement.label_opt {
             Some(label) => {
                 self.add_code(&format!("# {}", label));
@@ -459,21 +465,10 @@ impl PythonVisitor {
             None => {}
         }
 
-        if self.generate_state_context {
-            self.add_code(&format!(
-                "stateContext = StateContext(self.{})",
-                self.generate_state_ref_code(target_state_name)
-            ));
-            self.newline();
-        }
-
         // -- Exit Arguments --
 
-        let mut has_exit_args = false;
         if let Some(exit_args) = &transition_statement.exit_args_opt {
             if !exit_args.exprs_t.is_empty() {
-                has_exit_args = true;
-
                 // Note - searching for event keyed with "State:<"
                 // e.g. "S1:<"
 
@@ -489,44 +484,56 @@ impl PythonVisitor {
                     match &event_sym.borrow().params_opt {
                         Some(event_params) => {
                             if exit_args.exprs_t.len() != event_params.len() {
-                                self.errors.push(
-                                    "Fatal error: misaligned parameters to arguments.".to_string(),
-                                );
+                                panic!("Fatal error: misaligned parameters to arguments.")
                             }
                             let mut param_symbols_it = event_params.iter();
-                            self.add_code("exitArgs = {}");
-                            self.newline();
                             // Loop through the ARGUMENTS...
                             for expr_t in &exit_args.exprs_t {
                                 // ...and validate w/ the PARAMETERS
                                 match param_symbols_it.next() {
                                     Some(p) => {
+                                        let _param_type = match &p.param_type_opt {
+                                            Some(param_type) => param_type.get_type_str(),
+                                            // TODO: check this
+                                            None => String::from("<?>"),
+                                        };
                                         let mut expr = String::new();
                                         expr_t.accept_to_string(self, &mut expr);
                                         self.add_code(&format!(
-                                            "exitArgs[\"{}\"] = {}",
+                                            "self.compartment.exit_args[\"{}\"] = {}",
                                             p.name, expr
                                         ));
                                         self.newline();
                                     }
-                                    None => self.errors.push(format!(
+                                    None => panic!(
                                         "Invalid number of arguments for \"{}\" event handler.",
                                         msg
-                                    )),
+                                    ),
                                 }
                             }
                         }
-                        None => self
-                            .errors
-                            .push("Fatal error: misaligned parameters to arguments.".to_string()),
+                        None => panic!("Fatal error: misaligned parameters to arguments."),
                     }
                 } else {
-                    self.errors.push("Unknown error.".to_string());
+                    panic!("TODO");
                 }
             }
         }
 
         // -- Enter Arguments --
+        self.newline();
+        self.add_code(&format!(
+            "compartment = {}Compartment(self.{})",
+            self.system_name, state_ref_code
+        ));
+        self.newline();
+
+        if transition_statement.forward_event {
+            // self.newline();
+            self.add_code("compartment.forward_event = e");
+        }
+
+        self.newline();
 
         let enter_args_opt = match &transition_statement.target_state_context_t {
             StateContextType::StateRef { state_context_node } => &state_context_node.enter_args_opt,
@@ -545,33 +552,33 @@ impl PythonVisitor {
                 match &event_sym.borrow().params_opt {
                     Some(event_params) => {
                         if enter_args.exprs_t.len() != event_params.len() {
-                            self.errors.push(
-                                "Fatal error: misaligned parameters to arguments.".to_string(),
-                            );
+                            panic!("Fatal error: misaligned parameters to arguments.")
                         }
                         let mut param_symbols_it = event_params.iter();
                         for expr_t in &enter_args.exprs_t {
                             match param_symbols_it.next() {
                                 Some(p) => {
+                                    let _param_type = match &p.param_type_opt {
+                                        Some(param_type) => param_type.get_type_str(),
+                                        // TODO: check this
+                                        None => String::from("<?>"),
+                                    };
                                     let mut expr = String::new();
                                     expr_t.accept_to_string(self, &mut expr);
                                     self.add_code(&format!(
-                                        "stateContext.addEnterArg(\"{}\",{})",
+                                        "compartment.enter_args[\"{}\"] = {}",
                                         p.name, expr
                                     ));
                                     self.newline();
                                 }
-                                None => self.errors.push(format!(
+                                None => panic!(
                                     "Invalid number of arguments for \"{}\" event handler.",
                                     msg
-                                )),
+                                ),
                             }
                         }
                     }
-                    None => self.errors.push(format!(
-                        "Invalid number of arguments for \"{}\" event handler.",
-                        msg
-                    )),
+                    None => panic!("Invalid number of arguments for \"{}\" event handler.", msg),
                 }
             } else {
                 self.warnings.push(format!("State {} does not have an enter event handler but is being passed parameters in a transition", target_state_name));
@@ -599,18 +606,23 @@ impl PythonVisitor {
                             match param_symbols_it.next() {
                                 Some(param_symbol_rcref) => {
                                     let param_symbol = param_symbol_rcref.borrow();
+                                    let _param_type = match &param_symbol.param_type_opt {
+                                        Some(param_type) => param_type.get_type_str(),
+                                        // TODO: check this
+                                        None => String::from("<?>"),
+                                    };
                                     let mut expr = String::new();
                                     expr_t.accept_to_string(self, &mut expr);
                                     self.add_code(&format!(
-                                        "stateContext.addStateArg(\"{}\",{})",
+                                        "compartment.state_args[\"{}\"] = {}",
                                         param_symbol.name, expr
                                     ));
                                     self.newline();
                                 }
-                                None => self.errors.push(format!(
+                                None => panic!(
                                     "Invalid number of arguments for \"{}\" state parameters.",
                                     target_state_name
-                                )),
+                                ),
                             }
                             //
                         }
@@ -618,7 +630,7 @@ impl PythonVisitor {
                     None => {}
                 }
             } else {
-                self.errors.push("TODO".to_string());
+                panic!("TODO");
             }
         } // -- State Arguments --
 
@@ -637,11 +649,16 @@ impl PythonVisitor {
                         //                        let mut separator = "";
                         for var_rcref in state_node.vars_opt.as_ref().unwrap() {
                             let var = var_rcref.borrow();
+                            let _var_type = match &var.type_opt {
+                                Some(var_type) => var_type.get_type_str(),
+                                // TODO: check this
+                                None => String::from("<?>"),
+                            };
                             let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
                             self.add_code(&format!(
-                                "stateContext.addStateVar(\"{}\",{})",
+                                "compartment.state_vars[\"{}\"] = {}",
                                 var.name, expr_code
                             ));
                             self.newline();
@@ -653,32 +670,9 @@ impl PythonVisitor {
                 //                code = target_state_vars.clone();
             }
         }
-        let exit_args = if has_exit_args { "exitArgs" } else { "None" };
-        if self.generate_state_context {
-            if self.generate_exit_args {
-                self.add_code(&format!(
-                    "self._transition_(self.{},{},stateContext)",
-                    self.format_target_state_name(target_state_name),
-                    exit_args
-                ));
-            } else {
-                self.add_code(&format!(
-                    "self._transition_(self.{},stateContext)",
-                    self.format_target_state_name(target_state_name)
-                ));
-            }
-        } else if self.generate_exit_args {
-            self.add_code(&format!(
-                "self._transition_(self.{},{})",
-                self.format_target_state_name(target_state_name),
-                exit_args
-            ));
-        } else {
-            self.add_code(&format!(
-                "self._transition_(self.{})",
-                self.format_target_state_name(target_state_name)
-            ));
-        }
+
+        self.newline();
+        self.add_code("self.transition(compartment)");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -834,7 +828,7 @@ impl PythonVisitor {
             self.newline();
             self.add_code(&format!(
                 "self.state = self.{}",
-                self.format_target_state_name(&self.first_state_name.to_string())
+                self.format_target_state_name(&self.first_state_name)
             ));
         } else {
             self.add_code("# Create and intialize start state compartment.");
@@ -1331,7 +1325,7 @@ impl AstVisitor for PythonVisitor {
         self.newline();
 
         self.serialize.push("".to_string());
-        self.serialize.push("\tvar stateName = null;".to_string());
+        self.serialize.push("\tvar stateName = null".to_string());
 
         self.deserialize.push("".to_string());
         self.deserialize
@@ -1402,7 +1396,10 @@ impl AstVisitor for PythonVisitor {
         }
         self.current_state_name_opt = Some(state_node.name.clone());
 
-        self.add_code(&format!("def _s{}_(self, e):", state_node.name));
+        self.add_code(&format!(
+            "def {}(self, e):",
+            self.format_target_state_name(&state_node.name)
+        ));
         self.indent();
 
         self.serialize.push(format!(
@@ -2186,18 +2183,15 @@ impl AstVisitor for PythonVisitor {
             Some(branch_terminator_expr) => {
                 self.newline();
                 match &branch_terminator_expr.terminator_type {
-                    TerminatorType::Return => {
-                        match &branch_terminator_expr.return_expr_t_opt {
-                            Some(expr_t) => {
-                                self.add_code("e._return = ");
-                                expr_t.accept(self);
-                                //    self.add_code(";");
-                                self.newline();
-                                self.add_code("return");
-                            }
-                            None => self.add_code("return"),
+                    TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
+                        Some(expr_t) => {
+                            self.add_code("e._return = ");
+                            expr_t.accept(self);
+                            self.newline();
+                            self.add_code("return");
                         }
-                    }
+                        None => self.add_code("return"),
+                    },
                     TerminatorType::Continue => {
                         self.add_code("break");
                     }
