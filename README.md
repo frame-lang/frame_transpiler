@@ -1,6 +1,8 @@
 
 # Frame Language Transpiler v0.9.0
 
+[![Join the chat at https://gitter.im/frame-language/python-discussion](https://badges.gitter.im/frame-language/python-discussion.svg)](https://gitter.im/frame-language/python-discussion?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 
 Frame is a language for designing systems. It is easy to learn and can generate both UML documentation as well as code in 8 programming languages:
 
