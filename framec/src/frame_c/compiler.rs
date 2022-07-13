@@ -348,8 +348,8 @@ impl Exe {
                 TargetLanguage::Python3 => {
                     let mut visitor = PythonVisitor::new(
                         semantic_parser.get_arcanum(),
-                        generate_exit_args,
-                        generate_enter_args || generate_state_context,
+                        // generate_exit_args,
+                        // generate_enter_args || generate_state_context,
                         generate_state_stack,
                         generate_change_state,
                         // generate_transition_state,

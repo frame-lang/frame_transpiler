@@ -31,8 +31,8 @@ pub struct PythonVisitor {
     has_states: bool,
     errors: Vec<String>,
     visiting_call_chain_literal_variable: bool,
-    generate_exit_args: bool,
-    generate_state_context: bool,
+    // generate_exit_args: bool,
+    // generate_state_context: bool,
     generate_state_stack: bool,
     generate_change_state: bool,
     // generate_transition_state: bool,
@@ -44,8 +44,8 @@ impl PythonVisitor {
 
     pub fn new(
         arcanium: Arcanum,
-        generate_exit_args: bool,
-        generate_state_context: bool,
+        // generate_exit_args: bool,
+        // generate_state_context: bool,
         generate_state_stack: bool,
         generate_change_state: bool,
         // generate_transition_state: bool,
@@ -72,8 +72,8 @@ impl PythonVisitor {
             subclass_code: Vec::new(),
             warnings: Vec::new(),
             visiting_call_chain_literal_variable: false,
-            generate_exit_args,
-            generate_state_context,
+            // generate_exit_args,
+            // generate_state_context,
             generate_state_stack,
             generate_change_state,
             // generate_transition_state,
@@ -329,16 +329,14 @@ impl PythonVisitor {
             if self.generate_state_stack {
                 self.newline();
                 self.newline();
-                self.add_code("def stateStack_push(self, compartment):");
+                self.add_code("def state_stack_push(self, compartment):");
                 self.indent();
                 self.newline();
                 self.add_code("self.state_stack.push(compartment)");
                 self.outdent();
                 self.newline();
-                self.add_code("}");
                 self.newline();
-                self.newline();
-                self.add_code("def stateStack_pop(self):");
+                self.add_code("def state_stack_pop(self):");
                 self.indent();
                 self.newline();
                 self.add_code("return self.state_stack.pop()");
@@ -422,17 +420,184 @@ impl PythonVisitor {
                 &state_context_node.state_ref_node.name
             }
             _ => {
-                self.errors
-                    .push("Change state target not found.".to_string());
-                "error"
+                self.errors.push("Unknown error.".to_string());
+                ""
             }
         };
 
+        let state_ref_code = self.generate_state_ref_code(target_state_name);
+
+        // get the change state label, and print it if provided
+        match &change_state_stmt_node.label_opt {
+            Some(label) => {
+                self.add_code(&format!("# {}", label));
+                self.newline();
+            }
+            None => {}
+        }
         self.newline();
         self.add_code(&format!(
-            "self._changeState_({})",
-            self.format_target_state_name(target_state_name)
+            "compartment = {}Compartment(self.{})",
+            self.system_name, state_ref_code
         ));
+        self.newline();
+
+        // -- Enter Arguments --
+
+        let enter_args_opt = match &change_state_stmt_node.state_context_t {
+            StateContextType::StateRef { state_context_node } => &state_context_node.enter_args_opt,
+            StateContextType::StateStackPop {} => &None,
+        };
+
+        if let Some(enter_args) = enter_args_opt {
+            // Note - searching for event keyed with "State:>"
+            // e.g. "S1:>"
+
+            let mut msg: String = String::from(target_state_name);
+            msg.push(':');
+            msg.push_str(&self.symbol_config.enter_msg_symbol);
+
+            if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt) {
+                match &event_sym.borrow().params_opt {
+                    Some(event_params) => {
+                        if enter_args.exprs_t.len() != event_params.len() {
+                            panic!("Fatal error: misaligned parameters to arguments.")
+                        }
+                        let mut param_symbols_it = event_params.iter();
+                        for expr_t in &enter_args.exprs_t {
+                            match param_symbols_it.next() {
+                                Some(p) => {
+                                    let _param_type = match &p.param_type_opt {
+                                        Some(param_type) => param_type.get_type_str(),
+                                        None => String::from(""),
+                                    };
+                                    let mut expr = String::new();
+                                    expr_t.accept_to_string(self, &mut expr);
+                                    self.add_code(&format!(
+                                        "compartment.enter_args[\"{}\"] = {}",
+                                        p.name, expr
+                                    ));
+                                    self.newline();
+                                }
+                                None => panic!(
+                                    "Invalid number of arguments for \"{}\" event handler.",
+                                    msg
+                                ),
+                            }
+                        }
+                    }
+                    None => panic!("Invalid number of arguments for \"{}\" event handler.", msg),
+                }
+            } else {
+                self.warnings.push(format!("State {} does not have an enter event handler but is being passed parameters in a change state", target_state_name));
+            }
+        }
+
+        /*  -- State Arguments -- */
+        let target_state_args_opt = match &change_state_stmt_node.state_context_t {
+            StateContextType::StateRef { state_context_node } => {
+                &state_context_node.state_ref_args_opt
+            }
+            StateContextType::StateStackPop {} => &Option::None,
+        };
+
+        if let Some(state_args) = target_state_args_opt {
+            //            let mut params_copy = Vec::new();
+            if let Some(state_sym) = self.arcanium.get_state(target_state_name) {
+                match &state_sym.borrow().params_opt {
+                    Some(event_params) => {
+                        let mut param_symbols_it = event_params.iter();
+                        // Loop through the ARGUMENTS...
+                        for expr_t in &state_args.exprs_t {
+                            // ...and validate w/ the PARAMETERS
+                            match param_symbols_it.next() {
+                                Some(param_symbol_rcref) => {
+                                    let param_symbol = param_symbol_rcref.borrow();
+                                    let _param_type = match &param_symbol.param_type_opt {
+                                        Some(param_type) => param_type.get_type_str(),
+                                        None => String::from(""),
+                                    };
+                                    let mut expr = String::new();
+                                    expr_t.accept_to_string(self, &mut expr);
+                                    self.add_code(&format!(
+                                        "compartment.state_args[\"{}\"] = {};",
+                                        param_symbol.name, expr
+                                    ));
+                                    self.newline();
+                                }
+                                None => panic!(
+                                    "Invalid number of arguments for \"{}\" state parameters.",
+                                    target_state_name
+                                ),
+                            }
+                            //
+                        }
+                    }
+                    None => {}
+                }
+            } else {
+                panic!("TODO");
+            }
+        } // -- State Arguments --
+
+        // -- State Variables --
+
+        let target_state_rcref_opt = self.arcanium.get_state(target_state_name);
+
+        match target_state_rcref_opt {
+            Some(q) => {
+                //                target_state_vars = "stateVars".to_string();
+                if let Some(state_symbol_rcref) = self.arcanium.get_state(&q.borrow().name) {
+                    let state_symbol = state_symbol_rcref.borrow();
+                    let state_node = &state_symbol.state_node.as_ref().unwrap().borrow();
+                    // generate local state variables
+                    if state_node.vars_opt.is_some() {
+                        //                        let mut separator = "";
+                        for var_rcref in state_node.vars_opt.as_ref().unwrap() {
+                            let var = var_rcref.borrow();
+                            let _var_type = match &var.type_opt {
+                                Some(var_type) => var_type.get_type_str(),
+                                None => String::from(""),
+                            };
+                            let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
+                            let mut expr_code = String::new();
+                            expr_t.accept_to_string(self, &mut expr_code);
+                            self.add_code(&format!(
+                                "compartment.state_vars[\"{}\"] = {};",
+                                var.name, expr_code
+                            ));
+                            self.newline();
+                        }
+                    }
+                }
+            }
+            None => {
+                //                code = target_state_vars.clone();
+            }
+        }
+
+        self.newline();
+        self.add_code("self.change_state(compartment)");
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn generate_state_stack_pop_change_state(
+        &mut self,
+        change_state_stmt_node: &ChangeStateStatementNode,
+    ) {
+        self.newline();
+        match &change_state_stmt_node.label_opt {
+            Some(label) => {
+                self.add_code(&format!("// {}", label));
+                self.newline();
+            }
+            None => {}
+        }
+
+        self.add_code("compartment = self.state_stack_pop()");
+        self.newline();
+        self.add_code("self.change_state(compartment)");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -456,11 +621,11 @@ impl PythonVisitor {
 
         let state_ref_code = self.generate_state_ref_code(target_state_name);
 
-        self.newline();
+        // self.newline();
         match &transition_statement.label_opt {
             Some(label) => {
-                self.add_code(&format!("# {}", label));
                 self.newline();
+                self.add_code(&format!("# {}", label));
             }
             None => {}
         }
@@ -495,15 +660,15 @@ impl PythonVisitor {
                                         let _param_type = match &p.param_type_opt {
                                             Some(param_type) => param_type.get_type_str(),
                                             // TODO: check this
-                                            None => String::from("<?>"),
+                                            None => String::from(""),
                                         };
                                         let mut expr = String::new();
                                         expr_t.accept_to_string(self, &mut expr);
+                                        self.newline();
                                         self.add_code(&format!(
                                             "self.compartment.exit_args[\"{}\"] = {}",
                                             p.name, expr
                                         ));
-                                        self.newline();
                                     }
                                     None => panic!(
                                         "Invalid number of arguments for \"{}\" event handler.",
@@ -526,14 +691,14 @@ impl PythonVisitor {
             "compartment = {}Compartment(self.{})",
             self.system_name, state_ref_code
         ));
-        self.newline();
+        // self.newline();
 
         if transition_statement.forward_event {
-            // self.newline();
+            self.newline();
             self.add_code("compartment.forward_event = e");
         }
 
-        self.newline();
+        // self.newline();
 
         let enter_args_opt = match &transition_statement.target_state_context_t {
             StateContextType::StateRef { state_context_node } => &state_context_node.enter_args_opt,
@@ -561,15 +726,15 @@ impl PythonVisitor {
                                     let _param_type = match &p.param_type_opt {
                                         Some(param_type) => param_type.get_type_str(),
                                         // TODO: check this
-                                        None => String::from("<?>"),
+                                        None => String::from(""),
                                     };
                                     let mut expr = String::new();
                                     expr_t.accept_to_string(self, &mut expr);
+                                    self.newline();
                                     self.add_code(&format!(
                                         "compartment.enter_args[\"{}\"] = {}",
                                         p.name, expr
                                     ));
-                                    self.newline();
                                 }
                                 None => panic!(
                                     "Invalid number of arguments for \"{}\" event handler.",
@@ -609,15 +774,15 @@ impl PythonVisitor {
                                     let _param_type = match &param_symbol.param_type_opt {
                                         Some(param_type) => param_type.get_type_str(),
                                         // TODO: check this
-                                        None => String::from("<?>"),
+                                        None => String::from(""),
                                     };
                                     let mut expr = String::new();
                                     expr_t.accept_to_string(self, &mut expr);
+                                    self.newline();
                                     self.add_code(&format!(
                                         "compartment.state_args[\"{}\"] = {}",
                                         param_symbol.name, expr
                                     ));
-                                    self.newline();
                                 }
                                 None => panic!(
                                     "Invalid number of arguments for \"{}\" state parameters.",
@@ -652,16 +817,16 @@ impl PythonVisitor {
                             let _var_type = match &var.type_opt {
                                 Some(var_type) => var_type.get_type_str(),
                                 // TODO: check this
-                                None => String::from("<?>"),
+                                None => String::from(""),
                             };
                             let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
+                            self.newline();
                             self.add_code(&format!(
                                 "compartment.state_vars[\"{}\"] = {}",
                                 var.name, expr_code
                             ));
-                            self.newline();
                         }
                     }
                 }
@@ -718,60 +883,46 @@ impl PythonVisitor {
                     match &event_sym.borrow().params_opt {
                         Some(event_params) => {
                             if exit_args.exprs_t.len() != event_params.len() {
-                                self.errors.push(
-                                    "Fatal error: misaligned parameters to arguments.".to_string(),
-                                );
+                                panic!("Fatal error: misaligned parameters to arguments.")
                             }
                             let mut param_symbols_it = event_params.iter();
-                            self.add_code("exitArgs = {}");
-                            self.newline();
+                            // self.add_code("FrameEventParams exitArgs = new FrameEventParams();");
+                            // self.newline();
                             // Loop through the ARGUMENTS...
                             for expr_t in &exit_args.exprs_t {
                                 // ...and validate w/ the PARAMETERS
                                 match param_symbols_it.next() {
                                     Some(p) => {
+                                        let _param_type = match &p.param_type_opt {
+                                            Some(param_type) => param_type.get_type_str(),
+                                            None => String::from(""),
+                                        };
                                         let mut expr = String::new();
                                         expr_t.accept_to_string(self, &mut expr);
                                         self.add_code(&format!(
-                                            "exitArgs[\"{}\"] = {}",
+                                            "self.compartment.exit_args[\"{}\"] = {}",
                                             p.name, expr
                                         ));
                                         self.newline();
                                     }
-                                    None => self.errors.push(format!(
+                                    None => panic!(
                                         "Invalid number of arguments for \"{}\" event handler.",
                                         msg
-                                    )),
+                                    ),
                                 }
                             }
                         }
-                        None => self
-                            .errors
-                            .push("Fatal error: misaligned parameters to arguments.".to_string()),
+                        None => panic!("Fatal error: misaligned parameters to arguments."),
                     }
                 } else {
-                    self.errors.push("TODO".to_string());
+                    panic!("TODO");
                 }
             }
         }
 
-        if self.generate_state_context {
-            self.add_code("stateContext = self._stateStack_pop_()");
-        } else {
-            self.add_code("state = self._stateStack_pop_()");
-        }
+        self.add_code("compartment = self.state_stack_pop()");
         self.newline();
-        if self.generate_exit_args {
-            if self.generate_state_context {
-                self.add_code("self._transition_(stateContext.state,exitArgs,stateContext)");
-            } else {
-                self.add_code("self._transition_(state,exitArgs)");
-            }
-        } else if self.generate_state_context {
-            self.add_code("self._transition_(stateContext.state,stateContext)");
-        } else {
-            self.add_code("self._transition_(state)");
-        }
+        self.add_code("self.transition(compartment)");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -920,7 +1071,7 @@ impl PythonVisitor {
             self.add_code("frame_event = FrameEvent(\">\", self.compartment.enter_args)");
         } else {
             self.newline();
-            self.add_code("frame_event = FrameEvent(\">\", null)");
+            self.add_code("frame_event = FrameEvent(\">\", None)");
         }
 
         self.newline();
@@ -1355,9 +1506,23 @@ impl AstVisitor for PythonVisitor {
         self.add_code("# ===================== Actions Block =================== #");
         self.newline();
 
-        for action_decl_node_rcref in &actions_block_node.actions {
-            let action_decl_node = action_decl_node_rcref.borrow();
-            action_decl_node.accept(self);
+        for action_rcref in &actions_block_node.actions {
+            let action_node = action_rcref.borrow();
+            if action_node.code_opt.is_some() {
+                action_node.accept_action_impl(self);
+            }
+        }
+
+        self.newline();
+        self.newline();
+        self.add_code("# Unimplemented Actions");
+        self.newline();
+
+        for action_rcref in &actions_block_node.actions {
+            let action_node = action_rcref.borrow();
+            if action_node.code_opt.is_none() {
+                action_node.accept_action_decl(self);
+            }
         }
     }
 
@@ -1628,7 +1793,10 @@ impl AstVisitor for PythonVisitor {
         action_call: &ActionCallExprNode,
         output: &mut String,
     ) {
-        let action_name = self.format_action_name(&action_call.identifier.name.lexeme);
+        let action_name = &format!(
+            "self.{}",
+            self.format_action_name(&action_call.identifier.name.lexeme)
+        );
         output.push_str(&action_name);
 
         action_call.call_expr_list.accept_to_string(self, output);
@@ -1670,9 +1838,9 @@ impl AstVisitor for PythonVisitor {
             StateContextType::StateRef { .. } => {
                 self.generate_state_ref_change_state(change_state_stmt_node)
             }
-            StateContextType::StateStackPop {} => self
-                .errors
-                .push("Fatal error - change state stack pop not implemented.".to_string()),
+            StateContextType::StateStackPop { .. } => {
+                self.generate_state_stack_pop_change_state(change_state_stmt_node)
+            }
         };
     }
 
@@ -2276,16 +2444,19 @@ impl AstVisitor for PythonVisitor {
                 output.push_str(&format!("\"{}\"", literal_expression_node.value));
             }
             TokenType::True => {
-                output.push_str("true");
+                output.push_str("True");
             }
             TokenType::False => {
-                output.push_str("false");
+                output.push_str("False");
             }
             TokenType::Nil => {
                 output.push_str("None");
             }
             TokenType::Null => {
                 output.push_str("None");
+            }
+            TokenType::SuperString => {
+                output.push_str(&literal_expression_node.value.to_string());
             }
             _ => self
                 .errors
@@ -2340,18 +2511,10 @@ impl AstVisitor for PythonVisitor {
         {
             StateStackOperationType::Push => {
                 self.newline();
-                if self.generate_state_context {
-                    self.add_code("self._stateStack_push_(self._stateContext_)");
-                } else {
-                    self.add_code("self._stateStack_push_(self._state_)");
-                }
+                self.add_code("self.state_stack_push(self.compartment)");
             }
             StateStackOperationType::Pop => {
-                if self.generate_state_context {
-                    self.add_code("stateContext = self._stateStack_pop_()");
-                } else {
-                    self.add_code("state = _stateStack_pop_()");
-                }
+                self.add_code("compartment = self.state_stack_pop()");
             }
         }
     }
@@ -2450,10 +2613,29 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_impl_node(&mut self, _action_decl_node: &ActionNode) {
-        panic!("visit_action_impl_node() not implemented.");
-    }
+    fn visit_action_impl_node(&mut self, action_node: &ActionNode) {
+        let mut subclass_code = String::new();
 
+        self.newline();
+        self.newline();
+
+        let action_name = self.format_action_name(&action_node.name);
+        self.add_code(&format!("def {}(self", action_name));
+        match &action_node.params {
+            Some(params) => {
+                self.add_code(",");
+                subclass_code.push(',');
+                self.format_actions_parameter_list(params, &mut subclass_code);
+            }
+            None => {}
+        }
+
+        self.add_code("):");
+        self.indent();
+        self.newline();
+        self.add_code(action_node.code_opt.as_ref().unwrap().as_str());
+        self.outdent();
+    }
     //* --------------------------------------------------------------------- *//
 
     fn visit_domain_variable_decl_node(&mut self, variable_decl_node: &VariableDeclNode) {
