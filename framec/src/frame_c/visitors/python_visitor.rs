@@ -589,7 +589,7 @@ impl PythonVisitor {
         self.newline();
         match &change_state_stmt_node.label_opt {
             Some(label) => {
-                self.add_code(&format!("// {}", label));
+                self.add_code(&format!("# {}", label));
                 self.newline();
             }
             None => {}
@@ -858,7 +858,7 @@ impl PythonVisitor {
         self.newline();
         match &transition_statement.label_opt {
             Some(label) => {
-                self.add_code(&format!("// {}", label));
+                self.add_code(&format!("# {}", label));
                 self.newline();
             }
             None => {}
@@ -967,7 +967,7 @@ impl PythonVisitor {
             self.newline();
 
             if self.generate_state_stack {
-                self.add_code("// Create state stack.");
+                self.add_code("# Create state stack.");
                 self.newline();
                 self.newline();
                 self.add_code("self.state_stack = []");
