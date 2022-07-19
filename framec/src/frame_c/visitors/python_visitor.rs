@@ -37,6 +37,11 @@ pub struct PythonVisitor {
     generate_change_state: bool,
     // generate_transition_state: bool,
     event_handler_has_code: bool,
+
+    /* Persistence */
+    managed: bool, // Generate Managed code
+    marshal: bool, // Generate JSON code
+    manager: String,
 }
 
 impl PythonVisitor {
@@ -78,6 +83,11 @@ impl PythonVisitor {
             generate_change_state,
             // generate_transition_state,
             event_handler_has_code: false,
+
+            /* Persistence */
+            managed: false, // Generate Managed code
+            marshal: false, // Generate Json code
+            manager: String::new(),
         }
     }
 
@@ -203,6 +213,65 @@ impl PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     pub fn run(&mut self, system_node: &SystemNode) {
+        match &system_node.attributes_opt {
+            Some(attributes) => {
+                for value in (*attributes).values() {
+                    match value {
+                        AttributeNode::MetaNameValueStr { attr } => {
+                            match attr.name.as_str() {
+                                // TODO: constants
+                                // "stateType" => self.config.code.state_type = attr.value.clone(),
+                                "managed" => {
+                                    self.manager = attr.value.clone();
+                                    self.managed = true;
+                                }
+                                _ => {}
+                            }
+                        }
+                        AttributeNode::MetaListIdents { attr } => {
+                            match attr.name.as_str() {
+                                "derive" => {
+                                    for ident in &attr.idents {
+                                        match ident.as_str() {
+                                            // TODO: constants and figure out mom vs managed
+                                            //  "Managed" => self.managed = true,
+                                            "Marshal" => self.marshal = true,
+                                            _ => {}
+                                        }
+                                    }
+                                }
+                                "managed" => {
+                                    self.managed = true;
+                                    if attr.idents.len() != 1 {
+                                        self.errors.push(
+                                            "Attribute 'managed' takes 1 parameter".to_string(),
+                                        );
+                                    }
+                                    match attr.idents.get(0) {
+                                        Some(manager_type) => {
+                                            self.manager = manager_type.clone();
+                                        }
+                                        None => {
+                                            self.errors.push(
+                                                "Attribute 'managed' missing manager type."
+                                                    .to_string(),
+                                            );
+                                        }
+                                    }
+                                }
+                                _ => {
+                                    self.errors.push("Unknown attribute".to_string());
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // self.config.code.marshal_system_state_var = format!("{}State", &system_node.name);
+            }
+            None => {}
+        }
+
         system_node.accept(self);
     }
 
@@ -988,10 +1057,10 @@ impl PythonVisitor {
             self.add_code("self.state = None");
         }
 
-        // if self.managed {
-        //     self.newline();
-        //     self.add_code("this._manager = manager");
-        // }
+        if self.managed {
+            self.newline();
+            self.add_code("self._manager = manager");
+        }
 
         self.newline();
         self.add_code(&format!(
@@ -1082,6 +1151,69 @@ impl PythonVisitor {
     }
 
     //* --------------------------------------------------------------------- *//
+
+    fn format_load_fn(&mut self, system_node: &SystemNode) {
+        self.newline();
+        self.newline();
+        let mut manager_param = "";
+        if self.managed {
+            manager_param = "manager";
+        }
+        self.newline();
+        self.add_code("@staticmethod");
+        self.newline();
+        self.add_code(&format!(
+            "def load{}({}, data):",
+            system_node.name, manager_param
+        ));
+
+        self.indent();
+        self.newline();
+        self.newline();
+        if self.managed {
+            self.add_code("data._manager = manager");
+        }
+        // self.newline();
+        // self.newline();
+        // self.add_code("// Initialize machine");
+        // self.newline();
+        // self.add_code("data.compartment =.compartment");
+        // self.newline();
+        // // for x in domain_vec {
+        // //     self.newline();
+        // //     self.add_code(&format!("this.{} = parseObj.{}", x.0, x.0))
+        // // }
+        self.newline();
+        self.newline();
+        self.add_code("return data");
+        self.newline();
+
+        self.outdent();
+        self.newline();
+        // self.add_code("}");
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn generate_json_fn(&mut self) {
+        self.newline();
+        self.newline();
+        self.add_code("def marshal(self):");
+        self.indent();
+        self.newline();
+        self.newline();
+        self.add_code("data = copy.deepcopy(self)");
+        self.newline();
+        self.add_code("return data");
+        self.newline();
+
+        self.outdent();
+        // self.newline();
+        // self.add_code("}");
+        self.newline();
+    }
+
+    //* --------------------------------------------------------------------- *//
 }
 
 //* --------------------------------------------------------------------- *//
@@ -1109,6 +1241,10 @@ impl AstVisitor for PythonVisitor {
         self.add_code(&format!("# {}", self.compiler_version));
         self.newline();
         self.add_code("# get include files at https://github.com/frame-lang/frame-ancillary-files");
+
+        self.newline();
+        self.add_code(&system_node.header);
+
         self.newline();
         self.newline();
         self.add_code(&format!("class {}:", system_node.name));
@@ -1158,30 +1294,20 @@ impl AstVisitor for PythonVisitor {
             None => {}
         };
 
-        // if self.managed {
-        //     if new_params.is_empty() {
-        //         self.add_code("manager) {");
-        //     } else {
-        //         self.add_code(&format!("manager,{}) {{", new_params));
-        //     }
-        // } else {
-        // self.add_code(&format!("{}) {{", new_params));
-        // }
-
-        // generate constructor
-
-        // if self.has_states {
         self.newline();
-        self.add_code(&format!("def __init__(self, {}):", new_params));
+        if self.managed {
+            if new_params.is_empty() {
+                self.add_code("def __init__(self, manager):");
+            } else {
+                self.add_code(&format!("def __init__(self, manager, {}):", new_params));
+            }
+        } else if !self.managed && !new_params.is_empty() {
+            self.add_code(&format!("def __init__(self, {}):", new_params));
+        } else {
+            self.add_code("def __init__(self):");
+        }
 
         self.generate_new_fn(&system_node);
-
-        // if self.generate_state_stack {
-        //     self.newline();
-        //     self.add_code("self._stateStack_ = []");
-        // }
-
-        // }
 
         // end of generate constructor
 
@@ -1201,26 +1327,33 @@ impl AstVisitor for PythonVisitor {
             "#class {}Controller({}):",
             system_node.name, system_node.name
         ));
-        // if self.managed {
-        //     if new_params.is_empty() {
-        //         self.subclass_code
-        //             .push("\tconstructor(manager) {".to_string());
-        //         self.subclass_code.push("\t  super(manager)".to_string());
-        //     } else {
-        //         self.subclass_code
-        //             .push(format!("\tconstructor(manager,{}) {{", new_params));
-        //         self.subclass_code
-        //             .push(format!("\t  super(manager{})", new_params));
-        //     }
-        // } else {
-        self.subclass_code
-            .push(format!("\t#def __init__(self,{}):", new_params));
-        self.subclass_code
-            .push(format!("\t    #super().__init__({})", new_params));
-        // }
+        if self.managed {
+            if new_params.is_empty() {
+                self.subclass_code
+                    .push("\t#def __init__(self, manager):".to_string());
+                self.subclass_code
+                    .push("\t#  super().__init__(manager)".to_string());
+            } else {
+                self.subclass_code
+                    .push(format!("\t#def __init__(manager,{}):", new_params));
+                self.subclass_code
+                    .push(format!("\t#  super().__init__(manager{})", new_params));
+            }
+        } else {
+            self.subclass_code
+                .push(format!("\t#def __init__(self,{}):", new_params));
+            self.subclass_code
+                .push(format!("\t    #super().__init__({})", new_params));
+        }
 
         if let Some(interface_block_node) = &system_node.interface_block_node_opt {
             interface_block_node.accept(self);
+        }
+
+        if self.marshal {
+            // generate Load() factory
+            self.format_load_fn(system_node);
+            self.generate_json_fn();
         }
 
         // generate mux
