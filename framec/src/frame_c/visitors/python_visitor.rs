@@ -122,7 +122,7 @@ impl PythonVisitor {
                     code.push('(');
                 }
                 code.push_str(&format!(
-                    "self.compartment.state_args[\"{}\"]",
+                    "self.__compartment.state_args[\"{}\"]",
                     variable_node.id_node.name.lexeme
                 ));
                 if self.visiting_call_chain_literal_variable {
@@ -134,7 +134,7 @@ impl PythonVisitor {
                     code.push('(');
                 }
                 code.push_str(&format!(
-                    "self.compartment.state_vars[\"{}\"]",
+                    "self.__compartment.state_vars[\"{}\"]",
                     variable_node.id_node.name.lexeme
                 ));
                 if self.visiting_call_chain_literal_variable {
@@ -376,23 +376,23 @@ impl PythonVisitor {
         self.newline();
         if system_node.get_first_state().is_some() {
             self.newline();
-            self.add_code("def transition(self, compartment):");
+            self.add_code("def __transition(self, compartment):");
             self.indent();
             self.newline();
-            self.add_code("self.next_compartment = compartment");
+            self.add_code("self.__next_compartment = compartment");
             self.outdent();
 
             self.newline();
             self.newline();
-            self.add_code("def do_transition(self, next_compartment):");
+            self.add_code("def __do_transition(self, next_compartment):");
 
             self.indent();
             self.newline();
-            self.add_code("self.mux(FrameEvent(\"<\", self.compartment.exit_args))");
+            self.add_code("self.__mux(FrameEvent(\"<\", self.__compartment.exit_args))");
             self.newline();
-            self.add_code("self.compartment = next_compartment");
+            self.add_code("self.__compartment = next_compartment");
             self.newline();
-            self.add_code("self.mux(FrameEvent(\">\", self.compartment.enter_args))");
+            self.add_code("self.__mux(FrameEvent(\">\", self.__compartment.enter_args))");
             self.outdent();
 
             if self.generate_state_stack {
@@ -401,14 +401,14 @@ impl PythonVisitor {
                 self.add_code("def state_stack_push(self, compartment):");
                 self.indent();
                 self.newline();
-                self.add_code("self.state_stack.push(compartment)");
+                self.add_code("self.__state_stack.push(compartment)");
                 self.outdent();
                 self.newline();
                 self.newline();
-                self.add_code("def state_stack_pop(self):");
+                self.add_code("def __state_stack_pop(self):");
                 self.indent();
                 self.newline();
-                self.add_code("return self.state_stack.pop()");
+                self.add_code("return self.__state_stack.pop()");
                 self.outdent();
                 self.newline();
             }
@@ -418,7 +418,7 @@ impl PythonVisitor {
                 self.add_code("def change_state(self, new_compartment):");
                 self.indent();
                 self.newline();
-                self.add_code("self.compartment = new_compartment");
+                self.add_code("self.__compartment = new_compartment");
                 self.outdent();
                 self.newline();
             }
@@ -664,7 +664,7 @@ impl PythonVisitor {
             None => {}
         }
 
-        self.add_code("compartment = self.state_stack_pop()");
+        self.add_code("compartment = self.__state_stack_pop()");
         self.newline();
         self.add_code("self.change_state(compartment)");
     }
@@ -735,7 +735,7 @@ impl PythonVisitor {
                                         expr_t.accept_to_string(self, &mut expr);
                                         self.newline();
                                         self.add_code(&format!(
-                                            "self.compartment.exit_args[\"{}\"] = {}",
+                                            "self.__compartment.exit_args[\"{}\"] = {}",
                                             p.name, expr
                                         ));
                                     }
@@ -906,13 +906,13 @@ impl PythonVisitor {
         }
 
         self.newline();
-        self.add_code("self.transition(compartment)");
+        self.add_code("self.__transition(compartment)");
     }
 
     //* --------------------------------------------------------------------- *//
 
     fn format_target_state_name(&self, state_name: &str) -> String {
-        format!("_s{}_", state_name)
+        format!("__{}_state_{}", self.system_name.to_lowercase(), state_name)
     }
 
     //* --------------------------------------------------------------------- *//
@@ -969,7 +969,7 @@ impl PythonVisitor {
                                         let mut expr = String::new();
                                         expr_t.accept_to_string(self, &mut expr);
                                         self.add_code(&format!(
-                                            "self.compartment.exit_args[\"{}\"] = {}",
+                                            "self.__compartment.exit_args[\"{}\"] = {}",
                                             p.name, expr
                                         ));
                                         self.newline();
@@ -989,9 +989,9 @@ impl PythonVisitor {
             }
         }
 
-        self.add_code("compartment = self.state_stack_pop()");
+        self.add_code("compartment = self.__state_stack_pop()");
         self.newline();
-        self.add_code("self.transition(compartment)");
+        self.add_code("self.__transition(compartment)");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1039,7 +1039,7 @@ impl PythonVisitor {
                 self.add_code("# Create state stack.");
                 self.newline();
                 self.newline();
-                self.add_code("self.state_stack = []");
+                self.add_code("self.__state_stack = []");
                 self.newline();
                 self.newline();
             }
@@ -1047,14 +1047,14 @@ impl PythonVisitor {
             self.add_code("# Create and intialize start state compartment.");
             self.newline();
             self.add_code(&format!(
-                "self.state = self.{}",
+                "self.__state = self.{}",
                 self.format_target_state_name(&self.first_state_name)
             ));
         } else {
             self.add_code("# Create and intialize start state compartment.");
             self.newline();
             self.newline();
-            self.add_code("self.state = None");
+            self.add_code("self.__state = None");
         }
 
         if self.managed {
@@ -1064,11 +1064,11 @@ impl PythonVisitor {
 
         self.newline();
         self.add_code(&format!(
-            "self.compartment = {}Compartment(self.state)",
+            "self.__compartment = {}Compartment(self.__state)",
             system_node.name
         ));
         self.newline();
-        self.add_code("self.next_compartment = None");
+        self.add_code("self.__next_compartment = None");
 
         // Initialize state arguments.
         match &system_node.start_state_state_params_opt {
@@ -1076,7 +1076,7 @@ impl PythonVisitor {
                 for param in params {
                     self.newline();
                     self.add_code(&format!(
-                        "self.compartment.state_args[\"{}\"] = {}",
+                        "self.__compartment.state_args[\"{}\"] = {}",
                         param.param_name, param.param_name,
                     ));
                 }
@@ -1097,7 +1097,7 @@ impl PythonVisitor {
 
                             self.newline();
                             self.add_code(&format!(
-                                "self.compartment.state_vars[\"{}\"] = {}",
+                                "self.__compartment.state_vars[\"{}\"] = {}",
                                 var_decl_node.name, expr_code,
                             ));
                         }
@@ -1112,7 +1112,7 @@ impl PythonVisitor {
             for param in enter_params {
                 self.newline();
                 self.add_code(&format!(
-                    "self.compartment.enter_args[\"{}\"] = {}",
+                    "self.__compartment.enter_args[\"{}\"] = {}",
                     param.param_name, param.param_name,
                 ));
             }
@@ -1137,14 +1137,14 @@ impl PythonVisitor {
 
         if let Some(_enter_params) = &system_node.start_state_enter_params_opt {
             self.newline();
-            self.add_code("frame_event = FrameEvent(\">\", self.compartment.enter_args)");
+            self.add_code("frame_event = FrameEvent(\">\", self.__compartment.enter_args)");
         } else {
             self.newline();
             self.add_code("frame_event = FrameEvent(\">\", None)");
         }
 
         self.newline();
-        self.add_code("self.mux(frame_event)");
+        self.add_code("self.__mux(frame_event)");
 
         self.outdent();
         self.newline();
@@ -1356,14 +1356,14 @@ impl AstVisitor for PythonVisitor {
             self.generate_json_fn();
         }
 
-        // generate mux
+        // generate __mux
 
         self.newline();
         self.add_code("# ====================== Multiplexer ==================== #");
         self.newline();
         self.newline();
 
-        self.add_code("def mux(self, e):");
+        self.add_code("def __mux(self, e):");
         self.indent();
 
         if let Some(machine_block_node) = &system_node.machine_block_node_opt {
@@ -1377,9 +1377,9 @@ impl AstVisitor for PythonVisitor {
                     self.format_target_state_name(&state_node_rcref.borrow().name)
                 );
                 if current_index == 0 {
-                    self.add_code(&format!("if self.compartment.state == {}:", state_name));
+                    self.add_code(&format!("if self.__compartment.state == {}:", state_name));
                 } else {
-                    self.add_code(&format!("elif self.compartment.state == {}:", state_name));
+                    self.add_code(&format!("elif self.__compartment.state == {}:", state_name));
                 }
                 self.indent();
                 self.newline();
@@ -1393,34 +1393,34 @@ impl AstVisitor for PythonVisitor {
             }
 
             self.newline();
-            self.add_code("if self.next_compartment != None:");
+            self.add_code("if self.__next_compartment != None:");
             self.indent();
             self.newline();
-            self.add_code("next_compartment = self.next_compartment");
+            self.add_code("next_compartment = self.__next_compartment");
             self.newline();
-            self.add_code("self.next_compartment = None");
+            self.add_code("self.__next_compartment = None");
             self.newline();
-            self.add_code("if(next_compartment.forward_event != None and ");
+            self.add_code("if(next_compartment.forward_event is not None and ");
             self.newline();
             self.add_code("   next_compartment.forward_event._message == \">\"):");
             self.indent();
             self.newline();
-            self.add_code("self.mux(FrameEvent( \"<\", self.compartment.exit_args))");
+            self.add_code("self.__mux(FrameEvent( \"<\", self.__compartment.exit_args))");
             self.newline();
-            self.add_code("self.compartment = next_compartment");
+            self.add_code("self.__compartment = next_compartment");
             self.newline();
-            self.add_code("self.mux(next_compartment.forward_event)");
+            self.add_code("self.__mux(next_compartment.forward_event)");
             self.outdent();
             self.newline();
             self.add_code("else:");
             self.indent();
             self.newline();
-            self.add_code("self.do_transition(next_compartment)");
+            self.add_code("self.__do_transition(next_compartment)");
             self.newline();
-            self.add_code("if next_compartment.forward_event != None:");
+            self.add_code("if next_compartment.forward_event is not None:");
             self.indent();
             self.newline();
-            self.add_code("self.mux(next_compartment.forward_event)");
+            self.add_code("self.__mux(next_compartment.forward_event)");
             self.outdent();
             // self.newline();
             // self.add_code("}");
@@ -1586,7 +1586,7 @@ impl AstVisitor for PythonVisitor {
             method_name_or_alias, params_param_code
         ));
         self.newline();
-        self.add_code("self.mux(e)");
+        self.add_code("self.__mux(e)");
 
         match &interface_method_node.return_type_opt {
             Some(_) => {
@@ -1989,8 +1989,8 @@ impl AstVisitor for PythonVisitor {
     fn visit_dispatch_node(&mut self, dispatch_node: &DispatchNode) {
         self.newline();
         self.add_code(&format!(
-            "self._s{}_(e)",
-            dispatch_node.target_state_ref.name
+            "self.(e)",
+            self.format_target_state_name(dispatch_node.target_state_ref.name)
         ));
         self.generate_comment(dispatch_node.line);
         self.newline();
@@ -2644,10 +2644,10 @@ impl AstVisitor for PythonVisitor {
         {
             StateStackOperationType::Push => {
                 self.newline();
-                self.add_code("self.state_stack_push(self.compartment)");
+                self.add_code("self.__state_stack_push(self.__compartment)");
             }
             StateStackOperationType::Pop => {
-                self.add_code("compartment = self.state_stack_pop()");
+                self.add_code("compartment = self.__state_stack_pop()");
             }
         }
     }
