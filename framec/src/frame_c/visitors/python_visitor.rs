@@ -93,6 +93,76 @@ impl PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    pub fn format_type(&self, type_node: &TypeNode) -> String {
+        let mut s = String::new();
+
+        // if let Some(frame_event_part) = &type_node.frame_event_part_opt {
+        //     match frame_event_part {
+        //         FrameEventPart::Event { is_reference } => {
+        //             if *is_reference {
+        //                 s.push();
+        //             }
+        //             s.push_str(&*self.config.code.frame_event_type_name.clone());
+        //         }
+        //         _ => {}
+        //     }
+        // } else {
+        //     if type_node.is_reference {
+        //         s.push('&');
+        //     }
+
+        s.push_str(&type_node.type_str.clone());
+        // }
+
+        s
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    // fn get_variable_type(&mut self, symbol_type: &SymbolType) -> String {
+    //     let var_type = match &*symbol_type {
+    //         SymbolType::DomainVariable {
+    //             domain_variable_symbol_rcref,
+    //         } => match &domain_variable_symbol_rcref.borrow().var_type {
+    //             Some(type_node) => self.format_type(type_node),
+    //             None => String::from(""),
+    //         },
+    //         SymbolType::StateParam {
+    //             state_param_symbol_rcref,
+    //         } => match &state_param_symbol_rcref.borrow().param_type_opt {
+    //             Some(type_node) => self.format_type(type_node),
+    //             None => String::from(""),
+    //         },
+    //         SymbolType::StateVariable {
+    //             state_variable_symbol_rcref,
+    //         } => match &state_variable_symbol_rcref.borrow().var_type {
+    //             Some(type_node) => self.format_type(type_node),
+    //             None => String::from(""),
+    //         },
+    //         SymbolType::EventHandlerParam {
+    //             event_handler_param_symbol_rcref,
+    //         } => match &event_handler_param_symbol_rcref.borrow().param_type_opt {
+    //             Some(type_node) => self.format_type(type_node),
+    //             None => String::from(""),
+    //         },
+    //         SymbolType::EventHandlerVariable {
+    //             event_handler_variable_symbol_rcref,
+    //         } => match &event_handler_variable_symbol_rcref.borrow().var_type {
+    //             Some(type_node) => self.format_type(type_node),
+    //             None => String::from(""),
+    //         },
+
+    //         _ => {
+    //             self.errors.push("Unknown scope.".to_string());
+    //             return "error".to_string(); // won't get emitted
+    //         }
+    //     };
+
+    //     var_type
+    // }
+
+    //* --------------------------------------------------------------------- *//
+
     pub fn get_code(&self) -> String {
         if !self.errors.is_empty() {
             let mut error_list = String::new();
@@ -168,11 +238,29 @@ impl PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn format_parameter_list(&mut self, params: &Vec<ParameterNode>) {
+    fn format_parameter_list(&mut self, params_in: &Option<Vec<ParameterNode>>) {
+        if params_in.is_none() {
+            return;
+        }
+
+        let params = match params_in {
+            Some(params) => params,
+            None => {
+                return;
+            }
+        };
+
         let mut separator = "";
         for param in params {
             self.add_code(separator);
-            self.add_code(&param.param_name.to_string());
+            let param_type: String = match &param.param_type_opt {
+                Some(ret_type) => self.format_type(ret_type),
+                None => String::from(""),
+            };
+            self.add_code(&format!("{}", param.param_name));
+            if param_type != "" {
+                self.add_code(&format!(": {}", param_type));
+            }
             separator = ",";
         }
     }
@@ -186,9 +274,17 @@ impl PythonVisitor {
         let mut separator = "";
         for param in params {
             self.add_code(separator);
-            self.add_code(&param.param_name.to_string());
             subclass_actions.push_str(separator);
-            subclass_actions.push_str(&param.param_name.to_string());
+            let param_type: String = match &param.param_type_opt {
+                Some(type_node) => self.format_type(type_node),
+                None => String::from(""),
+            };
+            self.add_code(&format!("{}", param.param_name));
+            subclass_actions.push_str(&format!("{}", param.param_name));
+            if param_type != "" {
+                self.add_code(&format!(": {}", param_type));
+                subclass_actions.push_str(&format!(": {}", param_type));
+            }
             separator = ",";
         }
     }
@@ -376,7 +472,10 @@ impl PythonVisitor {
         self.newline();
         if system_node.get_first_state().is_some() {
             self.newline();
-            self.add_code("def __transition(self, compartment):");
+            self.add_code(&format!(
+                "def __transition(self, compartment: '{}Compartment'):",
+                self.system_name
+            ));
             self.indent();
             self.newline();
             self.add_code("self.__next_compartment = compartment");
@@ -384,7 +483,10 @@ impl PythonVisitor {
 
             self.newline();
             self.newline();
-            self.add_code("def __do_transition(self, next_compartment):");
+            self.add_code(&format!(
+                "def  __do_transition(self, next_compartment: '{}Compartment'):",
+                self.system_name
+            ));
 
             self.indent();
             self.newline();
@@ -398,10 +500,13 @@ impl PythonVisitor {
             if self.generate_state_stack {
                 self.newline();
                 self.newline();
-                self.add_code("def state_stack_push(self, compartment):");
+                self.add_code(&format!(
+                    "def __state_stack_push(self, compartment: '{}Compartment'):",
+                    self.system_name
+                ));
                 self.indent();
                 self.newline();
-                self.add_code("self.__state_stack.push(compartment)");
+                self.add_code("self.__state_stack.append(compartment)");
                 self.outdent();
                 self.newline();
                 self.newline();
@@ -415,7 +520,10 @@ impl PythonVisitor {
             if self.generate_change_state {
                 self.newline();
                 self.newline();
-                self.add_code("def change_state(self, new_compartment):");
+                self.add_code(&format!(
+                    "def __change_state(self, new_compartment: '{}Compartment'):",
+                    self.system_name
+                ));
                 self.indent();
                 self.newline();
                 self.add_code("self.__compartment = new_compartment");
@@ -646,7 +754,7 @@ impl PythonVisitor {
         }
 
         self.newline();
-        self.add_code("self.change_state(compartment)");
+        self.add_code("self.__change_state(compartment)");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -666,7 +774,7 @@ impl PythonVisitor {
 
         self.add_code("compartment = self.__state_stack_pop()");
         self.newline();
-        self.add_code("self.change_state(compartment)");
+        self.add_code("self.__change_state(compartment)");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1064,11 +1172,14 @@ impl PythonVisitor {
 
         self.newline();
         self.add_code(&format!(
-            "self.__compartment = {}Compartment(self.__state)",
-            system_node.name
+            "self.__compartment: '{}Compartment' = {}Compartment(self.__state)",
+            system_node.name, system_node.name
         ));
         self.newline();
-        self.add_code("self.__next_compartment = None");
+        self.add_code(&format!(
+            "self.__next_compartment: '{}Compartment' = None",
+            system_node.name
+        ));
 
         // Initialize state arguments.
         match &system_node.start_state_state_params_opt {
@@ -1267,7 +1378,14 @@ impl AstVisitor for PythonVisitor {
             Some(param_list) => {
                 let mut params = String::new();
                 for param_node in param_list {
+                    let param_type = match &param_node.param_type_opt {
+                        Some(type_node) => self.format_type(type_node),
+                        None => String::from(""),
+                    };
                     params.push_str(&format!("{}{}", separator, param_node.param_name));
+                    if param_type != "" {
+                        params.push_str(&format!(": {}", param_type));
+                    }
                     separator = String::from(",");
                 }
                 params
@@ -1278,7 +1396,14 @@ impl AstVisitor for PythonVisitor {
         match &system_node.start_state_enter_params_opt {
             Some(param_list) => {
                 for param_node in param_list {
+                    let param_type = match &param_node.param_type_opt {
+                        Some(type_node) => self.format_type(type_node),
+                        None => String::from(""),
+                    };
                     new_params.push_str(&format!("{}{}", separator, param_node.param_name));
+                    if param_type != "" {
+                        new_params.push_str(&format!(": {}", param_type));
+                    }
                     separator = String::from(",");
                 }
             }
@@ -1287,7 +1412,14 @@ impl AstVisitor for PythonVisitor {
         match &system_node.domain_params_opt {
             Some(param_list) => {
                 for param_node in param_list {
+                    let param_type = match &param_node.param_type_opt {
+                        Some(type_node) => self.format_type(type_node),
+                        None => String::from(""),
+                    };
                     new_params.push_str(&format!("{}{}", separator, param_node.param_name));
+                    if param_type != "" {
+                        new_params.push_str(&format!(": {}", param_type));
+                    }
                     separator = String::from(",");
                 }
             }
@@ -1551,13 +1683,13 @@ impl AstVisitor for PythonVisitor {
 
         self.add_code(&format!("def {}(self", interface_method_node.name));
 
-        match &interface_method_node.params {
-            Some(params) => {
-                self.add_code(",");
-                self.format_parameter_list(params);
-            }
-            None => {}
-        }
+        // match &interface_method_node.params {
+        //     Some(params) => {
+        self.add_code(",");
+        self.format_parameter_list(&interface_method_node.params);
+        //     }
+        //     None => {}
+        // }
 
         self.add_code("):");
         self.indent();
@@ -1989,8 +2121,8 @@ impl AstVisitor for PythonVisitor {
     fn visit_dispatch_node(&mut self, dispatch_node: &DispatchNode) {
         self.newline();
         self.add_code(&format!(
-            "self.(e)",
-            self.format_target_state_name(dispatch_node.target_state_ref.name)
+            "self.{}(e)",
+            self.format_target_state_name(&dispatch_node.target_state_ref.name)
         ));
         self.generate_comment(dispatch_node.line);
         self.newline();
@@ -2778,6 +2910,10 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_variable_decl_node(&mut self, variable_decl_node: &VariableDeclNode) {
+        let var_type = match &variable_decl_node.type_opt {
+            Some(type_node) => self.format_type(type_node),
+            None => String::from(""),
+        };
         let var_name = &variable_decl_node.name;
         let var_init_expr = &variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
         self.newline();
@@ -2785,10 +2921,18 @@ impl AstVisitor for PythonVisitor {
         var_init_expr.accept_to_string(self, &mut code);
         match &variable_decl_node.identifier_decl_scope {
             IdentifierDeclScope::DomainBlock => {
-                self.add_code(&format!("self.{} = {}", var_name, code));
+                self.add_code(&format!("self.{} ", var_name));
+                if var_type != "" {
+                    self.add_code(&format!(": {}", var_type));
+                }
+                self.add_code(&format!(" = {}", code));
             }
             IdentifierDeclScope::EventHandlerVar => {
-                self.add_code(&format!("{} = {}", var_name, code));
+                self.add_code(&format!("{} ", var_name));
+                if var_type != "" {
+                    self.add_code(&format!(": {}", var_type));
+                }
+                self.add_code(&format!(" = {}", code));
             }
             _ => panic!("Error - unexpected scope for variable declaration"),
         }
