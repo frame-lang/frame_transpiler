@@ -5,6 +5,7 @@
 #![allow(clippy::ptr_arg)]
 #![allow(non_snake_case)]
 
+use crate::config::*;
 use crate::frame_c::ast::*;
 use crate::frame_c::scanner::{Token, TokenType};
 use crate::frame_c::symbol_table::*;
@@ -42,6 +43,12 @@ pub struct PythonVisitor {
     managed: bool, // Generate Managed code
     marshal: bool, // Generate JSON code
     manager: String,
+
+    // config
+    config: PythonConfig,
+
+    // keeping track of traversal context
+    this_branch_transitioned: bool,
 }
 
 impl PythonVisitor {
@@ -56,7 +63,9 @@ impl PythonVisitor {
         // generate_transition_state: bool,
         compiler_version: &str,
         comments: Vec<Token>,
+        config: FrameConfig,
     ) -> PythonVisitor {
+        let python_config = config.codegen.python;
         PythonVisitor {
             compiler_version: compiler_version.to_string(),
             code: String::from(""),
@@ -88,6 +97,9 @@ impl PythonVisitor {
             managed: false, // Generate Managed code
             marshal: false, // Generate Json code
             manager: String::new(),
+            config: python_config,
+            // keeping track of traversal context
+            this_branch_transitioned: false,
         }
     }
 
@@ -552,6 +564,32 @@ impl PythonVisitor {
         for line in self.subclass_code.iter() {
             self.code.push_str(&*line.to_string());
             self.code.push_str(&*format!("\n{}", self.dent()));
+        }
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    /// Generate a return statement within a handler. Call this rather than adding a return
+    /// statement directly to ensure that the control-flow state is properly maintained.
+    fn generate_return(&mut self) {
+        self.newline();
+        self.add_code("return");
+        self.this_branch_transitioned = false;
+    }
+
+    /// Generate a return statement if the current branch contained a transition or change-state.
+    fn generate_return_if_transitioned(&mut self) {
+        if self.this_branch_transitioned {
+            self.generate_return();
+        }
+    }
+
+    // Generate a break statement if the current branch doesnot contain a transition or change-state.
+
+    fn generate_break_if_not_transitioned(&mut self) {
+        if !self.this_branch_transitioned {
+            self.newline();
+            self.add_code("break");
         }
     }
 
@@ -1325,6 +1363,17 @@ impl PythonVisitor {
     }
 
     //* --------------------------------------------------------------------- *//
+
+    fn generate_state_info_method(&mut self) {
+        self.newline();
+        self.add_code("def state_info(self):");
+        self.indent();
+        self.newline();
+        self.add_code("return self.__compartment.state.__name__");
+        self.newline();
+        self.outdent();
+    }
+    //* --------------------------------------------------------------------- *//
 }
 
 //* --------------------------------------------------------------------- *//
@@ -1592,6 +1641,10 @@ impl AstVisitor for PythonVisitor {
 
         if self.has_states {
             self.generate_machinery(system_node);
+        }
+
+        if self.config.code.public_state_info {
+            self.generate_state_info_method()
         }
 
         // TODO: add comments back
@@ -1951,14 +2004,14 @@ impl AstVisitor for PythonVisitor {
                 Some(expr_t) => {
                     self.add_code("e._return = ");
                     expr_t.accept(self);
-                    self.newline();
-                    self.add_code("return");
+                    self.generate_return();
                     self.newline();
                 }
-                None => self.add_code("return"),
+                None => self.generate_return(),
             },
             TerminatorType::Continue => {
-                // self.add_code("break")
+                self.generate_return_if_transitioned();
+                self.generate_break_if_not_transitioned();
             }
         }
     }
@@ -2085,6 +2138,8 @@ impl AstVisitor for PythonVisitor {
                 self.generate_state_stack_pop_transition(transition_statement)
             }
         };
+
+        self.this_branch_transitioned = true;
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2107,6 +2162,7 @@ impl AstVisitor for PythonVisitor {
                 self.generate_state_stack_pop_change_state(change_state_stmt_node)
             }
         };
+        self.this_branch_transitioned = true
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2170,6 +2226,7 @@ impl AstVisitor for PythonVisitor {
             self.indent();
 
             branch_node.accept(self);
+            self.generate_return_if_transitioned();
 
             self.outdent();
             self.newline();
@@ -2185,11 +2242,42 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    // NOTE: Interface method calls must be treated specially since they may transition.
+    //
+    // The current approach is conservative, essentially assuming that an interface method call
+    // always transitions. This assumption imposes the following restrictions:
+    //
+    //  * Interface method calls cannot occur in a chain (they must be a standalone call).
+    //  * Interface method calls terminate the execution of their handler (like transitions).
+    //
+    // It would be possible to lift these restrictions and track the execution of a handler more
+    // precisely, but this would require embedding some logic in the generated code and would make
+    // handlers harder to reason about. The conservative approach has the advantage of both
+    // simplifying the implementation and reasoning about Frame programs.
+
     fn visit_call_chain_literal_statement_node(
         &mut self,
         method_call_chain_literal_stmt_node: &CallChainLiteralStmtNode,
     ) {
         self.newline();
+        // special case for interface method calls
+        let call_chain = &method_call_chain_literal_stmt_node
+            .call_chain_literal_expr_node
+            .call_chain;
+        if call_chain.len() == 1 {
+            if let CallChainLiteralNodeType::InterfaceMethodCallT {
+                interface_method_call_expr_node,
+            } = &call_chain[0]
+            {
+                self.this_branch_transitioned = true;
+                interface_method_call_expr_node.accept(self);
+                self.generate_return();
+                return;
+            }
+        }
+
+        // standard case
+
         method_call_chain_literal_stmt_node
             .call_chain_literal_expr_node
             .accept(self);
@@ -2276,7 +2364,17 @@ impl AstVisitor for PythonVisitor {
         &mut self,
         bool_test_true_branch_node: &BoolTestConditionalBranchNode,
     ) {
-        self.visit_decl_stmts(&bool_test_true_branch_node.statements);
+        let mut generate_pass = false;
+        if bool_test_true_branch_node.statements.is_empty() {
+            generate_pass = true
+        }
+
+        if generate_pass {
+            self.newline();
+            self.add_code("pass");
+        } else {
+            self.visit_decl_stmts(&bool_test_true_branch_node.statements);
+        }
 
         match &bool_test_true_branch_node.branch_terminator_expr_opt {
             Some(branch_terminator_expr) => {
@@ -2286,17 +2384,19 @@ impl AstVisitor for PythonVisitor {
                         Some(expr_t) => {
                             self.add_code("e._return = ");
                             expr_t.accept(self);
-                            self.newline();
-                            self.add_code("return");
+                            self.generate_return();
                         }
-                        None => self.add_code("return"),
+                        None => self.generate_return(),
                     },
                     TerminatorType::Continue => {
-                        self.add_code("break");
+                        self.generate_return_if_transitioned();
+                        self.generate_break_if_not_transitioned();
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
     }
 
@@ -2308,8 +2408,16 @@ impl AstVisitor for PythonVisitor {
     ) {
         self.add_code("else:");
         self.indent();
-
-        self.visit_decl_stmts(&bool_test_else_branch_node.statements);
+        let mut generate_pass = false;
+        if bool_test_else_branch_node.statements.is_empty() {
+            generate_pass = true
+        }
+        if generate_pass {
+            self.newline();
+            self.add_code("pass");
+        } else {
+            self.visit_decl_stmts(&bool_test_else_branch_node.statements);
+        }
 
         // TODO - factor this out to work w/ other terminator code.
         match &bool_test_else_branch_node.branch_terminator_expr_opt {
@@ -2320,17 +2428,19 @@ impl AstVisitor for PythonVisitor {
                         Some(expr_t) => {
                             self.add_code("e._return = ");
                             expr_t.accept(self);
-                            self.newline();
-                            self.add_code("return");
+                            self.generate_return();
                         }
-                        None => self.add_code("return"),
+                        None => self.generate_return(),
                     },
                     TerminatorType::Continue => {
-                        self.add_code("break");
+                        self.generate_return_if_transitioned();
+                        self.generate_break_if_not_transitioned();
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
 
         self.outdent();
@@ -2406,6 +2516,7 @@ impl AstVisitor for PythonVisitor {
             self.indent();
 
             match_branch_node.accept(self);
+            self.generate_return_if_transitioned();
 
             self.outdent();
             self.newline();
@@ -2425,7 +2536,17 @@ impl AstVisitor for PythonVisitor {
         &mut self,
         string_match_test_match_branch_node: &StringMatchTestMatchBranchNode,
     ) {
-        self.visit_decl_stmts(&string_match_test_match_branch_node.statements);
+        let mut generate_pass = false;
+        if string_match_test_match_branch_node.statements.is_empty() {
+            generate_pass = true;
+        }
+
+        if generate_pass {
+            self.newline();
+            self.add_code("pass");
+        } else {
+            self.visit_decl_stmts(&string_match_test_match_branch_node.statements);
+        }
 
         match &string_match_test_match_branch_node.branch_terminator_expr_opt {
             Some(branch_terminator_expr) => {
@@ -2435,17 +2556,19 @@ impl AstVisitor for PythonVisitor {
                         Some(expr_t) => {
                             self.add_code("e._return = ");
                             expr_t.accept(self);
-                            self.newline();
-                            self.add_code("return");
+                            self.generate_return();
                         }
-                        None => self.add_code("return"),
+                        None => self.generate_return(),
                     },
                     TerminatorType::Continue => {
-                        self.add_code("break");
+                        self.generate_return_if_transitioned();
+                        self.generate_break_if_not_transitioned();
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
     }
 
@@ -2455,10 +2578,19 @@ impl AstVisitor for PythonVisitor {
         &mut self,
         string_match_test_else_branch_node: &StringMatchTestElseBranchNode,
     ) {
-        self.add_code(" else:");
+        self.add_code("else:");
         self.indent();
+        let mut generate_pass = false;
+        if string_match_test_else_branch_node.statements.is_empty() {
+            generate_pass = true;
+        }
 
-        self.visit_decl_stmts(&string_match_test_else_branch_node.statements);
+        if generate_pass {
+            self.newline();
+            self.add_code("pass");
+        } else {
+            self.visit_decl_stmts(&string_match_test_else_branch_node.statements);
+        }
 
         // TODO - factor this out to work w/ other terminator code.
         match &string_match_test_else_branch_node.branch_terminator_expr_opt {
@@ -2470,16 +2602,19 @@ impl AstVisitor for PythonVisitor {
                             self.add_code("e._return = ");
                             expr_t.accept(self);
                             self.newline();
-                            self.add_code("return");
+                            self.generate_return();
                         }
-                        None => self.add_code("return"),
+                        None => self.generate_return(),
                     },
                     TerminatorType::Continue => {
-                        self.add_code("break");
+                        self.generate_return_if_transitioned();
+                        self.generate_break_if_not_transitioned();
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
 
         self.outdent();
@@ -2556,6 +2691,7 @@ impl AstVisitor for PythonVisitor {
             self.indent();
 
             match_branch_node.accept(self);
+            self.generate_return_if_transitioned();
 
             self.outdent();
             self.newline();
@@ -2586,17 +2722,19 @@ impl AstVisitor for PythonVisitor {
                         Some(expr_t) => {
                             self.add_code("e._return = ");
                             expr_t.accept(self);
-                            self.newline();
-                            self.add_code("return");
+                            self.generate_return();
                         }
-                        None => self.add_code("return"),
+                        None => self.generate_return(),
                     },
                     TerminatorType::Continue => {
-                        self.add_code("break");
+                        self.generate_return_if_transitioned();
+                        self.generate_break_if_not_transitioned();
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
     }
 
@@ -2620,17 +2758,19 @@ impl AstVisitor for PythonVisitor {
                         Some(expr_t) => {
                             self.add_code("e._return = ");
                             expr_t.accept(self);
-                            self.newline();
-                            self.add_code("return");
+                            self.generate_return();
                         }
-                        None => self.add_code("return"),
+                        None => self.generate_return(),
                     },
                     TerminatorType::Continue => {
-                        self.add_code("break");
+                        self.generate_return_if_transitioned();
+                        self.generate_break_if_not_transitioned();
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
 
         self.outdent();

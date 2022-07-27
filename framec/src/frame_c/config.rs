@@ -55,6 +55,7 @@ pub struct CodeGenConfig {
     pub golang: GolangConfig,
     pub smcat: SmcatConfig,
     pub javascript: JavascriptConfig,
+    pub python: PythonConfig,
 }
 
 /// Code generation options shared among all backends.
@@ -258,6 +259,32 @@ impl Default for JavascriptCode {
             public_domain: false,
             public_state_info: false,
             generate_import_export: false,
+        }
+    }
+}
+
+/// Code generation options specific to the Python backend.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PythonConfig {
+    pub code: PythonCode,
+}
+
+/// Naming options for generated code specific to the python backend. These options can be used to
+/// tweak the names of types, methods, fields, and variables in generated code.
+///
+/// These options are "use at your own risk" for now since we are not testing Frame with anything
+/// other than the defaults. Unless you have some strong reason to do otherwise, it's probably best
+/// to leave them be. :-)
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PythonCode {
+    pub public_state_info: bool,
+}
+
+impl Default for PythonCode {
+    fn default() -> Self {
+        PythonCode {
+            public_state_info: false,
         }
     }
 }
