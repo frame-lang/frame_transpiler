@@ -2492,7 +2492,7 @@ impl AstVisitor for PythonVisitor {
                     self.add_code(&format!(" == \"{}\")", match_string));
                     first_match = false;
                 } else {
-                    self.add_code(" || (");
+                    self.add_code(" or (");
                     match &string_match_test_node.expr_t {
                         ExprType::CallExprT {
                             call_expr_node: method_call_expr_node,
@@ -2664,7 +2664,7 @@ impl AstVisitor for PythonVisitor {
                     self.add_code(&format!(" == {})", match_number.match_pattern_number));
                     first_match = false;
                 } else {
-                    self.add_code(" || (");
+                    self.add_code(" or (");
                     match &number_match_test_node.expr_t {
                         ExprType::CallExprT {
                             call_expr_node: method_call_expr_node,
@@ -3247,7 +3247,7 @@ impl AstVisitor for PythonVisitor {
             OperatorType::NotEqual => self.add_code(" != "),
             OperatorType::LogicalAnd => self.add_code(" and "),
             OperatorType::LogicalOr => self.add_code(" or "),
-            OperatorType::LogicalXor => self.add_code(""),
+            OperatorType::LogicalXor => self.add_code(" ^ "),
         }
     }
 
@@ -3269,7 +3269,7 @@ impl AstVisitor for PythonVisitor {
             OperatorType::NotEqual => output.push_str(" != "),
             OperatorType::LogicalAnd => output.push_str(" and "),
             OperatorType::LogicalOr => output.push_str(" or "),
-            OperatorType::LogicalXor => output.push_str(""),
+            OperatorType::LogicalXor => output.push_str(" ^ "),
         }
     }
 }
