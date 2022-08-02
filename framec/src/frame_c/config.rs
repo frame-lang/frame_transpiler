@@ -279,12 +279,14 @@ pub struct PythonConfig {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PythonCode {
     pub public_state_info: bool,
+    pub public_compartment: bool,
 }
 
 impl Default for PythonCode {
     fn default() -> Self {
         PythonCode {
             public_state_info: false,
+            public_compartment: false,
         }
     }
 }

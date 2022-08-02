@@ -1374,6 +1374,17 @@ impl PythonVisitor {
         self.outdent();
     }
     //* --------------------------------------------------------------------- *//
+
+    fn generate_compartment_info_method(&mut self) {
+        self.newline();
+        self.add_code("def compartment_info(self):");
+        self.indent();
+        self.newline();
+        self.add_code("return self.__compartment");
+        self.newline();
+        self.outdent();
+    }
+    //* --------------------------------------------------------------------- *//
 }
 
 //* --------------------------------------------------------------------- *//
@@ -1645,6 +1656,10 @@ impl AstVisitor for PythonVisitor {
 
         if self.config.code.public_state_info {
             self.generate_state_info_method()
+        }
+
+        if self.config.code.public_compartment {
+            self.generate_compartment_info_method()
         }
 
         // TODO: add comments back
