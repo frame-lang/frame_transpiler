@@ -81,15 +81,15 @@ class VarScope:
     # ====================== Multiplexer ==================== #
     
     def __mux(self, e):
-        if self.__compartment.state == self.__varscope_state_Init:
+        if self.__compartment.state.__name__ == '__varscope_state_Init':
             self.__varscope_state_Init(e)
-        elif self.__compartment.state == self.__varscope_state_NN:
+        elif self.__compartment.state.__name__ == '__varscope_state_NN':
             self.__varscope_state_NN(e)
-        elif self.__compartment.state == self.__varscope_state_NY:
+        elif self.__compartment.state.__name__ == '__varscope_state_NY':
             self.__varscope_state_NY(e)
-        elif self.__compartment.state == self.__varscope_state_YN:
+        elif self.__compartment.state.__name__ == '__varscope_state_YN':
             self.__varscope_state_YN(e)
-        elif self.__compartment.state == self.__varscope_state_YY:
+        elif self.__compartment.state.__name__ == '__varscope_state_YY':
             self.__varscope_state_YY(e)
         
         if self.__next_compartment != None:

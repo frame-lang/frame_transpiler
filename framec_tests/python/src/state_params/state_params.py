@@ -36,11 +36,11 @@ class StateParams:
     # ====================== Multiplexer ==================== #
     
     def __mux(self, e):
-        if self.__compartment.state == self.__stateparams_state_Init:
+        if self.__compartment.state.__name__ == '__stateparams_state_Init':
             self.__stateparams_state_Init(e)
-        elif self.__compartment.state == self.__stateparams_state_Split:
+        elif self.__compartment.state.__name__ == '__stateparams_state_Split':
             self.__stateparams_state_Split(e)
-        elif self.__compartment.state == self.__stateparams_state_Merge:
+        elif self.__compartment.state.__name__ == '__stateparams_state_Merge':
             self.__stateparams_state_Merge(e)
         
         if self.__next_compartment != None:

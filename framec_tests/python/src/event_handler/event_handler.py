@@ -69,9 +69,9 @@ class EventHandler:
     # ====================== Multiplexer ==================== #
     
     def __mux(self, e):
-        if self.__compartment.state == self.__eventhandler_state_S1:
+        if self.__compartment.state.__name__ == '__eventhandler_state_S1':
             self.__eventhandler_state_S1(e)
-        elif self.__compartment.state == self.__eventhandler_state_S2:
+        elif self.__compartment.state.__name__ == '__eventhandler_state_S2':
             self.__eventhandler_state_S2(e)
         
         if self.__next_compartment != None:

@@ -182,64 +182,64 @@ class TestStateContextStack:
         sm.push()
         assert sm.state_info() == return_state_name("A")
         assert sm.value() == 2
-        # sm.inc()
-        # sm.inc()
-        # assert sm.value() == 4
+        sm.inc()
+        sm.inc()
+        assert sm.value() == 4
 
-        # sm.to_b()
-        # sm.inc()
-        # sm.push()
-        # assert sm.state_info() ==  return_state_name("B")
-        # assert sm.value() == 5
-        # sm.inc()
-        # sm.inc()
-        # assert sm.value() == 15 # these changes should be forgotten
+        sm.to_b()
+        sm.inc()
+        sm.push()
+        assert sm.state_info() ==  return_state_name("B")
+        assert sm.value() == 5
+        sm.inc()
+        sm.inc()
+        assert sm.value() == 15 # these changes should be forgotten
 
-        # sm.to_c()
-        # sm.inc()
-        # sm.inc()
-        # sm.inc()
-        # sm.push()
-        # assert sm.state_info() ==  return_state_name("C")
-        # assert sm.value() == 30
-        # sm.inc()
-        # assert sm.value() == 40 # forgotten
+        sm.to_c()
+        sm.inc()
+        sm.inc()
+        sm.inc()
+        sm.push()
+        assert sm.state_info() ==  return_state_name("C")
+        assert sm.value() == 30
+        sm.inc()
+        assert sm.value() == 40 # forgotten
 
-        # sm.to_a()
-        # sm.inc()
-        # assert sm.state_info() ==  return_state_name("A")
-        # assert sm.value() == 1
+        sm.to_a()
+        sm.inc()
+        assert sm.state_info() ==  return_state_name("A")
+        assert sm.value() == 1
 
-        # sm.pop()
-        # assert sm.state_info() ==  return_state_name("C")
-        # assert sm.value() == 30
+        sm.pop()
+        assert sm.state_info() ==  return_state_name("C")
+        assert sm.value() == 30
 
-        # sm.pop()
-        # assert sm.state_info() ==  return_state_name("B")
-        # assert sm.value() == 5
+        sm.pop()
+        assert sm.state_info() ==  return_state_name("B")
+        assert sm.value() == 5
 
-        # sm.to_a()
-        # sm.inc()
-        # sm.inc()
-        # sm.inc()
-        # sm.push()
-        # assert sm.state_info() ==  return_state_name("A")
-        # assert sm.value() == 3
-        # sm.inc()
-        # assert sm.value() == 4 # forgotten
+        sm.to_a()
+        sm.inc()
+        sm.inc()
+        sm.inc()
+        sm.push()
+        assert sm.state_info() ==  return_state_name("A")
+        assert sm.value() == 3
+        sm.inc()
+        assert sm.value() == 4 # forgotten
 
-        # sm.to_c()
-        # sm.inc()
-        # assert sm.state_info() ==  return_state_name("C")
-        # assert sm.value() == 10
+        sm.to_c()
+        sm.inc()
+        assert sm.state_info() ==  return_state_name("C")
+        assert sm.value() == 10
 
-        # sm.pop()
-        # assert sm.state_info() == return_state_name("A")
-        # assert sm.value() == 3
+        sm.pop()
+        assert sm.state_info() == return_state_name("A")
+        assert sm.value() == 3
 
-        # sm.pop()
-        # assert sm.state_info() ==  return_state_name("A")
-        # assert sm.value() == 2
+        sm.pop()
+        assert sm.state_info() ==  return_state_name("A")
+        assert sm.value() == 2
 
 
 

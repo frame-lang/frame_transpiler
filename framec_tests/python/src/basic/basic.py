@@ -33,9 +33,9 @@ class Basic:
     # ====================== Multiplexer ==================== #
     
     def __mux(self, e):
-        if self.__compartment.state == self.__basic_state_S0:
+        if self.__compartment.state.__name__ == '__basic_state_S0':
             self.__basic_state_S0(e)
-        elif self.__compartment.state == self.__basic_state_S1:
+        elif self.__compartment.state.__name__ == '__basic_state_S1':
             self.__basic_state_S1(e)
         
         if self.__next_compartment != None:

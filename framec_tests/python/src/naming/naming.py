@@ -60,15 +60,15 @@ class Naming:
     # ====================== Multiplexer ==================== #
     
     def __mux(self, e):
-        if self.__compartment.state == self.__naming_state_Init:
+        if self.__compartment.state.__name__ == '__naming_state_Init':
             self.__naming_state_Init(e)
-        elif self.__compartment.state == self.__naming_state_snake_state:
+        elif self.__compartment.state.__name__ == '__naming_state_snake_state':
             self.__naming_state_snake_state(e)
-        elif self.__compartment.state == self.__naming_state_CamelState:
+        elif self.__compartment.state.__name__ == '__naming_state_CamelState':
             self.__naming_state_CamelState(e)
-        elif self.__compartment.state == self.__naming_state_state123:
+        elif self.__compartment.state.__name__ == '__naming_state_state123':
             self.__naming_state_state123(e)
-        elif self.__compartment.state == self.__naming_state_Final:
+        elif self.__compartment.state.__name__ == '__naming_state_Final':
             self.__naming_state_Final(e)
         
         if self.__next_compartment != None:

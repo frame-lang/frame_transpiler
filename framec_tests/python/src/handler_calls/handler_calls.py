@@ -59,15 +59,15 @@ class HandlerCalls:
     # ====================== Multiplexer ==================== #
     
     def __mux(self, e):
-        if self.__compartment.state == self.__handlercalls_state_Init:
+        if self.__compartment.state.__name__ == '__handlercalls_state_Init':
             self.__handlercalls_state_Init(e)
-        elif self.__compartment.state == self.__handlercalls_state_NonRecursive:
+        elif self.__compartment.state.__name__ == '__handlercalls_state_NonRecursive':
             self.__handlercalls_state_NonRecursive(e)
-        elif self.__compartment.state == self.__handlercalls_state_SelfRecursive:
+        elif self.__compartment.state.__name__ == '__handlercalls_state_SelfRecursive':
             self.__handlercalls_state_SelfRecursive(e)
-        elif self.__compartment.state == self.__handlercalls_state_MutuallyRecursive:
+        elif self.__compartment.state.__name__ == '__handlercalls_state_MutuallyRecursive':
             self.__handlercalls_state_MutuallyRecursive(e)
-        elif self.__compartment.state == self.__handlercalls_state_Final:
+        elif self.__compartment.state.__name__ == '__handlercalls_state_Final':
             self.__handlercalls_state_Final(e)
         
         if self.__next_compartment != None:

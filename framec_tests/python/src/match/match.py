@@ -58,19 +58,19 @@ class Match:
     # ====================== Multiplexer ==================== #
     
     def __mux(self, e):
-        if self.__compartment.state == self.__match_state_Init:
+        if self.__compartment.state.__name__ == '__match_state_Init':
             self.__match_state_Init(e)
-        elif self.__compartment.state == self.__match_state_EmptyMatch:
+        elif self.__compartment.state.__name__ == '__match_state_EmptyMatch':
             self.__match_state_EmptyMatch(e)
-        elif self.__compartment.state == self.__match_state_SimpleMatch:
+        elif self.__compartment.state.__name__ == '__match_state_SimpleMatch':
             self.__match_state_SimpleMatch(e)
-        elif self.__compartment.state == self.__match_state_MultiMatch:
+        elif self.__compartment.state.__name__ == '__match_state_MultiMatch':
             self.__match_state_MultiMatch(e)
-        elif self.__compartment.state == self.__match_state_NestedMatch:
+        elif self.__compartment.state.__name__ == '__match_state_NestedMatch':
             self.__match_state_NestedMatch(e)
-        elif self.__compartment.state == self.__match_state_ChildMatch:
+        elif self.__compartment.state.__name__ == '__match_state_ChildMatch':
             self.__match_state_ChildMatch(e)
-        elif self.__compartment.state == self.__match_state_Final:
+        elif self.__compartment.state.__name__ == '__match_state_Final':
             self.__match_state_Final(e)
         
         if self.__next_compartment != None:

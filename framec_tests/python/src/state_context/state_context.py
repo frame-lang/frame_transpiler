@@ -52,11 +52,11 @@ class StateContextSm:
     # ====================== Multiplexer ==================== #
     
     def __mux(self, e):
-        if self.__compartment.state == self.__statecontextsm_state_Init:
+        if self.__compartment.state.__name__ == '__statecontextsm_state_Init':
             self.__statecontextsm_state_Init(e)
-        elif self.__compartment.state == self.__statecontextsm_state_Foo:
+        elif self.__compartment.state.__name__ == '__statecontextsm_state_Foo':
             self.__statecontextsm_state_Foo(e)
-        elif self.__compartment.state == self.__statecontextsm_state_Bar:
+        elif self.__compartment.state.__name__ == '__statecontextsm_state_Bar':
             self.__statecontextsm_state_Bar(e)
         
         if self.__next_compartment != None:

@@ -62,25 +62,25 @@ class Branch:
     # ====================== Multiplexer ==================== #
     
     def __mux(self, e):
-        if self.__compartment.state == self.__branch_state_I:
+        if self.__compartment.state.__name__ == '__branch_state_I':
             self.__branch_state_I(e)
-        elif self.__compartment.state == self.__branch_state_SimpleIf:
+        elif self.__compartment.state.__name__ == '__branch_state_SimpleIf':
             self.__branch_state_SimpleIf(e)
-        elif self.__compartment.state == self.__branch_state_NegatedIf:
+        elif self.__compartment.state.__name__ == '__branch_state_NegatedIf':
             self.__branch_state_NegatedIf(e)
-        elif self.__compartment.state == self.__branch_state_Precedence:
+        elif self.__compartment.state.__name__ == '__branch_state_Precedence':
             self.__branch_state_Precedence(e)
-        elif self.__compartment.state == self.__branch_state_NestedIf:
+        elif self.__compartment.state.__name__ == '__branch_state_NestedIf':
             self.__branch_state_NestedIf(e)
-        elif self.__compartment.state == self.__branch_state_GuardedTransition:
+        elif self.__compartment.state.__name__ == '__branch_state_GuardedTransition':
             self.__branch_state_GuardedTransition(e)
-        elif self.__compartment.state == self.__branch_state_NestedGuardedTransition:
+        elif self.__compartment.state.__name__ == '__branch_state_NestedGuardedTransition':
             self.__branch_state_NestedGuardedTransition(e)
-        elif self.__compartment.state == self.__branch_state_F1:
+        elif self.__compartment.state.__name__ == '__branch_state_F1':
             self.__branch_state_F1(e)
-        elif self.__compartment.state == self.__branch_state_F2:
+        elif self.__compartment.state.__name__ == '__branch_state_F2':
             self.__branch_state_F2(e)
-        elif self.__compartment.state == self.__branch_state_F3:
+        elif self.__compartment.state.__name__ == '__branch_state_F3':
             self.__branch_state_F3(e)
         
         if self.__next_compartment != None:

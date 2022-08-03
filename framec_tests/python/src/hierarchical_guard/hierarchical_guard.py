@@ -38,19 +38,19 @@ class HierarchicalGuard:
     # ====================== Multiplexer ==================== #
     
     def __mux(self, e):
-        if self.__compartment.state == self.__hierarchicalguard_state_I:
+        if self.__compartment.state.__name__ == '__hierarchicalguard_state_I':
             self.__hierarchicalguard_state_I(e)
-        elif self.__compartment.state == self.__hierarchicalguard_state_S:
+        elif self.__compartment.state.__name__ == '__hierarchicalguard_state_S':
             self.__hierarchicalguard_state_S(e)
-        elif self.__compartment.state == self.__hierarchicalguard_state_S0:
+        elif self.__compartment.state.__name__ == '__hierarchicalguard_state_S0':
             self.__hierarchicalguard_state_S0(e)
-        elif self.__compartment.state == self.__hierarchicalguard_state_S1:
+        elif self.__compartment.state.__name__ == '__hierarchicalguard_state_S1':
             self.__hierarchicalguard_state_S1(e)
-        elif self.__compartment.state == self.__hierarchicalguard_state_S2:
+        elif self.__compartment.state.__name__ == '__hierarchicalguard_state_S2':
             self.__hierarchicalguard_state_S2(e)
-        elif self.__compartment.state == self.__hierarchicalguard_state_S3:
+        elif self.__compartment.state.__name__ == '__hierarchicalguard_state_S3':
             self.__hierarchicalguard_state_S3(e)
-        elif self.__compartment.state == self.__hierarchicalguard_state_S4:
+        elif self.__compartment.state.__name__ == '__hierarchicalguard_state_S4':
             self.__hierarchicalguard_state_S4(e)
         
         if self.__next_compartment != None:

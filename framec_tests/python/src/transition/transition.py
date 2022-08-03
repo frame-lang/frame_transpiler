@@ -33,15 +33,15 @@ class TransitionSm:
     # ====================== Multiplexer ==================== #
     
     def __mux(self, e):
-        if self.__compartment.state == self.__transitionsm_state_S0:
+        if self.__compartment.state.__name__ == '__transitionsm_state_S0':
             self.__transitionsm_state_S0(e)
-        elif self.__compartment.state == self.__transitionsm_state_S1:
+        elif self.__compartment.state.__name__ == '__transitionsm_state_S1':
             self.__transitionsm_state_S1(e)
-        elif self.__compartment.state == self.__transitionsm_state_S2:
+        elif self.__compartment.state.__name__ == '__transitionsm_state_S2':
             self.__transitionsm_state_S2(e)
-        elif self.__compartment.state == self.__transitionsm_state_S3:
+        elif self.__compartment.state.__name__ == '__transitionsm_state_S3':
             self.__transitionsm_state_S3(e)
-        elif self.__compartment.state == self.__transitionsm_state_S4:
+        elif self.__compartment.state.__name__ == '__transitionsm_state_S4':
             self.__transitionsm_state_S4(e)
         
         if self.__next_compartment != None:

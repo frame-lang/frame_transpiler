@@ -42,11 +42,11 @@ class SimpleHandlerCalls:
     # ====================== Multiplexer ==================== #
     
     def __mux(self, e):
-        if self.__compartment.state == self.__simplehandlercalls_state_Init:
+        if self.__compartment.state.__name__ == '__simplehandlercalls_state_Init':
             self.__simplehandlercalls_state_Init(e)
-        elif self.__compartment.state == self.__simplehandlercalls_state_A:
+        elif self.__compartment.state.__name__ == '__simplehandlercalls_state_A':
             self.__simplehandlercalls_state_A(e)
-        elif self.__compartment.state == self.__simplehandlercalls_state_B:
+        elif self.__compartment.state.__name__ == '__simplehandlercalls_state_B':
             self.__simplehandlercalls_state_B(e)
         
         if self.__next_compartment != None:
