@@ -1565,17 +1565,23 @@ impl AstVisitor for PythonVisitor {
             let len = machine_block_node.states.len();
             for state_node_rcref in &machine_block_node.states {
                 let state_name = &format!(
-                    "self.{}",
+                    "{}",
                     self.format_target_state_name(&state_node_rcref.borrow().name)
                 );
                 if current_index == 0 {
-                    self.add_code(&format!("if self.__compartment.state == {}:", state_name));
+                    self.add_code(&format!(
+                        "if self.__compartment.state.__name__ == '{}':",
+                        state_name
+                    ));
                 } else {
-                    self.add_code(&format!("elif self.__compartment.state == {}:", state_name));
+                    self.add_code(&format!(
+                        "elif self.__compartment.state.__name__ == '{}':",
+                        state_name
+                    ));
                 }
                 self.indent();
                 self.newline();
-                self.add_code(&format!("{}(e)", state_name));
+                self.add_code(&format!("self.{}(e)", state_name));
                 self.outdent();
                 if current_index != len {
                     self.newline();
