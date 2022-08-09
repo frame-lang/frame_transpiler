@@ -483,6 +483,28 @@ impl JavaScriptVisitor {
                 self.add_code("}");
             }
             self.newline();
+
+            if self.config.code.public_state_info {
+                self.newline();
+                self.add_code("state_info() {");
+                self.indent();
+                self.newline();
+                self.add_code("return this.#compartment.state.name;");
+                self.outdent();
+                self.newline();
+                self.add_code("}");
+            }
+
+            if self.config.code.public_compartment {
+                self.newline();
+                self.add_code("compartment_info() {");
+                self.indent();
+                self.newline();
+                self.add_code("return this.#compartment");
+                self.outdent();
+                self.newline();
+                self.add_code("}");
+            }
         }
     }
 
@@ -1207,11 +1229,6 @@ impl JavaScriptVisitor {
             }
         }
 
-        if self.config.code.public_state_info {
-            self.newline();
-            self.add_code("this.state = this.#compartment.state.name");
-        }
-
         self.newline();
         self.newline();
         self.add_code("// Initialize domain");
@@ -1772,9 +1789,9 @@ impl AstVisitor for JavaScriptVisitor {
         self.add_code("this.#mux(e);");
 
         match &interface_method_node.return_type_opt {
-            Some(_return_type) => {
+            Some(_) => {
                 self.newline();
-                self.add_code("return e._return;");
+                self.add_code("return e._return");
             }
             None => {}
         }
