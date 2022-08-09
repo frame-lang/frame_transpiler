@@ -1,9 +1,15 @@
 // emitted from framec_v0.10.0
 // get include files at https://github.com/frame-lang/frame-ancillary-files
 
-const FrameEvent = require("../framelang/FrameEvent");
+function FrameEvent(message, parameters) {
 
-
+    var that = {};
+    that._message = message;
+    that._parameters = parameters;
+    that._return = null;
+    return that;
+    
+}
 
 class StateContextSm {
     
@@ -12,7 +18,6 @@ class StateContextSm {
     #state
     #compartment
     #nextCompartment
-    
     
     constructor () {
         
@@ -46,7 +51,7 @@ class StateContextSm {
     Inc() {
         let e = FrameEvent("Inc",null);
         this.#mux(e);
-        return e._return;
+        return e._return
     }
     
     Next(arg) {
@@ -267,6 +272,9 @@ class StateContextSm {
         this.#compartment = compartment;
     }
     
+    state_info() {
+        return this.#compartment.state.name;
+    }
     
     
 };

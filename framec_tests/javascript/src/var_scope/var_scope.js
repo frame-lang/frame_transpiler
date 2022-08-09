@@ -1,7 +1,15 @@
 // emitted from framec_v0.10.0
 // get include files at https://github.com/frame-lang/frame-ancillary-files
 
-const FrameEvent = require("../framelang/FrameEvent")
+function FrameEvent(message, parameters) {
+
+    var that = {};
+    that._message = message;
+    that._parameters = parameters;
+    that._return = null;
+    return that;
+    
+}
 
 class VarScope {
     
@@ -10,7 +18,6 @@ class VarScope {
     #state
     #compartment
     #nextCompartment
-    
     
     constructor () {
         
@@ -183,7 +190,7 @@ class VarScope {
                 this.log_do(this.a);
                 this.log_do((this.#compartment.StateArgs["b"]));
                 this.log_do((this.#compartment.StateVars["c"]));
-                this.log_do(e._parameters["d"]);
+                this.log_do((e._parameters["d"]));
                 this.log_do(et);
                 this.log_do(this.x);
                 
@@ -233,14 +240,14 @@ class VarScope {
                 
             case "sigils":
                 {
-                let x = "|sigils|.x";
                 this.log_do(this.x);
                 
                 return;
                 }
                 
         }
-    }  //  log(||[x])
+    }  //  var x:string = "|sigils|.x"
+	  //  log(||[x])
 	  //  log(||.x)
 	
     
@@ -302,14 +309,14 @@ class VarScope {
                 
             case "sigils":
                 {
-                let x = "|sigils|.x";
                 this.log_do(this.x);
                 
                 return;
                 }
                 
         }
-    }  //  log($.x)
+    }  //  var x:string = "|sigils|.x"
+	  //  log($.x)
 	  //  log(||[x])
 	  //  log(||.x)
 	
@@ -372,14 +379,14 @@ class VarScope {
                 
             case "sigils":
                 {
-                let x = "|sigils|.x";
                 this.log_do(this.x);
                 
                 return;
                 }
                 
         }
-    }  //  log($[x])
+    }  //  var x:string = "|sigils|.x"
+	  //  log($[x])
 	  //  log(||[x])
 	  //  log(||.x)
 	
@@ -442,7 +449,6 @@ class VarScope {
                 
             case "sigils":
                 {
-                let x = "|sigils|.x";
                 this.log_do(this.x);
                 
                 return;
@@ -469,8 +475,12 @@ class VarScope {
         this.#mux(FrameEvent(">", this.#compartment.EnterArgs));
     }
     
+    state_info() {
+        return this.#compartment.state.name;
+    }
     
-      //  log($[x])
+      //  var x:string = "|sigils|.x"
+	  //  log($[x])
 	  //  log($.x)
 	  //  log(||[x])
 	  //  log(||.x)

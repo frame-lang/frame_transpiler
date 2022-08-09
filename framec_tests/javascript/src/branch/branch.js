@@ -26,7 +26,6 @@ class Branch {
         this.#state = this.#sI_;
         this.#compartment = new BranchCompartment(this.#state);
         this.#nextCompartment = null;
-        this.state = this.#compartment.state.name
         
         // Initialize domain
         this.tape = [];
@@ -506,6 +505,9 @@ class Branch {
         this.#mux(FrameEvent(">", this.#compartment.EnterArgs));
     }
     
+    state_info() {
+        return this.#compartment.state.name;
+    }
     
     
 };

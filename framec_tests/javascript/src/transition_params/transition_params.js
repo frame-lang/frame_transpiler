@@ -11,7 +11,7 @@ function FrameEvent(message, parameters) {
     
 }
 
-class StateParams {
+class TransitParams {
     
     // creating private properties
     
@@ -24,11 +24,11 @@ class StateParams {
         // Create and intialize start state compartment.
         
         this.#state = this.#sInit_;
-        this.#compartment = new StateParamsCompartment(this.#state);
+        this.#compartment = new TransitParamsCompartment(this.#state);
         this.#nextCompartment = null;
         
         // Initialize domain
-        this.param_log = [];
+        this.tape = [];
         
         // Send system start event
         const frameEvent = FrameEvent(">", null);
@@ -42,13 +42,8 @@ class StateParams {
         this.#mux(e);
     }
     
-    Prev() {
-        let e = FrameEvent("Prev",null);
-        this.#mux(e);
-    }
-    
-    Log() {
-        let e = FrameEvent("Log",null);
+    Change() {
+        let e = FrameEvent("Change",null);
         this.#mux(e);
     }
     
@@ -59,11 +54,11 @@ class StateParams {
             case this.#sInit_:
                 this.#sInit_(e);
                 break;
-            case this.#sSplit_:
-                this.#sSplit_(e);
+            case this.#sA_:
+                this.#sA_(e);
                 break;
-            case this.#sMerge_:
-                this.#sMerge_(e);
+            case this.#sB_:
+                this.#sB_(e);
                 break;
         }
         
@@ -91,11 +86,20 @@ class StateParams {
         switch (e._message) {
             case "Next":
                 {
-                let compartment =  new StateParamsCompartment(this.#sSplit_);
+                let compartment =  new TransitParamsCompartment(this.#sA_);
                 
-                compartment.StateArgs["val"] = 1;
+                compartment.EnterArgs["msg"] = "hi A";
                 
                 this.#transition(compartment);
+                
+                return;
+                }
+                
+            case "Change":
+                {
+                let compartment =  new TransitParamsCompartment(this.#sA_);
+                
+                this.#changeState(compartment);
                 
                 return;
                 }
@@ -103,35 +107,39 @@ class StateParams {
         }
     }
     
-    #sSplit_(e) {
+    #sA_(e) {
         switch (e._message) {
+            case ">":
+                {
+                this.log_do((e._parameters["msg"]));
+                
+                return;
+                }
+                
+            case "<":
+                {
+                this.log_do("bye A");
+                
+                return;
+                }
+                
             case "Next":
                 {
-                let compartment =  new StateParamsCompartment(this.#sMerge_);
+                let compartment =  new TransitParamsCompartment(this.#sB_);
                 
-                compartment.StateArgs["left"] = this.#compartment.StateArgs["val"];
-                compartment.StateArgs["right"] = this.#compartment.StateArgs["val"] + 1;
-                
-                this.#transition(compartment);
-                
-                return;
-                }
-                
-            case "Prev":
-                {
-                let compartment =  new StateParamsCompartment(this.#sMerge_);
-                
-                compartment.StateArgs["left"] = this.#compartment.StateArgs["val"] + 1;
-                compartment.StateArgs["right"] = this.#compartment.StateArgs["val"];
+                compartment.EnterArgs["msg"] = "hi B";
+                compartment.EnterArgs["val"] = 42;
                 
                 this.#transition(compartment);
                 
                 return;
                 }
                 
-            case "Log":
+            case "Change":
                 {
-                this.got_param_do("val",(this.#compartment.StateArgs["val"]));
+                let compartment =  new TransitParamsCompartment(this.#sB_);
+                
+                this.#changeState(compartment);
                 
                 return;
                 }
@@ -139,34 +147,42 @@ class StateParams {
         }
     }
     
-    #sMerge_(e) {
+    #sB_(e) {
         switch (e._message) {
+            case ">":
+                {
+                this.log_do((e._parameters["msg"]));
+                this.log_do((e._parameters["val"]).toString());
+                
+                return;
+                }
+                
+            case "<":
+                {
+                this.log_do((e._parameters["val"]).toString());
+                this.log_do((e._parameters["msg"]));
+                
+                return;
+                }
+                
             case "Next":
                 {
-                let compartment =  new StateParamsCompartment(this.#sSplit_);
+                this.#compartment.ExitArgs["val"] = true;
+                this.#compartment.ExitArgs["msg"] = "bye B";
+                let compartment =  new TransitParamsCompartment(this.#sA_);
                 
-                compartment.StateArgs["val"] = this.#compartment.StateArgs["left"] + this.#compartment.StateArgs["right"];
-                
-                this.#transition(compartment);
-                
-                return;
-                }
-                
-            case "Prev":
-                {
-                let compartment =  new StateParamsCompartment(this.#sSplit_);
-                
-                compartment.StateArgs["val"] = this.#compartment.StateArgs["left"] * this.#compartment.StateArgs["right"];
+                compartment.EnterArgs["msg"] = "hi again A";
                 
                 this.#transition(compartment);
                 
                 return;
                 }
                 
-            case "Log":
+            case "Change":
                 {
-                this.got_param_do("left",(this.#compartment.StateArgs["left"]));
-                this.got_param_do("right",(this.#compartment.StateArgs["right"]));
+                let compartment =  new TransitParamsCompartment(this.#sA_);
+                
+                this.#changeState(compartment);
                 
                 return;
                 }
@@ -178,7 +194,7 @@ class StateParams {
     
     // Unimplemented Actions
     
-    got_param_do(name,val) { throw new Error('Action not implemented.'); }
+    log_do(msg) { throw new Error('Action not implemented.'); }
     
     //=============== Machinery and Mechanisms ==============//
     
@@ -192,6 +208,10 @@ class StateParams {
         this.#mux(FrameEvent(">", this.#compartment.EnterArgs));
     }
     
+    #changeState(compartment) {
+        this.#compartment = compartment;
+    }
+    
     state_info() {
         return this.#compartment.state.name;
     }
@@ -201,7 +221,7 @@ class StateParams {
 
 //=============== Compartment ==============//
 
-class StateParamsCompartment {
+class TransitParamsCompartment {
 
     constructor(state) {
         this.state = state
@@ -217,14 +237,14 @@ class StateParamsCompartment {
 
 /********************
 
-class StateParamsController extends StateParams {
+class TransitParamsController extends TransitParams {
 
 	constructor() {
 	  super()
 	}
-	got_param_do(name,val) {}
+	log_do(msg) {}
 };
 
 ********************/
 
-module.exports = StateParams
+module.exports = TransitParams

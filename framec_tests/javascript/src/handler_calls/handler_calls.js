@@ -1,7 +1,15 @@
 // emitted from framec_v0.10.0
 // get include files at https://github.com/frame-lang/frame-ancillary-files
 
-const FrameEvent = require("../framelang/FrameEvent")
+function FrameEvent(message, parameters) {
+
+    var that = {};
+    that._message = message;
+    that._parameters = parameters;
+    that._return = null;
+    return that;
+    
+}
 
 class HandlerCalls {
     
@@ -10,7 +18,6 @@ class HandlerCalls {
     #state
     #compartment
     #nextCompartment
-    
     
     constructor () {
         
@@ -326,6 +333,9 @@ class HandlerCalls {
         this.#mux(FrameEvent(">", this.#compartment.EnterArgs));
     }
     
+    state_info() {
+        return this.#compartment.state.name;
+    }
     
     
 };
@@ -357,4 +367,5 @@ class HandlerCallsController extends HandlerCalls {
 };
 
 ********************/
+
 module.exports = HandlerCalls

@@ -26,7 +26,6 @@ class Basic {
         this.#state = this.#sS0_;
         this.#compartment = new BasicCompartment(this.#state);
         this.#nextCompartment = null;
-        this.state = this.#compartment.state.name
         
         // Initialize domain
         this.entry_log = [];
@@ -160,6 +159,9 @@ class Basic {
         this.#mux(FrameEvent(">", this.#compartment.EnterArgs));
     }
     
+    state_info() {
+        return this.#compartment.state.name;
+    }
     
     
 };

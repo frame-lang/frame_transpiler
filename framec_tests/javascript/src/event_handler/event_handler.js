@@ -1,7 +1,15 @@
 // emitted from framec_v0.10.0
 // get include files at https://github.com/frame-lang/frame-ancillary-files
 
-const FrameEvent = require("../framelang/FrameEvent")
+function FrameEvent(message, parameters) {
+
+    var that = {};
+    that._message = message;
+    that._parameters = parameters;
+    that._return = null;
+    return that;
+    
+}
 
 class EventHandler {
     
@@ -10,7 +18,6 @@ class EventHandler {
     #state
     #compartment
     #nextCompartment
-    
     
     constructor () {
         
@@ -43,7 +50,7 @@ class EventHandler {
     LogReturn(a,b) {
         let e = FrameEvent("LogReturn",{"a":a,"b":b});
         this.#mux(e);
-        return e._return;
+        return e._return
     }
     
     PassAdd(a,b) {
@@ -54,7 +61,7 @@ class EventHandler {
     PassReturn(a,b) {
         let e = FrameEvent("PassReturn",{"a":a,"b":b});
         this.#mux(e);
-        return e._return;
+        return e._return
     }
     
     //====================== Multiplexer ====================//
@@ -174,6 +181,9 @@ class EventHandler {
         this.#mux(FrameEvent(">", this.#compartment.EnterArgs));
     }
     
+    state_info() {
+        return this.#compartment.state.name;
+    }
     
     
 };
@@ -205,4 +215,5 @@ class EventHandlerController extends EventHandler {
 };
 
 ********************/
+
 module.exports = EventHandler

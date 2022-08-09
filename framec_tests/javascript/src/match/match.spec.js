@@ -1,6 +1,7 @@
 const { describe, it } = require("mocha");
 const assert = require("assert");
 const Match = require("./match");
+const returnStateName = require("../utils/state_info/returnStateName");
 
 class MatchController extends Match {
   constructor() {
@@ -198,37 +199,45 @@ describe("Match", () => {
     let sm = new MatchController();
     sm.Child();
     sm.OnInt(0);
+    assert.deepStrictEqual(sm.state_info(), returnStateName("Final"))
     assert(sm.tape.length === 0);
 
     sm = new MatchController();
     sm.Child();
     sm.OnInt(4);
+    assert.deepStrictEqual(sm.state_info(), returnStateName("ChildMatch"))
     assert.deepStrictEqual(sm.tape, ["4"]);
 
     sm.tape = [];
     sm.OnInt(5);
+    assert.deepStrictEqual(sm.state_info(), returnStateName("Final"))
     assert.deepStrictEqual(sm.tape, ["5"]);
 
     sm = new MatchController();
     sm.Child();
     sm.OnInt(5);
+    assert.deepStrictEqual(sm.state_info(), returnStateName("Final"))
     assert.deepStrictEqual(sm.tape, ["5"]);
 
     sm = new MatchController();
     sm.Child();
     sm.OnInt(3);
+    assert.deepStrictEqual(sm.state_info(), returnStateName("ChildMatch"))
     assert.deepStrictEqual(sm.tape, ["3", "?"]);
 
     sm.tape = [];
     sm.OnInt(42);
+    assert.deepStrictEqual(sm.state_info(), returnStateName("ChildMatch"))
     assert.deepStrictEqual(sm.tape, ["42 in child", "42"]);
 
     sm.tape = [];
     sm.OnInt(-200);
+    assert.deepStrictEqual(sm.state_info(), returnStateName("ChildMatch"))
     assert.deepStrictEqual(sm.tape, ["no match in child", "-200"]);
 
     sm.tape = [];
     sm.OnInt(100);
+    assert.deepStrictEqual(sm.state_info(), returnStateName("ChildMatch"))
     assert.deepStrictEqual(sm.tape, ["no match in child", "?"]);
   });
 
@@ -237,23 +246,28 @@ describe("Match", () => {
     let sm = new MatchController();
     sm.Child();
     sm.OnString("goodbye");
+    assert.deepStrictEqual(sm.state_info(), returnStateName("Final"))
     assert(sm.tape.length === 0);
 
     sm = new MatchController();
     sm.Child();
     sm.OnString("hello");
+    assert.deepStrictEqual(sm.state_info(), returnStateName("ChildMatch"))
     assert.deepStrictEqual(sm.tape, ["hello in child", "hello"]);
 
     sm.tape = [];
     sm.OnString("Testing 1, 2, 3...");
+    assert.deepStrictEqual(sm.state_info(), returnStateName("ChildMatch"))
     assert.deepStrictEqual(sm.tape, ["testing in child"]);
 
     sm.tape = [];
     sm.OnString("$10!");
+    assert.deepStrictEqual(sm.state_info(), returnStateName("ChildMatch"))
     assert.deepStrictEqual(sm.tape, ["no match in child", "money"]);
 
     sm.tape = [];
     sm.OnString("testing 1, 2, 3...");
+    assert.deepStrictEqual(sm.state_info(), returnStateName("ChildMatch"))
     assert.deepStrictEqual(sm.tape, ["no match in child", "?"]);
   });
 });

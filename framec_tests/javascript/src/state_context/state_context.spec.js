@@ -1,7 +1,7 @@
 const { describe, it } = require("mocha");
 const assert = require("assert");
 const StateContextSm = require("./state_context");
-
+const returnStateName = require("../utils/state_info/returnStateName")
 class StateContextSmController extends StateContextSm {
 
 	constructor() {
@@ -70,6 +70,7 @@ describe("State context", ()=>{
         sm.Inc();
         sm.Change(100);
         sm.LogState();
+        assert.deepStrictEqual(sm.state_info(), returnStateName("Init") )
         assert.deepStrictEqual(sm.tape, ["z=1", "tmp=127", "w=0"]);
     })
 })

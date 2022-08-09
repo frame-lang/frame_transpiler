@@ -11,7 +11,7 @@ function FrameEvent(message, parameters) {
     
 }
 
-class Hierarchical {
+class TransitionSm {
     
     // creating private properties
     
@@ -23,14 +23,13 @@ class Hierarchical {
         
         // Create and intialize start state compartment.
         
-        this.#state = this.#sI_;
-        this.#compartment = new HierarchicalCompartment(this.#state);
+        this.#state = this.#sS0_;
+        this.#compartment = new TransitionSmCompartment(this.#state);
         this.#nextCompartment = null;
         
         // Initialize domain
         this.enters = [];
         this.exits = [];
-        this.tape = [];
         
         // Send system start event
         const frameEvent = FrameEvent(">", null);
@@ -39,18 +38,13 @@ class Hierarchical {
     
     //===================== Interface Block ===================//
     
-    A() {
-        let e = FrameEvent("A",null);
+    transit() {
+        let e = FrameEvent("transit",null);
         this.#mux(e);
     }
     
-    B() {
-        let e = FrameEvent("B",null);
-        this.#mux(e);
-    }
-    
-    C() {
-        let e = FrameEvent("C",null);
+    change() {
+        let e = FrameEvent("change",null);
         this.#mux(e);
     }
     
@@ -58,12 +52,6 @@ class Hierarchical {
     
     #mux(e) {
         switch (this.#compartment.state) {
-            case this.#sI_:
-                this.#sI_(e);
-                break;
-            case this.#sS_:
-                this.#sS_(e);
-                break;
             case this.#sS0_:
                 this.#sS0_(e);
                 break;
@@ -76,8 +64,8 @@ class Hierarchical {
             case this.#sS3_:
                 this.#sS3_(e);
                 break;
-            case this.#sT_:
-                this.#sT_(e);
+            case this.#sS4_:
+                this.#sS4_(e);
                 break;
         }
         
@@ -101,83 +89,25 @@ class Hierarchical {
     
     //===================== Machine Block ===================//
     
-    #sI_(e) {
-        switch (e._message) {
-            case ">":
-                {
-                let compartment =  new HierarchicalCompartment(this.#sS_);
-                
-                
-                this.#transition(compartment);
-                
-                return;
-                }
-                
-        }
-    }
-    
-    #sS_(e) {
-        switch (e._message) {
-            case ">":
-                {
-                this.enter_do("S");
-                
-                return;
-                }
-                
-            case "<":
-                {
-                this.exit_do("S");
-                
-                return;
-                }
-                
-            case "A":
-                {
-                this.log_do("S.A");
-                let compartment =  new HierarchicalCompartment(this.#sS0_);
-                
-                
-                this.#transition(compartment);
-                
-                return;
-                }
-                
-            case "B":
-                {
-                this.log_do("S.B");
-                let compartment =  new HierarchicalCompartment(this.#sS1_);
-                
-                
-                this.#transition(compartment);
-                
-                return;
-                }
-                
-        }
-    }
-    
     #sS0_(e) {
         switch (e._message) {
             case ">":
                 {
                 this.enter_do("S0");
                 
-                break;
+                return;
                 }
                 
             case "<":
                 {
                 this.exit_do("S0");
                 
-                break;
+                return;
                 }
                 
-              //  override parent handler
-			case "A":
+            case "transit":
                 {
-                this.log_do("S0.A");
-                let compartment =  new HierarchicalCompartment(this.#sT_);
+                let compartment =  new TransitionSmCompartment(this.#sS1_);
                 
                 
                 this.#transition(compartment);
@@ -185,29 +115,16 @@ class Hierarchical {
                 return;
                 }
                 
-              //  do this, then parent handler
-			case "B":
+            case "change":
                 {
-                this.log_do("S0.B");
+                let compartment =  new TransitionSmCompartment(this.#sS1_);
                 
-                break;
-                }
-                
-              //  extend parent handler
-			case "C":
-                {
-                this.log_do("S0.C");
-                let compartment =  new HierarchicalCompartment(this.#sS2_);
-                
-                
-                this.#transition(compartment);
+                this.#changeState(compartment);
                 
                 return;
                 }
                 
         }
-        this.#sS_(e);
-        
     }
     
     #sS1_(e) {
@@ -226,26 +143,26 @@ class Hierarchical {
                 return;
                 }
                 
-              //  defer to parent for A
-			  //  do this, then parent, which transitions here
-			case "B":
+            case "transit":
                 {
-                this.log_do("S1.B");
+                let compartment =  new TransitionSmCompartment(this.#sS2_);
                 
-                break;
+                
+                this.#transition(compartment);
+                
+                return;
                 }
                 
-              //  propagate message not handled by parent
-			case "C":
+            case "change":
                 {
-                this.log_do("S1.C");
+                let compartment =  new TransitionSmCompartment(this.#sS2_);
                 
-                break;
+                this.#changeState(compartment);
+                
+                return;
                 }
                 
         }
-        this.#sS_(e);
-        
     }
     
     #sS2_(e) {
@@ -253,42 +170,42 @@ class Hierarchical {
             case ">":
                 {
                 this.enter_do("S2");
+                let compartment =  new TransitionSmCompartment(this.#sS3_);
                 
-                break;
+                
+                this.#transition(compartment);
+                
+                return;
                 }
                 
             case "<":
                 {
                 this.exit_do("S2");
                 
-                break;
+                return;
                 }
                 
-              //  will propagate to S0 and S
-			case "B":
+            case "transit":
                 {
-                this.log_do("S2.B");
-                
-                break;
-                }
-                
-            case "C":
-                {
-                this.log_do("S2.C");
-                let compartment =  new HierarchicalCompartment(this.#sT_);
+                let compartment =  new TransitionSmCompartment(this.#sS3_);
                 
                 
                 this.#transition(compartment);
                 
                 return;
-                break;
+                }
+                
+            case "change":
+                {
+                let compartment =  new TransitionSmCompartment(this.#sS3_);
+                
+                this.#changeState(compartment);
+                
+                return;
                 }
                 
         }
-        this.#sS0_(e);
-        
-    }  //  continue after transition (should be ignored)
-	
+    }
     
     #sS3_(e) {
         switch (e._message) {
@@ -296,22 +213,19 @@ class Hierarchical {
                 {
                 this.enter_do("S3");
                 
-                break;
+                return;
                 }
                 
             case "<":
                 {
                 this.exit_do("S3");
                 
-                break;
+                return;
                 }
                 
-              //  defer to grandparent for A
-			  //  override and move to sibling
-			case "B":
+            case "transit":
                 {
-                this.log_do("S3.B");
-                let compartment =  new HierarchicalCompartment(this.#sS2_);
+                let compartment =  new TransitionSmCompartment(this.#sS4_);
                 
                 
                 this.#transition(compartment);
@@ -319,56 +233,33 @@ class Hierarchical {
                 return;
                 }
                 
+            case "change":
+                {
+                let compartment =  new TransitionSmCompartment(this.#sS4_);
+                
+                this.#changeState(compartment);
+                
+                return;
+                }
+                
         }
-        this.#sS1_(e);
-        
     }
     
-    #sT_(e) {
+    #sS4_(e) {
         switch (e._message) {
             case ">":
                 {
-                this.enter_do("T");
+                this.enter_do("S4");
+                let compartment =  new TransitionSmCompartment(this.#sS0_);
+                
+                this.#changeState(compartment);
                 
                 return;
                 }
                 
             case "<":
                 {
-                this.exit_do("T");
-                
-                return;
-                }
-                
-            case "A":
-                {
-                this.log_do("T.A");
-                let compartment =  new HierarchicalCompartment(this.#sS_);
-                
-                
-                this.#transition(compartment);
-                
-                return;
-                }
-                
-            case "B":
-                {
-                this.log_do("T.B");
-                let compartment =  new HierarchicalCompartment(this.#sS2_);
-                
-                
-                this.#transition(compartment);
-                
-                return;
-                }
-                
-            case "C":
-                {
-                this.log_do("T.C");
-                let compartment =  new HierarchicalCompartment(this.#sS3_);
-                
-                
-                this.#transition(compartment);
+                this.exit_do("S4");
                 
                 return;
                 }
@@ -380,9 +271,8 @@ class Hierarchical {
     
     // Unimplemented Actions
     
-    enter_do(msg) { throw new Error('Action not implemented.'); }
-    exit_do(msg) { throw new Error('Action not implemented.'); }
-    log_do(msg) { throw new Error('Action not implemented.'); }
+    enter_do(state) { throw new Error('Action not implemented.'); }
+    exit_do(state) { throw new Error('Action not implemented.'); }
     
     //=============== Machinery and Mechanisms ==============//
     
@@ -396,6 +286,10 @@ class Hierarchical {
         this.#mux(FrameEvent(">", this.#compartment.EnterArgs));
     }
     
+    #changeState(compartment) {
+        this.#compartment = compartment;
+    }
+    
     state_info() {
         return this.#compartment.state.name;
     }
@@ -405,7 +299,7 @@ class Hierarchical {
 
 //=============== Compartment ==============//
 
-class HierarchicalCompartment {
+class TransitionSmCompartment {
 
     constructor(state) {
         this.state = state
@@ -421,16 +315,15 @@ class HierarchicalCompartment {
 
 /********************
 
-class HierarchicalController extends Hierarchical {
+class TransitionSmController extends TransitionSm {
 
 	constructor() {
 	  super()
 	}
-	enter_do(msg) {}
-	exit_do(msg) {}
-	log_do(msg) {}
+	enter_do(state) {}
+	exit_do(state) {}
 };
 
 ********************/
 
-module.exports = Hierarchical
+module.exports = TransitionSm

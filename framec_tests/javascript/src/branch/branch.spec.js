@@ -2,6 +2,8 @@ const { describe, it } = require("mocha");
 const assert = require("assert");
 
 const Branch = require("./branch");
+const returnStateName = require("../utils/state_info/returnStateName");
+
 
 class BranchController extends Branch {
   constructor() {
@@ -18,14 +20,14 @@ describe("Branch", () => {
     sm.A();
     sm.OnBool(true);
 
-    assert(sm.state, "#sF1_");
+    assert.deepStrictEqual(sm.state_info(), returnStateName("F1"));
     assert.deepStrictEqual(sm.tape, ["then 1", "then 2"]);
 
     sm = new BranchController();
     sm.A();
     sm.OnBool(false);
 
-    assert(sm.state, "#sF2_");
+    assert.deepStrictEqual(sm.state_info(), returnStateName("F2"));
     assert.deepStrictEqual(sm.tape, ["else 1", "else 2"]);
   });
 
@@ -35,7 +37,7 @@ describe("Branch", () => {
     sm.A();
     sm.OnInt(7);
 
-    assert(sm.state, "#sF1_");
+    assert.deepStrictEqual(sm.state_info(), returnStateName("F1"));
     assert.deepStrictEqual(sm.tape, ["> 5", "< 10", "== 7"]);
 
     sm = new BranchController();
@@ -43,7 +45,7 @@ describe("Branch", () => {
     sm.A();
     sm.OnInt(-3);
 
-    assert(sm.state, "#sF2_");
+    assert.deepStrictEqual(sm.state_info(), returnStateName("F2"));
     assert.deepStrictEqual(sm.tape, ["<= 5", "< 10", "!= 7"]);
 
     sm = new BranchController();
@@ -51,7 +53,7 @@ describe("Branch", () => {
     sm.A();
     sm.OnInt(12);
 
-    assert(sm.state, "#sF2_");
+    assert.deepStrictEqual(sm.state_info(), returnStateName("F2"));
     assert.deepStrictEqual(sm.tape, ["> 5", ">= 10", "!= 7"]);
   });
 
@@ -61,7 +63,7 @@ describe("Branch", () => {
     sm.B();
     sm.OnBool(true);
 
-    assert(sm.state, "#sF2_");
+    assert.deepStrictEqual(sm.state_info(), returnStateName("F2"));
     assert.deepStrictEqual(sm.tape, ["else 1", "else 2"]);
 
     sm = new BranchController();
@@ -69,7 +71,7 @@ describe("Branch", () => {
     sm.B();
     sm.OnBool(false);
 
-    assert(sm.state, "#sF1_");
+    assert.deepStrictEqual(sm.state_info(), returnStateName("F1"));
     assert.deepStrictEqual(sm.tape, ["then 1", "then 2"]);
   });
 
@@ -79,7 +81,7 @@ describe("Branch", () => {
     sm.B();
     sm.OnInt(7);
 
-    assert(sm.state, "#sF1_");
+    assert.deepStrictEqual(sm.state_info(), returnStateName("F1"));
     assert.deepStrictEqual(sm.tape, [">= 5", "<= 10", "== 7"]);
 
     sm = new BranchController();
@@ -87,7 +89,7 @@ describe("Branch", () => {
     sm.B();
     sm.OnInt(5);
 
-    assert(sm.state, "#sF2_");
+    assert.deepStrictEqual(sm.state_info(), returnStateName("F2"));
     assert.deepStrictEqual(sm.tape, [">= 5", "<= 10", "!= 7"]);
 
     sm = new BranchController();
@@ -95,7 +97,7 @@ describe("Branch", () => {
     sm.B();
     sm.OnInt(10);
 
-    assert(sm.state, "#sF2_");
+    assert.deepStrictEqual(sm.state_info(), returnStateName("F2"));
     assert.deepStrictEqual(sm.tape, [">= 5", "<= 10", "!= 7"]);
 
     sm = new BranchController();
@@ -103,7 +105,7 @@ describe("Branch", () => {
     sm.B();
     sm.OnInt(0);
 
-    assert(sm.state, "#sF2_");
+    assert.deepStrictEqual(sm.state_info(), returnStateName("F2"));
     assert.deepStrictEqual(sm.tape, ["< 5", "<= 10", "!= 7"]);
 
     sm = new BranchController();
@@ -111,7 +113,7 @@ describe("Branch", () => {
     sm.B();
     sm.OnInt(100);
 
-    assert(sm.state, "#sF2_");
+    assert.deepStrictEqual(sm.state_info(), returnStateName("F2"));
     assert.deepStrictEqual(sm.tape, [">= 5", "> 10", "!= 7"]);
   });
 
@@ -137,25 +139,25 @@ describe("Branch", () => {
 
     sm.D();
     sm.OnInt(50);
-    assert(sm.state, "#sF1_");
+    assert.deepStrictEqual(sm.state_info(), returnStateName("F1"));
     assert.deepStrictEqual(sm.tape, ["> 0", "< 100"]);
 
     sm = new BranchController();
     sm.D();
     sm.OnInt(200);
-    assert(sm.state, "#sNestedIf_");
+    assert.deepStrictEqual(sm.state_info(), returnStateName("NestedIf"));
     assert.deepStrictEqual(sm.tape, ["> 0", ">= 100"]);
 
     sm = new BranchController();
     sm.D();
     sm.OnInt(-5);
-    assert(sm.state, "#sNestedIf_");
+    assert.deepStrictEqual(sm.state_info(), returnStateName("NestedIf"));
     assert.deepStrictEqual(sm.tape, ["<= 0", "> -10"]);
 
     sm = new BranchController();
     sm.D();
     sm.OnInt(-10);
-    assert(sm.state, "#sF2_");
+    assert.deepStrictEqual(sm.state_info(), returnStateName("F2"));
     assert.deepStrictEqual(sm.tape, ["<= 0", "<= -10"]);
   });
 
@@ -163,19 +165,19 @@ describe("Branch", () => {
     let sm = new BranchController();
     sm.E();
     sm.OnInt(5);
-    assert(sm.state, "#sF3_");
+    assert.deepStrictEqual(sm.state_info(), returnStateName("F3"));
     assert.deepStrictEqual(sm.tape, ["-> $F3"]);
 
     sm = new BranchController();
     sm.E();
     sm.OnInt(15);
-    assert(sm.state, "#sF2_");
+    assert.deepStrictEqual(sm.state_info(), returnStateName("F2"));
     assert.deepStrictEqual(sm.tape, ["-> $F2"]);
 
     sm = new BranchController();
     sm.E();
     sm.OnInt(115);
-    assert(sm.state, "#sF1_");
+    assert.deepStrictEqual(sm.state_info(), returnStateName("F1"));
     assert.deepStrictEqual(sm.tape, ["-> $F1"]);
   });
 
@@ -183,22 +185,22 @@ describe("Branch", () => {
     let sm = new BranchController();
     sm.F();
     sm.OnInt(5);
-    assert(sm.state, "#sF1_");
+    assert.deepStrictEqual(sm.state_info(), returnStateName("F3"));
     assert.deepStrictEqual(sm.tape, ["-> $F3"]);
     sm = new BranchController();
     sm.F();
     sm.OnInt(15);
-    assert(sm.state, "#sF1_");
+    assert.deepStrictEqual(sm.state_info(), returnStateName("F2"));
     assert.deepStrictEqual(sm.tape, ["-> $F2"]);
     sm = new BranchController();
     sm.F();
     sm.OnInt(65);
-    assert(sm.state, "#sF1_");
+    assert.deepStrictEqual(sm.state_info(), returnStateName("F3"));
     assert.deepStrictEqual(sm.tape, ["-> $F3"]);
     sm = new BranchController();
     sm.F();
     sm.OnInt(115);
-    assert(sm.state, "#sF1_");
+    assert.deepStrictEqual(sm.state_info(), returnStateName("F1"));
     assert.deepStrictEqual(sm.tape, ["-> $F1"]);
   });
 });

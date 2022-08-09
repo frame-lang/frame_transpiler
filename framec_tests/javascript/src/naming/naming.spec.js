@@ -1,6 +1,7 @@
 const { describe, it } = require("mocha");
 const assert = require("assert");
 const Naming = require("./naming");
+const returnStateName = require("../utils/state_info/returnStateName");
 
 class NamingController extends Naming {
   constructor() {
@@ -27,29 +28,47 @@ describe("Naming", () => {
     let sm = new NamingController();
 
     sm.snake_event(1);
+    assert.deepStrictEqual(sm.state_info(), returnStateName("snake_state"))
     sm.snake_event(2);
+    assert.deepStrictEqual(sm.state_info(), returnStateName("Init"))
     sm.snake_event(1);
+    assert.deepStrictEqual(sm.state_info(), returnStateName("snake_state"))
     sm.CamelEvent(3);
+    assert.deepStrictEqual(sm.state_info(), returnStateName("Init"))
     sm.snake_event(1);
+    assert.deepStrictEqual(sm.state_info(), returnStateName("snake_state"))
     sm.event123(4);
+    assert.deepStrictEqual(sm.state_info(), returnStateName("Init"))
     assert.deepStrictEqual(sm.finalLog, [1103, 1104, 1105]);
     sm.finalLog = [];
 
     sm.CamelEvent(11);
+    assert.deepStrictEqual(sm.state_info(), returnStateName("CamelState"))
     sm.snake_event(2);
+    assert.deepStrictEqual(sm.state_info(), returnStateName("Init"))
     sm.CamelEvent(11);
+    assert.deepStrictEqual(sm.state_info(), returnStateName("CamelState"))
     sm.CamelEvent(3);
+    assert.deepStrictEqual(sm.state_info(), returnStateName("Init"))
     sm.CamelEvent(11);
+    assert.deepStrictEqual(sm.state_info(), returnStateName("CamelState"))
     sm.event123(4);
+    assert.deepStrictEqual(sm.state_info(), returnStateName("Init"))
     assert.deepStrictEqual(sm.finalLog, [1213, 1214, 1215]);
     sm.finalLog = [];
 
     sm.event123(21);
+    assert.deepStrictEqual(sm.state_info(), returnStateName("state123"))
     sm.snake_event(2);
+    assert.deepStrictEqual(sm.state_info(), returnStateName("Init"))
     sm.event123(21);
+    assert.deepStrictEqual(sm.state_info(), returnStateName("state123"))
     sm.CamelEvent(3);
+    assert.deepStrictEqual(sm.state_info(), returnStateName("Init"))
     sm.event123(21);
+    assert.deepStrictEqual(sm.state_info(), returnStateName("state123"))
     sm.event123(4);
+    assert.deepStrictEqual(sm.state_info(), returnStateName("Init"))
     assert.deepStrictEqual(sm.finalLog, [1323, 1324, 1325]);
 
     assert.deepStrictEqual(sm.snake_log, [1103, 1213, 1323]);

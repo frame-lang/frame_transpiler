@@ -2,6 +2,20 @@ const { describe, it } = require("mocha");
 const assert = require("assert");
 const VarScope = require("./var_scope");
 
+//! There are five different kinds of variables in Frame. Variables lower in
+//! the following list shadow variables higher in the list. Frame uses a
+//! variety of sigils to disambiguate potentially shadowed variables, which
+//! are indicated in parentheses below.
+//!
+//!   * domain variables (`#.v`)
+//!   * state parameters (`$[v]`)
+//!   * state variables (`$.v`)
+//!   * event handler parameters (`||[v]`)
+//!   * event handler variables (`||.v`)
+//!
+//! This module tests that variable shadowing and the disambiguation sigils
+//! work as expected.
+
 class VarScopeController extends VarScope {
   constructor() {
     super();

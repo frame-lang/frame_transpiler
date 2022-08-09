@@ -11,7 +11,7 @@ function FrameEvent(message, parameters) {
     
 }
 
-class StateParams {
+class StateVars {
     
     // creating private properties
     
@@ -24,11 +24,10 @@ class StateParams {
         // Create and intialize start state compartment.
         
         this.#state = this.#sInit_;
-        this.#compartment = new StateParamsCompartment(this.#state);
+        this.#compartment = new StateVarsCompartment(this.#state);
         this.#nextCompartment = null;
         
         // Initialize domain
-        this.param_log = [];
         
         // Send system start event
         const frameEvent = FrameEvent(">", null);
@@ -37,18 +36,18 @@ class StateParams {
     
     //===================== Interface Block ===================//
     
-    Next() {
-        let e = FrameEvent("Next",null);
+    X() {
+        let e = FrameEvent("X",null);
         this.#mux(e);
     }
     
-    Prev() {
-        let e = FrameEvent("Prev",null);
+    Y() {
+        let e = FrameEvent("Y",null);
         this.#mux(e);
     }
     
-    Log() {
-        let e = FrameEvent("Log",null);
+    Z() {
+        let e = FrameEvent("Z",null);
         this.#mux(e);
     }
     
@@ -59,11 +58,11 @@ class StateParams {
             case this.#sInit_:
                 this.#sInit_(e);
                 break;
-            case this.#sSplit_:
-                this.#sSplit_(e);
+            case this.#sA_:
+                this.#sA_(e);
                 break;
-            case this.#sMerge_:
-                this.#sMerge_(e);
+            case this.#sB_:
+                this.#sB_(e);
                 break;
         }
         
@@ -89,11 +88,11 @@ class StateParams {
     
     #sInit_(e) {
         switch (e._message) {
-            case "Next":
+            case ">":
                 {
-                let compartment =  new StateParamsCompartment(this.#sSplit_);
+                let compartment =  new StateVarsCompartment(this.#sA_);
                 
-                compartment.StateArgs["val"] = 1;
+                compartment.StateVars["x"] = 0;
                 
                 this.#transition(compartment);
                 
@@ -103,35 +102,35 @@ class StateParams {
         }
     }
     
-    #sSplit_(e) {
+    #sA_(e) {
         switch (e._message) {
-            case "Next":
+            case "X":
                 {
-                let compartment =  new StateParamsCompartment(this.#sMerge_);
+                (this.#compartment.StateVars["x"]) = (this.#compartment.StateVars["x"]) + 1;
                 
-                compartment.StateArgs["left"] = this.#compartment.StateArgs["val"];
-                compartment.StateArgs["right"] = this.#compartment.StateArgs["val"] + 1;
+                return;
+                }
+                
+            case "Y":
+                {
+                let compartment =  new StateVarsCompartment(this.#sB_);
+                
+                compartment.StateVars["y"] = 10;
+                compartment.StateVars["z"] = 100;
                 
                 this.#transition(compartment);
                 
                 return;
                 }
                 
-            case "Prev":
+            case "Z":
                 {
-                let compartment =  new StateParamsCompartment(this.#sMerge_);
+                let compartment =  new StateVarsCompartment(this.#sB_);
                 
-                compartment.StateArgs["left"] = this.#compartment.StateArgs["val"] + 1;
-                compartment.StateArgs["right"] = this.#compartment.StateArgs["val"];
+                compartment.StateVars["y"] = 10;
+                compartment.StateVars["z"] = 100;
                 
                 this.#transition(compartment);
-                
-                return;
-                }
-                
-            case "Log":
-                {
-                this.got_param_do("val",(this.#compartment.StateArgs["val"]));
                 
                 return;
                 }
@@ -139,34 +138,29 @@ class StateParams {
         }
     }
     
-    #sMerge_(e) {
+    #sB_(e) {
         switch (e._message) {
-            case "Next":
+            case "X":
                 {
-                let compartment =  new StateParamsCompartment(this.#sSplit_);
+                let compartment =  new StateVarsCompartment(this.#sA_);
                 
-                compartment.StateArgs["val"] = this.#compartment.StateArgs["left"] + this.#compartment.StateArgs["right"];
+                compartment.StateVars["x"] = 0;
                 
                 this.#transition(compartment);
                 
                 return;
                 }
                 
-            case "Prev":
+            case "Y":
                 {
-                let compartment =  new StateParamsCompartment(this.#sSplit_);
-                
-                compartment.StateArgs["val"] = this.#compartment.StateArgs["left"] * this.#compartment.StateArgs["right"];
-                
-                this.#transition(compartment);
+                (this.#compartment.StateVars["y"]) = (this.#compartment.StateVars["y"]) + 1;
                 
                 return;
                 }
                 
-            case "Log":
+            case "Z":
                 {
-                this.got_param_do("left",(this.#compartment.StateArgs["left"]));
-                this.got_param_do("right",(this.#compartment.StateArgs["right"]));
+                (this.#compartment.StateVars["z"]) = (this.#compartment.StateVars["z"]) + 1;
                 
                 return;
                 }
@@ -178,7 +172,6 @@ class StateParams {
     
     // Unimplemented Actions
     
-    got_param_do(name,val) { throw new Error('Action not implemented.'); }
     
     //=============== Machinery and Mechanisms ==============//
     
@@ -195,13 +188,16 @@ class StateParams {
     state_info() {
         return this.#compartment.state.name;
     }
+    compartment_info() {
+        return this.#compartment
+    }
     
     
 };
 
 //=============== Compartment ==============//
 
-class StateParamsCompartment {
+class StateVarsCompartment {
 
     constructor(state) {
         this.state = state
@@ -217,14 +213,13 @@ class StateParamsCompartment {
 
 /********************
 
-class StateParamsController extends StateParams {
+class StateVarsController extends StateVars {
 
 	constructor() {
 	  super()
 	}
-	got_param_do(name,val) {}
 };
 
 ********************/
 
-module.exports = StateParams
+module.exports = StateVars
