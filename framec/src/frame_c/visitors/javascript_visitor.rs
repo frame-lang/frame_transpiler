@@ -456,7 +456,7 @@ impl JavaScriptVisitor {
                 self.add_code("#stateStack_push(compartment) {");
                 self.indent();
                 self.newline();
-                self.add_code("this.#stateStack.push(compartment);");
+                self.add_code("this.#stateStack.push(this.#deepClone(compartment));");
                 self.outdent();
                 self.newline();
                 self.add_code("}");
@@ -469,6 +469,8 @@ impl JavaScriptVisitor {
                 self.outdent();
                 self.newline();
                 self.add_code("}");
+
+                self.generate_deepCopy_fn();
             }
 
             if self.generate_change_state {
@@ -1349,6 +1351,101 @@ impl JavaScriptVisitor {
         self.newline();
         self.add_code("}");
         self.newline();
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    /**
+     * Generate a deepclone Method for deep copying the object.
+     * NOTE: Currently Only Implemented in context of deepcopy the compartment instance.
+     *
+     *
+     */
+    fn generate_deepCopy_fn(&mut self) {
+        self.newline();
+        self.newline();
+        self.add_code("// deepcopy function for compartment");
+        self.newline();
+        self.add_code("#deepClone(target) {");
+        self.indent();
+        self.newline();
+        self.add_code("let copy = {}");
+        self.newline();
+        self.add_code("walk(target, copy);");
+        self.newline();
+        self.add_code("return copy;");
+        self.newline();
+        self.newline();
+        self.add_code("function walk(target, copy) {");
+        self.indent();
+        self.newline();
+        self.add_code("for (let key in target) {");
+        self.indent();
+        self.newline();
+        self.add_code("let obj = target[key];");
+        self.newline();
+        self.add_code("if (obj instanceof Function) {");
+        self.indent();
+        self.newline();
+        self.add_code("let value = obj;");
+        self.newline();
+        self.add_code("add(copy, key, value);");
+        self.outdent();
+        //
+        self.newline();
+        self.add_code("} else if (obj instanceof Array) {");
+        self.indent();
+        self.newline();
+        self.add_code("let value = [];");
+        self.newline();
+        self.add_code("let last = add(copy, key, value);");
+        self.newline();
+        self.add_code("walk(obj, last);");
+        self.outdent();
+        //
+        self.newline();
+        self.add_code("} else if (obj instanceof Object) {");
+        self.indent();
+        self.newline();
+        self.add_code("let value = {};");
+        self.newline();
+        self.add_code("let last = add(copy, key, value);");
+        self.newline();
+        self.add_code("walk(obj, last);");
+        self.outdent();
+        //
+        self.newline();
+        self.add_code("} else {");
+        self.indent();
+        self.newline();
+        self.add_code("let value = obj;");
+        self.newline();
+        self.add_code("add(copy, key, value);");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+
+        self.newline();
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.newline();
+        self.newline();
+        self.add_code("function add(copy, key, value) {");
+        self.indent();
+        self.newline();
+        self.add_code("copy[key] = value;");
+        self.newline();
+        self.add_code("return copy[key];");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
     }
 }
 
