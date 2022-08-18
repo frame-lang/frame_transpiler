@@ -34,6 +34,11 @@ class TestStateContextStack:
 
         sm = StateContextStackController()
         assert sm.state_info() == return_state_name("A")
+        sm.push()
+        sm.to_b()
+        assert sm.state_info() == return_state_name("B")
+        sm.pop()
+        assert sm.state_info() == return_state_name("A")
     
     def test_multiple_push_pop(self):
         """
