@@ -1,5 +1,5 @@
 
-# Frame Language Transpiler v0.9.0
+# Frame Language Transpiler v0.10.0
 
 
 Frame is a language for designing systems. It is easy to learn and can generate both UML documentation as well as code in 8 programming languages:
@@ -23,15 +23,15 @@ This project contains the code for building the Frame Language Transpiler - the 
 
 For details, see the [Release Notes](https://github.com/frame-lang/frame_transpiler/releases).
 
-### Frame v0.9.0
+### Frame v0.10.0
 
-Frame v0.9.0 brings a lot of exciting additions to the Frame language, adding both power and standardization to the notation. In addition, the transpiler now can read from stdin as well as still accepting file paths as in the past. This enables improved CI/CD processes involving Frame.
+Frame v0.10.0 brings a lot of exciting additions to the Frame language, adding both power and standardization to the notation. In addition, the transpiler now can read from stdin as well as still accepting file paths as in the past. This enables improved CI/CD processes involving Frame.
 
 #### New Language Features
 
-Note: The new language features are currently only supported in Golang. Other languages will be supported in coming releases.
+Note: The new language features are now supported in Golang, Javascript, Python3. Other languages will be supported in coming releases.
 
-* **Compartments** - v0.9 formalizes the idea of **state closures** called *Compartments*. Compartments are data structures that hold a state's local data as well as other metadata enabling new advanced features like *Event Forwarding* (see below).
+* **Compartments** - v0.10 formalizes the idea of **state closures** called *Compartments*. Compartments are data structures that hold a state's local data as well as other metadata enabling new advanced features like *Event Forwarding* (see below).
 * **Deferred transitions** - deferred transitions address challenges with the previous approach of executing a transition immediately when called. Each immediate transition makes a function call and under certain situations, can blow up the stack if too many occur before returning to the caller. Deferred transitions avoid this situation and enable Frame controllers to make any number of sequential transitions. This architecture change enables Frame controllers to be launched as background daemons that run indefinitely until stopped as well as to be used to solve iterative problems.
 * **System parameters** - system parameters enable initializing the system in a more standardized, flexible and direct manner. This includes syntax for setting the start state parameters, the start state's enter parameters as well as override domain variable initialization. This change normalizes the start state to behave like all other states in the machine.
 * **Event forwarding** - event forwarding syntax enables passing events from one state to another. This capability enables system designers to easily receive events in one state and forward them on to other states that can handle them appropriately.
