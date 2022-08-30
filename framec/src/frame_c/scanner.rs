@@ -747,7 +747,7 @@ pub enum TokenType {
 }
 
 impl Display for TokenType {
-    #[allow(clippy::all)]
+    #[deny(clippy::all)]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self)
     }
