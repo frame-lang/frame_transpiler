@@ -269,8 +269,8 @@ impl PythonVisitor {
                 Some(ret_type) => self.format_type(ret_type),
                 None => String::from(""),
             };
-            self.add_code(&format!("{}", param.param_name));
-            if param_type != "" {
+            self.add_code(&param.param_name.to_string());
+            if !param_type.is_empty() {
                 self.add_code(&format!(": {}", param_type));
             }
             separator = ",";
@@ -291,9 +291,9 @@ impl PythonVisitor {
                 Some(type_node) => self.format_type(type_node),
                 None => String::from(""),
             };
-            self.add_code(&format!("{}", param.param_name));
-            subclass_actions.push_str(&format!("{}", param.param_name));
-            if param_type != "" {
+            self.add_code(&param.param_name.to_string());
+            subclass_actions.push_str(&param.param_name.to_string());
+            if !param_type.is_empty() {
                 self.add_code(&format!(": {}", param_type));
                 subclass_actions.push_str(&format!(": {}", param_type));
             }
@@ -1443,7 +1443,7 @@ impl AstVisitor for PythonVisitor {
                         None => String::from(""),
                     };
                     params.push_str(&format!("{}{}", separator, param_node.param_name));
-                    if param_type != "" {
+                    if !param_type.is_empty() {
                         params.push_str(&format!(": {}", param_type));
                     }
                     separator = String::from(",");
@@ -1461,7 +1461,7 @@ impl AstVisitor for PythonVisitor {
                         None => String::from(""),
                     };
                     new_params.push_str(&format!("{}{}", separator, param_node.param_name));
-                    if param_type != "" {
+                    if !param_type.is_empty() {
                         new_params.push_str(&format!(": {}", param_type));
                     }
                     separator = String::from(",");
@@ -1477,7 +1477,7 @@ impl AstVisitor for PythonVisitor {
                         None => String::from(""),
                     };
                     new_params.push_str(&format!("{}{}", separator, param_node.param_name));
-                    if param_type != "" {
+                    if !param_type.is_empty() {
                         new_params.push_str(&format!(": {}", param_type));
                     }
                     separator = String::from(",");
@@ -1499,7 +1499,7 @@ impl AstVisitor for PythonVisitor {
             self.add_code("def __init__(self):");
         }
 
-        self.generate_new_fn(&system_node);
+        self.generate_new_fn(system_node);
 
         // end of generate constructor
 
@@ -1561,13 +1561,12 @@ impl AstVisitor for PythonVisitor {
         if let Some(machine_block_node) = &system_node.machine_block_node_opt {
             self.newline();
             //
-            let mut current_index = 0;
+            let _current_index = 0;
             let len = machine_block_node.states.len();
-            for state_node_rcref in &machine_block_node.states {
-                let state_name = &format!(
-                    "{}",
-                    self.format_target_state_name(&state_node_rcref.borrow().name)
-                );
+            for (current_index, state_node_rcref) in machine_block_node.states.iter().enumerate() {
+                let state_name = &self
+                    .format_target_state_name(&state_node_rcref.borrow().name)
+                    .to_string();
                 if current_index == 0 {
                     self.add_code(&format!(
                         "if self.__compartment.state.__name__ == '{}':",
@@ -1587,7 +1586,7 @@ impl AstVisitor for PythonVisitor {
                     self.newline();
                 }
 
-                current_index += 1
+                // current_index += 1
             }
 
             self.newline();
@@ -2135,7 +2134,7 @@ impl AstVisitor for PythonVisitor {
             "self.{}",
             self.format_action_name(&action_call.identifier.name.lexeme)
         );
-        output.push_str(&action_name);
+        output.push_str(action_name);
 
         action_call.call_expr_list.accept_to_string(self, output);
     }
@@ -3076,14 +3075,14 @@ impl AstVisitor for PythonVisitor {
         match &variable_decl_node.identifier_decl_scope {
             IdentifierDeclScope::DomainBlock => {
                 self.add_code(&format!("self.{} ", var_name));
-                if var_type != "" {
+                if !var_type.is_empty() {
                     self.add_code(&format!(": {}", var_type));
                 }
                 self.add_code(&format!(" = {}", code));
             }
             IdentifierDeclScope::EventHandlerVar => {
                 self.add_code(&format!("{} ", var_name));
-                if var_type != "" {
+                if !var_type.is_empty() {
                     self.add_code(&format!(": {}", var_type));
                 }
                 self.add_code(&format!(" = {}", code));
