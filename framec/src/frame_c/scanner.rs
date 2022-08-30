@@ -746,7 +746,7 @@ pub enum TokenType {
     Error,
 }
 
-#[allow(clippy::all)]
+#[allow(clippy::recursive_format_impl)]
 impl Display for TokenType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self)
