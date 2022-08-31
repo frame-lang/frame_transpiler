@@ -38,6 +38,7 @@ impl Scanner {
             ("false".to_string(), TokenType::False),
             ("var".to_string(), TokenType::Var),
             ("const".to_string(), TokenType::Const),
+            ("new".to_string(), TokenType::New),
             ("-interface-".to_string(), TokenType::InterfaceBlock),
             ("-machine-".to_string(), TokenType::MachineBlock),
             ("-actions-".to_string(), TokenType::ActionsBlock),
@@ -710,6 +711,7 @@ pub enum TokenType {
     Number,                  // 1, 1.01
     Var,                     // let
     Const,                   // const
+    New,                     // new
     SingleLineComment,       // --- comment
     MultiLineComment,        // {-- comments --}
     OpenBrace,               // {
@@ -745,6 +747,7 @@ pub enum TokenType {
 }
 
 impl Display for TokenType {
+    #[allow(clippy::all)]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self)
     }

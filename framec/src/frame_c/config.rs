@@ -54,6 +54,8 @@ pub struct CodeGenConfig {
     pub rust: RustConfig,
     pub golang: GolangConfig,
     pub smcat: SmcatConfig,
+    pub javascript: JavascriptConfig,
+    pub python: PythonConfig,
 }
 
 /// Code generation options shared among all backends.
@@ -61,6 +63,7 @@ pub struct CodeGenConfig {
 pub struct CommonConfig {
     pub features: CommonFeatures,
     pub code: CommonCode,
+    pub attributes: CommonAttributes,
 }
 
 /// Code generation options specific to the Rust backend.
@@ -143,8 +146,10 @@ pub struct GolangCode {
     pub state_type: String, // Name of state type
     pub marshal_system_state_var: String,
     pub system_struct_type: String,
-    pub mom: String,
+    pub manager: String,
     pub compartment_type: String,
+
+    pub this_branch_transitioned: bool,
 }
 
 impl Default for GolangCode {
@@ -164,7 +169,7 @@ impl Default for GolangCode {
             enter_args_member_name: String::from("enter_args"),
             exit_args_member_name: String::from("exit_args"),
 
-            frame_event_type_name: String::from("FrameEvent"),
+            frame_event_type_name: String::from("framelang.FrameEvent"),
             frame_event_variable_name: String::from("frame_event"),
             frame_event_args_attribute_name: String::from("arguments"),
             frame_event_args_type_name: String::from("FrameEventArgs"),
@@ -220,11 +225,74 @@ impl Default for GolangCode {
             state_type: String::new(),
             marshal_system_state_var: String::new(),
             system_struct_type: String::new(),
-            mom: String::new(),
+            manager: String::new(),
             compartment_type: String::new(),
+
+            this_branch_transitioned: false,
         }
     }
 }
+
+/// Code generation options specific to the Javascript backend.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct JavascriptConfig {
+    pub code: JavascriptCode,
+}
+
+/// Naming options for generated code specific to the javascript backend. These options can be used to
+/// tweak the names of types, methods, fields, and variables in generated code.
+///
+/// These options are "use at your own risk" for now since we are not testing Frame with anything
+/// other than the defaults. Unless you have some strong reason to do otherwise, it's probably best
+/// to leave them be. :-)
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct JavascriptCode {
+    pub public_domain: bool,
+    pub public_state_info: bool,
+    pub public_compartment: bool,
+    pub generate_import_export: bool,
+}
+
+impl Default for JavascriptCode {
+    fn default() -> Self {
+        JavascriptCode {
+            public_domain: false,
+            public_state_info: false,
+            public_compartment: false,
+            generate_import_export: false,
+        }
+    }
+}
+
+/// Code generation options specific to the Python backend.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PythonConfig {
+    pub code: PythonCode,
+}
+
+/// Naming options for generated code specific to the python backend. These options can be used to
+/// tweak the names of types, methods, fields, and variables in generated code.
+///
+/// These options are "use at your own risk" for now since we are not testing Frame with anything
+/// other than the defaults. Unless you have some strong reason to do otherwise, it's probably best
+/// to leave them be. :-)
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PythonCode {
+    pub public_state_info: bool,
+    pub public_compartment: bool,
+}
+
+impl Default for PythonCode {
+    fn default() -> Self {
+        PythonCode {
+            public_state_info: false,
+            public_compartment: false,
+        }
+    }
+}
+
 /// Code generation features shared among all backends.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CommonFeatures {}
@@ -232,6 +300,21 @@ pub struct CommonFeatures {}
 /// Naming options for generated code shared among all backends.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CommonCode {}
+
+/// Naming options for generated code shared among all backends.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CommonAttributes {
+    pub allow_relaxed_event_signatures: bool,
+}
+
+impl Default for CommonAttributes {
+    fn default() -> Self {
+        CommonAttributes {
+            /// Throw error if event hander/interface signatures aren't identical for a message.
+            allow_relaxed_event_signatures: false,
+        }
+    }
+}
 
 /// Code generation options specific to the Golang backend.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]

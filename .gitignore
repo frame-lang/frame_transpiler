@@ -7,3 +7,5 @@
 
 ./config.yaml
 target
+
+framec_tests/javascript/node_modules

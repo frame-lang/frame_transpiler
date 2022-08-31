@@ -23,13 +23,14 @@ use std::path::{Path, PathBuf};
 
 // Re-export this enum here since it's part of the interface for the run functions. The definition
 // lives with visitors since adding a new visitor requires extending the enum and its trait impls.
+use crate::frame_c::ast::AttributeNode;
 pub use crate::frame_c::visitors::TargetLanguage;
-//use crate::frame_c::ast::{AttributeNode, AttributeMetaNameValueStr, AttributeMetaListIdents};
+use std::convert::TryFrom;
 
 /* --------------------------------------------------------------------- */
 
 static IS_DEBUG: bool = false;
-static FRAMEC_VERSION: &str = "emitted from framec_v0.8.0";
+static FRAMEC_VERSION: &str = "emitted from framec_v0.10.0";
 
 /* --------------------------------------------------------------------- */
 
@@ -70,7 +71,7 @@ impl Exe {
     ) -> Result<String, RunError> {
         match fs::read_to_string(input_path) {
             Ok(content) => {
-                Exe::debug_print(&(&content).to_string());
+                Exe::debug_print(&content);
                 self.run(config_path, input_path.to_str(), content, target_language)
             }
             Err(err) => {
@@ -92,7 +93,7 @@ impl Exe {
         let mut stdin = io::stdin(); // We get `Stdin` here.
         match stdin.read_to_string(&mut buffer) {
             Ok(_size) => {
-                Exe::debug_print(&(&buffer).to_string());
+                Exe::debug_print(&buffer);
                 self.run(config_path, None, buffer, target_language)
             }
             Err(err) => {
@@ -126,7 +127,7 @@ impl Exe {
         config_path: &Option<PathBuf>,
         input_path_str: Option<&str>,
         content: String,
-        target_language: Option<TargetLanguage>,
+        mut target_language: Option<TargetLanguage>,
     ) -> Result<String, RunError> {
         // NOTE!!! There is a bug w/ the CLion debugger when a variable (maybe just String type)
         // isn't initialized under some circumstances. Basically the debugger
@@ -205,30 +206,22 @@ impl Exe {
             }
         };
 
-        // check for language attribute specifying target language
-        // match &system_node.attributes_opt {
-        //     Some(attributes) => {
-        //         if let Some(attr_node) = attributes.get("language") {
-        //             match attr_node {
-        //                 AttributeNode::MetaNameValueStr {attr} => {
-        //
-        //                 },
-        //                 AttributeNode::MetaListIdents { attr } => {
-        //
-        //                 },
-        //             }
-        //             // match TargetLanguage::try_from(language.value.clone()) {
-        //             //     Ok(lang) => target_language = Some(lang),
-        //             //     Err(err) => {
-        //             //         let msg = format!("Error parsing language attribute: {}", err);
-        //             //         let run_error = RunError::new(frame_exitcode::PARSE_ERR, &msg);
-        //             //         return Err(run_error);
-        //             //     }
-        //             // }
-        //         }
-        //     }
-        //     None => {}
-        // }
+        // check for language attribute override in spec specifying target language
+        match &system_node.attributes_opt {
+            Some(attributes) => {
+                if let Some(attr_node) = attributes.get("language") {
+                    match attr_node {
+                        AttributeNode::MetaNameValueStr { attr } => {
+                            if let Ok(result) = TargetLanguage::try_from(attr.value.as_str()) {
+                                target_language = Some(result);
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            None => {}
+        }
 
         match target_language {
             None => {
@@ -325,13 +318,14 @@ impl Exe {
                 TargetLanguage::JavaScript => {
                     let mut visitor = JavaScriptVisitor::new(
                         semantic_parser.get_arcanum(),
-                        generate_exit_args,
-                        generate_enter_args || generate_state_context,
+                        // generate_exit_args,
+                        // generate_enter_args || generate_state_context,
                         generate_state_stack,
                         generate_change_state,
-                        generate_transition_state,
+                        // generate_transition_state,
                         FRAMEC_VERSION,
                         comments,
+                        config
                     );
                     visitor.run(&system_node);
                     output = visitor.get_code();
@@ -354,13 +348,14 @@ impl Exe {
                 TargetLanguage::Python3 => {
                     let mut visitor = PythonVisitor::new(
                         semantic_parser.get_arcanum(),
-                        generate_exit_args,
-                        generate_enter_args || generate_state_context,
+                        // generate_exit_args,
+                        // generate_enter_args || generate_state_context,
                         generate_state_stack,
                         generate_change_state,
-                        generate_transition_state,
+                        // generate_transition_state,
                         FRAMEC_VERSION,
                         comments,
+                        config
                     );
                     visitor.run(&system_node);
                     output = visitor.get_code();

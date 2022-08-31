@@ -290,7 +290,7 @@ impl<'a> Parser<'a> {
         let mut error_msg = format!("[line {}] Error", token.line);
 
         match token.token_type {
-            TokenType::Eof => error_msg.push_str(&" at end".to_string()),
+            TokenType::Eof => error_msg.push_str(" at end"),
             TokenType::Error => error_msg.push_str(&format!(" at '{}'", token.lexeme)),
             _ => error_msg.push_str(&format!(" at '{}'", token.lexeme)),
         }
@@ -424,18 +424,19 @@ impl<'a> Parser<'a> {
         if self.is_building_symbol_table {
             //           let st = self.get_current_symtab();
             let system_symbol = SystemSymbol::new(system_name.clone());
-            let x = Rc::new(RefCell::new(system_symbol));
+            let system_symbol_rcref = Rc::new(RefCell::new(system_symbol));
             // TODO: it would be better to find some way to bake the identifier scope into the SystemScope type
-            self.arcanum
-                .enter_scope(ParseScopeType::System { system_symbol: x });
+            self.arcanum.enter_scope(ParseScopeType::System {
+                system_symbol: system_symbol_rcref,
+            });
         } else {
             self.arcanum.set_parse_scope(&system_name);
         }
 
         // Parse optional system params.
-        // #SystemName $[start_state_param:T] >[start_state_enter_param:X] #[domain_params:Y]
+        // #SystemName $[start_state_param:T] >[start_state_enter_param:U] #[domain_params:V]
 
-        let mut start_state_state_params_opt: Option<Vec<ParameterNode>> = Option::None;
+        let mut system_start_state_state_params_opt: Option<Vec<ParameterNode>> = Option::None;
 
         if self.match_token(&[TokenType::State]) {
             if self.consume(TokenType::LBracket, "Expected '['").is_err() {
@@ -451,13 +452,13 @@ impl<'a> Parser<'a> {
                 self.synchronize(sync_tokens);
             }
             match self.parameters() {
-                Ok(Some(parameters)) => start_state_state_params_opt = Some(parameters),
+                Ok(Some(parameters)) => system_start_state_state_params_opt = Some(parameters),
                 Ok(None) => {}
                 Err(_) => {}
             }
         }
 
-        let mut start_state_enter_params_opt: Option<Vec<ParameterNode>> = Option::None;
+        let mut system_enter_params_opt: Option<Vec<ParameterNode>> = Option::None;
 
         if self.match_token(&[TokenType::GT]) {
             if self.consume(TokenType::LBracket, "Expected '['").is_err() {
@@ -472,7 +473,7 @@ impl<'a> Parser<'a> {
                 self.synchronize(sync_tokens);
             }
             match self.parameters() {
-                Ok(Some(parameters)) => start_state_enter_params_opt = Some(parameters),
+                Ok(Some(parameters)) => system_enter_params_opt = Some(parameters),
                 Ok(None) => {}
                 Err(_) => {}
             }
@@ -482,7 +483,93 @@ impl<'a> Parser<'a> {
 
         if self.match_token(&[TokenType::LBracket]) {
             match self.parameters() {
-                Ok(Some(parameters)) => domain_params_opt = Some(parameters),
+                Ok(Some(parameters)) => {
+                    if !self.is_building_symbol_table {
+                        // check system domain params override a domain variable and match type
+                        for param in &parameters {
+                            let name = &param.param_name;
+                            let domain_symbol_rcref_opt =
+                                self.arcanum.lookup(name, &IdentifierDeclScope::DomainBlock);
+                            if domain_symbol_rcref_opt.is_none() {
+                                self.error_at_current(&format!(
+                                    "System domain parameter '{}' does not exist in the domain.",
+                                    name
+                                ));
+                                let sync_tokens = &vec![
+                                    TokenType::InterfaceBlock,
+                                    TokenType::MachineBlock,
+                                    TokenType::ActionsBlock,
+                                    TokenType::DomainBlock,
+                                    TokenType::SystemEnd,
+                                ];
+                                self.synchronize(sync_tokens);
+                            } else {
+                                // domain var exists, check type matches
+                                let symbol_type_rcref = domain_symbol_rcref_opt.unwrap();
+                                let symbol_type = symbol_type_rcref.borrow();
+                                match &*symbol_type {
+                                    SymbolType::DomainVariable {
+                                        domain_variable_symbol_rcref,
+                                    } => {
+                                        let domain_variable_symbol =
+                                            domain_variable_symbol_rcref.borrow();
+                                        let domain_variable_symbol_type_node_opt =
+                                            &domain_variable_symbol.var_type;
+                                        let param_type_node_opt = &param.param_type_opt;
+                                        if domain_variable_symbol_type_node_opt.is_none()
+                                            && param_type_node_opt.is_none()
+                                        {
+                                            // ok
+                                        } else if domain_variable_symbol_type_node_opt.is_some()
+                                            && param_type_node_opt.is_some()
+                                        {
+                                            // maybe ok, check types match
+                                            let domain_variable_type_node =
+                                                domain_variable_symbol_type_node_opt
+                                                    .as_ref()
+                                                    .unwrap();
+                                            let param_type_node =
+                                                param_type_node_opt.as_ref().unwrap();
+                                            if domain_variable_type_node
+                                                .get_type_str()
+                                                .ne(&param_type_node.get_type_str())
+                                            {
+                                                // error - one has a type and the other does not.
+                                                self.error_at_current(&format!("System domain parameter '{}' type does not match domain variable type.",name));
+                                                let sync_tokens = &vec![
+                                                    TokenType::InterfaceBlock,
+                                                    TokenType::MachineBlock,
+                                                    TokenType::ActionsBlock,
+                                                    TokenType::DomainBlock,
+                                                    TokenType::SystemEnd,
+                                                ];
+                                                self.synchronize(sync_tokens);
+                                            }
+                                        } else {
+                                            // error - one has a type and the other does not.
+                                            self.error_at_current(&format!("System domain parameter '{}' type does not match domain variable type.",name));
+                                            let sync_tokens = &vec![
+                                                TokenType::InterfaceBlock,
+                                                TokenType::MachineBlock,
+                                                TokenType::ActionsBlock,
+                                                TokenType::DomainBlock,
+                                                TokenType::SystemEnd,
+                                            ];
+                                            self.synchronize(sync_tokens);
+                                        }
+                                    }
+                                    _ => {
+                                        self.error_at_current(&format!(
+                                            "Compiler error - wrong type found for '{}'.",
+                                            name
+                                        ));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    domain_params_opt = Some(parameters)
+                }
                 Ok(None) => {}
                 Err(_) => {}
             }
@@ -503,6 +590,159 @@ impl<'a> Parser<'a> {
             machine_block_node_opt = Option::Some(self.machine_block());
             self.arcanum
                 .debug_print_current_symbols(self.arcanum.get_current_symtab());
+        }
+
+        if !self.is_building_symbol_table {
+            // validate system start state params
+            if let Some(machine_block_node) = machine_block_node_opt.as_ref() {
+                if machine_block_node.states.is_empty() {
+                    if system_start_state_state_params_opt.is_none() {
+                        // ok - no states or start state params
+                    } else {
+                        // error - no start state but start state params exist
+                        self.error_at_current(
+                            "System start state parameters declared but no start state exists.",
+                        );
+                    }
+
+                    if system_enter_params_opt.is_none() {
+                        // ok - no states or enter event params
+                    } else {
+                        // error - no start state but enter event params exist
+                        self.error_at_current("System start state enter parameters declared but no start state exists.");
+                    }
+                } else {
+                    // there are states
+                    let start_state_rcref_opt = machine_block_node.states.get(0);
+                    if let Some(start_state_rcref) = start_state_rcref_opt {
+                        let start_state = start_state_rcref.borrow();
+
+                        if start_state.params_opt.is_none()
+                            && system_start_state_state_params_opt.is_none()
+                        {
+                            // ok
+                        } else if start_state.params_opt.is_some()
+                            && system_start_state_state_params_opt.is_none()
+                        {
+                            // error - mismatched params
+                            self.error_at_current("Start state parameters declared but no system start state parameters are declared.");
+                        } else if start_state.params_opt.is_none()
+                            && system_start_state_state_params_opt.is_some()
+                        {
+                            self.error_at_current(
+                                "System start state parameters declared but no start state exists.",
+                            );
+                        } else {
+                            // both state and system have params. verify they match
+                            let system_start_state_state_params =
+                                system_start_state_state_params_opt.as_ref().unwrap();
+                            let start_state_params_vec = start_state.params_opt.as_ref().unwrap();
+                            //  if let Some(start_state_params_vec) = &start_state.params_opt {
+                            if start_state_params_vec.len() != system_start_state_state_params.len()
+                            {
+                                // error
+                                self.error_at_current("System start state parameters do not match actual start state parameters.");
+                            } else {
+                                // loop through parameter lists and confirm identical
+                                // let mut i = 0;
+                                for (i, state_param) in start_state_params_vec.iter().enumerate() {
+                                    let system_start_state_state_param =
+                                        system_start_state_state_params.get(i).unwrap();
+                                    if system_start_state_state_param != state_param {
+                                        // error
+                                        self.error_at_current("System start state parameters do not match actual start state parameters.");
+                                    }
+                                    // i += 1;
+                                }
+                            }
+                        }
+
+                        // validate start state enter params.
+                        // start state and system enter params must be identical.
+
+                        if let Some(enter_event_handler) = &start_state.enter_event_handler_opt {
+                            let y = enter_event_handler.as_ref().borrow();
+                            let z = &y.event_symbol_rcref;
+                            let a = z.borrow();
+                            let enter_event_handler_params_opt = &a.params_opt;
+                            if enter_event_handler_params_opt.is_none() {
+                                if system_enter_params_opt.is_none() {
+                                    // ok
+                                } else {
+                                    // error
+                                    self.error_at_current("System has enter parameters but start state enter handler does not.");
+                                }
+                            } else {
+                                // enter_event_handler_params_opt.is_some()
+
+                                if system_enter_params_opt.is_none() {
+                                    // error
+                                    self.error_at_current("Start state has enter parameters but system does not define any.");
+                                } else {
+                                    // system_enter_params_opt.is_some()
+                                    // compare system enter params w/ start state enter params
+                                    let system_enter_params =
+                                        system_enter_params_opt.as_ref().unwrap();
+                                    let enter_event_handler_params =
+                                        &enter_event_handler_params_opt.as_ref().unwrap();
+                                    if system_enter_params.len() != enter_event_handler_params.len()
+                                    {
+                                        // error
+                                        self.error_at_current("Start state and system enter parameters are different.");
+                                    } else {
+                                        // let mut i = 0;
+                                        for (i, param) in system_enter_params.iter().enumerate() {
+                                            let parameter_symbol =
+                                                enter_event_handler_params.get(i).unwrap();
+                                            if parameter_symbol.name.ne(&param.param_name) {
+                                                // error
+                                                self.error_at_current("Start state and system enter parameters are different.");
+                                            } else if parameter_symbol.param_type_opt.is_none()
+                                                && param.param_type_opt.is_none()
+                                            {
+                                                // ok
+                                            } else if (parameter_symbol.param_type_opt.is_none()
+                                                && param.param_type_opt.is_some())
+                                                || (parameter_symbol.param_type_opt.is_some()
+                                                    && param.param_type_opt.is_none())
+                                            {
+                                                // error
+                                                self.error_at_current("Start state and system enter parameters are different.");
+                                            } else {
+                                                // parameter_symbol.param_type_opt.is_some() && param.param_type_opt.is_some()
+                                                let param_symbol_type = parameter_symbol
+                                                    .param_type_opt
+                                                    .as_ref()
+                                                    .unwrap();
+                                                let param_type =
+                                                    param.param_type_opt.as_ref().unwrap();
+                                                if param_symbol_type != param_type {
+                                                    // error
+                                                    self.error_at_current("System enter params do not match start state enter params.");
+                                                }
+                                            }
+                                            // i = i + 1;
+                                        }
+                                    }
+                                }
+                            }
+                        } else if system_enter_params_opt.is_some() {
+                            // error - no event handlers but there are system enter event params
+                            self.error_at_current("System has enter parameters but the start state does not have an enter event handler.");
+                        } else {
+                            // ok - no system enter event params
+                        }
+                    }
+                }
+            } else {
+                // no machine block therefore no states therefore no start state
+                if system_start_state_state_params_opt.is_some() {
+                    // error - system start state params specified but no machine block
+                    self.error_at_current(
+                        "System start state parameters declared but no start state exists.",
+                    );
+                }
+            }
         }
 
         if self.match_token(&[TokenType::ActionsBlock]) {
@@ -529,8 +769,8 @@ impl<'a> Parser<'a> {
             system_name,
             header,
             attributes_opt,
-            start_state_state_params_opt,
-            start_state_enter_params_opt,
+            system_start_state_state_params_opt,
+            system_enter_params_opt,
             domain_params_opt,
             interface_block_node_opt,
             machine_block_node_opt,
@@ -842,12 +1082,15 @@ impl<'a> Parser<'a> {
         if self.match_token(&[TokenType::SuperString]) {
             let id = self.previous();
             let type_str = id.lexeme.clone();
-            Ok(TypeNode::new(true, false, type_str))
+            Ok(TypeNode::new(true, false, None, type_str))
         } else {
             if self.match_token(&[TokenType::And]) {
                 is_reference = true
             }
-            if !self.match_token(&[TokenType::Identifier]) {
+            let mut frame_event_part_opt = None;
+            if self.match_token(&[TokenType::At]) {
+                frame_event_part_opt = Some(FrameEventPart::Event { is_reference })
+            } else if !self.match_token(&[TokenType::Identifier]) {
                 self.error_at_current("Expected return type name.");
                 return Err(ParseError::new("TODO"));
             }
@@ -855,7 +1098,12 @@ impl<'a> Parser<'a> {
             let id = self.previous();
             let type_str = id.lexeme.clone();
 
-            Ok(TypeNode::new(false, is_reference, type_str))
+            Ok(TypeNode::new(
+                false,
+                is_reference,
+                frame_event_part_opt,
+                type_str,
+            ))
         }
     }
 
@@ -955,10 +1203,11 @@ impl<'a> Parser<'a> {
         }
 
         if !parameters.is_empty() {
-            return Ok(Some(parameters));
+            Ok(Some(parameters))
+        } else {
+            self.error_at_current("Error - empty list declaration.");
+            Err(ParseError::new("Error - empty list declaration."))
         }
-
-        Ok(None)
     }
 
     /* --------------------------------------------------------------------- */
@@ -1498,15 +1747,6 @@ impl<'a> Parser<'a> {
         // @TODO - add reference syntax
         while self.match_token(&[TokenType::Identifier]) {
             match self.variable_or_call_expr(IdentifierDeclScope::None) {
-                // Ok(Some(VariableExprT { var_node: id_node }))
-                //     => {
-                //     // TODO: better error handling
-                //     return Err(ParseError::new("TODO"));
-                // },
-                // Ok(Some(CallExprT { call_expr_node }))
-                //     => calls.push(CallExprT{call_expr_node}),
-                // Ok(Some(ActionCallExprT { action_call_expr_node}))
-                //     => calls.push(action_call_expr_node),
                 Ok(Some(CallChainLiteralExprT {
                     call_chain_expr_node,
                 })) => calls.push(call_chain_expr_node),
@@ -1675,9 +1915,9 @@ impl<'a> Parser<'a> {
         let line_number: usize;
 
         self.event_handler_has_transition = false;
-        let a = self.message();
+        //    let a = self.message();
 
-        match a {
+        match self.message() {
             Ok(MessageType::AnyMessage { line }) => {
                 line_number = line;
                 message_type = AnyMessage { line }
@@ -1771,6 +2011,15 @@ impl<'a> Parser<'a> {
                                 vec.push(param_symbol);
                             }
                             event_symbol_rcref.borrow_mut().params_opt = Some(vec);
+                        } else {
+                            // validate event handler's parameters match the event symbol's parameters
+                            if event_symbol_rcref.borrow().params_opt.is_none()
+                                && !parameters.is_empty()
+                            {
+                                self.error_at_current(&format!("Event handler {} parameters do not match a previous declaration."
+                                                               ,msg
+                                ));
+                            }
                         }
 
                         let event_handler_params_scope_struct =
@@ -1827,24 +2076,14 @@ impl<'a> Parser<'a> {
                                                 } else {
                                                     // TODO
                                                     self.error_at_current(
-                                                        "Bad parameter to event handler",
+                                                        "Parameters for event handler do not match declaration in interface or a previous event handler for the message.",
                                                     );
-
-                                                    let sync_tokens = &vec![
-                                                        TokenType::Pipe,
-                                                        TokenType::Caret,
-                                                        TokenType::State,
-                                                        TokenType::ActionsBlock,
-                                                        TokenType::DomainBlock,
-                                                        TokenType::SystemEnd,
-                                                    ];
-                                                    self.synchronize(sync_tokens);
                                                 }
                                             }
                                             None => {
-                                                return Err(ParseError::new(
-                                                    "Fatal error - Bad parameter.",
-                                                ));
+                                                self.error_at_current(
+                                                    "Incorrect number of parameters",
+                                                );
                                             }
                                         }
                                     }
@@ -1898,6 +2137,15 @@ impl<'a> Parser<'a> {
                 Ok(None) => return Err(ParseError::new("TODO")),
                 Err(parse_error) => return Err(parse_error),
             }
+        } else {
+            // no parameter list
+            let event_symbol_rcref = self.arcanum.get_event(&msg, &self.state_name_opt).unwrap();
+            if event_symbol_rcref.borrow().params_opt.is_some() {
+                self.error_at_current(&format!(
+                    "Event handler {} parameters do not match a previous declaration.",
+                    msg
+                ));
+            }
         }
 
         // Parse return type
@@ -1915,6 +2163,36 @@ impl<'a> Parser<'a> {
                 let event_symbol_rcref =
                     self.arcanum.get_event(&*msg, &self.state_name_opt).unwrap();
                 event_symbol_rcref.borrow_mut().ret_type_opt = return_type_opt;
+            } else {
+                let event_symbol_rcref =
+                    self.arcanum.get_event(&*msg, &self.state_name_opt).unwrap();
+                let symbol_rettype_node_opt = &event_symbol_rcref.borrow().ret_type_opt;
+                if symbol_rettype_node_opt.is_none() != return_type_opt.is_none() {
+                    self.error_at_current(&format!(
+                        "Event handler {} return type does not match a previous declaration.",
+                        msg
+                    ));
+                } else {
+                    let symbol_return_type = symbol_rettype_node_opt.as_ref().unwrap();
+                    let event_handler_return_type = return_type_opt.as_ref().unwrap();
+                    if symbol_return_type != event_handler_return_type {
+                        self.error_at_current(&format!(
+                            "Event handler {} return type does not match a previous declaration.",
+                            msg
+                        ));
+                    }
+                }
+            }
+        } else {
+            // no declared return type
+            let event_symbol_rcref = self.arcanum.get_event(&*msg, &self.state_name_opt).unwrap();
+            let symbol_rettype_node_opt = &event_symbol_rcref.borrow().ret_type_opt;
+
+            if symbol_rettype_node_opt.is_some() {
+                self.error_at_current(&format!(
+                    "Event handler {} return type does not match a previous declaration.",
+                    msg
+                ));
             }
         }
 
@@ -2133,6 +2411,8 @@ impl<'a> Parser<'a> {
             Ok(et_opt) => expr_t_opt = et_opt,
             Err(_) => {
                 let sync_tokens = &vec![
+                    TokenType::Caret,
+                    TokenType::ElseContinue,
                     TokenType::Identifier,
                     TokenType::Pipe,
                     TokenType::State,
@@ -2148,7 +2428,7 @@ impl<'a> Parser<'a> {
             Some(expr_t) => {
                 if self.is_bool_test() {
                     if !self.is_testable_expression(&expr_t) {
-                        self.error_at_current(&"Not a testable expression.".to_string());
+                        self.error_at_current("Not a testable expression.");
                         return Err(ParseError::new("TODO"));
                     }
                     let result = self.bool_test(expr_t);
@@ -2166,7 +2446,7 @@ impl<'a> Parser<'a> {
                     };
                 } else if self.is_string_match_test() {
                     if !self.is_testable_expression(&expr_t) {
-                        self.error_at_current(&"Not a testable expression.".to_string());
+                        self.error_at_current("Not a testable expression.");
                         return Err(ParseError::new("TODO"));
                     }
                     let result = self.string_match_test(expr_t);
@@ -2186,7 +2466,7 @@ impl<'a> Parser<'a> {
                     };
                 } else if self.is_number_match_test() {
                     if !self.is_testable_expression(&expr_t) {
-                        self.error_at_current(&"Not a testable expression.".to_string());
+                        self.error_at_current("Not a testable expression.");
                         return Err(ParseError::new("TODO"));
                     }
                     let result = self.number_match_test(expr_t);
@@ -3055,6 +3335,25 @@ impl<'a> Parser<'a> {
             let symbol_type_rcref_opt = self.arcanum.lookup(&id_node.name.lexeme, &var_scope);
             let var_node = VariableNode::new(id_node, var_scope, symbol_type_rcref_opt);
             return Ok(Some(VariableExprT { var_node }));
+        } else if self.match_token(&[TokenType::New]) {
+            if self.match_token(&[TokenType::Identifier]) {
+                match self.variable_or_call_expr(IdentifierDeclScope::None) {
+                    Ok(Some(CallChainLiteralExprT {
+                        mut call_chain_expr_node,
+                    })) => {
+                        call_chain_expr_node.is_new_expr = true;
+                        return Ok(Some(CallChainLiteralExprT {
+                            call_chain_expr_node,
+                        }));
+                    }
+                    Ok(Some(_)) => return Err(ParseError::new("TODO")),
+                    Err(parse_error) => return Err(parse_error),
+                    Ok(None) => {} // continue
+                }
+            } else {
+                self.error_at_current("Expected class.");
+                return Err(ParseError::new("TODO"));
+            }
         } else {
             // self.error_at_current("Expected identifier.");
             // return Err(ParseError::new("TODO"));
@@ -3187,8 +3486,42 @@ impl<'a> Parser<'a> {
                 if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
                     return Err(parse_error);
                 }
+
+                // TODO!! must test for existence
+                let param_symbol_rcref;
+                let symbol_type_rcref_opt = self
+                    .arcanum
+                    .lookup(&id_tok.lexeme, &IdentifierDeclScope::None);
+                match symbol_type_rcref_opt {
+                    Some(symbol_type_rcref) => {
+                        let symbol_type = symbol_type_rcref.borrow();
+
+                        match &*symbol_type {
+                            SymbolType::EventHandlerParam {
+                                event_handler_param_symbol_rcref,
+                            } => {
+                                param_symbol_rcref = event_handler_param_symbol_rcref.clone();
+                            }
+                            _ => {
+                                self.error_at_current(&format!(
+                                    "{} is not an event parameter.",
+                                    id_tok.lexeme
+                                ));
+                                return Err(ParseError::new(""));
+                            }
+                        }
+                    }
+                    None => {
+                        self.error_at_current(&format!(
+                            "Unknown event parameter - {}.",
+                            id_tok.lexeme
+                        ));
+                        return Err(ParseError::new(""));
+                    }
+                }
+
                 return Ok(Some(FrameEventPart::Param {
-                    param_tok: id_tok,
+                    param_symbol_rcref,
                     is_reference,
                 }));
             } else {
@@ -3283,25 +3616,33 @@ impl<'a> Parser<'a> {
 
                                     match interface_method_symbol_opt {
                                         Some(interface_method_symbol) => {
-                                            let mut interface_method_call_expr_node =
-                                                InterfaceMethodCallExprNode::new(
-                                                    method_call_expr_node,
+                                            // if it is the first node in the call chain and matches
+                                            // an interface identifier then add an InterfaceMethodCallT
+                                            // TODO - need to check parameters to confirm it matches
+                                            // the interface signature.
+                                            if is_first_node {
+                                                let mut interface_method_call_expr_node =
+                                                    InterfaceMethodCallExprNode::new(
+                                                        method_call_expr_node,
+                                                    );
+                                                interface_method_call_expr_node
+                                                    .set_interface_symbol(&Rc::clone(
+                                                        &interface_method_symbol,
+                                                    ));
+                                                call_chain.push_back(
+                                                    CallChainLiteralNodeType::InterfaceMethodCallT {
+                                                        interface_method_call_expr_node,
+                                                    },
                                                 );
-                                            interface_method_call_expr_node.set_interface_symbol(
-                                                &Rc::clone(&interface_method_symbol),
-                                            );
-                                            call_chain.push_back(
-                                                CallChainLiteralNodeType::InterfaceMethodCallT {
-                                                    interface_method_call_expr_node,
-                                                },
-                                            );
+                                            } else {
+                                                // not an interface call so just add a CallT
+                                                let call_t = CallChainLiteralNodeType::CallT {
+                                                    call: method_call_expr_node,
+                                                };
+                                                call_chain.push_back(call_t);
+                                            }
                                         }
                                         None => {
-                                            // external call
-                                            // if method_call_expr_node.identifier.scope == IdentifierDeclScope::DomainBlock {
-                                            //     // change to interface block as it is a method call #.iface()
-                                            //     method_call_expr_node.identifier.scope = IdentifierDeclScope::InterfaceBlock;
-                                            // }
                                             let call_t = CallChainLiteralNodeType::CallT {
                                                 call: method_call_expr_node,
                                             };
@@ -3324,8 +3665,8 @@ impl<'a> Parser<'a> {
                 } else {
                     // variables (or parameters) must be
                     // the first (or only) node in the call chain
-                    let symbol_type_rcref_opt: Option<Rc<RefCell<SymbolType>>>;
-                    symbol_type_rcref_opt = self
+
+                    let symbol_type_rcref_opt: Option<Rc<RefCell<SymbolType>>> = self
                         .arcanum
                         .lookup(&id_node.name.lexeme, &explicit_scope)
                         .clone();
@@ -3368,10 +3709,9 @@ impl<'a> Parser<'a> {
         identifier_node: &IdentifierNode,
         explicit_scope: &IdentifierDeclScope,
     ) -> Result<IdentifierDeclScope, ParseError> {
-        let symbol_type_rcref_opt: Option<Rc<RefCell<SymbolType>>>;
         let mut scope: IdentifierDeclScope = IdentifierDeclScope::None;
         // find the variable in the arcanum
-        symbol_type_rcref_opt = self
+        let symbol_type_rcref_opt: Option<Rc<RefCell<SymbolType>>> = self
             .arcanum
             .lookup(&identifier_node.name.lexeme, explicit_scope);
         match &symbol_type_rcref_opt {

@@ -19,7 +19,7 @@
             log("A:<") ^
         |inc|
             x = x + 1 ^
-        |value|
+        |value|:i32
             ^(x)
         |to_a|
             -> $A ^
@@ -42,7 +42,7 @@
             log("B:<") ^
         |inc|
             y = y + 5 ^
-        |value|
+        |value|:i32
             ^(y)
         |to_a|
             -> $A ^
@@ -65,7 +65,7 @@
             log("C:<") ^
         |inc|
             z = z + 10 ^
-        |value|
+        |value|:i32
             ^(z)
         |to_a|
             -> $A ^

@@ -303,7 +303,7 @@ impl RustVisitor {
 
     fn format_parameter_list(&mut self, params: &[ParameterNode]) {
         for param in params {
-            self.add_code(&", ".to_string());
+            self.add_code(", ");
             let param_type: String = match &param.param_type_opt {
                 Some(ret_type) => ret_type.get_type_str(),
                 None => String::from("<?>"),
@@ -489,7 +489,7 @@ impl RustVisitor {
     }
 
     fn format_getter_name(&self, member_name: &str) -> String {
-        format!("get_{}", self.format_value_name(&member_name.to_string()))
+        format!("get_{}", self.format_value_name(member_name))
     }
 
     // Type/case names
@@ -510,7 +510,7 @@ impl RustVisitor {
         } else if event_name.eq(&self.config.code.exit_token) {
             self.format_exit_event_type_name(state_name)
         } else {
-            self.format_type_name(&event_name.to_string())
+            self.format_type_name(event_name)
         }
     }
 
@@ -531,7 +531,7 @@ impl RustVisitor {
     fn format_state_args_struct_name(&self, state_name: &str) -> String {
         format!(
             "{}{}",
-            self.format_type_name(&state_name.to_string()),
+            self.format_type_name(state_name),
             self.config.code.state_args_suffix
         )
     }
@@ -539,7 +539,7 @@ impl RustVisitor {
     fn format_state_context_struct_name(&self, state_name: &str) -> String {
         format!(
             "{}{}",
-            self.format_type_name(&state_name.to_string()),
+            self.format_type_name(state_name),
             self.config.code.state_context_suffix
         )
     }
@@ -547,7 +547,7 @@ impl RustVisitor {
     fn format_state_vars_struct_name(&self, state_name: &str) -> String {
         format!(
             "{}{}",
-            self.format_type_name(&state_name.to_string()),
+            self.format_type_name(state_name),
             self.config.code.state_vars_suffix
         )
     }
@@ -576,7 +576,7 @@ impl RustVisitor {
     fn format_args_method_name(&self, event_type_name: &str) -> String {
         format!(
             "{}{}",
-            self.format_value_name(&event_type_name.to_string()),
+            self.format_value_name(event_type_name),
             self.config.code.event_args_method_suffix
         )
     }
@@ -584,7 +584,7 @@ impl RustVisitor {
     fn format_state_context_method_name(&self, state_name: &str) -> String {
         format!(
             "{}{}",
-            self.format_value_name(&state_name.to_string()),
+            self.format_value_name(state_name),
             self.config.code.state_context_method_suffix
         )
     }
@@ -593,7 +593,7 @@ impl RustVisitor {
         format!(
             "{}{}{}",
             self.config.code.state_handler_name_prefix,
-            self.format_value_name(&state_name.to_string()),
+            self.format_value_name(state_name),
             self.config.code.state_handler_name_suffix
         )
     }
@@ -1491,7 +1491,7 @@ impl RustVisitor {
                         return_type.get_type_str()
                     ));
                     self.enter_block();
-                    self.add_code(&"match self".to_string());
+                    self.add_code("match self");
                     self.enter_block();
                     self.add_code(&format!(
                         "{}::{} {{ return_value }} => return_value.clone(),",
@@ -1499,7 +1499,7 @@ impl RustVisitor {
                         self.format_type_name(&interface_method_node.borrow().name)
                     ));
                     self.newline();
-                    self.add_code(&"_ => panic!(\"Invalid return value\"),".to_string());
+                    self.add_code("_ => panic!(\"Invalid return value\"),");
                     self.exit_block();
                     self.exit_block();
                 }
@@ -2919,7 +2919,7 @@ impl RustVisitor {
         arg_code: &mut String,
     ) -> bool {
         let mut has_args = false;
-        let arg_struct_name = self.format_state_args_struct_name(&target_state_name.to_string());
+        let arg_struct_name = self.format_state_args_struct_name(target_state_name);
         if let Some(state_sym) = self.arcanum.get_state(target_state_name) {
             match &state_sym.borrow().params_opt {
                 Some(event_params) => {
@@ -3045,7 +3045,7 @@ impl RustVisitor {
             "let next_state_context = {}::new({}::{}(context));",
             self.rc_type(),
             self.config.code.state_context_type_name,
-            self.format_type_name(&target_state_name.to_string())
+            self.format_type_name(target_state_name)
         ));
     }
 
@@ -3140,7 +3140,7 @@ impl RustVisitor {
         self.add_code(&format!(
             "{}::{}",
             self.state_enum_type_name(),
-            self.format_type_name(&target_state_name.to_string())
+            self.format_type_name(target_state_name)
         ));
         if self.generate_state_context {
             self.add_code(", next_state_context");
@@ -3279,7 +3279,7 @@ impl RustVisitor {
         self.add_code(&format!(
             "{}::{}",
             self.state_enum_type_name(),
-            self.format_type_name(&target_state_name.to_string())
+            self.format_type_name(target_state_name)
         ));
         if self.generate_state_context {
             self.add_code(", next_state_context");
@@ -4375,7 +4375,7 @@ impl AstVisitor for RustVisitor {
         terminator_node.accept(self);
         self.outdent();
         self.newline();
-        self.add_code(&"}".to_string());
+        self.add_code("}");
 
         // this controls formatting here
         self.current_message = String::new();
@@ -4437,7 +4437,7 @@ impl AstVisitor for RustVisitor {
     fn visit_call_statement_node(&mut self, method_call_statement: &CallStmtNode) {
         self.newline();
         method_call_statement.call_expr_node.accept(self);
-        self.add_code(&";".to_string());
+        self.add_code(";");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -4446,7 +4446,7 @@ impl AstVisitor for RustVisitor {
         if let Some(call_chain) = &method_call.call_chain {
             for callable in call_chain {
                 callable.callable_accept(self);
-                self.add_code(&".".to_string());
+                self.add_code(".");
             }
         }
 
@@ -4467,7 +4467,7 @@ impl AstVisitor for RustVisitor {
         if let Some(call_chain) = &method_call.call_chain {
             for callable in call_chain {
                 callable.callable_accept(self);
-                output.push_str(&".".to_string());
+                output.push('.');
             }
         }
 
@@ -4482,15 +4482,15 @@ impl AstVisitor for RustVisitor {
 
     fn visit_call_expr_list_node(&mut self, call_expr_list: &CallExprListNode) {
         let mut separator = "";
-        self.add_code(&"(".to_string());
+        self.add_code("(");
 
         for expr in &call_expr_list.exprs_t {
-            self.add_code(&separator.to_string());
+            self.add_code(separator);
             expr.accept(self);
             separator = ",";
         }
 
-        self.add_code(&")".to_string());
+        self.add_code(")");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -4501,15 +4501,15 @@ impl AstVisitor for RustVisitor {
         output: &mut String,
     ) {
         let mut separator = "";
-        output.push_str(&"(".to_string());
+        output.push('(');
 
         for expr in &call_expr_list.exprs_t {
-            output.push_str(&separator.to_string());
+            output.push_str(separator);
             expr.accept_to_string(self, output);
             separator = ",";
         }
 
-        output.push_str(&")".to_string());
+        output.push(')');
     }
 
     //* --------------------------------------------------------------------- *//
@@ -4537,7 +4537,7 @@ impl AstVisitor for RustVisitor {
     fn visit_action_call_statement_node(&mut self, action_call_stmt_node: &ActionCallStmtNode) {
         self.newline();
         action_call_stmt_node.action_call_expr_node.accept(self);
-        self.add_code(&";".to_string());
+        self.add_code(";");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -4626,15 +4626,15 @@ impl AstVisitor for RustVisitor {
             if branch_node.is_negated {
                 self.add_code(&format!("{}!(", if_or_else_if));
             } else {
-                self.add_code(&if_or_else_if.to_string());
+                self.add_code(if_or_else_if);
             }
 
             branch_node.expr_t.accept(self);
 
             if branch_node.is_negated {
-                self.add_code(&")".to_string());
+                self.add_code(")");
             }
-            self.add_code(&" {".to_string());
+            self.add_code(" {");
             self.indent();
 
             branch_node.accept(self);
@@ -4643,7 +4643,7 @@ impl AstVisitor for RustVisitor {
 
             self.outdent();
             self.newline();
-            self.add_code(&"}".to_string());
+            self.add_code("}");
 
             if_or_else_if = " else if ";
         }
@@ -4696,7 +4696,7 @@ impl AstVisitor for RustVisitor {
         method_call_chain_literal_stmt_node
             .call_chain_literal_expr_node
             .accept(self);
-        self.add_code(&";".to_string());
+        self.add_code(";");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -4709,7 +4709,7 @@ impl AstVisitor for RustVisitor {
         let mut separator = "";
 
         for node in &method_call_chain_expression_node.call_chain {
-            self.add_code(&separator.to_string());
+            self.add_code(separator);
             match &node {
                 CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
                     id_node.accept(self);
@@ -4747,7 +4747,7 @@ impl AstVisitor for RustVisitor {
         let mut separator = "";
 
         for node in &method_call_chain_expression_node.call_chain {
-            output.push_str(&separator.to_string());
+            output.push_str(separator);
             match &node {
                 CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
                     id_node.accept_to_string(self, output);
@@ -4788,7 +4788,7 @@ impl AstVisitor for RustVisitor {
                     TerminatorType::Return => {
                         match &branch_terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
-                                self.add_code(&"e._return = ".to_string());
+                                self.add_code("e._return = ");
                                 expr_t.accept(self);
                                 self.add_code(";");
                             }
@@ -4813,7 +4813,7 @@ impl AstVisitor for RustVisitor {
         &mut self,
         bool_test_else_branch_node: &BoolTestElseBranchNode,
     ) {
-        self.add_code(&" else {".to_string());
+        self.add_code(" else {");
         self.indent();
 
         self.visit_decl_stmts(&bool_test_else_branch_node.statements);
@@ -4825,7 +4825,7 @@ impl AstVisitor for RustVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code(&"e._return = ".to_string());
+                            self.add_code("e._return = ");
                             expr_t.accept(self);
                             self.add_code(";");
                             self.generate_return();
@@ -4846,7 +4846,7 @@ impl AstVisitor for RustVisitor {
 
         self.outdent();
         self.newline();
-        self.add_code(&"}".to_string());
+        self.add_code("}");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -4897,7 +4897,7 @@ impl AstVisitor for RustVisitor {
                     self.add_code(&format!(".eq(\"{}\")", match_string));
                     first_match = false;
                 } else {
-                    self.add_code(&" || ".to_string());
+                    self.add_code(" || ");
                     match &string_match_test_node.expr_t {
                         ExprType::CallExprT {
                             call_expr_node: method_call_expr_node,
@@ -4914,7 +4914,7 @@ impl AstVisitor for RustVisitor {
                     self.add_code(&format!(".eq(\"{}\")", match_string));
                 }
             }
-            self.add_code(&" {".to_string());
+            self.add_code(" {");
             self.indent();
 
             match_branch_node.accept(self);
@@ -4923,7 +4923,7 @@ impl AstVisitor for RustVisitor {
 
             self.outdent();
             self.newline();
-            self.add_code(&"}".to_string());
+            self.add_code("}");
 
             if_or_else_if = " else if";
         }
@@ -4949,7 +4949,7 @@ impl AstVisitor for RustVisitor {
                     TerminatorType::Return => {
                         match &branch_terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
-                                self.add_code(&"e._return = ".to_string());
+                                self.add_code("e._return = ");
                                 expr_t.accept(self);
                                 self.add_code(";");
                             }
@@ -4974,7 +4974,7 @@ impl AstVisitor for RustVisitor {
         &mut self,
         string_match_test_else_branch_node: &StringMatchTestElseBranchNode,
     ) {
-        self.add_code(&" else {".to_string());
+        self.add_code(" else {");
         self.indent();
 
         self.visit_decl_stmts(&string_match_test_else_branch_node.statements);
@@ -4987,7 +4987,7 @@ impl AstVisitor for RustVisitor {
                     TerminatorType::Return => {
                         match &branch_terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
-                                self.add_code(&"e._return = ".to_string());
+                                self.add_code("e._return = ");
                                 expr_t.accept(self);
                                 self.add_code(";");
                             }
@@ -5007,7 +5007,7 @@ impl AstVisitor for RustVisitor {
 
         self.outdent();
         self.newline();
-        self.add_code(&"}".to_string());
+        self.add_code("}");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -5058,7 +5058,7 @@ impl AstVisitor for RustVisitor {
                     self.add_code(&format!(" == {}", match_number.match_pattern_number));
                     first_match = false;
                 } else {
-                    self.add_code(&" || ".to_string());
+                    self.add_code(" || ");
                     match &number_match_test_node.expr_t {
                         ExprType::CallExprT {
                             call_expr_node: method_call_expr_node,
@@ -5076,7 +5076,7 @@ impl AstVisitor for RustVisitor {
                 }
             }
 
-            self.add_code(&" {".to_string());
+            self.add_code(" {");
             self.indent();
 
             match_branch_node.accept(self);
@@ -5085,7 +5085,7 @@ impl AstVisitor for RustVisitor {
 
             self.outdent();
             self.newline();
-            self.add_code(&"}".to_string());
+            self.add_code("}");
 
             if_or_else_if = " else if";
         }
@@ -5112,7 +5112,7 @@ impl AstVisitor for RustVisitor {
                     TerminatorType::Return => {
                         match &branch_terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
-                                self.add_code(&"e._return = ".to_string());
+                                self.add_code("e._return = ");
                                 expr_t.accept(self);
                                 self.add_code(";");
                             }
@@ -5137,7 +5137,7 @@ impl AstVisitor for RustVisitor {
         &mut self,
         number_match_test_else_branch_node: &NumberMatchTestElseBranchNode,
     ) {
-        self.add_code(&" else {".to_string());
+        self.add_code(" else {");
         self.indent();
 
         self.visit_decl_stmts(&number_match_test_else_branch_node.statements);
@@ -5150,7 +5150,7 @@ impl AstVisitor for RustVisitor {
                     TerminatorType::Return => {
                         match &branch_terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
-                                self.add_code(&"e._return = ".to_string());
+                                self.add_code("e._return = ");
                                 expr_t.accept(self);
                                 self.add_code(";");
                             }
@@ -5170,7 +5170,7 @@ impl AstVisitor for RustVisitor {
 
         self.outdent();
         self.newline();
-        self.add_code(&"}".to_string());
+        self.add_code("}");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -5186,13 +5186,13 @@ impl AstVisitor for RustVisitor {
 
     fn visit_expression_list_node(&mut self, expr_list: &ExprListNode) {
         let mut separator = "";
-        self.add_code(&"(".to_string());
+        self.add_code("(");
         for expr in &expr_list.exprs_t {
-            self.add_code(&separator.to_string());
+            self.add_code(separator);
             expr.accept(self);
             separator = ",";
         }
-        self.add_code(&")".to_string());
+        self.add_code(")");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -5205,13 +5205,13 @@ impl AstVisitor for RustVisitor {
         //        self.add_code(&format!("{}(e);\n",dispatch_node.target_state_ref.name));
 
         let mut separator = "";
-        output.push_str(&"(".to_string());
+        output.push('(');
         for expr in &expr_list.exprs_t {
-            output.push_str(&separator.to_string());
+            output.push_str(separator);
             expr.accept_to_string(self, output);
             separator = ",";
         }
-        output.push_str(&")".to_string());
+        output.push(')');
     }
 
     //* --------------------------------------------------------------------- *//
@@ -5384,7 +5384,7 @@ impl AstVisitor for RustVisitor {
             // FrameEventPart::Param {param_tok} => self.add_code(&format!("{}._parameters[\"{}\"]"
             //                                                             ,self.config.code.frame_event_variable_name
             FrameEventPart::Param {
-                param_tok,
+                param_symbol_rcref,
                 is_reference,
             } => {
                 let event_name = self.format_event_type_name(&self.current_message);
@@ -5394,7 +5394,7 @@ impl AstVisitor for RustVisitor {
                     self.config.code.frame_event_variable_name,
                     self.config.code.frame_event_args_attribute_name,
                     self.format_args_method_name(&event_name),
-                    self.format_value_name(&param_tok.lexeme)
+                    self.format_value_name(&param_symbol_rcref.borrow().name)
                 ));
             }
             FrameEventPart::Return { is_reference } => {
@@ -5435,7 +5435,7 @@ impl AstVisitor for RustVisitor {
                 self.config.code.frame_event_message_attribute_name
             )),
             FrameEventPart::Param {
-                param_tok,
+                param_symbol_rcref,
                 is_reference,
             } => {
                 let event_name = self.format_event_type_name(&self.current_message);
@@ -5445,7 +5445,7 @@ impl AstVisitor for RustVisitor {
                     self.config.code.frame_event_variable_name,
                     self.config.code.frame_event_args_attribute_name,
                     self.format_args_method_name(&event_name),
-                    self.format_value_name(&param_tok.lexeme)
+                    self.format_value_name(&param_symbol_rcref.borrow().name)
                 ));
             }
             FrameEventPart::Return { is_reference } => output.push_str(&format!(

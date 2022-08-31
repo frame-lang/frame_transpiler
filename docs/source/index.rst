@@ -1,6 +1,6 @@
-Frame v0.9.0 Documentation
+Frame v0.10.0 Documentation
 =======================================================
-Welcome! Here you will find the official v0.9.0 documentation for the **Frame System Design Language**.
+Welcome! Here you will find the official v0.10.0 documentation for the **Frame System Design Language**.
 
 What is Frame?
 --------------

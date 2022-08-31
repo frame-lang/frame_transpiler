@@ -7,7 +7,7 @@ use super::symbol_table::{ActionDeclSymbol, EventSymbol, SymbolType};
 use crate::frame_c::ast::OperatorType::{
     Divide, Greater, GreaterEqual, LessEqual, Minus, Multiply, Plus,
 };
-use crate::frame_c::symbol_table::InterfaceMethodSymbol;
+use crate::frame_c::symbol_table::{InterfaceMethodSymbol, ParameterSymbol};
 use crate::frame_c::visitors::*;
 use downcast_rs::__std::cell::RefCell;
 use downcast_rs::*;
@@ -256,7 +256,7 @@ impl NodeElement for InterfaceMethodNode {
 
 //-----------------------------------------------------//
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct ParameterNode {
     pub param_name: String,
     pub param_type_opt: Option<TypeNode>,
@@ -284,6 +284,15 @@ impl NodeElement for ParameterNode {
     }
 }
 
+// impl PartialEq for ParameterNode {
+//     fn eq(&self, other: &Self) -> bool {
+//         if self.param_name.ne(&other.param_name) {
+//             return false;
+//         }
+//
+//         return true;
+//     }
+// }
 //-----------------------------------------------------//
 
 pub struct ActionNode {
@@ -709,6 +718,7 @@ pub enum StateCallType {
 
 //-----------------------------------------------------//
 
+#[derive(Clone, PartialEq)]
 pub enum FrameEventPart {
     Event {
         is_reference: bool,
@@ -717,7 +727,8 @@ pub enum FrameEventPart {
         is_reference: bool,
     },
     Param {
-        param_tok: Token,
+        //        param_tok: Token,
+        param_symbol_rcref: Rc<RefCell<ParameterSymbol>>,
         is_reference: bool,
     },
     Return {
@@ -1261,11 +1272,15 @@ impl NodeElement for ActionCallExprNode {
 
 pub struct CallChainLiteralExprNode {
     pub call_chain: VecDeque<CallChainLiteralNodeType>,
+    pub is_new_expr: bool,
 }
 
 impl CallChainLiteralExprNode {
     pub fn new(call_chain: VecDeque<CallChainLiteralNodeType>) -> CallChainLiteralExprNode {
-        CallChainLiteralExprNode { call_chain }
+        CallChainLiteralExprNode {
+            call_chain,
+            is_new_expr: false,
+        }
     }
 }
 
@@ -1477,7 +1492,7 @@ impl NodeElement for ExprListNode {
 //-----------------------------------------------------//
 
 // TODO!!: why aren't there MachineBlock, InterfaceBlock etc?
-// there is a misalighment of ParseScope vs IdentiferDeclScope?
+// there is a misalignment of ParseScope vs IdentiferDeclScope?
 // for instance States have a IdentiferDeclScope of None. Should be machine
 #[derive(Clone, PartialEq)]
 pub enum IdentifierDeclScope {
@@ -1572,19 +1587,30 @@ impl NodeElement for LiteralExprNode {
 
 // &String | &str | Widget<int> | `& mut String` | &`mut String` | *x
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct TypeNode {
     #[allow(dead_code)]
     is_superstring: bool,
-    is_reference: bool,
-    type_str: String,
+    pub(crate) is_reference: bool,
+    pub(crate) frame_event_part_opt: Option<FrameEventPart>,
+    pub(crate) type_str: String,
 }
 
+// pub trait FrameEventPartFormatter {
+//     fn formatFrameEventPart(frame_event_part:FrameEventPart) -> String;
+// }
+
 impl TypeNode {
-    pub fn new(is_superstring: bool, is_reference: bool, type_str: String) -> TypeNode {
+    pub fn new(
+        is_superstring: bool,
+        is_reference: bool,
+        frame_event_part_opt: Option<FrameEventPart>,
+        type_str: String,
+    ) -> TypeNode {
         TypeNode {
             is_superstring,
             is_reference,
+            frame_event_part_opt,
             type_str,
         }
     }

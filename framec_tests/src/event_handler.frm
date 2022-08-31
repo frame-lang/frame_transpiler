@@ -16,7 +16,7 @@
             log("b" b)
             log("a+b" a+b) ^
 
-        |LogReturn| [a:i32 b:i32]
+        |LogReturn| [a:i32 b:i32] : i32
             log("a" a)
             log("b" b)
             var r = a + b
@@ -26,7 +26,7 @@
         |PassAdd| [a:i32 b:i32]
             -> $S2(a+b) ^
 
-        |PassReturn| [a:i32 b:i32]
+        |PassReturn| [a:i32 b:i32]: i32
             var r = a + b
             log("r" r)
             -> $S2(r) ^(r)
