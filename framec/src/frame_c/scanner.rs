@@ -762,6 +762,7 @@ pub enum TokenLiteral {
 }
 
 impl Display for TokenLiteral {
+    #[allow(clippy::all)]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self)
     }
