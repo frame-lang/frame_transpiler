@@ -919,6 +919,67 @@ impl Java8Visitor {
             self.add_code("_transition_(state);");
         }
     }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn generate_compartment(&mut self, system_name: &str) {
+        self.newline();
+        self.add_code("//=============== Compartment ==============//");
+        self.newline();
+        self.newline();
+        self.add_code(&format!("class {}Compartment {{", system_name));
+        self.newline();
+        self.indent();
+        self.newline();
+        self.add_code("int state;");
+        self.newline();
+        self.newline();
+        self.add_code(&format!("{}Compartment(int state) {{", system_name));
+        // self.newline();
+        self.indent();
+        self.newline();
+        self.add_code("this.state = state;");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.newline();
+        self.newline();
+        self.add_code("HashMap<String, Object> stateArgs = new HashMap<String, Object>();");
+        self.newline();
+        self.add_code("HashMap<String, Object> stateVars = new HashMap<String, Object>();");
+        self.newline();
+        self.add_code("HashMap<String, Object> enterArgs = new HashMap<String, Object>();");
+        self.newline();
+        self.add_code("HashMap<String, Object> exitArgs = new HashMap<String, Object>();");
+        self.newline();
+        self.add_code("FrameEvent _forwardEvent = new FrameEvent();");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.newline();
+        self.newline();
+    }
+
+    /* 
+class FizzBuzzCompartment {
+
+	int state;
+
+	FizzBuzzCompartment(int state) {
+		this.state = state;
+	}
+
+	HashMap<String, Object> stateArgs = new HashMap<String, Object>();
+	HashMap<String, Object> stateVars = new HashMap<String, Object>();
+	HashMap<String, Object> enterArgs = new HashMap<String, Object>();
+	HashMap<String, Object> exitArgs = new HashMap<String, Object>();
+
+	FrameEvent _forwardEvent = new FrameEvent();
+} */
+
+    //* --------------------------------------------------------------------- *//
+
+
 }
 
 //* --------------------------------------------------------------------- *//
@@ -1050,6 +1111,9 @@ impl AstVisitor for Java8Visitor {
         self.newline();
         self.add_code("}");
         self.newline();
+
+        self.generate_compartment(&system_node.name);
+
 
         self.generate_subclass();
     }
