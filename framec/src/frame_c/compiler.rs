@@ -304,11 +304,10 @@ impl Exe {
                 TargetLanguage::Java8 => {
                     let mut visitor = Java8Visitor::new(
                         semantic_parser.get_arcanum(),
-                        generate_exit_args,
+                        // generate_exit_args,
                         generate_enter_args || generate_state_context,
                         generate_state_stack,
                         generate_change_state,
-                        generate_transition_state,
                         FRAMEC_VERSION,
                         comments,
                     );
