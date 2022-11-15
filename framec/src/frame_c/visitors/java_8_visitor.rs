@@ -36,6 +36,11 @@ pub struct Java8Visitor {
     generate_state_stack: bool,
     generate_change_state: bool,
     // generate_transition_state: bool,
+
+    /* Persistence */
+    managed: bool, //Generate Managed code
+    marshal: bool, //Generate JSON code
+    manager: String,
 }
 
 impl Java8Visitor {
@@ -75,6 +80,11 @@ impl Java8Visitor {
             generate_state_stack,
             generate_change_state,
             // generate_transition_state,
+
+            /* Persistence */
+            managed: false, // Generate Managed code
+            marshal: false, // Generate Json code
+            manager: String::new(),
         }
     }
 
@@ -168,6 +178,9 @@ impl Java8Visitor {
         let mut code = String::new();
 
         match variable_node.scope {
+            IdentifierDeclScope::System => {
+                code.push_str("this");
+            }
             IdentifierDeclScope::DomainBlock => {
                 code.push_str(&format!("this.{}", variable_node.id_node.name.lexeme));
             }
@@ -361,6 +374,64 @@ impl Java8Visitor {
     //* --------------------------------------------------------------------- *//
 
     pub fn run(&mut self, system_node: &SystemNode) {
+        match &system_node.attributes_opt {
+            Some(attributes) => {
+                for value in (*attributes).values() {
+                    match value {
+                        AttributeNode::MetaNameValueStr { attr } => {
+                            match attr.name.as_str() {
+                                // TODO: constants
+                                // "stateType" => self.config.code.state_type = attr.value.clone(),
+                                "managed" => {
+                                    self.manager = attr.value.clone();
+                                    self.managed = true;
+                                }
+                                _ => {}
+                            }
+                        }
+                        AttributeNode::MetaListIdents { attr } => {
+                            match attr.name.as_str() {
+                                "derive" => {
+                                    for ident in &attr.idents {
+                                        match ident.as_str() {
+                                            // TODO: constants and figure out mom vs managed
+                                            //  "Managed" => self.managed = true,
+                                            "Marshal" => self.marshal = true,
+                                            _ => {}
+                                        }
+                                    }
+                                }
+                                "managed" => {
+                                    self.managed = true;
+                                    if attr.idents.len() != 1 {
+                                        self.errors.push(
+                                            "Attribute 'managed' takes 1 parameter".to_string(),
+                                        );
+                                    }
+                                    match attr.idents.get(0) {
+                                        Some(manager_type) => {
+                                            self.manager = manager_type.clone();
+                                        }
+                                        None => {
+                                            self.errors.push(
+                                                "Attribute 'managed' missing manager type."
+                                                    .to_string(),
+                                            );
+                                        }
+                                    }
+                                }
+                                _ => {
+                                    self.errors.push("Unknown attribute".to_string());
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // self.config.code.marshal_system_state_var = format!("{}State", &system_node.name);
+            }
+            None => {}
+        }
         system_node.accept(self);
     }
 
@@ -1249,10 +1320,10 @@ impl Java8Visitor {
             // self.add_code("self.__state = None");
         }
 
-        // if self.managed {
-        //     self.newline();
-        //     self.add_code("self._manager = manager");
-        // }
+        if self.managed {
+            self.newline();
+            self.add_code("this._manager = manager;");
+        }
 
         self.newline();
         self.add_code(&format!(
@@ -1347,6 +1418,61 @@ impl Java8Visitor {
     }
 
     //* --------------------------------------------------------------------- *//
+    fn format_load_fn(&mut self, system_node: &SystemNode) {
+        self.newline();
+        self.newline();
+        let mut manager_param = "";
+        if self.managed {
+            manager_param = "manager";
+        }
+        self.add_code(&format!(
+            "public static {} load{}({}Controller {}, {}Controller data){{",
+            system_node.name, system_node.name, self.manager, manager_param, system_node.name,
+        ));
+
+        self.indent();
+        self.newline();
+        self.newline();
+        if self.managed {
+            self.add_code("data._manager = manager;");
+        }
+        // self.newline();
+        // self.newline();
+        // self.add_code("// Initialize machine");
+        // self.newline();
+        // // self.add_code("data.#compartment = .#compartment");
+        // self.newline();
+        // // for x in domain_vec {
+        // //     self.newline();
+        // //     self.add_code(&format!("this.{} = parseObj.{}", x.0, x.0))
+        // // }
+        // self.newline();
+        self.newline();
+        self.add_code("return data;");
+        self.newline();
+
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+    }
+    //* --------------------------------------------------------------------- *//
+    fn generate_json_fn(&mut self, system_node: &SystemNode) {
+        self.newline();
+        self.newline();
+        self.add_code(&format!("public {} marshal(){{", system_node.name));
+        self.indent();
+        self.newline();
+        self.newline();
+        self.add_code(&format!("{} data = this;", system_node.name));
+        self.newline();
+        self.add_code("return data;");
+        self.newline();
+
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.newline();
+    }
 }
 
 //* --------------------------------------------------------------------- *//
@@ -1382,6 +1508,13 @@ impl AstVisitor for Java8Visitor {
             system_node.name
         ));
         self.newline();
+        self.newline();
+        if self.managed {
+            self.add_code(&format!("protected {} _manager;", self.manager));
+        } else {
+            self.add_code(&format!("protected {} _manager;", self.system_name));
+        }
+        self.newline();
         // First state name needed for machinery.
         // Don't generate if there isn't at least one state.
         match system_node.get_first_state() {
@@ -1398,15 +1531,15 @@ impl AstVisitor for Java8Visitor {
         // format system params,if any.
         let new_params: String = String::from(&self.format_new_params(system_node).0);
 
-        // if self.managed {
-        //     if new_params.is_empty() {
-        //         self.add_code("manager) {");
-        //     } else {
-        //         self.add_code(&format!("manager,{}) {{", new_params));
-        //     }
-        // } else {
-        self.add_code(&format!("{}) {{", new_params));
-        // }
+        if self.managed {
+            if new_params.is_empty() {
+                self.add_code(&format!("{} manager) {{", self.manager));
+            } else {
+                self.add_code(&format!("manager,{}) {{", new_params));
+            }
+        } else {
+            self.add_code(&format!("{}) {{", new_params));
+        }
 
         // First state name needed for machinery.
         // Don't generate if there isn't at least one state.
@@ -1521,6 +1654,12 @@ impl AstVisitor for Java8Visitor {
             self.newline();
         }
 
+        if self.marshal {
+            //generate Load() factory
+            self.format_load_fn(system_node);
+            self.generate_json_fn(system_node);
+        }
+
         // generate _mux_
 
         self.newline();
@@ -1615,39 +1754,80 @@ impl AstVisitor for Java8Visitor {
         self.deserialize.push("".to_string());
 
         // @TODO: _do needs to be configurable.
+        //     self.deserialize
+        //         .push("void _deserialize__do(Bag data) {".to_string());
+
+        //     self.subclass_code.push("".to_string());
+        //     self.subclass_code
+        //         .push("/********************\n".to_string());
+        //     self.subclass_code.push(format!(
+        //         "class {}Controller extends {} {{",
+        //         system_node.name, system_node.name
+        //     ));
+
+        //     // generate constructor for controller
+        //     // ref params is passing reference of constructor params
+        //     let (new_params, ref_params): (String, String) = self.format_new_params(system_node);
+        //     if self.managed {
+        //     if new_params.is_empty() {
+        //         self.subclass_code
+        //             .push(format!("\t{}Controller({}Mom manager) {{", self.system_name, self.system_name).to_string());
+        //         self.subclass_code.push("\t  super(manager);".to_string());
+        //     } else {
+        //         self.subclass_code.push(format!(
+        //             "\t{}Controller({}) {{",
+        //             self.system_name, new_params
+        //         ));
+        //         self.subclass_code
+        //             .push(format!("\t  super({});", ref_params));
+        //     }
+        // }
+        //     self.subclass_code.push("\t}".to_string());
+        //     if let Some(interface_block_node) = &system_node.interface_block_node_opt {
+        //         interface_block_node.accept(self);
+        //     }
+        // @TODO: _do needs to be configurable.
         self.deserialize
-            .push("void _deserialize__do(Bag data) {".to_string());
+            .push("that._deserialize__do = function(data) {".to_string());
 
         self.subclass_code.push("".to_string());
         self.subclass_code
             .push("/********************\n".to_string());
         self.subclass_code.push(format!(
-            "class {}Controller extends {} {{",
+            "class {}Controller extends {} {{\n",
             system_node.name, system_node.name
         ));
 
-        // generate constructor for controller
-        // ref params is passing reference of constructor params
-        let (new_params, ref_params): (String, String) = self.format_new_params(system_node);
-
-        if new_params.is_empty() {
-            self.subclass_code
-                .push(format!("\t{}Controller() {{", self.system_name).to_string());
-            self.subclass_code.push("\t  super();".to_string());
+        if self.managed {
+            if new_params.is_empty() {
+                self.subclass_code.push(format!(
+                    "\t{}Controller({} manager) {{",
+                    system_node.name, self.manager
+                ));
+                self.subclass_code.push("\t  super(manager);".to_string());
+            } else {
+                self.subclass_code.push(format!(
+                    "\t{}Controller({} manager,{}) {{",
+                    system_node.name, self.manager, new_params
+                ));
+                self.subclass_code.push(format!(
+                    "\t  super({} manager{});",
+                    self.manager, new_params
+                ));
+            }
         } else {
             self.subclass_code.push(format!(
                 "\t{}Controller({}) {{",
-                self.system_name, new_params
+                system_node.name, new_params
             ));
             self.subclass_code
-                .push(format!("\t  super({});", ref_params));
+                .push(format!("\t  super({});", new_params));
         }
 
         self.subclass_code.push("\t}".to_string());
         if let Some(interface_block_node) = &system_node.interface_block_node_opt {
             interface_block_node.accept(self);
         }
-
         if let Some(machine_block_node) = &system_node.machine_block_node_opt {
             machine_block_node.accept(self);
         }
@@ -2304,6 +2484,10 @@ impl AstVisitor for Java8Visitor {
                     id_node.accept(self);
                 }
                 CallChainLiteralNodeType::CallT { call } => {
+                    match &method_call_chain_expression_node.is_new_expr {
+                        true => self.add_code("new "),
+                        false => {}
+                    }
                     call.accept(self);
                 }
                 CallChainLiteralNodeType::InterfaceMethodCallT {
@@ -2823,6 +3007,9 @@ impl AstVisitor for Java8Visitor {
             TokenType::Null => {
                 output.push_str("null");
             }
+            TokenType::SuperString => {
+                output.push_str(&literal_expression_node.value.to_string());
+            }
             _ => self
                 .errors
                 .push("TODO: visit_literal_expression_node_to_string".to_string()),
@@ -3001,12 +3188,24 @@ impl AstVisitor for Java8Visitor {
         let mut code = String::new();
         var_init_expr.accept_to_string(self, &mut code);
         match &variable_decl_node.identifier_decl_scope {
+            // IdentifierDeclScope::DomainBlock => {
+            //     self.add_code(&format!("this.{} ", var_name));
+            //     if !var_type.is_empty() {
+            //         self.add_code(&format!(": {}", var_type));
+            //     }
+            //     self.add_code(&format!(" = {}", code));
+            // }
             IdentifierDeclScope::DomainBlock => {
-                self.add_code(&format!("this.{} ", var_name));
                 if !var_type.is_empty() {
-                    self.add_code(&format!(": {}", var_type));
+                    self.add_code(&format!("private {}", var_type));
                 }
-                self.add_code(&format!(" = {}", code));
+                self.add_code(&format!(" {} ", var_name));
+
+                if !code.is_empty() {
+                    self.add_code(&format!(" = {};", code));
+                } else {
+                    self.add_code(&format!(";"));
+                }
             }
             IdentifierDeclScope::EventHandlerVar => {
                 self.add_code(&format!("{} ", var_name));
