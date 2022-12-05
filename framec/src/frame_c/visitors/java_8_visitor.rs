@@ -8,14 +8,22 @@
 use crate::frame_c::ast::*;
 use crate::frame_c::scanner::{Token, TokenType};
 use crate::frame_c::symbol_table::*;
+use crate::frame_c::visitors::java_8_visitor::ExprContext::Rvalue;
 use crate::frame_c::visitors::*;
 // use yaml_rust::{YamlLoader, Yaml};
 
+#[derive(PartialEq)]
+enum ExprContext {
+    None,
+    Lvalue,
+    Rvalue,
+}
 pub struct Java8Visitor {
     compiler_version: String,
     code: String,
     dent: usize,
     current_state_name_opt: Option<String>,
+    current_event_msg: String,
     current_event_ret_type: String,
     arcanium: Arcanum,
     symbol_config: SymbolConfig,
@@ -35,6 +43,9 @@ pub struct Java8Visitor {
     generate_state_context: bool,
     generate_state_stack: bool,
     generate_change_state: bool,
+
+    current_var_type: String,
+    expr_context: ExprContext,
     // generate_transition_state: bool,
 
     /* Persistence */
@@ -60,6 +71,7 @@ impl Java8Visitor {
             code: String::from(""),
             dent: 0,
             current_state_name_opt: None,
+            current_event_msg: String::new(),
             current_event_ret_type: String::new(),
             arcanium,
             symbol_config: SymbolConfig::new(),
@@ -80,6 +92,8 @@ impl Java8Visitor {
             generate_state_stack,
             generate_change_state,
             // generate_transition_state,
+            current_var_type: String::new(),
+            expr_context: ExprContext::None,
 
             /* Persistence */
             managed: false, // Generate Managed code
@@ -174,7 +188,7 @@ impl Java8Visitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn format_variable_expr(&mut self, variable_node: &VariableNode) -> String {
+    pub fn format_variable_expr(&mut self, variable_node: &VariableNode) -> String {
         let mut code = String::new();
 
         match variable_node.scope {
@@ -194,10 +208,21 @@ impl Java8Visitor {
                 if self.visiting_call_chain_literal_variable {
                     code.push('(');
                 }
-                code.push_str(&format!(
-                    "({}) this._compartment_.stateArgs.get(\"{}\")",
-                    var_type, variable_node.id_node.name.lexeme
-                ));
+                if self.expr_context == ExprContext::Rvalue
+                    || self.expr_context == ExprContext::None
+                {
+                    code.push_str(&format!("({}) this._compartment_.stateArgs", var_type));
+                } else {
+                    code.push_str(&format!("this._compartment_.stateArgs"));
+                }
+                // if is being used as an rval, cast it.
+                if self.expr_context == ExprContext::Rvalue
+                    || self.expr_context == ExprContext::None
+                {
+                    code.push_str(&format!(".get(\"{}\")", variable_node.id_node.name.lexeme));
+                } else {
+                    code.push_str(&format!(".put(\"{}\",", variable_node.id_node.name.lexeme));
+                }
                 if self.visiting_call_chain_literal_variable {
                     code.push(')');
                 }
@@ -212,10 +237,16 @@ impl Java8Visitor {
                 if self.visiting_call_chain_literal_variable {
                     code.push('(');
                 }
-                code.push_str(&format!(
-                    "({}) this._compartment_.stateVars.get(\"{}\")",
-                    var_type, variable_node.id_node.name.lexeme
-                ));
+                code.push_str(&format!("({}) this._compartment_.stateVars", var_type));
+                // if is being used as an rval, cast it.
+                if self.expr_context == ExprContext::Rvalue
+                    || self.expr_context == ExprContext::None
+                {
+                    code.push_str(&format!(
+                        ".get(\"{}\"));",
+                        variable_node.id_node.name.lexeme
+                    ));
+                }
                 if self.visiting_call_chain_literal_variable {
                     code.push(')');
                 }
@@ -230,10 +261,13 @@ impl Java8Visitor {
                 if self.visiting_call_chain_literal_variable {
                     code.push_str("String.valueOf((");
                 }
-                code.push_str(&format!(
-                    "({}) e._parameters.get(\"{}\")",
-                    var_type, variable_node.id_node.name.lexeme
-                ));
+                code.push_str(&format!("({}) e._parameters", var_type));
+                // if is being used as an rval, cast it.
+                if self.expr_context == ExprContext::Rvalue
+                    || self.expr_context == ExprContext::None
+                {
+                    code.push_str(&format!(".get(\"{}\")", variable_node.id_node.name.lexeme));
+                }
                 if self.visiting_call_chain_literal_variable {
                     code.push_str("))");
                 }
@@ -800,7 +834,7 @@ impl Java8Visitor {
                                     let mut expr = String::new();
                                     expr_t.accept_to_string(self, &mut expr);
                                     self.add_code(&format!(
-                                        "compartment.stateArgs.put(\"{}\", {});",
+                                        "compartment.stateArgs.get(\"{}\", {});",
                                         param_symbol.name, expr
                                     ));
                                     self.newline();
@@ -1511,9 +1545,9 @@ impl AstVisitor for Java8Visitor {
         self.newline();
         if self.managed {
             self.add_code(&format!("protected {} _manager;", self.manager));
-        } else {
-            self.add_code(&format!("protected {} _manager;", self.system_name));
-        }
+        } // else {
+          //     self.add_code(&format!("protected {} _manager;", self.system_name));
+          // }
         self.newline();
         // First state name needed for machinery.
         // Don't generate if there isn't at least one state.
@@ -3102,13 +3136,61 @@ impl AstVisitor for Java8Visitor {
             FrameEventPart::Param {
                 param_symbol_rcref,
                 is_reference: _is_reference,
-            } => self.add_code(&format!(
-                "e._parameters.get(\"{}\")",
-                param_symbol_rcref.borrow().name
-            )),
+            } => {
+                self.add_code(&format!(
+                    "e._parameters.get(\"{}\")",
+                    param_symbol_rcref.borrow().name
+                ));
+                if self.expr_context == ExprContext::Rvalue
+                    || self.expr_context == ExprContext::None
+                {
+                    let event_symbol_opt_rcref = self
+                        .arcanium
+                        .get_event(&self.current_event_msg, &Option::None);
+                    let x = &event_symbol_opt_rcref.unwrap();
+                    let event_symbol = x.borrow();
+                    let param_type: String = match &event_symbol.params_opt {
+                        Some(param_symbols) => {
+                            let mut param_type: String = String::new();
+                            for param_symbol in param_symbols {
+                                if param_symbol.name == param_symbol_rcref.borrow().name {
+                                    match &param_symbol.param_type_opt {
+                                        Some(type_node) => {
+                                            param_type = self.format_type(type_node);
+                                        }
+                                        None => {
+                                            self.errors.push(format!(
+                                                "Error: {}[{}] type is not declared.",
+                                                event_symbol.msg, param_symbol.name
+                                            ));
+                                            return;
+                                        }
+                                    };
+                                    break;
+                                }
+                            }
+                            param_type
+                        }
+                        None => {
+                            self.errors.push(format!(
+                                "Error: {}[{}] type is not declared.",
+                                event_symbol.msg,
+                                param_symbol_rcref.borrow().name
+                            ));
+                            "".to_string()
+                        }
+                    };
+                    self.add_code(&format!(".({})", param_type));
+                }
+            }
             FrameEventPart::Return {
                 is_reference: _is_reference,
-            } => self.add_code("e._return"),
+            } => {
+                self.add_code("e._return");
+                if self.expr_context == Rvalue || self.expr_context == ExprContext::None {
+                    self.add_code(&format!(".({})", &self.current_event_ret_type));
+                }
+            }
         }
     }
 
@@ -3131,13 +3213,27 @@ impl AstVisitor for Java8Visitor {
             FrameEventPart::Param {
                 param_symbol_rcref,
                 is_reference: _is_reference,
-            } => output.push_str(&format!(
-                "e._parameters.get(\"{}\")",
-                param_symbol_rcref.borrow().name
-            )),
+            } => {
+                output.push_str(&format!(
+                    "e._parameters.get(\"{}\")",
+                    param_symbol_rcref.borrow().name
+                ));
+                if self.expr_context == Rvalue || self.expr_context == ExprContext::None {
+                    let var_type = match &param_symbol_rcref.borrow().param_type_opt {
+                        Some(type_node) => self.format_type(type_node),
+                        None => String::from("<?>"),
+                    };
+                    output.push_str(&format!(".({})", var_type));
+                }
+            }
             FrameEventPart::Return {
                 is_reference: _is_reference,
-            } => output.push_str("e._return"),
+            } => {
+                output.push_str("e._return");
+                if self.expr_context == Rvalue || self.expr_context == ExprContext::None {
+                    output.push_str(&format!(".({})", &self.current_event_ret_type));
+                }
+            }
         }
     }
 
@@ -3186,7 +3282,11 @@ impl AstVisitor for Java8Visitor {
         let var_init_expr = &variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
         self.newline();
         let mut code = String::new();
+        self.current_var_type = var_type.clone(); // used for casting
+        self.expr_context = ExprContext::Rvalue;
         var_init_expr.accept_to_string(self, &mut code);
+        self.expr_context = ExprContext::None;
+
         match &variable_decl_node.identifier_decl_scope {
             // IdentifierDeclScope::DomainBlock => {
             //     self.add_code(&format!("this.{} ", var_name));
@@ -3285,15 +3385,20 @@ impl AstVisitor for Java8Visitor {
 
     //* --------------------------------------------------------------------- *//
 
+    // fn visit_assignment_expr_node(&mut self, assignment_expr_node: &AssignmentExprNode) {
+    //     self.generate_comment(assignment_expr_node.line);
+    //     self.newline();
+    //     self.add_code("=");
+    //     assignment_expr_node.r_value_box.accept(self);
+    //     self.add_code(";");
+    // }
     fn visit_assignment_expr_node(&mut self, assignment_expr_node: &AssignmentExprNode) {
-        self.generate_comment(assignment_expr_node.line);
         self.newline();
-        assignment_expr_node.l_value_box.accept(self);
-        self.add_code(" = ");
-        assignment_expr_node.r_value_box.accept(self);
-        self.add_code(";");
+        let mut code = String::new();
+        assignment_expr_node.accept_to_string(self, &mut code);
+        self.add_code(&code);
     }
-
+    //* --------------------------------------------------------------------- */
     //* --------------------------------------------------------------------- *//
 
     fn visit_assignment_expr_node_to_string(
@@ -3302,16 +3407,16 @@ impl AstVisitor for Java8Visitor {
         output: &mut String,
     ) {
         self.generate_comment(assignment_expr_node.line);
-        self.newline();
-        self.newline_to_string(output);
+        self.expr_context = ExprContext::Lvalue;
         assignment_expr_node
             .l_value_box
             .accept_to_string(self, output);
-        output.push_str(" = ");
+        output.push_str("");
+        self.expr_context = ExprContext::Rvalue;
         assignment_expr_node
             .r_value_box
             .accept_to_string(self, output);
-        output.push(';');
+        self.expr_context = ExprContext::None;
     }
 
     //* --------------------------------------------------------------------- *//
