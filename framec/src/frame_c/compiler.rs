@@ -310,6 +310,7 @@ impl Exe {
                         generate_change_state,
                         FRAMEC_VERSION,
                         comments,
+                        config
                     );
                     visitor.run(&system_node);
                     output = visitor.get_code();

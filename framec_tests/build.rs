@@ -6,6 +6,7 @@ struct Path {
     golang: PathBuf,
     javascript: PathBuf,
     python: PathBuf,
+    java: PathBuf,
 }
 
 impl Path {
@@ -14,6 +15,7 @@ impl Path {
             golang: PathBuf::from("golang"),
             javascript: PathBuf::from("javascript"),
             python: PathBuf::from("python"),
+            java: PathBuf::from("java"),
         }
     }
 }
@@ -44,6 +46,12 @@ fn main() -> Result<()> {
         .set_targets(&[TargetLanguage::Python3])
         .input_dir(&path.python)
         .output_dir(&path.python)
+        .run()?;
+
+    FrameBuild::new()
+        .set_targets(&[TargetLanguage::Java8])
+        .input_dir(&path.java)
+        .output_dir(&path.java)
         .run()?;
 
     Ok(())

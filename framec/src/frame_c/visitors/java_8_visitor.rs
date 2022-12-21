@@ -5,6 +5,7 @@
 #![allow(clippy::ptr_arg)]
 #![allow(non_snake_case)]
 
+use crate::config::*;
 use crate::frame_c::ast::*;
 use crate::frame_c::scanner::{Token, TokenType};
 use crate::frame_c::symbol_table::*;
@@ -52,6 +53,8 @@ pub struct Java8Visitor {
     managed: bool, //Generate Managed code
     marshal: bool, //Generate JSON code
     manager: String,
+    //config
+    config: JavaConfig,
 }
 
 impl Java8Visitor {
@@ -65,7 +68,9 @@ impl Java8Visitor {
         // generate_transition_state: bool,
         compiler_version: &str,
         comments: Vec<Token>,
+        config: FrameConfig,
     ) -> Java8Visitor {
+        let java_config = config.codegen.java;
         Java8Visitor {
             compiler_version: compiler_version.to_string(),
             code: String::from(""),
@@ -99,6 +104,8 @@ impl Java8Visitor {
             managed: false, // Generate Managed code
             marshal: false, // Generate Json code
             manager: String::new(),
+
+            config: java_config,
         }
     }
 
@@ -259,7 +266,8 @@ impl Java8Visitor {
                 let var_type = self.get_variable_type(&*var_symbol);
 
                 if self.visiting_call_chain_literal_variable {
-                    code.push_str("String.valueOf((");
+                    // code.push_str("String.valueOf((");
+                    code.push_str("(");
                 }
                 code.push_str(&format!("({}) e._parameters", var_type));
                 // if is being used as an rval, cast it.
@@ -269,7 +277,7 @@ impl Java8Visitor {
                     code.push_str(&format!(".get(\"{}\")", variable_node.id_node.name.lexeme));
                 }
                 if self.visiting_call_chain_literal_variable {
-                    code.push_str("))");
+                    code.push_str(")");
                 }
             }
             IdentifierDeclScope::EventHandlerVar => {
@@ -660,8 +668,8 @@ impl Java8Visitor {
                 self.newline();
                 self.add_code("}");
             }
-            self.newline();
 
+            self.newline();
             if self.arcanium.is_serializable() {
                 for line in self.serialize.iter() {
                     self.code.push_str(&*line.to_string());
@@ -1415,10 +1423,10 @@ impl Java8Visitor {
             }
         }
 
-        // if self.config.code.public_state_info {
-        //     self.newline();
-        //     self.add_code("this.state = this.#compartment.state.name");
-        // }
+        //  if self.config.code.public_state_info {
+        //      self.newline();
+        //      self.add_code("this.state = this.#compartment.state.name");
+        //  }
 
         self.newline();
         self.newline();
@@ -1506,6 +1514,18 @@ impl Java8Visitor {
         self.newline();
         self.add_code("}");
         self.newline();
+    }
+    fn generate_state_info_method(&mut self) {
+        self.newline();
+        self.add_code("public String state_info(){");
+        self.indent();
+        self.newline();
+        self.add_code("return String.valueOf(this._compartment_.state);");
+        self.indent();
+        self.newline();
+        self.add_code("}");
+        self.newline();
+        self.outdent();
     }
 }
 
@@ -1889,6 +1909,9 @@ impl AstVisitor for Java8Visitor {
 
         if self.has_states {
             self.generate_machinery(system_node);
+        }
+        if self.config.code.public_state_info {
+            self.generate_state_info_method()
         }
 
         // TODO: add comments back
@@ -3297,7 +3320,7 @@ impl AstVisitor for Java8Visitor {
             // }
             IdentifierDeclScope::DomainBlock => {
                 if !var_type.is_empty() {
-                    self.add_code(&format!("private {}", var_type));
+                    self.add_code(&format!("public {}", var_type));
                 }
                 self.add_code(&format!(" {} ", var_name));
 
@@ -3308,11 +3331,15 @@ impl AstVisitor for Java8Visitor {
                 }
             }
             IdentifierDeclScope::EventHandlerVar => {
-                self.add_code(&format!("{} ", var_name));
+                self.add_code(&format!("{} ", var_type));
                 if !var_type.is_empty() {
-                    self.add_code(&format!(": {}", var_type));
+                    self.add_code(&format!("{} ", var_name));
                 }
-                self.add_code(&format!(" = {}", code));
+                if !code.is_empty() {
+                    self.add_code(&format!(" = {};", code));
+                } else {
+                    self.add_code(&format!(";"));
+                }
             }
             _ => panic!("Error - unexpected scope for variable declaration"),
         }

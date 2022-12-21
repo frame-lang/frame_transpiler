@@ -56,6 +56,7 @@ pub struct CodeGenConfig {
     pub smcat: SmcatConfig,
     pub javascript: JavascriptConfig,
     pub python: PythonConfig,
+    pub java: JavaConfig,
 }
 
 /// Code generation options shared among all backends.
@@ -232,11 +233,27 @@ impl Default for GolangCode {
         }
     }
 }
-
-/// Code generation options specific to the Javascript backend.
+/// Code generation options specific to the Java backend.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct JavascriptConfig {
-    pub code: JavascriptCode,
+pub struct JavaConfig {
+    pub code: JavaCode,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct JavaCode {
+    pub public_domain: bool,
+    pub public_state_info: bool,
+    pub public_compartment: bool,
+}
+
+impl Default for JavaCode {
+    fn default() -> Self {
+        JavaCode {
+            public_domain: false,
+            public_state_info: false,
+            public_compartment: false,
+        }
+    }
 }
 
 /// Naming options for generated code specific to the javascript backend. These options can be used to
@@ -245,7 +262,11 @@ pub struct JavascriptConfig {
 /// These options are "use at your own risk" for now since we are not testing Frame with anything
 /// other than the defaults. Unless you have some strong reason to do otherwise, it's probably best
 /// to leave them be. :-)
-
+/// Code generation options specific to the Javascript backend.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct JavascriptConfig {
+    pub code: JavascriptCode,
+}
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct JavascriptCode {
     pub public_domain: bool,
