@@ -244,15 +244,20 @@ impl Java8Visitor {
                 if self.visiting_call_chain_literal_variable {
                     code.push('(');
                 }
-                code.push_str(&format!("({}) this._compartment_.stateVars", var_type));
+                if self.expr_context == ExprContext::Rvalue
+                    || self.expr_context == ExprContext::None
+                {
+                    code.push_str(&format!("({}) this._compartment_.stateVars", var_type));
+                } else {
+                    code.push_str(&format!("this._compartment_.stateVars"));
+                }
                 // if is being used as an rval, cast it.
                 if self.expr_context == ExprContext::Rvalue
                     || self.expr_context == ExprContext::None
                 {
-                    code.push_str(&format!(
-                        ".get(\"{}\"));",
-                        variable_node.id_node.name.lexeme
-                    ));
+                    code.push_str(&format!(".get(\"{}\")", variable_node.id_node.name.lexeme));
+                } else {
+                    code.push_str(&format!(".put(\"{}\",", variable_node.id_node.name.lexeme));
                 }
                 if self.visiting_call_chain_literal_variable {
                     code.push(')');
@@ -3443,6 +3448,7 @@ impl AstVisitor for Java8Visitor {
         assignment_expr_node
             .r_value_box
             .accept_to_string(self, output);
+        output.push_str(");");
         self.expr_context = ExprContext::None;
     }
 
