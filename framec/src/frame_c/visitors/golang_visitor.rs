@@ -580,6 +580,114 @@ impl GolangVisitor {
                 self.outdent();
                 self.newline();
                 self.add_code("}");
+
+                //Generate function Deep Copy compartment
+                self.newline();
+                self.add_code(&format!(
+                    "func deepCopyCompartment(c *{}Compartment) *{}{{",
+                    self.system_name, self.config.code.compartment_type
+                ));
+                self.indent();
+                self.newline();
+                //Create a new compartment to hold the deep copy
+                self.add_code(&format!(
+                    "copyCompartment := &{}{{",
+                    self.config.code.compartment_type
+                ));
+                self.indent();
+                self.newline();
+                self.add_code("State: c.State,");
+                self.outdent();
+                self.newline();
+                self.add_code("}");
+                self.newline();
+                //Make deep copies of the maps
+                self.add_code(
+                    "copyCompartment.StateArgs = make(map[string]interface{}, len(c.StateArgs))",
+                );
+                self.newline();
+                self.add_code("for k, v := range c.StateArgs {");
+                self.indent();
+                self.newline();
+                self.add_code("copyCompartment.StateArgs[k] = v");
+                self.outdent();
+                self.newline();
+                self.add_code("}");
+                self.newline();
+
+                self.add_code(
+                    "copyCompartment.StateVars = make(map[string]interface{}, len(c.StateVars))",
+                );
+                self.newline();
+                self.add_code("for k, v := range c.StateVars {");
+                self.indent();
+                self.newline();
+                self.add_code("copyCompartment.StateVars[k] = v");
+                self.outdent();
+                self.newline();
+                self.add_code("}");
+
+                self.newline();
+                self.add_code(
+                    "copyCompartment.EnterArgs = make(map[string]interface{}, len(c.EnterArgs))",
+                );
+                self.newline();
+                self.add_code("for k, v := range c.EnterArgs {");
+                self.indent();
+                self.newline();
+                self.add_code("copyCompartment.EnterArgs[k] = v");
+                self.outdent();
+                self.newline();
+                self.add_code("}");
+
+                self.newline();
+                self.add_code(
+                    "copyCompartment.ExitArgs = make(map[string]interface{}, len(c.ExitArgs))",
+                );
+                self.newline();
+                self.add_code("for k, v := range c.ExitArgs {");
+                self.indent();
+                self.newline();
+                self.add_code("copyCompartment.ExitArgs[k] = v");
+                self.outdent();
+                self.newline();
+                self.add_code("}");
+
+                self.newline();
+                //Make a deep copy of the _forwardEvent_ field
+                self.add_code("if c._forwardEvent_ != nil {");
+                self.indent();
+                self.newline();
+                self.add_code("copyCompartment._forwardEvent_ = &framelang.FrameEvent{");
+                self.indent();
+                self.newline();
+                self.add_code("Msg:    c._forwardEvent_.Msg,");
+                self.newline();
+                self.add_code(
+                    "Params: make(map[string]interface{}, len(c._forwardEvent_.Params)),",
+                );
+                self.newline();
+                self.add_code("Ret:    c._forwardEvent_.Ret,");
+                self.outdent();
+                self.newline();
+                self.add_code("}");
+                self.newline();
+                self.add_code("for k, v := range c._forwardEvent_.Params {");
+                self.indent();
+                self.newline();
+                self.add_code("copyCompartment._forwardEvent_.Params[k] = v");
+                self.outdent();
+                self.newline();
+                self.add_code("}");
+                self.outdent();
+                self.newline();
+                self.add_code("}");
+                self.newline();
+                self.newline();
+                self.add_code("return copyCompartment");
+                self.outdent();
+                self.newline();
+                self.add_code("}");
             }
             if self.generate_change_state {
                 self.newline();
@@ -1635,7 +1743,9 @@ impl GolangVisitor {
         ));
         self.indent();
         self.newline();
-        self.add_code("s.stack = append(s.stack, *compartment)");
+        self.add_code("copyCompartment := deepCopyCompartment((compartment))");
+        self.newline();
+        self.add_code("s.stack = append(s.stack, *copyCompartment)");
         self.outdent();
         self.newline();
         self.add_code("}");
