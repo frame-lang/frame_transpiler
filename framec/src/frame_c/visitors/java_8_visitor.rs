@@ -53,6 +53,8 @@ pub struct Java8Visitor {
     managed: bool, //Generate Managed code
     marshal: bool, //Generate JSON code
     manager: String,
+    // keeping track of traversal context
+    this_branch_transitioned: bool,
     //config
     config: JavaConfig,
 }
@@ -104,6 +106,8 @@ impl Java8Visitor {
             managed: false, // Generate Managed code
             marshal: false, // Generate Json code
             manager: String::new(),
+
+            this_branch_transitioned: false,
 
             config: java_config,
         }
@@ -630,33 +634,33 @@ impl Java8Visitor {
             if self.generate_state_stack {
                 self.newline();
                 self.newline();
-                if self.generate_state_context {
-                    self.add_code(&format!(
-                        "private Stack<{}Compartment> _stateStack_ = new Stack<>();",
-                        self.system_name
-                    ));
-                    self.newline();
-                    self.newline();
-                    self.add_code(&format!(
-                        "private void _stateStack_push_({}Compartment compartment) {{",
-                        self.system_name
-                    ));
-                    self.indent();
-                    self.newline();
-                    self.add_code("_stateStack_.push(compartment);");
-                    self.outdent();
-                    self.newline();
-                    self.add_code("}");
-                    self.newline();
-                    self.newline();
-                    self.add_code(&format!(
-                        "private {}Compartment _stateStack_pop_() {{",
-                        self.system_name
-                    ));
-                    self.indent();
-                    self.newline();
-                    self.add_code("return _stateStack_.pop();");
-                }
+                //if self.generate_state_context {
+                self.add_code(&format!(
+                    "private Stack<{}Compartment> _stateStack_ = new Stack<>();",
+                    self.system_name
+                ));
+                self.newline();
+                self.newline();
+                self.add_code(&format!(
+                    "private void _stateStack_push_({}Compartment compartment) {{",
+                    self.system_name
+                ));
+                self.indent();
+                self.newline();
+                self.add_code("_stateStack_.push(compartment);");
+                self.outdent();
+                self.newline();
+                self.add_code("}");
+                self.newline();
+                self.newline();
+                self.add_code(&format!(
+                    "private {}Compartment _stateStack_pop_() {{",
+                    self.system_name
+                ));
+                self.indent();
+                self.newline();
+                self.add_code("return _stateStack_.pop();");
+                //}
 
                 self.outdent();
                 self.newline();
@@ -665,10 +669,13 @@ impl Java8Visitor {
             if self.generate_change_state {
                 self.newline();
                 self.newline();
-                self.add_code("private void _changeState_(newState) {");
+                self.add_code(&format!(
+                    "private void _changeState_({}Compartment compartment) {{",
+                    self.system_name
+                ));
                 self.indent();
                 self.newline();
-                self.add_code("_state_ = newState;");
+                self.add_code("this._compartment_ = compartment;");
                 self.outdent();
                 self.newline();
                 self.add_code("}");
@@ -700,6 +707,20 @@ impl Java8Visitor {
 
     //* --------------------------------------------------------------------- *//
 
+    /// Generate a return statement within a handler. Call this rather than adding a return
+    /// statement directly to ensure that the control-flow state is properly maintained.
+    fn generate_return(&mut self) {
+        self.newline();
+        self.add_code("return;");
+        self.this_branch_transitioned = false;
+    }
+
+    /// Generate a return statement if the current branch contained a transition or change-state.
+    fn generate_return_if_transitioned(&mut self) {
+        if self.this_branch_transitioned {
+            self.generate_return();
+        }
+    }
     fn generate_comment(&mut self, line: usize) {
         // can't use self.newline() or self.add_code() due to double borrow.
         let mut generated_comment = false;
@@ -904,7 +925,7 @@ impl Java8Visitor {
         }
 
         self.newline();
-        self.add_code("this._transition_(compartment);");
+        self.add_code("this._changeState_(compartment);");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -921,10 +942,13 @@ impl Java8Visitor {
             }
             None => {}
         }
-
-        self.add_code("compartment = self.__state_stack_pop()");
+        self.add_code(&format!(
+            "{}Compartment compartment = this._stateStack_pop_();",
+            self.system_name
+        ));
+        //self.add_code("compartment = self.__state_stack_pop()");
         self.newline();
-        self.add_code("self.__change_state(compartment)");
+        self.add_code("this._changeState_(compartment);");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1305,8 +1329,125 @@ impl Java8Visitor {
         self.newline();
         self.indent();
         self.newline();
+        self.add_code("public int getState() {");
+        self.indent();
+        self.newline();
+        self.add_code("return state;");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.newline();
+        self.newline();
+        self.add_code("public void setState(int state) {");
+        self.indent();
+        self.newline();
+        self.add_code("this.state = state;");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+
+        self.newline();
+        self.newline();
+        self.add_code("public HashMap<String, Object> getStateArgs() {");
+        self.indent();
+        self.newline();
+        self.add_code("return stateArgs;");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.newline();
+        self.newline();
+        self.add_code("public void setStateArgs(HashMap<String, Object> stateArgs) {");
+        self.indent();
+        self.newline();
+        self.add_code("this.stateArgs = stateArgs;");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+
+        self.newline();
+        self.newline();
+        self.add_code("public HashMap<String, Object> getStateVars() {");
+        self.indent();
+        self.newline();
+        self.add_code("return stateVars;");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.newline();
+        self.newline();
+        self.add_code("public void setStateVars(HashMap<String, Object> stateVars) {");
+        self.indent();
+        self.newline();
+        self.add_code("this.stateVars = stateVars;");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+
+        self.newline();
+        self.newline();
+        self.add_code("public HashMap<String, Object> getEnterArgs() {");
+        self.indent();
+        self.newline();
+        self.add_code("return enterArgs;");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.newline();
+        self.newline();
+        self.add_code("public void setEnterArgs(HashMap<String, Object> enterArgs) {");
+        self.indent();
+        self.newline();
+        self.add_code("this.enterArgs = enterArgs;");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+
+        self.newline();
+        self.newline();
+        self.add_code("public HashMap<String, Object> getExitArgs() {");
+        self.indent();
+        self.newline();
+        self.add_code("return exitArgs;");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.newline();
+        self.newline();
+        self.add_code("public void setExitArgs(HashMap<String, Object> exitArgs) {");
+        self.indent();
+        self.newline();
+        self.add_code("this.exitArgs = exitArgs;");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+
+        self.newline();
+        self.newline();
+        self.add_code("public FrameEvent get_forwardEvent() {");
+        self.indent();
+        self.newline();
+        self.add_code("return _forwardEvent;");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.newline();
+        self.newline();
+        self.add_code("public void set_forwardEvent(FrameEvent _forwardEvent) {");
+        self.indent();
+        self.newline();
+        self.add_code("this._forwardEvent = _forwardEvent;");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.newline();
+
         self.add_code("int state;");
         self.newline();
+        self.add_code(&format!("{}Compartment(){{", system_name));
+        self.newline();
+        self.newline();
+        self.add_code("}");
         self.newline();
         self.add_code(&format!("{}Compartment(int state) {{", system_name));
         // self.newline();
@@ -1327,6 +1468,32 @@ impl Java8Visitor {
         self.add_code("HashMap<String, Object> exitArgs = new HashMap<String, Object>();");
         self.newline();
         self.add_code("FrameEvent _forwardEvent = new FrameEvent();");
+        // self.outdent();
+        // self.newline();
+        // self.add_code("}");
+        self.newline();
+        self.newline();
+        self.add_code(&format!("public {}Compartment(int state, HashMap<String, Object> stateArgs, HashMap<String, Object> stateVars,", system_name));
+        self.indent();
+        self.indent();
+        self.newline();
+        self.add_code("HashMap<String, Object> enterArgs, HashMap<String, Object> exitArgs, FrameEvent _forwardEvent) {");
+        self.outdent();
+        self.newline();
+        self.add_code("this.state = state;");
+        self.newline();
+        self.add_code("this.stateArgs = stateArgs;");
+        self.newline();
+        self.add_code("this.stateVars = stateVars;");
+        self.newline();
+        self.add_code("this.enterArgs = enterArgs;");
+        self.newline();
+        self.add_code("this.exitArgs = exitArgs;");
+        self.newline();
+        self.add_code("this._forwardEvent = _forwardEvent;");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
         self.outdent();
         self.newline();
         self.add_code("}");
@@ -1526,7 +1693,6 @@ impl Java8Visitor {
         self.indent();
         self.newline();
         self.add_code("return String.valueOf(this._compartment_.state);");
-        self.indent();
         self.newline();
         self.add_code("}");
         self.newline();
@@ -2288,12 +2454,13 @@ impl AstVisitor for Java8Visitor {
                     expr_t.accept(self);
                     self.add_code(";");
                     self.newline();
-                    self.add_code("return;");
+                    self.generate_return();
                     self.newline();
                 }
-                None => self.add_code("return;"),
+                None => self.generate_return(),
             },
             TerminatorType::Continue => {
+                self.generate_return_if_transitioned();
                 // self.add_code("break;")
             }
         }
@@ -2502,6 +2669,7 @@ impl AstVisitor for Java8Visitor {
             self.indent();
 
             branch_node.accept(self);
+            self.generate_return_if_transitioned();
 
             self.outdent();
             self.newline();
@@ -2523,6 +2691,25 @@ impl AstVisitor for Java8Visitor {
         method_call_chain_literal_stmt_node: &CallChainLiteralStmtNode,
     ) {
         self.newline();
+
+        // special case for interface method calls
+        let call_chain = &method_call_chain_literal_stmt_node
+            .call_chain_literal_expr_node
+            .call_chain;
+        if call_chain.len() == 1 {
+            if let CallChainLiteralNodeType::InterfaceMethodCallT {
+                interface_method_call_expr_node,
+            } = &call_chain[0]
+            {
+                self.this_branch_transitioned = true;
+                interface_method_call_expr_node.accept(self);
+                self.add_code(";");
+                self.generate_return();
+                return;
+            }
+        }
+
+        // standard case
         method_call_chain_literal_stmt_node
             .call_chain_literal_expr_node
             .accept(self);
@@ -2626,16 +2813,19 @@ impl AstVisitor for Java8Visitor {
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
-                            self.add_code("return;");
+                            self.generate_return();
                         }
-                        None => self.add_code("return;"),
+                        None => self.generate_return(),
                     },
                     TerminatorType::Continue => {
+                        self.generate_return_if_transitioned();
                         self.add_code("break;");
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
     }
 
@@ -2661,16 +2851,19 @@ impl AstVisitor for Java8Visitor {
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
-                            self.add_code("return;");
+                            self.generate_return();
                         }
-                        None => self.add_code("return;"),
+                        None => self.generate_return(),
                     },
                     TerminatorType::Continue => {
+                        self.generate_return_if_transitioned();
                         self.add_code("break;");
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
 
         self.outdent();
@@ -2685,7 +2878,7 @@ impl AstVisitor for Java8Visitor {
 
         self.newline();
         for match_branch_node in &string_match_test_node.match_branch_nodes {
-            self.add_code(&format!("{} (", if_or_else_if));
+            self.add_code(&format!("{} ((", if_or_else_if));
             // TODO: use string_match_test_node.expr_t.accept(self) ?
             match &string_match_test_node.expr_t {
                 ExprType::CallExprT {
@@ -2743,10 +2936,11 @@ impl AstVisitor for Java8Visitor {
                     self.add_code(&format!(" == \"{}\")", match_string));
                 }
             }
-            self.add_code(" {");
+            self.add_code(") {");
             self.indent();
 
             match_branch_node.accept(self);
+            self.generate_return_if_transitioned();
 
             self.outdent();
             self.newline();
@@ -2779,16 +2973,19 @@ impl AstVisitor for Java8Visitor {
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
-                            self.add_code("return;");
+                            self.generate_return();
                         }
-                        None => self.add_code("return;"),
+                        None => self.generate_return(),
                     },
                     TerminatorType::Continue => {
+                        self.generate_return_if_transitioned();
                         self.add_code("break;");
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
     }
 
@@ -2814,16 +3011,19 @@ impl AstVisitor for Java8Visitor {
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
-                            self.add_code("return;");
+                            self.generate_return();
                         }
-                        None => self.add_code("return;"),
+                        None => self.generate_return(),
                     },
                     TerminatorType::Continue => {
+                        self.generate_return_if_transitioned();
                         self.add_code("break;");
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
 
         self.outdent();
@@ -2848,7 +3048,7 @@ impl AstVisitor for Java8Visitor {
 
         self.newline();
         for match_branch_node in &number_match_test_node.match_branch_nodes {
-            self.add_code(&format!("{} (", if_or_else_if));
+            self.add_code(&format!("{} ((", if_or_else_if));
             match &number_match_test_node.expr_t {
                 ExprType::CallExprT {
                     call_expr_node: method_call_expr_node,
@@ -2901,6 +3101,7 @@ impl AstVisitor for Java8Visitor {
             self.indent();
 
             match_branch_node.accept(self);
+            self.generate_return_if_transitioned();
 
             self.outdent();
             self.newline();
@@ -2934,16 +3135,19 @@ impl AstVisitor for Java8Visitor {
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
-                            self.add_code("return;");
+                            self.generate_return();
                         }
-                        None => self.add_code("return;"),
+                        None => self.generate_return(),
                     },
                     TerminatorType::Continue => {
+                        self.generate_return_if_transitioned();
                         self.add_code("break;");
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
     }
 
@@ -2969,16 +3173,19 @@ impl AstVisitor for Java8Visitor {
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
-                            self.add_code("return;");
+                            self.generate_return();
                         }
-                        None => self.add_code("return;"),
+                        None => self.generate_return(),
                     },
                     TerminatorType::Continue => {
+                        self.generate_return_if_transitioned();
                         self.add_code("break;");
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
 
         self.outdent();
