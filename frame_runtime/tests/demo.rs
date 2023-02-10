@@ -472,7 +472,7 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::blacklisted_name)]
+    #[allow(clippy::disallowed_names)]
     fn state_info() {
         let sm = sync::Demo::new();
         let init = sm.info().get_state("Init");
@@ -495,7 +495,7 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::blacklisted_name)]
+    #[allow(clippy::disallowed_names)]
     fn transition_info() {
         let sm = unsync::Demo::new();
         let foo = sm.info().get_state("Foo").unwrap();

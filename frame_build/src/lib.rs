@@ -252,7 +252,7 @@ impl FrameBuild {
             let entry = entry?;
             let input_path = entry.path();
             if input_path.extension().unwrap_or_default() == "frm"
-                && (&self.input_filter)(input_path)
+                && (self.input_filter)(input_path)
             {
                 // tell Cargo this is a source file
                 println!("cargo:rerun-if-changed={:?}", &input_path);

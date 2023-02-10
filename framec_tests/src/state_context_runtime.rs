@@ -114,7 +114,7 @@ mod tests {
 
     /// Test that the state variable declarations from the runtime interface are correct.
     #[test]
-    #[allow(clippy::blacklisted_name)]
+    #[allow(clippy::disallowed_names)]
     fn state_variables() {
         let info = StateContextSm::machine_info();
         let init = info.get_state("Init").unwrap();
@@ -140,7 +140,7 @@ mod tests {
 
     /// Test that the state parameter declarations from the runtime interface are correct.
     #[test]
-    #[allow(clippy::blacklisted_name)]
+    #[allow(clippy::disallowed_names)]
     fn state_parameters() {
         let info = StateContextSm::machine_info();
         let init = info.get_state("Init").unwrap();
@@ -158,7 +158,7 @@ mod tests {
 
     /// Test that the handler names from the runtime interface are correct.
     #[test]
-    #[allow(clippy::blacklisted_name)]
+    #[allow(clippy::disallowed_names)]
     fn state_handler_names() {
         let info = StateContextSm::machine_info();
         let init = info.get_state("Init").unwrap();
@@ -188,7 +188,7 @@ mod tests {
 
     /// Test that the handler signatures from the runtime interface are correct.
     #[test]
-    #[allow(clippy::blacklisted_name)]
+    #[allow(clippy::disallowed_names)]
     fn state_handler_signatures() {
         let info = StateContextSm::machine_info();
         let init = info.get_state("Init").unwrap();
@@ -372,7 +372,7 @@ mod tests {
 
     /// Test that transitions obtained from the runtime interface are correct.
     #[test]
-    #[allow(clippy::blacklisted_name)]
+    #[allow(clippy::disallowed_names)]
     fn state_transitions() {
         let info = StateContextSm::machine_info();
         assert_eq!(info.transitions.len(), 4);
