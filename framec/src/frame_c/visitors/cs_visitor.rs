@@ -5,6 +5,7 @@
 #![allow(clippy::ptr_arg)]
 #![allow(non_snake_case)]
 
+use crate::config::*;
 use crate::frame_c::ast::*;
 use crate::frame_c::scanner::{Token, TokenType};
 use crate::frame_c::symbol_table::*;
@@ -44,6 +45,8 @@ pub struct CsVisitor {
     generate_state_stack: bool,
     generate_change_state: bool,
     generate_transition_state: bool,
+
+    current_var_type: String,
     expr_context: ExprContext,
     /* Persistence */
     managed: bool, //Generate Managed code
@@ -52,6 +55,8 @@ pub struct CsVisitor {
 
     // keeping track of traversal context
     this_branch_transitioned: bool,
+    // config
+    config: CsharpConfig,
 }
 
 impl CsVisitor {
@@ -66,7 +71,9 @@ impl CsVisitor {
         generate_transition_state: bool,
         compiler_version: &str,
         comments: Vec<Token>,
+        config: FrameConfig,
     ) -> CsVisitor {
+        let cs_config = config.codegen.csharp;
         CsVisitor {
             compiler_version: compiler_version.to_string(),
             code: String::from(""),
@@ -93,6 +100,8 @@ impl CsVisitor {
             generate_state_stack,
             generate_change_state,
             generate_transition_state,
+
+            current_var_type: String::new(),
             expr_context: ExprContext::None,
 
             /* Persistence */
@@ -100,6 +109,8 @@ impl CsVisitor {
             marshal: false, // Generate Json code
             manager: String::new(),
             this_branch_transitioned: false,
+
+            config: cs_config,
         }
     }
 
@@ -206,7 +217,7 @@ impl CsVisitor {
                 let var_type = self.get_variable_type(&*var_symbol);
 
                 if self.visiting_call_chain_literal_variable {
-                    code.push('(');
+                    //code.push('(');
                 }
                 // if is being used as an rval, cast it.
                 if self.expr_context == ExprContext::Rvalue
@@ -222,8 +233,9 @@ impl CsVisitor {
                         variable_node.id_node.name.lexeme
                     ));
                 }
+
                 if self.visiting_call_chain_literal_variable {
-                    code.push(')');
+                    //code.push(')');
                 }
             }
             IdentifierDeclScope::StateVar => {
@@ -233,8 +245,12 @@ impl CsVisitor {
                 let var_symbol = var_symbol_rcref.borrow();
                 let var_type = self.get_variable_type(&*var_symbol);
 
-                if self.visiting_call_chain_literal_variable {
-                    code.push('(');
+                if self.expr_context == ExprContext::Rvalue
+                    || self.expr_context == ExprContext::None
+                {
+                    if self.visiting_call_chain_literal_variable {
+                        code.push('(');
+                    }
                 }
                 // if is being used as an rval, cast it.
                 if self.expr_context == ExprContext::Rvalue
@@ -250,8 +266,12 @@ impl CsVisitor {
                         variable_node.id_node.name.lexeme
                     ));
                 }
-                if self.visiting_call_chain_literal_variable {
-                    code.push(')');
+                if self.expr_context == ExprContext::Rvalue
+                    || self.expr_context == ExprContext::None
+                {
+                    if self.visiting_call_chain_literal_variable {
+                        code.push(')');
+                    }
                 }
             }
             IdentifierDeclScope::EventHandlerParam => {
@@ -262,7 +282,7 @@ impl CsVisitor {
                 let var_type = self.get_variable_type(&*var_symbol);
 
                 if self.visiting_call_chain_literal_variable {
-                    code.push('(');
+                    // code.push('(');
                 }
                 // if is being used as an rval, cast it.
                 if self.expr_context == ExprContext::Rvalue
@@ -275,7 +295,7 @@ impl CsVisitor {
                     variable_node.id_node.name.lexeme
                 ));
                 if self.visiting_call_chain_literal_variable {
-                    code.push(')');
+                    // code.push(')');
                 }
             }
             IdentifierDeclScope::EventHandlerVar => {
@@ -715,6 +735,23 @@ impl CsVisitor {
         for line in self.subclass_code.iter() {
             self.code.push_str(&*line.to_string());
             self.code.push_str(&*format!("\n{}", self.dent()));
+        }
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    /// Generate a return statement within a handler. Call this rather than adding a return
+    /// statement directly to ensure that the control-flow state is properly maintained.
+    fn generate_return(&mut self) {
+        self.newline();
+        self.add_code("return;");
+        self.this_branch_transitioned = false;
+    }
+
+    /// Generate a return statement if the current branch contained a transition or change-state.
+    fn generate_return_if_transitioned(&mut self) {
+        if self.this_branch_transitioned {
+            self.generate_return();
         }
     }
 
@@ -1212,17 +1249,21 @@ impl CsVisitor {
         }
         self.newline();
         self.newline();
-        if let Some(machine_block_node) = &system_node.machine_block_node_opt {
-            for state_node_rcref in &machine_block_node.states {
-                self.newline();
-                self.add_code(&format!(
-                    "this._state_ = (int){}State.{};",
-                    system_node.name,
-                    state_node_rcref.borrow().name.to_uppercase()
-                ));
-                break;
-            }
-        }
+        self.add_code(&format!(
+            "this._state_ = (int){}State.{};",
+            self.system_name, self.first_state_name
+        ));
+        // if let Some(machine_block_node) = &system_node.machine_block_node_opt {
+        //     for state_node_rcref in &machine_block_node.states {
+        //         self.newline();
+        //         self.add_code(&format!(
+        //             "this._state_ = (int){}State.{};",
+        //             system_node.name,
+        //             state_node_rcref.borrow().name.to_uppercase()
+        //         ));
+        //         break;
+        //     }
+        // }
         self.newline();
         self.add_code(&format!(
             "this._compartment_ = new {}Compartment(this._state_);",
@@ -1313,10 +1354,11 @@ impl CsVisitor {
             manager_param = "manager";
         }
         self.add_code(&format!(
-            "public static {} load{}({}Controller {}, {}Controller data)\n{{",
+            "public static {} load{}({}Controller {}, {}Controller data)",
             system_node.name, system_node.name, self.manager, manager_param, system_node.name,
         ));
-
+        self.newline();
+        self.add_code("{");
         self.indent();
         self.newline();
         self.newline();
@@ -1336,7 +1378,9 @@ impl CsVisitor {
     fn generate_json_fn(&mut self, system_node: &SystemNode) {
         self.newline();
         self.newline();
-        self.add_code(&format!("public {} marshal()\n{{", system_node.name));
+        self.add_code(&format!("public {} marshal()", system_node.name));
+        self.newline();
+        self.add_code("{");
         self.indent();
         self.newline();
         self.newline();
@@ -1349,6 +1393,18 @@ impl CsVisitor {
         self.newline();
         self.add_code("}");
         self.newline();
+    }
+
+    fn generate_state_info_method(&mut self) {
+        self.newline();
+        self.add_code("public string state_info(){");
+        self.indent();
+        self.newline();
+        self.add_code("return this._compartment_.state.ToString();");
+        self.newline();
+        self.add_code("}");
+        self.newline();
+        self.outdent();
     }
 }
 
@@ -1365,14 +1421,7 @@ impl AstVisitor for CsVisitor {
             "// get include files at https://github.com/frame-lang/frame-ancillary-files",
         );
         self.newline();
-        self.add_code(&format!("using {};", system_node.name));
-        self.newline();
-        self.add_code("#nullable disable");
-        self.newline();
-        self.add_code(&format!(
-            "namespace csharp.{}",
-            system_node.name.to_lowercase()
-        ));
+        self.add_code(&system_node.header);
         self.newline();
         self.add_code("{");
         self.newline();
@@ -1397,7 +1446,10 @@ impl AstVisitor for CsVisitor {
         ));
         self.newline();
         self.newline();
-
+        if self.managed {
+            self.add_code(&format!("protected {} _manager;", self.manager));
+        }
+        self.newline();
         //format system params,if any
         //let new_params: String = String::from(&self.format_new_params(system_node).0);
         // First state name needed for machinery.
@@ -1412,10 +1464,20 @@ impl AstVisitor for CsVisitor {
             }
             None => {}
         }
-
         self.newline();
-        self.add_code(&format!("public {}({})", system_node.name, new_params));
-        self.newline();
+        self.add_code(&format!("public {}(", system_node.name));
+        if self.managed {
+            if new_params.is_empty() {
+                self.add_code(&format!("{} manager)", self.manager));
+            } else {
+                self.add_code(&format!("manager,{})", new_params));
+            }
+        } else {
+            self.add_code(&format!("{})", new_params));
+        }
+        // self.newline();
+        // self.add_code(&format!("public {}({})", system_node.name, new_params));
+        // self.newline();
         self.add_code("{");
         self.newline();
 
@@ -1604,21 +1666,14 @@ impl AstVisitor for CsVisitor {
                     "\tpublic {}Controller({} manager,{}) : base({} manager{})\n{{",
                     system_node.name, self.manager, new_params, self.manager, new_params
                 ));
-                // self.subclass_code.push(format!(
-                //     "\t  super({} manager{});",
-                //     self.manager, new_params
-                // ));
             }
         } else {
             self.subclass_code.push(format!(
                 "\tpublic {}Controller({}) : base({})",
                 system_node.name, new_params, formatted_params
             ));
-            self.subclass_code.push("\t{".to_string());
-            // self.subclass_code
-            //     .push(format!("\t  super({});", new_params));
         }
-
+        self.subclass_code.push("\t{".to_string());
         self.subclass_code.push("\t}".to_string());
 
         if let Some(interface_block_node) = &system_node.interface_block_node_opt {
@@ -1654,6 +1709,10 @@ impl AstVisitor for CsVisitor {
 
         if self.has_states {
             self.generate_machinery(system_node);
+        }
+
+        if self.config.code.public_state_info {
+            self.generate_state_info_method()
         }
 
         // TODO: add comments back
@@ -2049,12 +2108,13 @@ impl AstVisitor for CsVisitor {
                     expr_t.accept(self);
                     self.add_code(";");
                     self.newline();
-                    self.add_code("return;");
+                    self.generate_return();
                     self.newline();
                 }
-                None => self.add_code("return;"),
+                None => self.generate_return(),
             },
             TerminatorType::Continue => {
+                self.generate_return_if_transitioned();
                 // self.add_code("break;")
             }
         }
@@ -2271,6 +2331,7 @@ impl AstVisitor for CsVisitor {
             self.indent();
 
             branch_node.accept(self);
+            self.generate_return_if_transitioned();
 
             self.outdent();
             self.newline();
@@ -2305,6 +2366,7 @@ impl AstVisitor for CsVisitor {
                 self.this_branch_transitioned = true;
                 interface_method_call_expr_node.accept(self);
                 self.add_code(";");
+                self.generate_return();
                 return;
             }
         }
@@ -2413,16 +2475,19 @@ impl AstVisitor for CsVisitor {
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
-                            self.add_code("return;");
+                            self.generate_return();
                         }
-                        None => self.add_code("return;"),
+                        None => self.generate_return(),
                     },
                     TerminatorType::Continue => {
+                        self.generate_return_if_transitioned();
                         self.add_code("break;");
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
     }
 
@@ -2448,16 +2513,19 @@ impl AstVisitor for CsVisitor {
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
-                            self.add_code("return;");
+                            self.generate_return();
                         }
-                        None => self.add_code("return;"),
+                        None => self.generate_return(),
                     },
                     TerminatorType::Continue => {
+                        self.generate_return_if_transitioned();
                         self.add_code("break;");
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
 
         self.outdent();
@@ -2472,7 +2540,7 @@ impl AstVisitor for CsVisitor {
 
         self.newline();
         for match_branch_node in &string_match_test_node.match_branch_nodes {
-            self.add_code(&format!("{} (", if_or_else_if));
+            self.add_code(&format!("{} ((", if_or_else_if));
             // TODO: use string_match_test_node.expr_t.accept(self) ?
             match &string_match_test_node.expr_t {
                 ExprType::CallExprT {
@@ -2530,10 +2598,11 @@ impl AstVisitor for CsVisitor {
                     self.add_code(&format!(" == \"{}\")", match_string));
                 }
             }
-            self.add_code(" {");
+            self.add_code(") {");
             self.indent();
 
             match_branch_node.accept(self);
+            self.generate_return_if_transitioned();
 
             self.outdent();
             self.newline();
@@ -2566,16 +2635,19 @@ impl AstVisitor for CsVisitor {
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
-                            self.add_code("return;");
+                            self.generate_return();
                         }
-                        None => self.add_code("return;"),
+                        None => self.generate_return(),
                     },
                     TerminatorType::Continue => {
+                        self.generate_return_if_transitioned();
                         self.add_code("break;");
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
     }
 
@@ -2601,16 +2673,19 @@ impl AstVisitor for CsVisitor {
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
-                            self.add_code("return;");
+                            self.generate_return();
                         }
-                        None => self.add_code("return;"),
+                        None => self.generate_return(),
                     },
                     TerminatorType::Continue => {
+                        self.generate_return_if_transitioned();
                         self.add_code("break;");
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
 
         self.outdent();
@@ -2635,7 +2710,7 @@ impl AstVisitor for CsVisitor {
 
         self.newline();
         for match_branch_node in &number_match_test_node.match_branch_nodes {
-            self.add_code(&format!("{} (", if_or_else_if));
+            self.add_code(&format!("{} ((", if_or_else_if));
             match &number_match_test_node.expr_t {
                 ExprType::CallExprT {
                     call_expr_node: method_call_expr_node,
@@ -2688,6 +2763,7 @@ impl AstVisitor for CsVisitor {
             self.indent();
 
             match_branch_node.accept(self);
+            self.generate_return_if_transitioned();
 
             self.outdent();
             self.newline();
@@ -2721,16 +2797,19 @@ impl AstVisitor for CsVisitor {
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
-                            self.add_code("return;");
+                            self.generate_return();
                         }
-                        None => self.add_code("return;"),
+                        None => self.generate_return(),
                     },
                     TerminatorType::Continue => {
+                        self.generate_return_if_transitioned();
                         self.add_code("break;");
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
     }
 
@@ -2756,16 +2835,19 @@ impl AstVisitor for CsVisitor {
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
-                            self.add_code("return;");
+                            self.generate_return();
                         }
-                        None => self.add_code("return;"),
+                        None => self.generate_return(),
                     },
                     TerminatorType::Continue => {
+                        self.generate_return_if_transitioned();
                         self.add_code("break;");
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
 
         self.outdent();
@@ -3112,8 +3194,44 @@ impl AstVisitor for CsVisitor {
         let var_init_expr = &variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
         self.newline();
         let mut code = String::new();
+        self.current_var_type = var_type.clone(); // used for casting
+        self.expr_context = ExprContext::Rvalue;
         var_init_expr.accept_to_string(self, &mut code);
-        self.add_code(&format!("private {} {} = {};", var_type, var_name, code));
+        self.expr_context = ExprContext::None;
+
+        match &variable_decl_node.identifier_decl_scope {
+            // IdentifierDeclScope::DomainBlock => {
+            //     self.add_code(&format!("this.{} ", var_name));
+            //     if !var_type.is_empty() {
+            //         self.add_code(&format!(": {}", var_type));
+            //     }
+            //     self.add_code(&format!(" = {}", code));
+            // }
+            IdentifierDeclScope::DomainBlock => {
+                if !var_type.is_empty() {
+                    self.add_code(&format!("public {}", var_type));
+                }
+                self.add_code(&format!(" {} ", var_name));
+
+                if !code.is_empty() {
+                    self.add_code(&format!(" = {};", code));
+                } else {
+                    self.add_code(&format!(";"));
+                }
+            }
+            IdentifierDeclScope::EventHandlerVar => {
+                self.add_code(&format!("{} ", var_type));
+                if !var_type.is_empty() {
+                    self.add_code(&format!("{} ", var_name));
+                }
+                if !code.is_empty() {
+                    self.add_code(&format!(" = {};", code));
+                } else {
+                    self.add_code(&format!(";"));
+                }
+            }
+            _ => panic!("Error - unexpected scope for variable declaration"),
+        }
 
         self.serialize
             .push(format!("\tbag.domain[\"{}\"] = {};", var_name, var_name));
