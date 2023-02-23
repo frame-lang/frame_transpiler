@@ -1251,7 +1251,8 @@ impl CsVisitor {
         self.newline();
         self.add_code(&format!(
             "this._state_ = (int){}State.{};",
-            self.system_name, self.first_state_name.to_uppercase()
+            self.system_name,
+            self.first_state_name.to_uppercase()
         ));
         // if let Some(machine_block_node) = &system_node.machine_block_node_opt {
         //     for state_node_rcref in &machine_block_node.states {
