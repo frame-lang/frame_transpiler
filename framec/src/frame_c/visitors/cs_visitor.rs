@@ -5,13 +5,11 @@
 #![allow(clippy::ptr_arg)]
 #![allow(non_snake_case)]
 
-use std::fmt::format;
-
 use crate::config::*;
 use crate::frame_c::ast::*;
 use crate::frame_c::scanner::{Token, TokenType};
 use crate::frame_c::symbol_table::*;
-//use crate::frame_c::visitors::cs_visitor::ExprContext::Rvalue;
+use crate::frame_c::visitors::cs_visitor::ExprContext::Rvalue;
 use crate::frame_c::visitors::*;
 // use yaml_rust::{YamlLoader, Yaml};
 
@@ -42,7 +40,7 @@ pub struct CsVisitor {
     has_states: bool,
     errors: Vec<String>,
     visiting_call_chain_literal_variable: bool,
-    generate_exit_args: bool,
+    //generate_exit_args: bool,
     generate_state_context: bool,
     generate_state_stack: bool,
     generate_change_state: bool,
@@ -65,7 +63,7 @@ impl CsVisitor {
 
     pub fn new(
         arcanium: Arcanum,
-        generate_exit_args: bool,
+        //generate_exit_args: bool,
         generate_state_context: bool,
         generate_state_stack: bool,
         generate_change_state: bool,
@@ -96,7 +94,7 @@ impl CsVisitor {
             subclass_code: Vec::new(),
             warnings: Vec::new(),
             visiting_call_chain_literal_variable: false,
-            generate_exit_args,
+            //generate_exit_args,
             generate_state_context,
             generate_state_stack,
             generate_change_state,
