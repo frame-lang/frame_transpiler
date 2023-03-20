@@ -5,6 +5,8 @@
 #![allow(clippy::ptr_arg)]
 #![allow(non_snake_case)]
 
+use std::fmt::format;
+
 use crate::config::*;
 use crate::frame_c::ast::*;
 use crate::frame_c::scanner::{Token, TokenType};
@@ -44,8 +46,7 @@ pub struct CsVisitor {
     generate_state_context: bool,
     generate_state_stack: bool,
     generate_change_state: bool,
-    generate_transition_state: bool,
-
+    //generate_transition_state: bool,
     current_var_type: String,
     expr_context: ExprContext,
     /* Persistence */
@@ -68,7 +69,7 @@ impl CsVisitor {
         generate_state_context: bool,
         generate_state_stack: bool,
         generate_change_state: bool,
-        generate_transition_state: bool,
+        //generate_transition_state: bool,
         compiler_version: &str,
         comments: Vec<Token>,
         config: FrameConfig,
@@ -99,8 +100,7 @@ impl CsVisitor {
             generate_state_context,
             generate_state_stack,
             generate_change_state,
-            generate_transition_state,
-
+            //generate_transition_state,
             current_var_type: String::new(),
             expr_context: ExprContext::None,
 
@@ -658,20 +658,95 @@ impl CsVisitor {
                 self.newline();
                 if self.generate_state_context {
                     self.add_code(
-                        "private Stack<StateContext> _stateStack_ = new Stack<StateContext>();",
+                        "private Stack<StateContextStackCompartment> _stateStack_ = new Stack<StateContextStackCompartment>();",
                     );
                     self.newline();
                     self.newline();
-                    self.add_code("private void _stateStack_push_(StateContext stateContext) {");
+                    self.add_code(&format!(
+                        "private void _stateStack_push_({}Compartment compartment) {{",
+                        self.system_name
+                    ));
                     self.indent();
                     self.newline();
-                    self.add_code("_stateStack_.Push(stateContext);");
+                    self.add_code("_stateStack_.Push(this.DeepCopyCompartment(compartment));");
                     self.outdent();
                     self.newline();
                     self.add_code("}");
                     self.newline();
                     self.newline();
-                    self.add_code("private StateContext _stateStack_pop_() {");
+
+                    self.add_code(&format!(
+                        "private {}Compartment DeepCopyCompartment({}Compartment c)",
+                        self.system_name, self.system_name
+                    ));
+                    self.newline();
+                    self.add_code("{");
+                    self.indent();
+                    self.newline();
+                    self.add_code(&format!(
+                        "{}Compartment copyCompartment = new {}Compartment(c.state)",
+                        self.system_name, self.system_name
+                    ));
+                    self.newline();
+                    self.add_code("{");
+                    self.indent();
+                    self.newline();
+                    self.add_code("state = c.state,");
+                    self.newline();
+                    self.add_code("StateArgs = c.StateArgs == null ? new Dictionary<string, object>() : new Dictionary<string, object>(c.StateArgs),");
+                    self.newline();
+                    self.add_code("StateVars = c.StateVars == null ? new Dictionary<string, object>() : new Dictionary<string, object>(c.StateVars),");
+                    self.newline();
+                    self.add_code("EnterArgs = c.EnterArgs == null ? new Dictionary<string, object>() : new Dictionary<string, object>(c.EnterArgs),");
+                    self.newline();
+                    self.add_code("ExitArgs = c.ExitArgs == null ? new Dictionary<string, object>() : new Dictionary<string, object>(c.ExitArgs)");
+                    self.outdent();
+                    self.newline();
+                    self.add_code("};");
+                    self.newline();
+                    self.newline();
+                    self.add_code("if (c._forwardEvent != null)");
+                    self.newline();
+                    self.add_code("{");
+                    self.indent();
+                    self.newline();
+                    self.add_code("FrameEvent forwardEventCopy = new FrameEvent()");
+                    self.newline();
+                    self.add_code("{");
+                    self.indent();
+                    self.newline();
+                    self.add_code("_message = c._forwardEvent._message,");
+                    self.newline();
+                    self.add_code("_return = c._forwardEvent._return");
+                    self.outdent();
+                    self.newline();
+                    self.add_code("};");
+                    self.newline();
+                    self.add_code("if(c._forwardEvent._parameters!=null){");
+                    self.indent();
+                    self.newline();
+                    self.add_code("forwardEventCopy._parameters=new Dictionary<string, object>(c._forwardEvent._parameters);");
+                    self.outdent();
+                    self.newline();
+                    self.add_code("}");
+                    self.newline();
+                    self.add_code("copyCompartment._forwardEvent = forwardEventCopy;");
+                    self.outdent();
+                    self.newline();
+                    self.add_code("}");
+                    self.newline();
+                    self.newline();
+                    self.add_code("return copyCompartment;");
+                    self.outdent();
+                    self.newline();
+                    self.add_code("}");
+
+                    self.newline();
+                    self.newline();
+                    self.add_code(&format!(
+                        "private {}Compartment _stateStack_pop_() {{",
+                        self.system_name
+                    ));
                     self.indent();
                     self.newline();
                     self.add_code("return _stateStack_.Pop();");
@@ -682,9 +757,10 @@ impl CsVisitor {
                     ));
                     self.newline();
                     self.newline();
-                    self.add_code(
-                        "private void _stateStack_push_(StateStackCompartment compartment) {",
-                    );
+                    self.add_code(&format!(
+                        "private void _stateStack_push_({}Compartment compartment) {{",
+                        self.system_name
+                    ));
                     self.indent();
                     self.newline();
                     self.add_code("_stateStack_.Push(compartment);");
@@ -693,7 +769,10 @@ impl CsVisitor {
                     self.add_code("}");
                     self.newline();
                     self.newline();
-                    self.add_code("private StateStackCompartment _stateStack_pop_() {");
+                    self.add_code(&format!(
+                        "private {}Compartment _stateStack_pop_() {{",
+                        self.system_name
+                    ));
                     self.indent();
                     self.newline();
                     self.add_code("return _stateStack_.Pop();");
@@ -1291,23 +1370,26 @@ impl CsVisitor {
             }
         }
 
-        if self.generate_state_context {
-            self.add_code("StateContext stateContext = _stateStack_pop_();");
-        } else {
-            self.add_code("StateStackCompartment compartment = _stateStack_pop_();");
-        }
+        //if self.generate_state_context {
+        self.add_code(&format!(
+            "{}Compartment compartment = _stateStack_pop_();",
+            self.system_name
+        ));
+        // } else {
+        //     self.add_code("StateStackCompartment compartment = _stateStack_pop_();");
+        // }
         self.newline();
-        if self.generate_exit_args {
-            if self.generate_state_context {
-                self.add_code("_transition_(stateContext.state,ExitArgs,stateContext);");
-            } else {
-                self.add_code("_transition_(state,ExitArgs);");
-            }
-        } else if self.generate_state_context {
-            self.add_code("_transition_(stateContext.state,stateContext);");
-        } else {
-            self.add_code("_transition_(compartment);");
-        }
+        // if self.generate_exit_args {
+        //     if self.generate_state_context {
+        //         self.add_code("_transition_(stateContext);");
+        //     } else {
+        self.add_code("_transition_(compartment);");
+        //     }
+        // } else if self.generate_state_context {
+        //     self.add_code("_transition_(stateContext);");
+        // } else {
+        //     self.add_code("_transition_(compartment);");
+        // }
     }
 
     //* --------------------------------------------------------------------- *//
@@ -3165,18 +3247,21 @@ impl AstVisitor for CsVisitor {
         {
             StateStackOperationType::Push => {
                 self.newline();
-                if self.generate_state_context {
-                    self.add_code("_stateStack_push_(_state_context_);");
-                } else {
-                    self.add_code("_stateStack_push_(_compartment_);");
-                }
+                //if self.generate_state_context {
+                self.add_code("_stateStack_push_(_compartment_);");
+                //} else {
+                //    self.add_code("_stateStack_push_(_compartment_);");
+                //}
             }
             StateStackOperationType::Pop => {
-                if self.generate_state_context {
-                    self.add_code("StateContext stateContext = _stateStack_pop_()");
-                } else {
-                    self.add_code("FrameState state = _stateStack_pop_()");
-                }
+                // if self.generate_state_context {
+                self.add_code(&format!(
+                    "{}Compartment stateContext = _stateStack_pop_()",
+                    self.system_name
+                ));
+                // } else {
+                //     self.add_code("FrameState state = _stateStack_pop_()");
+                // }
             }
         }
     }
