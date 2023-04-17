@@ -5,17 +5,26 @@
 #![allow(clippy::ptr_arg)]
 #![allow(non_snake_case)]
 
+use crate::config::*;
 use crate::frame_c::ast::*;
-use crate::frame_c::config::FrameConfig;
 use crate::frame_c::scanner::{Token, TokenType};
 use crate::frame_c::symbol_table::*;
+use crate::frame_c::visitors::cpp_visitor::ExprContext::Rvalue;
 use crate::frame_c::visitors::*;
+// use yaml_rust::{YamlLoader, Yaml};
 
+#[derive(PartialEq)]
+enum ExprContext {
+    None,
+    Lvalue,
+    Rvalue,
+}
 pub struct CppVisitor {
     compiler_version: String,
-    pub code: String,
-    pub dent: usize,
-    pub current_state_name_opt: Option<String>,
+    code: String,
+    dent: usize,
+    current_state_name_opt: Option<String>,
+    current_event_msg: String,
     current_event_ret_type: String,
     arcanium: Arcanum,
     symbol_config: SymbolConfig,
@@ -24,6 +33,9 @@ pub struct CppVisitor {
     first_event_handler: bool,
     system_name: String,
     first_state_name: String,
+    serialize: Vec<String>,
+    deserialize: Vec<String>,
+    subclass_code: Vec<String>,
     warnings: Vec<String>,
     has_states: bool,
     errors: Vec<String>,
@@ -32,7 +44,20 @@ pub struct CppVisitor {
     generate_state_context: bool,
     generate_state_stack: bool,
     generate_change_state: bool,
-    generate_transition_state: bool,
+
+    current_var_type: String,
+    expr_context: ExprContext,
+
+    /* Persistence */
+    managed: bool, //Generate Managed code
+    marshal: bool, //Generate JSON code
+    manager: String,
+
+    // keeping track of traversal context
+    //this_branch_transitioned: bool,
+
+    //generate_transition_state: bool,
+    config: CppConfig,
 }
 
 impl CppVisitor {
@@ -40,14 +65,14 @@ impl CppVisitor {
 
     pub fn new(
         arcanium: Arcanum,
-        _config: FrameConfig,
         generate_exit_args: bool,
         generate_state_context: bool,
         generate_state_stack: bool,
         generate_change_state: bool,
-        generate_transition_state: bool,
+        //generate_transition_state: bool,
         compiler_version: &str,
         comments: Vec<Token>,
+        config: FrameConfig,
     ) -> CppVisitor {
         // These closures are needed to do the same actions as add_code() and newline()
         // when inside a borrowed self reference as they modify self.
@@ -55,12 +80,13 @@ impl CppVisitor {
         // let mut newline_cl = |target:&mut String, s:&String, d:usize| {
         //     target.push_str(&*format!("\n{}",(0..d).map(|_| "\t").collect::<String>()));
         // };
-
+        let cpp_config = config.codegen.cpp;
         CppVisitor {
             compiler_version: compiler_version.to_string(),
             code: String::from(""),
             dent: 0,
             current_state_name_opt: None,
+            current_event_msg: String::new(),
             current_event_ret_type: String::new(),
             arcanium,
             symbol_config: SymbolConfig::new(),
@@ -69,16 +95,55 @@ impl CppVisitor {
             first_event_handler: true,
             system_name: String::new(),
             first_state_name: String::new(),
+            serialize: Vec::new(),
+            deserialize: Vec::new(),
             has_states: false,
             warnings: Vec::new(),
             visiting_call_chain_literal_variable: false,
             errors: Vec::new(),
+            subclass_code: Vec::new(),
             generate_exit_args,
             generate_state_context,
             generate_state_stack,
+
+            current_var_type: String::new(),
+            expr_context: ExprContext::None,
+
+            /* Persistence */
+            managed: false, // Generate Managed code
+            marshal: false, // Generate Json code
+            manager: String::new(),
+            //this_branch_transitioned: false,
             generate_change_state,
-            generate_transition_state,
+            //generate_transition_state,
+            config: cpp_config,
         }
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    pub fn format_type(&self, type_node: &TypeNode) -> String {
+        let mut s = String::new();
+
+        if let Some(frame_event_part) = &type_node.frame_event_part_opt {
+            match frame_event_part {
+                FrameEventPart::Event { is_reference } => {
+                    if *is_reference {
+                        s.push('&');
+                    }
+                    // s.push_str(&*self.config.code.frame_event_type_name.clone());
+                }
+                _ => {}
+            }
+        } else {
+            if type_node.is_reference {
+                s.push('&');
+            }
+
+            s.push_str(&type_node.type_str.clone());
+        }
+
+        s
     }
 
     //* --------------------------------------------------------------------- *//
@@ -152,13 +217,20 @@ impl CppVisitor {
                 let var_symbol = var_symbol_rcref.borrow();
                 let var_type = self.get_variable_type(&*var_symbol);
 
-                if self.visiting_call_chain_literal_variable {
-                    code.push('(');
+                if self.expr_context == ExprContext::Rvalue
+                    || self.expr_context == ExprContext::None
+                {
+                    if self.visiting_call_chain_literal_variable {
+                        //code.push('(');
+                        code.push_str("std::to_string(");
+                    }
                 }
+
                 code.push_str(&format!(
-                    "*({})*) _pStateContext_->getStateArg(\"{}\")",
+                    "({})this->_compartment_->stateArgs[\"{}\"]",
                     var_type, variable_node.id_node.name.lexeme
                 ));
+
                 if self.visiting_call_chain_literal_variable {
                     code.push(')');
                 }
@@ -170,15 +242,25 @@ impl CppVisitor {
                 let var_symbol = var_symbol_rcref.borrow();
                 let var_type = self.get_variable_type(&*var_symbol);
 
-                if self.visiting_call_chain_literal_variable {
-                    code.push('(');
+                if self.expr_context == ExprContext::Rvalue
+                    || self.expr_context == ExprContext::None
+                {
+                    if self.visiting_call_chain_literal_variable {
+                        code.push_str("std::to_string(");
+                    }
                 }
+
                 code.push_str(&format!(
-                    "*({}*) _pStateContext_->getStateVar(\"{}\")",
+                    "({})this->_compartment_->stateVars[\"{}\"]",
                     var_type, variable_node.id_node.name.lexeme
                 ));
-                if self.visiting_call_chain_literal_variable {
-                    code.push(')');
+
+                if self.expr_context == ExprContext::Rvalue
+                    || self.expr_context == ExprContext::None
+                {
+                    if self.visiting_call_chain_literal_variable {
+                        code.push(')');
+                    }
                 }
             }
             IdentifierDeclScope::EventHandlerParam => {
@@ -188,15 +270,23 @@ impl CppVisitor {
                 let var_symbol = var_symbol_rcref.borrow();
                 let var_type = self.get_variable_type(&*var_symbol);
 
-                if self.visiting_call_chain_literal_variable {
-                    code.push('(');
+                if self.expr_context == ExprContext::Rvalue
+                    || self.expr_context == ExprContext::None
+                {
+                    if self.visiting_call_chain_literal_variable {
+                        code.push_str("std::to_string(");
+                    }
                 }
                 code.push_str(&format!(
-                    "*({}*) e._parameters[\"{}\"]",
+                    "({})e._parameters[\"{}\"]",
                     var_type, variable_node.id_node.name.lexeme
                 ));
-                if self.visiting_call_chain_literal_variable {
-                    code.push(')');
+                if self.expr_context == ExprContext::Rvalue
+                    || self.expr_context == ExprContext::None
+                {
+                    if self.visiting_call_chain_literal_variable {
+                        code.push(')');
+                    }
                 }
             }
             IdentifierDeclScope::EventHandlerVar => {
@@ -229,6 +319,144 @@ impl CppVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    fn format_actions_parameter_list(
+        &mut self,
+        params: &Vec<ParameterNode>,
+        subclass_actions: &mut String,
+    ) {
+        let mut separator = "";
+        for param in params {
+            self.add_code(separator);
+            subclass_actions.push_str(separator);
+            let param_type: String = match &param.param_type_opt {
+                Some(ret_type) => ret_type.get_type_str(),
+                None => String::from("<?>"),
+            };
+            separator = ", ";
+            self.add_code(&format!("{} {}", param_type, param.param_name));
+            subclass_actions.push_str(&format!("{} {}", param_type, param.param_name));
+        }
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    // fn format_parameter_list_to_string(&mut self,params:&Vec<ParameterNode>,output:&mut String) {
+    //     let mut separator = "";
+    //     for param in params {
+    //         output.push_str(&format!("{}", separator));
+    //         let param_type: String = match &param.param_type_opt {
+    //             Some(ret_type) => ret_type.get_type_str(),
+    //             None => String::from("<?>"),
+    //         };
+    //         output.push_str(&format!("{} {}", param_type, param.param_name));
+    //         separator = ",";
+    //     }
+    // }
+
+    //* --------------------------------------------------------------------- *//
+
+    // format system params,if any.
+    fn format_params(&mut self, system_node: &SystemNode) -> (String, String) {
+        let mut separator = String::new();
+        let ref_params: String = String::new();
+        let mut formatted_params: String = match &system_node.start_state_state_params_opt {
+            Some(param_list) => {
+                let mut params = String::new();
+                for param_node in param_list {
+                    params.push_str(&format!("{}{}", separator, param_node.param_name));
+                    separator = String::from(", ");
+                }
+                params
+            }
+            None => String::new(),
+        };
+
+        match &system_node.start_state_enter_params_opt {
+            Some(param_list) => {
+                for param_node in param_list {
+                    formatted_params.push_str(&format!("{}{}", separator, param_node.param_name));
+                    separator = String::from(",");
+                }
+            }
+            None => {}
+        };
+        match &system_node.domain_params_opt {
+            Some(param_list) => {
+                for param_node in param_list {
+                    formatted_params.push_str(&format!("{}{}", separator, param_node.param_name));
+                    separator = String::from(",");
+                }
+            }
+            None => {}
+        };
+        (formatted_params.to_string(), ref_params.to_string())
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn format_new_params(&mut self, system_node: &SystemNode) -> (String, String) {
+        let mut ref_params: String = String::new(); // ref params is passing reference of constructor params
+        let mut separator = String::new();
+        let mut new_params: String = match &system_node.start_state_state_params_opt {
+            Some(param_list) => {
+                let mut params = String::new();
+                for param_node in param_list {
+                    let param_type = match &param_node.param_type_opt {
+                        Some(type_node) => self.format_type(type_node),
+                        None => String::new(),
+                    };
+                    separator = String::new();
+                    params.push_str(&format!(
+                        "{}{} {}",
+                        separator, &*param_type, param_node.param_name
+                    ));
+                    ref_params.push_str(&format!("{}{}", separator, param_node.param_name));
+                    separator = String::from(", ");
+                }
+                params
+            }
+            None => String::new(),
+        };
+        match &system_node.start_state_enter_params_opt {
+            Some(param_list) => {
+                for param_node in param_list {
+                    let param_type = match &param_node.param_type_opt {
+                        Some(type_node) => self.format_type(type_node),
+                        None => String::new(),
+                    };
+                    new_params.push_str(&format!(
+                        "{}{} {}",
+                        separator, &*param_type, param_node.param_name
+                    ));
+                    ref_params.push_str(&format!("{}{}", separator, param_node.param_name));
+                    separator = String::from(", ");
+                }
+            }
+            None => {}
+        };
+        match &system_node.domain_params_opt {
+            Some(param_list) => {
+                for param_node in param_list {
+                    let param_type = match &param_node.param_type_opt {
+                        Some(type_node) => self.format_type(type_node),
+                        None => String::new(),
+                    };
+                    new_params.push_str(&format!(
+                        "{}{} {}",
+                        separator, &*param_type, param_node.param_name
+                    ));
+                    ref_params.push_str(&format!("{}{}", separator, param_node.param_name));
+                    separator = String::from(", ");
+                }
+            }
+            None => {}
+        };
+
+        (new_params.to_string(), ref_params.to_string())
+    }
+
+    //* --------------------------------------------------------------------- *//
+
     fn format_action_name(&mut self, action_name: &String) -> String {
         return format!("{}_do", action_name);
     }
@@ -236,6 +464,64 @@ impl CppVisitor {
     //* --------------------------------------------------------------------- *//
 
     pub fn run(&mut self, system_node: &SystemNode) {
+        match &system_node.attributes_opt {
+            Some(attributes) => {
+                for value in (*attributes).values() {
+                    match value {
+                        AttributeNode::MetaNameValueStr { attr } => {
+                            match attr.name.as_str() {
+                                // TODO: constants
+                                // "stateType" => self.config.code.state_type = attr.value.clone(),
+                                "managed" => {
+                                    self.manager = attr.value.clone();
+                                    self.managed = true;
+                                }
+                                _ => {}
+                            }
+                        }
+                        AttributeNode::MetaListIdents { attr } => {
+                            match attr.name.as_str() {
+                                "derive" => {
+                                    for ident in &attr.idents {
+                                        match ident.as_str() {
+                                            // TODO: constants and figure out mom vs managed
+                                            //  "Managed" => self.managed = true,
+                                            "Marshal" => self.marshal = true,
+                                            _ => {}
+                                        }
+                                    }
+                                }
+                                "managed" => {
+                                    self.managed = true;
+                                    if attr.idents.len() != 1 {
+                                        self.errors.push(
+                                            "Attribute 'managed' takes 1 parameter".to_string(),
+                                        );
+                                    }
+                                    match attr.idents.get(0) {
+                                        Some(manager_type) => {
+                                            self.manager = manager_type.clone();
+                                        }
+                                        None => {
+                                            self.errors.push(
+                                                "Attribute 'managed' missing manager type."
+                                                    .to_string(),
+                                            );
+                                        }
+                                    }
+                                }
+                                _ => {
+                                    self.errors.push("Unknown attribute".to_string());
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // self.config.code.marshal_system_state_var = format!("{}State", &system_node.name);
+            }
+            None => {}
+        }
         system_node.accept(self);
     }
 
@@ -337,117 +623,235 @@ impl CppVisitor {
         self.newline();
         self.newline();
         self.add_code("//=============== Machinery and Mechanisms ==============//");
+        self.outdent();
         self.newline();
-        self.newline();
-        self.add_code("public:");
-        self.newline();
-        self.add_code(&format!("virtual ~{}() {{}};", system_node.name));
-        self.newline();
-        if let Some(_first_state) = system_node.get_first_state() {
-            self.newline();
+        if system_node.get_first_state().is_some() {
             self.newline();
             self.add_code("private:");
+            self.indent();
+            self.newline();
+            self.add_code("int _state_;");
             self.newline();
             self.newline();
             self.add_code(&format!(
-                "typedef void ({}::*FrameState)(FrameEvent& e);",
+                "void _transition_({}Compartment *compartment)",
                 self.system_name
             ));
             self.newline();
-            self.add_code("typedef map<string,void*> FrameMap;");
+            self.add_code("{");
+            self.indent();
+            self.newline();
+            self.add_code("_nextCompartment_ = compartment;");
+            self.outdent();
+            self.newline();
+            self.add_code("}");
+
             self.newline();
             self.newline();
+            self.add_code(&format!(
+                "void _doTransition_({}Compartment *nextCompartment)",
+                self.system_name
+            ));
             self.newline();
-            //            self.add_code(&format!("FrameState _state_ = &{}::_s{}_;",system_node.name, first_state.borrow().name ));
-            self.add_code("FrameState _state_;");
+            self.add_code("{");
+
+            self.indent();
             self.newline();
-            self.add_code("StateContext* _pStateContext_;");
+            self.add_code("this->_mux_(FrameEvent(\"<\", _compartment_->exitArgs));");
             self.newline();
+            self.add_code("this->_compartment_ = nextCompartment;");
             self.newline();
-            if self.generate_transition_state {
-                if self.generate_state_context {
-                    if self.generate_exit_args {
-                        self.add_code("private void _transition_(FrameState newState,Dictionary<string,object> exitArgs, StateContext stateContext) {");
-                    } else {
-                        self.add_code("private void _transition_(FrameState newState, StateContext stateContext) {");
-                    }
-                } else if self.generate_exit_args {
-                    self.add_code("private void _transition_(FrameState newState,Dictionary<string,object> exitArgs) {");
-                } else {
-                    self.add_code("private void _transition_(FrameState newState) {");
-                }
-                self.indent();
-                self.newline();
-                if self.generate_exit_args {
-                    self.add_code("FrameEvent exitEvent(\"<\",exitArgs);");
-                } else {
-                    self.add_code("FrameEvent exitEvent(\"<\",nullptr);");
-                }
-                self.newline();
-                self.add_code("_state_ = newState;");
-                self.newline();
-                self.add_code("if (_pStateContext_ && !_pStateContext_->isOnStateStack()) delete _pStateContext_;");
-                self.newline();
-                if self.generate_state_context {
-                    self.add_code("_pStateContext_ = pContext;");
-                    self.newline();
-                    self.add_code("FrameEvent enterEvent(\">\", pContext->enterArgs);");
-                } else {
-                    self.add_code("FrameEvent enterEvent(\">\",nullptr);");
-                    self.newline();
-                }
-                self.newline();
-                self.add_code("(this->*_state_)(enterEvent);");
-                self.outdent();
-                self.newline();
-                self.add_code("}");
-            }
+            self.add_code("this->_mux_(FrameEvent(\">\", this->_compartment_->enterArgs));");
+            self.outdent();
+            self.newline();
+            self.add_code("}");
+
             if self.generate_state_stack {
                 self.newline();
                 self.newline();
-                self.add_code("std::vector<StateContext*> _stateStack_;");
-                self.newline();
-                self.newline();
-                self.add_code("void _stateStack_push(StateContext* pStateContext) {");
-                self.indent();
-                self.newline();
-                self.add_code("pStateContext->setOnStateStack(true);");
-                self.newline();
-                self.add_code("_stateStack_.push_back(pStateContext);");
+                if self.generate_state_context {
+                    self.add_code(
+                        "private Stack<StateContextStackCompartment> _stateStack_ = new Stack<StateContextStackCompartment>();",
+                    );
+                    self.newline();
+                    self.newline();
+                    self.add_code(&format!(
+                        "private void _stateStack_push_({}Compartment compartment) {{",
+                        self.system_name
+                    ));
+                    self.indent();
+                    self.newline();
+                    self.add_code("_stateStack_->Push(this.DeepCopyCompartment(compartment));");
+                    self.outdent();
+                    self.newline();
+                    self.add_code("}");
+                    self.newline();
+                    self.newline();
+
+                    self.add_code(&format!(
+                        "private {}Compartment DeepCopyCompartment({}Compartment c)",
+                        self.system_name, self.system_name
+                    ));
+                    self.newline();
+                    self.add_code("{");
+                    self.indent();
+                    self.newline();
+                    self.add_code(&format!(
+                        "{}Compartment copyCompartment = new {}Compartment(c->state)",
+                        self.system_name, self.system_name
+                    ));
+                    self.newline();
+                    self.add_code("{");
+                    self.indent();
+                    self.newline();
+                    self.add_code("state = c.state,");
+                    self.newline();
+                    self.add_code("StateArgs = c.StateArgs == null ? new Dictionary<string, object>() : new Dictionary<string, object>(c.StateArgs),");
+                    self.newline();
+                    self.add_code("StateVars = c.StateVars == null ? new Dictionary<string, object>() : new Dictionary<string, object>(c.StateVars),");
+                    self.newline();
+                    self.add_code("EnterArgs = c.EnterArgs == null ? new Dictionary<string, object>() : new Dictionary<string, object>(c.EnterArgs),");
+                    self.newline();
+                    self.add_code("ExitArgs = c.ExitArgs == null ? new Dictionary<string, object>() : new Dictionary<string, object>(c.ExitArgs)");
+                    self.outdent();
+                    self.newline();
+                    self.add_code("};");
+                    self.newline();
+                    self.newline();
+                    self.add_code("if (c._forwardEvent != null)");
+                    self.newline();
+                    self.add_code("{");
+                    self.indent();
+                    self.newline();
+                    self.add_code("FrameEvent forwardEventCopy = new FrameEvent()");
+                    self.newline();
+                    self.add_code("{");
+                    self.indent();
+                    self.newline();
+                    self.add_code("_message = c._forwardEvent._message,");
+                    self.newline();
+                    self.add_code("_return = c._forwardEvent._return");
+                    self.outdent();
+                    self.newline();
+                    self.add_code("};");
+                    self.newline();
+                    self.add_code("if(c._forwardEvent._parameters!=null){");
+                    self.indent();
+                    self.newline();
+                    self.add_code("forwardEventCopy._parameters=new Dictionary<string, object>(c._forwardEvent._parameters);");
+                    self.outdent();
+                    self.newline();
+                    self.add_code("}");
+                    self.newline();
+                    self.add_code("copyCompartment._forwardEvent = forwardEventCopy;");
+                    self.outdent();
+                    self.newline();
+                    self.add_code("}");
+                    self.newline();
+                    self.newline();
+                    self.add_code("return copyCompartment;");
+                    self.outdent();
+                    self.newline();
+                    self.add_code("}");
+
+                    self.newline();
+                    self.newline();
+                    self.add_code(&format!(
+                        "private {}Compartment _stateStack_pop_() {{",
+                        self.system_name
+                    ));
+                    self.indent();
+                    self.newline();
+                    self.add_code("return _stateStack_.Pop();");
+                } else {
+                    self.add_code(&format!(
+                        "private Stack<{}Compartment> _stateStack_ = new Stack<{}Compartment>();",
+                        self.system_name, self.system_name
+                    ));
+                    self.newline();
+                    self.newline();
+                    self.add_code(&format!(
+                        "private void _stateStack_push_({}Compartment compartment) {{",
+                        self.system_name
+                    ));
+                    self.indent();
+                    self.newline();
+                    self.add_code("_stateStack_.Push(compartment);");
+                    self.outdent();
+                    self.newline();
+                    self.add_code("}");
+                    self.newline();
+                    self.newline();
+                    self.add_code(&format!(
+                        "private {}Compartment _stateStack_pop_() {{",
+                        self.system_name
+                    ));
+                    self.indent();
+                    self.newline();
+                    self.add_code("return _stateStack_.Pop();");
+                }
+
                 self.outdent();
                 self.newline();
                 self.add_code("}");
-                self.newline();
-                self.newline();
-                self.add_code("StateContext* _stateStack_pop() {");
-                self.indent();
-                self.newline();
-                self.add_code("pStateContext =  _stateStack_.back();");
-                self.newline();
-                self.add_code("_stateStack_.pop_back();");
-                self.newline();
-                self.add_code("pStateContext->setOnStateStack(false);");
-                self.newline();
-                self.add_code("return pStateContext;");
-                self.outdent();
-                self.newline();
-                self.add_code("}");
-                self.newline();
             }
             if self.generate_change_state {
                 self.newline();
                 self.newline();
-                self.add_code("private void _changeState_(FrameState newState) {");
+                self.add_code(&format!(
+                    "private void _changeState_({}Compartment compartment)",
+                    self.system_name
+                ));
+                self.newline();
+                self.add_code("{");
                 self.indent();
                 self.newline();
-                self.add_code("_state_ = newState;");
+                self.add_code("this._compartment_ = compartment;");
                 self.outdent();
                 self.newline();
                 self.add_code("}");
             }
+            self.newline();
+
+            if self.arcanium.is_serializable() {
+                for line in self.serialize.iter() {
+                    self.code.push_str(&*line.to_string());
+                    self.code.push_str(&*format!("\n{}", self.dent()));
+                }
+
+                for line in self.deserialize.iter() {
+                    self.code.push_str(&*line.to_string());
+                    self.code.push_str(&*format!("\n{}", self.dent()));
+                }
+            }
         }
     }
 
+    //* --------------------------------------------------------------------- *//
+
+    fn generate_subclass(&mut self) {
+        for line in self.subclass_code.iter() {
+            self.code.push_str(&*line.to_string());
+            self.code.push_str(&*format!("\n{}", self.dent()));
+        }
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    /// Generate a return statement within a handler. Call this rather than adding a return
+    /// statement directly to ensure that the control-flow state is properly maintained.
+    fn generate_return(&mut self) {
+        self.newline();
+        self.add_code("return;");
+        //self.this_branch_transitioned = false;
+    }
+
+    /// Generate a return statement if the current branch contained a transition or change-state.
+    fn generate_return_if_transitioned(&mut self) {
+        //if self.this_branch_transitioned {
+        self.generate_return();
+        //}
+    }
     //* --------------------------------------------------------------------- *//
 
     fn generate_comment(&mut self, line: usize) {
@@ -506,20 +910,17 @@ impl CppVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    // fn generate_state_ref_code(&self, target_state_name:&str) -> String {
-    //     format!("{}",self.format_target_state_name(target_state_name))
-    // }
-
+    fn generate_state_ref_code(&self, target_state_name: &str) -> String {
+        format!(
+            "static_cast<int>({}State::{})",
+            self.system_name,
+            target_state_name.to_uppercase()
+        )
+    }
     //* --------------------------------------------------------------------- *//
 
     fn generate_state_ref_transition(&mut self, transition_statement: &TransitionStatementNode) {
         self.newline();
-        // this provides a block to segregate StateContext declarations which
-        // can overlap w/ other generated ones in child scopes which causes
-        // the compiler to complain.
-        // self.add_code("{");
-        // self.indent();
-
         let target_state_name = match &transition_statement.target_state_context_t {
             StateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_node.name
@@ -530,9 +931,6 @@ impl CppVisitor {
             }
         };
 
-        let state_ref_code = format!("&{}::_s{}_", self.system_name, &target_state_name);
-
-        self.newline();
         match &transition_statement.label_opt {
             Some(label) => {
                 self.add_code(&format!("// {}", label));
@@ -541,20 +939,12 @@ impl CppVisitor {
             None => {}
         }
 
-        if self.generate_state_context {
-            self.add_code(&format!(
-                "pStateContext = new StateContext({});",
-                state_ref_code
-            ));
-            self.newline();
-        }
-
         // -- Exit Arguments --
 
-        //        let mut has_exit_args = false;
+        // let mut has_exit_args = false;
         if let Some(exit_args) = &transition_statement.exit_args_opt {
             if !exit_args.exprs_t.is_empty() {
-                //has_exit_args = true;
+                // has_exit_args = true;
 
                 // Note - searching for event keyed with "State:<"
                 // e.g. "S1:<"
@@ -571,41 +961,63 @@ impl CppVisitor {
                     match &event_sym.borrow().params_opt {
                         Some(event_params) => {
                             if exit_args.exprs_t.len() != event_params.len() {
-                                panic!("Fatal error: misaligned parameters to arguments.")
+                                self.errors.push(
+                                    "Fatal error: misaligned parameters to arguments.".to_string(),
+                                );
                             }
                             let mut param_symbols_it = event_params.iter();
-                            self.add_code("map<string, Attr*> exitArg;");
-                            self.newline();
+                            // self.add_code("let exitArgs = {};");
+                            // self.newline();
                             // Loop through the ARGUMENTS...
                             for expr_t in &exit_args.exprs_t {
                                 // ...and validate w/ the PARAMETERS
                                 match param_symbols_it.next() {
                                     Some(p) => {
-                                        let param_type = match &p.param_type_opt {
+                                        let _param_type = match &p.param_type_opt {
                                             Some(param_type) => param_type.get_type_str(),
                                             None => String::from("<?>"),
                                         };
                                         let mut expr = String::new();
                                         expr_t.accept_to_string(self, &mut expr);
-                                        self.add_code(&format!("exitArg.Add(string(\"{}\"),string(\"{}\"),true,new {}({}));", p.name, param_type, param_type, expr));
+                                        self.add_code(&format!(
+                                            "this->_compartment_->exitArgs[\"{}\"] = {};",
+                                            p.name, expr
+                                        ));
                                         self.newline();
                                     }
-                                    None => panic!(
+                                    None => self.errors.push(format!(
                                         "Invalid number of arguments for \"{}\" event handler.",
                                         msg
-                                    ),
+                                    )),
                                 }
                             }
                         }
-                        None => panic!("Fatal error: misaligned parameters to arguments."),
+                        None => self
+                            .errors
+                            .push("Fatal error: misaligned parameters to arguments.".to_string()),
                     }
                 } else {
-                    panic!("TODO");
+                    self.errors.push("Unknown error.".to_string());
                 }
             }
         }
 
         // -- Enter Arguments --
+
+        //let state_ref_code = self.generate_state_ref_code(target_state_name);
+
+        self.add_code(&format!(
+            "{}Compartment *compartment =  new {}Compartment(this->_state_ + 1);",
+            self.system_name, self.system_name
+        ));
+        self.newline();
+        // }
+
+        if transition_statement.forward_event {
+            self.newline();
+            self.add_code("compartment->_forwardEvent = new FrameEvent(e);");
+            self.newline();
+        }
 
         let enter_args_opt = match &transition_statement.target_state_context_t {
             StateContextType::StateRef { state_context_node } => &state_context_node.enter_args_opt,
@@ -624,32 +1036,40 @@ impl CppVisitor {
                 match &event_sym.borrow().params_opt {
                     Some(event_params) => {
                         if enter_args.exprs_t.len() != event_params.len() {
-                            panic!("Fatal error: misaligned parameters to arguments.")
+                            self.errors.push(
+                                "Fatal error: misaligned parameters to arguments.".to_string(),
+                            );
                         }
                         let mut param_symbols_it = event_params.iter();
                         for expr_t in &enter_args.exprs_t {
                             match param_symbols_it.next() {
                                 Some(p) => {
-                                    let param_type = match &p.param_type_opt {
+                                    let _param_type = match &p.param_type_opt {
                                         Some(param_type) => param_type.get_type_str(),
                                         None => String::from("<?>"),
                                     };
                                     let mut expr = String::new();
                                     expr_t.accept_to_string(self, &mut expr);
-                                    self.add_code(&format!("pStateContext->addEnterArg(string(\"{}\"),string(\"{}\"),true,new {}({}));",p.name,param_type,param_type,expr));
+                                    self.add_code(&format!(
+                                        "compartment->enterArgs[\"{}\"] = {};",
+                                        p.name, expr
+                                    ));
                                     self.newline();
                                 }
-                                None => panic!(
+                                None => self.errors.push(format!(
                                     "Invalid number of arguments for \"{}\" event handler.",
                                     msg
-                                ),
+                                )),
                             }
                         }
                     }
-                    None => panic!("Invalid number of arguments for \"{}\" event handler.", msg),
+                    None => self.errors.push(format!(
+                        "Invalid number of arguments for \"{}\" event handler.",
+                        msg
+                    )),
                 }
             } else {
-                self.warnings.push(format!("State {} does not have an enter event handler but is being passed parameters in a transition", &target_state_name));
+                self.warnings.push(format!("State {} does not have an enter event handler but is being passed parameters in a transition", target_state_name));
             }
         }
 
@@ -674,19 +1094,22 @@ impl CppVisitor {
                             match param_symbols_it.next() {
                                 Some(param_symbol_rcref) => {
                                     let param_symbol = param_symbol_rcref.borrow();
-                                    let param_type = match &param_symbol.param_type_opt {
+                                    let _param_type = match &param_symbol.param_type_opt {
                                         Some(param_type) => param_type.get_type_str(),
                                         None => String::from("<?>"),
                                     };
                                     let mut expr = String::new();
                                     expr_t.accept_to_string(self, &mut expr);
-                                    self.add_code(&format!("pStateContext->addStateArg(string(\"{}\"),string(\"{}\"),true,new {}({}));", param_symbol.name, param_type, param_type, expr));
+                                    self.add_code(&format!(
+                                        "compartment->stateArgs[\"{}\"] = {};",
+                                        param_symbol.name, expr
+                                    ));
                                     self.newline();
                                 }
-                                None => panic!(
+                                None => self.errors.push(format!(
                                     "Invalid number of arguments for \"{}\" state parameters.",
-                                    &target_state_name
-                                ),
+                                    target_state_name
+                                )),
                             }
                             //
                         }
@@ -694,7 +1117,7 @@ impl CppVisitor {
                     None => {}
                 }
             } else {
-                panic!("TODO");
+                self.errors.push("TODO".to_string());
             }
         } // -- State Arguments --
 
@@ -713,15 +1136,17 @@ impl CppVisitor {
                         //                        let mut separator = "";
                         for var_rcref in state_node.vars_opt.as_ref().unwrap() {
                             let var = var_rcref.borrow();
-                            let var_type = match &var.type_opt {
+                            let _var_type = match &var.type_opt {
                                 Some(var_type) => var_type.get_type_str(),
                                 None => String::from("<?>"),
                             };
                             let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
-                            self.newline();
-                            self.add_code(&format!("pStateContext->addStateVar(string(\"{}\"),string(\"{}\"),true,new {}({}));", var.name, var_type, var_type, expr_code));
+                            self.add_code(&format!(
+                                "compartment->stateVars[\"{}\"] = {};",
+                                var.name, expr_code
+                            ));
                             self.newline();
                         }
                     }
@@ -731,45 +1156,16 @@ impl CppVisitor {
                 //                code = target_state_vars.clone();
             }
         }
-        // let exit_args = if has_exit_args {
-        //     "exitArgs"
-        // } else {
-        //     "null"
-        // };
-        if self.generate_state_context {
-            if self.generate_exit_args {
-                self.add_code(&format!(
-                    "_transition_({},exitArgs,pStateContext);",
-                    self.format_target_state_name(target_state_name)
-                ));
-            } else {
-                self.add_code(&format!(
-                    "_transition_({},pStateContext);",
-                    self.format_target_state_name(target_state_name)
-                ));
-            }
-        } else if self.generate_exit_args {
-            self.add_code(&format!(
-                "_transition_({},exitArgs);",
-                self.format_target_state_name(target_state_name)
-            ));
-        } else {
-            self.add_code(&format!(
-                "_transition_({});",
-                self.format_target_state_name(target_state_name)
-            ));
-        }
 
-        // see comment at top of method for purpose of this
-        // self.outdent();
-        // self.newline();
-        // self.add_code("}");
+        self.newline();
+        self.add_code("this->_transition_(compartment);");
     }
 
     //* --------------------------------------------------------------------- *//
 
     fn format_target_state_name(&self, state_name: &str) -> String {
-        format!("&{}::_s{}_", self.system_name, state_name)
+        //format!("&{}::_s{}_", self.system_name, state_name)
+        format!("_s{}_", state_name)
     }
 
     //* --------------------------------------------------------------------- *//
@@ -864,6 +1260,245 @@ impl CppVisitor {
             self.add_code("_transition_(pState);");
         }
     }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn generate_compartment(&mut self, system_name: &str) {
+        self.add_code("//=============== Compartment ==============//");
+        self.newline();
+        self.newline();
+        self.add_code(&format!("class {}Compartment", system_name));
+        self.newline();
+        self.add_code("{");
+        self.newline();
+        self.add_code("public:");
+        self.indent();
+        self.newline();
+        self.add_code("int state;");
+        self.newline();
+        self.newline();
+        self.add_code(&format!("{}Compartment(int state)", system_name));
+        self.newline();
+        self.add_code("{");
+        self.indent();
+        self.newline();
+        self.add_code("this->state = state;");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+
+        self.newline();
+        self.newline();
+        self.add_code("std::unordered_map<std::string, int> stateArgs;");
+        self.newline();
+        self.add_code("std::unordered_map<std::string, int> stateVars;");
+        self.newline();
+        self.add_code("std::unordered_map<std::string, int> enterArgs;");
+        self.newline();
+        self.add_code("std::unordered_map<std::string, int> exitArgs;");
+        self.newline();
+        self.add_code("FrameEvent *_forwardEvent;");
+        self.outdent();
+        self.newline();
+        self.add_code("};");
+        self.newline();
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn generate_new_fn(&mut self, system_node: &SystemNode) {
+        if system_node.get_first_state().is_some() {
+            self.newline();
+
+            if self.generate_state_stack {
+                self.add_code("// Create state stack.");
+                self.newline();
+                self.newline();
+                self.add_code(&format!(
+                    "this._stateStack_ = new Stack<{}Compartment>();",
+                    self.system_name
+                ));
+                self.newline();
+                self.newline();
+            }
+
+            //self.add_code("// Create and intialize start state compartment.");
+            // self.newline();
+            // self.add_code(&format!(
+            //     "this.__state = self.{}",
+            //     self.format_target_state_name(&self.first_state_name)
+            // ));
+        } else {
+            //self.add_code("// Create and intialize start state compartment.");
+            // self.newline();
+            // self.newline();
+            // self.add_code("self.__state = None");
+        }
+
+        if self.managed {
+            self.newline();
+            self.add_code("this._manager = manager;");
+        }
+        self.add_code(&format!(
+            "_compartment_ = new {}Compartment(this->_state_);",
+            system_node.name
+        ));
+        self.newline();
+        self.add_code("_nextCompartment_ = nullptr;");
+
+        // Initialize state arguments.
+        match &system_node.start_state_state_params_opt {
+            Some(params) => {
+                for param in params {
+                    self.newline();
+                    self.add_code(&format!(
+                        "_compartment_->stateArgs[\"{}\"] = {};",
+                        param.param_name, param.param_name,
+                    ));
+                }
+            }
+            None => {}
+        }
+
+        match system_node.get_first_state() {
+            Some(state_rcref) => {
+                let state_node = state_rcref.borrow();
+                match &state_node.vars_opt {
+                    Some(vars) => {
+                        for var_rcref in vars {
+                            let var_decl_node = var_rcref.borrow();
+                            let expr_t = var_decl_node.initializer_expr_t_opt.as_ref().unwrap();
+                            let mut expr_code = String::new();
+                            expr_t.accept_to_string(self, &mut expr_code);
+
+                            self.newline();
+                            self.add_code(&format!(
+                                "_compartment_->stateVars[\"{}\"] = {};",
+                                var_decl_node.name, expr_code,
+                            ));
+                        }
+                    }
+                    None => {}
+                }
+            }
+            None => {}
+        }
+
+        if let Some(enter_params) = &system_node.start_state_enter_params_opt {
+            for param in enter_params {
+                self.newline();
+                self.add_code(&format!(
+                    "_compartment_->enterArgs[\"{}\"] = {};",
+                    param.param_name, param.param_name,
+                ));
+            }
+        }
+
+        //  if self.config.code.public_state_info {
+        //      self.newline();
+        //      self.add_code("this.state = this.#compartment.state.name");
+        //  }
+
+        self.newline();
+        self.newline();
+        // self.add_code("# Initialize domain");
+
+        // if let Some(domain_block_node) = &system_node.domain_block_node_opt {
+        //     domain_block_node.accept(self);
+        // } else {
+        //     self.newline();
+        // }
+        self.newline();
+        self.add_code("// Send system start event");
+
+        /* FrameEvent frameEvent = new FrameEvent(">", this._compartment_.enterArgs); */
+
+        if let Some(_enter_params) = &system_node.start_state_enter_params_opt {
+            self.newline();
+            self.add_code("FrameEvent frame_event(\">\", this->_compartment_->enterArgs);");
+        } else {
+            self.newline();
+            self.add_code("FrameEvent frame_event(\">\", nullptr);");
+        }
+
+        self.newline();
+        self.add_code("_mux_(frame_event);");
+
+        self.outdent();
+        self.newline();
+    }
+    //* --------------------------------------------------------------------- *//
+    fn format_load_fn(&mut self, system_node: &SystemNode) {
+        self.newline();
+        self.newline();
+        let mut manager_param = "";
+        if self.managed {
+            manager_param = "manager";
+        }
+        self.add_code(&format!(
+            "public static {} load{}({}Controller {}, {}Controller data){{",
+            system_node.name, system_node.name, self.manager, manager_param, system_node.name,
+        ));
+
+        self.indent();
+        self.newline();
+        self.newline();
+        if self.managed {
+            self.add_code("data._manager = manager;");
+        }
+        // self.newline();
+        // self.newline();
+        // self.add_code("// Initialize machine");
+        // self.newline();
+        // // self.add_code("data.#compartment = .#compartment");
+        // self.newline();
+        // // for x in domain_vec {
+        // //     self.newline();
+        // //     self.add_code(&format!("this.{} = parseObj.{}", x.0, x.0))
+        // // }
+        // self.newline();
+        self.newline();
+        self.add_code("return data;");
+        self.newline();
+
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+    }
+    //* --------------------------------------------------------------------- *//
+    fn generate_json_fn(&mut self, system_node: &SystemNode) {
+        self.newline();
+        self.newline();
+        self.add_code("public:");
+        self.indent();
+        self.newline();
+        self.add_code(&format!("{} marshal(){{", system_node.name));
+        self.indent();
+        self.newline();
+        self.newline();
+        self.add_code(&format!("{} data = this;", system_node.name));
+        self.newline();
+        self.add_code("return data;");
+        self.newline();
+
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.newline();
+    }
+    fn generate_state_info_method(&mut self) {
+        self.newline();
+        self.add_code("public:");
+        self.newline();
+        self.add_code("string state_info(){");
+        self.indent();
+        self.newline();
+        self.add_code("return String.valueOf(this._compartment_.state);");
+        self.newline();
+        self.add_code("}");
+        self.newline();
+        self.outdent();
+    }
 }
 
 //* --------------------------------------------------------------------- *//
@@ -879,17 +1514,54 @@ impl AstVisitor for CppVisitor {
             "// get include files at https://github.com/frame-lang/frame-ancillary-files",
         );
         self.newline();
+        self.add_code(&system_node.header);
         self.newline();
-        self.add_code(&format!("class {} {{", system_node.name));
         self.newline();
+        self.generate_compartment(&system_node.name);
+        self.newline();
+        self.add_code(&format!("class {}", &system_node.name));
+        self.newline();
+        self.add_code("{");
+        self.newline();
+        self.add_code("private:");
         self.indent();
         self.newline();
-        self.add_code("class StateContext;");
+        self.add_code(&format!("{}Compartment *_compartment_;", &system_node.name));
         self.newline();
+        self.add_code(&format!(
+            "{}Compartment *_nextCompartment_;",
+            &system_node.name
+        ));
         self.newline();
-        self.add_code("public:");
+        if self.managed {
+            self.add_code(&format!("protected {} _manager;", self.manager));
+        }
+
+        // First state name needed for machinery.
+        // Don't generate if there isn't at least one state.
+        let new_params: String = String::from(&self.format_new_params(system_node).0);
+
+        if self.managed {
+            if new_params.is_empty() {
+                self.add_code(&format!("{} manager) {{", self.manager));
+            } else {
+                self.add_code(&format!("manager,{}) {{", new_params));
+            }
+        } //else {
+          //     self.add_code(&format!("{}) {{", new_params));
+          // }
+
+        let formatted_params: String = String::from(&self.format_params(system_node).0);
+        match system_node.get_first_state() {
+            Some(x) => {
+                self.first_state_name = x.borrow().name.clone();
+                self.has_states = true;
+            }
+            None => {}
+        }
         self.newline();
-        self.newline();
+
+        // let mut params = String::new();
 
         // First state name needed for machinery.
         // Don't generate if there isn't at least one state.
@@ -903,49 +1575,288 @@ impl AstVisitor for CppVisitor {
 
         // TODO: initialize start state context.
         if self.has_states {
-            self.add_code(&format!("{}() {{", system_node.name));
+            self.outdent();
+            self.newline();
+            self.add_code("public:");
             self.indent();
             self.newline();
+            self.add_code(&format!("{}(", system_node.name));
+
+            //format system params,if any.
+            let new_params: String = String::from(&self.format_new_params(system_node).0);
+
+            if self.managed {
+                if new_params.is_empty() {
+                    self.add_code(&format!("{} manager)", self.manager));
+                } else {
+                    self.add_code(&format!("manager,{})", new_params));
+                }
+            } else {
+                self.add_code(&format!("{})", new_params));
+            }
+            self.newline();
+            self.add_code("{");
+            self.indent();
+            self.newline();
+            self.add_code("// Create and intialize start state compartment.");
+            self.newline();
             self.add_code(&format!(
-                "_state_ = &{}::_s{}_;",
+                "_state_ = static_cast<int>({}State::{});",
                 system_node.name, self.first_state_name
             ));
-            if self.generate_state_context {
-                self.newline();
-                self.add_code("_pStateContext_ = new StateContext(_state_);");
-                if self.has_states {
-                    if let Some(state_symbol_rcref) =
-                        self.arcanium.get_state(&self.first_state_name)
-                    {
-                        self.newline();
-                        let state_symbol = state_symbol_rcref.borrow();
-                        let state_node = &state_symbol.state_node.as_ref().unwrap().borrow();
-                        // generate local state variables
-                        if state_node.vars_opt.is_some() {
-                            for var_rcref in state_node.vars_opt.as_ref().unwrap() {
-                                let var = var_rcref.borrow();
-                                // let var_type = match &var.type_opt {
-                                //     Some(var_type) => var_type.get_type_str(),
-                                //     None => String::from("<?>"),
-                                // };
-                                let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
-                                let mut expr_code = String::new();
-                                expr_t.accept_to_string(self, &mut expr_code);
-                                self.add_code(&format!(
-                                    "_stateContext_->addStateVar(\"{}\",\"{}\");",
-                                    var.name, expr_code
-                                ));
-                                self.newline();
-                            }
-                        }
-                    }
-                }
-            }
 
-            self.outdent();
+            self.generate_new_fn(system_node);
             self.newline();
             self.add_code("}");
             self.newline();
+            self.newline();
+
+            // if self.generate_state_context {
+            //     self.newline();
+            //     self.add_code("_pStateContext_ = new StateContext(_state_);");
+            //     if self.has_states {
+            //         if let Some(state_symbol_rcref) =
+            //             self.arcanium.get_state(&self.first_state_name)
+            //         {
+            //             self.newline();
+            //             let state_symbol = state_symbol_rcref.borrow();
+            //             let state_node = &state_symbol.state_node.as_ref().unwrap().borrow();
+            //             // generate local state variables
+            //             if state_node.vars_opt.is_some() {
+            //                 for var_rcref in state_node.vars_opt.as_ref().unwrap() {
+            //                     let var = var_rcref.borrow();
+            //                     // let var_type = match &var.type_opt {
+            //                     //     Some(var_type) => var_type.get_type_str(),
+            //                     //     None => String::from("<?>"),
+            //                     // };
+            //                     let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
+            //                     let mut expr_code = String::new();
+            //                     expr_t.accept_to_string(self, &mut expr_code);
+            //                     self.add_code(&format!(
+            //                         "_stateContext_->addStateVar(\"{}\",\"{}\");",
+            //                         var.name, expr_code
+            //                     ));
+            //                     self.newline();
+            //                 }
+            //             }
+            //         }
+            //     }
+            // }
+
+            // self.outdent();
+            // self.newline();
+            // self.add_code("}");
+            // self.newline();
+            // Define state constants
+
+            if let Some(machine_block_node) = &system_node.machine_block_node_opt {
+                self.add_code("// states enum");
+                self.outdent();
+                self.newline();
+                self.add_code("private:");
+                self.indent();
+                self.newline();
+                self.add_code(&format!("enum class {}State", system_node.name));
+                self.newline();
+                self.add_code("{");
+                self.indent();
+                self.newline();
+                let len = machine_block_node.states.len();
+                let mut current = 0;
+                for state_node_rcref in &machine_block_node.states {
+                    self.add_code(&format!(
+                        "{} = {}",
+                        &state_node_rcref.borrow().name.to_uppercase(),
+                        current
+                    ));
+                    current += 1;
+
+                    if current == len {
+                        self.add_code("");
+                    } else {
+                        self.add_code(",");
+                        self.newline();
+                    }
+                }
+
+                self.outdent();
+                self.newline();
+                self.add_code("};");
+                self.newline();
+            }
+
+            if self.marshal {
+                //generate Load() factory
+                self.format_load_fn(system_node);
+                self.generate_json_fn(system_node);
+            }
+
+            // generate _mux_
+
+            self.newline();
+            self.add_code("//====================== Multiplexer ====================//");
+            self.outdent();
+            self.newline();
+            self.newline();
+            self.add_code("private:");
+            self.indent();
+            self.newline();
+            self.add_code("void _mux_(FrameEvent e)");
+            self.newline();
+            self.add_code("{");
+            self.indent();
+
+            if let Some(machine_block_node) = &system_node.machine_block_node_opt {
+                self.newline();
+
+                for (current_index, state_node_rcref) in
+                    machine_block_node.states.iter().enumerate()
+                {
+                    let state_name = &self
+                        .format_target_state_name(&state_node_rcref.borrow().name)
+                        .to_string();
+                    let state_ref_code =
+                        self.generate_state_ref_code(&state_node_rcref.borrow().name);
+                    if current_index == 0 {
+                        self.add_code(&format!(
+                            "if(this->_compartment_->state == {})",
+                            state_ref_code
+                        ));
+                    } else {
+                        self.newline();
+                        self.add_code(&format!(
+                            "else if(this->_compartment_->state == {})",
+                            state_ref_code
+                        ));
+                    }
+                    self.newline();
+                    self.add_code("{");
+                    self.indent();
+                    self.newline();
+                    self.add_code(&format!("this->{}(e);", state_name));
+                    self.outdent();
+                    self.newline();
+                    self.add_code("}");
+                }
+
+                self.newline();
+                self.newline();
+                self.newline();
+                self.add_code("if(this->_nextCompartment_ != nullptr)");
+                self.newline();
+                self.add_code("{");
+                self.indent();
+                self.newline();
+                self.add_code(&format!(
+                    "{}Compartment *nextCompartment = this->_nextCompartment_;",
+                    system_node.name
+                ));
+                self.newline();
+                self.add_code("this->_nextCompartment_ = nullptr;");
+                self.newline();
+                self.add_code("if (nextCompartment->_forwardEvent != nullptr && ");
+                self.indent();
+                self.newline();
+                self.add_code("nextCompartment->_forwardEvent->_message == \">\")");
+                self.outdent();
+                self.newline();
+                self.add_code("{");
+                self.indent();
+                self.newline();
+                self.add_code("this->_mux_(FrameEvent( \"<\", this->_compartment_->exitArgs));");
+                self.newline();
+                self.add_code("this->_compartment_ = nextCompartment;");
+                self.newline();
+                self.add_code("this->_mux_(*nextCompartment->_forwardEvent);");
+                self.outdent();
+                self.newline();
+                self.add_code("}");
+                self.newline();
+                self.add_code("else");
+                self.newline();
+                self.add_code("{");
+                self.indent();
+                self.newline();
+                self.add_code("this->_doTransition_(nextCompartment);");
+                self.newline();
+                self.add_code("if (nextCompartment->_forwardEvent != nullptr)");
+                self.newline();
+                self.add_code("{");
+                self.indent();
+                self.newline();
+                self.add_code("this->_mux_(*nextCompartment->_forwardEvent);");
+                self.outdent();
+                self.newline();
+                self.add_code("}");
+                self.outdent();
+                self.newline();
+                self.add_code("}");
+                self.newline();
+                self.add_code("nextCompartment->_forwardEvent = nullptr;");
+                self.outdent();
+                self.newline();
+                self.add_code("}");
+                self.outdent();
+                self.newline();
+                self.add_code("}");
+                self.newline();
+            }
+
+            self.serialize.push("".to_string());
+            self.serialize.push("Bag _serialize__do() {".to_string());
+
+            self.deserialize.push("".to_string());
+
+            // @TODO: _do needs to be configurable.
+            self.deserialize
+                .push("void _deserialize__do(Bag data) {".to_string());
+
+            self.subclass_code.push("".to_string());
+            self.subclass_code
+                .push("/********************\n".to_string());
+            self.subclass_code.push(format!(
+                "class {}Controller : public {}",
+                system_node.name, system_node.name
+            ));
+            self.subclass_code.push("{".to_string());
+            // self.subclass_code.push(format!(
+            //         "\tpublic {}Controller({}) {{}}",
+            //         system_node.name, new_params
+            //     ));
+            if self.managed {
+                if new_params.is_empty() {
+                    self.add_code("public:");
+                    self.indent();
+                    self.newline();
+                    self.subclass_code.push(format!(
+                        "\t{}Controller({} manager) : base(manager)",
+                        system_node.name, self.manager
+                    ));
+                    // self.subclass_code.push("\t{".to_string());
+                    // self.subclass_code.push("\t  super(manager);".to_string());
+                } else {
+                    self.add_code("public:");
+                    self.indent();
+                    self.newline();
+                    self.subclass_code.push(format!(
+                        "\t{}Controller({} manager,{}) : {}({} manager{})\n{{",
+                        system_node.name,
+                        self.manager,
+                        new_params,
+                        system_node.name,
+                        self.manager,
+                        new_params
+                    ));
+                }
+            } else {
+                self.subclass_code.push("public:".to_string());
+                self.indent();
+                self.newline();
+                self.subclass_code.push(format!(
+                    "\t{}Controller({}) : {}({}) {{}}",
+                    system_node.name, new_params, system_node.name, formatted_params
+                ));
+            }
         }
 
         if let Some(interface_block_node) = &system_node.interface_block_node_opt {
@@ -964,8 +1875,27 @@ impl AstVisitor for CppVisitor {
             domain_block_node.accept(self);
         }
 
+        self.subclass_code.push("};".to_string());
+
+        self.subclass_code
+            .push("\n********************/".to_string());
+        self.newline();
+        //self.subclass_code.push("}".to_string());
+        self.serialize.push("".to_string());
+        self.serialize
+            .push("\treturn JSON.stringify(bag);".to_string());
+        self.serialize.push("}".to_string());
+        self.serialize.push("".to_string());
+
+        self.deserialize.push("".to_string());
+        self.deserialize.push("}".to_string());
+
         if self.has_states {
             self.generate_machinery(system_node);
+        }
+
+        if self.config.code.public_state_info {
+            self.generate_state_info_method()
         }
 
         // TODO: add comments back
@@ -975,8 +1905,10 @@ impl AstVisitor for CppVisitor {
         self.outdent();
         //       self.generate_comment(system_node.line);
         self.newline();
-        self.add_code("}");
+        self.add_code("};");
         self.newline();
+
+        self.generate_subclass();
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1121,16 +2053,37 @@ impl AstVisitor for CppVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_machine_block_node(&mut self, machine_block_node: &MachineBlockNode) {
+        self.outdent();
         self.newline();
         self.newline();
         self.add_code("//===================== Machine Block ===================//");
+        self.outdent();
         self.newline();
         self.newline();
         self.add_code("private:");
 
+        self.serialize.push("".to_string());
+        self.serialize.push("\tvar stateName = null;".to_string());
+
+        self.deserialize.push("".to_string());
+        self.deserialize
+            .push("\tconst bag = JSON.parse(data);".to_string());
+        self.deserialize.push("".to_string());
+        self.deserialize.push("\tswitch (bag.state) {".to_string());
+
         for state_node_rcref in &machine_block_node.states {
             state_node_rcref.borrow().accept(self);
         }
+
+        self.serialize.push("".to_string());
+        self.serialize.push("\tvar bag = {".to_string());
+        self.serialize.push("\t\tstate : stateName,".to_string());
+        self.serialize.push("\t\tdomain : {}".to_string());
+        self.serialize.push("\t};".to_string());
+        self.serialize.push("".to_string());
+
+        self.deserialize.push("\t}".to_string());
+        self.deserialize.push("".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1139,14 +2092,29 @@ impl AstVisitor for CppVisitor {
         self.newline();
         self.newline();
         self.add_code("//===================== Actions Block ===================//");
-        self.newline();
-        self.newline();
-        self.add_code("protected:");
+        // self.newline();
+        // self.newline();
+        // self.add_code("protected:");
+        self.indent();
         self.newline();
 
-        for action_decl_node_rcref in &actions_block_node.actions {
-            let action_decl_node = action_decl_node_rcref.borrow();
-            action_decl_node.accept(self);
+        for action_rcref in &actions_block_node.actions {
+            let action_node = action_rcref.borrow();
+            if action_node.code_opt.is_some() {
+                action_node.accept_action_impl(self);
+            }
+        }
+
+        self.newline();
+        self.newline();
+        self.add_code("// Unimplemented Actions");
+        self.newline();
+
+        for action_rcref in &actions_block_node.actions {
+            let action_node = action_rcref.borrow();
+            if action_node.code_opt.is_none() {
+                action_node.accept_action_decl(self);
+            }
         }
     }
 
@@ -1188,9 +2156,12 @@ impl AstVisitor for CppVisitor {
     fn visit_state_node(&mut self, state_node: &StateNode) {
         self.generate_comment(state_node.line);
         self.current_state_name_opt = Some(state_node.name.clone());
+        self.indent();
         self.newline();
         self.newline();
-        self.add_code(&format!("void _s{}_(FrameEvent& e) {{", state_node.name));
+        self.add_code(&format!("void _s{}_(FrameEvent e)", state_node.name));
+        self.newline();
+        self.add_code("{");
         self.indent();
 
         // let state_symbol = match self.arcanium.get_state(&state_node.name) {
@@ -1224,6 +2195,7 @@ impl AstVisitor for CppVisitor {
         self.outdent();
         self.newline();
         self.add_code("}");
+        self.outdent();
 
         self.current_state_name_opt = None;
     }
@@ -1257,10 +2229,10 @@ impl AstVisitor for CppVisitor {
         self.generate_comment(evt_handler_node.line);
 
         self.indent();
-        if evt_handler_node.event_handler_has_transition && self.generate_state_context {
-            self.newline();
-            self.add_code("auto pStateContext = null;");
-        }
+        // if evt_handler_node.event_handler_has_transition && self.generate_state_context {
+        //     self.newline();
+        //     self.add_code("auto pStateContext = null;");
+        // }
 
         match &evt_handler_node.msg_t {
             MessageType::CustomMessage { .. } => {
@@ -2177,8 +3149,6 @@ impl AstVisitor for CppVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_frame_event_part(&mut self, frame_event_part: &FrameEventPart) {
-        //        self.add_code(&format!("{}",identifier_node.name.lexeme));
-
         // TODO: make this code generate from settings
         match frame_event_part {
             FrameEventPart::Event {
@@ -2186,17 +3156,63 @@ impl AstVisitor for CppVisitor {
             } => self.add_code("e"),
             FrameEventPart::Message {
                 is_reference: _is_reference,
-            } => self.add_code("e._message"),
+            } => self.add_code("e->_message"),
             FrameEventPart::Param {
                 param_symbol_rcref,
                 is_reference: _is_reference,
-            } => self.add_code(&format!(
-                "e._params[\"{}\"]",
-                param_symbol_rcref.borrow().name
-            )),
+            } => {
+                self.add_code(&format!(
+                    "e->_parameters[\"{}\"]",
+                    param_symbol_rcref.borrow().name
+                ));
+                if self.expr_context == ExprContext::Rvalue
+                    || self.expr_context == ExprContext::None
+                {
+                    let event_symbol_opt_rcref = self
+                        .arcanium
+                        .get_event(&self.current_event_msg, &Option::None);
+                    let x = &event_symbol_opt_rcref.unwrap();
+                    let event_symbol = x.borrow();
+                    let param_type: String = match &event_symbol.params_opt {
+                        Some(param_symbols) => {
+                            let mut param_type: String = String::new();
+                            for param_symbol in param_symbols {
+                                if param_symbol.name == param_symbol_rcref.borrow().name {
+                                    match &param_symbol.param_type_opt {
+                                        Some(type_node) => {
+                                            param_type = self.format_type(type_node);
+                                        }
+                                        None => {
+                                            self.errors.push(format!(
+                                                "Error: {}[{}] type is not declared.",
+                                                event_symbol.msg, param_symbol.name
+                                            ));
+                                            return;
+                                        }
+                                    };
+                                    break;
+                                }
+                            }
+                            param_type
+                        }
+                        None => {
+                            self.errors.push(format!(
+                                "Error: {}[{}] type is not declared.",
+                                event_symbol.msg,
+                                param_symbol_rcref.borrow().name
+                            ));
+                            "".to_string()
+                        }
+                    };
+                    self.add_code(&format!("->({})", param_type));
+                }
+            }
             FrameEventPart::Return {
                 is_reference: _is_reference,
-            } => self.add_code("e._return"),
+            } => self.add_code("e->_return"),
+            // if self.expr_context == Rvalue || self.expr_context == ExprContext::None {
+            //     self.add_code(&format!("->({})", &self.current_event_ret_type));
+            // }
         }
     }
 
@@ -2231,6 +3247,8 @@ impl AstVisitor for CppVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_action_decl_node(&mut self, action_decl_node: &ActionNode) {
+        let mut subclass_code = String::new();
+
         self.newline();
         let action_ret_type: String = match &action_decl_node.type_opt {
             Some(ret_type) => ret_type.get_type_str(),
@@ -2238,28 +3256,63 @@ impl AstVisitor for CppVisitor {
         };
 
         let action_name = self.format_action_name(&action_decl_node.name);
-        self.add_code(&format!("virtual {} {}(", action_ret_type, action_name));
+        self.add_code(&format!("{} {}(std::", action_ret_type, action_name));
 
         match &action_decl_node.params {
             Some(params) => {
-                self.format_parameter_list(params);
+                self.format_actions_parameter_list(params, &mut subclass_code);
             }
             None => {}
         }
+        subclass_code.push_str(") {}");
+        self.subclass_code.push(subclass_code);
 
-        self.add_code(") {}");
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_action_impl_node(&mut self, _action_decl_node: &ActionNode) {
-        panic!("visit_action_impl_node() not implemented.");
+        self.add_code(") {  throw new NotImplementedException();  }");
     }
 
     //* --------------------------------------------------------------------- *//
 
     fn visit_domain_variable_decl_node(&mut self, variable_decl_node: &VariableDeclNode) {
         self.visit_variable_decl_node(variable_decl_node);
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_action_impl_node(&mut self, action_node: &ActionNode) {
+        let mut subclass_code = String::new();
+
+        self.newline();
+        self.newline();
+
+        let action_ret_type: String = match &action_node.type_opt {
+            Some(type_node) => self.format_type(type_node),
+            None => String::from("void"),
+        };
+
+        let action_name = self.format_action_name(&action_node.name);
+        self.outdent();
+        self.newline();
+        self.add_code("public:");
+        self.indent();
+        self.newline();
+        self.add_code(&format!("{} {}(std::", action_ret_type, action_name));
+        match &action_node.params {
+            Some(params) => {
+                self.format_actions_parameter_list(params, &mut subclass_code);
+            }
+            None => {}
+        }
+
+        self.add_code(")");
+        self.newline();
+        self.add_code("{");
+        // self.subclass_code.push(subclass_code);
+        self.indent();
+        self.newline();
+        self.add_code(action_node.code_opt.as_ref().unwrap().as_str());
+        self.outdent();
+        self.newline();
+        self.add_code("}");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2273,8 +3326,51 @@ impl AstVisitor for CppVisitor {
         let var_init_expr = &variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
         self.newline();
         let mut code = String::new();
+        self.current_var_type = var_type.clone(); // used for casting
+        self.expr_context = ExprContext::Rvalue;
         var_init_expr.accept_to_string(self, &mut code);
-        self.add_code(&format!("{} {} = {};", var_type, var_name, code));
+        self.expr_context = ExprContext::None;
+
+        match &variable_decl_node.identifier_decl_scope {
+            // IdentifierDeclScope::DomainBlock => {
+            //     self.add_code(&format!("this.{} ", var_name));
+            //     if !var_type.is_empty() {
+            //         self.add_code(&format!(": {}", var_type));
+            //     }
+            //     self.add_code(&format!(" = {}", code));
+            // }
+            IdentifierDeclScope::DomainBlock => {
+                if !var_type.is_empty() {
+                    self.add_code("public:");
+                    self.newline();
+                    self.add_code(&format!("{}", var_type));
+                }
+                self.add_code(&format!(" {} ", var_name));
+
+                if !code.is_empty() {
+                    self.add_code(&format!(" = {};", code));
+                } else {
+                    self.add_code(&format!(";"));
+                }
+            }
+            IdentifierDeclScope::EventHandlerVar => {
+                self.add_code(&format!("{} ", var_type));
+                if !var_type.is_empty() {
+                    self.add_code(&format!("{} ", var_name));
+                }
+                if !code.is_empty() {
+                    self.add_code(&format!(" = {};", code));
+                } else {
+                    self.add_code(&format!(";"));
+                }
+            }
+            _ => panic!("Error - unexpected scope for variable declaration"),
+        }
+
+        self.serialize
+            .push(format!("\tbag.domain[\"{}\"] = {};", var_name, var_name));
+        self.deserialize
+            .push(format!("\t{} = bag.domain[\"{}\"];", var_name, var_name));
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2310,8 +3406,10 @@ impl AstVisitor for CppVisitor {
     fn visit_assignment_expr_node(&mut self, assignment_expr_node: &AssignmentExprNode) {
         self.generate_comment(assignment_expr_node.line);
         self.newline();
+        self.expr_context = ExprContext::Lvalue;
         assignment_expr_node.l_value_box.accept(self);
         self.add_code(" = ");
+        self.expr_context = ExprContext::Rvalue;
         assignment_expr_node.r_value_box.accept(self);
         self.add_code(";");
     }
@@ -2326,10 +3424,12 @@ impl AstVisitor for CppVisitor {
         self.generate_comment(assignment_expr_node.line);
         self.newline();
         self.newline_to_string(output);
+        self.expr_context = ExprContext::Lvalue;
         assignment_expr_node
             .l_value_box
             .accept_to_string(self, output);
         output.push_str(" = ");
+        self.expr_context = ExprContext::Rvalue;
         assignment_expr_node
             .r_value_box
             .accept_to_string(self, output);
