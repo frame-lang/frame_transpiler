@@ -845,6 +845,7 @@ impl CppVisitor {
         self.add_code("return;");
         //self.this_branch_transitioned = false;
     }
+    //
 
     /// Generate a return statement if the current branch contained a transition or change-state.
     fn generate_return_if_transitioned(&mut self) {
