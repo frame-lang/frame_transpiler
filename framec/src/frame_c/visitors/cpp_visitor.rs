@@ -79,6 +79,7 @@ impl CppVisitor {
         // let mut add_code_cl = |target:&mut String, s:&String| target.push_str(s);
         // let mut newline_cl = |target:&mut String, s:&String, d:usize| {
         //     target.push_str(&*format!("\n{}",(0..d).map(|_| "\t").collect::<String>()));
+        //
         // };
         let cpp_config = config.codegen.cpp;
         CppVisitor {
