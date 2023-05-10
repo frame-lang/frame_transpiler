@@ -9,7 +9,6 @@ use crate::config::*;
 use crate::frame_c::ast::*;
 use crate::frame_c::scanner::{Token, TokenType};
 use crate::frame_c::symbol_table::*;
-use crate::frame_c::visitors::cs_visitor::ExprContext::Rvalue;
 use crate::frame_c::visitors::*;
 // use yaml_rust::{YamlLoader, Yaml};
 
@@ -886,7 +885,7 @@ impl CsVisitor {
                 "error"
             }
         };
-        let state_ref_code = self.generate_state_ref_code(target_state_name);
+        //let state_ref_code = self.generate_state_ref_code(target_state_name);
 
         match &change_state_stmt_node.label_opt {
             Some(label) => {
@@ -1290,9 +1289,9 @@ impl CsVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn format_target_state_name(&self, state_name: &str) -> String {
-        format!("_s{}_", state_name)
-    }
+    // fn format_target_state_name(&self, state_name: &str) -> String {
+    //     format!("_s{}_", state_name)
+    // }
 
     //* --------------------------------------------------------------------- *//
 
@@ -1416,13 +1415,13 @@ impl CsVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn generate_state_ref_code(&self, target_state_name: &str) -> String {
-        format!(
-            "(int){}State.{}",
-            self.system_name,
-            target_state_name.to_uppercase()
-        )
-    }
+    // fn generate_state_ref_code(&self, target_state_name: &str) -> String {
+    //     format!(
+    //         "(int){}State.{}",
+    //         self.system_name,
+    //         target_state_name.to_uppercase()
+    //     )
+    // }
 
     //* --------------------------------------------------------------------- *//
 

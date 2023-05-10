@@ -232,14 +232,13 @@ impl Exe {
                 TargetLanguage::Cpp => {
                     let mut visitor = CppVisitor::new(
                         semantic_parser.get_arcanum(),
-                        config,
                         generate_exit_args,
                         generate_enter_args || generate_state_context,
                         generate_state_stack,
                         generate_change_state,
-                        generate_transition_state,
                         FRAMEC_VERSION,
                         comments,
+                        config
                     );
                     visitor.run(&system_node);
                     output = visitor.get_code();
@@ -247,13 +246,14 @@ impl Exe {
                 TargetLanguage::CSharp => {
                     let mut visitor = CsVisitor::new(
                         semantic_parser.get_arcanum(),
-                        generate_exit_args,
+                        //generate_exit_args,
                         generate_enter_args || generate_state_context,
                         generate_state_stack,
                         generate_change_state,
-                        generate_transition_state,
+                        //generate_transition_state,
                         FRAMEC_VERSION,
                         comments,
+                        config
                     );
                     visitor.run(&system_node);
                     output = visitor.get_code();
