@@ -57,6 +57,8 @@ pub struct CodeGenConfig {
     pub javascript: JavascriptConfig,
     pub python: PythonConfig,
     pub java: JavaConfig,
+    pub csharp: CsharpConfig,
+    pub cpp: CppConfig,
 }
 
 /// Code generation options shared among all backends.
@@ -233,6 +235,29 @@ impl Default for GolangCode {
         }
     }
 }
+
+/// Code generation options specific to the Cpp backend.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CppConfig {
+    pub code: CppCode,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CppCode {
+    pub public_domain: bool,
+    pub public_state_info: bool,
+    pub public_compartment: bool,
+}
+
+impl Default for CppCode {
+    fn default() -> Self {
+        CppCode {
+            public_domain: false,
+            public_state_info: false,
+            public_compartment: false,
+        }
+    }
+}
 /// Code generation options specific to the Java backend.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct JavaConfig {
@@ -249,6 +274,29 @@ pub struct JavaCode {
 impl Default for JavaCode {
     fn default() -> Self {
         JavaCode {
+            public_domain: false,
+            public_state_info: false,
+            public_compartment: false,
+        }
+    }
+}
+
+/// Code generation options specific to the CSharp backend.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CsharpConfig {
+    pub code: CsharpCode,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CsharpCode {
+    pub public_domain: bool,
+    pub public_state_info: bool,
+    pub public_compartment: bool,
+}
+
+impl Default for CsharpCode {
+    fn default() -> Self {
+        CsharpCode {
             public_domain: false,
             public_state_info: false,
             public_compartment: false,
