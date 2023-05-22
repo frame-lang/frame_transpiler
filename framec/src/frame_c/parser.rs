@@ -2285,7 +2285,7 @@ impl<'a> Parser<'a> {
 
         if self.match_token(&[TokenType::Caret]) {
             if self.match_token(&[TokenType::LParen]) {
-                let expr_t = match self.unary_expression() {
+                let expr_t = match self.decorated_unary_expression() {
                     Ok(Some(expr_t)) => expr_t,
                     _ => {
                         self.error_at_current("Expected expression as return value.");
@@ -2698,7 +2698,7 @@ impl<'a> Parser<'a> {
 
         // '::'
         if let Err(parse_error) =
-            self.consume(TokenType::TestTerminator, "Expected TestTerminator.")
+            self.consume(TokenType::ColonColon, "Expected TestTerminator.")
         {
             return Err(parse_error);
         }
@@ -2792,7 +2792,7 @@ impl<'a> Parser<'a> {
     fn branch_terminator(&mut self) -> Result<Option<TerminatorExpr>, ParseError> {
         if self.match_token(&[TokenType::Caret]) {
             if self.match_token(&[TokenType::LParen]) {
-                let expr_t = match self.unary_expression() {
+                let expr_t = match self.decorated_unary_expression() {
                     Ok(Some(expr_t)) => expr_t,
                     _ => {
                         self.error_at_current("Expected expression as return value.");
@@ -2873,7 +2873,7 @@ impl<'a> Parser<'a> {
 
         // '::'
         if let Err(parse_error) =
-            self.consume(TokenType::TestTerminator, "Expected TestTerminator.")
+            self.consume(TokenType::ColonColon, "Expected TestTerminator.")
         {
             return Err(parse_error);
         }
@@ -2994,7 +2994,34 @@ impl<'a> Parser<'a> {
                 }
             };
 
-            let assignment_expr_node = AssignmentExprNode::new(l_value, r_value, line);
+            let assignment_expr_node = AssignmentExprNode::new(l_value, r_value,false, line);
+            return Ok(Some(AssignmentExprT {
+                assignment_expr_node,
+            }));
+        }
+
+        if self.match_token(&[TokenType::DeclAssignment]) {
+            // this changes the tokens generated for expression lists
+            // like (a) and (a b c)
+            self.is_parsing_rhs = true;
+
+            let line = self.previous().line;
+            let r_value = match self.equality() {
+                Ok(Some(expr_type)) => {
+                    self.is_parsing_rhs = false;
+                    expr_type
+                }
+                Ok(None) => {
+                    self.is_parsing_rhs = false;
+                    return Ok(None);
+                }
+                Err(parse_error) => {
+                    self.is_parsing_rhs = false;
+                    return Err(parse_error);
+                }
+            };
+
+            let assignment_expr_node = AssignmentExprNode::new(l_value, r_value, true,line);
             return Ok(Some(AssignmentExprT {
                 assignment_expr_node,
             }));
@@ -3162,7 +3189,7 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     fn logical_and(&mut self) -> Result<Option<ExprType>, ParseError> {
-        let mut l_value = match self.unary_expression() {
+        let mut l_value = match self.decorated_unary_expression() {
             Ok(Some(expr_type)) => expr_type,
             Ok(None) => return Ok(None),
             Err(parse_error) => return Err(parse_error),
@@ -3171,7 +3198,7 @@ impl<'a> Parser<'a> {
         while self.match_token(&[TokenType::LogicalAnd]) {
             let operator_token = self.previous();
             let op_type = OperatorType::get_operator_type(&operator_token.token_type);
-            let r_value = match self.unary_expression() {
+            let r_value = match self.decorated_unary_expression() {
                 Ok(Some(expr_type)) => expr_type,
                 Ok(None) => return Ok(None),
                 Err(parse_error) => return Err(parse_error),
@@ -3184,11 +3211,76 @@ impl<'a> Parser<'a> {
         Ok(Some(l_value))
     }
 
+
+    /* --------------------------------------------------------------------- */
+
+    fn decorated_unary_expression(&mut self) -> Result<Option<ExprType>, ParseError> {
+
+        match self.prefix_unary_expression() {
+            Ok(Some(expr_t)) => {
+                return Ok(Some(expr_t));
+            }
+            Ok(None) => {
+                match self.unary_expression2() {
+                    Ok(Some(expr_t)) => return Ok(Some(expr_t)),
+                    Ok(None) => return Ok(None),
+                    Err(parse_err) => return Err(parse_err),
+                }
+            },
+            Err(parse_error) => return Err(parse_error),
+        }
+
+        return self.postfix_unary_expression();
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn prefix_unary_expression(&mut self) -> Result<Option<ExprType>, ParseError> {
+        if self.match_token(&[TokenType::PlusPlus]) {
+            match self.unary_expression2() {
+                Ok(Some(expr_t)) => {
+                    return Ok(Some(expr_t));
+                },
+                Ok(None) => return Ok(None),
+                Err(parse_err) => return Err(parse_err),
+            }
+        } else if self.match_token(&[TokenType::DashDash]) {
+            match self.unary_expression2() {
+                Ok(Some(expr_t)) => {
+                    return Ok(Some(expr_t));
+                },
+                Ok(None) => return Ok(None),
+                Err(parse_err) => return Err(parse_err),
+            }
+        }
+
+        return self.postfix_unary_expression();
+    }
+
+
+    /* --------------------------------------------------------------------- */
+
+    fn postfix_unary_expression(&mut self) -> Result<Option<ExprType>, ParseError> {
+        match self.unary_expression2() {
+            Ok(Some(CallChainLiteralExprT {
+                        mut call_chain_expr_node,
+                    })) => {
+                let mut x = CallChainLiteralExprT {call_chain_expr_node};
+                self.post_inc_dec_expression(&mut x);
+                return Ok(Some(x));
+            }
+            Ok(Some(expr_t)) => return Ok(Some(expr_t)),
+            Err(parse_error) => return Err(parse_error),
+            Ok(None) => return Ok(None),
+        }
+    }
+
     /* --------------------------------------------------------------------- */
 
     // unary_expression -> TODO
 
-    fn unary_expression(&mut self) -> Result<Option<ExprType>, ParseError> {
+    fn unary_expression2(&mut self) -> Result<Option<ExprType>, ParseError> {
+
         if self.match_token(&[TokenType::Bang, TokenType::Dash]) {
             let token = self.previous();
             let mut operator_type = OperatorType::get_operator_type(&token.token_type);
@@ -3197,7 +3289,7 @@ impl<'a> Parser<'a> {
                 // -x rather than - x
                 operator_type = OperatorType::Negated;
             }
-            let right_expr_t = self.unary_expression();
+            let right_expr_t = self.decorated_unary_expression();
             match right_expr_t {
                 Ok(Some(x)) => {
                     let unary_expr_node = UnaryExprNode::new(operator_type, x);
@@ -3399,9 +3491,13 @@ impl<'a> Parser<'a> {
                         call_chain_first_node.setIsReference(is_reference);
                     }
 
-                    return Ok(Some(CallChainLiteralExprT {
-                        call_chain_expr_node,
-                    }));
+
+                    let mut x = CallChainLiteralExprT {call_chain_expr_node};
+                   // self.post_inc_dec_expression(&mut x);
+                    return Ok(Some(x));
+                    // return Ok(Some(CallChainLiteralExprT {
+                    //     call_chain_expr_node,
+                    // }));
                 }
                 Ok(Some(_)) => return Err(ParseError::new("TODO")),
                 Err(parse_error) => return Err(parse_error),
@@ -3437,6 +3533,13 @@ impl<'a> Parser<'a> {
             Ok(None) => {} // continue
         }
 
+        // loop ...
+        match self.loop_expression() {
+            Ok(Some(frame_event_part)) => return Ok(None),
+            Err(parse_error) => return Err(parse_error),
+            Ok(None) => {} // continue
+        }
+
         Ok(None)
     }
 
@@ -3456,6 +3559,57 @@ impl<'a> Parser<'a> {
         }
 
         Ok(None)
+    }
+
+    /* --------------------------------------------------------------------- */
+
+
+    // loop (x := 0 | x < 10 | x++) { foo(x) }
+
+    fn loop_expression(&mut self) -> Result<Option<LoopExprNode>, ParseError> {
+        if !self.match_token(&[TokenType::Loop]) {
+            return Ok(None);
+        }
+
+        if self.match_token(&[TokenType::LParen]) {
+            let expr_t: ExprType;
+            let first_expr =  self.expression();
+            if self.match_token(&[TokenType::ColonColon]) {}
+            let second_expr =  self.expression();
+            if self.match_token(&[TokenType::ColonColon]) {}
+            let third_expr =  self.expression();
+
+            if let Err(parse_error) = self.consume(TokenType::RParen, "Expected ')'.") {
+                return Err(parse_error);
+            }
+        }
+
+            // start of block
+        if self.match_token(&[TokenType::OpenBrace]) {
+            let statements = self.statements();
+            let loop_expr_node = LoopExprNode::new(statements);
+
+            if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
+                return Err(parse_error);
+            }
+
+            return Ok(Some(loop_expr_node));
+        }
+
+        match self.decl_or_stmt() {
+            Ok(opt_smt) => match opt_smt {
+                Some(stmt_t) => {
+                    let mut statements = Vec::new();
+                    statements.push(stmt_t);
+                    let loop_expr_node = LoopExprNode::new(statements);
+                    return Ok(Some(loop_expr_node));
+                },
+                None => return Ok(None),
+            },
+            Err(err) => return Err(err),
+        };
+
+
     }
 
     /* --------------------------------------------------------------------- */
@@ -3562,6 +3716,56 @@ impl<'a> Parser<'a> {
         };
         Ok(Some(expr_list))
     }
+
+
+    /* --------------------------------------------------------------------- */
+
+    fn post_inc_dec_expression(&mut self, expr_t:&mut ExprType) -> Result<(), ParseError> {
+
+        let mut inc_dec = IncDecExpr::None;
+
+        if self.match_token(&[TokenType::PlusPlus]) {
+            inc_dec = IncDecExpr::PostInc;
+        } else if self.match_token(&[TokenType::DashDash]) {
+            inc_dec = IncDecExpr::PostDec;
+        }
+
+        match expr_t {
+            ExprType::CallChainLiteralExprT{ref mut call_chain_expr_node} => {
+                call_chain_expr_node.inc_dec = inc_dec;
+            }
+            _ => {
+                let err_msg = "Expression can not be auto incremented or decrecmented";
+                self.error_at_current(err_msg);
+                return Err(ParseError::new(err_msg));
+            }
+        }
+
+        return Ok(());
+    }
+
+    /* --------------------------------------------------------------------- */
+    //
+    // fn preincrement_expression(&mut self) -> Result<Option<ExprType>, ParseError> {
+    //
+    //     let mut expr = match self.unary_expression() {
+    //         Ok(Some(expr_type)) => expr_type,
+    //         Ok(None) => return Ok(None),
+    //         Err(parse_error) => return Err(parse_error),
+    //     };
+    //
+    //     if preincrement {
+    //         match expr {
+    //             ExprType::CallChainLiteralExprT(call_chain_expr_node) => {
+    //                 call_chain_expr_node.inc_dec = IncDecExpr::PreInc;
+    //             },
+    //             _ => {}
+    //         }
+    //     }
+    //
+    //     return Ok(Some(expr));
+    //
+    // }
 
     /* --------------------------------------------------------------------- */
 
@@ -4006,7 +4210,7 @@ impl<'a> Parser<'a> {
 
         // '::'
         if let Err(parse_error) =
-            self.consume(TokenType::TestTerminator, "Expected TestTerminator.")
+            self.consume(TokenType::ColonColon, "Expected TestTerminator.")
         {
             return Err(parse_error);
         }

@@ -39,6 +39,7 @@ impl Scanner {
             ("var".to_string(), TokenType::Var),
             ("const".to_string(), TokenType::Const),
             ("new".to_string(), TokenType::New),
+            ("loop".to_string(), TokenType::Loop),
             ("-interface-".to_string(), TokenType::InterfaceBlock),
             ("-machine-".to_string(), TokenType::MachineBlock),
             ("-actions-".to_string(), TokenType::ActionsBlock),
@@ -168,7 +169,13 @@ impl Scanner {
                 }
             }
             '*' => self.add_token(TokenType::Star),
-            '+' => self.add_token(TokenType::Plus),
+            '+' => {
+                    if self.match_char('+') {
+                        self.add_token(TokenType::PlusPlus);
+                    } else {
+                        self.add_token(TokenType::Plus);
+                    }
+            }
             '!' => {
                 if self.match_char('=') {
                     self.add_token(TokenType::BangEqual);
@@ -315,10 +322,12 @@ impl Scanner {
             }
             ':' => {
                 if self.match_char(':') {
-                    self.add_token(TokenType::TestTerminator);
+                    self.add_token(TokenType::ColonColon);
                     self.test_t_stack.pop();
                 } else if self.match_char('>') {
                     self.add_token(TokenType::ElseContinue);
+                } else if self.match_char('=') {
+                    self.add_token(TokenType::DeclAssignment);
                 } else {
                     self.add_token(TokenType::Colon);
                 }
@@ -675,6 +684,7 @@ pub enum TokenType {
     GTx2,           // >>
     GTx3,           // >>
     Plus,           // +
+    PlusPlus,       // ++
     Dash,           // -
     DashDash,       // --
     Star,           // *
@@ -709,9 +719,10 @@ pub enum TokenType {
     ThreeTicks,              // ```
     SuperString,             // `stuff + "stuff"`
     Number,                  // 1, 1.01
-    Var,                     // let
+    Var,                     // var
     Const,                   // const
     New,                     // new
+    Loop,                    // loop
     SingleLineComment,       // --- comment
     MultiLineComment,        // {-- comments --}
     OpenBrace,               // {
@@ -725,12 +736,13 @@ pub enum TokenType {
     Comma,                   // ,
     Dispatch,                // =>
     Equals,                  // =
+    DeclAssignment,          // :=
     BoolTestTrue,            // ?
     BoolTestFalse,           // ?!
     StringTest,              // ?~
     NumberTest,              // ?#
     ElseContinue,            // :>
-    TestTerminator,          // ::
+    ColonColon,              // ::
     ForwardSlash,            // /
     MatchString,             // /<string>/ - contains <string>
     MatchNullString,         // //!

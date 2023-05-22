@@ -742,6 +742,12 @@ impl NodeElement for FrameEventPart {
     }
 }
 
+pub enum IncDecExprType {
+    CallChainLiteralExprT {
+        call_chain_expr_node:  CallChainLiteralExprNode,
+    },
+}
+
 //-----------------------------------------------------//
 //                  -Expressions-
 
@@ -1057,14 +1063,17 @@ impl NodeElement for AssignmentStmtNode {
 pub struct AssignmentExprNode {
     pub l_value_box: Box<ExprType>,
     pub r_value_box: Box<ExprType>,
+    pub is_decl: bool,
     pub line: usize,
+
 }
 
 impl AssignmentExprNode {
-    pub fn new(l_value: ExprType, r_value: ExprType, line: usize) -> AssignmentExprNode {
+    pub fn new(l_value: ExprType, r_value: ExprType, is_decl:bool, line: usize) -> AssignmentExprNode {
         AssignmentExprNode {
             l_value_box: Box::new(l_value),
             r_value_box: Box::new(r_value),
+            is_decl,
             line,
         }
     }
@@ -1268,11 +1277,40 @@ impl NodeElement for ActionCallExprNode {
     }
 }
 
+
+//-----------------------------------------------------//
+
+pub struct LoopExprNode {
+    pub statements: Vec<DeclOrStmtType>,
+}
+
+impl LoopExprNode {
+    pub fn new (
+        statements: Vec<DeclOrStmtType>,
+    ) -> LoopExprNode {
+        LoopExprNode {
+            statements,
+        }
+    }
+}
+
+
+//-----------------------------------------------------//
+
+pub enum IncDecExpr {
+    None,
+    PreInc,
+    PreDec,
+    PostInc,
+    PostDec,
+}
+
 //-----------------------------------------------------//
 
 pub struct CallChainLiteralExprNode {
     pub call_chain: VecDeque<CallChainLiteralNodeType>,
     pub is_new_expr: bool,
+    pub inc_dec: IncDecExpr,
 }
 
 impl CallChainLiteralExprNode {
@@ -1280,6 +1318,7 @@ impl CallChainLiteralExprNode {
         CallChainLiteralExprNode {
             call_chain,
             is_new_expr: false,
+            inc_dec: IncDecExpr::None,
         }
     }
 }
@@ -1912,6 +1951,8 @@ impl NodeElement for NumberMatchTestElseBranchNode {
         ast_visitor.visit_number_match_test_else_branch_node(self);
     }
 }
+
+//-----------------------------------------------------//
 
 //-----------------------------------------------------//
 
