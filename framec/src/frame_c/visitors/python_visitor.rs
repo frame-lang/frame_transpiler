@@ -2343,6 +2343,15 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    fn preincrement_call_chain_literal_expr_node(
+        &mut self,
+        method_call_chain_expression_node: &CallChainLiteralExprNode,
+    ) {
+
+    }
+
+    //* --------------------------------------------------------------------- *//
+
     fn visit_call_chain_literal_expr_node_to_string(
         &mut self,
         method_call_chain_expression_node: &CallChainLiteralExprNode,
@@ -3129,6 +3138,7 @@ impl AstVisitor for PythonVisitor {
     fn visit_assignment_expr_node(&mut self, assignment_expr_node: &AssignmentExprNode) {
         self.generate_comment(assignment_expr_node.line);
         self.newline();
+        assignment_expr_node.r_value_box.preincrement(self);
         assignment_expr_node.l_value_box.accept(self);
         self.add_code(" = ");
         assignment_expr_node.r_value_box.accept(self);

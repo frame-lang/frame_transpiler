@@ -3096,11 +3096,19 @@ impl<'a> Parser<'a> {
         };
 
         while self.match_token(&[TokenType::Dash, TokenType::Plus]) {
-            let operator_token = self.previous();
+            let operator_token = self.previous().clone();
             let op_type = OperatorType::get_operator_type(&operator_token.token_type);
             let r_value = match self.factor() {
                 Ok(Some(expr_type)) => expr_type,
-                Ok(None) => return Ok(None),
+                Ok(None) => {
+
+                    let err_msg = format!("Expected binary expression. Found \"{} {}\".", l_value.to_string(), operator_token.lexeme);
+                    self.error_at_current(&err_msg);
+                    let parse_error = ParseError::new(
+                        "TODO",
+                    );
+                    return Err(parse_error);
+                },
                 Err(parse_error) => return Err(parse_error),
             };
 
@@ -3229,8 +3237,6 @@ impl<'a> Parser<'a> {
             },
             Err(parse_error) => return Err(parse_error),
         }
-
-        return self.postfix_unary_expression();
     }
 
     /* --------------------------------------------------------------------- */
@@ -3574,9 +3580,9 @@ impl<'a> Parser<'a> {
         if self.match_token(&[TokenType::LParen]) {
             let expr_t: ExprType;
             let first_expr =  self.expression();
-            if self.match_token(&[TokenType::ColonColon]) {}
+            if self.match_token(&[TokenType::Semicolon]) {}
             let second_expr =  self.expression();
-            if self.match_token(&[TokenType::ColonColon]) {}
+            if self.match_token(&[TokenType::Semicolon]) {}
             let third_expr =  self.expression();
 
             if let Err(parse_error) = self.consume(TokenType::RParen, "Expected ')'.") {

@@ -13,6 +13,7 @@ use downcast_rs::__std::cell::RefCell;
 use downcast_rs::*;
 use std::collections::VecDeque;
 use std::rc::Rc;
+use std::fmt;
 use wasm_bindgen::__rt::std::collections::HashMap;
 
 pub trait NodeElement {
@@ -43,6 +44,10 @@ pub trait NodeElement {
         // no_op
     }
     fn accept_action_impl(&self, _ast_visitor: &mut dyn AstVisitor) {
+        // no_op
+    }
+
+    fn preincrement(&self, _ast_visitor: &mut dyn AstVisitor) {
         // no_op
     }
 }
@@ -405,6 +410,12 @@ impl NodeElement for VariableNode {
     }
 }
 
+
+impl fmt::Display for VariableNode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f,"{}", self.id_node.to_string())
+    }
+}
 //-----------------------------------------------------//
 
 pub struct MachineBlockNode {
@@ -791,6 +802,20 @@ pub enum ExprType {
     BinaryExprT {
         binary_expr_node: BinaryExprNode,
     },
+}
+
+impl fmt::Display for ExprType {
+    // This trait requires `fmt` with this exact signature.
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ExprType::CallChainLiteralExprT {call_chain_expr_node} => {
+                write!(f,"{}", call_chain_expr_node.to_string())
+            },
+            _ => {
+                write!(f, "TODO")
+            }
+        }
+    }
 }
 
 impl ExprType {
@@ -1242,6 +1267,13 @@ impl NodeElement for InterfaceMethodCallExprNode {
     }
 }
 
+
+impl fmt::Display for InterfaceMethodCallExprNode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f,"{}", self.identifier.to_string())
+    }
+}
+
 //-----------------------------------------------------//
 
 pub struct ActionCallExprNode {
@@ -1277,6 +1309,12 @@ impl NodeElement for ActionCallExprNode {
     }
 }
 
+
+impl fmt::Display for ActionCallExprNode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f,"{}", self.identifier.to_string())
+    }
+}
 
 //-----------------------------------------------------//
 
@@ -1331,9 +1369,48 @@ impl NodeElement for CallChainLiteralExprNode {
     fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
         ast_visitor.visit_call_chain_literal_expr_node_to_string(self, output);
     }
+
+    fn preincrement(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.preincrement_call_chain_literal_expr_node(self);
+    }
 }
 
-//-----------------------------------------------------//
+impl fmt::Display for CallChainLiteralExprNode {
+    // This trait requires `fmt` with this exact signature.
+
+
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut output = String::new();
+        let mut separator = "";
+        for node in &self.call_chain {
+            output.push_str(separator);
+            match &node {
+                CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
+                    output.push_str(&*id_node.to_string());
+                }
+                CallChainLiteralNodeType::CallT { call } => {
+                    output.push_str(&*call.to_string());
+                }
+                CallChainLiteralNodeType::InterfaceMethodCallT {
+                    interface_method_call_expr_node,
+                } => {
+                    output.push_str(&*interface_method_call_expr_node.to_string());
+                }
+                CallChainLiteralNodeType::ActionCallT {
+                    action_call_expr_node,
+                } => {
+                    output.push_str(&*action_call_expr_node.to_string());
+                }
+                CallChainLiteralNodeType::VariableNodeT { var_node } => {
+                    output.push_str(&*var_node.to_string());
+                }
+            }
+            separator = ".";
+        }
+        write!(f,"{}", output)
+    }
+}
+        //-----------------------------------------------------//
 #[derive(PartialEq)]
 pub enum OperatorType {
     Plus,
@@ -1482,6 +1559,13 @@ impl CallableExpr for CallExprNode {
     }
 }
 
+impl fmt::Display for CallExprNode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f,"{}", self.identifier)
+    }
+}
+
+
 //-----------------------------------------------------//
 
 // #[derive(Clone)]
@@ -1590,6 +1674,13 @@ impl CallableExpr for IdentifierNode {
     }
     fn callable_accept(&self, ast_visitor: &mut dyn AstVisitor) {
         self.accept(ast_visitor);
+    }
+}
+
+
+impl fmt::Display for IdentifierNode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f,"{}", self.name.lexeme)
     }
 }
 

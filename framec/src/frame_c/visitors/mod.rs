@@ -108,8 +108,11 @@ pub trait AstVisitor {
     fn visit_call_expression_node_to_string(&mut self, _node: &CallExprNode, _output: &mut String) {}
     fn visit_call_expr_list_node(&mut self, _node: &CallExprListNode) {}
     fn visit_call_expr_list_node_to_string(&mut self, _node: &CallExprListNode, _output: &mut String) {}
+
     fn visit_call_chain_literal_expr_node(&mut self, _node: &CallChainLiteralExprNode) {}
+    fn preincrement_call_chain_literal_expr_node(&mut self, _node: &CallChainLiteralExprNode) {}
     fn visit_call_chain_literal_expr_node_to_string(&mut self, _node: &CallChainLiteralExprNode, _output: &mut String) {}
+
     fn visit_call_chain_literal_statement_node(&mut self, _node: &CallChainLiteralStmtNode) {}
     fn visit_transition_statement_node(&mut self, _node: &TransitionStatementNode) {}
     fn visit_state_ref_node(&mut self, _node: &StateRefNode) {}

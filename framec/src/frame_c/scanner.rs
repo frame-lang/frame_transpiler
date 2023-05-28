@@ -709,10 +709,10 @@ pub enum TokenType {
     MachineBlock,   // -machine-
     ActionsBlock,   // -actions-
     DomainBlock,    // -domain-
-    LParen,
-    RParen,
-    LBracket,
-    RBracket,
+    LParen,                 // (
+    RParen,                 // )
+    LBracket,               // [
+    RBracket,               // ]
     Transition,              // ->
     ChangeState,             // ->>
     String,                  // "foo"
@@ -761,7 +761,11 @@ pub enum TokenType {
 impl Display for TokenType {
     #[allow(clippy::all)]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self)
+        //write!(f, "{}", self)
+        match self {
+            Plus => write!(f,"+"),
+            _ => write!(f,"TODO")
+        }
     }
 }
 
@@ -776,7 +780,8 @@ pub enum TokenLiteral {
 impl Display for TokenLiteral {
     #[allow(clippy::all)]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self)
+        //write!(f, "{}", self)
+        write!(f,"TODO")
     }
 }
 
