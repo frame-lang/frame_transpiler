@@ -3395,7 +3395,7 @@ impl AstVisitor for CppVisitor {
             StateStackOperationType::Push => {
                 self.newline();
                 //if self.generate_state_context {
-                self.add_code("_stateStack_push_(_compartment_);");
+                //self.add_code("_stateStack_push_(_compartment_);");
                 //} else {
                 self.add_code("_stateStack_push_(_compartment_);");
                 //}
