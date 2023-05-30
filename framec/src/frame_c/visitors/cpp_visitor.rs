@@ -223,23 +223,40 @@ impl CppVisitor {
                 let var_symbol = var_symbol_rcref.borrow();
                 let var_type = self.get_variable_type(&*var_symbol);
 
+                // if self.expr_context == ExprContext::Rvalue
+                //     || self.expr_context == ExprContext::None
+                // {
+                if self.visiting_call_chain_literal_variable {
+                    //        code.push_str("std::to_string(");
+
+                    //     }
+                    // }
+                    // else{
+                    //    code.push('(');
+                }
+
                 if self.expr_context == ExprContext::Rvalue
                     || self.expr_context == ExprContext::None
                 {
-                    if self.visiting_call_chain_literal_variable {
-                        //code.push('(');
-                        code.push_str("std::to_string(");
-                    }
+                    code.push_str(&format!(
+                        "any_cast<{}>(this->_compartment_->stateArgs[\"{}\"])",
+                        var_type, variable_node.id_node.name.lexeme
+                    ));
+                } else {
+                    code.push_str(&format!(
+                        "this->_compartment_->stateArgs[\"{}\"]",
+                        variable_node.id_node.name.lexeme
+                    ));
                 }
 
-                code.push_str(&format!(
-                    "({})this->_compartment_->stateArgs[\"{}\"]",
-                    var_type, variable_node.id_node.name.lexeme
-                ));
+                // if self.expr_context == ExprContext::Rvalue
+                //     || self.expr_context == ExprContext::None
+                // {
 
                 if self.visiting_call_chain_literal_variable {
-                    code.push(')');
+                    //    code.push(')');
                 }
+                //}
             }
             IdentifierDeclScope::StateVar => {
                 let var_node = variable_node;
@@ -252,14 +269,23 @@ impl CppVisitor {
                     || self.expr_context == ExprContext::None
                 {
                     if self.visiting_call_chain_literal_variable {
-                        code.push_str("std::to_string(");
+                        code.push_str("(");
                     }
                 }
 
-                code.push_str(&format!(
-                    "({})this->_compartment_->stateVars[\"{}\"]",
-                    var_type, variable_node.id_node.name.lexeme
-                ));
+                if self.expr_context == ExprContext::Rvalue
+                    || self.expr_context == ExprContext::None
+                {
+                    code.push_str(&format!(
+                        "any_cast<{}>(this->_compartment_->stateVars[\"{}\"])",
+                        var_type, variable_node.id_node.name.lexeme
+                    ));
+                } else {
+                    code.push_str(&format!(
+                        "this->_compartment_->stateVars[\"{}\"]",
+                        variable_node.id_node.name.lexeme
+                    ));
+                }
 
                 if self.expr_context == ExprContext::Rvalue
                     || self.expr_context == ExprContext::None
@@ -276,24 +302,23 @@ impl CppVisitor {
                 let var_symbol = var_symbol_rcref.borrow();
                 let var_type = self.get_variable_type(&*var_symbol);
 
-                if self.expr_context == ExprContext::Rvalue
-                    || self.expr_context == ExprContext::None
-                {
-                    if self.visiting_call_chain_literal_variable {
-                        code.push_str("std::any_cast");
-                    }
+                if self.visiting_call_chain_literal_variable {
+                    // code.push('(');
                 }
+
+                if self.visiting_call_chain_literal_variable {
+                    //code.push_str(&format!("any_cast<{}>(", var_type));
+                }
+                //}
                 code.push_str(&format!(
-                    "<std::{}>(e._parameters[\"{}\"])",
+                    "any_cast<{}>(e->_parameters[\"{}\"])",
                     var_type, variable_node.id_node.name.lexeme
                 ));
-                if self.expr_context == ExprContext::Rvalue
-                    || self.expr_context == ExprContext::None
-                {
-                    if self.visiting_call_chain_literal_variable {
-                        code.push(')');
-                    }
+
+                if self.visiting_call_chain_literal_variable {
+                    //code.push(')');
                 }
+                //}
             }
             IdentifierDeclScope::EventHandlerVar => {
                 code.push_str(&variable_node.id_node.name.lexeme.to_string());
@@ -663,11 +688,11 @@ impl CppVisitor {
 
             self.indent();
             self.newline();
-            self.add_code("this->_mux_(FrameEvent(\"<\", _compartment_->exitArgs));");
+            self.add_code("this->_mux_(new FrameEvent(\"<\", _compartment_->exitArgs));");
             self.newline();
             self.add_code("this->_compartment_ = nextCompartment;");
             self.newline();
-            self.add_code("this->_mux_(FrameEvent(\">\", this->_compartment_->enterArgs));");
+            self.add_code("this->_mux_(new FrameEvent(\">\", this->_compartment_->enterArgs));");
             self.outdent();
             self.newline();
             self.add_code("}");
@@ -680,7 +705,7 @@ impl CppVisitor {
                     self.indent();
                     self.newline();
                     self.add_code(&format!(
-                        "std::stack<{}Compartment> *_stateStack_;",
+                        "stack<{}Compartment> *_stateStack_ = nullptr;",
                         self.system_name
                     ));
                     self.outdent();
@@ -704,74 +729,6 @@ impl CppVisitor {
                     self.newline();
                     self.newline();
 
-                    // self.add_code(&format!(
-                    //     "{}Compartment DeepCopyCompartment({}Compartment c)",
-                    //     self.system_name, self.system_name
-                    // ));
-                    // self.newline();
-                    // self.add_code("{");
-                    // self.indent();
-                    // self.newline();
-                    // self.add_code(&format!(
-                    //     "{}Compartment copyCompartment = new {}Compartment(c->state)",
-                    //     self.system_name, self.system_name
-                    // ));
-                    // self.newline();
-                    // self.add_code("{");
-                    // self.indent();
-                    // self.newline();
-                    // self.add_code("state = c.state,");
-                    // self.newline();
-                    // self.add_code("StateArgs = c.StateArgs == null ? new Dictionary<string, object>() : new Dictionary<string, object>(c.StateArgs),");
-                    // self.newline();
-                    // self.add_code("StateVars = c.StateVars == null ? new Dictionary<string, object>() : new Dictionary<string, object>(c.StateVars),");
-                    // self.newline();
-                    // self.add_code("EnterArgs = c.EnterArgs == null ? new Dictionary<string, object>() : new Dictionary<string, object>(c.EnterArgs),");
-                    // self.newline();
-                    // self.add_code("ExitArgs = c.ExitArgs == null ? new Dictionary<string, object>() : new Dictionary<string, object>(c.ExitArgs)");
-                    // self.outdent();
-                    // self.newline();
-                    // self.add_code("};");
-                    // self.newline();
-                    // self.newline();
-                    // self.add_code("if (c._forwardEvent != null)");
-                    // self.newline();
-                    // self.add_code("{");
-                    // self.indent();
-                    // self.newline();
-                    // self.add_code("FrameEvent forwardEventCopy = new FrameEvent()");
-                    // self.newline();
-                    // self.add_code("{");
-                    // self.indent();
-                    // self.newline();
-                    // self.add_code("_message = c._forwardEvent._message,");
-                    // self.newline();
-                    // self.add_code("_return = c._forwardEvent._return");
-                    // self.outdent();
-                    // self.newline();
-                    // self.add_code("};");
-                    // self.newline();
-                    // self.add_code("if(c._forwardEvent._parameters!=null){");
-                    // self.indent();
-                    // self.newline();
-                    // self.add_code("forwardEventCopy._parameters=new Dictionary<string, object>(c._forwardEvent._parameters);");
-                    // self.outdent();
-                    // self.newline();
-                    // self.add_code("}");
-                    // self.newline();
-                    // self.add_code("copyCompartment._forwardEvent = forwardEventCopy;");
-                    // self.outdent();
-                    // self.newline();
-                    // self.add_code("}");
-                    // self.newline();
-                    // self.newline();
-                    // self.add_code("return copyCompartment;");
-                    // self.outdent();
-                    // self.newline();
-                    // self.add_code("}");
-
-                    // self.newline();
-                    self.add_code("{");
                     self.newline();
                     self.add_code(&format!(
                         "{}Compartment *_stateStack_pop_()",
@@ -793,36 +750,50 @@ impl CppVisitor {
                     self.newline();
                     self.add_code("}");
                 } else {
-                    self.add_code(&format!(
-                        "private Stack<{}Compartment> _stateStack_ = new Stack<{}Compartment>();",
-                        self.system_name, self.system_name
-                    ));
-                    self.newline();
+                    self.add_code("private:");
                     self.newline();
                     self.add_code(&format!(
-                        "private void _stateStack_push_({}Compartment compartment) {{",
+                        "stack<{}Compartment>* _stateStack_ = nullptr;",
                         self.system_name
                     ));
+                    self.newline();
+                    self.newline();
+                    self.add_code("public:");
+                    self.newline();
+                    self.add_code(&format!(
+                        "void _stateStack_push_({}Compartment* compartment)",
+                        self.system_name
+                    ));
+                    self.newline();
+                    self.add_code("{");
                     self.indent();
                     self.newline();
-                    self.add_code("_stateStack_.Push(compartment);");
+                    self.add_code("_stateStack_->push(*compartment);");
                     self.outdent();
                     self.newline();
                     self.add_code("}");
                     self.newline();
                     self.newline();
                     self.add_code(&format!(
-                        "private {}Compartment _stateStack_pop_() {{",
+                        "{}Compartment* _stateStack_pop_()",
                         self.system_name
                     ));
+                    self.newline();
+                    self.add_code("{");
                     self.indent();
                     self.newline();
-                    self.add_code("return _stateStack_.Pop();");
+                    self.add_code(&format!(
+                        "{}Compartment* copyCompartment = &_stateStack_->top();",
+                        self.system_name
+                    ));
+                    self.newline();
+                    self.add_code("_stateStack_->pop();");
+                    self.newline();
+                    self.add_code("return copyCompartment;");
+                    self.outdent();
+                    self.newline();
+                    self.add_code("}");
                 }
-
-                self.outdent();
-                self.newline();
-                self.add_code("}");
             }
             if self.generate_change_state {
                 self.newline();
@@ -1469,11 +1440,11 @@ impl CppVisitor {
         }
 
         self.add_code(&format!(
-            "{}Compartment *compartment = this._stateStack_pop_();",
+            "{}Compartment *compartment = this->_stateStack_pop_();",
             self.system_name
         ));
         self.newline();
-        self.add_code("this._transition_(compartment);");
+        self.add_code("this->_transition_(compartment);");
 
         // if self.generate_state_context {
         //     self.add_code("StateContext* pStateContext = _stateStack_pop_();");
@@ -1523,13 +1494,13 @@ impl CppVisitor {
 
         self.newline();
         self.newline();
-        self.add_code("std::unordered_map<std::string, any> stateArgs;");
+        self.add_code("std::unordered_map<std::string, std::any> stateArgs;");
         self.newline();
-        self.add_code("std::unordered_map<std::string, any> stateVars;");
+        self.add_code("std::unordered_map<std::string, std::any> stateVars;");
         self.newline();
-        self.add_code("std::unordered_map<std::string, any> enterArgs;");
+        self.add_code("std::unordered_map<std::string, std::any> enterArgs;");
         self.newline();
-        self.add_code("std::unordered_map<std::string, any> exitArgs;");
+        self.add_code("std::unordered_map<std::string, std::any> exitArgs;");
         self.newline();
         self.add_code("FrameEvent *_forwardEvent = nullptr;");
         self.outdent();
@@ -1549,7 +1520,7 @@ impl CppVisitor {
                 self.newline();
                 self.newline();
                 self.add_code(&format!(
-                    "this._stateStack_ = new Stack<{}Compartment>();",
+                    "this->_stateStack_ = new stack<{}Compartment>();",
                     self.system_name
                 ));
                 self.newline();
@@ -1659,7 +1630,7 @@ impl CppVisitor {
         }
 
         self.newline();
-        self.add_code("_mux_(frame_event);");
+        self.add_code("_mux_(&frame_event);");
 
         self.outdent();
         self.newline();
@@ -1940,7 +1911,7 @@ impl AstVisitor for CppVisitor {
             self.add_code("private:");
             self.indent();
             self.newline();
-            self.add_code("void _mux_(FrameEvent e)");
+            self.add_code("void _mux_(FrameEvent *e)");
             self.newline();
             self.add_code("{");
             self.indent();
@@ -2002,11 +1973,13 @@ impl AstVisitor for CppVisitor {
                 self.add_code("{");
                 self.indent();
                 self.newline();
-                self.add_code("this->_mux_(FrameEvent( \"<\", this->_compartment_->exitArgs));");
+                self.add_code(
+                    "this->_mux_(new FrameEvent( \"<\", this->_compartment_->exitArgs));",
+                );
                 self.newline();
                 self.add_code("this->_compartment_ = nextCompartment;");
                 self.newline();
-                self.add_code("this->_mux_(*nextCompartment->_forwardEvent);");
+                self.add_code("this->_mux_(nextCompartment->_forwardEvent);");
                 self.outdent();
                 self.newline();
                 self.add_code("}");
@@ -2023,7 +1996,7 @@ impl AstVisitor for CppVisitor {
                 self.add_code("{");
                 self.indent();
                 self.newline();
-                self.add_code("this->_mux_(*nextCompartment->_forwardEvent);");
+                self.add_code("this->_mux_(nextCompartment->_forwardEvent);");
                 self.outdent();
                 self.newline();
                 self.add_code("}");
@@ -2206,7 +2179,10 @@ impl AstVisitor for CppVisitor {
     fn visit_interface_block_node(&mut self, interface_block_node: &InterfaceBlockNode) {
         self.newline();
         self.add_code("//===================== Interface Block ===================//");
+        self.outdent();
         self.newline();
+        self.add_code("public:");
+        self.indent();
 
         for interface_method_node_rcref in &interface_block_node.interface_methods {
             let interface_method_node = interface_method_node_rcref.borrow();
@@ -2250,14 +2226,22 @@ impl AstVisitor for CppVisitor {
         if interface_method_node.params.is_some() {
             params_param_code = String::from("&params");
             self.newline();
-            self.add_code("map<string,void *> params;");
+            self.add_code("unordered_map<string, any> params;");
             match &interface_method_node.params {
                 Some(params) => {
                     //     let mut separator = "";
                     for param in params {
                         let pname = &param.param_name;
                         self.newline();
-                        self.add_code(&format!("params[\"{}\"] = (void*) &{};\n", pname, pname));
+                        //self.add_code(&format!("params[\"{}\"] = (void*) &{};\n", pname, pname));
+                        self.add_code(&format!("params[\"{}\"] = {};\n", pname, pname));
+                        self.newline();
+                        self.add_code(&format!(
+                            "FrameEvent e(\"{}\", params);",
+                            method_name_or_alias
+                        ));
+                        self.newline();
+                        self.add_code("this->_mux_(&e);");
                         //         separator = ",";
                     }
                 }
@@ -2265,20 +2249,22 @@ impl AstVisitor for CppVisitor {
             }
         } else {
             // params_param_code = String::from("nullptr");
+
+            self.newline();
+            self.add_code(&format!(
+                "FrameEvent e(\"{}\", unordered_map<string, any>());",
+                method_name_or_alias
+            ));
+            self.newline();
+            self.add_code("this->_mux_(&e);");
         }
-
-        self.newline();
-        self.add_code(&format!(
-            "FrameEvent e(\"{}\", unordered_map<string, any>());",
-            method_name_or_alias
-        ));
-        self.newline();
-        self.add_code("this->_mux_(e);");
-
         match &interface_method_node.return_type_opt {
             Some(return_type) => {
                 self.newline();
-                self.add_code(&format!("return ({}) e.ret;", return_type.get_type_str()));
+                self.add_code(&format!(
+                    "return any_cast<{}>(e._return);",
+                    return_type.get_type_str()
+                ));
             }
             None => {}
         }
@@ -2401,7 +2387,7 @@ impl AstVisitor for CppVisitor {
         self.indent();
         self.newline();
         self.newline();
-        self.add_code(&format!("void _s{}_(FrameEvent e)", state_node.name));
+        self.add_code(&format!("void _s{}_(FrameEvent *e)", state_node.name));
         self.newline();
         self.add_code("{");
         self.indent();
@@ -2451,10 +2437,10 @@ impl AstVisitor for CppVisitor {
         //        let mut generate_final_close_paren = true;
         if let MessageType::CustomMessage { message_node } = &evt_handler_node.msg_t {
             if self.first_event_handler {
-                self.add_code(&format!("if (e._message == \"{}\") {{", message_node.name));
+                self.add_code(&format!("if (e->_message == \"{}\") {{", message_node.name));
             } else {
                 self.add_code(&format!(
-                    "else if (e._message == \"{}\") {{",
+                    "else if (e->_message == \"{}\") {{",
                     message_node.name
                 ));
             }
@@ -3408,11 +3394,11 @@ impl AstVisitor for CppVisitor {
         {
             StateStackOperationType::Push => {
                 self.newline();
-                if self.generate_state_context {
-                    self.add_code("_stateStack_push_(_compartment_);");
-                } else {
-                    self.add_code("_stateStack_push_(_state_);");
-                }
+                //if self.generate_state_context {
+                self.add_code("_stateStack_push_(_compartment_);");
+                //} else {
+                self.add_code("_stateStack_push_(_compartment_);");
+                //}
             }
             StateStackOperationType::Pop => {
                 if self.generate_state_context {
@@ -3494,9 +3480,6 @@ impl AstVisitor for CppVisitor {
             FrameEventPart::Return {
                 is_reference: _is_reference,
             } => self.add_code("e->_return"),
-            // if self.expr_context == Rvalue || self.expr_context == ExprContext::None {
-            //     self.add_code(&format!("->({})", &self.current_event_ret_type));
-            // }
         }
     }
 
@@ -3519,12 +3502,14 @@ impl AstVisitor for CppVisitor {
                 param_symbol_rcref,
                 is_reference: _is_reference,
             } => output.push_str(&format!(
-                "e._params[\"{}\"]",
+                "e._parameters[\"{}\"]",
                 param_symbol_rcref.borrow().name
             )),
             FrameEventPart::Return {
                 is_reference: _is_reference,
-            } => output.push_str("e._return"),
+            } => {
+                output.push_str("e._return");
+            }
         }
     }
 
@@ -3540,7 +3525,7 @@ impl AstVisitor for CppVisitor {
         };
 
         let action_name = self.format_action_name(&action_decl_node.name);
-        self.add_code(&format!("{} {}(std::", action_ret_type, action_name));
+        self.add_code(&format!("{} {}(", action_ret_type, action_name));
 
         match &action_decl_node.params {
             Some(params) => {
@@ -3551,52 +3536,13 @@ impl AstVisitor for CppVisitor {
         subclass_code.push_str(") {}");
         self.subclass_code.push(subclass_code);
 
-        self.add_code(") {  throw new NotImplementedException();  }");
+        self.add_code(") {  throw std::logic_error(\"Not implemented\");  }");
     }
 
     //* --------------------------------------------------------------------- *//
 
     fn visit_domain_variable_decl_node(&mut self, variable_decl_node: &VariableDeclNode) {
         self.visit_variable_decl_node(variable_decl_node);
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_action_impl_node(&mut self, action_node: &ActionNode) {
-        let mut subclass_code = String::new();
-
-        self.newline();
-        self.newline();
-
-        let action_ret_type: String = match &action_node.type_opt {
-            Some(type_node) => self.format_type(type_node),
-            None => String::from("void"),
-        };
-
-        let action_name = self.format_action_name(&action_node.name);
-        self.outdent();
-        self.newline();
-        self.add_code("public:");
-        self.indent();
-        self.newline();
-        self.add_code(&format!("{} {}(std::", action_ret_type, action_name));
-        match &action_node.params {
-            Some(params) => {
-                self.format_actions_parameter_list(params, &mut subclass_code);
-            }
-            None => {}
-        }
-
-        self.add_code(")");
-        self.newline();
-        self.add_code("{");
-        // self.subclass_code.push(subclass_code);
-        self.indent();
-        self.newline();
-        self.add_code(action_node.code_opt.as_ref().unwrap().as_str());
-        self.outdent();
-        self.newline();
-        self.add_code("}");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -3655,6 +3601,45 @@ impl AstVisitor for CppVisitor {
             .push(format!("\tbag.domain[\"{}\"] = {};", var_name, var_name));
         self.deserialize
             .push(format!("\t{} = bag.domain[\"{}\"];", var_name, var_name));
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_action_impl_node(&mut self, action_node: &ActionNode) {
+        let mut subclass_code = String::new();
+
+        self.newline();
+        self.newline();
+
+        let action_ret_type: String = match &action_node.type_opt {
+            Some(type_node) => self.format_type(type_node),
+            None => String::from("void"),
+        };
+
+        let action_name = self.format_action_name(&action_node.name);
+        self.outdent();
+        self.newline();
+        self.add_code("public:");
+        self.indent();
+        self.newline();
+        self.add_code(&format!("{} {}(", action_ret_type, action_name));
+        match &action_node.params {
+            Some(params) => {
+                self.format_actions_parameter_list(params, &mut subclass_code);
+            }
+            None => {}
+        }
+
+        self.add_code(")");
+        self.newline();
+        self.add_code("{");
+        // self.subclass_code.push(subclass_code);
+        self.indent();
+        self.newline();
+        self.add_code(action_node.code_opt.as_ref().unwrap().as_str());
+        self.outdent();
+        self.newline();
+        self.add_code("}");
     }
 
     //* --------------------------------------------------------------------- *//
