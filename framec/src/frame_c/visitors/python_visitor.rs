@@ -2343,10 +2343,28 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn preincrement_call_chain_literal_expr_node(
+    fn auto_inc_dec_call_chain_literal_expr_node(
         &mut self,
-        method_call_chain_expression_node: &CallChainLiteralExprNode,
+        call_chain_expression_node: &CallChainLiteralExprNode,
     ) {
+
+        match call_chain_expression_node.inc_dec {
+            IncDecExpr::PreInc | IncDecExpr::PostInc => {
+                let mut output = String::new();
+                call_chain_expression_node.accept_to_string(self, &mut output);
+                self.add_code(&format!("{} = {} + 1", output, output));
+                self.newline();
+            }
+            IncDecExpr::PreDec | IncDecExpr::PostDec => {
+                let mut output = String::new();
+                call_chain_expression_node.accept_to_string(self, &mut output);
+                self.add_code(&format!("{} = {} - 1", output, output));
+                self.newline();
+            }
+            _ => {
+
+            }
+        }
 
     }
 
@@ -2821,6 +2839,7 @@ impl AstVisitor for PythonVisitor {
         self.add_code(")");
     }
 
+
     //* --------------------------------------------------------------------- *//
 
     fn visit_expression_list_node_to_string(
@@ -2840,6 +2859,14 @@ impl AstVisitor for PythonVisitor {
         output.push(')');
     }
 
+    //* --------------------------------------------------------------------- *//
+
+    fn auto_inc_dec_expression_list_node(&mut self, expr_list: &ExprListNode) {
+        for expr in &expr_list.exprs_t {
+            expr.auto_inc_dec_expr_type(self);
+        }
+
+    }
     //* --------------------------------------------------------------------- *//
 
     fn visit_literal_expression_node(&mut self, literal_expression_node: &LiteralExprNode) {
@@ -2894,6 +2921,21 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_identifier_node(&mut self, identifier_node: &IdentifierNode) {
+        // match identifier_node.inc_dec {
+        //     IncDecExpr::PreInc => {
+        //         let mut output = String::new();
+        //         identifier_node.accept_to_string(self, &mut output);
+        //         self.add_code(&format!("{} = {} + 1", output, output));
+        //         self.newline();
+        //     }
+        //     IncDecExpr::PreDec => {
+        //         let mut output = String::new();
+        //         identifier_node.accept_to_string(self, &mut output);
+        //         self.add_code(&format!("{} = {} - 1", output, output));
+        //         self.newline();
+        //     }
+        //     _ => {}
+        // }
         self.add_code(&identifier_node.name.lexeme.to_string());
     }
 
@@ -3138,10 +3180,16 @@ impl AstVisitor for PythonVisitor {
     fn visit_assignment_expr_node(&mut self, assignment_expr_node: &AssignmentExprNode) {
         self.generate_comment(assignment_expr_node.line);
         self.newline();
-        assignment_expr_node.r_value_box.preincrement(self);
+        assignment_expr_node.r_value_box.auto_inc_dec_expr_type(self);
         assignment_expr_node.l_value_box.accept(self);
         self.add_code(" = ");
         assignment_expr_node.r_value_box.accept(self);
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn auto_inc_dec_assignment_expr_node(&mut self, assignment_expr_node: &AssignmentExprNode) {
+
     }
 
     //* --------------------------------------------------------------------- *//
@@ -3257,6 +3305,16 @@ impl AstVisitor for PythonVisitor {
                 .borrow()
                 .accept_to_string(self, output);
         }
+    }
+
+
+    //* --------------------------------------------------------------------- *//
+
+    fn auto_inc_dec_binary_expr_node(&mut self, binary_expr_node: &BinaryExprNode) {
+
+        binary_expr_node.left_rcref.borrow().auto_inc_dec_expr_type(self);
+        binary_expr_node.right_rcref.borrow().auto_inc_dec_expr_type(self);
+
     }
 
     //* --------------------------------------------------------------------- *//

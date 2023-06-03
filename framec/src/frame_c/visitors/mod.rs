@@ -106,11 +106,12 @@ pub trait AstVisitor {
     fn visit_interface_method_call_expression_node_to_string(&mut self, _node: &InterfaceMethodCallExprNode, _output: &mut String) {}
     fn visit_call_expression_node(&mut self, _node: &CallExprNode) {}
     fn visit_call_expression_node_to_string(&mut self, _node: &CallExprNode, _output: &mut String) {}
+
     fn visit_call_expr_list_node(&mut self, _node: &CallExprListNode) {}
     fn visit_call_expr_list_node_to_string(&mut self, _node: &CallExprListNode, _output: &mut String) {}
 
     fn visit_call_chain_literal_expr_node(&mut self, _node: &CallChainLiteralExprNode) {}
-    fn preincrement_call_chain_literal_expr_node(&mut self, _node: &CallChainLiteralExprNode) {}
+    fn auto_inc_dec_call_chain_literal_expr_node(&mut self, _node: &CallChainLiteralExprNode) {}
     fn visit_call_chain_literal_expr_node_to_string(&mut self, _node: &CallChainLiteralExprNode, _output: &mut String) {}
 
     fn visit_call_chain_literal_statement_node(&mut self, _node: &CallChainLiteralStmtNode) {}
@@ -130,8 +131,11 @@ pub trait AstVisitor {
     fn visit_number_match_test_match_branch_node(&mut self, _node: &NumberMatchTestMatchBranchNode) {}
     fn visit_number_match_test_else_branch_node(&mut self, _node: &NumberMatchTestElseBranchNode) {}
     fn visit_number_match_test_pattern_node(&mut self, _node: &NumberMatchTestPatternNode) {}
+
     fn visit_expression_list_node(&mut self, _expr_list: &ExprListNode) {}
     fn visit_expression_list_node_to_string(&mut self, _expr_list: &ExprListNode, _output: &mut String) {}
+    fn auto_inc_dec_expression_list_node(&mut self, _expr_list: &ExprListNode) {}
+
     fn visit_literal_expression_node(&mut self, _node: &LiteralExprNode) {}
     fn visit_literal_expression_node_to_string(&mut self, _node: &LiteralExprNode, _output: &mut String) {}
     fn visit_identifier_node(&mut self, _node: &IdentifierNode) {}
@@ -157,13 +161,19 @@ pub trait AstVisitor {
     fn visit_variable_expr_node(&mut self, _node: &VariableNode) {}
     fn visit_variable_expr_node_to_string(&mut self, _node: &VariableNode, _output: &mut String) {}
     fn visit_variable_stmt_node(&mut self, _node: &VariableStmtNode) {}
+
     fn visit_assignment_expr_node(&mut self, _node: &AssignmentExprNode) {}
     fn visit_assignment_expr_node_to_string(&mut self, _node: &AssignmentExprNode, _output: &mut String) {}
+    fn auto_inc_dec_assignment_expr_node(&mut self, _node: &AssignmentExprNode) {}
+
     fn visit_assignment_statement_node(&mut self, _node: &AssignmentStmtNode) {}
     fn visit_unary_expr_node(&mut self, _node: &UnaryExprNode) {}
     fn visit_unary_expr_node_to_string(&mut self, _node: &UnaryExprNode, _output: &mut String) {}
+
     fn visit_binary_expr_node(&mut self, _node: &BinaryExprNode) {}
     fn visit_binary_expr_node_to_string(&mut self, _node: &BinaryExprNode, _output: &mut String) {}
+    fn auto_inc_dec_binary_expr_node(&mut self, _node: &BinaryExprNode) {}
+
     fn visit_operator_type(&mut self, _operator_type: &OperatorType) {}
     fn visit_operator_type_to_string(&mut self, _operator_type: &OperatorType, _output: &mut String) {}
 }

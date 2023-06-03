@@ -47,7 +47,7 @@ pub trait NodeElement {
         // no_op
     }
 
-    fn preincrement(&self, _ast_visitor: &mut dyn AstVisitor) {
+    fn auto_inc_dec_expr_type(&self, _ast_visitor: &mut dyn AstVisitor) {
         // no_op
     }
 }
@@ -943,6 +943,58 @@ impl NodeElement for ExprType {
             }
         }
     }
+
+    fn auto_inc_dec_expr_type(&self, ast_visitor: &mut dyn AstVisitor) {
+        match self {
+            ExprType::AssignmentExprT {
+                assignment_expr_node,
+            } => {
+                ast_visitor.auto_inc_dec_assignment_expr_node(assignment_expr_node);
+            }
+            ExprType::CallChainLiteralExprT {
+                call_chain_expr_node,
+            } => {
+                ast_visitor.auto_inc_dec_call_chain_literal_expr_node(call_chain_expr_node);
+            }
+            ExprType::CallExprT { call_expr_node } => {
+            //    ast_visitor.visit_call_expression_node(call_expr_node);
+            }
+            ExprType::CallExprListT {
+                call_expr_list_node,
+            } => {
+            //    ast_visitor.visit_call_expr_list_node(call_expr_list_node);
+            }
+            ExprType::ExprListT { expr_list_node } => {
+                ast_visitor.auto_inc_dec_expression_list_node(expr_list_node);
+            }
+            ExprType::VariableExprT { var_node: id_node } => {
+            //    ast_visitor.visit_variable_expr_node(id_node);
+            }
+            ExprType::LiteralExprT { literal_expr_node } => {
+            //    ast_visitor.visit_literal_expression_node(literal_expr_node);
+            }
+            ExprType::StateStackOperationExprT {
+                state_stack_op_node,
+            } => {
+            //    ast_visitor.visit_state_stack_operation_node(state_stack_op_node);
+            }
+            ExprType::FrameEventExprT { frame_event_part } => {
+            //    ast_visitor.visit_frame_event_part(frame_event_part);
+            }
+            ExprType::ActionCallExprT {
+                action_call_expr_node,
+            } => {
+            //    ast_visitor.visit_action_call_expression_node(action_call_expr_node);
+            }
+            ExprType::UnaryExprT { unary_expr_node } => {
+           //     ast_visitor.visit_unary_expr_node(unary_expr_node);
+            }
+            ExprType::BinaryExprT { binary_expr_node } => {
+                ast_visitor.auto_inc_dec_binary_expr_node(binary_expr_node);
+            }
+        }
+    }
+
 }
 
 //-----------------------------------------------------//
@@ -1111,6 +1163,10 @@ impl NodeElement for AssignmentExprNode {
 
     fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
         ast_visitor.visit_assignment_expr_node_to_string(self, output);
+    }
+
+    fn auto_inc_dec_expr_type(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.auto_inc_dec_assignment_expr_node(self);
     }
 }
 
@@ -1335,6 +1391,7 @@ impl LoopExprNode {
 
 //-----------------------------------------------------//
 
+#[derive(Clone)]
 pub enum IncDecExpr {
     None,
     PreInc,
@@ -1363,6 +1420,7 @@ impl CallChainLiteralExprNode {
 
 impl NodeElement for CallChainLiteralExprNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.auto_inc_dec_call_chain_literal_expr_node(self);
         ast_visitor.visit_call_chain_literal_expr_node(self);
     }
 
@@ -1370,8 +1428,8 @@ impl NodeElement for CallChainLiteralExprNode {
         ast_visitor.visit_call_chain_literal_expr_node_to_string(self, output);
     }
 
-    fn preincrement(&self, ast_visitor: &mut dyn AstVisitor) {
-        ast_visitor.preincrement_call_chain_literal_expr_node(self);
+    fn auto_inc_dec_expr_type(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.auto_inc_dec_call_chain_literal_expr_node(self);
     }
 }
 
@@ -1691,6 +1749,7 @@ pub struct LiteralExprNode {
     pub token_t: TokenType,
     pub value: String,
     pub is_reference: bool,
+    pub inc_dec: IncDecExpr,
 }
 
 impl LiteralExprNode {
@@ -1699,6 +1758,7 @@ impl LiteralExprNode {
             token_t,
             value,
             is_reference: false,
+            inc_dec: IncDecExpr::None,
         }
     }
 }

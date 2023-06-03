@@ -3244,7 +3244,18 @@ impl<'a> Parser<'a> {
     fn prefix_unary_expression(&mut self) -> Result<Option<ExprType>, ParseError> {
         if self.match_token(&[TokenType::PlusPlus]) {
             match self.unary_expression2() {
-                Ok(Some(expr_t)) => {
+                Ok(Some(mut expr_t)) => {
+                    match expr_t {
+                        ExprType::CallChainLiteralExprT {ref mut call_chain_expr_node} => {
+                            call_chain_expr_node.inc_dec = IncDecExpr::PreInc;
+                        }
+                        ExprType::LiteralExprT {ref mut literal_expr_node} => {
+                            literal_expr_node.inc_dec = IncDecExpr::PreInc;
+                        }
+                        _ => {
+
+                        }
+                    }
                     return Ok(Some(expr_t));
                 },
                 Ok(None) => return Ok(None),
@@ -3252,7 +3263,18 @@ impl<'a> Parser<'a> {
             }
         } else if self.match_token(&[TokenType::DashDash]) {
             match self.unary_expression2() {
-                Ok(Some(expr_t)) => {
+                Ok(Some(mut expr_t)) => {
+                    match expr_t {
+                        ExprType::CallChainLiteralExprT {ref mut call_chain_expr_node} => {
+                            call_chain_expr_node.inc_dec = IncDecExpr::PreDec;
+                        }
+                        ExprType::LiteralExprT {ref mut literal_expr_node} => {
+                            literal_expr_node.inc_dec = IncDecExpr::PreInc;
+                        }
+                        _ => {
+
+                        }
+                    }
                     return Ok(Some(expr_t));
                 },
                 Ok(None) => return Ok(None),
