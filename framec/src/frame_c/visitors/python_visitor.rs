@@ -2921,21 +2921,6 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_identifier_node(&mut self, identifier_node: &IdentifierNode) {
-        // match identifier_node.inc_dec {
-        //     IncDecExpr::PreInc => {
-        //         let mut output = String::new();
-        //         identifier_node.accept_to_string(self, &mut output);
-        //         self.add_code(&format!("{} = {} + 1", output, output));
-        //         self.newline();
-        //     }
-        //     IncDecExpr::PreDec => {
-        //         let mut output = String::new();
-        //         identifier_node.accept_to_string(self, &mut output);
-        //         self.add_code(&format!("{} = {} - 1", output, output));
-        //         self.newline();
-        //     }
-        //     _ => {}
-        // }
         self.add_code(&identifier_node.name.lexeme.to_string());
     }
 
@@ -3180,7 +3165,9 @@ impl AstVisitor for PythonVisitor {
     fn visit_assignment_expr_node(&mut self, assignment_expr_node: &AssignmentExprNode) {
         self.generate_comment(assignment_expr_node.line);
         self.newline();
+        // inc/dec all rvalue expressions first
         assignment_expr_node.r_value_box.auto_inc_dec_expr_type(self);
+        // now generate assignment expression
         assignment_expr_node.l_value_box.accept(self);
         self.add_code(" = ");
         assignment_expr_node.r_value_box.accept(self);

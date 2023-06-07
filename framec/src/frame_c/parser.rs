@@ -3252,6 +3252,28 @@ impl<'a> Parser<'a> {
                         ExprType::LiteralExprT {ref mut literal_expr_node} => {
                             literal_expr_node.inc_dec = IncDecExpr::PreInc;
                         }
+                        // ExprType::ExprListT {ref mut expr_list_node} => {
+                        //     expr_list_node.inc_dec = IncDecExpr::PreInc;
+                        // }
+                        ExprType::ExprListT {ref mut expr_list_node} => {
+                            expr_list_node.inc_dec = IncDecExpr::PreDec;
+                            for expr_t in &mut expr_list_node.exprs_t {
+                                match expr_t {
+                                    ExprType::CallChainLiteralExprT {ref mut call_chain_expr_node} => {
+                                        call_chain_expr_node.inc_dec = IncDecExpr::PreDec;
+                                    }
+                                    ExprType::LiteralExprT {ref mut literal_expr_node} => {
+                                        literal_expr_node.inc_dec = IncDecExpr::PreDec;
+                                    }
+                                    _ => {
+                                        let err_msg = "Can not increment/decrement something that cannot be assigned.";
+                                        self.error_at_current(err_msg);
+                                        return Err(ParseError::new(err_msg));
+                                    }
+
+                                }
+                            }
+                        }
                         _ => {
 
                         }
@@ -3269,7 +3291,26 @@ impl<'a> Parser<'a> {
                             call_chain_expr_node.inc_dec = IncDecExpr::PreDec;
                         }
                         ExprType::LiteralExprT {ref mut literal_expr_node} => {
-                            literal_expr_node.inc_dec = IncDecExpr::PreInc;
+                            literal_expr_node.inc_dec = IncDecExpr::PreDec;
+                        }
+                        ExprType::ExprListT {ref mut expr_list_node} => {
+                            expr_list_node.inc_dec = IncDecExpr::PreDec;
+                            for expr_t in &mut expr_list_node.exprs_t {
+                                match expr_t {
+                                    ExprType::CallChainLiteralExprT {ref mut call_chain_expr_node} => {
+                                        call_chain_expr_node.inc_dec = IncDecExpr::PreDec;
+                                    }
+                                    ExprType::LiteralExprT {ref mut literal_expr_node} => {
+                                        literal_expr_node.inc_dec = IncDecExpr::PreDec;
+                                    }
+                                    _ => {
+                                        let err_msg = "Can not increment/decrement something that cannot be assigned.";
+                                        self.error_at_current(err_msg);
+                                        return Err(ParseError::new(err_msg));
+                                    }
+
+                                }
+                            }
                         }
                         _ => {
 

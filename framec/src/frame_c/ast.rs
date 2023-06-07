@@ -1652,11 +1652,15 @@ impl NodeElement for CallExprListNode {
 // #[derive(Clone)]
 pub struct ExprListNode {
     pub exprs_t: Vec<ExprType>,
+    pub inc_dec: IncDecExpr,
 }
 
 impl ExprListNode {
     pub fn new(exprs_t: Vec<ExprType>) -> ExprListNode {
-        ExprListNode { exprs_t }
+        ExprListNode {
+            exprs_t,
+            inc_dec: IncDecExpr::None,
+        }
     }
 }
 
