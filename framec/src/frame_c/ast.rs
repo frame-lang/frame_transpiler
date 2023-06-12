@@ -47,13 +47,13 @@ pub trait NodeElement {
         // no_op
     }
 
-    fn auto_pre_inc_dec_expr_type(&self, _ast_visitor: &mut dyn AstVisitor) {
-        // no_op
-    }
-
-    fn auto_post_inc_dec_expr_type(&self, _ast_visitor: &mut dyn AstVisitor) {
-        // no_op
-    }
+    // fn auto_pre_inc_dec_expr_type(&self, _ast_visitor: &mut dyn AstVisitor) {
+    //     // no_op
+    // }
+    //
+    // fn auto_post_inc_dec_expr_type(&self, _ast_visitor: &mut dyn AstVisitor) {
+    //     // no_op
+    // }
 }
 
 // TODO: is this a good name for Identifier and Call expressions?
@@ -843,9 +843,9 @@ pub enum RefExprType<'a> {
     // CallExprListT {
     //     call_expr_list_node: CallExprListNode,
     // },
-    // ExprListT {
-    //     expr_list_node: ExprListNode,
-    // },
+    ExprListT {
+        expr_list_node: &'a ExprListNode,
+    },
     // VariableExprT {
     //     var_node: VariableNode,
     // },
@@ -900,7 +900,16 @@ impl ExprType {
     }
 
     pub fn auto_pre_inc_dec(&self, ast_visitor: &mut dyn AstVisitor) {
+        match self {
+            ExprType::CallChainLiteralExprT { call_chain_expr_node } => {
+                let ref ref_expr_type = RefExprType::CallChainLiteralExprT { call_chain_expr_node };
+                ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
 
+            }
+            _ => {
+
+            }
+        }
     }
 
     pub fn auto_post_inc_dec(&self, ast_visitor: &mut dyn AstVisitor) {
@@ -1336,9 +1345,10 @@ impl ExprListStmtNode {
 
 impl NodeElement for ExprListStmtNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
-      //  ast_visitor.auto_inc_dec_expression_list_node(self);
+        let ref ref_expr_type = RefExprType::ExprListT {expr_list_node: &self.expr_list_node };
+        ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
         ast_visitor.visit_expr_list_stmt_node(self);
-      //  ast_visitor.auto_pre_inc_dec_call_chain_literal_expr_node(self);
+        ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
 
     }
 }
@@ -1574,19 +1584,14 @@ impl CallChainLiteralExprNode {
 impl NodeElement for CallChainLiteralExprNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         let ref ref_expr_type = RefExprType::CallChainLiteralExprT {call_chain_expr_node: &self };
-        ast_visitor.auto_pre_inc_dec_expr_node( ref_expr_type);
+        ast_visitor.visit_auto_pre_inc_dec_expr_node( ref_expr_type);
         ast_visitor.visit_call_chain_literal_expr_node(self);
-        ast_visitor.auto_post_inc_dec_expr_node(ref_expr_type);
+        ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
     }
 
     fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
         ast_visitor.visit_call_chain_literal_expr_node_to_string(self, output);
     }
-
-    // fn auto_inc_dec_expr_type(&self, ast_visitor: &mut dyn AstVisitor) {
-    //     let inc_dec_expr_type = IncDecExprType::CallChainLiteralExprT {call_chain_expr_node: RefCell::new(self) };
-    //     ast_visitor.auto_inc_dec_expr_node(&inc_dec_expr_type);
-    // }
 }
 
 impl fmt::Display for CallChainLiteralExprNode {

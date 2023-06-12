@@ -49,6 +49,7 @@ pub struct PythonVisitor {
 
     // keeping track of traversal context
     this_branch_transitioned: bool,
+    skip_next_newline:bool,
 }
 
 impl PythonVisitor {
@@ -100,6 +101,7 @@ impl PythonVisitor {
             config: python_config,
             // keeping track of traversal context
             this_branch_transitioned: false,
+            skip_next_newline: false,
         }
     }
 
@@ -389,6 +391,23 @@ impl PythonVisitor {
         self.code.push_str(&*s.to_string());
     }
 
+    //* --------------------------------------------------------------------- *//
+
+    fn skip_next_newline(&mut self) {
+        self.code.push_str(&*format!("\n{}", self.dent()));
+        self.skip_next_newline = true;
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn test_skip_newline(&mut self) {
+        if self.skip_next_newline {
+            self.skip_next_newline = false;
+        } else {
+            self.code.push_str(&*format!("\n{}", self.dent()));
+        }
+
+    }
     //* --------------------------------------------------------------------- *//
 
     fn newline(&mut self) {
@@ -2281,7 +2300,7 @@ impl AstVisitor for PythonVisitor {
         &mut self,
         method_call_chain_literal_stmt_node: &CallChainLiteralStmtNode,
     ) {
-        self.newline();
+        self.skip_next_newline();
         // special case for interface method calls
         let call_chain = &method_call_chain_literal_stmt_node
             .call_chain_literal_expr_node
@@ -2303,6 +2322,9 @@ impl AstVisitor for PythonVisitor {
         method_call_chain_literal_stmt_node
             .call_chain_literal_expr_node
             .accept(self);
+
+        // resets flag used in autoinc code
+        self.skip_next_newline = false;
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2344,7 +2366,7 @@ impl AstVisitor for PythonVisitor {
         }
     }
 
-    fn auto_pre_inc_dec_expr_node(&mut self, ref_expr_type: &RefExprType) {
+    fn visit_auto_pre_inc_dec_expr_node(&mut self, ref_expr_type: &RefExprType) {
         match ref_expr_type {
             RefExprType::AssignmentExprT {assignment_expr_node} => {
 
@@ -2352,12 +2374,14 @@ impl AstVisitor for PythonVisitor {
             RefExprType::CallChainLiteralExprT {call_chain_expr_node} => {
                 match call_chain_expr_node.inc_dec {
                     IncDecExpr::PreInc => {
+                        self.test_skip_newline();
                         let mut output = String::new();
                         call_chain_expr_node.accept_to_string(self, &mut output);
                         self.add_code(&format!("{} = {} + 1", output, output));
                         self.newline();
                     }
                     IncDecExpr::PreDec => {
+                        self.test_skip_newline();
                         let mut output = String::new();
                         call_chain_expr_node.accept_to_string(self, &mut output);
                         self.add_code(&format!("{} = {} - 1", output, output));
@@ -2366,11 +2390,43 @@ impl AstVisitor for PythonVisitor {
                     _ => {}
                 }
             }
+            RefExprType::ExprListT {expr_list_node} => {
+                for expr in &expr_list_node.exprs_t {
+                    expr.auto_pre_inc_dec(self);
+                }
+            }
         }
     }
 
-    fn auto_post_inc_dec_expr_node(&mut self, _expr_list: &RefExprType) {
+    fn visit_auto_post_inc_dec_expr_node(&mut self, ref_expr_type: &RefExprType) {
+        match ref_expr_type {
+            RefExprType::AssignmentExprT {assignment_expr_node} => {
 
+            }
+            RefExprType::CallChainLiteralExprT {call_chain_expr_node} => {
+                match call_chain_expr_node.inc_dec {
+                    IncDecExpr::PostInc => {
+                        self.newline();
+                        let mut output = String::new();
+                        call_chain_expr_node.accept_to_string(self, &mut output);
+                        self.add_code(&format!("{} = {} + 1", output, output));
+
+                    }
+                    IncDecExpr::PostDec => {
+                        self.newline();
+                        let mut output = String::new();
+                        call_chain_expr_node.accept_to_string(self, &mut output);
+                        self.add_code(&format!("{} = {} - 1", output, output));
+                    }
+                    _ => {}
+                }
+            }
+            RefExprType::ExprListT {expr_list_node} => {
+                for expr in &expr_list_node.exprs_t {
+                    expr.auto_post_inc_dec(self);
+                }
+            }
+        }
     }
 
     //* --------------------------------------------------------------------- *//
