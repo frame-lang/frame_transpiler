@@ -2496,10 +2496,13 @@ impl<'a> Parser<'a> {
                                 Err(parse_err) => return Err(parse_err),
                             }
                         } else {
-                            self.error_at_previous(
-                                "Expected '->' token following expression list.",
-                            );
-                            return Err(ParseError::new("TODO"));
+                            let expr_list_stmt_node = ExprListStmtNode::new(expr_list_node);
+                            let expr_stmt_t = ExprListStmtT {expr_list_stmt_node};
+                            return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
+                            // self.error_at_previous(
+                            //     "Expected '->' token following expression list.",
+                            // );
+                            // return Err(ParseError::new("TODO"));
                         }
                     }
                     CallExprT { call_expr_node } => {
@@ -4016,8 +4019,15 @@ impl<'a> Parser<'a> {
                     } => {
                         scope = event_handler_param_symbol_rcref.borrow().scope.clone();
                     }
+                    SymbolType::EventHandlerLocalScope {
+                        event_handler_local_scope_rcref,
+                    } => {
+                        scope = IdentifierDeclScope::None;
+                    }
                     _ => {
-                        return Err(ParseError::new("Error - unknown scope identifier."));
+                        scope = IdentifierDeclScope::None;
+
+//                        return Err(ParseError::new("Error - unknown scope identifier."));
                     }
                 }
             }

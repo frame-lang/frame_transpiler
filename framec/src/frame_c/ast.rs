@@ -47,7 +47,11 @@ pub trait NodeElement {
         // no_op
     }
 
-    fn auto_inc_dec_expr_type(&self, _ast_visitor: &mut dyn AstVisitor) {
+    fn auto_pre_inc_dec_expr_type(&self, _ast_visitor: &mut dyn AstVisitor) {
+        // no_op
+    }
+
+    fn auto_post_inc_dec_expr_type(&self, _ast_visitor: &mut dyn AstVisitor) {
         // no_op
     }
 }
@@ -752,12 +756,27 @@ impl NodeElement for FrameEventPart {
         ast_visitor.visit_frame_event_part(self);
     }
 }
-
-pub enum IncDecExprType {
-    CallChainLiteralExprT {
-        call_chain_expr_node:  CallChainLiteralExprNode,
-    },
-}
+//
+// pub enum IncDecExprContext {
+//     Pre,
+//     Post,
+// }
+//
+// pub enum IncDecExprType<'a> {
+//     CallChainLiteralExprT {
+//         call_chain_expr_node:  RefCell<&'a CallChainLiteralExprNode>,
+//     },
+// }
+//
+// impl<'a> IncDecExprType<'a> {
+//     pub fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
+//         match self {
+//             IncDecExprType::CallChainLiteralExprT {mut call_chain_expr_node} => {
+//                 call_chain_expr_node.borrow().accept_to_string(ast_visitor,output);
+//             }
+//         }
+//     }
+// }
 
 //-----------------------------------------------------//
 //                  -Expressions-
@@ -804,6 +823,49 @@ pub enum ExprType {
     },
 }
 
+
+pub enum RefExprType<'a> {
+    AssignmentExprT {
+        assignment_expr_node: &'a AssignmentExprNode,
+    },
+    // #[allow(dead_code)] // is used, don't know why I need this
+    // ActionCallExprT {
+    //     action_call_expr_node: ActionCallExprNode,
+    // },
+    CallChainLiteralExprT {
+        call_chain_expr_node: &'a CallChainLiteralExprNode,
+    },
+    // #[allow(dead_code)] // is used, don't know why I need this
+    // CallExprT {
+    //     call_expr_node: CallExprNode,
+    // },
+    // #[allow(dead_code)] // is used, don't know why I need this
+    // CallExprListT {
+    //     call_expr_list_node: CallExprListNode,
+    // },
+    // ExprListT {
+    //     expr_list_node: ExprListNode,
+    // },
+    // VariableExprT {
+    //     var_node: VariableNode,
+    // },
+    // LiteralExprT {
+    //     literal_expr_node: LiteralExprNode,
+    // },
+    // StateStackOperationExprT {
+    //     state_stack_op_node: StateStackOperationNode,
+    // },
+    // FrameEventExprT {
+    //     frame_event_part: FrameEventPart,
+    // },
+    // UnaryExprT {
+    //     unary_expr_node: UnaryExprNode,
+    // },
+    // BinaryExprT {
+    //     binary_expr_node: BinaryExprNode,
+    // },
+}
+
 impl fmt::Display for ExprType {
     // This trait requires `fmt` with this exact signature.
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -835,6 +897,65 @@ impl ExprType {
             ExprType::UnaryExprT { .. } => "UnaryExprT",
             ExprType::BinaryExprT { .. } => "BinaryExprT",
         }
+    }
+
+    pub fn auto_pre_inc_dec(&self, ast_visitor: &mut dyn AstVisitor) {
+
+    }
+
+    pub fn auto_post_inc_dec(&self, ast_visitor: &mut dyn AstVisitor) {
+
+        // let mut inc_dec_type = IncDecExpr::None;
+        //
+        // match inc_dec_expr_type {
+        //     IncDecExprType::CallChainLiteralExprT {call_chain_expr_node} => {
+        //         inc_dec_type = call_chain_expr_node.inc_dec.clone();
+        //     }
+        // }
+        //
+        // match inc_dec_type {
+        //     IncDecExpr::PostInc | IncDecExpr::PostInc => {
+        //         self.newline();
+        //     }
+        //     _ => {}
+        // }
+        //
+        // if let IncDecExprContext::Pre = context {
+        //     match inc_dec_type {
+        //         IncDecExpr::PreInc  => {
+        //             let mut output = String::new();
+        //             inc_dec_expr_type.accept_to_string(self, &mut output);
+        //             self.add_code(&format!("{} = {} + 1", output, output));
+        //
+        //         }
+        //         IncDecExpr::PreDec  => {
+        //             let mut output = String::new();
+        //             inc_dec_expr_type.accept_to_string(self, &mut output);
+        //             self.add_code(&format!("{} = {} - 1", output, output));
+        //             self.newline();
+        //         }
+        //         _ => {
+        //
+        //         }
+        //     }
+        // } else {
+        //     match inc_dec_type {
+        //         IncDecExpr::PostInc => {
+        //             let mut output = String::new();
+        //             inc_dec_expr_type.accept_to_string(self, &mut output);
+        //             self.add_code(&format!("{} = {} + 1", output, output));
+        //
+        //         }
+        //         IncDecExpr::PostDec  => {
+        //             let mut output = String::new();
+        //             inc_dec_expr_type.accept_to_string(self, &mut output);
+        //             self.add_code(&format!("{} = {} - 1", output, output));
+        //             self.newline();
+        //         }
+        //         _ => {
+        //         }
+        //     }
+        // }
     }
 }
 
@@ -943,57 +1064,57 @@ impl NodeElement for ExprType {
             }
         }
     }
-
-    fn auto_inc_dec_expr_type(&self, ast_visitor: &mut dyn AstVisitor) {
-        match self {
-            ExprType::AssignmentExprT {
-                assignment_expr_node,
-            } => {
-                ast_visitor.auto_inc_dec_assignment_expr_node(assignment_expr_node);
-            }
-            ExprType::CallChainLiteralExprT {
-                call_chain_expr_node,
-            } => {
-                ast_visitor.auto_inc_dec_call_chain_literal_expr_node(call_chain_expr_node);
-            }
-            ExprType::CallExprT { call_expr_node } => {
-            //    ast_visitor.visit_call_expression_node(call_expr_node);
-            }
-            ExprType::CallExprListT {
-                call_expr_list_node,
-            } => {
-            //    ast_visitor.visit_call_expr_list_node(call_expr_list_node);
-            }
-            ExprType::ExprListT { expr_list_node } => {
-                ast_visitor.auto_inc_dec_expression_list_node(expr_list_node);
-            }
-            ExprType::VariableExprT { var_node: id_node } => {
-            //    ast_visitor.visit_variable_expr_node(id_node);
-            }
-            ExprType::LiteralExprT { literal_expr_node } => {
-            //    ast_visitor.visit_literal_expression_node(literal_expr_node);
-            }
-            ExprType::StateStackOperationExprT {
-                state_stack_op_node,
-            } => {
-            //    ast_visitor.visit_state_stack_operation_node(state_stack_op_node);
-            }
-            ExprType::FrameEventExprT { frame_event_part } => {
-            //    ast_visitor.visit_frame_event_part(frame_event_part);
-            }
-            ExprType::ActionCallExprT {
-                action_call_expr_node,
-            } => {
-            //    ast_visitor.visit_action_call_expression_node(action_call_expr_node);
-            }
-            ExprType::UnaryExprT { unary_expr_node } => {
-           //     ast_visitor.visit_unary_expr_node(unary_expr_node);
-            }
-            ExprType::BinaryExprT { binary_expr_node } => {
-                ast_visitor.auto_inc_dec_binary_expr_node(binary_expr_node);
-            }
-        }
-    }
+    //
+    // fn auto_inc_dec_expr_type(&self, ast_visitor: &mut dyn AstVisitor) {
+    //     match self {
+    //         ExprType::AssignmentExprT {
+    //             assignment_expr_node,
+    //         } => {
+    //             ast_visitor.auto_inc_dec_assignment_expr_node(assignment_expr_node);
+    //         }
+    //         ExprType::CallChainLiteralExprT {
+    //             call_chain_expr_node,
+    //         } => {
+    //             ast_visitor.auto_inc_dec_call_chain_literal_expr_node(call_chain_expr_node);
+    //         }
+    //         ExprType::CallExprT { call_expr_node } => {
+    //         //    ast_visitor.visit_call_expression_node(call_expr_node);
+    //         }
+    //         ExprType::CallExprListT {
+    //             call_expr_list_node,
+    //         } => {
+    //         //    ast_visitor.visit_call_expr_list_node(call_expr_list_node);
+    //         }
+    //         ExprType::ExprListT { expr_list_node } => {
+    //          //   ast_visitor.auto_inc_dec_expression_list_node(expr_list_node);
+    //         }
+    //         ExprType::VariableExprT { var_node: id_node } => {
+    //         //    ast_visitor.visit_variable_expr_node(id_node);
+    //         }
+    //         ExprType::LiteralExprT { literal_expr_node } => {
+    //         //    ast_visitor.visit_literal_expression_node(literal_expr_node);
+    //         }
+    //         ExprType::StateStackOperationExprT {
+    //             state_stack_op_node,
+    //         } => {
+    //         //    ast_visitor.visit_state_stack_operation_node(state_stack_op_node);
+    //         }
+    //         ExprType::FrameEventExprT { frame_event_part } => {
+    //         //    ast_visitor.visit_frame_event_part(frame_event_part);
+    //         }
+    //         ExprType::ActionCallExprT {
+    //             action_call_expr_node,
+    //         } => {
+    //         //    ast_visitor.visit_action_call_expression_node(action_call_expr_node);
+    //         }
+    //         ExprType::UnaryExprT { unary_expr_node } => {
+    //        //     ast_visitor.visit_unary_expr_node(unary_expr_node);
+    //         }
+    //         ExprType::BinaryExprT { binary_expr_node } => {
+    //             ast_visitor.auto_inc_dec_binary_expr_node(binary_expr_node);
+    //         }
+    //     }
+    // }
 
 }
 
@@ -1016,6 +1137,9 @@ pub enum ExprStmtType {
     VariableStmtT {
         variable_stmt_node: VariableStmtNode,
     },
+    ExprListStmtT {
+        expr_list_stmt_node: ExprListStmtNode,
+    }
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -1165,9 +1289,9 @@ impl NodeElement for AssignmentExprNode {
         ast_visitor.visit_assignment_expr_node_to_string(self, output);
     }
 
-    fn auto_inc_dec_expr_type(&self, ast_visitor: &mut dyn AstVisitor) {
-        ast_visitor.auto_inc_dec_assignment_expr_node(self);
-    }
+    // fn auto_inc_dec_expr_type(&self, ast_visitor: &mut dyn AstVisitor) {
+    //     ast_visitor.auto_inc_dec_assignment_expr_node(self);
+    // }
 }
 
 //-----------------------------------------------------//
@@ -1189,6 +1313,33 @@ impl VariableStmtNode {
 impl NodeElement for VariableStmtNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         ast_visitor.visit_variable_stmt_node(self);
+    }
+}
+
+
+//-----------------------------------------------------//
+
+pub struct ExprListStmtNode {
+    pub expr_list_node: ExprListNode,
+}
+
+impl ExprListStmtNode {
+    pub fn new(expr_list_node: ExprListNode) -> ExprListStmtNode {
+        ExprListStmtNode { expr_list_node }
+    }
+
+    // TODO
+    // pub fn get_line(&self) -> usize {
+    //     self.expr_list_node.id_node.line
+    // }
+}
+
+impl NodeElement for ExprListStmtNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+      //  ast_visitor.auto_inc_dec_expression_list_node(self);
+        ast_visitor.visit_expr_list_stmt_node(self);
+      //  ast_visitor.auto_pre_inc_dec_call_chain_literal_expr_node(self);
+
     }
 }
 
@@ -1400,6 +1551,8 @@ pub enum IncDecExpr {
     PostDec,
 }
 
+
+
 //-----------------------------------------------------//
 
 pub struct CallChainLiteralExprNode {
@@ -1420,17 +1573,20 @@ impl CallChainLiteralExprNode {
 
 impl NodeElement for CallChainLiteralExprNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
-        ast_visitor.auto_inc_dec_call_chain_literal_expr_node(self);
+        let ref ref_expr_type = RefExprType::CallChainLiteralExprT {call_chain_expr_node: &self };
+        ast_visitor.auto_pre_inc_dec_expr_node( ref_expr_type);
         ast_visitor.visit_call_chain_literal_expr_node(self);
+        ast_visitor.auto_post_inc_dec_expr_node(ref_expr_type);
     }
 
     fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
         ast_visitor.visit_call_chain_literal_expr_node_to_string(self, output);
     }
 
-    fn auto_inc_dec_expr_type(&self, ast_visitor: &mut dyn AstVisitor) {
-        ast_visitor.auto_inc_dec_call_chain_literal_expr_node(self);
-    }
+    // fn auto_inc_dec_expr_type(&self, ast_visitor: &mut dyn AstVisitor) {
+    //     let inc_dec_expr_type = IncDecExprType::CallChainLiteralExprT {call_chain_expr_node: RefCell::new(self) };
+    //     ast_visitor.auto_inc_dec_expr_node(&inc_dec_expr_type);
+    // }
 }
 
 impl fmt::Display for CallChainLiteralExprNode {

@@ -447,6 +447,9 @@ impl PythonVisitor {
                                 ExprStmtType::VariableStmtT { variable_stmt_node } => {
                                     variable_stmt_node.accept(self)
                                 }
+                                ExprStmtType::ExprListStmtT { expr_list_stmt_node } => {
+                                    expr_list_stmt_node.accept(self)
+                                }
                             }
                         }
                         StatementType::TransitionStmt {
@@ -2341,32 +2344,153 @@ impl AstVisitor for PythonVisitor {
         }
     }
 
-    //* --------------------------------------------------------------------- *//
+    fn auto_pre_inc_dec_expr_node(&mut self, ref_expr_type: &RefExprType) {
+        match ref_expr_type {
+            RefExprType::AssignmentExprT {assignment_expr_node} => {
 
-    fn auto_inc_dec_call_chain_literal_expr_node(
-        &mut self,
-        call_chain_expression_node: &CallChainLiteralExprNode,
-    ) {
-
-        match call_chain_expression_node.inc_dec {
-            IncDecExpr::PreInc | IncDecExpr::PostInc => {
-                let mut output = String::new();
-                call_chain_expression_node.accept_to_string(self, &mut output);
-                self.add_code(&format!("{} = {} + 1", output, output));
-                self.newline();
             }
-            IncDecExpr::PreDec | IncDecExpr::PostDec => {
-                let mut output = String::new();
-                call_chain_expression_node.accept_to_string(self, &mut output);
-                self.add_code(&format!("{} = {} - 1", output, output));
-                self.newline();
-            }
-            _ => {
-
+            RefExprType::CallChainLiteralExprT {call_chain_expr_node} => {
+                match call_chain_expr_node.inc_dec {
+                    IncDecExpr::PreInc => {
+                        let mut output = String::new();
+                        call_chain_expr_node.accept_to_string(self, &mut output);
+                        self.add_code(&format!("{} = {} + 1", output, output));
+                        self.newline();
+                    }
+                    IncDecExpr::PreDec => {
+                        let mut output = String::new();
+                        call_chain_expr_node.accept_to_string(self, &mut output);
+                        self.add_code(&format!("{} = {} - 1", output, output));
+                        self.newline();
+                    }
+                    _ => {}
+                }
             }
         }
+    }
+
+    fn auto_post_inc_dec_expr_node(&mut self, _expr_list: &RefExprType) {
 
     }
+
+    //* --------------------------------------------------------------------- *//
+
+    // fn auto_inc_dec_expr_node(
+    //     &mut self,
+    //     inc_dec_expr_type: &IncDecExprType,
+    //     context: &IncDecExprContext
+    // ) {
+    //
+    //     let mut inc_dec_type = IncDecExpr::None;
+    //
+    //     match inc_dec_expr_type {
+    //        IncDecExprType::CallChainLiteralExprT {call_chain_expr_node} => {
+    //            inc_dec_type = call_chain_expr_node.inc_dec.clone();
+    //        }
+    //     }
+    //
+    //     match inc_dec_type {
+    //         IncDecExpr::PostInc | IncDecExpr::PostInc => {
+    //             self.newline();
+    //         }
+    //         _ => {}
+    //     }
+    //
+    //     if let IncDecExprContext::Pre = context {
+    //         match inc_dec_type {
+    //             IncDecExpr::PreInc  => {
+    //                 let mut output = String::new();
+    //                 inc_dec_expr_type.accept_to_string(self, &mut output);
+    //                 self.add_code(&format!("{} = {} + 1", output, output));
+    //
+    //             }
+    //             IncDecExpr::PreDec  => {
+    //                 let mut output = String::new();
+    //                 inc_dec_expr_type.accept_to_string(self, &mut output);
+    //                 self.add_code(&format!("{} = {} - 1", output, output));
+    //                 self.newline();
+    //             }
+    //             _ => {
+    //
+    //             }
+    //         }
+    //     } else {
+    //         match inc_dec_type {
+    //             IncDecExpr::PostInc => {
+    //                 let mut output = String::new();
+    //                 inc_dec_expr_type.accept_to_string(self, &mut output);
+    //                 self.add_code(&format!("{} = {} + 1", output, output));
+    //
+    //             }
+    //             IncDecExpr::PostDec  => {
+    //                 let mut output = String::new();
+    //                 inc_dec_expr_type.accept_to_string(self, &mut output);
+    //                 self.add_code(&format!("{} = {} - 1", output, output));
+    //                 self.newline();
+    //             }
+    //             _ => {
+    //             }
+    //         }
+    //     }
+    //
+    //
+    //
+    // }
+
+    //* --------------------------------------------------------------------- *//
+    //
+    // fn auto_pre_inc_dec_call_chain_literal_expr_node(
+    //     &mut self,
+    //     call_chain_expression_node: &CallChainLiteralExprNode,
+    // ) {
+    //
+    //     match call_chain_expression_node.inc_dec {
+    //         IncDecExpr::PreInc => {
+    //             let mut output = String::new();
+    //             call_chain_expression_node.accept_to_string(self, &mut output);
+    //             self.add_code(&format!("{} = {} + 1", output, output));
+    //             self.newline();
+    //         }
+    //         IncDecExpr::PreDec  => {
+    //             let mut output = String::new();
+    //             call_chain_expression_node.accept_to_string(self, &mut output);
+    //             self.add_code(&format!("{} = {} - 1", output, output));
+    //             self.newline();
+    //         }
+    //         _ => {
+    //
+    //         }
+    //     }
+    //
+    // }
+    //
+    // //* --------------------------------------------------------------------- *//
+    //
+    // fn auto_post_inc_dec_call_chain_literal_expr_node(
+    //     &mut self,
+    //     call_chain_expression_node: &CallChainLiteralExprNode,
+    // ) {
+    //
+    //     match call_chain_expression_node.inc_dec {
+    //          IncDecExpr::PostInc => {
+    //             self.newline();
+    //             let mut output = String::new();
+    //             call_chain_expression_node.accept_to_string(self, &mut output);
+    //             self.add_code(&format!("{} = {} + 1", output, output));
+    //
+    //         }
+    //         IncDecExpr::PostDec => {
+    //             self.newline();
+    //             let mut output = String::new();
+    //             call_chain_expression_node.accept_to_string(self, &mut output);
+    //             self.add_code(&format!("{} = {} - 1", output, output));
+    //         }
+    //         _ => {
+    //
+    //         }
+    //     }
+    //
+    // }
 
     //* --------------------------------------------------------------------- *//
 
@@ -2860,13 +2984,31 @@ impl AstVisitor for PythonVisitor {
     }
 
     //* --------------------------------------------------------------------- *//
+    //
+    // fn auto_pre_inc_dec_expression_list_node(&mut self, expr_list: &ExprListNode) {
+    //     for expr in &expr_list.exprs_t {
+    //         expr.auto_pre_inc_dec_expr_type(self);
+    //     }
+    //
+    // }
+    //
+    //
+    // //* --------------------------------------------------------------------- *//
+    //
+    // fn auto_inc_dec_expression_list_node(&mut self, expr_list: &ExprListNode) {
+    //     for expr in &expr_list.exprs_t {
+    //         expr.auto_inc_dec_expr_type(self);
+    //     }
+    //
+    // }
 
-    fn auto_inc_dec_expression_list_node(&mut self, expr_list: &ExprListNode) {
-        for expr in &expr_list.exprs_t {
-            expr.auto_inc_dec_expr_type(self);
-        }
+    fn visit_expr_list_stmt_node(&mut self, expr_list_stmt_node: &ExprListStmtNode) {
 
+        let ref expr_list_node = expr_list_stmt_node.expr_list_node;
+        self.newline();
+        expr_list_node.accept(self);
     }
+
     //* --------------------------------------------------------------------- *//
 
     fn visit_literal_expression_node(&mut self, literal_expression_node: &LiteralExprNode) {
@@ -3166,11 +3308,12 @@ impl AstVisitor for PythonVisitor {
         self.generate_comment(assignment_expr_node.line);
         self.newline();
         // inc/dec all rvalue expressions first
-        assignment_expr_node.r_value_box.auto_inc_dec_expr_type(self);
+        assignment_expr_node.r_value_box.auto_pre_inc_dec(self);
         // now generate assignment expression
         assignment_expr_node.l_value_box.accept(self);
         self.add_code(" = ");
         assignment_expr_node.r_value_box.accept(self);
+        assignment_expr_node.r_value_box.auto_post_inc_dec(self);
     }
 
     //* --------------------------------------------------------------------- *//
@@ -3295,14 +3438,14 @@ impl AstVisitor for PythonVisitor {
     }
 
 
-    //* --------------------------------------------------------------------- *//
-
-    fn auto_inc_dec_binary_expr_node(&mut self, binary_expr_node: &BinaryExprNode) {
-
-        binary_expr_node.left_rcref.borrow().auto_inc_dec_expr_type(self);
-        binary_expr_node.right_rcref.borrow().auto_inc_dec_expr_type(self);
-
-    }
+    // //* --------------------------------------------------------------------- *//
+    //
+    // fn auto_inc_dec_binary_expr_node(&mut self, binary_expr_node: &BinaryExprNode) {
+    //
+    //     binary_expr_node.left_rcref.borrow().auto_inc_dec_expr_type(self);
+    //     binary_expr_node.right_rcref.borrow().auto_inc_dec_expr_type(self);
+    //
+    // }
 
     //* --------------------------------------------------------------------- *//
 

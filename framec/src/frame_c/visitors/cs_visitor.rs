@@ -577,6 +577,9 @@ impl CsVisitor {
                                 ExprStmtType::VariableStmtT { variable_stmt_node } => {
                                     variable_stmt_node.accept(self)
                                 }
+                                ExprStmtType::ExprListStmtT { expr_list_stmt_node } => {
+                                    expr_list_stmt_node.accept(self)
+                                }
                             }
                         }
                         StatementType::TransitionStmt {

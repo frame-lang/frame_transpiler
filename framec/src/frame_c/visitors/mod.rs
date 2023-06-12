@@ -111,7 +111,8 @@ pub trait AstVisitor {
     fn visit_call_expr_list_node_to_string(&mut self, _node: &CallExprListNode, _output: &mut String) {}
 
     fn visit_call_chain_literal_expr_node(&mut self, _node: &CallChainLiteralExprNode) {}
-    fn auto_inc_dec_call_chain_literal_expr_node(&mut self, _node: &CallChainLiteralExprNode) {}
+   // fn auto_inc_dec_call_chain_literal_expr_node(&mut self, _node: &CallChainLiteralExprNode) {}
+   // fn auto_post_inc_dec_call_chain_literal_expr_node(&mut self, _node: &CallChainLiteralExprNode) {}
     fn visit_call_chain_literal_expr_node_to_string(&mut self, _node: &CallChainLiteralExprNode, _output: &mut String) {}
 
     fn visit_call_chain_literal_statement_node(&mut self, _node: &CallChainLiteralStmtNode) {}
@@ -134,7 +135,11 @@ pub trait AstVisitor {
 
     fn visit_expression_list_node(&mut self, _expr_list: &ExprListNode) {}
     fn visit_expression_list_node_to_string(&mut self, _expr_list: &ExprListNode, _output: &mut String) {}
-    fn auto_inc_dec_expression_list_node(&mut self, _expr_list: &ExprListNode) {}
+    fn auto_pre_inc_dec_expr_node(&mut self, _expr_list: &RefExprType) {}
+    fn auto_post_inc_dec_expr_node(&mut self, _expr_list: &RefExprType) {}
+ //   fn auto_post_inc_dec_expression_list_node(&mut self, _expr_list: &ExprListNode) {}
+
+    fn visit_expr_list_stmt_node(&mut self, _expr_list: &ExprListStmtNode) {}
 
     fn visit_literal_expression_node(&mut self, _node: &LiteralExprNode) {}
     fn visit_literal_expression_node_to_string(&mut self, _node: &LiteralExprNode, _output: &mut String) {}

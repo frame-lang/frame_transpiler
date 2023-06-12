@@ -1994,6 +1994,7 @@ impl EventHandlerLocalScopeSymbol {
                 None,
                 IdentifierDeclScope::EventHandlerVar,
                 false,
+
             ))),
         }
     }
