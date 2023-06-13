@@ -904,7 +904,10 @@ impl ExprType {
             ExprType::CallChainLiteralExprT { call_chain_expr_node } => {
                 let ref ref_expr_type = RefExprType::CallChainLiteralExprT { call_chain_expr_node };
                 ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
-
+            }
+            ExprType::ExprListT { expr_list_node } => {
+                let ref ref_expr_type = RefExprType::ExprListT { expr_list_node };
+                ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
             }
             _ => {
 
@@ -914,57 +917,19 @@ impl ExprType {
 
     pub fn auto_post_inc_dec(&self, ast_visitor: &mut dyn AstVisitor) {
 
-        // let mut inc_dec_type = IncDecExpr::None;
-        //
-        // match inc_dec_expr_type {
-        //     IncDecExprType::CallChainLiteralExprT {call_chain_expr_node} => {
-        //         inc_dec_type = call_chain_expr_node.inc_dec.clone();
-        //     }
-        // }
-        //
-        // match inc_dec_type {
-        //     IncDecExpr::PostInc | IncDecExpr::PostInc => {
-        //         self.newline();
-        //     }
-        //     _ => {}
-        // }
-        //
-        // if let IncDecExprContext::Pre = context {
-        //     match inc_dec_type {
-        //         IncDecExpr::PreInc  => {
-        //             let mut output = String::new();
-        //             inc_dec_expr_type.accept_to_string(self, &mut output);
-        //             self.add_code(&format!("{} = {} + 1", output, output));
-        //
-        //         }
-        //         IncDecExpr::PreDec  => {
-        //             let mut output = String::new();
-        //             inc_dec_expr_type.accept_to_string(self, &mut output);
-        //             self.add_code(&format!("{} = {} - 1", output, output));
-        //             self.newline();
-        //         }
-        //         _ => {
-        //
-        //         }
-        //     }
-        // } else {
-        //     match inc_dec_type {
-        //         IncDecExpr::PostInc => {
-        //             let mut output = String::new();
-        //             inc_dec_expr_type.accept_to_string(self, &mut output);
-        //             self.add_code(&format!("{} = {} + 1", output, output));
-        //
-        //         }
-        //         IncDecExpr::PostDec  => {
-        //             let mut output = String::new();
-        //             inc_dec_expr_type.accept_to_string(self, &mut output);
-        //             self.add_code(&format!("{} = {} - 1", output, output));
-        //             self.newline();
-        //         }
-        //         _ => {
-        //         }
-        //     }
-        // }
+        match self {
+            ExprType::CallChainLiteralExprT { call_chain_expr_node } => {
+                let ref ref_expr_type = RefExprType::CallChainLiteralExprT { call_chain_expr_node };
+                ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
+            }
+            ExprType::ExprListT { expr_list_node } => {
+                let ref ref_expr_type = RefExprType::ExprListT { expr_list_node };
+                ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
+            }
+            _ => {
+
+            }
+        }
     }
 }
 

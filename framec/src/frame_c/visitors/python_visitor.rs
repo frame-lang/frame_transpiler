@@ -2378,14 +2378,14 @@ impl AstVisitor for PythonVisitor {
                         let mut output = String::new();
                         call_chain_expr_node.accept_to_string(self, &mut output);
                         self.add_code(&format!("{} = {} + 1", output, output));
-                        self.newline();
+                        self.skip_next_newline();
                     }
                     IncDecExpr::PreDec => {
                         self.test_skip_newline();
                         let mut output = String::new();
                         call_chain_expr_node.accept_to_string(self, &mut output);
                         self.add_code(&format!("{} = {} - 1", output, output));
-                        self.newline();
+                        self.skip_next_newline();
                     }
                     _ => {}
                 }
@@ -3061,7 +3061,7 @@ impl AstVisitor for PythonVisitor {
     fn visit_expr_list_stmt_node(&mut self, expr_list_stmt_node: &ExprListStmtNode) {
 
         let ref expr_list_node = expr_list_stmt_node.expr_list_node;
-        self.newline();
+        self.test_skip_newline();
         expr_list_node.accept(self);
     }
 
