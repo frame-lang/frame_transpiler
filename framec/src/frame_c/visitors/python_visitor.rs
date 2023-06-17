@@ -2379,6 +2379,9 @@ impl AstVisitor for PythonVisitor {
             RefExprType::CallChainLiteralExprT {call_chain_expr_node} => {
                 match call_chain_expr_node.inc_dec {
                     IncDecExpr::PreInc => {
+                        // this is a hack coordinating newline generation
+                        // in multiple different paths. One path is a pure
+                        // expression and no newline should be generated.
                         self.test_skip_newline();
                         let mut output = String::new();
                         call_chain_expr_node.accept_to_string(self, &mut output);
@@ -2386,6 +2389,9 @@ impl AstVisitor for PythonVisitor {
                         self.skip_next_newline();
                     }
                     IncDecExpr::PreDec => {
+                        // this is a hack coordinating newline generation
+                        // in multiple different paths. One path is a pure
+                        // expression and no newline should be generated.
                         self.test_skip_newline();
                         let mut output = String::new();
                         call_chain_expr_node.accept_to_string(self, &mut output);
@@ -2401,7 +2407,9 @@ impl AstVisitor for PythonVisitor {
                 }
             },
             RefExprType::LoopExprT {loop_expr_node} => {
-
+                for expr in &loop_expr_node.inc_dec_expr_rcref_opt {
+                    expr.borrow().auto_pre_inc_dec(self);
+                }
             }
 
         }
@@ -2438,7 +2446,10 @@ impl AstVisitor for PythonVisitor {
                 }
             },
             RefExprType::LoopExprT {loop_expr_node} => {
-
+                for expr in &loop_expr_node.inc_dec_expr_rcref_opt {
+                    let x = expr.borrow();
+                    x.auto_post_inc_dec(self);
+                }
             }
         }
     }
@@ -2487,6 +2498,10 @@ impl AstVisitor for PythonVisitor {
         loop_stmt_node: &LoopStmtNode,
     ) {
         self.newline();
+        if let Some(expr_type_rcref) =   &loop_stmt_node.loop_expr_node.loop_init_expr_rcref_opt {
+            expr_type_rcref.borrow().accept(self);
+            self.newline();
+        }
         match &loop_stmt_node.loop_expr_node.test_expr_rcref_opt {
             Some(expr_type_rcref) => {
                 let mut output = String::new();
@@ -2500,6 +2515,10 @@ impl AstVisitor for PythonVisitor {
         self.indent();
         self.newline();
         self.visit_decl_stmts(&loop_stmt_node.loop_expr_node.statements);
+        if let Some(expr_type_rcref) = &loop_stmt_node.loop_expr_node.inc_dec_expr_rcref_opt {
+            expr_type_rcref.borrow().auto_pre_inc_dec(self);
+            expr_type_rcref.borrow().auto_post_inc_dec(self);
+        }
         self.outdent();
         self.newline();
     }

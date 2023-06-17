@@ -916,6 +916,10 @@ impl ExprType {
                 let ref ref_expr_type = RefExprType::ExprListT { expr_list_node };
                 ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
             }
+            ExprType::LoopExprT { loop_expr_node } => {
+                let ref ref_expr_type = RefExprType::LoopExprT { loop_expr_node };
+                ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
+            }
             _ => {
 
             }
@@ -1377,10 +1381,7 @@ impl LoopStmtNode {
 impl NodeElement for LoopStmtNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         let ref ref_expr_type = RefExprType::LoopExprT {loop_expr_node: &self.loop_expr_node };
-        ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
         ast_visitor.visit_loop_stmt_node(self);
-        ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
-
     }
 }
 
