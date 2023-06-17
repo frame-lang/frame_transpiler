@@ -110,6 +110,7 @@ impl SmcatVisitor {
                         StatementType::ChangeStateStmt { change_state_stmt } => {
                             change_state_stmt.accept(self);
                         }
+
                         StatementType::NoStmt => {}
                     }
                 }

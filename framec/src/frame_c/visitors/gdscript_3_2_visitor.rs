@@ -254,6 +254,9 @@ impl GdScript32Visitor {
                                 ExprStmtType::ExprListStmtT { expr_list_stmt_node } => {
                                     expr_list_stmt_node.accept(self)
                                 }
+                                ExprStmtType::LoopStmtT { loop_stmt_node } => {
+                                    loop_stmt_node.accept(self)
+                                }
                             }
                         }
                         StatementType::TransitionStmt {

@@ -696,6 +696,9 @@ impl RustVisitor {
                             ExprStmtType::ExprListStmtT { expr_list_stmt_node } => {
                                 expr_list_stmt_node.accept(self)
                             }
+                            ExprStmtType::LoopStmtT { loop_stmt_node } => {
+                                loop_stmt_node.accept(self)
+                            }
                         },
                         StatementType::TransitionStmt {
                             transition_statement,
@@ -713,6 +716,7 @@ impl RustVisitor {
                         StatementType::ChangeStateStmt { change_state_stmt } => {
                             change_state_stmt.accept(self);
                         }
+
                         StatementType::NoStmt => {
                             // TODO
                             self.errors.push("Unknown error.".to_string());

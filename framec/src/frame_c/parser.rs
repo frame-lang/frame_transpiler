@@ -2560,6 +2560,16 @@ impl<'a> Parser<'a> {
                         };
                         return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
                     }
+                    LoopExprT {
+                        loop_expr_node,
+                    } => {
+                        let loop_stmt_node = LoopStmtNode::new(loop_expr_node);
+
+                        let expr_stmt_t: ExprStmtType = ExprStmtType::LoopStmtT {
+                            loop_stmt_node
+                        };
+                        return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
+                    }
                     LiteralExprT { .. } => {
                         self.error_at_previous("Literal statements not allowed.");
                         return Err(ParseError::new("TODO"));
@@ -3607,7 +3617,7 @@ impl<'a> Parser<'a> {
 
         // loop ...
         match self.loop_expression() {
-            Ok(Some(frame_event_part)) => return Ok(None),
+            Ok(Some(loop_expr_node)) => return Ok(Some(LoopExprT {loop_expr_node})),
             Err(parse_error) => return Err(parse_error),
             Ok(None) => {} // continue
         }
@@ -3636,21 +3646,52 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
 
-    // loop (x := 0 | x < 10 | x++) { foo(x) }
+    // loop (x := 0; x < 10; x++) { foo(x) }
 
     fn loop_expression(&mut self) -> Result<Option<LoopExprNode>, ParseError> {
         if !self.match_token(&[TokenType::Loop]) {
             return Ok(None);
         }
 
+        let mut statements = Vec::new();
+        let mut loop_init_expr_opt = Option::None;
+        let mut test_expr_opt = Option::None;
+        let mut inc_dec_expr_opt = Option::None;
+
         if self.match_token(&[TokenType::LParen]) {
             let expr_t: ExprType;
-            let first_expr =  self.expression();
+            let first_expr_result =  self.expression();
+            match first_expr_result {
+                Ok(Some(expr_type)) => {
+                    loop_init_expr_opt = Some(expr_type);
+                }
+                Ok(None) => {}
+                Err(err) => {
+                    return Err(err);
+                }
+            }
             if self.match_token(&[TokenType::Semicolon]) {}
-            let second_expr =  self.expression();
+            let second_expr_result =  self.expression();
+            match second_expr_result {
+                Ok(Some(expr_type)) => {
+                    test_expr_opt = Some(expr_type);
+                }
+                Ok(None) => {}
+                Err(err) => {
+                    return Err(err);
+                }
+            }
             if self.match_token(&[TokenType::Semicolon]) {}
-            let third_expr =  self.expression();
-
+            let third_expr_result =  self.expression();
+            match third_expr_result {
+                Ok(Some(expr_type)) => {
+                    inc_dec_expr_opt = Some(expr_type);
+                }
+                Ok(None) => {}
+                Err(err) => {
+                    return Err(err);
+                }
+            }
             if let Err(parse_error) = self.consume(TokenType::RParen, "Expected ')'.") {
                 return Err(parse_error);
             }
@@ -3658,28 +3699,37 @@ impl<'a> Parser<'a> {
 
             // start of block
         if self.match_token(&[TokenType::OpenBrace]) {
-            let statements = self.statements();
-            let loop_expr_node = LoopExprNode::new(statements);
+            statements = self.statements();
 
             if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
                 return Err(parse_error);
             }
 
+            let loop_expr_node = LoopExprNode::new(   loop_init_expr_opt,
+                                                                    test_expr_opt,
+                                                                    inc_dec_expr_opt,
+                                                                    statements );
+
             return Ok(Some(loop_expr_node));
+        } else {
+            return Err(ParseError::new("Missing clos brace '}']"));
         }
 
-        match self.decl_or_stmt() {
-            Ok(opt_smt) => match opt_smt {
-                Some(stmt_t) => {
-                    let mut statements = Vec::new();
-                    statements.push(stmt_t);
-                    let loop_expr_node = LoopExprNode::new(statements);
-                    return Ok(Some(loop_expr_node));
-                },
-                None => return Ok(None),
-            },
-            Err(err) => return Err(err),
-        };
+        // match self.decl_or_stmt() {
+        //     Ok(opt_smt) => match opt_smt {
+        //         Some(stmt_t) => {
+        //             let mut statements = Vec::new();
+        //             statements.push(stmt_t);
+        //             let loop_expr_node = LoopExprNode::new(   loop_init_expr_opt,
+        //                                                                     test_expr_opt,
+        //                                                                     inc_dec_expr_opt,
+        //                                                                     statements );
+        //             return Ok(Some(loop_expr_node));
+        //         },
+        //         None => return Ok(None),
+        //     },
+        //     Err(err) => return Err(err),
+        // };
 
 
     }

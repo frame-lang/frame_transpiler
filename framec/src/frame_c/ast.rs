@@ -821,6 +821,9 @@ pub enum ExprType {
     BinaryExprT {
         binary_expr_node: BinaryExprNode,
     },
+    LoopExprT {
+        loop_expr_node: LoopExprNode,
+    }
 }
 
 
@@ -864,6 +867,9 @@ pub enum RefExprType<'a> {
     // BinaryExprT {
     //     binary_expr_node: BinaryExprNode,
     // },
+    LoopExprT {
+        loop_expr_node: &'a LoopExprNode,
+    }
 }
 
 impl fmt::Display for ExprType {
@@ -896,6 +902,7 @@ impl ExprType {
             ExprType::FrameEventExprT { .. } => "FrameEventExprT",
             ExprType::UnaryExprT { .. } => "UnaryExprT",
             ExprType::BinaryExprT { .. } => "BinaryExprT",
+            ExprType::LoopExprT { .. } => "LoopExprT",
         }
     }
 
@@ -982,6 +989,9 @@ impl NodeElement for ExprType {
             ExprType::BinaryExprT { binary_expr_node } => {
                 ast_visitor.visit_binary_expr_node(binary_expr_node);
             }
+            ExprType::LoopExprT { loop_expr_node } => {
+                ast_visitor.visit_loop_expr_node(loop_expr_node);
+            }
         }
     }
 
@@ -1035,6 +1045,9 @@ impl NodeElement for ExprType {
             }
             ExprType::UnaryExprT { unary_expr_node } => {
                 ast_visitor.visit_unary_expr_node_to_string(unary_expr_node, output);
+            }
+            ExprType::LoopExprT { loop_expr_node } => {
+                ast_visitor.visit_loop_expr_node_to_string(loop_expr_node, output);
             }
         }
     }
@@ -1113,6 +1126,9 @@ pub enum ExprStmtType {
     },
     ExprListStmtT {
         expr_list_stmt_node: ExprListStmtNode,
+    },
+    LoopStmtT {
+        loop_stmt_node: LoopStmtNode,
     }
 }
 
@@ -1133,6 +1149,9 @@ pub enum StatementType {
     StateStackStmt {
         state_stack_operation_statement_node: StateStackOperationStatementNode,
     },
+    // LoopStmt {
+    //     loop_stmt_node: LoopStmtNode,
+    // },
     #[allow(dead_code)] // is used, don't know why I need this
     NoStmt,
 }
@@ -1270,6 +1289,29 @@ impl NodeElement for AssignmentExprNode {
 
 //-----------------------------------------------------//
 
+// pub struct VariableStmtNode {
+//     pub var_node: VariableNode,
+// }
+//
+// impl VariableStmtNode {
+//     pub fn new(var_node: VariableNode) -> VariableStmtNode {
+//         VariableStmtNode { var_node }
+//     }
+//
+//     pub fn get_line(&self) -> usize {
+//         self.var_node.id_node.line
+//     }
+// }
+//
+// impl NodeElement for VariableStmtNode {
+//     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+//         ast_visitor.visit_variable_stmt_node(self);
+//     }
+// }
+
+
+//-----------------------------------------------------//
+
 pub struct VariableStmtNode {
     pub var_node: VariableNode,
 }
@@ -1289,9 +1331,6 @@ impl NodeElement for VariableStmtNode {
         ast_visitor.visit_variable_stmt_node(self);
     }
 }
-
-
-//-----------------------------------------------------//
 
 pub struct ExprListStmtNode {
     pub expr_list_node: ExprListNode,
@@ -1313,6 +1352,33 @@ impl NodeElement for ExprListStmtNode {
         let ref ref_expr_type = RefExprType::ExprListT {expr_list_node: &self.expr_list_node };
         ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
         ast_visitor.visit_expr_list_stmt_node(self);
+        ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
+
+    }
+}
+
+//-----------------------------------------------------//
+
+pub struct LoopStmtNode {
+    pub loop_expr_node: LoopExprNode,
+}
+
+impl LoopStmtNode {
+    pub fn new(loop_expr_node: LoopExprNode) -> LoopStmtNode {
+        LoopStmtNode { loop_expr_node }
+    }
+
+    // TODO
+    // pub fn get_line(&self) -> usize {
+    //     self.expr_list_node.id_node.line
+    // }
+}
+
+impl NodeElement for LoopStmtNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        let ref ref_expr_type = RefExprType::LoopExprT {loop_expr_node: &self.loop_expr_node };
+        ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
+        ast_visitor.visit_loop_stmt_node(self);
         ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
 
     }
@@ -1501,20 +1567,64 @@ impl fmt::Display for ActionCallExprNode {
 //-----------------------------------------------------//
 
 pub struct LoopExprNode {
+    pub loop_init_expr_rcref_opt: Option<Rc<RefCell<ExprType>>>,
+    pub test_expr_rcref_opt: Option<Rc<RefCell<ExprType>>>,
+    pub inc_dec_expr_rcref_opt: Option<Rc<RefCell<ExprType>>>,
     pub statements: Vec<DeclOrStmtType>,
 }
 
 impl LoopExprNode {
     pub fn new (
+        loop_init_expr_opt: Option<ExprType>,
+        test_expr_opt: Option<ExprType>,
+        inc_dec_expr_opt: Option<ExprType>,
         statements: Vec<DeclOrStmtType>,
     ) -> LoopExprNode {
+        let mut lie_rcref_opt = Option::None;
+        if let Some(expr_t) = loop_init_expr_opt {
+            lie_rcref_opt = Some(Rc::new(RefCell::new(expr_t)));
+        }
+        let mut te_rcref_opt = Option::None;
+        if let Some(expr_t) = test_expr_opt {
+            te_rcref_opt = Some(Rc::new(RefCell::new(expr_t)));
+        }
+        let mut id_rcref_opt = Option::None;
+        if let Some(expr_t) = inc_dec_expr_opt {
+            id_rcref_opt = Some(Rc::new(RefCell::new(expr_t)));
+        }
         LoopExprNode {
+            loop_init_expr_rcref_opt:lie_rcref_opt,
+            test_expr_rcref_opt:te_rcref_opt,
+            inc_dec_expr_rcref_opt:id_rcref_opt,
             statements,
         }
     }
 }
 
 
+// pub struct LoopExprNode {
+//     // pub loop_init_expr_opt: Option<ExprType>,
+//     // pub test_expr_opt: Option<ExprType>,
+//     // pub inc_dec_expr_opt: Option<ExprType>,
+//     // pub statements: Vec<DeclOrStmtType>,
+//
+// }
+//
+// impl LoopExprNode {
+//     pub fn new (
+//         loop_init_expr_opt: Option<ExprType>,
+//         test_expr_opt: Option<ExprType>,
+//         inc_dec_expr_opt: Option<ExprType>,
+//         statements: Vec<DeclOrStmtType>,
+//     ) -> LoopExprNode {
+//         LoopExprNode {
+//             loop_init_expr_opt,
+//             test_expr_opt,
+//             inc_dec_expr_opt,
+//             statements,
+//         }
+//     }
+// }
 //-----------------------------------------------------//
 
 #[derive(Clone)]
