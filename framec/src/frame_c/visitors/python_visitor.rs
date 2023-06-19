@@ -469,9 +469,9 @@ impl PythonVisitor {
                                 ExprStmtType::ExprListStmtT { expr_list_stmt_node } => {
                                     expr_list_stmt_node.accept(self)
                                 }
-                                ExprStmtType::LoopStmtT { loop_stmt_node } => {
-                                    loop_stmt_node.accept(self)
-                                }
+                                // ExprStmtType::LoopStmtT { loop_stmt_node } => {
+                                //     loop_stmt_node.accept(self)
+                                // }
                             }
                         }
                         StatementType::TransitionStmt {
@@ -489,6 +489,9 @@ impl PythonVisitor {
                         }
                         StatementType::ChangeStateStmt { change_state_stmt } => {
                             change_state_stmt.accept(self);
+                        }
+                        StatementType::LoopStmt {loop_stmt_node} => {
+                            loop_stmt_node.accept(self);
                         }
                         StatementType::NoStmt => {
                             // TODO
@@ -2406,12 +2409,19 @@ impl AstVisitor for PythonVisitor {
                     expr.auto_pre_inc_dec(self);
                 }
             },
-            RefExprType::LoopExprT {loop_expr_node} => {
-                for expr in &loop_expr_node.inc_dec_expr_rcref_opt {
-                    expr.borrow().auto_pre_inc_dec(self);
+            RefExprType::LoopStmtT {loop_types} => {
+                match loop_types {
+                    LoopTypes::LoopForExpr {loop_for_expr_node} => {
+                        for expr in &loop_for_expr_node.inc_dec_expr_rcref_opt {
+                            expr.borrow().auto_pre_inc_dec(self);
+                        }
+                    }
+                    LoopTypes::LoopInExpr {loop_in_expr_node} => {
+
+                        // TODO
+                    }
                 }
             }
-
         }
     }
 
@@ -2445,12 +2455,26 @@ impl AstVisitor for PythonVisitor {
                     expr.auto_post_inc_dec(self);
                 }
             },
-            RefExprType::LoopExprT {loop_expr_node} => {
-                for expr in &loop_expr_node.inc_dec_expr_rcref_opt {
-                    let x = expr.borrow();
-                    x.auto_post_inc_dec(self);
+            // RefExprType::LoopExprT {loop_expr_node} => {
+            //     for expr in &loop_expr_node.inc_dec_expr_rcref_opt {
+            //         let x = expr.borrow();
+            //         x.auto_post_inc_dec(self);
+            //     }
+            // }
+            RefExprType::LoopStmtT {loop_types} => {
+                match loop_types {
+                    LoopTypes::LoopForExpr {loop_for_expr_node} => {
+                        for expr in &loop_for_expr_node.inc_dec_expr_rcref_opt {
+                            expr.borrow().auto_pre_inc_dec(self);
+                        }
+                    }
+                    LoopTypes::LoopInExpr {loop_in_expr_node} => {
+
+                        // TODO
+                    }
                 }
             }
+
         }
     }
 
@@ -2497,12 +2521,29 @@ impl AstVisitor for PythonVisitor {
         &mut self,
         loop_stmt_node: &LoopStmtNode,
     ) {
+
+        match &loop_stmt_node.loop_types {
+            LoopTypes::LoopForExpr {loop_for_expr_node } => {
+                loop_for_expr_node.accept(self);
+            }
+            LoopTypes::LoopInExpr{ loop_in_expr_node} => {
+                loop_in_expr_node.accept(self);
+            }
+        }
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_loop_for_expr_node(
+        &mut self,
+        loop_for_expr_node:&LoopForExprNode,
+    ) {
         self.newline();
-        if let Some(expr_type_rcref) =   &loop_stmt_node.loop_expr_node.loop_init_expr_rcref_opt {
+        if let Some(expr_type_rcref) = &loop_for_expr_node.loop_init_expr_rcref_opt {
             expr_type_rcref.borrow().accept(self);
             self.newline();
         }
-        match &loop_stmt_node.loop_expr_node.test_expr_rcref_opt {
+        match &loop_for_expr_node.test_expr_rcref_opt {
             Some(expr_type_rcref) => {
                 let mut output = String::new();
                 expr_type_rcref.borrow().accept_to_string(self, &mut output);
@@ -2512,10 +2553,11 @@ impl AstVisitor for PythonVisitor {
                 self.add_code(&format!("while True:"));
             }
         }
+
         self.indent();
         self.newline();
-        self.visit_decl_stmts(&loop_stmt_node.loop_expr_node.statements);
-        if let Some(expr_type_rcref) = &loop_stmt_node.loop_expr_node.inc_dec_expr_rcref_opt {
+        self.visit_decl_stmts(&loop_for_expr_node.statements);
+        if let Some(expr_type_rcref) = &loop_for_expr_node.inc_dec_expr_rcref_opt {
             expr_type_rcref.borrow().auto_pre_inc_dec(self);
             expr_type_rcref.borrow().auto_post_inc_dec(self);
         }
@@ -2525,28 +2567,38 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_loop_expr_node(
+    fn visit_loop_in_expr_node(
         &mut self,
-        loop_stmt_node: &LoopExprNode,
+        loop_in_expr_node:&LoopInExprNode,
     ) {
-        self.newline();
+
     }
 
 
     //* --------------------------------------------------------------------- *//
-
-    fn visit_loop_expr_node_to_string(
-        &mut self,
-        loop_stmt_node: &LoopExprNode,
-        output: &mut String,
-
-    ) {
-
-        self.newline();
-        self.add_code("for () {");
-        self.newline();
-        self.add_code("}");
-    }
+    //
+    // fn visit_loop_expr_node(
+    //     &mut self,
+    //     loop_stmt_node: &LoopForExprNode,
+    // ) {
+    //     self.newline();
+    // }
+    //
+    //
+    // //* --------------------------------------------------------------------- *//
+    //
+    // fn visit_loop_expr_node_to_string(
+    //     &mut self,
+    //     loop_stmt_node: &LoopForExprNode,
+    //     output: &mut String,
+    //
+    // ) {
+    //
+    //     self.newline();
+    //     self.add_code("for () {");
+    //     self.newline();
+    //     self.add_code("}");
+    // }
 
     //* --------------------------------------------------------------------- *//
 

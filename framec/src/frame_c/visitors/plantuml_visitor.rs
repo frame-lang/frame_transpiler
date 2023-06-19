@@ -331,6 +331,9 @@ impl PlantUmlVisitor {
                         StatementType::ChangeStateStmt { change_state_stmt } => {
                             change_state_stmt.accept(self);
                         }
+                        StatementType::LoopStmt {loop_stmt_node} => {
+                            loop_stmt_node.accept(self);
+                        }
                         StatementType::NoStmt => {
                             // TODO
                             panic!("todo");

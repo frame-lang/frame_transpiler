@@ -355,9 +355,9 @@ impl CsVisitorForBob {
                                 ExprStmtType::ExprListStmtT { expr_list_stmt_node } => {
                                     expr_list_stmt_node.accept(self)
                                 }
-                                ExprStmtType::LoopStmtT { loop_stmt_node } => {
-                                    loop_stmt_node.accept(self)
-                                }
+                                // ExprStmtType::LoopStmtT { loop_stmt_node } => {
+                                //     loop_stmt_node.accept(self)
+                                // }
                             }
                         }
                         StatementType::TransitionStmt {
@@ -375,6 +375,9 @@ impl CsVisitorForBob {
                         }
                         StatementType::ChangeStateStmt { change_state_stmt } => {
                             change_state_stmt.accept(self);
+                        }
+                        StatementType::LoopStmt {loop_stmt_node} => {
+                            loop_stmt_node.accept(self);
                         }
                         StatementType::NoStmt => {
                             // TODO

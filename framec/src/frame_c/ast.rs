@@ -821,9 +821,9 @@ pub enum ExprType {
     BinaryExprT {
         binary_expr_node: BinaryExprNode,
     },
-    LoopExprT {
-        loop_expr_node: LoopExprNode,
-    }
+    // LoopExprT {
+    //     loop_types: LoopTypes,
+    // }
 }
 
 
@@ -867,8 +867,8 @@ pub enum RefExprType<'a> {
     // BinaryExprT {
     //     binary_expr_node: BinaryExprNode,
     // },
-    LoopExprT {
-        loop_expr_node: &'a LoopExprNode,
+    LoopStmtT {
+        loop_types: &'a LoopTypes,
     }
 }
 
@@ -902,7 +902,7 @@ impl ExprType {
             ExprType::FrameEventExprT { .. } => "FrameEventExprT",
             ExprType::UnaryExprT { .. } => "UnaryExprT",
             ExprType::BinaryExprT { .. } => "BinaryExprT",
-            ExprType::LoopExprT { .. } => "LoopExprT",
+ //           ExprType::LoopExprT { .. } => "LoopT",
         }
     }
 
@@ -916,10 +916,10 @@ impl ExprType {
                 let ref ref_expr_type = RefExprType::ExprListT { expr_list_node };
                 ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
             }
-            ExprType::LoopExprT { loop_expr_node } => {
-                let ref ref_expr_type = RefExprType::LoopExprT { loop_expr_node };
-                ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
-            }
+            // ExprType::LoopExprT { loop_types } => {
+            //     let ref ref_expr_type = RefExprType::LoopTypes { loop_types };
+            //     ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
+            // }
             _ => {
 
             }
@@ -993,9 +993,17 @@ impl NodeElement for ExprType {
             ExprType::BinaryExprT { binary_expr_node } => {
                 ast_visitor.visit_binary_expr_node(binary_expr_node);
             }
-            ExprType::LoopExprT { loop_expr_node } => {
-                ast_visitor.visit_loop_expr_node(loop_expr_node);
-            }
+  //           ExprType::LoopExprT { loop_types } => {
+  //               match loop_types {
+  //                   LoopTypes::LoopForExpr {loop_for_expr_node } => {
+  //                       ast_visitor.visit_loop_for_expr_node(loop_for_expr_node);
+  //                   }
+  //                   LoopTypes::LoopInExpr{ loop_in_expr_node} => {
+  //                       ast_visitor.visit_loop_in_expr_node(loop_in_expr_node);
+  //                   }
+  //               }
+  // //              ast_visitor.visit_loop_expr_node(loop_types);
+  //           }
         }
     }
 
@@ -1050,9 +1058,9 @@ impl NodeElement for ExprType {
             ExprType::UnaryExprT { unary_expr_node } => {
                 ast_visitor.visit_unary_expr_node_to_string(unary_expr_node, output);
             }
-            ExprType::LoopExprT { loop_expr_node } => {
-                ast_visitor.visit_loop_expr_node_to_string(loop_expr_node, output);
-            }
+            // ExprType::LoopExprT { loop_types } => {
+            //     //ast_visitor.visit_loop_expr_node_to_string(loop_types, output);
+            // }
         }
     }
     //
@@ -1131,9 +1139,9 @@ pub enum ExprStmtType {
     ExprListStmtT {
         expr_list_stmt_node: ExprListStmtNode,
     },
-    LoopStmtT {
-        loop_stmt_node: LoopStmtNode,
-    }
+    // LoopStmtT {
+    //     loop_stmt_node: LoopStmtNode,
+    // }
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -1153,9 +1161,9 @@ pub enum StatementType {
     StateStackStmt {
         state_stack_operation_statement_node: StateStackOperationStatementNode,
     },
-    // LoopStmt {
-    //     loop_stmt_node: LoopStmtNode,
-    // },
+    LoopStmt {
+        loop_stmt_node: LoopStmtNode,
+    },
     #[allow(dead_code)] // is used, don't know why I need this
     NoStmt,
 }
@@ -1364,12 +1372,12 @@ impl NodeElement for ExprListStmtNode {
 //-----------------------------------------------------//
 
 pub struct LoopStmtNode {
-    pub loop_expr_node: LoopExprNode,
+    pub loop_types: LoopTypes,
 }
 
 impl LoopStmtNode {
-    pub fn new(loop_expr_node: LoopExprNode) -> LoopStmtNode {
-        LoopStmtNode { loop_expr_node }
+    pub fn new(loop_types: LoopTypes) -> LoopStmtNode {
+        LoopStmtNode { loop_types }
     }
 
     // TODO
@@ -1380,7 +1388,7 @@ impl LoopStmtNode {
 
 impl NodeElement for LoopStmtNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
-        let ref ref_expr_type = RefExprType::LoopExprT {loop_expr_node: &self.loop_expr_node };
+//        let ref ref_expr_type = RefExprType::LoopExprT {loop_expr_node: &self.loop_expr_node };
         ast_visitor.visit_loop_stmt_node(self);
     }
 }
@@ -1567,20 +1575,50 @@ impl fmt::Display for ActionCallExprNode {
 
 //-----------------------------------------------------//
 
-pub struct LoopExprNode {
+pub enum LoopTypes {
+    LoopForExpr { loop_for_expr_node: LoopForExprNode },
+    LoopInExpr { loop_in_expr_node: LoopInExprNode },
+}
+
+pub struct LoopInExprNode {
+    pub target_expr: Box<ExprType>,
+    pub iterable_expr: Box<ExprType>,
+}
+
+impl LoopInExprNode {
+    pub fn new (
+        target_expr: Box<ExprType>,
+        iterable_expr: Box<ExprType>,
+    ) -> LoopInExprNode {
+        LoopInExprNode {
+            target_expr,
+            iterable_expr,
+        }
+    }
+}
+
+impl NodeElement for LoopInExprNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_loop_in_expr_node(self);
+    }
+}
+
+//-----------------------------------------------------//
+
+pub struct LoopForExprNode {
     pub loop_init_expr_rcref_opt: Option<Rc<RefCell<ExprType>>>,
     pub test_expr_rcref_opt: Option<Rc<RefCell<ExprType>>>,
     pub inc_dec_expr_rcref_opt: Option<Rc<RefCell<ExprType>>>,
     pub statements: Vec<DeclOrStmtType>,
 }
 
-impl LoopExprNode {
+impl LoopForExprNode {
     pub fn new (
         loop_init_expr_opt: Option<ExprType>,
         test_expr_opt: Option<ExprType>,
         inc_dec_expr_opt: Option<ExprType>,
         statements: Vec<DeclOrStmtType>,
-    ) -> LoopExprNode {
+    ) -> LoopForExprNode {
         let mut lie_rcref_opt = Option::None;
         if let Some(expr_t) = loop_init_expr_opt {
             lie_rcref_opt = Some(Rc::new(RefCell::new(expr_t)));
@@ -1593,7 +1631,7 @@ impl LoopExprNode {
         if let Some(expr_t) = inc_dec_expr_opt {
             id_rcref_opt = Some(Rc::new(RefCell::new(expr_t)));
         }
-        LoopExprNode {
+        LoopForExprNode {
             loop_init_expr_rcref_opt:lie_rcref_opt,
             test_expr_rcref_opt:te_rcref_opt,
             inc_dec_expr_rcref_opt:id_rcref_opt,
@@ -1602,6 +1640,13 @@ impl LoopExprNode {
     }
 }
 
+impl NodeElement for LoopForExprNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_loop_for_expr_node(self);
+    }
+}
+
+//-----------------------------------------------------//
 
 // pub struct LoopExprNode {
 //     // pub loop_init_expr_opt: Option<ExprType>,
@@ -1636,8 +1681,6 @@ pub enum IncDecExpr {
     PostInc,
     PostDec,
 }
-
-
 
 //-----------------------------------------------------//
 

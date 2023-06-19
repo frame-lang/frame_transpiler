@@ -2340,6 +2340,10 @@ impl<'a> Parser<'a> {
                                         statements.push(statement);
                                         return statements;
                                     }
+                                    StatementType::LoopStmt { .. } => {
+                                        statements.push(statement);
+                                        return statements;
+                                    }
                                     _ => {
                                         statements.push(statement);
                                     }
@@ -2560,16 +2564,16 @@ impl<'a> Parser<'a> {
                         };
                         return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
                     }
-                    LoopExprT {
-                        loop_expr_node,
-                    } => {
-                        let loop_stmt_node = LoopStmtNode::new(loop_expr_node);
-
-                        let expr_stmt_t: ExprStmtType = ExprStmtType::LoopStmtT {
-                            loop_stmt_node
-                        };
-                        return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
-                    }
+                    // LoopExprT {
+                    //     loop_types,
+                    // } => {
+                    //     let loop_stmt_node = LoopStmtNode::new(loop_types);
+                    //
+                    //     let expr_stmt_t: ExprStmtType = ExprStmtType::LoopStmtT {
+                    //         loop_stmt_node
+                    //     };
+                    //     return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
+                    // }
                     LiteralExprT { .. } => {
                         self.error_at_previous("Literal statements not allowed.");
                         return Err(ParseError::new("TODO"));
@@ -2591,10 +2595,10 @@ impl<'a> Parser<'a> {
             None => {
                 // This path is for transitions w/o an exit params group
                 if self.match_token(&[TokenType::Transition]) {
-                    match self.transition(None) {
-                        Ok(Some(transition)) => return Ok(Some(transition)),
-                        Ok(_) => return Err(ParseError::new("TODO")),
-                        Err(parse_error) => return Err(parse_error),
+                    return match self.transition(None) {
+                        Ok(Some(transition)) => Ok(Some(transition)),
+                        Ok(_) => Err(ParseError::new("TODO")),
+                        Err(parse_error) => Err(parse_error),
                     }
                 }
             }
@@ -2603,6 +2607,14 @@ impl<'a> Parser<'a> {
         if self.match_token(&[TokenType::ChangeState]) {
             return match self.change_state() {
                 Ok(Some(state_context_t)) => Ok(Some(state_context_t)),
+                Ok(None) => Err(ParseError::new("TODO")),
+                Err(parse_error) => Err(parse_error),
+            };
+        }
+
+        if self.match_token(&[TokenType::Loop]) {
+            return match self.loop_statement() {
+                Ok(Some(loop_stmt_t)) => Ok(Some(loop_stmt_t)),
                 Ok(None) => Err(ParseError::new("TODO")),
                 Err(parse_error) => Err(parse_error),
             };
@@ -3616,11 +3628,11 @@ impl<'a> Parser<'a> {
         }
 
         // loop ...
-        match self.loop_expression() {
-            Ok(Some(loop_expr_node)) => return Ok(Some(LoopExprT {loop_expr_node})),
-            Err(parse_error) => return Err(parse_error),
-            Ok(None) => {} // continue
-        }
+        // match self.loop_expression() {
+        //     Ok(Some(loop_types)) => return Ok(Some(LoopExprT {loop_types})),
+        //     Err(parse_error) => return Err(parse_error),
+        //     Ok(None) => {} // continue
+        // }
 
         Ok(None)
     }
@@ -3647,11 +3659,9 @@ impl<'a> Parser<'a> {
 
 
     // loop (x := 0; x < 10; x++) { foo(x) }
+    // loop (x in range(5)) { foo(x) }
 
-    fn loop_expression(&mut self) -> Result<Option<LoopExprNode>, ParseError> {
-        if !self.match_token(&[TokenType::Loop]) {
-            return Ok(None);
-        }
+    fn loop_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
 
         let mut statements = Vec::new();
         let mut loop_init_expr_opt = Option::None;
@@ -3705,32 +3715,19 @@ impl<'a> Parser<'a> {
                 return Err(parse_error);
             }
 
-            let loop_expr_node = LoopExprNode::new(   loop_init_expr_opt,
-                                                                    test_expr_opt,
-                                                                    inc_dec_expr_opt,
-                                                                    statements );
+            let loop_for_expr_node = LoopForExprNode::new(loop_init_expr_opt,
+                                                      test_expr_opt,
+                                                      inc_dec_expr_opt,
+                                                      statements );
 
-            return Ok(Some(loop_expr_node));
+            let loop_stmt_node = LoopStmtNode::new(
+                LoopTypes::LoopForExpr {loop_for_expr_node}
+            );
+            let stmt_type = StatementType::LoopStmt {loop_stmt_node};
+            return Ok(Some(stmt_type));
         } else {
-            return Err(ParseError::new("Missing clos brace '}']"));
+            return Err(ParseError::new("Missing close brace '}']"));
         }
-
-        // match self.decl_or_stmt() {
-        //     Ok(opt_smt) => match opt_smt {
-        //         Some(stmt_t) => {
-        //             let mut statements = Vec::new();
-        //             statements.push(stmt_t);
-        //             let loop_expr_node = LoopExprNode::new(   loop_init_expr_opt,
-        //                                                                     test_expr_opt,
-        //                                                                     inc_dec_expr_opt,
-        //                                                                     statements );
-        //             return Ok(Some(loop_expr_node));
-        //         },
-        //         None => return Ok(None),
-        //     },
-        //     Err(err) => return Err(err),
-        // };
-
 
     }
 
