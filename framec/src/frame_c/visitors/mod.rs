@@ -140,10 +140,11 @@ pub trait AstVisitor {
  //   fn auto_post_inc_dec_expression_list_node(&mut self, _expr_list: &ExprListNode) {}
 
     fn visit_expr_list_stmt_node(&mut self, _expr_list: &ExprListStmtNode) {}
-    fn visit_loop_stmt_node(&mut self, _expr_list: &LoopStmtNode) {}
-    fn visit_loop_for_expr_node(&mut self, _loop_for_expr_node: &LoopForExprNode) {}
-    fn visit_loop_in_expr_node(&mut self, _loop_in_expr_node: &LoopInExprNode) {}
 
+    fn visit_loop_stmt_node(&mut self, _expr_list: &LoopStmtNode) {}
+    fn visit_loop_for_expr_node(&mut self, _loop_for_expr_node: &LoopForStmtNode) {}
+    fn visit_loop_in_expr_node(&mut self, _loop_in_expr_node: &LoopInStmtNode) {}
+    fn visit_loop_infinite_expr_node(&mut self, _loop_infinite_expr_node: &LoopInfiniteStmtNode) {}
     // fn visit_loop_expr_node(&mut self, _loop_types: &LoopTypes) {}
     // fn visit_loop_expr_node_to_string(&mut self, _loop_types: &LoopTypes, _output: &mut String) {}
 

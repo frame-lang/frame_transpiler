@@ -40,6 +40,7 @@ impl Scanner {
             ("const".to_string(), TokenType::Const),
             ("new".to_string(), TokenType::New),
             ("loop".to_string(), TokenType::Loop),
+            ("in".to_string(), TokenType::In),
             ("-interface-".to_string(), TokenType::InterfaceBlock),
             ("-machine-".to_string(), TokenType::MachineBlock),
             ("-actions-".to_string(), TokenType::ActionsBlock),
@@ -719,10 +720,11 @@ pub enum TokenType {
     ThreeTicks,              // ```
     SuperString,             // `stuff + "stuff"`
     Number,                  // 1, 1.01
-    Var,                     // var
-    Const,                   // const
-    New,                     // new
-    Loop,                    // loop
+    Var,                     // var kw
+    Const,                   // const kw
+    New,                     // new kw
+    Loop,                    // loop kw
+    In,                      // in kw
     SingleLineComment,       // --- comment
     MultiLineComment,        // {-- comments --}
     OpenBrace,               // {

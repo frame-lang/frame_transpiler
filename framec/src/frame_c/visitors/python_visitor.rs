@@ -2411,13 +2411,15 @@ impl AstVisitor for PythonVisitor {
             },
             RefExprType::LoopStmtT {loop_types} => {
                 match loop_types {
-                    LoopTypes::LoopForExpr {loop_for_expr_node} => {
+                    LoopStmtTypes::LoopForStmt { loop_for_stmt_node: loop_for_expr_node } => {
                         for expr in &loop_for_expr_node.inc_dec_expr_rcref_opt {
                             expr.borrow().auto_pre_inc_dec(self);
                         }
                     }
-                    LoopTypes::LoopInExpr {loop_in_expr_node} => {
-
+                    LoopStmtTypes::LoopInStmt { loop_in_stmt_node: loop_in_expr_node } => {
+                        // TODO
+                    }
+                    LoopStmtTypes::LoopInfiniteStmt {loop_infinite_stmt_node} => {
                         // TODO
                     }
                 }
@@ -2463,13 +2465,15 @@ impl AstVisitor for PythonVisitor {
             // }
             RefExprType::LoopStmtT {loop_types} => {
                 match loop_types {
-                    LoopTypes::LoopForExpr {loop_for_expr_node} => {
+                    LoopStmtTypes::LoopForStmt { loop_for_stmt_node: loop_for_expr_node } => {
                         for expr in &loop_for_expr_node.inc_dec_expr_rcref_opt {
                             expr.borrow().auto_pre_inc_dec(self);
                         }
                     }
-                    LoopTypes::LoopInExpr {loop_in_expr_node} => {
-
+                    LoopStmtTypes::LoopInStmt { loop_in_stmt_node: loop_in_expr_node } => {
+                        // TODO
+                    }
+                    LoopStmtTypes::LoopInfiniteStmt {loop_infinite_stmt_node} => {
                         // TODO
                     }
                 }
@@ -2523,11 +2527,14 @@ impl AstVisitor for PythonVisitor {
     ) {
 
         match &loop_stmt_node.loop_types {
-            LoopTypes::LoopForExpr {loop_for_expr_node } => {
+            LoopStmtTypes::LoopForStmt { loop_for_stmt_node: loop_for_expr_node } => {
                 loop_for_expr_node.accept(self);
             }
-            LoopTypes::LoopInExpr{ loop_in_expr_node} => {
+            LoopStmtTypes::LoopInStmt { loop_in_stmt_node: loop_in_expr_node } => {
                 loop_in_expr_node.accept(self);
+            }
+            LoopStmtTypes::LoopInfiniteStmt {loop_infinite_stmt_node} => {
+                loop_infinite_stmt_node.accept(self);
             }
         }
     }
@@ -2536,7 +2543,7 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_loop_for_expr_node(
         &mut self,
-        loop_for_expr_node:&LoopForExprNode,
+        loop_for_expr_node:&LoopForStmtNode,
     ) {
         self.newline();
         if let Some(expr_type_rcref) = &loop_for_expr_node.loop_init_expr_rcref_opt {
@@ -2555,7 +2562,7 @@ impl AstVisitor for PythonVisitor {
         }
 
         self.indent();
-        self.newline();
+        //self.newline();
         self.visit_decl_stmts(&loop_for_expr_node.statements);
         if let Some(expr_type_rcref) = &loop_for_expr_node.inc_dec_expr_rcref_opt {
             expr_type_rcref.borrow().auto_pre_inc_dec(self);
@@ -2569,11 +2576,36 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_loop_in_expr_node(
         &mut self,
-        loop_in_expr_node:&LoopInExprNode,
+        loop_in_expr_node:&LoopInStmtNode,
     ) {
-
+        self.newline();
+        let mut output = String::new();
+        loop_in_expr_node.iterable_expr.accept_to_string(self, &mut output);
+        self.add_code(&format!("for {} in {}:"
+                               , loop_in_expr_node.target_expr
+                               , output));
+        self.indent();
+        // self.newline();
+        self.visit_decl_stmts(&loop_in_expr_node.statements);
+        self.outdent();
+        self.newline();
     }
 
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_loop_infinite_expr_node(
+        &mut self,
+        loop_in_expr_node:&LoopInfiniteStmtNode,
+    ) {
+        self.newline();
+        self.add_code(&format!("while True:"));
+
+        self.indent();
+        // self.newline();
+        self.visit_decl_stmts(&loop_in_expr_node.statements);
+        self.outdent();
+        self.newline();
+    }
 
     //* --------------------------------------------------------------------- *//
     //

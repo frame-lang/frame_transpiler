@@ -15,6 +15,7 @@ use downcast_rs::__std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
+use crate::frame_c::ast::LoopStmtTypes::{LoopInfiniteStmt, LoopInStmt};
 
 pub struct ParseError {
     // TODO:
@@ -2334,15 +2335,16 @@ impl<'a> Parser<'a> {
                                 match stmt_t {
                                     StatementType::TransitionStmt { .. } => {
                                         statements.push(statement);
+                                        // must be last statament so return
                                         return statements;
                                     }
                                     StatementType::ChangeStateStmt { .. } => {
                                         statements.push(statement);
+                                        // must be last statement so return
                                         return statements;
                                     }
                                     StatementType::LoopStmt { .. } => {
-                                        statements.push(statement);
-                                        return statements;
+                                        statements.push(statement); // return statements;
                                     }
                                     _ => {
                                         statements.push(statement);
@@ -3657,57 +3659,102 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
+    // loop { foo() }
+    // loop x := 0; x < 10; x++ { foo(x) }
+    // loop x in range(5) { foo(x) }
+    // loop .. { foo() continue break }
 
-    // loop (x := 0; x < 10; x++) { foo(x) }
-    // loop (x in range(5)) { foo(x) }
 
     fn loop_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
 
-        let mut statements = Vec::new();
-        let mut loop_init_expr_opt = Option::None;
-        let mut test_expr_opt = Option::None;
-        let mut inc_dec_expr_opt = Option::None;
+        if self.match_token(&[TokenType::OpenBrace]) {
+            // loop { foo() }
+            return self.loop_infinite_statement();
+        }
 
-        if self.match_token(&[TokenType::LParen]) {
-            let expr_t: ExprType;
-            let first_expr_result =  self.expression();
-            match first_expr_result {
-                Ok(Some(expr_type)) => {
-                    loop_init_expr_opt = Some(expr_type);
-                }
-                Ok(None) => {}
-                Err(err) => {
-                    return Err(err);
-                }
+        let mut loop_first_expr_opt = Option::None;
+        let first_expr_result =  self.expression();
+        match first_expr_result {
+            Ok(Some(expr_type)) => {
+                loop_first_expr_opt = Some(expr_type);
             }
-            if self.match_token(&[TokenType::Semicolon]) {}
-            let second_expr_result =  self.expression();
-            match second_expr_result {
-                Ok(Some(expr_type)) => {
-                    test_expr_opt = Some(expr_type);
-                }
-                Ok(None) => {}
-                Err(err) => {
-                    return Err(err);
-                }
-            }
-            if self.match_token(&[TokenType::Semicolon]) {}
-            let third_expr_result =  self.expression();
-            match third_expr_result {
-                Ok(Some(expr_type)) => {
-                    inc_dec_expr_opt = Some(expr_type);
-                }
-                Ok(None) => {}
-                Err(err) => {
-                    return Err(err);
-                }
-            }
-            if let Err(parse_error) = self.consume(TokenType::RParen, "Expected ')'.") {
-                return Err(parse_error);
+            Ok(None) => {}
+            Err(err) => {
+                return Err(err);
             }
         }
 
-            // start of block
+        if self.match_token(&[TokenType::Semicolon]) {
+            // loop x := 0; x < 10; x++ { foo(x) }
+            return self.loop_for_statement(loop_first_expr_opt);
+        }
+
+        // loop x in range(5) { foo(x) }
+        if self.match_token(&[TokenType::In]) {
+            if let Some(expr_type) = loop_first_expr_opt {
+                return self.loop_in_statement(Box::new(expr_type));
+            }
+        }
+
+        return  Err(ParseError::new("Unrecognized loop syntax."));
+    }
+
+
+    /* --------------------------------------------------------------------- */
+
+    fn loop_infinite_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
+
+        let statements = self.statements();
+
+        if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
+            return Err(parse_error);
+        }
+
+        let loop_infinite_stmt_node = LoopInfiniteStmtNode::new(statements);
+
+        let loop_stmt_node = LoopStmtNode::new(
+            LoopStmtTypes::LoopInfiniteStmt { loop_infinite_stmt_node }
+        );
+        let stmt_type = StatementType::LoopStmt {loop_stmt_node};
+        return Ok(Some(stmt_type));
+
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn loop_for_statement(&mut self,loop_first_expr_opt:Option<ExprType>) -> Result<Option<StatementType>, ParseError>  {
+
+        let mut statements = Vec::new();
+        let mut test_expr_opt = Option::None;
+        let mut inc_dec_expr_opt = Option::None;
+
+        let second_expr_result =  self.expression();
+        match second_expr_result {
+            Ok(Some(expr_type)) => {
+                test_expr_opt = Some(expr_type);
+            }
+            Ok(None) => {}
+            Err(err) => {
+                return Err(err);
+            }
+        }
+        if self.match_token(&[TokenType::Semicolon]) {}
+        let third_expr_result =  self.expression();
+        match third_expr_result {
+            Ok(Some(expr_type)) => {
+                inc_dec_expr_opt = Some(expr_type);
+            }
+            Ok(None) => {}
+            Err(err) => {
+                return Err(err);
+            }
+        }
+        // if let Err(parse_error) = self.consume(TokenType::RParen, "Expected ')'.") {
+        //     return Err(parse_error);
+        // }
+
+
+        // statements block
         if self.match_token(&[TokenType::OpenBrace]) {
             statements = self.statements();
 
@@ -3715,23 +3762,135 @@ impl<'a> Parser<'a> {
                 return Err(parse_error);
             }
 
-            let loop_for_expr_node = LoopForExprNode::new(loop_init_expr_opt,
+            let loop_for_stmt_node = LoopForStmtNode::new(loop_first_expr_opt,
                                                       test_expr_opt,
                                                       inc_dec_expr_opt,
                                                       statements );
 
             let loop_stmt_node = LoopStmtNode::new(
-                LoopTypes::LoopForExpr {loop_for_expr_node}
+                LoopStmtTypes::LoopForStmt { loop_for_stmt_node }
             );
             let stmt_type = StatementType::LoopStmt {loop_stmt_node};
             return Ok(Some(stmt_type));
         } else {
-            return Err(ParseError::new("Missing close brace '}']"));
+            return Err(ParseError::new("Missing loop open brace '{'"));
         }
-
     }
 
+    // fn loop_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
+    //
+    //     let mut statements = Vec::new();
+    //     let mut loop_init_expr_opt = Option::None;
+    //     let mut test_expr_opt = Option::None;
+    //     let mut inc_dec_expr_opt = Option::None;
+    //
+    //     if self.match_token(&[TokenType::LParen]) {
+    //         let expr_t: ExprType;
+    //         let first_expr_result =  self.expression();
+    //         match first_expr_result {
+    //             Ok(Some(expr_type)) => {
+    //                 loop_init_expr_opt = Some(expr_type);
+    //             }
+    //             Ok(None) => {}
+    //             Err(err) => {
+    //                 return Err(err);
+    //             }
+    //         }
+    //         if self.match_token(&[TokenType::Semicolon]) {}
+    //         let second_expr_result =  self.expression();
+    //         match second_expr_result {
+    //             Ok(Some(expr_type)) => {
+    //                 test_expr_opt = Some(expr_type);
+    //             }
+    //             Ok(None) => {}
+    //             Err(err) => {
+    //                 return Err(err);
+    //             }
+    //         }
+    //         if self.match_token(&[TokenType::Semicolon]) {}
+    //         let third_expr_result =  self.expression();
+    //         match third_expr_result {
+    //             Ok(Some(expr_type)) => {
+    //                 inc_dec_expr_opt = Some(expr_type);
+    //             }
+    //             Ok(None) => {}
+    //             Err(err) => {
+    //                 return Err(err);
+    //             }
+    //         }
+    //         if let Err(parse_error) = self.consume(TokenType::RParen, "Expected ')'.") {
+    //             return Err(parse_error);
+    //         }
+    //     }
+    //
+    //         // start of block
+    //     if self.match_token(&[TokenType::OpenBrace]) {
+    //         statements = self.statements();
+    //
+    //         if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
+    //             return Err(parse_error);
+    //         }
+    //
+    //         let loop_for_expr_node = LoopForExprNode::new(loop_init_expr_opt,
+    //                                                   test_expr_opt,
+    //                                                   inc_dec_expr_opt,
+    //                                                   statements );
+    //
+    //         let loop_stmt_node = LoopStmtNode::new(
+    //             LoopTypes::LoopForExpr {loop_for_expr_node}
+    //         );
+    //         let stmt_type = StatementType::LoopStmt {loop_stmt_node};
+    //         return Ok(Some(stmt_type));
+    //     } else {
+    //         return Err(ParseError::new("Missing close brace '}']"));
+    //     }
+    //
+    // }
+
+
     /* --------------------------------------------------------------------- */
+
+    fn loop_in_statement(&mut self,expr_type:Box<ExprType>) -> Result<Option<StatementType>, ParseError>  {
+
+        let mut statements = Vec::new();
+        let mut iterable_expr;
+        let second_expr_result =  self.expression();
+        match second_expr_result {
+            Ok(Some(expr_type)) => {
+                iterable_expr = Box::new(expr_type);
+            }
+            Ok(None) => {
+                self.error_at_current("Expected loop iterable expression.");
+                return Err(ParseError::new("Expected loop iterable expression."));
+            }
+            Err(err) => {
+                return Err(err);
+            }
+        }
+
+        // statements block
+        if self.match_token(&[TokenType::OpenBrace]) {
+            statements = self.statements();
+
+            if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
+                return Err(parse_error);
+            }
+
+            let loop_in_stmt_node = LoopInStmtNode::new(expr_type,
+                                                          iterable_expr,
+                                                          statements );
+
+            let loop_stmt_node = LoopStmtNode::new(
+                LoopStmtTypes::LoopInStmt { loop_in_stmt_node }
+            );
+            let stmt_type = StatementType::LoopStmt {loop_stmt_node};
+            return Ok(Some(stmt_type));
+        } else {
+            return Err(ParseError::new("Missing loop open brace '{'"));
+        }
+    }
+
+        /* --------------------------------------------------------------------- */
 
     // Parse FrameEvent "part" identifier:
     // @||  - Event message

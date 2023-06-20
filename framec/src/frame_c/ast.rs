@@ -868,7 +868,7 @@ pub enum RefExprType<'a> {
     //     binary_expr_node: BinaryExprNode,
     // },
     LoopStmtT {
-        loop_types: &'a LoopTypes,
+        loop_types: &'a LoopStmtTypes,
     }
 }
 
@@ -1372,11 +1372,11 @@ impl NodeElement for ExprListStmtNode {
 //-----------------------------------------------------//
 
 pub struct LoopStmtNode {
-    pub loop_types: LoopTypes,
+    pub loop_types: LoopStmtTypes,
 }
 
 impl LoopStmtNode {
-    pub fn new(loop_types: LoopTypes) -> LoopStmtNode {
+    pub fn new(loop_types: LoopStmtTypes) -> LoopStmtNode {
         LoopStmtNode { loop_types }
     }
 
@@ -1566,7 +1566,6 @@ impl NodeElement for ActionCallExprNode {
     }
 }
 
-
 impl fmt::Display for ActionCallExprNode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f,"{}", self.identifier.to_string())
@@ -1575,29 +1574,58 @@ impl fmt::Display for ActionCallExprNode {
 
 //-----------------------------------------------------//
 
-pub enum LoopTypes {
-    LoopForExpr { loop_for_expr_node: LoopForExprNode },
-    LoopInExpr { loop_in_expr_node: LoopInExprNode },
+pub enum LoopStmtTypes {
+    LoopInfiniteStmt { loop_infinite_stmt_node: LoopInfiniteStmtNode },
+    LoopForStmt { loop_for_stmt_node: LoopForStmtNode },
+    LoopInStmt { loop_in_stmt_node: LoopInStmtNode },
 }
 
-pub struct LoopInExprNode {
-    pub target_expr: Box<ExprType>,
-    pub iterable_expr: Box<ExprType>,
+//-----------------------------------------------------//
+
+pub struct LoopInfiniteStmtNode {
+    pub statements: Vec<DeclOrStmtType>,
 }
 
-impl LoopInExprNode {
+
+impl LoopInfiniteStmtNode {
     pub fn new (
-        target_expr: Box<ExprType>,
-        iterable_expr: Box<ExprType>,
-    ) -> LoopInExprNode {
-        LoopInExprNode {
-            target_expr,
-            iterable_expr,
+        statements: Vec<DeclOrStmtType>,
+    ) -> LoopInfiniteStmtNode {
+        LoopInfiniteStmtNode {
+            statements,
         }
     }
 }
 
-impl NodeElement for LoopInExprNode {
+impl NodeElement for LoopInfiniteStmtNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_loop_infinite_expr_node(self);
+    }
+}
+
+//-----------------------------------------------------//
+
+pub struct LoopInStmtNode {
+    pub target_expr: Box<ExprType>,
+    pub iterable_expr: Box<ExprType>,
+    pub statements: Vec<DeclOrStmtType>,
+}
+
+impl LoopInStmtNode {
+    pub fn new (
+        target_expr: Box<ExprType>,
+        iterable_expr: Box<ExprType>,
+        statements: Vec<DeclOrStmtType>,
+    ) -> LoopInStmtNode {
+        LoopInStmtNode {
+            target_expr,
+            iterable_expr,
+            statements,
+        }
+    }
+}
+
+impl NodeElement for LoopInStmtNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         ast_visitor.visit_loop_in_expr_node(self);
     }
@@ -1605,20 +1633,20 @@ impl NodeElement for LoopInExprNode {
 
 //-----------------------------------------------------//
 
-pub struct LoopForExprNode {
+pub struct LoopForStmtNode {
     pub loop_init_expr_rcref_opt: Option<Rc<RefCell<ExprType>>>,
     pub test_expr_rcref_opt: Option<Rc<RefCell<ExprType>>>,
     pub inc_dec_expr_rcref_opt: Option<Rc<RefCell<ExprType>>>,
     pub statements: Vec<DeclOrStmtType>,
 }
 
-impl LoopForExprNode {
+impl LoopForStmtNode {
     pub fn new (
         loop_init_expr_opt: Option<ExprType>,
         test_expr_opt: Option<ExprType>,
         inc_dec_expr_opt: Option<ExprType>,
         statements: Vec<DeclOrStmtType>,
-    ) -> LoopForExprNode {
+    ) -> LoopForStmtNode {
         let mut lie_rcref_opt = Option::None;
         if let Some(expr_t) = loop_init_expr_opt {
             lie_rcref_opt = Some(Rc::new(RefCell::new(expr_t)));
@@ -1631,7 +1659,7 @@ impl LoopForExprNode {
         if let Some(expr_t) = inc_dec_expr_opt {
             id_rcref_opt = Some(Rc::new(RefCell::new(expr_t)));
         }
-        LoopForExprNode {
+        LoopForStmtNode {
             loop_init_expr_rcref_opt:lie_rcref_opt,
             test_expr_rcref_opt:te_rcref_opt,
             inc_dec_expr_rcref_opt:id_rcref_opt,
@@ -1640,7 +1668,7 @@ impl LoopForExprNode {
     }
 }
 
-impl NodeElement for LoopForExprNode {
+impl NodeElement for LoopForStmtNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         ast_visitor.visit_loop_for_expr_node(self);
     }
