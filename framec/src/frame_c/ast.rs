@@ -1164,6 +1164,12 @@ pub enum StatementType {
     LoopStmt {
         loop_stmt_node: LoopStmtNode,
     },
+    ContinueStmt {
+        continue_stmt_node: ContinueStmtNode,
+    },
+    BreakStmt {
+        break_stmt_node: BreakStmtNode,
+    },
     #[allow(dead_code)] // is used, don't know why I need this
     NoStmt,
 }
@@ -1599,7 +1605,7 @@ impl LoopInfiniteStmtNode {
 
 impl NodeElement for LoopInfiniteStmtNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
-        ast_visitor.visit_loop_infinite_expr_node(self);
+        ast_visitor.visit_loop_infinite_stmt_node(self);
     }
 }
 
@@ -1627,7 +1633,7 @@ impl LoopInStmtNode {
 
 impl NodeElement for LoopInStmtNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
-        ast_visitor.visit_loop_in_expr_node(self);
+        ast_visitor.visit_loop_in_stmt_node(self);
     }
 }
 
@@ -1670,10 +1676,41 @@ impl LoopForStmtNode {
 
 impl NodeElement for LoopForStmtNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
-        ast_visitor.visit_loop_for_expr_node(self);
+        ast_visitor.visit_loop_for_stmt_node(self);
     }
 }
 
+//-----------------------------------------------------//
+
+pub struct ContinueStmtNode {}
+
+impl ContinueStmtNode  {
+    pub fn new() -> ContinueStmtNode {
+        ContinueStmtNode {}
+    }
+}
+
+impl NodeElement for ContinueStmtNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_continue_stmt_node(self);
+    }
+}
+
+//-----------------------------------------------------//
+
+pub struct BreakStmtNode {}
+
+impl BreakStmtNode  {
+    pub fn new() -> BreakStmtNode {
+        BreakStmtNode {}
+    }
+}
+
+impl NodeElement for BreakStmtNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_break_stmt_node(self);
+    }
+}
 //-----------------------------------------------------//
 
 // pub struct LoopExprNode {

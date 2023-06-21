@@ -41,6 +41,8 @@ impl Scanner {
             ("new".to_string(), TokenType::New),
             ("loop".to_string(), TokenType::Loop),
             ("in".to_string(), TokenType::In),
+            ("continue".to_string(), TokenType::Continue),
+            ("break".to_string(), TokenType::Break),
             ("-interface-".to_string(), TokenType::InterfaceBlock),
             ("-machine-".to_string(), TokenType::MachineBlock),
             ("-actions-".to_string(), TokenType::ActionsBlock),
@@ -724,6 +726,8 @@ pub enum TokenType {
     Const,                   // const kw
     New,                     // new kw
     Loop,                    // loop kw
+    Continue,                // continue kw
+    Break,                   // break kw
     In,                      // in kw
     SingleLineComment,       // --- comment
     MultiLineComment,        // {-- comments --}

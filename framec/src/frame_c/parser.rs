@@ -2213,7 +2213,7 @@ impl<'a> Parser<'a> {
         let event_symbol_rcref = self.arcanum.get_event(&*msg, &self.state_name_opt).unwrap();
         self.current_event_symbol_opt = Some(event_symbol_rcref);
 
-        let statements = self.statements();
+        let statements = self.statements(false);
         let event_symbol_rcref = self.arcanum.get_event(&msg, &self.state_name_opt).unwrap();
         let ret_event_symbol_rcref = Rc::clone(&event_symbol_rcref);
         let terminator_node = match self.event_handler_terminator(event_symbol_rcref) {
@@ -2319,12 +2319,12 @@ impl<'a> Parser<'a> {
 
     // TODO: need result and optional
     #[allow(clippy::vec_init_then_push)] // false positive in 1.51, fixed by 1.55
-    fn statements(&mut self) -> Vec<DeclOrStmtType> {
+    fn statements(&mut self, is_loop_context:bool) -> Vec<DeclOrStmtType> {
         let mut statements = Vec::new();
+        let mut is_err = false;
 
         loop {
-            // let result = self.decl_or_stmt();
-            //            let must_terminate = false;
+
             match self.decl_or_stmt() {
                 Ok(opt_smt) => match opt_smt {
                     Some(statement) => {
@@ -2346,6 +2346,19 @@ impl<'a> Parser<'a> {
                                     StatementType::LoopStmt { .. } => {
                                         statements.push(statement); // return statements;
                                     }
+                                    StatementType::ContinueStmt { .. } => {
+                                        if is_loop_context {
+                                            statements.push(statement); // return statements;
+                                        } else {
+                                            is_err = true;
+                                        }
+                                    }
+                                    StatementType::BreakStmt { .. } => {
+                                        if is_loop_context {
+                                            statements.push(statement); // return statements;
+                                        } else {
+                                            is_err = true;
+                                        }                                    }
                                     _ => {
                                         statements.push(statement);
                                     }
@@ -2361,27 +2374,30 @@ impl<'a> Parser<'a> {
                     }
                 },
                 Err(_err) => {
-                    let sync_tokens = &vec![
-                        TokenType::Identifier,
-                        TokenType::LParen,
-                        TokenType::Caret,
-                        TokenType::GT,
-                        TokenType::System,
-                        TokenType::State,
-                        TokenType::PipePipe,
-                        TokenType::Dot,
-                        TokenType::Colon,
-                        TokenType::Pipe,
-                        TokenType::ActionsBlock,
-                        TokenType::DomainBlock,
-                        TokenType::SystemEnd,
-                    ];
-                    self.synchronize(sync_tokens);
+                    is_err = true;
                 }
             }
-        }
 
-        //        statements
+            if is_err {
+                is_err = false;
+                let sync_tokens = &vec![
+                    TokenType::Identifier,
+                    TokenType::LParen,
+                    TokenType::Caret,
+                    TokenType::GT,
+                    TokenType::System,
+                    TokenType::State,
+                    TokenType::PipePipe,
+                    TokenType::Dot,
+                    TokenType::Colon,
+                    TokenType::Pipe,
+                    TokenType::ActionsBlock,
+                    TokenType::DomainBlock,
+                    TokenType::SystemEnd,
+                ];
+                self.synchronize(sync_tokens);
+            }
+        }
     }
 
     /* --------------------------------------------------------------------- */
@@ -2407,12 +2423,29 @@ impl<'a> Parser<'a> {
         }
     }
 
+
+    /* --------------------------------------------------------------------- */
+
+    // fn loop_statements(&mut self) -> Vec<DeclOrStmtType> {
+    //     if self.match_token(&[TokenType::Continue]) {
+    //         let continue_stmt_node = ContinueStmtNode::new();
+    //         return Ok(Some(StatementType::ContinueStmt {continue_stmt_node}));
+    //     }
+    //     if self.match_token(&[TokenType::Break]) {
+    //         let break_stmt_node = BreakStmtNode::new();
+    //         return Ok(Some(StatementType::BreakStmt {break_stmt_node}));
+    //     }
+    //
+    //     self.statements()
+    // }
+
     /* --------------------------------------------------------------------- */
 
     // statement ->
 
     fn statement(&mut self) -> Result<Option<StatementType>, ParseError> {
         let mut expr_t_opt: Option<ExprType> = None;
+
         match self.expression() {
             Ok(et_opt) => expr_t_opt = et_opt,
             Err(_) => {
@@ -2622,6 +2655,15 @@ impl<'a> Parser<'a> {
             };
         }
 
+        if self.match_token(&[TokenType::Continue]) {
+            let continue_stmt_node = ContinueStmtNode::new();
+            return Ok(Some(StatementType::ContinueStmt {continue_stmt_node}));
+        }
+        if self.match_token(&[TokenType::Break]) {
+            let break_stmt_node = BreakStmtNode::new();
+            return Ok(Some(StatementType::BreakStmt {break_stmt_node}));
+        }
+
         Ok(None)
     }
 
@@ -2782,7 +2824,7 @@ impl<'a> Parser<'a> {
         is_negated: bool,
         expr_t: ExprType,
     ) -> Result<BoolTestConditionalBranchNode, ParseError> {
-        let statements = self.statements();
+        let statements = self.statements(false);
         let result = self.branch_terminator();
         match result {
             Ok(branch_terminator_expr_opt) => Ok(BoolTestConditionalBranchNode::new(
@@ -2800,7 +2842,7 @@ impl<'a> Parser<'a> {
     // bool_test_else_branch -> statements* branch_terminator?
 
     fn bool_test_else_branch(&mut self) -> Result<BoolTestElseBranchNode, ParseError> {
-        let statements = self.statements();
+        let statements = self.statements(false);
         let result = self.branch_terminator();
         match result {
             Ok(branch_terminator_expr_opt) => Ok(BoolTestElseBranchNode::new(
@@ -2951,7 +2993,7 @@ impl<'a> Parser<'a> {
             return Err(parse_error);
         }
 
-        let statements = self.statements();
+        let statements = self.statements(false);
         let result = self.branch_terminator();
         match result {
             Ok(branch_terminator_t_opt) => Ok(StringMatchTestMatchBranchNode::new(
@@ -2970,7 +3012,7 @@ impl<'a> Parser<'a> {
     fn string_match_test_else_branch(
         &mut self,
     ) -> Result<StringMatchTestElseBranchNode, ParseError> {
-        let statements = self.statements();
+        let statements = self.statements(false);
         let result = self.branch_terminator();
         match result {
             Ok(branch_terminator_opt) => Ok(StringMatchTestElseBranchNode::new(
@@ -3704,7 +3746,7 @@ impl<'a> Parser<'a> {
 
     fn loop_infinite_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
 
-        let statements = self.statements();
+        let statements = self.statements(true);
 
         if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
             return Err(parse_error);
@@ -3756,7 +3798,7 @@ impl<'a> Parser<'a> {
 
         // statements block
         if self.match_token(&[TokenType::OpenBrace]) {
-            statements = self.statements();
+            statements = self.statements(true);
 
             if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
                 return Err(parse_error);
@@ -3776,76 +3818,6 @@ impl<'a> Parser<'a> {
             return Err(ParseError::new("Missing loop open brace '{'"));
         }
     }
-
-    // fn loop_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
-    //
-    //     let mut statements = Vec::new();
-    //     let mut loop_init_expr_opt = Option::None;
-    //     let mut test_expr_opt = Option::None;
-    //     let mut inc_dec_expr_opt = Option::None;
-    //
-    //     if self.match_token(&[TokenType::LParen]) {
-    //         let expr_t: ExprType;
-    //         let first_expr_result =  self.expression();
-    //         match first_expr_result {
-    //             Ok(Some(expr_type)) => {
-    //                 loop_init_expr_opt = Some(expr_type);
-    //             }
-    //             Ok(None) => {}
-    //             Err(err) => {
-    //                 return Err(err);
-    //             }
-    //         }
-    //         if self.match_token(&[TokenType::Semicolon]) {}
-    //         let second_expr_result =  self.expression();
-    //         match second_expr_result {
-    //             Ok(Some(expr_type)) => {
-    //                 test_expr_opt = Some(expr_type);
-    //             }
-    //             Ok(None) => {}
-    //             Err(err) => {
-    //                 return Err(err);
-    //             }
-    //         }
-    //         if self.match_token(&[TokenType::Semicolon]) {}
-    //         let third_expr_result =  self.expression();
-    //         match third_expr_result {
-    //             Ok(Some(expr_type)) => {
-    //                 inc_dec_expr_opt = Some(expr_type);
-    //             }
-    //             Ok(None) => {}
-    //             Err(err) => {
-    //                 return Err(err);
-    //             }
-    //         }
-    //         if let Err(parse_error) = self.consume(TokenType::RParen, "Expected ')'.") {
-    //             return Err(parse_error);
-    //         }
-    //     }
-    //
-    //         // start of block
-    //     if self.match_token(&[TokenType::OpenBrace]) {
-    //         statements = self.statements();
-    //
-    //         if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
-    //             return Err(parse_error);
-    //         }
-    //
-    //         let loop_for_expr_node = LoopForExprNode::new(loop_init_expr_opt,
-    //                                                   test_expr_opt,
-    //                                                   inc_dec_expr_opt,
-    //                                                   statements );
-    //
-    //         let loop_stmt_node = LoopStmtNode::new(
-    //             LoopTypes::LoopForExpr {loop_for_expr_node}
-    //         );
-    //         let stmt_type = StatementType::LoopStmt {loop_stmt_node};
-    //         return Ok(Some(stmt_type));
-    //     } else {
-    //         return Err(ParseError::new("Missing close brace '}']"));
-    //     }
-    //
-    // }
 
 
     /* --------------------------------------------------------------------- */
@@ -3870,7 +3842,7 @@ impl<'a> Parser<'a> {
 
         // statements block
         if self.match_token(&[TokenType::OpenBrace]) {
-            statements = self.statements();
+            statements = self.statements(true);
 
             if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
                 return Err(parse_error);
@@ -4545,7 +4517,7 @@ impl<'a> Parser<'a> {
         if let Err(parse_error) = self.consume(TokenType::ForwardSlash, "Expected '/'.") {
             return Err(parse_error);
         }
-        let statements = self.statements();
+        let statements = self.statements(false);
         let result = self.branch_terminator();
         match result {
             Ok(branch_terminator_t_opt) => Ok(NumberMatchTestMatchBranchNode::new(
@@ -4564,7 +4536,7 @@ impl<'a> Parser<'a> {
     fn number_match_test_else_branch(
         &mut self,
     ) -> Result<NumberMatchTestElseBranchNode, ParseError> {
-        let statements = self.statements();
+        let statements = self.statements(false);
         let result = self.branch_terminator();
         match result {
             Ok(branch_terminator_opt) => Ok(NumberMatchTestElseBranchNode::new(

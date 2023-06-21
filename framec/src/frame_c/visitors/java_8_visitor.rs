@@ -577,6 +577,12 @@ impl Java8Visitor {
                         StatementType::LoopStmt {loop_stmt_node} => {
                             loop_stmt_node.accept(self);
                         }
+                        StatementType::ContinueStmt {continue_stmt_node} => {
+                            continue_stmt_node.accept(self);
+                        }
+                        StatementType::BreakStmt {break_stmt_node} => {
+                            break_stmt_node.accept(self);
+                        }
                         StatementType::NoStmt => {
                             // TODO
                             self.errors.push("Unknown error.".to_string());

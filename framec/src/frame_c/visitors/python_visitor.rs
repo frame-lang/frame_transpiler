@@ -438,6 +438,7 @@ impl PythonVisitor {
         self.dent -= 1;
     }
 
+
     //* --------------------------------------------------------------------- *//
 
     fn visit_decl_stmts(&mut self, decl_stmt_types: &Vec<DeclOrStmtType>) {
@@ -492,6 +493,12 @@ impl PythonVisitor {
                         }
                         StatementType::LoopStmt {loop_stmt_node} => {
                             loop_stmt_node.accept(self);
+                        }
+                        StatementType::ContinueStmt {continue_stmt_node} => {
+                            continue_stmt_node.accept(self);
+                        }
+                        StatementType::BreakStmt {break_stmt_node} => {
+                            break_stmt_node.accept(self);
                         }
                         StatementType::NoStmt => {
                             // TODO
@@ -2541,7 +2548,7 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_loop_for_expr_node(
+    fn visit_loop_for_stmt_node(
         &mut self,
         loop_for_expr_node:&LoopForStmtNode,
     ) {
@@ -2574,7 +2581,7 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_loop_in_expr_node(
+    fn visit_loop_in_stmt_node(
         &mut self,
         loop_in_expr_node:&LoopInStmtNode,
     ) {
@@ -2593,7 +2600,7 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_loop_infinite_expr_node(
+    fn visit_loop_infinite_stmt_node(
         &mut self,
         loop_in_expr_node:&LoopInfiniteStmtNode,
     ) {
@@ -2605,6 +2612,27 @@ impl AstVisitor for PythonVisitor {
         self.visit_decl_stmts(&loop_in_expr_node.statements);
         self.outdent();
         self.newline();
+    }
+
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_continue_stmt_node(
+        &mut self,
+        _:&ContinueStmtNode,
+    ) {
+        self.newline();
+        self.add_code("continue");
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_break_stmt_node(
+        &mut self,
+        _:&BreakStmtNode,
+    ) {
+        self.newline();
+        self.add_code("break");
     }
 
     //* --------------------------------------------------------------------- *//
