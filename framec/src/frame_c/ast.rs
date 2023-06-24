@@ -425,30 +425,41 @@ impl fmt::Display for VariableNode {
 //-----------------------------------------------------//
 
 pub struct EnumDeclNode {
-    pub identifier: String,
-    pub enums: Vec<Rc<EnumeratorNode>>,
+    pub name: String,
+    pub enums: Vec<Rc<EnumeratorDeclNode>>,
 }
 
 impl EnumDeclNode {
-    pub fn new(identifier:String,enums:Vec<Rc<EnumeratorNode>>) -> EnumDeclNode {
+    pub fn new(identifier:String, enums:Vec<Rc<EnumeratorDeclNode>>) -> EnumDeclNode {
         EnumDeclNode {
-            identifier,
+            name: identifier,
             enums,
         }
     }
 }
 
-pub struct EnumeratorNode {
-    pub identifier: String,
-    pub value:i32,
-}
-
-impl EnumeratorNode {
-    pub fn new(identifier:String, value:i32) -> EnumeratorNode {
-        EnumeratorNode { identifier, value }
+impl NodeElement for EnumDeclNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_enum_decl_node(self);
     }
 }
 
+pub struct EnumeratorDeclNode {
+    pub name: String,
+    pub value:i32,
+}
+
+impl EnumeratorDeclNode {
+    pub fn new(identifier:String, value:i32) -> EnumeratorDeclNode {
+        EnumeratorDeclNode { name: identifier, value }
+    }
+}
+
+impl NodeElement for EnumeratorDeclNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_enumerator_decl_node(self);
+    }
+}
 
 //-----------------------------------------------------//
 

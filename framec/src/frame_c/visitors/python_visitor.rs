@@ -1923,6 +1923,11 @@ impl AstVisitor for PythonVisitor {
             let variable_decl_node = variable_decl_node_rcref.borrow();
             variable_decl_node.accept(self);
         }
+
+        for enum_decl_node_rcref in &domain_block_node.enums {
+            enum_decl_node_rcref.borrow().accept(self);
+        }
+
         self.newline();
     }
 
@@ -3095,7 +3100,6 @@ impl AstVisitor for PythonVisitor {
         self.add_code(")");
     }
 
-
     //* --------------------------------------------------------------------- *//
 
     fn visit_expression_list_node_to_string(
@@ -3116,23 +3120,6 @@ impl AstVisitor for PythonVisitor {
     }
 
     //* --------------------------------------------------------------------- *//
-    //
-    // fn auto_pre_inc_dec_expression_list_node(&mut self, expr_list: &ExprListNode) {
-    //     for expr in &expr_list.exprs_t {
-    //         expr.auto_pre_inc_dec_expr_type(self);
-    //     }
-    //
-    // }
-    //
-    //
-    // //* --------------------------------------------------------------------- *//
-    //
-    // fn auto_inc_dec_expression_list_node(&mut self, expr_list: &ExprListNode) {
-    //     for expr in &expr_list.exprs_t {
-    //         expr.auto_inc_dec_expr_type(self);
-    //     }
-    //
-    // }
 
     fn visit_expr_list_stmt_node(&mut self, expr_list_stmt_node: &ExprListStmtNode) {
 
@@ -3364,6 +3351,32 @@ impl AstVisitor for PythonVisitor {
         self.add_code(action_node.code_opt.as_ref().unwrap().as_str());
         self.outdent();
     }
+
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_enum_decl_node(&mut self, enum_decl_node: &EnumDeclNode) {
+
+        self.newline();
+        self.add_code(&format!("class {}(Enum):",enum_decl_node.name));
+        self.indent();
+
+        for enumerator_decl_node in &enum_decl_node.enums {
+            enumerator_decl_node.accept(self);
+        }
+
+        self.outdent();
+        self.newline()
+    }
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_enumerator_decl_node(&mut self, enumerator_decl_node: &EnumeratorDeclNode) {
+
+        self.newline();
+        self.add_code(&format!("{} = {}",enumerator_decl_node.name, enumerator_decl_node.value));
+
+    }
+
     //* --------------------------------------------------------------------- *//
 
     fn visit_domain_variable_decl_node(&mut self, variable_decl_node: &VariableDeclNode) {
@@ -3452,6 +3465,7 @@ impl AstVisitor for PythonVisitor {
 
     fn auto_inc_dec_assignment_expr_node(&mut self, assignment_expr_node: &AssignmentExprNode) {
 
+        // TODO remove this?
     }
 
     //* --------------------------------------------------------------------- *//

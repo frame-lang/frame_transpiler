@@ -1471,7 +1471,7 @@ impl<'a> Parser<'a> {
                     return Err(ParseError::new(err_msg));
                 }
             }
-            let enumerator_node = Rc::new(EnumeratorNode::new(identifier, enum_value));
+            let enumerator_node = Rc::new(EnumeratorDeclNode::new(identifier, enum_value));
             enums.push(enumerator_node);
             enum_value = enum_value + 1;
         }
