@@ -43,6 +43,7 @@ impl Scanner {
             ("in".to_string(), TokenType::In),
             ("continue".to_string(), TokenType::Continue),
             ("break".to_string(), TokenType::Break),
+            ("enum".to_string(), TokenType::Enum),
             ("-interface-".to_string(), TokenType::InterfaceBlock),
             ("-machine-".to_string(), TokenType::MachineBlock),
             ("-actions-".to_string(), TokenType::ActionsBlock),
@@ -442,15 +443,25 @@ impl Scanner {
             self.advance();
         }
 
+        let mut is_integer = true;
         if self.peek() == '.' && self.is_digit(self.peek_next()) {
+            is_integer = false;
             self.advance();
         }
+
         while self.is_digit(self.peek()) {
             self.advance();
         }
 
-        let number: f32 = self.source[self.start..self.current].parse().unwrap();
-        self.add_token_literal(TokenType::Number, TokenLiteral::Float(number));
+        let num_type =  if is_integer {
+            let number: i32 = self.source[self.start..self.current].parse().unwrap();
+            TokenLiteral::Integer(number)
+        } else {
+            let number: f32 = self.source[self.start..self.current].parse().unwrap();
+            TokenLiteral::Float(number)
+        };
+
+        self.add_token_literal(TokenType::Number, num_type);
     }
 
     fn identifier(&mut self) {
@@ -728,7 +739,8 @@ pub enum TokenType {
     Loop,                    // loop kw
     Continue,                // continue kw
     Break,                   // break kw
-    In,                      // in kw
+    In,                      // 'in' kw
+    Enum,                    // 'enum' kw
     SingleLineComment,       // --- comment
     MultiLineComment,        // {-- comments --}
     OpenBrace,               // {
@@ -777,7 +789,7 @@ impl Display for TokenType {
 
 #[derive(Debug, Clone)]
 pub enum TokenLiteral {
-    //Integer(i32),
+    Integer(i32),
     Float(f32),
     // Double(f64),
     None,
@@ -795,7 +807,7 @@ impl Display for TokenLiteral {
 pub struct Token {
     pub token_type: TokenType,
     pub lexeme: String,
-    literal: TokenLiteral,
+    pub literal: TokenLiteral,
     pub line: usize,
     pub start: usize,
     pub length: usize,

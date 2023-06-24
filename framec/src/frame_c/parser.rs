@@ -1392,22 +1392,135 @@ impl<'a> Parser<'a> {
         }
 
         let mut domain_variables = Vec::new();
+        let mut enums = Vec::new();
 
-        while self.match_token(&[TokenType::Var, TokenType::Const]) {
-            match self.variable_decl(IdentifierDeclScope::DomainBlock) {
-                Ok(domain_variable_node) => domain_variables.push(domain_variable_node),
-                Err(_parse_err) => {
-                    let sync_tokens = &vec![TokenType::Var, TokenType::Const, TokenType::SystemEnd];
-                    self.synchronize(sync_tokens);
+        while self.match_token(&[TokenType::Var, TokenType::Const, TokenType::Enum]) {
+            if self.previous().token_type == TokenType::Enum {
+                match self.enum_decl() {
+                    Ok(enum_decl_node) => {
+                        enums.push(enum_decl_node);
+                    },
+                    Err(_parse_err) => {
+                        let sync_tokens = &vec![TokenType::Var, TokenType::Const, TokenType::SystemEnd];
+                        self.synchronize(sync_tokens);
+                    },
+                }
+            } else {
+                match self.variable_decl(IdentifierDeclScope::DomainBlock) {
+                    Ok(domain_variable_node) => domain_variables.push(domain_variable_node),
+                    Err(_parse_err) => {
+                        let sync_tokens = &vec![TokenType::Var, TokenType::Const, TokenType::SystemEnd];
+                        self.synchronize(sync_tokens);
+                    }
                 }
             }
+
         }
 
         self.arcanum
             .debug_print_current_symbols(self.arcanum.get_current_symtab());
         self.arcanum.exit_parse_scope();
 
-        DomainBlockNode::new(domain_variables)
+        DomainBlockNode::new(domain_variables,enums)
+    }
+
+
+    //* --------------------------------------------------------------------- *//
+
+    // enum Days {
+    //     SUNDAY
+    //     MONDAY = 2
+    //     TUESDAY = 2
+    // }
+
+    fn enum_decl(
+        &mut self,
+    ) -> Result<Rc<RefCell<EnumDeclNode>>, ParseError> {
+
+        let identifier = match self.match_token(&[TokenType::Identifier]) {
+            false => {
+                self.error_at_current("Expected enum identifier");
+                return Err(ParseError::new("TODO"));
+            }
+            true => self.previous().lexeme.clone(),
+        };
+
+        if !self.match_token(&[TokenType::OpenBrace]) {
+            self.error_at_current("Expected enum {identifier} '{'.");
+            return Err(ParseError::new("TODO"));
+        }
+
+        let mut enums = Vec::new();
+        let mut enum_value = 0;
+        while self.match_token(&[TokenType::Identifier]) {
+            let identifier = self.previous().lexeme.clone();
+            if self.match_token(&[TokenType::Equals]) {
+                if self.match_token(&[TokenType::Number]) {
+                    let tok = self.previous();
+                    let tok_lit = &tok.literal;
+                    if let TokenLiteral::Integer(value) = tok_lit {
+                        enum_value = *value;
+                    } else {
+                        let err_msg = "Expected integer in enum assignment. Found float.";
+                        self.error_at_current(err_msg.clone());
+                        return Err(ParseError::new(err_msg));
+                    }
+                } else {
+                    let err_msg = "Expected number after '='.";
+                    self.error_at_current(err_msg.clone());
+                    return Err(ParseError::new(err_msg));
+                }
+            }
+            let enumerator_node = Rc::new(EnumeratorNode::new(identifier, enum_value));
+            enums.push(enumerator_node);
+            enum_value = enum_value + 1;
+        }
+
+        if !self.match_token(&[TokenType::CloseBrace]) {
+            self.error_at_current("Expected '}' for enum {identifier}.");
+            return Err(ParseError::new("TODO"));
+        }
+
+        let enum_decl_node = EnumDeclNode::new(identifier.clone(),enums);
+        let enum_decl_node_rcref = Rc::new(RefCell::new(enum_decl_node));
+
+        if self.is_building_symbol_table {
+            // syntactic pass
+            let enum_symbol = EnumSymbol::new(identifier.clone());
+            let enum_symbol_rcref = Rc::new(RefCell::new(enum_symbol));
+            let enum_symbol_t = SymbolType::EnumDecl {
+                enum_symbol_rcref
+            };
+            self.arcanum
+                .debug_print_current_symbols(self.arcanum.get_current_symtab());
+            self.arcanum
+                .current_symtab
+                .borrow_mut()
+                .insert_symbol(&enum_symbol_t);
+            self.arcanum
+                .debug_print_current_symbols(self.arcanum.get_current_symtab());
+
+        } else {
+            // semantic pass
+
+            // TODO
+            self.arcanum
+                .debug_print_current_symbols(self.arcanum.get_current_symtab());
+            let x = self.arcanum.lookup(&identifier, &IdentifierDeclScope::None);
+            let y = x.unwrap();
+            let z = y.borrow();
+            match &*z {
+                SymbolType::EnumDecl {
+                    enum_symbol_rcref,
+                } => {
+                    // assign enum decl node to symbol created in syntactic pass
+                    enum_symbol_rcref.borrow_mut().ast_node =
+                        Some(enum_decl_node_rcref.clone());
+                }
+                _ => return Err(ParseError::new("Unrecognized enum scope.")),
+            }
+        }
+        Ok(enum_decl_node_rcref)
     }
 
     //* --------------------------------------------------------------------- *//

@@ -420,6 +420,36 @@ impl fmt::Display for VariableNode {
         write!(f,"{}", self.id_node.to_string())
     }
 }
+
+
+//-----------------------------------------------------//
+
+pub struct EnumDeclNode {
+    pub identifier: String,
+    pub enums: Vec<Rc<EnumeratorNode>>,
+}
+
+impl EnumDeclNode {
+    pub fn new(identifier:String,enums:Vec<Rc<EnumeratorNode>>) -> EnumDeclNode {
+        EnumDeclNode {
+            identifier,
+            enums,
+        }
+    }
+}
+
+pub struct EnumeratorNode {
+    pub identifier: String,
+    pub value:i32,
+}
+
+impl EnumeratorNode {
+    pub fn new(identifier:String, value:i32) -> EnumeratorNode {
+        EnumeratorNode { identifier, value }
+    }
+}
+
+
 //-----------------------------------------------------//
 
 pub struct MachineBlockNode {
@@ -430,6 +460,7 @@ impl MachineBlockNode {
     pub fn new(states: Vec<Rc<RefCell<StateNode>>>) -> MachineBlockNode {
         MachineBlockNode { states }
     }
+
     pub fn get_first_state(&self) -> Option<&Rc<RefCell<StateNode>>> {
         self.states.get(0)
     }
@@ -469,11 +500,13 @@ impl NodeElement for ActionsBlockNode {
 
 pub struct DomainBlockNode {
     pub member_variables: Vec<Rc<RefCell<VariableDeclNode>>>,
+    pub enums: Vec<Rc<RefCell<EnumDeclNode>>>,
 }
 
 impl DomainBlockNode {
-    pub fn new(member_variables: Vec<Rc<RefCell<VariableDeclNode>>>) -> DomainBlockNode {
-        DomainBlockNode { member_variables }
+    pub fn new(member_variables: Vec<Rc<RefCell<VariableDeclNode>>>,
+                enums: Vec<Rc<RefCell<EnumDeclNode>>>) -> DomainBlockNode {
+        DomainBlockNode { member_variables,enums }
     }
 }
 

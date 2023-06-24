@@ -141,6 +141,11 @@ pub enum SymbolType {
     EventHandlerVariable {
         event_handler_variable_symbol_rcref: Rc<RefCell<VariableSymbol>>,
     },
+
+    // Enum Symbol
+    EnumDecl {
+        enum_symbol_rcref: Rc<RefCell<EnumSymbol>>,
+    }
 }
 
 impl Symbol for SymbolType {
@@ -196,6 +201,9 @@ impl Symbol for SymbolType {
             SymbolType::EventHandlerLocalScope {
                 event_handler_local_scope_rcref,
             } => event_handler_local_scope_rcref.borrow().get_name(),
+            SymbolType::EnumDecl {
+                enum_symbol_rcref,
+            } => enum_symbol_rcref.borrow().get_name(),
         }
     }
 }
@@ -506,6 +514,15 @@ impl SymbolTable {
                 let name = interface_method_symbol_rcref.borrow().name.clone();
                 let symbol_type_rcref = Rc::new(RefCell::new(SymbolType::InterfaceMethod {
                     interface_method_symbol_rcref: Rc::clone(interface_method_symbol_rcref),
+                }));
+                self.symbols.insert(name, symbol_type_rcref);
+            }
+            SymbolType::EnumDecl {
+                enum_symbol_rcref,
+            } => {
+                let name = enum_symbol_rcref.borrow().name.clone();
+                let symbol_type_rcref = Rc::new(RefCell::new(SymbolType::EnumDecl {
+                    enum_symbol_rcref: Rc::clone(enum_symbol_rcref),
                 }));
                 self.symbols.insert(name, symbol_type_rcref);
             }
@@ -1570,66 +1587,6 @@ impl StateSymbol {
         //        self.symtab_rcref.borrow_mut().insert_symbol(&state_param_symbol);
     }
 
-    // pub fn add_event_handler(&mut self, event_symbol:&EventSymbol) {
-    //     if event_symbol.requires_state_context() {
-    //         self.requires_state_context = true
-    //     }
-    //     match &mut self.event_handlers_opt {
-    //         Some(event_handlers) => {
-    //             event_handlers.push(event_symbol.msg.clone());
-    //         },
-    //         None => {
-    //             let mut eh_vec:Vec<String> = Vec::new();
-    //             eh_vec.push(event_symbol.msg.clone());
-    //             self.event_handlers_opt = Some(eh_vec);
-    //         },
-    //     }
-    // }
-
-    // pub fn get_state_param_scope_symbol(&self) -> Option<Rc<RefCell<StateParamsScopeSymbol>>> {
-    //     let a =  &self.symtab_rcref;
-    //     let c = a.borrow();
-    //     let q = c.symbols.get("-state-parameters-");
-    //     match q {
-    //         Some(r) => {
-    //             let s = r.borrow();
-    //             match &*s {
-    //                 SymbolType::StateParamsScope {state_params_scope_rcref} => {
-    //                    Some(Rc::clone(state_params_scope_rcref))
-    //                 },
-    //                 _ => None,
-    //             }
-    //         },
-    //         None => None,
-    //     }
-    // }
-    //
-    // pub fn get_state_local_scope_symbol(&self) -> Option<Rc<RefCell<StateLocalScopeSymbol>>> {
-    //     let a = self.get_state_param_scope_symbol();
-    //     match a {
-    //         Some(b) => {
-    //             let c = b.borrow();
-    //             let d = &c.symtab_rcref;
-    //             let e = &d.borrow().symbols;
-    //             let f = e.get(StateLocalScopeSymbol::scope_name());
-    //             match f {
-    //                 Some(g) => {
-    //                     let h = g.borrow();
-    //                     match &*h {
-    //                         SymbolType::StateLocalScope { state_local_scope_struct_rcref }
-    //                         => {
-    //                             Some(Rc::clone(state_local_scope_struct_rcref))
-    //                         },
-    //                         _ => None,
-    //                     }
-    //                 },
-    //                 None => None,
-    //             }
-    //         },
-    //         None => None,
-    //     }
-    // }
-
     fn get_name(&self) -> String {
         self.name.clone()
     }
@@ -2256,5 +2213,28 @@ impl VariableSymbol {
 impl Symbol for VariableSymbol {
     fn get_name(&self) -> String {
         self.name.clone() //String::from("domain")
+    }
+}
+
+
+// ----------------------- //
+
+pub struct EnumSymbol {
+    pub name:String,
+    pub ast_node: Option<Rc<RefCell<EnumDeclNode>>>,
+}
+
+impl EnumSymbol {
+    pub fn new(name:String) -> EnumSymbol {
+        EnumSymbol {
+            name,
+            ast_node: None,
+        }
+    }
+}
+
+impl Symbol for EnumSymbol {
+    fn get_name(&self) -> String {
+        self.name.clone()
     }
 }
