@@ -1486,9 +1486,16 @@ impl<'a> Parser<'a> {
 
         if self.is_building_symbol_table {
             // syntactic pass
-            let enum_symbol = EnumSymbol::new(identifier.clone());
+            let scope = self.arcanum.get_current_identifier_scope();
+            let mut enum_symbol = EnumSymbol::new(identifier.clone(),scope);
+
+            // TODO: note what is being done. We are linking to the AST node generated in the syntax pass.
+            // This AST tree is otherwise disposed of. This may be fine but feels wrong. Alternatively
+            // we could copy this information out of the node and into the symbol.
+            enum_symbol.set_ast_node(Rc::clone(&enum_decl_node_rcref));
+
             let enum_symbol_rcref = Rc::new(RefCell::new(enum_symbol));
-            let enum_symbol_t = SymbolType::EnumDecl {
+            let enum_symbol_t = SymbolType::EnumDeclSymbolT {
                 enum_symbol_rcref
             };
             self.arcanum
@@ -1510,7 +1517,7 @@ impl<'a> Parser<'a> {
             let y = x.unwrap();
             let z = y.borrow();
             match &*z {
-                SymbolType::EnumDecl {
+                SymbolType::EnumDeclSymbolT {
                     enum_symbol_rcref,
                 } => {
                     // assign enum decl node to symbol created in syntactic pass
@@ -2712,16 +2719,13 @@ impl<'a> Parser<'a> {
                         };
                         return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
                     }
-                    // LoopExprT {
-                    //     loop_types,
-                    // } => {
-                    //     let loop_stmt_node = LoopStmtNode::new(loop_types);
-                    //
-                    //     let expr_stmt_t: ExprStmtType = ExprStmtType::LoopStmtT {
-                    //         loop_stmt_node
-                    //     };
-                    //     return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
-                    // }
+                    EnumeratorExprT { enum_expr_node } => {
+                        let enumerator_stmt_node = EnumeratorStmtNode::new(enum_expr_node);
+                        let expr_stmt_t: ExprStmtType = ExprStmtType::EnumeratorStmtT {
+                            enumerator_stmt_node,
+                        };
+                        return Ok(Some(StatementType::ExpressionStmt {expr_stmt_t}));
+                    }
                     LiteralExprT { .. } => {
                         self.error_at_previous("Literal statements not allowed.");
                         return Err(ParseError::new("TODO"));
@@ -2738,6 +2742,7 @@ impl<'a> Parser<'a> {
                         self.error_at_previous("Binary expression statements not allowed.");
                         return Err(ParseError::new("TODO"));
                     }
+
                 }
             }
             None => {
@@ -3750,6 +3755,13 @@ impl<'a> Parser<'a> {
                     //     call_chain_expr_node,
                     // }));
                 }
+                Ok(Some(EnumeratorExprT {
+                            enum_expr_node,
+                        })) => {
+                    return Ok(Some(EnumeratorExprT {
+                        enum_expr_node,
+                    }))
+                }
                 Ok(Some(_)) => return Err(ParseError::new("TODO")),
                 Err(parse_error) => return Err(parse_error),
                 Ok(None) => {} // continue
@@ -4223,8 +4235,11 @@ impl<'a> Parser<'a> {
                     _ => return Err(ParseError::new("TODO")),
                 }
             } else {
+                let token_name = id_node.name.lexeme.clone();
                 match self.get_identifier_scope(&id_node, &explicit_scope) {
-                    Ok(id_decl_scope) => scope = id_decl_scope,
+                    Ok(id_decl_scope) => {
+                        scope = id_decl_scope
+                    },
                     Err(err) => return Err(err),
                 }
                 let node = if scope == IdentifierDeclScope::None || !is_first_node {
@@ -4237,6 +4252,56 @@ impl<'a> Parser<'a> {
                         .arcanum
                         .lookup(&id_node.name.lexeme, &explicit_scope)
                         .clone();
+                    match &symbol_type_rcref_opt {
+                        Some(symbol_t) => {
+                            match &*symbol_t.borrow() {
+                                SymbolType::EnumDeclSymbolT {enum_symbol_rcref} => {
+                                    let enum_symbol = enum_symbol_rcref.borrow();
+
+                                    let enum_decl_node = enum_symbol.ast_node.as_ref().unwrap().borrow();
+                                    // match '.'
+                                    if !self.match_token(&[TokenType::Dot]) {
+                                        let msg = &format!(
+                                            "Expected '.' after enum {} identifier.",
+                                            enum_symbol.name
+                                        );
+                                        self.error_at_current(msg);
+                                        return Err(ParseError::new(msg));
+                                    }
+
+                                    if self.match_token(&[TokenType::Identifier]) {
+                                        let enumerator_name = &self.previous().lexeme;
+                                        let mut found_enumerator = false;
+                                        for enum_decl_node in &enum_symbol.ast_node.as_ref().unwrap().borrow().enums {
+                                            if *enumerator_name == enum_decl_node.name {
+                                                found_enumerator = true;
+                                                break;
+                                            }
+                                        }
+                                        if !found_enumerator {
+                                            let msg = &format!(
+                                                "Expected enumerator for {} - found {}.",
+                                                enum_symbol.name,
+                                                enumerator_name,
+                                            );
+                                            self.error_at_current(msg);
+                                            return Err(ParseError::new(msg));
+                                        }
+
+                                        let enum_expr_node = EnumeratorExprNode::new(enum_decl_node.name.clone(), enumerator_name.clone());
+                                        return Ok(Some(ExprType::EnumeratorExprT {enum_expr_node}));
+                                    } else {
+                                        return Err(ParseError::new("TODO"));
+                                    }
+
+                                }
+                                _ => {}
+                            }
+                        }
+                        None => {
+                            // todo
+                        }
+                    }
                     let var_node =
                         VariableNode::new(id_node, scope, (&symbol_type_rcref_opt).clone());
                     CallChainLiteralNodeType::VariableNodeT { var_node }
@@ -4315,10 +4380,15 @@ impl<'a> Parser<'a> {
                     } => {
                         scope = IdentifierDeclScope::None;
                     }
+                    SymbolType::EnumDeclSymbolT {
+                        enum_symbol_rcref,
+                    } => {
+                        scope = enum_symbol_rcref.borrow().scope.clone();
+                    }
                     _ => {
-                        scope = IdentifierDeclScope::None;
+                        // scope = IdentifierDeclScope::None;
 
-//                        return Err(ParseError::new("Error - unknown scope identifier."));
+                        return Err(ParseError::new("Error - unknown scope identifier."));
                     }
                 }
             }

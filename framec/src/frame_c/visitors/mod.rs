@@ -180,6 +180,9 @@ pub trait AstVisitor {
 
     fn visit_enum_decl_node(&mut self, _node: &EnumDeclNode) {}
     fn visit_enumerator_decl_node(&mut self, _node: &EnumeratorDeclNode) {}
+    fn visit_enumerator_expr_node(&mut self, _node: &EnumeratorExprNode) {}
+    fn visit_enumerator_expr_node_to_string(&mut self, _node: &EnumeratorExprNode, _output: &mut String) {}
+    fn visit_enumerator_statement_node(&mut self, _node: &EnumeratorStmtNode) {}
 
     fn visit_assignment_expr_node(&mut self, _node: &AssignmentExprNode) {}
     fn visit_assignment_expr_node_to_string(&mut self, _node: &AssignmentExprNode, _output: &mut String) {}

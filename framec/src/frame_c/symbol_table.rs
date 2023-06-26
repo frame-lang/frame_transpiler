@@ -143,7 +143,7 @@ pub enum SymbolType {
     },
 
     // Enum Symbol
-    EnumDecl {
+    EnumDeclSymbolT {
         enum_symbol_rcref: Rc<RefCell<EnumSymbol>>,
     }
 }
@@ -201,7 +201,7 @@ impl Symbol for SymbolType {
             SymbolType::EventHandlerLocalScope {
                 event_handler_local_scope_rcref,
             } => event_handler_local_scope_rcref.borrow().get_name(),
-            SymbolType::EnumDecl {
+            SymbolType::EnumDeclSymbolT {
                 enum_symbol_rcref,
             } => enum_symbol_rcref.borrow().get_name(),
         }
@@ -517,11 +517,11 @@ impl SymbolTable {
                 }));
                 self.symbols.insert(name, symbol_type_rcref);
             }
-            SymbolType::EnumDecl {
+            SymbolType::EnumDeclSymbolT {
                 enum_symbol_rcref,
             } => {
                 let name = enum_symbol_rcref.borrow().name.clone();
-                let symbol_type_rcref = Rc::new(RefCell::new(SymbolType::EnumDecl {
+                let symbol_type_rcref = Rc::new(RefCell::new(SymbolType::EnumDeclSymbolT {
                     enum_symbol_rcref: Rc::clone(enum_symbol_rcref),
                 }));
                 self.symbols.insert(name, symbol_type_rcref);
@@ -551,7 +551,9 @@ impl SymbolTable {
                     let domain_block_scope_symbol = domain_block_symbol_rcref.borrow();
                     let symbol_table = domain_block_scope_symbol.symtab_rcref.borrow();
                     match symbol_table.lookup_local(name) {
-                        Some(a) => return Some(a),
+                        Some(a) => {
+                            return Some(a)
+                        },
                         None => return None,
                     }
                 }
@@ -2221,15 +2223,22 @@ impl Symbol for VariableSymbol {
 
 pub struct EnumSymbol {
     pub name:String,
+    pub scope: IdentifierDeclScope,
     pub ast_node: Option<Rc<RefCell<EnumDeclNode>>>,
 }
 
 impl EnumSymbol {
-    pub fn new(name:String) -> EnumSymbol {
+    pub fn new(name:String,scope: IdentifierDeclScope) -> EnumSymbol {
         EnumSymbol {
             name,
+            scope,
             ast_node: None,
         }
+    }
+
+
+    pub fn set_ast_node(&mut self, ast_node: Rc<RefCell<EnumDeclNode>>) {
+        self.ast_node = Some(Rc::clone(&ast_node));
     }
 }
 

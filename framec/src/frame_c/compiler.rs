@@ -29,8 +29,8 @@ use std::convert::TryFrom;
 
 /* --------------------------------------------------------------------- */
 
-static IS_DEBUG: bool = false;
-static FRAMEC_VERSION: &str = "emitted from framec_v0.10.0";
+static IS_DEBUG: bool = true;
+static FRAMEC_VERSION: &str = "emitted from framec_v0.11.0";
 
 /* --------------------------------------------------------------------- */
 

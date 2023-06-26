@@ -470,9 +470,9 @@ impl PythonVisitor {
                                 ExprStmtType::ExprListStmtT { expr_list_stmt_node } => {
                                     expr_list_stmt_node.accept(self)
                                 }
-                                // ExprStmtType::LoopStmtT { loop_stmt_node } => {
-                                //     loop_stmt_node.accept(self)
-                                // }
+                                ExprStmtType::EnumeratorStmtT { enumerator_stmt_node } => {
+                                    enumerator_stmt_node.accept(self)
+                                }
                             }
                         }
                         StatementType::TransitionStmt {
@@ -3368,13 +3368,29 @@ impl AstVisitor for PythonVisitor {
         self.outdent();
         self.newline()
     }
+
     //* --------------------------------------------------------------------- *//
 
     fn visit_enumerator_decl_node(&mut self, enumerator_decl_node: &EnumeratorDeclNode) {
 
         self.newline();
         self.add_code(&format!("{} = {}",enumerator_decl_node.name, enumerator_decl_node.value));
+    }
 
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_enumerator_expr_node(&mut self, enum_expr_node: &EnumeratorExprNode) {
+
+        self.add_code(&format!("{}.{}",enum_expr_node.enum_type, enum_expr_node.enumerator));
+    }
+
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_enumerator_statement_node(&mut self, enumerator_stmt_node: &EnumeratorStmtNode) {
+
+        self.newline();
+        enumerator_stmt_node.enumerator_expr_node.accept(self);
     }
 
     //* --------------------------------------------------------------------- *//
@@ -3582,16 +3598,6 @@ impl AstVisitor for PythonVisitor {
                 .accept_to_string(self, output);
         }
     }
-
-
-    // //* --------------------------------------------------------------------- *//
-    //
-    // fn auto_inc_dec_binary_expr_node(&mut self, binary_expr_node: &BinaryExprNode) {
-    //
-    //     binary_expr_node.left_rcref.borrow().auto_inc_dec_expr_type(self);
-    //     binary_expr_node.right_rcref.borrow().auto_inc_dec_expr_type(self);
-    //
-    // }
 
     //* --------------------------------------------------------------------- *//
 

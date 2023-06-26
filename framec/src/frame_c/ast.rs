@@ -450,14 +450,31 @@ pub struct EnumeratorDeclNode {
 }
 
 impl EnumeratorDeclNode {
-    pub fn new(identifier:String, value:i32) -> EnumeratorDeclNode {
-        EnumeratorDeclNode { name: identifier, value }
+    pub fn new(name:String, value:i32) -> EnumeratorDeclNode {
+        EnumeratorDeclNode { name, value }
     }
 }
 
 impl NodeElement for EnumeratorDeclNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         ast_visitor.visit_enumerator_decl_node(self);
+    }
+}
+
+pub struct EnumeratorExprNode {
+    pub enum_type: String,
+    pub enumerator: String,
+}
+
+impl EnumeratorExprNode {
+    pub fn new(enum_type: String, enumerator:String) -> EnumeratorExprNode {
+        EnumeratorExprNode { enum_type,enumerator }
+    }
+}
+
+impl NodeElement for EnumeratorExprNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_enumerator_expr_node(self);
     }
 }
 
@@ -865,6 +882,9 @@ pub enum ExprType {
     BinaryExprT {
         binary_expr_node: BinaryExprNode,
     },
+    EnumeratorExprT {
+        enum_expr_node: EnumeratorExprNode,
+    }
     // LoopExprT {
     //     loop_types: LoopTypes,
     // }
@@ -946,6 +966,7 @@ impl ExprType {
             ExprType::FrameEventExprT { .. } => "FrameEventExprT",
             ExprType::UnaryExprT { .. } => "UnaryExprT",
             ExprType::BinaryExprT { .. } => "BinaryExprT",
+            ExprType::EnumeratorExprT { .. } => "EnumExprT",
  //           ExprType::LoopExprT { .. } => "LoopT",
         }
     }
@@ -1037,17 +1058,9 @@ impl NodeElement for ExprType {
             ExprType::BinaryExprT { binary_expr_node } => {
                 ast_visitor.visit_binary_expr_node(binary_expr_node);
             }
-  //           ExprType::LoopExprT { loop_types } => {
-  //               match loop_types {
-  //                   LoopTypes::LoopForExpr {loop_for_expr_node } => {
-  //                       ast_visitor.visit_loop_for_expr_node(loop_for_expr_node);
-  //                   }
-  //                   LoopTypes::LoopInExpr{ loop_in_expr_node} => {
-  //                       ast_visitor.visit_loop_in_expr_node(loop_in_expr_node);
-  //                   }
-  //               }
-  // //              ast_visitor.visit_loop_expr_node(loop_types);
-  //           }
+            ExprType::EnumeratorExprT { enum_expr_node } => {
+                ast_visitor.visit_enumerator_expr_node(enum_expr_node);
+            }
         }
     }
 
@@ -1102,9 +1115,9 @@ impl NodeElement for ExprType {
             ExprType::UnaryExprT { unary_expr_node } => {
                 ast_visitor.visit_unary_expr_node_to_string(unary_expr_node, output);
             }
-            // ExprType::LoopExprT { loop_types } => {
-            //     //ast_visitor.visit_loop_expr_node_to_string(loop_types, output);
-            // }
+            ExprType::EnumeratorExprT { enum_expr_node } => {
+                ast_visitor.visit_enumerator_expr_node_to_string(enum_expr_node, output);
+            }
         }
     }
     //
@@ -1183,9 +1196,9 @@ pub enum ExprStmtType {
     ExprListStmtT {
         expr_list_stmt_node: ExprListStmtNode,
     },
-    // LoopStmtT {
-    //     loop_stmt_node: LoopStmtNode,
-    // }
+    EnumeratorStmtT {
+        enumerator_stmt_node: EnumeratorStmtNode,
+    }
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -1272,6 +1285,26 @@ impl NodeElement for ActionCallStmtNode {
 
 //-----------------------------------------------------//
 
+pub struct EnumeratorStmtNode {
+    pub enumerator_expr_node: EnumeratorExprNode,
+}
+
+impl EnumeratorStmtNode {
+    pub fn new(enumerator_expr_node: EnumeratorExprNode) -> EnumeratorStmtNode {
+        EnumeratorStmtNode {
+            enumerator_expr_node,
+        }
+    }
+}
+
+impl NodeElement for EnumeratorStmtNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_enumerator_statement_node(self);
+    }
+}
+
+//-----------------------------------------------------//
+
 pub struct CallChainLiteralStmtNode {
     pub call_chain_literal_expr_node: CallChainLiteralExprNode,
 }
@@ -1351,29 +1384,6 @@ impl NodeElement for AssignmentExprNode {
 
 //-----------------------------------------------------//
 
-// pub struct VariableStmtNode {
-//     pub var_node: VariableNode,
-// }
-//
-// impl VariableStmtNode {
-//     pub fn new(var_node: VariableNode) -> VariableStmtNode {
-//         VariableStmtNode { var_node }
-//     }
-//
-//     pub fn get_line(&self) -> usize {
-//         self.var_node.id_node.line
-//     }
-// }
-//
-// impl NodeElement for VariableStmtNode {
-//     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
-//         ast_visitor.visit_variable_stmt_node(self);
-//     }
-// }
-
-
-//-----------------------------------------------------//
-
 pub struct VariableStmtNode {
     pub var_node: VariableNode,
 }
@@ -1415,7 +1425,6 @@ impl NodeElement for ExprListStmtNode {
         ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
         ast_visitor.visit_expr_list_stmt_node(self);
         ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
-
     }
 }
 

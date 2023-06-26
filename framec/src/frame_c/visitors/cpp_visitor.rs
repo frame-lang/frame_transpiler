@@ -598,6 +598,9 @@ impl CppVisitor {
                                 ExprStmtType::ExprListStmtT { expr_list_stmt_node } => {
                                     expr_list_stmt_node.accept(self)
                                 }
+                                ExprStmtType::EnumeratorStmtT { enumerator_stmt_node } => {
+                                    enumerator_stmt_node.accept(self)
+                                }
                                 // ExprStmtType::LoopStmtT { loop_stmt_node } => {
                                 //     loop_stmt_node.accept(self)
                                 // }
