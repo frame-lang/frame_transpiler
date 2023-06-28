@@ -2260,6 +2260,11 @@ impl AstVisitor for PythonVisitor {
             } => {
                 number_match_test_node.accept(self);
             }
+            TestType::EnumMatchTest {
+                enum_match_test_node,
+            } => {
+                enum_match_test_node.accept(self);
+            }
         }
     }
 

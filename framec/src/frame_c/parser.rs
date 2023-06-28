@@ -2643,6 +2643,27 @@ impl<'a> Parser<'a> {
                             Err(parse_error)
                         }
                     };
+                } else if self.is_enum_match_test() {
+                    if !self.is_testable_expression(&expr_t) {
+                        self.error_at_current("Not a testable expression.");
+                        return Err(ParseError::new("TODO"));
+                    }
+                    let result = self.enum_match_test(expr_t);
+                    return match result {
+                        Ok(enum_match_test_node) => {
+                            let match_test_t = TestType::EnumMatchTest {
+                                enum_match_test_node,
+                            };
+                            let test_stmt_node = TestStatementNode::new(match_test_t);
+                            let test_stmt_t = StatementType::TestStmt { test_stmt_node };
+                            Ok(Some(test_stmt_t))
+                        }
+                        Err(parse_error) => {
+                            // TODO: ?
+                            Err(parse_error)
+                        }
+                    };
+
                 }
 
                 match expr_t {
@@ -2826,6 +2847,12 @@ impl<'a> Parser<'a> {
 
     fn is_number_match_test(&self) -> bool {
         self.peek().token_type == TokenType::NumberTest
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn is_enum_match_test(&self) -> bool {
+        self.peek().token_type == TokenType::EnumTest
     }
 
     /* --------------------------------------------------------------------- */
@@ -3292,7 +3319,7 @@ impl<'a> Parser<'a> {
                     let err_msg = format!("Expected binary expression. Found \"{} {}\".", l_value.to_string(), operator_token.lexeme);
                     self.error_at_current(&err_msg);
                     let parse_error = ParseError::new(
-                        "TODO",
+                        err_msg.as_str(),
                     );
                     return Err(parse_error);
                 },
@@ -4729,4 +4756,140 @@ impl<'a> Parser<'a> {
             Err(parse_error) => Err(parse_error),
         }
     }
+
+    /* --------------------------------------------------------------------- */
+
+    // match_enum_test -> '?:' '(' enum_type ')  ('/' match_enum_pattern  ('|' match_enum_pattern)* '/' (statement* branch_terminator?) ':>')+ ':' (statement* branch_terminator?) '::'
+
+    fn enum_match_test(&mut self, expr_t: ExprType) -> Result<EnumMatchTestNode, ParseError> {
+        if let Err(parse_error) = self.consume(TokenType::EnumTest, "Expected '?:'.") {
+            return Err(parse_error);
+        }
+
+        if let Err(parse_error) = self.consume(TokenType::LParen, "Expected '('.") {
+            return Err(parse_error);
+        }
+
+        if !self.match_token(&[TokenType::Identifier]) {
+            let err_msg = format!("Expected enum type.");
+            self.error_at_current(&err_msg);
+            let parse_error = ParseError::new(
+                err_msg.as_str(),
+            );
+            return Err(parse_error);
+        }
+
+        if let Err(parse_error) = self.consume(TokenType::RParen, "Expected ')'.") {
+            return Err(parse_error);
+        }
+
+        let mut conditional_branches: Vec<EnumMatchTestMatchBranchNode> = Vec::new();
+
+        let first_branch_node = match self.enum_match_test_match_branch() {
+            Ok(branch_node) => branch_node,
+            Err(parse_error) => return Err(parse_error),
+        };
+
+        conditional_branches.push(first_branch_node);
+
+        while self.match_token(&[TokenType::ElseContinue]) {
+            match self.enum_match_test_match_branch() {
+                Ok(branch_node) => {
+                    conditional_branches.push(branch_node);
+                }
+                Err(parse_error) => return Err(parse_error),
+            }
+        }
+
+        // (':' match_test_else_branch)?
+        let mut else_branch_opt: Option<EnumMatchTestElseBranchNode> = None;
+        if self.match_token(&[TokenType::Colon]) {
+            else_branch_opt = Option::from(match self.enum_match_test_else_branch() {
+                Ok(statements_t_opt) => statements_t_opt,
+                Err(parse_error) => return Err(parse_error),
+            });
+        }
+
+        // '::'
+        if let Err(parse_error) =
+        self.consume(TokenType::ColonColon, "Expected TestTerminator.")
+        {
+            return Err(parse_error);
+        }
+
+        Ok(EnumMatchTestNode::new(
+            expr_t,
+            conditional_branches,
+            else_branch_opt,
+        ))
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    // enum_match_test ->  ('/' match_enum '/' (statement* branch_terminator?) ':>')+  '::'
+
+    fn enum_match_test_match_branch(
+        &mut self,
+    ) -> Result<EnumMatchTestMatchBranchNode, ParseError> {
+        if let Err(parse_error) = self.consume(TokenType::ForwardSlash, "Expected '/'.") {
+            return Err(parse_error);
+        }
+
+        let mut match_enums = Vec::new();
+
+        if !self.match_token(&[TokenType::Identifier]) {
+            return Err(ParseError::new("TODO"));
+        }
+
+        //        let token = self.previous();
+        let match_enum_tok = self.previous();
+        let match_pattern_enum = match_enum_tok.lexeme.clone();
+        let enum_match_pattern_node = EnumMatchTestPatternNode::new(match_pattern_enum);
+        match_enums.push(enum_match_pattern_node);
+
+        while self.match_token(&[TokenType::Pipe]) {
+            if !self.match_token(&[TokenType::Enum]) {
+                return Err(ParseError::new("TODO"));
+            }
+
+            //            let token = self.previous();
+            let match_enum_tok = self.previous();
+            let match_pattern_enum = match_enum_tok.lexeme.clone();
+            let enum_match_pattern_node = EnumMatchTestPatternNode::new(match_pattern_enum);
+            match_enums.push(enum_match_pattern_node);
+        }
+
+        if let Err(parse_error) = self.consume(TokenType::ForwardSlash, "Expected '/'.") {
+            return Err(parse_error);
+        }
+        let statements = self.statements(false);
+        let result = self.branch_terminator();
+        match result {
+            Ok(branch_terminator_t_opt) => Ok(EnumMatchTestMatchBranchNode::new(
+                match_enums,
+                statements,
+                branch_terminator_t_opt,
+            )),
+            Err(parse_error) => Err(parse_error),
+        }
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    // enum_match_test_else_branch -> statements* branch_terminator?
+
+    fn enum_match_test_else_branch(
+        &mut self,
+    ) -> Result<EnumMatchTestElseBranchNode, ParseError> {
+        let statements = self.statements(false);
+        let result = self.branch_terminator();
+        match result {
+            Ok(branch_terminator_opt) => Ok(EnumMatchTestElseBranchNode::new(
+                statements,
+                branch_terminator_opt,
+            )),
+            Err(parse_error) => Err(parse_error),
+        }
+    }
+
 }

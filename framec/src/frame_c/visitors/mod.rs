@@ -132,6 +132,10 @@ pub trait AstVisitor {
     fn visit_number_match_test_match_branch_node(&mut self, _node: &NumberMatchTestMatchBranchNode) {}
     fn visit_number_match_test_else_branch_node(&mut self, _node: &NumberMatchTestElseBranchNode) {}
     fn visit_number_match_test_pattern_node(&mut self, _node: &NumberMatchTestPatternNode) {}
+    fn visit_enum_match_test_node(&mut self, _node: &EnumMatchTestNode) {}
+    fn visit_enum_match_test_match_branch_node(&mut self, _node: &EnumMatchTestMatchBranchNode) {}
+    fn visit_enum_match_test_else_branch_node(&mut self, _node: &EnumMatchTestElseBranchNode) {}
+    fn visit_enum_match_test_pattern_node(&mut self, _node: &EnumMatchTestPatternNode) {}
 
     fn visit_expression_list_node(&mut self, _expr_list: &ExprListNode) {}
     fn visit_expression_list_node_to_string(&mut self, _expr_list: &ExprListNode, _output: &mut String) {}

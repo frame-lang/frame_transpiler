@@ -2175,6 +2175,32 @@ impl NodeElement for LiteralExprNode {
     }
 }
 
+
+//-----------------------------------------------------//
+
+#[derive(Clone)]
+pub enum StateStackOperationType {
+    Push,
+    Pop,
+}
+
+#[derive(Clone)]
+pub struct StateStackOperationNode {
+    pub operation_t: StateStackOperationType,
+}
+
+impl StateStackOperationNode {
+    pub fn new(operation_t: StateStackOperationType) -> StateStackOperationNode {
+        StateStackOperationNode { operation_t }
+    }
+}
+
+impl NodeElement for StateStackOperationNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_state_stack_operation_node(self);
+    }
+}
+
 //-----------------------------------------------------//
 
 // &String | &str | Widget<int> | `& mut String` | &`mut String` | *x
@@ -2241,6 +2267,9 @@ pub enum TestType {
     },
     NumberMatchTest {
         number_match_test_node: NumberMatchTestNode,
+    },
+    EnumMatchTest {
+        enum_match_test_node: EnumMatchTestNode,
     },
 }
 
@@ -2507,8 +2536,6 @@ impl NodeElement for NumberMatchTestElseBranchNode {
 
 //-----------------------------------------------------//
 
-//-----------------------------------------------------//
-
 pub struct NumberMatchTestPatternNode {
     pub match_pattern_number: String,
 }
@@ -2529,25 +2556,101 @@ impl NodeElement for NumberMatchTestPatternNode {
 
 //-----------------------------------------------------//
 
-#[derive(Clone)]
-pub enum StateStackOperationType {
-    Push,
-    Pop,
+pub struct EnumMatchTestNode {
+    pub expr_t: ExprType,
+    pub match_branch_nodes: Vec<EnumMatchTestMatchBranchNode>,
+    pub else_branch_node_opt: Option<EnumMatchTestElseBranchNode>,
 }
 
-#[derive(Clone)]
-pub struct StateStackOperationNode {
-    pub operation_t: StateStackOperationType,
-}
-
-impl StateStackOperationNode {
-    pub fn new(operation_t: StateStackOperationType) -> StateStackOperationNode {
-        StateStackOperationNode { operation_t }
+impl EnumMatchTestNode {
+    pub fn new(
+        expr_t: ExprType,
+        match_branch_nodes: Vec<EnumMatchTestMatchBranchNode>,
+        else_branch_node_opt: Option<EnumMatchTestElseBranchNode>,
+    ) -> EnumMatchTestNode {
+        EnumMatchTestNode {
+            expr_t,
+            match_branch_nodes,
+            else_branch_node_opt,
+        }
     }
 }
 
-impl NodeElement for StateStackOperationNode {
+impl NodeElement for EnumMatchTestNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
-        ast_visitor.visit_state_stack_operation_node(self);
+        ast_visitor.visit_enum_match_test_node(self);
+    }
+}
+
+//-----------------------------------------------------//
+
+pub struct EnumMatchTestMatchBranchNode {
+    pub enum_match_pattern_node: Vec<EnumMatchTestPatternNode>,
+    pub statements: Vec<DeclOrStmtType>,
+    pub branch_terminator_t_opt: Option<TerminatorExpr>,
+}
+
+impl EnumMatchTestMatchBranchNode {
+    pub fn new(
+        enum_match_pattern_node: Vec<EnumMatchTestPatternNode>,
+        statements: Vec<DeclOrStmtType>,
+        branch_terminator_t_opt: Option<TerminatorExpr>,
+    ) -> EnumMatchTestMatchBranchNode {
+        EnumMatchTestMatchBranchNode {
+            enum_match_pattern_node,
+            statements,
+            branch_terminator_t_opt,
+        }
+    }
+}
+
+impl NodeElement for EnumMatchTestMatchBranchNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_enum_match_test_match_branch_node(self);
+    }
+}
+
+//-----------------------------------------------------//
+
+pub struct EnumMatchTestElseBranchNode {
+    pub statements: Vec<DeclOrStmtType>,
+    pub branch_terminator_expr_opt: Option<TerminatorExpr>,
+}
+
+impl EnumMatchTestElseBranchNode {
+    pub fn new(
+        statements: Vec<DeclOrStmtType>,
+        branch_terminator_t_opt: Option<TerminatorExpr>,
+    ) -> EnumMatchTestElseBranchNode {
+        EnumMatchTestElseBranchNode {
+            statements,
+            branch_terminator_expr_opt: branch_terminator_t_opt,
+        }
+    }
+}
+
+impl NodeElement for EnumMatchTestElseBranchNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_enum_match_test_else_branch_node(self);
+    }
+}
+
+//-----------------------------------------------------//
+
+pub struct EnumMatchTestPatternNode {
+    pub match_pattern_strings: String,
+}
+
+impl EnumMatchTestPatternNode {
+    pub fn new(match_pattern_strings: String) -> EnumMatchTestPatternNode {
+        EnumMatchTestPatternNode {
+            match_pattern_strings,
+        }
+    }
+}
+
+impl NodeElement for EnumMatchTestPatternNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_enum_match_test_pattern_node(self);
     }
 }

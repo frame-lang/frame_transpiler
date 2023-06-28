@@ -7,6 +7,7 @@ enum MatchType {
     Bool,
     String,
     Number,
+    Enum,
     //    None,
 }
 
@@ -272,6 +273,10 @@ impl Scanner {
                     self.add_token(TokenType::NumberTest);
                     // Store the context for the parse
                     self.test_t_stack.push(MatchType::Number);
+                } else if self.match_char(':') {
+                    self.add_token(TokenType::EnumTest);
+                    // Store the context for the parse
+                    self.test_t_stack.push(MatchType::Enum);
                 } else {
                     self.add_token(TokenType::BoolTestTrue);
                     // Store the context for the parse
@@ -723,10 +728,10 @@ pub enum TokenType {
     MachineBlock,   // -machine-
     ActionsBlock,   // -actions-
     DomainBlock,    // -domain-
-    LParen,                 // (
-    RParen,                 // )
-    LBracket,               // [
-    RBracket,               // ]
+    LParen,                  // (
+    RParen,                  // )
+    LBracket,                // [
+    RBracket,                // ]
     Transition,              // ->
     ChangeState,             // ->>
     String,                  // "foo"
@@ -759,6 +764,7 @@ pub enum TokenType {
     BoolTestFalse,           // ?!
     StringTest,              // ?~
     NumberTest,              // ?#
+    EnumTest,                // ?:
     ElseContinue,            // :>
     ColonColon,              // ::
     ForwardSlash,            // /
