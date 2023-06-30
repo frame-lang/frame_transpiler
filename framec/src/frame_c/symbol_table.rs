@@ -141,8 +141,6 @@ pub enum SymbolType {
     EventHandlerVariable {
         event_handler_variable_symbol_rcref: Rc<RefCell<VariableSymbol>>,
     },
-
-    // Enum Symbol
     EnumDeclSymbolT {
         enum_symbol_rcref: Rc<RefCell<EnumSymbol>>,
     }
@@ -2224,7 +2222,7 @@ impl Symbol for VariableSymbol {
 pub struct EnumSymbol {
     pub name:String,
     pub scope: IdentifierDeclScope,
-    pub ast_node: Option<Rc<RefCell<EnumDeclNode>>>,
+    pub ast_node_opt: Option<Rc<RefCell<EnumDeclNode>>>,
 }
 
 impl EnumSymbol {
@@ -2232,13 +2230,13 @@ impl EnumSymbol {
         EnumSymbol {
             name,
             scope,
-            ast_node: None,
+            ast_node_opt: None,
         }
     }
 
 
     pub fn set_ast_node(&mut self, ast_node: Rc<RefCell<EnumDeclNode>>) {
-        self.ast_node = Some(Rc::clone(&ast_node));
+        self.ast_node_opt = Some(Rc::clone(&ast_node));
     }
 }
 

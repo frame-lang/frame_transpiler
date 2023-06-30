@@ -1521,7 +1521,7 @@ impl<'a> Parser<'a> {
                     enum_symbol_rcref,
                 } => {
                     // assign enum decl node to symbol created in syntactic pass
-                    enum_symbol_rcref.borrow_mut().ast_node =
+                    enum_symbol_rcref.borrow_mut().ast_node_opt =
                         Some(enum_decl_node_rcref.clone());
                 }
                 _ => return Err(ParseError::new("Unrecognized enum scope.")),
@@ -4285,7 +4285,7 @@ impl<'a> Parser<'a> {
                                 SymbolType::EnumDeclSymbolT {enum_symbol_rcref} => {
                                     let enum_symbol = enum_symbol_rcref.borrow();
 
-                                    let enum_decl_node = enum_symbol.ast_node.as_ref().unwrap().borrow();
+                                    let enum_decl_node = enum_symbol.ast_node_opt.as_ref().unwrap().borrow();
                                     // match '.'
                                     if !self.match_token(&[TokenType::Dot]) {
                                         let msg = &format!(
@@ -4299,7 +4299,7 @@ impl<'a> Parser<'a> {
                                     if self.match_token(&[TokenType::Identifier]) {
                                         let enumerator_name = &self.previous().lexeme;
                                         let mut found_enumerator = false;
-                                        for enum_decl_node in &enum_symbol.ast_node.as_ref().unwrap().borrow().enums {
+                                        for enum_decl_node in &enum_symbol.ast_node_opt.as_ref().unwrap().borrow().enums {
                                             if *enumerator_name == enum_decl_node.name {
                                                 found_enumerator = true;
                                                 break;
@@ -4771,7 +4771,7 @@ impl<'a> Parser<'a> {
         }
 
         if !self.match_token(&[TokenType::Identifier]) {
-            let err_msg = format!("Expected enum type.");
+            let err_msg = format!("Expected enum type name. Found {}.", self.previous().lexeme);
             self.error_at_current(&err_msg);
             let parse_error = ParseError::new(
                 err_msg.as_str(),
@@ -4779,13 +4779,106 @@ impl<'a> Parser<'a> {
             return Err(parse_error);
         }
 
+        let mut enum_type_name = String::new();
+        let mut enum_symbol_rcref_opt = None;
+
+        if !self.is_building_symbol_table {
+        //     // semantic pass
+        //
+
+            enum_type_name = self.previous().lexeme.clone();
+            let enum_symbol_t_rcref_opt = self.arcanum.lookup(enum_type_name.as_str(), &IdentifierDeclScope::DomainBlock);
+            match enum_symbol_t_rcref_opt {
+                None => {
+                    let err_msg = &format!(
+                        "Enumerated type '{}' does not exist.",
+                        enum_type_name
+                    );
+                    self.error_at_current(err_msg);
+                    let parse_error = ParseError::new(
+                        err_msg.as_str(),
+                    );
+                    return Err(parse_error);
+                }
+                Some(symbol_t_rcref) => {
+                    let symbol_t = symbol_t_rcref.borrow();
+                    match &*symbol_t {
+                        SymbolType::EnumDeclSymbolT {enum_symbol_rcref:enum_symbol_rcref_local} => {
+                            // ok - enum type symbol exists
+                            // let enum_symbol = enum_symbol_rcref.borrow();
+                            enum_symbol_rcref_opt = Some(enum_symbol_rcref_local.clone());
+
+                        }
+                        _ => {
+                            let err_msg = &format!(
+                                "Enumerated type '{}' does not exist.",
+                                enum_type_name
+                            );
+                            self.error_at_current(err_msg);
+                            let parse_error = ParseError::new(
+                                err_msg.as_str(),
+                            );
+                            return Err(parse_error);
+                        }
+                    }
+                }
+            }
+
+
+            // if enum_type_rcref_opt.is_none() {
+            //     let err_msg = &format!(
+            //         "Enumerated type '{}' does not exist.",
+            //         enum_type_name
+            //     );
+            //     self.error_at_current(err_msg);
+            //     let parse_error = ParseError::new(
+            //         err_msg.as_str(),
+            //     );
+            //     return Err(parse_error);
+            // }
+        }
+
+
+        // if let SymbolType::EnumDeclSymbolT{enum_symbol_rcref} = enum_type_rcref_opt.unwrap() {
+        //
+        //     let x  = &enum_symbol_rcref.borrow().ast_node_opt;
+        //     let y = x.unwrap().borrow();
+        //     enum_decl_node_opt = Some(y);
+        //
+        // } else {
+        //     let err_msg = &format!(
+        //         "Enumerated type '{}' does not exist.",
+        //         enum_type_name
+        //     );
+        //     self.error_at_current(err_msg);
+        //     let parse_error = ParseError::new(
+        //         err_msg.as_str(),
+        //     );
+        //     return Err(parse_error);
+        // };
+
+        // let enum_symbol_rcref = match enum_symbol_rcref_opt {
+        //     Some(enum_symbol_rcref) => enum_symbol_rcref,
+        //     None => {
+        //         let err_msg = &format!(
+        //             "Enumerated type '{}' does not exist.",
+        //             enum_type_name
+        //         );
+        //         self.error_at_current(err_msg);
+        //         let parse_error = ParseError::new(
+        //             err_msg.as_str(),
+        //         );
+        //         return Err(parse_error);
+        //     }
+        // };
+
         if let Err(parse_error) = self.consume(TokenType::RParen, "Expected ')'.") {
             return Err(parse_error);
         }
 
         let mut conditional_branches: Vec<EnumMatchTestMatchBranchNode> = Vec::new();
 
-        let first_branch_node = match self.enum_match_test_match_branch() {
+        let first_branch_node = match self.enum_match_test_match_branch(&enum_symbol_rcref_opt) {
             Ok(branch_node) => branch_node,
             Err(parse_error) => return Err(parse_error),
         };
@@ -4793,7 +4886,7 @@ impl<'a> Parser<'a> {
         conditional_branches.push(first_branch_node);
 
         while self.match_token(&[TokenType::ElseContinue]) {
-            match self.enum_match_test_match_branch() {
+            match self.enum_match_test_match_branch(&enum_symbol_rcref_opt) {
                 Ok(branch_node) => {
                     conditional_branches.push(branch_node);
                 }
@@ -4824,12 +4917,23 @@ impl<'a> Parser<'a> {
         ))
     }
 
+
+    /* --------------------------------------------------------------------- */
+
+    fn enumeration_exists(&mut self, enumeration_name:&String) -> bool {
+
+
+
+        true
+    }
+
     /* --------------------------------------------------------------------- */
 
     // enum_match_test ->  ('/' match_enum '/' (statement* branch_terminator?) ':>')+  '::'
 
     fn enum_match_test_match_branch(
         &mut self,
+        enum_symbol_rcref_opt:&Option<Rc<RefCell<EnumSymbol>>>
     ) -> Result<EnumMatchTestMatchBranchNode, ParseError> {
         if let Err(parse_error) = self.consume(TokenType::ForwardSlash, "Expected '/'.") {
             return Err(parse_error);
@@ -4841,7 +4945,29 @@ impl<'a> Parser<'a> {
             return Err(ParseError::new("TODO"));
         }
 
-        //        let token = self.previous();
+        let match_enum_tok = self.previous();
+        let match_pattern_enum = match_enum_tok.lexeme.clone();
+
+        if !self.is_building_symbol_table {
+            let mut found_match = false;
+            let a = enum_symbol_rcref_opt.as_ref().unwrap().as_ref();
+            let c = a.clone();
+            let b = c.borrow();
+            let c = b.ast_node_opt.as_ref().unwrap();
+            let d = c.borrow();
+            for e in &d.enums {
+                if match_pattern_enum == e.name {
+                    found_match = true;
+                    break;
+                }
+            }
+            if !found_match {
+                let err_msg = format!("'{}' is not an enumeration in enum type {}",match_pattern_enum, d.name );
+                self.error_at_current(&err_msg);
+                return Err(ParseError::new(&err_msg));
+            }
+        }
+
         let match_enum_tok = self.previous();
         let match_pattern_enum = match_enum_tok.lexeme.clone();
         let enum_match_pattern_node = EnumMatchTestPatternNode::new(match_pattern_enum);
