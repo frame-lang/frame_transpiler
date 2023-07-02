@@ -2,7 +2,7 @@
 #![allow(non_snake_case)]
 
 use super::scanner::{Token, TokenType};
-use super::symbol_table::{ActionDeclSymbol, EventSymbol, SymbolType};
+use super::symbol_table::{ActionScopeSymbol, EventSymbol, SymbolType};
 
 use crate::frame_c::ast::OperatorType::{
     Divide, Greater, GreaterEqual, LessEqual, Minus, Multiply, Plus,
@@ -307,6 +307,7 @@ impl NodeElement for ParameterNode {
 pub struct ActionNode {
     pub name: String,
     pub params: Option<Vec<ParameterNode>>,
+    pub statements: Vec<DeclOrStmtType>,
     pub type_opt: Option<TypeNode>,
     pub code_opt: Option<String>,
 }
@@ -315,12 +316,14 @@ impl ActionNode {
     pub fn new(
         name: String,
         params: Option<Vec<ParameterNode>>,
+        statements: Vec<DeclOrStmtType>,
         type_opt: Option<TypeNode>,
         code_opt: Option<String>,
     ) -> ActionNode {
         ActionNode {
             name,
             params,
+            statements,
             type_opt,
             code_opt,
         }
@@ -329,13 +332,13 @@ impl ActionNode {
 
 impl NodeElement for ActionNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
-        ast_visitor.visit_action_decl_node(self);
+        ast_visitor.visit_action_node(self);
     }
     fn accept_rust_impl(&self, ast_visitor: &mut dyn AstVisitor) {
         ast_visitor.visit_action_impl_node(self);
     }
     fn accept_action_decl(&self, ast_visitor: &mut dyn AstVisitor) {
-        ast_visitor.visit_action_decl_node(self);
+        ast_visitor.visit_action_node(self);
     }
     fn accept_action_impl(&self, ast_visitor: &mut dyn AstVisitor) {
         ast_visitor.visit_action_impl_node(self);
@@ -1595,7 +1598,7 @@ impl fmt::Display for InterfaceMethodCallExprNode {
 pub struct ActionCallExprNode {
     pub identifier: IdentifierNode,
     pub call_expr_list: CallExprListNode,
-    pub action_symbol_rcref_opt: Option<Rc<RefCell<ActionDeclSymbol>>>,
+    pub action_symbol_rcref_opt: Option<Rc<RefCell<ActionScopeSymbol>>>,
 }
 
 impl ActionCallExprNode {
@@ -1610,7 +1613,7 @@ impl ActionCallExprNode {
         }
     }
 
-    pub fn set_action_symbol(&mut self, action_symbol: &Rc<RefCell<ActionDeclSymbol>>) {
+    pub fn set_action_symbol(&mut self, action_symbol: &Rc<RefCell<ActionScopeSymbol>>) {
         self.action_symbol_rcref_opt = Some(Rc::clone(action_symbol));
     }
 }
@@ -2084,6 +2087,7 @@ pub enum IdentifierDeclScope {
     InterfaceBlock,
     DomainBlock,
     ActionsBlock,
+    ActionVar,
     StateParam,
     StateVar,
     EventHandlerParam,

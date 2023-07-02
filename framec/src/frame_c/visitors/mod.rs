@@ -170,7 +170,7 @@ pub trait AstVisitor {
     fn visit_actions_block_node(&mut self, _node: &ActionsBlockNode) {}
     fn visit_action_node_rust_trait(&mut self, _node: &ActionsBlockNode) {}
     fn visit_actions_node_rust_impl(&mut self, _node: &ActionsBlockNode) {}
-    fn visit_action_decl_node(&mut self, _node: &ActionNode) {}
+    fn visit_action_node(&mut self, _node: &ActionNode) {}
     fn visit_action_impl_node(&mut self, _node: &ActionNode) {}
     fn visit_action_call_expression_node(&mut self, _node: &ActionCallExprNode) {}
     fn visit_action_call_expression_node_to_string(&mut self, _node: &ActionCallExprNode, _output: &mut String) {}

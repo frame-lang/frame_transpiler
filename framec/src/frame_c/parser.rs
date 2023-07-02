@@ -1300,7 +1300,7 @@ impl<'a> Parser<'a> {
         let mut actions = Vec::new();
 
         while self.match_token(&[TokenType::Identifier]) {
-            if let Ok(action_decl_node) = self.action_decl() {
+            if let Ok(action_decl_node) = self.action() {
                 actions.push(action_decl_node);
             }
         }
@@ -1313,8 +1313,84 @@ impl<'a> Parser<'a> {
     }
 
     /* --------------------------------------------------------------------- */
+    //
+    // fn action_decl(&mut self) -> Result<Rc<RefCell<ActionNode>>, ParseError> {
+    //     let action_name = self.previous().lexeme.clone();
+    //
+    //     let mut params: Option<Vec<ParameterNode>> = Option::None;
+    //
+    //     if self.match_token(&[TokenType::LBracket]) {
+    //         params = match self.parameters() {
+    //             Ok(Some(parameters)) => Some(parameters),
+    //             Ok(None) => None,
+    //             Err(parse_error) => return Err(parse_error),
+    //         }
+    //     }
+    //
+    //     let mut type_opt: Option<TypeNode> = None;
+    //
+    //     if self.match_token(&[TokenType::Colon]) {
+    //         match self.type_decl() {
+    //             Ok(type_node) => type_opt = Some(type_node),
+    //             Err(parse_error) => return Err(parse_error),
+    //         }
+    //     }
+    //
+    //     let mut code_opt: Option<String> = None;
+    //
+    //     if self.match_token(&[TokenType::OpenBrace]) {
+    //         // TODO - figure out how this needes to be added to statements
+    //         if self.match_token(&[TokenType::SuperString]) {
+    //             let token = self.previous();
+    //             code_opt = Some(token.lexeme.clone());
+    //         }
+    //         if self.is_building_symbol_table {
+    //             let event_handler_symbol =
+    //                 EventHandlerScopeSymbol::new(&msg, Rc::clone(&event_symbol_rcref));
+    //             let event_handler_scope_symbol_rcref = Rc::new(RefCell::new(event_handler_symbol));
+    //
+    //             self.arcanum.enter_scope(ParseScopeType::Action {
+    //                 event_handler_scope_symbol_rcref,
+    //             });
+    //         } else {
+    //             self.arcanum.set_parse_scope(&msg);
+    //         }
+    //
+    //         if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
+    //             return Err(parse_error);
+    //         }
+    //     }
+    //
+    //     let action_decl_node = ActionNode::new(action_name.clone(), params, type_opt, code_opt);
+    //
+    //     if self.is_building_symbol_table {
+    //         let s = action_name;
+    //         let mut action_decl_symbol = ActionDeclSymbol::new(s);
+    //         // TODO: note what is being done. We are linking to the AST node generated in the syntax pass.
+    //         // This AST tree is otherwise disposed of. This may be fine but feels wrong. Alternatively
+    //         // we could copy this information out of the node and into the symbol.
+    //         // TODO: just insert into arcanum directly
+    //         self.arcanum
+    //             .current_symtab
+    //             .borrow_mut()
+    //             .insert_symbol(&action_decl_symbol_t);
+    //     } else {
+    //         let action_decl_rcref = Rc::new(RefCell::new(action_decl_node));
+    //
+    //         action_decl_symbol.set_ast_node(Rc::clone(&action_decl_rcref));
+    //         let action_decl_symbol_rcref = Rc::new(RefCell::new(action_decl_symbol));
+    //         let action_decl_symbol_t = SymbolType::ActionScope {
+    //             action_decl_symbol_rcref,
+    //         };
+    //     }
+    //
+    //     Ok(action_decl_rcref)
+    // }
 
-    fn action_decl(&mut self) -> Result<Rc<RefCell<ActionNode>>, ParseError> {
+
+    /* --------------------------------------------------------------------- */
+
+    fn action(&mut self) -> Result<Rc<RefCell<ActionNode>>, ParseError>  {
         let action_name = self.previous().lexeme.clone();
 
         let mut params: Option<Vec<ParameterNode>> = Option::None;
@@ -1336,46 +1412,43 @@ impl<'a> Parser<'a> {
             }
         }
 
+        // if self.is_building_symbol_table {
+        //     let mut action_symbol = ActionScopeSymbol::new(action_name);
+        //     let action_scope_symbol_rcref = Rc::new(RefCell::new(action_symbol));
+        //     let action_symbol_parse_scope_t = ParseScopeType::Action {
+        //         action_scope_symbol_rcref
+        //     };
+        //     self.arcanum.enter_scope(action_symbol_parse_scope_t);
+        //
+        // } else {
+        //     // link action symbol to action declaration node
+        // }
+
         let mut code_opt: Option<String> = None;
+        let mut statements = Vec::new();
 
         if self.match_token(&[TokenType::OpenBrace]) {
-            if self.match_token(&[TokenType::SuperString]) {
-                let token = self.previous();
-                code_opt = Some(token.lexeme.clone());
-            }
+            // TODO - figure out how this needes to be added to statements
+            // if self.match_token(&[TokenType::SuperString]) {
+            //     let token = self.previous();
+            //     code_opt = Some(token.lexeme.clone());
+            // }
+
+            statements = self.statements(false);
 
             if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
                 return Err(parse_error);
+            } else {
+
             }
         }
+        let action_node = ActionNode::new(action_name.clone(), params, statements, type_opt, code_opt);
 
-        let action_decl_node = ActionNode::new(action_name.clone(), params, type_opt, code_opt);
-        let action_decl_rcref = Rc::new(RefCell::new(action_decl_node));
-
-        if self.is_building_symbol_table {
-            let s = action_name;
-            let mut action_decl_symbol = ActionDeclSymbol::new(s);
-            // TODO: note what is being done. We are linking to the AST node generated in the syntax pass.
-            // This AST tree is otherwise disposed of. This may be fine but feels wrong. Alternatively
-            // we could copy this information out of the node and into the symbol.
-            action_decl_symbol.set_ast_node(Rc::clone(&action_decl_rcref));
-            let action_decl_symbol_rcref = Rc::new(RefCell::new(action_decl_symbol));
-            let action_decl_symbol_t = SymbolType::ActionDecl {
-                action_decl_symbol_rcref,
-            };
-            // TODO: just insert into arcanum directly
-            self.arcanum
-                .current_symtab
-                .borrow_mut()
-                .insert_symbol(&action_decl_symbol_t);
-        } else {
-            // link action symbol to action declaration node
-        }
-
-        Ok(action_decl_rcref)
+        let x = RefCell::new(action_node);
+        let y = Rc::new(x);
+        Ok(y)
     }
-
-    /* --------------------------------------------------------------------- */
+        /* --------------------------------------------------------------------- */
 
     // TODO: Return result
     fn domain_block(&mut self) -> DomainBlockNode {
@@ -1640,20 +1713,20 @@ impl<'a> Parser<'a> {
                 SymbolType::DomainVariable {
                     domain_variable_symbol_rcref,
                 } => {
-                    domain_variable_symbol_rcref.borrow_mut().ast_node =
+                    domain_variable_symbol_rcref.borrow_mut().ast_node_opt =
                         Some(variable_decl_node_rcref.clone());
                 }
                 SymbolType::StateVariable {
                     state_variable_symbol_rcref,
                 } => {
                     //                    let a = state_variable_symbol_rcref.borrow();
-                    state_variable_symbol_rcref.borrow_mut().ast_node =
+                    state_variable_symbol_rcref.borrow_mut().ast_node_opt =
                         Some(variable_decl_node_rcref.clone());
                 }
                 SymbolType::EventHandlerVariable {
                     event_handler_variable_symbol_rcref,
                 } => {
-                    event_handler_variable_symbol_rcref.borrow_mut().ast_node =
+                    event_handler_variable_symbol_rcref.borrow_mut().ast_node_opt =
                         Some(variable_decl_node_rcref.clone());
                 }
                 _ => return Err(ParseError::new("Unrecognized variable scope.")),
@@ -1905,6 +1978,7 @@ impl<'a> Parser<'a> {
                  */
             }
 
+            // TODO - figure out AnyMessage. Is it working?
             if self.peek().token_type == TokenType::At
                 || self.peek().token_type == TokenType::Pipe
                 || self.peek().token_type == TokenType::AnyMessage
@@ -4147,29 +4221,6 @@ impl<'a> Parser<'a> {
     }
 
     /* --------------------------------------------------------------------- */
-    //
-    // fn preincrement_expression(&mut self) -> Result<Option<ExprType>, ParseError> {
-    //
-    //     let mut expr = match self.unary_expression() {
-    //         Ok(Some(expr_type)) => expr_type,
-    //         Ok(None) => return Ok(None),
-    //         Err(parse_error) => return Err(parse_error),
-    //     };
-    //
-    //     if preincrement {
-    //         match expr {
-    //             ExprType::CallChainLiteralExprT(call_chain_expr_node) => {
-    //                 call_chain_expr_node.inc_dec = IncDecExpr::PreInc;
-    //             },
-    //             _ => {}
-    //         }
-    //     }
-    //
-    //     return Ok(Some(expr));
-    //
-    // }
-
-    /* --------------------------------------------------------------------- */
 
     // TODO: create a new return type that is narrowed to just the types this method returns.
     // TODO: change the return type to be CallChainLiteralExprT as it doesn't return anything else.
@@ -4824,53 +4875,8 @@ impl<'a> Parser<'a> {
                 }
             }
 
-
-            // if enum_type_rcref_opt.is_none() {
-            //     let err_msg = &format!(
-            //         "Enumerated type '{}' does not exist.",
-            //         enum_type_name
-            //     );
-            //     self.error_at_current(err_msg);
-            //     let parse_error = ParseError::new(
-            //         err_msg.as_str(),
-            //     );
-            //     return Err(parse_error);
-            // }
         }
 
-
-        // if let SymbolType::EnumDeclSymbolT{enum_symbol_rcref} = enum_type_rcref_opt.unwrap() {
-        //
-        //     let x  = &enum_symbol_rcref.borrow().ast_node_opt;
-        //     let y = x.unwrap().borrow();
-        //     enum_decl_node_opt = Some(y);
-        //
-        // } else {
-        //     let err_msg = &format!(
-        //         "Enumerated type '{}' does not exist.",
-        //         enum_type_name
-        //     );
-        //     self.error_at_current(err_msg);
-        //     let parse_error = ParseError::new(
-        //         err_msg.as_str(),
-        //     );
-        //     return Err(parse_error);
-        // };
-
-        // let enum_symbol_rcref = match enum_symbol_rcref_opt {
-        //     Some(enum_symbol_rcref) => enum_symbol_rcref,
-        //     None => {
-        //         let err_msg = &format!(
-        //             "Enumerated type '{}' does not exist.",
-        //             enum_type_name
-        //         );
-        //         self.error_at_current(err_msg);
-        //         let parse_error = ParseError::new(
-        //             err_msg.as_str(),
-        //         );
-        //         return Err(parse_error);
-        //     }
-        // };
 
         if let Err(parse_error) = self.consume(TokenType::RParen, "Expected ')'.") {
             return Err(parse_error);
@@ -4915,16 +4921,6 @@ impl<'a> Parser<'a> {
             conditional_branches,
             else_branch_opt,
         ))
-    }
-
-
-    /* --------------------------------------------------------------------- */
-
-    fn enumeration_exists(&mut self, enumeration_name:&String) -> bool {
-
-
-
-        true
     }
 
     /* --------------------------------------------------------------------- */

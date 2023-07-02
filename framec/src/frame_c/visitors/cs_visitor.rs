@@ -3391,7 +3391,7 @@ impl AstVisitor for CsVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_decl_node(&mut self, action_node: &ActionNode) {
+    fn visit_action_node(&mut self, action_node: &ActionNode) {
         let mut subclass_code = String::new();
 
         self.newline();

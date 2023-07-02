@@ -2397,7 +2397,7 @@ impl AstVisitor for CsVisitorForBob {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_decl_node(&mut self, action_decl_node: &ActionNode) {
+    fn visit_action_node(&mut self, action_decl_node: &ActionNode) {
         self.newline();
         let action_ret_type: String = match &action_decl_node.type_opt {
             Some(ret_type) => ret_type.get_type_str(),

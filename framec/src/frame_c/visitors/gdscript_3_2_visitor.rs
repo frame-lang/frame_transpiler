@@ -2196,7 +2196,7 @@ impl AstVisitor for GdScript32Visitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_decl_node(&mut self, action_decl_node: &ActionNode) {
+    fn visit_action_node(&mut self, action_decl_node: &ActionNode) {
         self.newline();
 
         let action_name = self.format_action_name(&action_decl_node.name);

@@ -1593,81 +1593,88 @@ impl AstVisitor for PythonVisitor {
         self.add_code("def __mux(self, e):");
         self.indent();
 
-        if let Some(machine_block_node) = &system_node.machine_block_node_opt {
-            self.newline();
-            //
-            let _current_index = 0;
-            let len = machine_block_node.states.len();
-            for (current_index, state_node_rcref) in machine_block_node.states.iter().enumerate() {
-                let state_name = &self
-                    .format_target_state_name(&state_node_rcref.borrow().name)
-                    .to_string();
-                if current_index == 0 {
-                    self.add_code(&format!(
-                        "if self.__compartment.state.__name__ == '{}':",
-                        state_name
-                    ));
-                } else {
-                    self.add_code(&format!(
-                        "elif self.__compartment.state.__name__ == '{}':",
-                        state_name
-                    ));
+        match &system_node.machine_block_node_opt {
+            Some(machine_block_node) => {
+                self.newline();
+                //
+                let _current_index = 0;
+                let len = machine_block_node.states.len();
+                for (current_index, state_node_rcref) in machine_block_node.states.iter().enumerate() {
+                    let state_name = &self
+                        .format_target_state_name(&state_node_rcref.borrow().name)
+                        .to_string();
+                    if current_index == 0 {
+                        self.add_code(&format!(
+                            "if self.__compartment.state.__name__ == '{}':",
+                            state_name
+                        ));
+                    } else {
+                        self.add_code(&format!(
+                            "elif self.__compartment.state.__name__ == '{}':",
+                            state_name
+                        ));
+                    }
+                    self.indent();
+                    self.newline();
+                    self.add_code(&format!("self.{}(e)", state_name));
+                    self.outdent();
+                    if current_index != len {
+                        self.newline();
+                    }
+
+
+                    // current_index += 1
                 }
+
+                self.newline();
+                self.add_code("if self.__next_compartment != None:");
                 self.indent();
                 self.newline();
-                self.add_code(&format!("self.{}(e)", state_name));
+                self.add_code("next_compartment = self.__next_compartment");
+                self.newline();
+                self.add_code("self.__next_compartment = None");
+                self.newline();
+                self.add_code("if(next_compartment.forward_event is not None and ");
+                self.newline();
+                self.add_code("   next_compartment.forward_event._message == \">\"):");
+                self.indent();
+                self.newline();
+                self.add_code("self.__mux(FrameEvent( \"<\", self.__compartment.exit_args))");
+                self.newline();
+                self.add_code("self.__compartment = next_compartment");
+                self.newline();
+                self.add_code("self.__mux(next_compartment.forward_event)");
                 self.outdent();
-                if current_index != len {
-                    self.newline();
-                }
-
-                // current_index += 1
+                self.newline();
+                self.add_code("else:");
+                self.indent();
+                self.newline();
+                self.add_code("self.__do_transition(next_compartment)");
+                self.newline();
+                self.add_code("if next_compartment.forward_event is not None:");
+                self.indent();
+                self.newline();
+                self.add_code("self.__mux(next_compartment.forward_event)");
+                self.outdent();
+                // self.newline();
+                // self.add_code("}");
+                self.outdent();
+                // self.newline();
+                // self.add_code("}");
+                self.newline();
+                self.add_code("next_compartment.forward_event = None");
+                self.outdent();
+                // self.newline();
+                // self.add_code("}");
+                self.outdent();
+                // self.newline();
+                // self.add_code("}");
+                self.newline();
             }
-
-            self.newline();
-            self.add_code("if self.__next_compartment != None:");
-            self.indent();
-            self.newline();
-            self.add_code("next_compartment = self.__next_compartment");
-            self.newline();
-            self.add_code("self.__next_compartment = None");
-            self.newline();
-            self.add_code("if(next_compartment.forward_event is not None and ");
-            self.newline();
-            self.add_code("   next_compartment.forward_event._message == \">\"):");
-            self.indent();
-            self.newline();
-            self.add_code("self.__mux(FrameEvent( \"<\", self.__compartment.exit_args))");
-            self.newline();
-            self.add_code("self.__compartment = next_compartment");
-            self.newline();
-            self.add_code("self.__mux(next_compartment.forward_event)");
-            self.outdent();
-            self.newline();
-            self.add_code("else:");
-            self.indent();
-            self.newline();
-            self.add_code("self.__do_transition(next_compartment)");
-            self.newline();
-            self.add_code("if next_compartment.forward_event is not None:");
-            self.indent();
-            self.newline();
-            self.add_code("self.__mux(next_compartment.forward_event)");
-            self.outdent();
-            // self.newline();
-            // self.add_code("}");
-            self.outdent();
-            // self.newline();
-            // self.add_code("}");
-            self.newline();
-            self.add_code("next_compartment.forward_event = None");
-            self.outdent();
-            // self.newline();
-            // self.add_code("}");
-            self.outdent();
-            // self.newline();
-            // self.add_code("}");
-            self.newline();
+            _ => {
+                self.outdent();
+                self.newline();
+            }
         }
 
         if let Some(machine_block_node) = &system_node.machine_block_node_opt {
@@ -3300,7 +3307,7 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_decl_node(&mut self, action_decl_node: &ActionNode) {
+    fn visit_action_node(&mut self, action_decl_node: &ActionNode) {
         let mut subclass_code = String::new();
 
         self.newline();

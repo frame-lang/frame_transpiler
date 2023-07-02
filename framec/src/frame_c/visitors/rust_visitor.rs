@@ -908,9 +908,9 @@ impl RustVisitor {
                 self.newline();
                 self.add_code("&MethodInfo");
                 self.enter_block();
-                let action_decl_rcref = self.arcanum.lookup_action(&action_name).unwrap();
-                let action_decl = action_decl_rcref.borrow();
-                if let Some(action_rcref) = &action_decl.ast_node {
+                let action_scope_symbol_rcref = self.arcanum.lookup_action(&action_name).unwrap();
+                let action_scope_symbol = action_scope_symbol_rcref.borrow();
+                if let Some(action_rcref) = &action_scope_symbol.ast_node_opt {
                     let action = action_rcref.borrow();
                     self.add_code(&format!("name: \"{}\",", action.name));
                     self.newline();
@@ -943,7 +943,7 @@ impl RustVisitor {
                         }
                     ));
                 } else {
-                    self.add_code(&format!("name: \"{}\",", action_decl.name));
+                    self.add_code(&format!("name: \"{}\",", action_scope_symbol.name));
                     self.newline();
                     self.add_code("parameters: &[],");
                     self.newline();
@@ -5480,7 +5480,7 @@ impl AstVisitor for RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_decl_node(&mut self, action_decl_node: &ActionNode) {
+    fn visit_action_node(&mut self, action_decl_node: &ActionNode) {
         //        let mut subclass_code = String::new();
 
         self.newline();
