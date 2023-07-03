@@ -101,6 +101,8 @@ pub struct Parser<'a> {
     system_hierarchy_opt: Option<SystemHierarchy>,
     is_parsing_rhs: bool,
     event_handler_has_transition: bool,
+    is_action_context:bool,
+    is_loop_context:bool,
     pub generate_enter_args: bool,
     pub generate_exit_args: bool,
     pub generate_state_context: bool,
@@ -140,6 +142,8 @@ impl<'a> Parser<'a> {
             generate_state_stack: false,
             generate_change_state: false,
             generate_transition_state: false,
+            is_action_context: false,
+            is_loop_context: false,
         }
     }
 
@@ -1295,6 +1299,9 @@ impl<'a> Parser<'a> {
             self.arcanum.enter_scope(ParseScopeType::ActionsBlock {
                 actions_block_scope_symbol_rcref: actions_block_scope_symbol,
             });
+        } else {
+            self.arcanum
+                .set_parse_scope(ActionsBlockScopeSymbol::scope_name());
         }
 
         let mut actions = Vec::new();
@@ -1305,9 +1312,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        if self.is_building_symbol_table {
-            self.arcanum.exit_parse_scope();
-        }
+        self.arcanum.exit_parse_scope();
 
         ActionsBlockNode::new(actions)
     }
@@ -1390,7 +1395,16 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    fn action(&mut self) -> Result<Rc<RefCell<ActionNode>>, ParseError>  {
+    fn action(&mut self) -> Result<Rc<RefCell<ActionNode>>, ParseError> {
+        self.is_action_context = true;
+        let ret = self.action_context();
+        self.is_action_context = false;
+        ret
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn action_context(&mut self) -> Result<Rc<RefCell<ActionNode>>, ParseError>  {
         let action_name = self.previous().lexeme.clone();
 
         let mut params: Option<Vec<ParameterNode>> = Option::None;
@@ -1412,29 +1426,59 @@ impl<'a> Parser<'a> {
             }
         }
 
-        // if self.is_building_symbol_table {
-        //     let mut action_symbol = ActionScopeSymbol::new(action_name);
-        //     let action_scope_symbol_rcref = Rc::new(RefCell::new(action_symbol));
-        //     let action_symbol_parse_scope_t = ParseScopeType::Action {
-        //         action_scope_symbol_rcref
-        //     };
-        //     self.arcanum.enter_scope(action_symbol_parse_scope_t);
-        //
-        // } else {
-        //     // link action symbol to action declaration node
-        // }
+        if self.is_building_symbol_table {
+            let mut action_symbol = ActionScopeSymbol::new(action_name.clone());
+            let action_scope_symbol_rcref = Rc::new(RefCell::new(action_symbol));
+            let action_symbol_parse_scope_t = ParseScopeType::Action {
+                action_scope_symbol_rcref
+            };
+            self.arcanum.enter_scope(action_symbol_parse_scope_t);
+
+        } else {
+            // link action symbol to action declaration node
+            self.arcanum
+                .set_parse_scope(&action_name);
+
+        }
 
         let mut code_opt: Option<String> = None;
         let mut statements = Vec::new();
+        let mut terminator_node_opt = None;
+        let mut is_implemented = false;
 
         if self.match_token(&[TokenType::OpenBrace]) {
+            is_implemented = true;
             // TODO - figure out how this needes to be added to statements
             // if self.match_token(&[TokenType::SuperString]) {
             //     let token = self.previous();
             //     code_opt = Some(token.lexeme.clone());
             // }
 
-            statements = self.statements(false);
+            statements = self.statements();
+
+            if self.match_token(&[TokenType::Caret]) {
+                if self.match_token(&[TokenType::LParen]) {
+                    let expr_t = match self.decorated_unary_expression() {
+                        Ok(Some(expr_t)) => expr_t,
+                        _ => {
+                            self.error_at_current("Expected expression as return value.");
+                            return Err(ParseError::new("TODO"));
+                        }
+                    };
+
+                    if let Err(parse_error) = self.consume(TokenType::RParen, "Expected ')'.") {
+                        return Err(parse_error);
+                    }
+
+                    terminator_node_opt = Some(TerminatorExpr::new(
+                        Return,
+                        Some(expr_t),
+                        self.previous().line,
+                    ));
+                } else {
+                    terminator_node_opt = Some(TerminatorExpr::new(Return, None, self.previous().line));
+                }
+            }
 
             if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
                 return Err(parse_error);
@@ -1442,7 +1486,10 @@ impl<'a> Parser<'a> {
 
             }
         }
-        let action_node = ActionNode::new(action_name.clone(), params, statements, type_opt, code_opt);
+
+        self.arcanum.exit_parse_scope();
+
+        let action_node = ActionNode::new(action_name.clone(), params, is_implemented, statements, terminator_node_opt, type_opt, code_opt);
 
         let x = RefCell::new(action_node);
         let y = Rc::new(x);
@@ -2407,7 +2454,7 @@ impl<'a> Parser<'a> {
         let event_symbol_rcref = self.arcanum.get_event(&*msg, &self.state_name_opt).unwrap();
         self.current_event_symbol_opt = Some(event_symbol_rcref);
 
-        let statements = self.statements(false);
+        let statements = self.statements();
         let event_symbol_rcref = self.arcanum.get_event(&msg, &self.state_name_opt).unwrap();
         let ret_event_symbol_rcref = Rc::clone(&event_symbol_rcref);
         let terminator_node = match self.event_handler_terminator(event_symbol_rcref) {
@@ -2491,6 +2538,7 @@ impl<'a> Parser<'a> {
                 if let Err(parse_error) = self.consume(TokenType::RParen, "Expected ')'.") {
                     return Err(parse_error);
                 }
+
                 Ok(TerminatorExpr::new(
                     Return,
                     Some(expr_t),
@@ -2513,7 +2561,7 @@ impl<'a> Parser<'a> {
 
     // TODO: need result and optional
     #[allow(clippy::vec_init_then_push)] // false positive in 1.51, fixed by 1.55
-    fn statements(&mut self, is_loop_context:bool) -> Vec<DeclOrStmtType> {
+    fn statements(&mut self) -> Vec<DeclOrStmtType> {
         let mut statements = Vec::new();
         let mut is_err = false;
 
@@ -2529,11 +2577,16 @@ impl<'a> Parser<'a> {
                                 match stmt_t {
                                     StatementType::TransitionStmt { .. } => {
                                         statements.push(statement);
-                                        // must be last statament so return
+                                        // must be last statement in event handler so return
                                         return statements;
                                     }
                                     StatementType::ChangeStateStmt { .. } => {
                                         statements.push(statement);
+                                        // state changes disallowed in actions
+                                        if self.is_action_context {
+                                            self.error_at_current("Transitions disallowed in actions.");
+                                            // is_err = true;
+                                        }
                                         // must be last statement so return
                                         return statements;
                                     }
@@ -2541,14 +2594,14 @@ impl<'a> Parser<'a> {
                                         statements.push(statement); // return statements;
                                     }
                                     StatementType::ContinueStmt { .. } => {
-                                        if is_loop_context {
+                                        if self.is_loop_context {
                                             statements.push(statement); // return statements;
                                         } else {
                                             is_err = true;
                                         }
                                     }
                                     StatementType::BreakStmt { .. } => {
-                                        if is_loop_context {
+                                        if self.is_loop_context {
                                             statements.push(statement); // return statements;
                                         } else {
                                             is_err = true;
@@ -3043,7 +3096,7 @@ impl<'a> Parser<'a> {
         is_negated: bool,
         expr_t: ExprType,
     ) -> Result<BoolTestConditionalBranchNode, ParseError> {
-        let statements = self.statements(false);
+        let statements = self.statements();
         let result = self.branch_terminator();
         match result {
             Ok(branch_terminator_expr_opt) => Ok(BoolTestConditionalBranchNode::new(
@@ -3061,7 +3114,7 @@ impl<'a> Parser<'a> {
     // bool_test_else_branch -> statements* branch_terminator?
 
     fn bool_test_else_branch(&mut self) -> Result<BoolTestElseBranchNode, ParseError> {
-        let statements = self.statements(false);
+        let statements = self.statements();
         let result = self.branch_terminator();
         match result {
             Ok(branch_terminator_expr_opt) => Ok(BoolTestElseBranchNode::new(
@@ -3212,7 +3265,7 @@ impl<'a> Parser<'a> {
             return Err(parse_error);
         }
 
-        let statements = self.statements(false);
+        let statements = self.statements();
         let result = self.branch_terminator();
         match result {
             Ok(branch_terminator_t_opt) => Ok(StringMatchTestMatchBranchNode::new(
@@ -3231,7 +3284,7 @@ impl<'a> Parser<'a> {
     fn string_match_test_else_branch(
         &mut self,
     ) -> Result<StringMatchTestElseBranchNode, ParseError> {
-        let statements = self.statements(false);
+        let statements = self.statements();
         let result = self.branch_terminator();
         match result {
             Ok(branch_terminator_opt) => Ok(StringMatchTestElseBranchNode::new(
@@ -3925,6 +3978,16 @@ impl<'a> Parser<'a> {
         Ok(None)
     }
 
+
+    /* --------------------------------------------------------------------- */
+
+    fn loop_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
+        self.is_loop_context = true;
+        let ret = self.loop_statement_context();
+        self.is_loop_context = false;
+        ret
+    }
+
     /* --------------------------------------------------------------------- */
 
     // loop { foo() }
@@ -3933,7 +3996,7 @@ impl<'a> Parser<'a> {
     // loop .. { foo() continue break }
 
 
-    fn loop_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
+    fn loop_statement_context(&mut self) -> Result<Option<StatementType>, ParseError> {
 
         if self.match_token(&[TokenType::OpenBrace]) {
             // loop { foo() }
@@ -3972,7 +4035,7 @@ impl<'a> Parser<'a> {
 
     fn loop_infinite_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
 
-        let statements = self.statements(true);
+        let statements = self.statements();
 
         if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
             return Err(parse_error);
@@ -4024,7 +4087,7 @@ impl<'a> Parser<'a> {
 
         // statements block
         if self.match_token(&[TokenType::OpenBrace]) {
-            statements = self.statements(true);
+            statements = self.statements();
 
             if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
                 return Err(parse_error);
@@ -4068,7 +4131,7 @@ impl<'a> Parser<'a> {
 
         // statements block
         if self.match_token(&[TokenType::OpenBrace]) {
-            statements = self.statements(true);
+            statements = self.statements();
 
             if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
                 return Err(parse_error);
@@ -4592,6 +4655,14 @@ impl<'a> Parser<'a> {
     ) -> Result<Option<StatementType>, ParseError> {
         self.generate_transition_state = true;
 
+        if self.is_action_context {
+            let err_msg = format!("Transitions disallowed inside of actions.");
+            self.error_at_current(&err_msg);
+            let parse_error = ParseError::new(
+                err_msg.as_str(),
+            );
+            return Err(parse_error);
+        }
         let eh_rc_refcell = self.current_event_symbol_opt.as_ref().unwrap().clone();
         let evt_symbol = eh_rc_refcell.borrow();
 
@@ -4778,7 +4849,7 @@ impl<'a> Parser<'a> {
         if let Err(parse_error) = self.consume(TokenType::ForwardSlash, "Expected '/'.") {
             return Err(parse_error);
         }
-        let statements = self.statements(false);
+        let statements = self.statements();
         let result = self.branch_terminator();
         match result {
             Ok(branch_terminator_t_opt) => Ok(NumberMatchTestMatchBranchNode::new(
@@ -4797,7 +4868,7 @@ impl<'a> Parser<'a> {
     fn number_match_test_else_branch(
         &mut self,
     ) -> Result<NumberMatchTestElseBranchNode, ParseError> {
-        let statements = self.statements(false);
+        let statements = self.statements();
         let result = self.branch_terminator();
         match result {
             Ok(branch_terminator_opt) => Ok(NumberMatchTestElseBranchNode::new(
@@ -4984,7 +5055,7 @@ impl<'a> Parser<'a> {
         if let Err(parse_error) = self.consume(TokenType::ForwardSlash, "Expected '/'.") {
             return Err(parse_error);
         }
-        let statements = self.statements(false);
+        let statements = self.statements();
         let result = self.branch_terminator();
         match result {
             Ok(branch_terminator_t_opt) => Ok(EnumMatchTestMatchBranchNode::new(
@@ -5003,7 +5074,7 @@ impl<'a> Parser<'a> {
     fn enum_match_test_else_branch(
         &mut self,
     ) -> Result<EnumMatchTestElseBranchNode, ParseError> {
-        let statements = self.statements(false);
+        let statements = self.statements();
         let result = self.branch_terminator();
         match result {
             Ok(branch_terminator_opt) => Ok(EnumMatchTestElseBranchNode::new(

@@ -307,7 +307,9 @@ impl NodeElement for ParameterNode {
 pub struct ActionNode {
     pub name: String,
     pub params: Option<Vec<ParameterNode>>,
+    pub is_implemented: bool,
     pub statements: Vec<DeclOrStmtType>,
+    pub terminator_node_opt: Option<TerminatorExpr>,
     pub type_opt: Option<TypeNode>,
     pub code_opt: Option<String>,
 }
@@ -316,14 +318,18 @@ impl ActionNode {
     pub fn new(
         name: String,
         params: Option<Vec<ParameterNode>>,
+        is_implemented: bool,
         statements: Vec<DeclOrStmtType>,
+        terminator_node_opt: Option<TerminatorExpr>,
         type_opt: Option<TypeNode>,
         code_opt: Option<String>,
     ) -> ActionNode {
         ActionNode {
             name,
             params,
+            is_implemented,
             statements,
+            terminator_node_opt,
             type_opt,
             code_opt,
         }

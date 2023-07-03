@@ -1895,8 +1895,6 @@ impl AstVisitor for PythonVisitor {
 
         self.newline();
         self.newline();
-        self.add_code("# Unimplemented Actions");
-        self.newline();
 
         for action_rcref in &actions_block_node.actions {
             let action_node = action_rcref.borrow();
@@ -3326,13 +3324,52 @@ impl AstVisitor for PythonVisitor {
             None => {}
         }
 
+
         self.add_code("):");
         subclass_code.push_str("):");
+
         self.indent();
-        self.newline();
-        self.add_code("raise NotImplementedError");
-        self.newline_to_string(&mut subclass_code);
-        subclass_code.push_str("#pass");
+        if !action_decl_node.is_implemented {
+            self.newline();
+            self.add_code("raise NotImplementedError");
+            self.newline_to_string(&mut subclass_code);
+            subclass_code.push_str("#pass");
+        } else {
+            // Generate statements
+            if action_decl_node.statements.is_empty()
+                && action_decl_node.terminator_node_opt.is_none() {
+                self.indent();
+                self.newline();
+                self.add_code("pass");
+                self.outdent();
+                self.newline();
+            } else {
+                if !action_decl_node.statements.is_empty() {
+                    self.visit_decl_stmts(&action_decl_node.statements);
+                }
+                if let Some(terminator_expr) = &action_decl_node.terminator_node_opt {
+                    self.newline();
+                    match &terminator_expr.terminator_type {
+                        TerminatorType::Return => match &terminator_expr.return_expr_t_opt {
+                            Some(expr_t) => {
+                                self.add_code("return ");
+                                expr_t.accept(self);
+                                self.newline();
+                            }
+                            None => {
+                                self.add_code("return");
+                                self.newline();
+                            },
+                        },
+                        TerminatorType::Continue => {
+                            // shouldn't happen.
+                            self.errors.push("Continue not allowed as action terminator.".to_string());
+                        }
+                    }
+                }
+            }
+        }
+
         self.outdent();
         self.newline();
         self.subclass_code.push(subclass_code);

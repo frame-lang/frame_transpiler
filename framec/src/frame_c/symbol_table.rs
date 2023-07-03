@@ -227,9 +227,8 @@ impl ScopeSymbol for SymbolType {
             SymbolType::ActionsBlockScope {
                 actions_block_symbol_rcref,
             } => actions_block_symbol_rcref.borrow().get_symbol_table(),
-            SymbolType::ActionScope { .. } => {
-                panic!("Fatal error - action decl symbol does not have a symbol table.")
-            }
+            SymbolType::ActionScope { action_scope_symbol_rcref }
+            => action_scope_symbol_rcref.borrow().get_symbol_table(),
             // action_decl_symbol_rcref.borrow().get_symbol_table(),
             SymbolType::DomainBlockScope {
                 domain_block_symbol_rcref,
@@ -419,15 +418,6 @@ impl SymbolTable {
                 let name = actions_block_scope_symbol.borrow().name.clone();
                 let st_ref = Rc::new(RefCell::new(SymbolType::ActionsBlockScope {
                     actions_block_symbol_rcref: actions_block_scope_symbol,
-                }));
-                self.symbols.insert(name, st_ref);
-            }
-            ParseScopeType::Action {
-                action_scope_symbol_rcref,
-            } => {
-                let name = action_scope_symbol_rcref.borrow().name.clone();
-                let st_ref = Rc::new(RefCell::new(SymbolType::ActionScope {
-                    action_scope_symbol_rcref,
                 }));
                 self.symbols.insert(name, st_ref);
             }
@@ -2068,6 +2058,10 @@ impl ActionsBlockScopeSymbol {
                 false,
             ))),
         }
+    }
+    #[inline]
+    pub fn scope_name() -> &'static str {
+        ACTIONS_BLOCK_SCOPE_NAME
     }
 
     pub fn set_parent_symtab(&mut self, parent_symtab: &Rc<RefCell<SymbolTable>>) {
