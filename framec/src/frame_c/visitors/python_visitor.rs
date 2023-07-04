@@ -3436,6 +3436,13 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    fn visit_enumerator_expr_node_to_string(&mut self, enum_expr_node: &EnumeratorExprNode, output: &mut String) {
+
+        output.push_str(&format!("{}.{}",enum_expr_node.enum_type, enum_expr_node.enumerator));
+    }
+
+    //* --------------------------------------------------------------------- *//
+
     fn visit_enumerator_statement_node(&mut self, enumerator_stmt_node: &EnumeratorStmtNode) {
 
         self.newline();

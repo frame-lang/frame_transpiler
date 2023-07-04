@@ -1462,11 +1462,13 @@ impl<'a> Parser<'a> {
                         Ok(Some(expr_t)) => expr_t,
                         _ => {
                             self.error_at_current("Expected expression as return value.");
+                            self.arcanum.exit_parse_scope();
                             return Err(ParseError::new("TODO"));
                         }
                     };
 
                     if let Err(parse_error) = self.consume(TokenType::RParen, "Expected ')'.") {
+                        self.arcanum.exit_parse_scope();
                         return Err(parse_error);
                     }
 
@@ -1481,6 +1483,7 @@ impl<'a> Parser<'a> {
             }
 
             if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
+                self.arcanum.exit_parse_scope();
                 return Err(parse_error);
             } else {
 
