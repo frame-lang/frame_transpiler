@@ -1,5 +1,6 @@
 # emitted from framec_v0.10.0
 # get include files at https://github.com/frame-lang/frame-ancillary-files
+
 from framelang.framelang import FrameEvent
 
 class Basic:
@@ -8,8 +9,8 @@ class Basic:
         
         # Create and intialize start state compartment.
         self.__state = self.__basic_state_S0
-        self.__compartment: 'BasicCompartment' = BasicCompartment(self.__state)
-        self.__next_compartment: 'BasicCompartment' = None
+        self.__compartment: BasicCompartment = BasicCompartment(self.__state)
+        self.__next_compartment: BasicCompartment = None
         
         # Initialize domain
         

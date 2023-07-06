@@ -1,5 +1,6 @@
 # emitted from framec_v0.10.0
 # get include files at https://github.com/frame-lang/frame-ancillary-files
+
 from framelang.framelang import FrameEvent
 
 class Match:
@@ -8,8 +9,8 @@ class Match:
         
         # Create and intialize start state compartment.
         self.__state = self.__match_state_Init
-        self.__compartment: 'MatchCompartment' = MatchCompartment(self.__state)
-        self.__next_compartment: 'MatchCompartment' = None
+        self.__compartment: MatchCompartment = MatchCompartment(self.__state)
+        self.__next_compartment: MatchCompartment = None
         
         # Initialize domain
         

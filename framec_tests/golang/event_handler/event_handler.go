@@ -1,5 +1,6 @@
 // emitted from framec_v0.10.0
 // get include files at https://github.com/frame-lang/frame-ancillary-files
+
 package event_handler
 import ( "golang/framelang")
 

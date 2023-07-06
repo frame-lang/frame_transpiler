@@ -1,5 +1,6 @@
 # emitted from framec_v0.10.0
 # get include files at https://github.com/frame-lang/frame-ancillary-files
+
 from framelang.framelang import FrameEvent
 
 class Branch:
@@ -8,8 +9,8 @@ class Branch:
         
         # Create and intialize start state compartment.
         self.__state = self.__branch_state_I
-        self.__compartment: 'BranchCompartment' = BranchCompartment(self.__state)
-        self.__next_compartment: 'BranchCompartment' = None
+        self.__compartment: BranchCompartment = BranchCompartment(self.__state)
+        self.__next_compartment: BranchCompartment = None
         
         # Initialize domain
         

@@ -1,5 +1,6 @@
 # emitted from framec_v0.10.0
 # get include files at https://github.com/frame-lang/frame-ancillary-files
+
 from framelang.framelang import FrameEvent
 
 class HandlerCalls:
@@ -8,8 +9,8 @@ class HandlerCalls:
         
         # Create and intialize start state compartment.
         self.__state = self.__handlercalls_state_Init
-        self.__compartment: 'HandlerCallsCompartment' = HandlerCallsCompartment(self.__state)
-        self.__next_compartment: 'HandlerCallsCompartment' = None
+        self.__compartment: HandlerCallsCompartment = HandlerCallsCompartment(self.__state)
+        self.__next_compartment: HandlerCallsCompartment = None
         
         # Initialize domain
         

@@ -1,5 +1,6 @@
 # emitted from framec_v0.10.0
 # get include files at https://github.com/frame-lang/frame-ancillary-files
+
 from framelang.framelang import FrameEvent
 
 class StateParams:
@@ -8,8 +9,8 @@ class StateParams:
         
         # Create and intialize start state compartment.
         self.__state = self.__stateparams_state_Init
-        self.__compartment: 'StateParamsCompartment' = StateParamsCompartment(self.__state)
-        self.__next_compartment: 'StateParamsCompartment' = None
+        self.__compartment: StateParamsCompartment = StateParamsCompartment(self.__state)
+        self.__next_compartment: StateParamsCompartment = None
         
         # Initialize domain
         

@@ -1,5 +1,6 @@
 # emitted from framec_v0.10.0
 # get include files at https://github.com/frame-lang/frame-ancillary-files
+
 from framelang.framelang import FrameEvent
 
 class EventHandler:
@@ -8,8 +9,8 @@ class EventHandler:
         
         # Create and intialize start state compartment.
         self.__state = self.__eventhandler_state_S1
-        self.__compartment: 'EventHandlerCompartment' = EventHandlerCompartment(self.__state)
-        self.__next_compartment: 'EventHandlerCompartment' = None
+        self.__compartment: EventHandlerCompartment = EventHandlerCompartment(self.__state)
+        self.__next_compartment: EventHandlerCompartment = None
         
         # Initialize domain
         

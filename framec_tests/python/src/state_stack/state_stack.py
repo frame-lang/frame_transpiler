@@ -1,5 +1,6 @@
 # emitted from framec_v0.10.0
 # get include files at https://github.com/frame-lang/frame-ancillary-files
+
 from framelang.framelang import FrameEvent
 
 class StateStack:
@@ -12,8 +13,8 @@ class StateStack:
         
         # Create and intialize start state compartment.
         self.__state = self.__statestack_state_A
-        self.__compartment: 'StateStackCompartment' = StateStackCompartment(self.__state)
-        self.__next_compartment: 'StateStackCompartment' = None
+        self.__compartment: StateStackCompartment = StateStackCompartment(self.__state)
+        self.__next_compartment: StateStackCompartment = None
         
         # Initialize domain
         

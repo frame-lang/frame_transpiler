@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "dgSpecHash": "P9IoAyKoUh3i3+ms0u+JAvsplTyeCA3rpBmb/0dT6JQzEXaU+SQdov84XeDdlJ6qQl4X2MX6nbIJI8EAV4Wlcg==",
+  "success": true,
+  "projectFilePath": "E:\\my projects\\CurrentProject\\frame_transpiler\\framec_tests\\csharp\\Hierarchical\\Hierarchical.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\ADMIN\\.nuget\\packages\\microsoft.netcore.platforms\\1.1.0\\microsoft.netcore.platforms.1.1.0.nupkg.sha512",
+    "C:\\Users\\ADMIN\\.nuget\\packages\\netstandard.library\\2.0.0\\netstandard.library.2.0.0.nupkg.sha512",
+    "C:\\Users\\ADMIN\\.nuget\\packages\\nunit\\3.13.3\\nunit.3.13.3.nupkg.sha512",
+    "C:\\Users\\ADMIN\\.nuget\\packages\\nunit3testadapter\\4.3.1\\nunit3testadapter.4.3.1.nupkg.sha512"
+  ],
+  "logs": []
+}

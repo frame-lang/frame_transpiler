@@ -1,5 +1,6 @@
 # emitted from framec_v0.10.0
 # get include files at https://github.com/frame-lang/frame-ancillary-files
+
 from framelang.framelang import FrameEvent
 
 class SimpleHandlerCalls:
@@ -8,8 +9,8 @@ class SimpleHandlerCalls:
         
         # Create and intialize start state compartment.
         self.__state = self.__simplehandlercalls_state_Init
-        self.__compartment: 'SimpleHandlerCallsCompartment' = SimpleHandlerCallsCompartment(self.__state)
-        self.__next_compartment: 'SimpleHandlerCallsCompartment' = None
+        self.__compartment: SimpleHandlerCallsCompartment = SimpleHandlerCallsCompartment(self.__state)
+        self.__next_compartment: SimpleHandlerCallsCompartment = None
         
         # Initialize domain
         

@@ -1,5 +1,6 @@
 # emitted from framec_v0.10.0
 # get include files at https://github.com/frame-lang/frame-ancillary-files
+
 from framelang.framelang import FrameEvent
 
 class TransitionSm:
@@ -8,8 +9,8 @@ class TransitionSm:
         
         # Create and intialize start state compartment.
         self.__state = self.__transitionsm_state_S0
-        self.__compartment: 'TransitionSmCompartment' = TransitionSmCompartment(self.__state)
-        self.__next_compartment: 'TransitionSmCompartment' = None
+        self.__compartment: TransitionSmCompartment = TransitionSmCompartment(self.__state)
+        self.__next_compartment: TransitionSmCompartment = None
         
         # Initialize domain
         
