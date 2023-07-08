@@ -150,6 +150,9 @@ pub enum SymbolType {
     EnumDeclSymbolT {
         enum_symbol_rcref: Rc<RefCell<EnumSymbol>>,
     },
+    LoopVar {
+        loop_variable_symbol_rcref: Rc<RefCell<VariableSymbol>>,
+    },
 }
 
 impl Symbol for SymbolType {
@@ -208,6 +211,9 @@ impl Symbol for SymbolType {
             SymbolType::EnumDeclSymbolT {
                 enum_symbol_rcref,
             } => enum_symbol_rcref.borrow().get_name(),
+            SymbolType::LoopVar {
+                loop_variable_symbol_rcref,
+            } => loop_variable_symbol_rcref.borrow().get_name(),
         }
     }
 }
@@ -535,6 +541,15 @@ impl SymbolTable {
                 let name = enum_symbol_rcref.borrow().name.clone();
                 let symbol_type_rcref = Rc::new(RefCell::new(SymbolType::EnumDeclSymbolT {
                     enum_symbol_rcref: Rc::clone(enum_symbol_rcref),
+                }));
+                self.symbols.insert(name, symbol_type_rcref);
+            }
+            SymbolType::LoopVar {
+                loop_variable_symbol_rcref,
+            } => {
+                let name = loop_variable_symbol_rcref.borrow().name.clone();
+                let symbol_type_rcref = Rc::new(RefCell::new(SymbolType::LoopVar {
+                    loop_variable_symbol_rcref: Rc::clone(loop_variable_symbol_rcref),
                 }));
                 self.symbols.insert(name, symbol_type_rcref);
             }

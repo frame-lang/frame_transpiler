@@ -390,6 +390,37 @@ impl NodeElement for VariableDeclNode {
 
 //-----------------------------------------------------//
 
+pub struct LoopVariableDeclNode {
+    pub name: String,
+    pub type_opt: Option<TypeNode>,
+    pub initializer_expr_t_opt: Option<ExprType>,
+    pub identifier_decl_scope: IdentifierDeclScope,
+}
+
+impl LoopVariableDeclNode {
+    pub fn new(
+        name: String,
+        type_opt: Option<TypeNode>,
+        initializer_expr_t_opt: Option<ExprType>,
+        identifier_decl_scope: IdentifierDeclScope,
+    ) -> LoopVariableDeclNode {
+        LoopVariableDeclNode {
+            name,
+            type_opt,
+            initializer_expr_t_opt,
+            identifier_decl_scope,
+        }
+    }
+}
+
+impl NodeElement for LoopVariableDeclNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_loop_variable_decl_node(self);
+    }
+}
+
+//-----------------------------------------------------//
+
 // TODO: consider call this a SystemVariableNode to differentiate
 // from external variable references.
 
@@ -894,9 +925,6 @@ pub enum ExprType {
     EnumeratorExprT {
         enum_expr_node: EnumeratorExprNode,
     }
-    // LoopExprT {
-    //     loop_types: LoopTypes,
-    // }
 }
 
 
@@ -1361,17 +1389,17 @@ impl NodeElement for AssignmentStmtNode {
 pub struct AssignmentExprNode {
     pub l_value_box: Box<ExprType>,
     pub r_value_box: Box<ExprType>,
-    pub is_decl: bool,
+//    pub is_decl: bool,
     pub line: usize,
 
 }
 
 impl AssignmentExprNode {
-    pub fn new(l_value: ExprType, r_value: ExprType, is_decl:bool, line: usize) -> AssignmentExprNode {
+    pub fn new(l_value: ExprType, r_value: ExprType, line: usize) -> AssignmentExprNode {
         AssignmentExprNode {
             l_value_box: Box::new(l_value),
             r_value_box: Box::new(r_value),
-            is_decl,
+//            is_decl,
             line,
         }
     }
@@ -1674,19 +1702,19 @@ impl NodeElement for LoopInfiniteStmtNode {
 //-----------------------------------------------------//
 
 pub struct LoopInStmtNode {
-    pub target_expr: Box<ExprType>,
+    pub loop_first_stmt: LoopFirstStmt,
     pub iterable_expr: Box<ExprType>,
     pub statements: Vec<DeclOrStmtType>,
 }
 
 impl LoopInStmtNode {
     pub fn new (
-        target_expr: Box<ExprType>,
+        loop_first_stmt: LoopFirstStmt,
         iterable_expr: Box<ExprType>,
         statements: Vec<DeclOrStmtType>,
     ) -> LoopInStmtNode {
         LoopInStmtNode {
-            target_expr,
+            loop_first_stmt,
             iterable_expr,
             statements,
         }
@@ -1699,10 +1727,68 @@ impl NodeElement for LoopInStmtNode {
     }
 }
 
+
+//-----------------------------------------------------//
+
+pub enum LoopFirstStmt {
+    // x
+    Var {
+        var_node: VariableNode,
+    },
+    // x
+    CallChain {
+        call_chain_expr_node: CallChainLiteralExprNode,
+    },
+    // x = 0
+    VarAssign {
+        assign_expr_node: AssignmentExprNode,
+    },
+    // The semantics of it being a decl are in the enum type name.
+    // var x
+    VarDecl {
+        var_decl_node_rcref: Rc<RefCell<VariableDeclNode>>,
+    },
+    // var x:int = 0
+    // var x = 0
+    VarDeclAssign {
+        var_decl_node_rcref: Rc<RefCell<VariableDeclNode>>,
+    },
+
+
+    None,
+}
+
+
+impl NodeElement for LoopFirstStmt {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        match self {
+            LoopFirstStmt::Var {var_node} => {
+                ast_visitor.visit_variable_expr_node(var_node);
+            }
+            LoopFirstStmt::CallChain {call_chain_expr_node} => {
+                ast_visitor.visit_call_chain_literal_expr_node(call_chain_expr_node);
+            }
+            LoopFirstStmt::VarAssign {assign_expr_node} => {
+                ast_visitor.visit_assignment_expr_node(assign_expr_node);
+            }
+            LoopFirstStmt::VarDecl {var_decl_node_rcref} => {
+                let x = 1;
+                //ast_visitor.visit_assignment_expr_node(assign_expr_node);
+            }
+            LoopFirstStmt::VarDeclAssign {var_decl_node_rcref} => {
+                ast_visitor.visit_variable_decl_node(&*var_decl_node_rcref.borrow())
+            }
+
+            LoopFirstStmt::None => {}
+        }
+        // ast_visitor.visit_loop_for_stmt_node(self);
+    }
+}
+
 //-----------------------------------------------------//
 
 pub struct LoopForStmtNode {
-    pub loop_init_expr_rcref_opt: Option<Rc<RefCell<ExprType>>>,
+    pub loop_init_expr_rcref_opt: Option<Rc<RefCell<LoopFirstStmt>>>,
     pub test_expr_rcref_opt: Option<Rc<RefCell<ExprType>>>,
     pub inc_dec_expr_rcref_opt: Option<Rc<RefCell<ExprType>>>,
     pub statements: Vec<DeclOrStmtType>,
@@ -1710,7 +1796,7 @@ pub struct LoopForStmtNode {
 
 impl LoopForStmtNode {
     pub fn new (
-        loop_init_expr_opt: Option<ExprType>,
+        loop_init_expr_opt: Option<LoopFirstStmt>,
         test_expr_opt: Option<ExprType>,
         inc_dec_expr_opt: Option<ExprType>,
         statements: Vec<DeclOrStmtType>,
@@ -2098,6 +2184,7 @@ pub enum IdentifierDeclScope {
     StateVar,
     EventHandlerParam,
     EventHandlerVar,
+    LoopVar,
     None,
 }
 

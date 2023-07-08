@@ -335,8 +335,8 @@ impl Scanner {
                     self.test_t_stack.pop();
                 } else if self.match_char('>') {
                     self.add_token(TokenType::ElseContinue);
-                } else if self.match_char('=') {
-                    self.add_token(TokenType::DeclAssignment);
+                // } else if self.match_char('=') {
+                //     self.add_token(TokenType::DeclAssignment);
                 } else {
                     self.add_token(TokenType::Colon);
                 }
@@ -759,7 +759,7 @@ pub enum TokenType {
     Comma,                   // ,
     Dispatch,                // =>
     Equals,                  // =
-    DeclAssignment,          // :=
+//    DeclAssignment,          // :=
     BoolTestTrue,            // ?
     BoolTestFalse,           // ?!
     StringTest,              // ?~

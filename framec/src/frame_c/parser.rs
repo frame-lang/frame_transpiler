@@ -1682,32 +1682,36 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let initializer_expr_t_opt;
+        let mut initializer_expr_t_opt= None;
 
         if self.match_token(&[TokenType::Equals]) {
             match self.equality() {
-                Ok(Some(LiteralExprT {literal_expr_node}))
-                    => initializer_expr_t_opt = Some(LiteralExprT {literal_expr_node}),
+                Ok(Some(LiteralExprT { literal_expr_node }))
+                => initializer_expr_t_opt = Some(LiteralExprT { literal_expr_node }),
                 Ok(Some(VariableExprT { var_node: id_node }))
-                    => initializer_expr_t_opt = Some(VariableExprT { var_node: id_node }),
-                Ok(Some(ActionCallExprT {action_call_expr_node}))
+                => initializer_expr_t_opt = Some(VariableExprT { var_node: id_node }),
+                Ok(Some(ActionCallExprT { action_call_expr_node }))
                 // TODO this may be dead code. CallChainLiteralExprT may do it all
-                => initializer_expr_t_opt = Some(ActionCallExprT {action_call_expr_node}),
-                Ok(Some(ExprListT {expr_list_node}))
-                    => initializer_expr_t_opt = Some(ExprListT {expr_list_node}),
+                => initializer_expr_t_opt = Some(ActionCallExprT { action_call_expr_node }),
+                Ok(Some(ExprListT { expr_list_node }))
+                => initializer_expr_t_opt = Some(ExprListT { expr_list_node }),
                 Ok(Some(CallChainLiteralExprT { call_chain_expr_node }))
-                    => initializer_expr_t_opt = Some(CallChainLiteralExprT {call_chain_expr_node}),
+                => initializer_expr_t_opt = Some(CallChainLiteralExprT { call_chain_expr_node }),
                 Ok(Some(UnaryExprT { unary_expr_node }))
-                    => initializer_expr_t_opt = Some(UnaryExprT {unary_expr_node}),
+                => initializer_expr_t_opt = Some(UnaryExprT { unary_expr_node }),
                 Ok(Some(BinaryExprT { binary_expr_node }))
-                    => initializer_expr_t_opt = Some(BinaryExprT {binary_expr_node}),
+                => initializer_expr_t_opt = Some(BinaryExprT { binary_expr_node }),
                 Ok(Some(FrameEventExprT { frame_event_part }))
-                    => initializer_expr_t_opt = Some(FrameEventExprT {frame_event_part}),
+                => initializer_expr_t_opt = Some(FrameEventExprT { frame_event_part }),
                 _ => {
                     self.error_at_current("Unexpected assignment expression value.");
                     return Err(ParseError::new("TODO"))
                 },
             }
+        } else if matches!(self.peek().token_type,TokenType::In) {
+            // pass
+            let x = 1;
+
         } else {
             // All variables should be initialized to something.
             self.error_at_current("Expected '='. All variables must be initialized.");
@@ -1721,6 +1725,7 @@ impl<'a> Parser<'a> {
             initializer_expr_t_opt,
             identifier_decl_scope.clone(),
         );
+
         let variable_decl_node_rcref = Rc::new(RefCell::new(variable_decl_node));
 
         if self.is_building_symbol_table {
@@ -1738,6 +1743,9 @@ impl<'a> Parser<'a> {
                 },
                 IdentifierDeclScope::EventHandlerVar => SymbolType::EventHandlerVariable {
                     event_handler_variable_symbol_rcref: variable_symbol_rcref,
+                },
+                IdentifierDeclScope::LoopVar => SymbolType::LoopVar {
+                    loop_variable_symbol_rcref: variable_symbol_rcref
                 },
                 _ => return Err(ParseError::new("Unrecognized variable scope.")),
             };
@@ -1777,6 +1785,12 @@ impl<'a> Parser<'a> {
                     event_handler_variable_symbol_rcref,
                 } => {
                     event_handler_variable_symbol_rcref.borrow_mut().ast_node_opt =
+                        Some(variable_decl_node_rcref.clone());
+                }
+                SymbolType::LoopVar {
+                    loop_variable_symbol_rcref,
+                } => {
+                    loop_variable_symbol_rcref.borrow_mut().ast_node_opt =
                         Some(variable_decl_node_rcref.clone());
                 }
                 _ => return Err(ParseError::new("Unrecognized variable scope.")),
@@ -3338,38 +3352,38 @@ impl<'a> Parser<'a> {
                 }
             };
 
-            let assignment_expr_node = AssignmentExprNode::new(l_value, r_value,false, line);
+            let assignment_expr_node = AssignmentExprNode::new(l_value, r_value, line);
             return Ok(Some(AssignmentExprT {
                 assignment_expr_node,
             }));
         }
 
-        if self.match_token(&[TokenType::DeclAssignment]) {
-            // this changes the tokens generated for expression lists
-            // like (a) and (a b c)
-            self.is_parsing_rhs = true;
-
-            let line = self.previous().line;
-            let r_value = match self.equality() {
-                Ok(Some(expr_type)) => {
-                    self.is_parsing_rhs = false;
-                    expr_type
-                }
-                Ok(None) => {
-                    self.is_parsing_rhs = false;
-                    return Ok(None);
-                }
-                Err(parse_error) => {
-                    self.is_parsing_rhs = false;
-                    return Err(parse_error);
-                }
-            };
-
-            let assignment_expr_node = AssignmentExprNode::new(l_value, r_value, true,line);
-            return Ok(Some(AssignmentExprT {
-                assignment_expr_node,
-            }));
-        }
+        // if self.match_token(&[TokenType::DeclAssignment]) {
+        //     // this changes the tokens generated for expression lists
+        //     // like (a) and (a b c)
+        //     self.is_parsing_rhs = true;
+        //
+        //     let line = self.previous().line;
+        //     let r_value = match self.equality() {
+        //         Ok(Some(expr_type)) => {
+        //             self.is_parsing_rhs = false;
+        //             expr_type
+        //         }
+        //         Ok(None) => {
+        //             self.is_parsing_rhs = false;
+        //             return Ok(None);
+        //         }
+        //         Err(parse_error) => {
+        //             self.is_parsing_rhs = false;
+        //             return Err(parse_error);
+        //         }
+        //     };
+        //
+        //     let assignment_expr_node = AssignmentExprNode::new(l_value, r_value, true,line);
+        //     return Ok(Some(AssignmentExprT {
+        //         assignment_expr_node,
+        //     }));
+        // }
 
         Ok(Some(l_value))
     }
@@ -3994,9 +4008,10 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     // loop { foo() }
-    // loop x := 0; x < 10; x++ { foo(x) }
-    // loop x in range(5) { foo(x) }
+    // loop var x = 0; x < 10; x++ { foo(x) }
+    // loop var x in range(5) { foo(x) }
     // loop .. { foo() continue break }
+
 
 
     fn loop_statement_context(&mut self) -> Result<Option<StatementType>, ParseError> {
@@ -4006,28 +4021,97 @@ impl<'a> Parser<'a> {
             return self.loop_infinite_statement();
         }
 
-        let mut loop_first_expr_opt = Option::None;
-        let first_expr_result =  self.expression();
-        match first_expr_result {
-            Ok(Some(expr_type)) => {
-                loop_first_expr_opt = Some(expr_type);
+        let mut init_stmt = LoopFirstStmt::None;
+
+        if self.match_token(&[TokenType::Var]) {
+            // loop var x:int = 0; ...
+            match self.variable_decl(IdentifierDeclScope::LoopVar) {
+                Ok(var_decl_t_rc_ref) => {
+                    let i = 1;
+                    init_stmt = LoopFirstStmt::VarDecl {
+                        var_decl_node_rcref:var_decl_t_rc_ref
+                    };
+                }
+                Err(parse_error) => {
+                    return Err(parse_error);
+                }
             }
-            Ok(None) => {}
-            Err(err) => {
-                return Err(err);
+        } else {
+            // loop y in foo() { bar(y) }
+            let first_expr_result =  self.expression();
+            match first_expr_result {
+                Ok(Some(expr_type)) => {
+                    init_stmt = match expr_type {
+                        VariableExprT { var_node } => {
+                            LoopFirstStmt::Var {
+                                var_node
+                            }
+                        }
+                        AssignmentExprT {assignment_expr_node} => {
+                            LoopFirstStmt::VarAssign {
+                                assign_expr_node: assignment_expr_node
+                            }
+                        }
+                        CallChainLiteralExprT {call_chain_expr_node} => {
+
+                            LoopFirstStmt::CallChain {
+                                call_chain_expr_node
+                            }
+                        }
+                        _ => {
+                            // TODO - improve error msg
+                            let err_msg = format!("Invalid initial clause in loop.");
+                            self.error_at_current(&err_msg);
+                            let parse_error = ParseError::new(
+                                err_msg.as_str(),
+                            );
+                            return Err(parse_error);
+                        }
+                    };
+                    // if let AssignmentExprT {assignment_expr_node} = expr_type {
+                    //     init_stmt = LoopFirstStmt::VarAssignInit {
+                    //         assign_expr_node: assignment_expr_node
+                    //     };
+                    // }
+
+                   // loop_first_expr_opt = Some(expr_type);
+                }
+                Ok(None) => {}
+                Err(err) => {
+                    return Err(err);
+                }
             }
         }
 
         if self.match_token(&[TokenType::Semicolon]) {
-            // loop x := 0; x < 10; x++ { foo(x) }
-            return self.loop_for_statement(loop_first_expr_opt);
+            // loop var x:int = 0; ...
+            // loop x = 0; ...
+            return self.loop_for_statement(Some(init_stmt));
         }
 
+        // loop var x:int in range(5) { foo(x) }
         // loop x in range(5) { foo(x) }
         if self.match_token(&[TokenType::In]) {
-            if let Some(expr_type) = loop_first_expr_opt {
-                return self.loop_in_statement(Box::new(expr_type));
-            }
+
+            return self.loop_in_statement(init_stmt);
+
+            // match  self.expression() {
+            //     Ok(Some(expr_t)) => {
+            //         return self.loop_in_statement(Box::new(expr_t));
+            //     }
+            //     _ => {
+            //         // TODO - improve error msg
+            //         let err_msg = format!("Invalid initial clause for 'loop in' statement.");
+            //         self.error_at_current(&err_msg);
+            //         let parse_error = ParseError::new(
+            //             err_msg.as_str(),
+            //         );
+            //         return Err(parse_error);
+            //     }
+            // }
+            // if let Some(expr_type) =  {
+            //     return self.loop_in_statement(Box::new(expr_type));
+            // }
         }
 
         return  Err(ParseError::new("Unrecognized loop syntax."));
@@ -4056,7 +4140,7 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    fn loop_for_statement(&mut self,loop_first_expr_opt:Option<ExprType>) -> Result<Option<StatementType>, ParseError>  {
+    fn loop_for_statement(&mut self, init_stmt: Option<LoopFirstStmt>) -> Result<Option<StatementType>, ParseError>  {
 
         let mut statements = Vec::new();
         let mut test_expr_opt = Option::None;
@@ -4096,7 +4180,7 @@ impl<'a> Parser<'a> {
                 return Err(parse_error);
             }
 
-            let loop_for_stmt_node = LoopForStmtNode::new(loop_first_expr_opt,
+            let loop_for_stmt_node = LoopForStmtNode::new(init_stmt,
                                                       test_expr_opt,
                                                       inc_dec_expr_opt,
                                                       statements );
@@ -4114,7 +4198,7 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    fn loop_in_statement(&mut self,expr_type:Box<ExprType>) -> Result<Option<StatementType>, ParseError>  {
+    fn loop_in_statement(&mut self,loop_first_stmt: LoopFirstStmt) -> Result<Option<StatementType>, ParseError>  {
 
         let mut statements = Vec::new();
         let mut iterable_expr;
@@ -4140,7 +4224,17 @@ impl<'a> Parser<'a> {
                 return Err(parse_error);
             }
 
-            let loop_in_stmt_node = LoopInStmtNode::new(expr_type,
+            // let expr_t = match x {
+            //     LoopFirstStmt::VarDecl {var_node} => {
+            //         VariableExprT {v}
+            //     }
+            //     _ => {
+            //         let err_msg = "Expected variable or var declaration.";
+            //         self.error_at_current(err_msg.clone());
+            //         return Err(ParseError::new(err_msg));
+            //     }
+            // };
+            let loop_in_stmt_node = LoopInStmtNode::new(loop_first_stmt,
                                                           iterable_expr,
                                                           statements );
 
@@ -4528,6 +4622,11 @@ impl<'a> Parser<'a> {
                         enum_symbol_rcref,
                     } => {
                         scope = enum_symbol_rcref.borrow().scope.clone();
+                    }
+                    SymbolType::LoopVar {
+                        loop_variable_symbol_rcref,
+                    } => {
+                        scope = loop_variable_symbol_rcref.borrow().scope.clone();
                     }
                     _ => {
                         // scope = IdentifierDeclScope::None;

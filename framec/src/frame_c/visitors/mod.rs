@@ -186,6 +186,8 @@ pub trait AstVisitor {
     fn visit_variable_expr_node_to_string(&mut self, _node: &VariableNode, _output: &mut String) {}
     fn visit_variable_stmt_node(&mut self, _node: &VariableStmtNode) {}
 
+    fn visit_loop_variable_decl_node(&mut self, _node: &LoopVariableDeclNode) {}
+
     fn visit_enum_decl_node(&mut self, _node: &EnumDeclNode) {}
     fn visit_enumerator_decl_node(&mut self, _node: &EnumeratorDeclNode) {}
     fn visit_enumerator_expr_node(&mut self, _node: &EnumeratorExprNode) {}

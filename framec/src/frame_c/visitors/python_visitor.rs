@@ -2570,6 +2570,7 @@ impl AstVisitor for PythonVisitor {
         self.newline();
         if let Some(expr_type_rcref) = &loop_for_expr_node.loop_init_expr_rcref_opt {
             expr_type_rcref.borrow().accept(self);
+
             self.newline();
         }
         match &loop_for_expr_node.test_expr_rcref_opt {
@@ -2603,9 +2604,35 @@ impl AstVisitor for PythonVisitor {
         self.newline();
         let mut output = String::new();
         loop_in_expr_node.iterable_expr.accept_to_string(self, &mut output);
-        self.add_code(&format!("for {} in {}:"
-                               , loop_in_expr_node.target_expr
-                               , output));
+
+        match &loop_in_expr_node.loop_first_stmt {
+            LoopFirstStmt::Var {var_node} => {
+                self.add_code(&format!("for {} in {}:"
+                                       , var_node.id_node.name
+                                       , output));
+            }
+            LoopFirstStmt::CallChain {call_chain_expr_node} => {
+                let mut output_first_stmt = String::new();
+                call_chain_expr_node.accept_to_string(self, &mut output_first_stmt);
+                self.add_code(&format!("for {} in {}:"
+                                       , output_first_stmt
+                                       , output));
+            }
+            LoopFirstStmt::VarDecl {var_decl_node_rcref} => {
+                self.add_code(&format!("for {} in {}:"
+                                       , var_decl_node_rcref.borrow().name
+                                       , output));
+            }
+            // LoopFirstStmt::VarDeclAssign {var_decl_node_rcref} => {
+            //     self.add_code(&format!("for {} in {}:"
+            //                            , var_decl_node_rcref.borrow().name
+            //                            , output));
+            // }
+            // TODO
+            _ => panic!("Error - unexpected target expression in 'in' loop."),
+
+        };
+
         self.indent();
         // self.newline();
         self.visit_decl_stmts(&loop_in_expr_node.statements);
@@ -3489,6 +3516,31 @@ impl AstVisitor for PythonVisitor {
             .push(format!("\tbag.domain[\"{}\"] = {}", var_name, var_name));
         self.deserialize
             .push(format!("\t{} = bag.domain[\"{}\"]", var_name, var_name));
+    }
+
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_loop_variable_decl_node(&mut self, loop_variable_decl_node: &LoopVariableDeclNode) {
+        let var_type = match &loop_variable_decl_node.type_opt {
+            Some(type_node) => self.format_type(type_node),
+            None => String::from(""),
+        };
+        let var_name = &loop_variable_decl_node.name;
+        let var_init_expr = &loop_variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
+        self.newline();
+        let mut code = String::new();
+        var_init_expr.accept_to_string(self, &mut code);
+        match &loop_variable_decl_node.identifier_decl_scope {
+            IdentifierDeclScope::LoopVar => {
+                self.add_code(&format!("self.{} ", var_name));
+                if !var_type.is_empty() {
+                    self.add_code(&format!(": {}", var_type));
+                }
+                self.add_code(&format!(" = {}", code));
+            }
+            _ => panic!("Error - unexpected scope for variable declaration"),
+        }
     }
 
     //* --------------------------------------------------------------------- *//
