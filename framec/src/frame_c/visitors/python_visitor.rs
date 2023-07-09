@@ -2569,7 +2569,8 @@ impl AstVisitor for PythonVisitor {
     ) {
         self.newline();
         if let Some(expr_type_rcref) = &loop_for_expr_node.loop_init_expr_rcref_opt {
-            expr_type_rcref.borrow().accept(self);
+            let lfs = expr_type_rcref.borrow();
+            lfs.accept(self);
 
             self.newline();
         }
@@ -2587,9 +2588,11 @@ impl AstVisitor for PythonVisitor {
         self.indent();
         //self.newline();
         self.visit_decl_stmts(&loop_for_expr_node.statements);
+        // all pre/post inc code should be generated as the last statement in the loop
         if let Some(expr_type_rcref) = &loop_for_expr_node.inc_dec_expr_rcref_opt {
-            expr_type_rcref.borrow().auto_pre_inc_dec(self);
-            expr_type_rcref.borrow().auto_post_inc_dec(self);
+            let expr_t = expr_type_rcref.borrow();
+            expr_t.auto_pre_inc_dec(self);
+            expr_t.auto_post_inc_dec(self);
         }
         self.outdent();
         self.newline();
@@ -3509,6 +3512,13 @@ impl AstVisitor for PythonVisitor {
                 }
                 self.add_code(&format!(" = {}", code));
             }
+            IdentifierDeclScope::LoopVar => {
+                self.add_code(&format!("{} ", var_name));
+                if !var_type.is_empty() {
+                    self.add_code(&format!(": {}", var_type));
+                }
+                self.add_code(&format!(" = {}", code));
+            }
             _ => panic!("Error - unexpected scope for variable declaration"),
         }
 
@@ -3576,11 +3586,13 @@ impl AstVisitor for PythonVisitor {
     fn visit_assignment_expr_node(&mut self, assignment_expr_node: &AssignmentExprNode) {
         self.generate_comment(assignment_expr_node.line);
         self.newline();
-        // inc/dec all rvalue expressions first
+        // inc/dec all *rvalue* expressions before generating the
+        // assignement statement
         assignment_expr_node.r_value_box.auto_pre_inc_dec(self);
         // now generate assignment expression
         assignment_expr_node.l_value_box.accept(self);
         self.add_code(" = ");
+ //       assignment_expr_node.r_value_box.auto_pre_inc_dec(self);
         assignment_expr_node.r_value_box.accept(self);
         assignment_expr_node.r_value_box.auto_post_inc_dec(self);
     }

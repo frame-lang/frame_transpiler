@@ -384,7 +384,7 @@ impl Scanner {
             '.' => {
                 self.add_token(TokenType::Dot);
             }
-            ',' => self.add_token(TokenType::Colon),
+            ',' => self.add_token(TokenType::Comma),
             _ => {
                 if self.is_digit(c) {
                     self.number();

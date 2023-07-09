@@ -3056,7 +3056,7 @@ impl<'a> Parser<'a> {
 
         // '::'
         if let Err(parse_error) =
-            self.consume(TokenType::ColonColon, "Expected TestTerminator.")
+            self.consume(TokenType::Colon, "Expected TestTerminator.")
         {
             return Err(parse_error);
         }
@@ -4344,6 +4344,11 @@ impl<'a> Parser<'a> {
                 // should see a list of valid expressions until ')'
                 Ok(None) => return Ok(None),
                 Err(parse_error) => return Err(parse_error),
+            }
+            if self.peek().token_type == TokenType::Comma {
+                if let Err(parse_error) = self.consume(TokenType::Comma, "Expected comma.") {
+                    return Err(parse_error);
+                }
             }
         }
 
