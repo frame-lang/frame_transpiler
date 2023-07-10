@@ -247,6 +247,7 @@ pub struct CppCode {
     pub public_domain: bool,
     pub public_state_info: bool,
     pub public_compartment: bool,
+    pub generate_import_export: bool,
 }
 
 impl Default for CppCode {
@@ -255,6 +256,7 @@ impl Default for CppCode {
             public_domain: false,
             public_state_info: false,
             public_compartment: false,
+            generate_import_export: false
         }
     }
 }

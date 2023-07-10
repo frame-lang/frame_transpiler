@@ -1701,7 +1701,7 @@ impl CppVisitor {
         self.add_code("string state_info(){");
         self.indent();
         self.newline();
-        self.add_code("return String.valueOf(this._compartment_.state);");
+        self.add_code("return std::to_string(_compartment_->state);");
         self.newline();
         self.add_code("}");
         self.newline();
@@ -1722,6 +1722,59 @@ impl AstVisitor for CppVisitor {
             "// get include files at https://github.com/frame-lang/frame-ancillary-files",
         );
         self.newline();
+        self.newline();
+        // if self.config.code.generate_import_export {
+            
+        //     // struct FrameEvent {
+        //     //     std::string _message;
+        //     //     std::string _parameters;
+        //     //     std::string _return;
+        //     // };
+            
+        //     // FrameEvent createFrameEvent(const std::string& message, const std::string& parameters) {
+        //     //     FrameEvent event;
+        //     //     event._message = message;
+        //     //     event._parameters = parameters;
+        //     //     event._return = "";
+        //     //     return event;
+        //     // }
+        //     self.newline();
+        //     self.add_code("struct FrameEvent {");
+        //     self.newline();
+        //     self.indent();
+        //     self.newline();
+        //     self.add_code("std::string _message;");
+        //     self.newline();
+        //     self.add_code("std::string _parameters;");
+        //     self.newline();
+        //     self.add_code("std::string _return;");
+        //     self.newline();
+        //     self.outdent();
+        //     self.newline();
+        //     self.add_code("}");
+        //     self.newline();
+
+        //     self.newline();
+        //     self.add_code("FrameEvent createFrameEvent(const std::string& message, const std::string& parameters) {");
+        //     self.newline();
+        //     self.indent();
+        //     self.newline();
+        //     self.add_code(" FrameEvent event;");
+        //     self.newline();
+        //     self.add_code("event._message = message;");
+        //     self.newline();
+        //     self.add_code("event._parameters = parameters;");
+        //     self.newline();
+        //     self.add_code("event._return = '';");
+        //     self.newline();
+        //     self.add_code("return event;");
+        //     self.newline();
+        //     self.outdent();
+        //     self.newline();
+        //     self.add_code("}");
+        //     self.newline();
+        //     self.newline();
+        // }
         self.add_code(&system_node.header);
         self.newline();
         self.newline();
