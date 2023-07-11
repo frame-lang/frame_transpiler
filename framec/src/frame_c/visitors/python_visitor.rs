@@ -3599,13 +3599,6 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn auto_inc_dec_assignment_expr_node(&mut self, assignment_expr_node: &AssignmentExprNode) {
-
-        // TODO remove this?
-    }
-
-    //* --------------------------------------------------------------------- *//
-
     fn visit_assignment_expr_node_to_string(
         &mut self,
         assignment_expr_node: &AssignmentExprNode,

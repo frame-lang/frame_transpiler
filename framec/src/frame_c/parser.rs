@@ -266,7 +266,7 @@ impl<'a> Parser<'a> {
         }
 
         self.error_at_current(message);
-        Err(ParseError::new("TODO"))
+        Err(ParseError::new(message))
     }
 
     /* --------------------------------------------------------------------- */
@@ -1176,7 +1176,7 @@ impl<'a> Parser<'a> {
     fn parameters(&mut self) -> Result<Option<Vec<ParameterNode>>, ParseError> {
         let mut parameters: Vec<ParameterNode> = Vec::new();
 
-        while !self.match_token(&[TokenType::RBracket]) {
+        loop {
             match self.parameter() {
                 Ok(parameter_opt) => match parameter_opt {
                     Some(parameter_node) => {
@@ -1204,6 +1204,12 @@ impl<'a> Parser<'a> {
                         break;
                     }
                 }
+            }
+            if self.match_token(&[TokenType::RBracket]) {
+                break;
+            } else if let Err(parse_error) = self.consume(TokenType::Comma, "Expected comma.") {
+
+                return Err(parse_error);
             }
         }
 
@@ -3056,7 +3062,7 @@ impl<'a> Parser<'a> {
 
         // '::'
         if let Err(parse_error) =
-            self.consume(TokenType::Colon, "Expected TestTerminator.")
+            self.consume(TokenType::ColonColon, "Expected TestTerminator.")
         {
             return Err(parse_error);
         }
@@ -3593,7 +3599,9 @@ impl<'a> Parser<'a> {
                     Err(parse_err) => return Err(parse_err),
                 }
             },
-            Err(parse_error) => return Err(parse_error),
+            Err(parse_error) => {
+                return Err(parse_error)
+            },
         }
     }
 
@@ -4336,7 +4344,10 @@ impl<'a> Parser<'a> {
     fn expr_list(&mut self) -> Result<Option<ExprType>, ParseError> {
         let mut expressions: Vec<ExprType> = Vec::new();
 
-        while !self.match_token(&[TokenType::RParen]) {
+        loop {
+            if self.match_token(&[TokenType::RParen]) {
+                break;
+            }
             match self.expression() {
                 Ok(Some(expression)) => {
                     expressions.push(expression);
@@ -4345,10 +4356,11 @@ impl<'a> Parser<'a> {
                 Ok(None) => return Ok(None),
                 Err(parse_error) => return Err(parse_error),
             }
-            if self.peek().token_type == TokenType::Comma {
-                if let Err(parse_error) = self.consume(TokenType::Comma, "Expected comma.") {
-                    return Err(parse_error);
-                }
+            if self.peek().token_type == TokenType::RParen {
+                continue;
+            }
+            if let Err(parse_error) = self.consume(TokenType::Comma, "Expected comma.") {
+                return Err(parse_error);
             }
         }
 
@@ -4357,6 +4369,35 @@ impl<'a> Parser<'a> {
         };
         Ok(Some(expr_list))
     }
+
+    /* --------------------------------------------------------------------- */
+
+    // expr_list -> '(' expression* ')'
+    //
+    // fn expr_list(&mut self) -> Result<Option<ExprType>, ParseError> {
+    //     let mut expressions: Vec<ExprType> = Vec::new();
+    //
+    //     while !self.match_token(&[TokenType::RParen]) {
+    //         match self.expression() {
+    //             Ok(Some(expression)) => {
+    //                 expressions.push(expression);
+    //             }
+    //             // should see a list of valid expressions until ')'
+    //             Ok(None) => return Ok(None),
+    //             Err(parse_error) => return Err(parse_error),
+    //         }
+    //         if self.peek().token_type == TokenType::Comma {
+    //             if let Err(parse_error) = self.consume(TokenType::Comma, "Expected comma.") {
+    //                 return Err(parse_error);
+    //             }
+    //         }
+    //     }
+    //
+    //     let expr_list = ExprListT {
+    //         expr_list_node: ExprListNode::new(expressions),
+    //     };
+    //     Ok(Some(expr_list))
+    // }
 
 
     /* --------------------------------------------------------------------- */
