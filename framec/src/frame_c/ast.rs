@@ -1004,7 +1004,6 @@ impl ExprType {
             ExprType::UnaryExprT { .. } => "UnaryExprT",
             ExprType::BinaryExprT { .. } => "BinaryExprT",
             ExprType::EnumeratorExprT { .. } => "EnumExprT",
- //           ExprType::LoopExprT { .. } => "LoopT",
         }
     }
 

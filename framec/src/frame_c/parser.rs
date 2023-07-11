@@ -2553,6 +2553,7 @@ impl<'a> Parser<'a> {
                 let expr_t = match self.decorated_unary_expression() {
                     Ok(Some(expr_t)) => expr_t,
                     _ => {
+                        // TODO - err_msg everywhere for ParseErrors
                         self.error_at_current("Expected expression as return value.");
                         return Err(ParseError::new("TODO"));
                     }
@@ -4006,9 +4007,25 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
+    // TODO - update other scopes to follow this patter so that
+    // TODO - all return paths automatically pop scope.
+
     fn loop_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
+        // for all loop types, push a symbol table for new scope
         self.is_loop_context = true;
+        if self.is_building_symbol_table {
+            let actions_block_scope_symbol = Rc::new(RefCell::new(ActionsBlockScopeSymbol::new()));
+            self.arcanum.enter_scope(ParseScopeType::ActionsBlock {
+                actions_block_scope_symbol_rcref: actions_block_scope_symbol,
+            });
+        } else {
+            self.arcanum
+                .set_parse_scope(ActionsBlockScopeSymbol::scope_name());
+        }
+        // parse loop
         let ret = self.loop_statement_context();
+        // exit loop scope
+        self.arcanum.exit_parse_scope();
         self.is_loop_context = false;
         ret
     }
@@ -4019,8 +4036,6 @@ impl<'a> Parser<'a> {
     // loop var x = 0; x < 10; x++ { foo(x) }
     // loop var x in range(5) { foo(x) }
     // loop .. { foo() continue break }
-
-
 
     fn loop_statement_context(&mut self) -> Result<Option<StatementType>, ParseError> {
 
@@ -4035,7 +4050,6 @@ impl<'a> Parser<'a> {
             // loop var x:int = 0; ...
             match self.variable_decl(IdentifierDeclScope::LoopVar) {
                 Ok(var_decl_t_rc_ref) => {
-                    let i = 1;
                     init_stmt = LoopFirstStmt::VarDecl {
                         var_decl_node_rcref:var_decl_t_rc_ref
                     };

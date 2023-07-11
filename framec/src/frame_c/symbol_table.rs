@@ -85,6 +85,9 @@ pub enum ParseScopeType {
     EventHandlerLocal {
         event_handler_local_scope_symbol_rcref: Rc<RefCell<EventHandlerLocalScopeSymbol>>,
     },
+    Loop {
+        loop_scope_symbol_rcref: Rc<RefCell<LoopScopeSymbol>>,
+    },
 }
 
 // This is what gets stored in the symbol tables
@@ -150,6 +153,9 @@ pub enum SymbolType {
     EnumDeclSymbolT {
         enum_symbol_rcref: Rc<RefCell<EnumSymbol>>,
     },
+    LoopStmtSymbol {
+        loop_scope_symbol_rcref: Rc<RefCell<LoopScopeSymbol>>,
+    },
     LoopVar {
         loop_variable_symbol_rcref: Rc<RefCell<VariableSymbol>>,
     },
@@ -211,6 +217,9 @@ impl Symbol for SymbolType {
             SymbolType::EnumDeclSymbolT {
                 enum_symbol_rcref,
             } => enum_symbol_rcref.borrow().get_name(),
+            SymbolType::LoopStmtSymbol {
+                loop_scope_symbol_rcref,
+            } => loop_scope_symbol_rcref.borrow().get_name(),
             SymbolType::LoopVar {
                 loop_variable_symbol_rcref,
             } => loop_variable_symbol_rcref.borrow().get_name(),
@@ -442,6 +451,15 @@ impl SymbolTable {
                 let name = domain_symbol.borrow().name.clone();
                 let st_ref = Rc::new(RefCell::new(SymbolType::DomainBlockScope {
                     domain_block_symbol_rcref: domain_symbol,
+                }));
+                self.symbols.insert(name, st_ref);
+            }
+            ParseScopeType::Loop {
+                loop_scope_symbol_rcref,
+            } => {
+                let name = loop_scope_symbol_rcref.borrow().name.clone();
+                let st_ref = Rc::new(RefCell::new(SymbolType::LoopStmtSymbol {
+                    loop_scope_symbol_rcref,
                 }));
                 self.symbols.insert(name, st_ref);
             }
@@ -985,6 +1003,27 @@ impl Arcanum {
                 // add new scope symbol to previous symbol table
                 self.current_symtab.borrow_mut().insert_parse_scope(scope_t);
                 self.current_symtab = Rc::clone(&action_scope_symbol_symtab_rcref);
+            }
+            ParseScopeType::Loop {
+                loop_scope_symbol_rcref,
+            } => {
+                let loop_scope_symbol_rcref_clone = Rc::clone(loop_scope_symbol_rcref);
+                let loop_scope_symbol_symtab_rcref =
+                    Rc::clone(&loop_scope_symbol_rcref_clone.borrow().symtab_rcref);
+
+                // current symtab should be the ActionsBlockScopeSymbol
+                let current_symbtab_rcref = Rc::clone(&self.current_symtab);
+                loop_scope_symbol_rcref
+                    .borrow_mut()
+                    .set_parent_symtab(&current_symbtab_rcref);
+
+                let loop_scope_symbol_rcref_clone = Rc::clone(loop_scope_symbol_rcref);
+                let loop_symbol_symtab_rcref =
+                    Rc::clone(&loop_scope_symbol_rcref_clone.borrow().symtab_rcref);
+
+                // add new scope symbol to previous symbol table
+                self.current_symtab.borrow_mut().insert_parse_scope(scope_t);
+                self.current_symtab = Rc::clone(&loop_scope_symbol_symtab_rcref);
             }
             ParseScopeType::DomainBlock {
                 domain_block_scope_symbol_rcref,
@@ -2268,6 +2307,68 @@ impl ScopeSymbol for ActionScopeSymbol {
         } else {
             panic!(
                 "Fatal error - could not find symbol {} in action scope.",
+                symbol_name
+            );
+        }
+    }
+}
+
+
+// ----------------------- //
+
+pub struct LoopScopeSymbol {
+    pub name: String,
+    pub ast_node_opt: Option<Rc<RefCell<LoopStmtNode>>>,
+    pub symtab_rcref: Rc<RefCell<SymbolTable>>,
+}
+
+impl LoopScopeSymbol {
+    pub fn new(name: String) -> LoopScopeSymbol {
+        LoopScopeSymbol {
+            name: name.to_string(),
+            ast_node_opt: None,
+            symtab_rcref: Rc::new(RefCell::new(SymbolTable::new(
+                name.to_string(),
+                None,
+                IdentifierDeclScope::None,
+                false,
+            ))),
+        }
+    }
+
+
+    pub fn set_parent_symtab(&mut self, parent_symtab: &Rc<RefCell<SymbolTable>>) {
+        self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt =
+            Option::Some(Rc::clone(parent_symtab));
+    }
+
+    pub fn set_ast_node(&mut self, ast_node: Rc<RefCell<LoopStmtNode>>) {
+        self.ast_node_opt = Some(Rc::clone(&ast_node));
+    }
+}
+
+// TODO - can Symbol and ScopeSymbol impls use a default implementation?
+impl Symbol for LoopScopeSymbol {
+    fn get_name(&self) -> String {
+        self.name.clone()
+    }
+}
+
+impl ScopeSymbol for LoopScopeSymbol {
+    fn get_symbol_table(&self) -> Rc<RefCell<SymbolTable>> {
+        Rc::clone(&self.symtab_rcref)
+    }
+
+    fn get_symbol_table_for_symbol(&self, symbol_name: &str) -> Rc<RefCell<SymbolTable>> {
+        let a = self.symtab_rcref.borrow();
+        let b = a.symbols.get(symbol_name);
+        if let Some(c) = b {
+            let d = c.borrow();
+            let e = d.get_symbol_table_for_symbol(symbol_name);
+            Rc::clone(&e)
+        } else {
+            panic!(
+                "Fatal error - could not find symbol {} in Loop scope.",
                 symbol_name
             );
         }
