@@ -1,85 +1,59 @@
 #include "../gtest/gtest.h"
-#include <vector>
+#include <unordered_map>
+#include <stdexcept>
 #include <string>
+#include <iostream>
+#include <vector>
+using namespace std;
+#include "basic.cpp"
 
-class Basic {
-public:
-    std::vector<std::string> entry_log;
-    std::vector<std::string> exit_log;
+class BasicController;  // Forward declaration
 
-public:
-    Basic() {}
-    virtual ~Basic() {}
+class BasicControllerTest : public ::testing::Test {
+protected:
+    void SetUp() override;
+    void TearDown() override;
 
-    virtual void entered_do(const std::string& msg) {
-        entry_log.push_back(msg);
-    }
-
-    virtual void left_do(const std::string& msg) {
-        exit_log.push_back(msg);
-    }
+    BasicController* sm;
 };
 
 class BasicController : public Basic {
 public:
     BasicController() : Basic() {}
-
-    void entered_do(const std::string& msg) override {
-        Basic::entered_do(msg);
-    }
-
-    void left_do(const std::string& msg) override {
-        Basic::left_do(msg);
-    }
-
-    void A() {
-        entered_do("S1");
-    }
-
-    void B() {
-        entered_do("S0");
-    }
-
-    std::string state_info() const {
-        if (entry_log.empty())
-            return "0";
-        return entry_log.back().substr(1);
-    }
 };
 
-class BasicTest : public ::testing::Test {
-protected:
-    void SetUp() override {
-        sm = new BasicController();
-    }
+void BasicControllerTest::SetUp() {
+    sm = new BasicController();
+}
 
-    void TearDown() override {
-        delete sm;
-    }
+void BasicControllerTest::TearDown() {
+    delete sm;
+}
 
-    BasicController* sm;
-};
 
-TEST_F(BasicTest, TestInitialEnterEvent) {
+TEST_F(BasicControllerTest, TestInitialEnterEvent) {
     std::vector<std::string> expected = {"S0"};
     EXPECT_EQ(expected, sm->entry_log);
 }
 
-TEST_F(BasicTest, TestTransitionEnterEvents) {
+TEST_F(BasicControllerTest, TestTransitionEnterEvents) {
+    BasicController* sm = new BasicController();
+    sm->entry_log.clear();
     sm->A();
     sm->B();
     std::vector<std::string> expected = {"S1", "S0"};
-    EXPECT_EQ(expected, sm->entry_log);
+    ASSERT_EQ(sm->entry_log, expected);
+    delete sm;
 }
 
-TEST_F(BasicTest, TestTransitionExitEvents) {
+TEST_F(BasicControllerTest, TestTransitionExitEvents) {
     sm->A();
     sm->B();
     std::vector<std::string> expected = {"S0", "S1"};
     EXPECT_EQ(expected, sm->exit_log);
 }
 
-TEST_F(BasicTest, TestCurrentState) {
+TEST_F(BasicControllerTest, TestCurrentState) {
     EXPECT_EQ("0", sm->state_info());
     sm->A();
     EXPECT_EQ("1", sm->state_info());

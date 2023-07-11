@@ -1,3 +1,12 @@
+```
+#include <unordered_map>
+#include <stdexcept>
+#include <string>
+#include <iostream>
+#include <vector>
+using namespace std;
+#include "../FrameLang/FrameLang.h"
+```
 #[codegen.cpp.code.public_domain:bool="true"]
 #[codegen.cpp.code.public_state_info:bool="true"]
 #[codegen.cpp.code.generate_import_export:bool="true"]
@@ -18,10 +27,14 @@
         |B| -> "aah" $S0 ^
 
     -actions-
-    entered[msg:string]
-    left[msg:string] 
+    entered[msg:string] {`
+        entry_log.push_back(msg);
+        `}
+    left[msg:string] {`
+        exit_log.push_back(msg);
+        `}
 
     -domain-
-    var entry_log = `[]`
-    var exit_log = `[]`
+    var entry_log:`vector<string>` = `{}`
+    var exit_log:`vector<string>` = `{}`
 ##

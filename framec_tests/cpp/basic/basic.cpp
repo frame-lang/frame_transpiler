@@ -1,5 +1,6 @@
 // emitted from framec_v0.10.0
 // get include files at https://github.com/frame-lang/frame-ancillary-files
+
 #include <unordered_map>
 #include <stdexcept>
 #include <string>
@@ -7,7 +8,6 @@
 #include <vector>
 using namespace std;
 #include "../FrameLang/FrameLang.h"
-
 
 //=============== Compartment ==============//
 
@@ -157,25 +157,43 @@ private:
 //===================== Actions Block ===================//
     
     
+    
+public:
+    void entered_do(string msg)
+    {
+        
+        entry_log.push_back(msg);
+        
+    }
+    
+    
+public:
+    void left_do(string msg)
+    {
+        
+        exit_log.push_back(msg);
+        
+    }
+    
     // Unimplemented Actions
     
-    void entered_do(string msg) {  throw std::logic_error("Not implemented");  }
-    void left_do(string msg) {  throw std::logic_error("Not implemented");  }
     
     //===================== Domain Block ===================//
     
     
     public:
-        vector<string> entry_log = {};
-        vector<string> exit_log = {};
+    vector<string> entry_log  = {};
+    public:
+    vector<string> exit_log  = {};
+    
+    
+    //=============== Machinery and Mechanisms ==============//
 
-        //=============== Machinery and Mechanisms ==============//
-
-    private:
-        int _state_;
-
-        void _transition_(BasicCompartment *compartment)
-        {
+private:
+    int _state_;
+    
+    void _transition_(BasicCompartment *compartment)
+    {
         _nextCompartment_ = compartment;
     }
     
@@ -199,8 +217,6 @@ class BasicController : public Basic
 {
 public:
 	BasicController() : Basic() {}
-string msg) {}
-string msg) {}
 };
 
 ********************/

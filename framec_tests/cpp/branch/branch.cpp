@@ -1,5 +1,6 @@
 // emitted from framec_v0.10.0
 // get include files at https://github.com/frame-lang/frame-ancillary-files
+
 #include <unordered_map>
 #include <stdexcept>
 #include <string>
@@ -8,7 +9,6 @@
 #include <any>
 using namespace std;
 #include "../FrameLang/FrameLang.h"
-
 
 //=============== Compartment ==============//
 
@@ -466,15 +466,21 @@ private:
 //===================== Actions Block ===================//
     
     
+    
+public:
+    void log_do(const std::string& msg)
+    {
+        tape.push_back(msg);
+    }
+    
     // Unimplemented Actions
     
-    void log_do(std::string) {  throw std::logic_error("Not implemented");  }
     
     //===================== Domain Block ===================//
     
     
     public:
-    std::vector<std::string> tape;
+    std::vector<std::string> tape ;
     
     
     //=============== Machinery and Mechanisms ==============//
@@ -507,7 +513,6 @@ class BranchController : public Branch
 {
 public:
 	BranchController() : Branch() {}
-String msg) {}
 };
 
 ********************/

@@ -1,4 +1,13 @@
-
+```
+#include <unordered_map>
+#include <stdexcept>
+#include <string>
+#include <iostream>
+#include <vector>
+#include <any>
+using namespace std;
+#include "../FrameLang/FrameLang.h"
+```
 #[codegen.cpp.code.public_domain:bool="true"]
 #[codegen.cpp.code.public_state_info:bool="true"]
 #[codegen.cpp.code.generate_import_export:bool="true"]
@@ -10,7 +19,7 @@
     D
     E
     F
-    OnBool [b:Boolean]
+    OnBool [b:bool]
     OnInt [i:int]
 
     -machine-
@@ -23,7 +32,7 @@
         |F| -> $NestedGuardedTransition ^
 
     $SimpleIf
-        |OnBool| [b:Boolean]
+        |OnBool| [b:bool]
             b ? log("then 1") : ::
             b ? : log("else 1") ::
             b ? log("then 2") : log("else 2") :: b ? -> $F1 : -> $F2 :: ^
@@ -41,7 +50,7 @@
             ^
 
     $NegatedIf
-        |OnBool| [b:Boolean]
+        |OnBool| [b:bool]
             b ?! log("then 1") : ::
             b ?! : log("else 1") ::
             b ?! log("then 2") : log("else 2") ::
@@ -146,8 +155,8 @@
     $F3
 
     -actions-
-    log[msg:String]
+    log[msg:`const std::string&`] {`tape.push_back(msg);`}
 
     -domain-
-    var tape:`ArrayList<String>` = `new ArrayList<String>();`
+    var tape:`std::vector<std::string>` =``
 ##
