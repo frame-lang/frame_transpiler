@@ -601,8 +601,8 @@ impl CppVisitor {
                                 ExprStmtType::EnumeratorStmtT { enumerator_stmt_node } => {
                                     enumerator_stmt_node.accept(self)
                                 }
-                                // ExprStmtType::LoopStmtT { loop_stmt_node } => {
-                                //     loop_stmt_node.accept(self)
+                                // ExprStmtType::SuperStringStmtT { super_string_stmt_node } => {
+                                //     super_string_stmt_node.accept(self)
                                 // }
                             }
                         }
@@ -630,6 +630,9 @@ impl CppVisitor {
                         }
                         StatementType::BreakStmt {break_stmt_node} => {
                             break_stmt_node.accept(self);
+                        }
+                        StatementType::SuperStringStmt {super_string_stmt_node} => {
+                            super_string_stmt_node.accept(self);
                         }
                         StatementType::NoStmt => {
                             // TODO

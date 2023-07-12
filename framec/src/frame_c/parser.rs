@@ -2898,7 +2898,12 @@ impl<'a> Parser<'a> {
                         };
                         return Ok(Some(StatementType::ExpressionStmt {expr_stmt_t}));
                     }
-                    LiteralExprT { .. } => {
+                    LiteralExprT { literal_expr_node } => {
+                        // Superstring is the only permitted literal type to be a statement.
+                        if  literal_expr_node.token_t == TokenType::SuperString {
+                            let super_string_stmt_node = SuperStringStmtNode::new(literal_expr_node);
+                            return Ok(Some(StatementType::SuperStringStmt {super_string_stmt_node}))
+                        }
                         self.error_at_previous("Literal statements not allowed.");
                         return Err(ParseError::new("TODO"));
                     }
@@ -2952,6 +2957,9 @@ impl<'a> Parser<'a> {
         if self.match_token(&[TokenType::Break]) {
             let break_stmt_node = BreakStmtNode::new();
             return Ok(Some(StatementType::BreakStmt {break_stmt_node}));
+        }
+        if self.match_token(&[TokenType::SuperString]) {
+
         }
 
         Ok(None)

@@ -500,6 +500,9 @@ impl PythonVisitor {
                         StatementType::BreakStmt {break_stmt_node} => {
                             break_stmt_node.accept(self);
                         }
+                        StatementType::SuperStringStmt {super_string_stmt_node} => {
+                            super_string_stmt_node.accept(self);
+                        }
                         StatementType::NoStmt => {
                             // TODO
                             self.errors.push("Unknown error.".to_string());
@@ -2668,6 +2671,18 @@ impl AstVisitor for PythonVisitor {
     ) {
         self.newline();
         self.add_code("continue");
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_superstring_stmt_node(
+        &mut self,
+        super_string_stmt_node:&SuperStringStmtNode,
+    ) {
+
+//        self.newline();
+        super_string_stmt_node.literal_expr_node.accept(self);
+
     }
 
     //* --------------------------------------------------------------------- *//

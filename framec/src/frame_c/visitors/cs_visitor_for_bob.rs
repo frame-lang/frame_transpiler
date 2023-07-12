@@ -358,9 +358,6 @@ impl CsVisitorForBob {
                                 ExprStmtType::EnumeratorStmtT { enumerator_stmt_node } => {
                                     enumerator_stmt_node.accept(self)
                                 }
-                                // ExprStmtType::LoopStmtT { loop_stmt_node } => {
-                                //     loop_stmt_node.accept(self)
-                                // }
                             }
                         }
                         StatementType::TransitionStmt {
@@ -387,6 +384,9 @@ impl CsVisitorForBob {
                         }
                         StatementType::BreakStmt {break_stmt_node} => {
                             break_stmt_node.accept(self);
+                        }
+                        StatementType::SuperStringStmt {super_string_stmt_node} => {
+                            super_string_stmt_node.accept(self);
                         }
                         StatementType::NoStmt => {
                             // TODO

@@ -1238,7 +1238,10 @@ pub enum ExprStmtType {
     },
     EnumeratorStmtT {
         enumerator_stmt_node: EnumeratorStmtNode,
-    }
+    },
+    // SuperStringStmtT {
+    //     super_string_stmt_node: SuperStringStmtNode,
+    // }
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -1266,6 +1269,9 @@ pub enum StatementType {
     },
     BreakStmt {
         break_stmt_node: BreakStmtNode,
+    },
+    SuperStringStmt {
+        super_string_stmt_node: SuperStringStmtNode,
     },
     #[allow(dead_code)] // is used, don't know why I need this
     NoStmt,
@@ -1861,6 +1867,28 @@ impl NodeElement for BreakStmtNode {
         ast_visitor.visit_break_stmt_node(self);
     }
 }
+
+
+//-----------------------------------------------------//
+
+pub struct SuperStringStmtNode {
+    pub literal_expr_node:LiteralExprNode,
+}
+
+impl SuperStringStmtNode  {
+    pub fn new(literal_expr_node:LiteralExprNode) -> SuperStringStmtNode {
+        SuperStringStmtNode {
+            literal_expr_node
+        }
+    }
+}
+
+impl NodeElement for SuperStringStmtNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_superstring_stmt_node(self);
+    }
+}
+
 //-----------------------------------------------------//
 
 // pub struct LoopExprNode {
