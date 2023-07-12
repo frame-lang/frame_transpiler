@@ -4022,13 +4022,13 @@ impl<'a> Parser<'a> {
         // for all loop types, push a symbol table for new scope
         self.is_loop_context = true;
         if self.is_building_symbol_table {
-            let actions_block_scope_symbol = Rc::new(RefCell::new(ActionsBlockScopeSymbol::new()));
-            self.arcanum.enter_scope(ParseScopeType::ActionsBlock {
-                actions_block_scope_symbol_rcref: actions_block_scope_symbol,
+            let loop_stmt_scope_symbol_rcref = Rc::new(RefCell::new(LoopStmtScopeSymbol::new()));
+            self.arcanum.enter_scope(ParseScopeType::Loop {
+                loop_scope_symbol_rcref:loop_stmt_scope_symbol_rcref,
             });
         } else {
             self.arcanum
-                .set_parse_scope(ActionsBlockScopeSymbol::scope_name());
+                .set_parse_scope(LoopStmtScopeSymbol::scope_name());
         }
         // parse loop
         let ret = self.loop_statement_context();

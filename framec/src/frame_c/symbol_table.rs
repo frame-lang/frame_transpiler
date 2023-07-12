@@ -86,7 +86,7 @@ pub enum ParseScopeType {
         event_handler_local_scope_symbol_rcref: Rc<RefCell<EventHandlerLocalScopeSymbol>>,
     },
     Loop {
-        loop_scope_symbol_rcref: Rc<RefCell<LoopScopeSymbol>>,
+        loop_scope_symbol_rcref: Rc<RefCell<LoopStmtScopeSymbol>>,
     },
 }
 
@@ -154,7 +154,7 @@ pub enum SymbolType {
         enum_symbol_rcref: Rc<RefCell<EnumSymbol>>,
     },
     LoopStmtSymbol {
-        loop_scope_symbol_rcref: Rc<RefCell<LoopScopeSymbol>>,
+        loop_scope_symbol_rcref: Rc<RefCell<LoopStmtScopeSymbol>>,
     },
     LoopVar {
         loop_variable_symbol_rcref: Rc<RefCell<VariableSymbol>>,
@@ -274,7 +274,10 @@ impl ScopeSymbol for SymbolType {
             SymbolType::EventHandlerLocalScope {
                 event_handler_local_scope_rcref,
             } => event_handler_local_scope_rcref.borrow().get_symbol_table(),
-            _ => panic!("TODO"),
+            SymbolType::LoopStmtSymbol {
+                loop_scope_symbol_rcref,
+            } => loop_scope_symbol_rcref.borrow().get_symbol_table(),
+            _ => panic!("Could not find SymbolType. Giving up."),
         }
     }
 
@@ -2316,19 +2319,21 @@ impl ScopeSymbol for ActionScopeSymbol {
 
 // ----------------------- //
 
-pub struct LoopScopeSymbol {
+const LOOP_SCOPE_NAME: &str = "loop";
+
+pub struct LoopStmtScopeSymbol {
     pub name: String,
     pub ast_node_opt: Option<Rc<RefCell<LoopStmtNode>>>,
     pub symtab_rcref: Rc<RefCell<SymbolTable>>,
 }
 
-impl LoopScopeSymbol {
-    pub fn new(name: String) -> LoopScopeSymbol {
-        LoopScopeSymbol {
-            name: name.to_string(),
+impl LoopStmtScopeSymbol {
+    pub fn new() -> LoopStmtScopeSymbol {
+        LoopStmtScopeSymbol {
+            name: String::from("loop"), // todo fix
             ast_node_opt: None,
             symtab_rcref: Rc::new(RefCell::new(SymbolTable::new(
-                name.to_string(),
+                String::from("loop"),
                 None,
                 IdentifierDeclScope::None,
                 false,
@@ -2336,6 +2341,10 @@ impl LoopScopeSymbol {
         }
     }
 
+
+    pub fn scope_name() -> &'static str {
+        LOOP_SCOPE_NAME
+    }
 
     pub fn set_parent_symtab(&mut self, parent_symtab: &Rc<RefCell<SymbolTable>>) {
         self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt =
@@ -2348,13 +2357,13 @@ impl LoopScopeSymbol {
 }
 
 // TODO - can Symbol and ScopeSymbol impls use a default implementation?
-impl Symbol for LoopScopeSymbol {
+impl Symbol for LoopStmtScopeSymbol {
     fn get_name(&self) -> String {
         self.name.clone()
     }
 }
 
-impl ScopeSymbol for LoopScopeSymbol {
+impl ScopeSymbol for LoopStmtScopeSymbol {
     fn get_symbol_table(&self) -> Rc<RefCell<SymbolTable>> {
         Rc::clone(&self.symtab_rcref)
     }
