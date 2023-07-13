@@ -2289,14 +2289,15 @@ impl AstVisitor for CppVisitor {
                         //self.add_code(&format!("params[\"{}\"] = (void*) &{};\n", pname, pname));
                         self.add_code(&format!("params[\"{}\"] = {};\n", pname, pname));
                         self.newline();
-                        self.add_code(&format!(
-                            "FrameEvent e(\"{}\", params);",
-                            method_name_or_alias
-                        ));
-                        self.newline();
-                        self.add_code("this->_mux_(&e);");
-                        //         separator = ",";
                     }
+                    self.newline();
+                    self.add_code(&format!(
+                        "FrameEvent e(\"{}\", params);",
+                        method_name_or_alias
+                    ));
+                    self.newline();
+                    self.add_code("this->_mux_(&e);");
+                    //         separator = ",";
                 }
                 None => {}
             }
@@ -2315,7 +2316,7 @@ impl AstVisitor for CppVisitor {
             Some(return_type) => {
                 self.newline();
                 self.add_code(&format!(
-                    "return any_cast<{}>(e._return);",
+                    "return any_cast<{}>(*static_cast<any*>(e._return));",
                     return_type.get_type_str()
                 ));
             }
@@ -2575,7 +2576,7 @@ impl AstVisitor for CppVisitor {
             TerminatorType::Return => match &evt_handler_terminator_node.return_expr_t_opt {
                 Some(expr_t) => {
                     self.add_code(&format!(
-                        "e._return = (void*) new {}(",
+                        "e->_return = (void*) new {}(",
                         self.current_event_ret_type
                     ));
                     expr_t.accept(self);

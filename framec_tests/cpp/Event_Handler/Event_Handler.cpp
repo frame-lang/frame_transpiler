@@ -106,6 +106,7 @@ private:
             unordered_map<string, any> params;
             params["x"] = x;
 
+            
             FrameEvent e("LogIt", params);
             this->_mux_(&e);
         }
@@ -114,10 +115,10 @@ private:
             unordered_map<string, any> params;
             params["a"] = a;
 
-            // FrameEvent e("LogAdd", params);
-            // this->_mux_(&e);
+            
             params["b"] = b;
 
+            
             FrameEvent e("LogAdd", params);
             this->_mux_(&e);
         }
@@ -126,23 +127,23 @@ private:
             unordered_map<string, any> params;
             params["a"] = a;
 
-            // FrameEvent e("LogReturn", params);
-            // this->_mux_(&e);
+            
             params["b"] = b;
 
+            
             FrameEvent e("LogReturn", params);
             this->_mux_(&e);
-            return any_cast<int>(e._return);
+            return any_cast<int>(*static_cast<any*>(e._return));
         }
         
         void PassAdd(int a,int b) {
             unordered_map<string, any> params;
             params["a"] = a;
 
-            // FrameEvent e("PassAdd", params);
-            // this->_mux_(&e);
+            
             params["b"] = b;
 
+            
             FrameEvent e("PassAdd", params);
             this->_mux_(&e);
         }
@@ -151,13 +152,13 @@ private:
             unordered_map<string, any> params;
             params["a"] = a;
 
-            // FrameEvent e("PassReturn", params);
-            // this->_mux_(&e);
+            
             params["b"] = b;
 
+            
             FrameEvent e("PassReturn", params);
             this->_mux_(&e);
-            return any_cast<int>(e._return);
+            return any_cast<int>(*static_cast<any*>(e._return));
         }
         
     
@@ -219,15 +220,16 @@ private:
 //===================== Actions Block ===================//
     
     
+    
+public:
+    void log_do(const std::string& msg, int val)
+    {
+        std::string value = msg + "=" + std::to_string(val);
+        tape.push_back(value);
+    }
+    
     // Unimplemented Actions
     
-    // void log_do(std::string msg, int val) {  throw std::logic_error("Not implemented");  }
-
-    public:
-    void log_do(std::string msg, int val) {
-        std::string value = msg + "=" + to_string(val); 
-		tape.push_back(value);
-	}
     
     //===================== Domain Block ===================//
     
@@ -266,7 +268,6 @@ class EventHandlerController : public EventHandler
 {
 public:
 	EventHandlerController() : EventHandler() {}
-std::string msg, int val) {}
 };
 
 ********************/

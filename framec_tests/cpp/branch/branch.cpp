@@ -176,6 +176,7 @@ private:
             unordered_map<string, any> params;
             params["b"] = b;
 
+            
             FrameEvent e("OnBool", params);
             this->_mux_(&e);
         }
@@ -184,6 +185,7 @@ private:
             unordered_map<string, any> params;
             params["i"] = i;
 
+            
             FrameEvent e("OnInt", params);
             this->_mux_(&e);
         }

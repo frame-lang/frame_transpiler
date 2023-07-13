@@ -51,7 +51,10 @@ using namespace std;
             log("p" p) ^
 
     -actions-
-    log [msg:String val:int]
+    log [msg:`const std::string&` val:int] {
+        `std::string value = msg + "=" + std::to_string(val);
+        tape.push_back(value);`
+    }
 
     -domain-
     var tape:`std::vector<std::string>` =``

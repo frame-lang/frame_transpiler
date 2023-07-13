@@ -61,7 +61,7 @@ TEST_F(BasicControllerTest, TestCurrentState) {
     EXPECT_EQ("0", sm->state_info());
 }
 
-int main(int argc, char* argv[]) {
-    ::testing::InitGoogleTest(&argc, argv);
+int main() {
+    ::testing::InitGoogleTest();
     return RUN_ALL_TESTS();
 }

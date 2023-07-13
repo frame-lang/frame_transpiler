@@ -1,4 +1,4 @@
-#include "../gtest/gtest.h"
+#include <gtest/gtest.h>
 #include "Event_Handler.cpp"
 #include <iostream>
 #include <vector>
@@ -59,7 +59,7 @@ TEST_F(EventHandlerControllerTest, TestPassAndReturnResult) {
   EXPECT_EQ(ret, 42);
 }
 
-int main(int argc, char** argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+int main() {
+    ::testing::InitGoogleTest();
+    return RUN_ALL_TESTS();
 }
