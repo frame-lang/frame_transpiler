@@ -46,14 +46,6 @@ pub trait NodeElement {
     fn accept_action_impl(&self, _ast_visitor: &mut dyn AstVisitor) {
         // no_op
     }
-
-    // fn auto_pre_inc_dec_expr_type(&self, _ast_visitor: &mut dyn AstVisitor) {
-    //     // no_op
-    // }
-    //
-    // fn auto_post_inc_dec_expr_type(&self, _ast_visitor: &mut dyn AstVisitor) {
-    //     // no_op
-    // }
 }
 
 // TODO: is this a good name for Identifier and Call expressions?
@@ -940,9 +932,9 @@ pub enum RefExprType<'a> {
         call_chain_expr_node: &'a CallChainLiteralExprNode,
     },
     // #[allow(dead_code)] // is used, don't know why I need this
-    // CallExprT {
-    //     call_expr_node: CallExprNode,
-    // },
+    CallExprT {
+        call_expr_node: &'a CallExprNode,
+    },
     // #[allow(dead_code)] // is used, don't know why I need this
     // CallExprListT {
     //     call_expr_list_node: CallExprListNode,
@@ -1015,6 +1007,10 @@ impl ExprType {
             }
             ExprType::ExprListT { expr_list_node } => {
                 let ref ref_expr_type = RefExprType::ExprListT { expr_list_node };
+                ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
+            }
+            ExprType::CallExprT { call_expr_node } => {
+                let ref ref_expr_type = RefExprType::CallExprT { call_expr_node };
                 ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
             }
             ExprType::BinaryExprT { binary_expr_node } => {

@@ -2406,6 +2406,13 @@ impl AstVisitor for PythonVisitor {
             RefExprType::AssignmentExprT {assignment_expr_node} => {
 
             }
+            RefExprType::CallExprT {call_expr_node} => {
+                // TODO - not sure if this loop should move into the CallExprNode.
+                // if so need to implement similar functionality for other expr nodes
+                for expr_t in &call_expr_node.call_expr_list.exprs_t {
+                    expr_t.auto_pre_inc_dec(self);
+                }
+            }
             RefExprType::BinaryExprT {binary_expr_node} => {
                 binary_expr_node.left_rcref.borrow().auto_pre_inc_dec(self);
                 binary_expr_node.right_rcref.borrow().auto_pre_inc_dec(self);
@@ -2433,6 +2440,42 @@ impl AstVisitor for PythonVisitor {
                         self.skip_next_newline();
                     }
                     _ => {}
+                }
+
+                // now generate pre inc/dec for all arguments
+                for node in &call_chain_expr_node.call_chain {
+                    match &node {
+                        // CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
+                        //     id_node.accept(self);
+                        // }
+                        CallChainLiteralNodeType::CallT { call } => {
+                            for expr_t in &call.call_expr_list.exprs_t {
+                                expr_t.auto_pre_inc_dec(self);
+                            }
+                        }
+                        CallChainLiteralNodeType::InterfaceMethodCallT {
+                            interface_method_call_expr_node,
+                        } => {
+                            for expr_t in &interface_method_call_expr_node.call_expr_list.exprs_t {
+                                expr_t.auto_pre_inc_dec(self);
+                            }
+                        }
+                        CallChainLiteralNodeType::ActionCallT {
+                            action_call_expr_node,
+                        } => {
+                            for expr_t in &action_call_expr_node.call_expr_list.exprs_t {
+                                expr_t.auto_pre_inc_dec(self);
+                            }
+                        }
+                        // CallChainLiteralNodeType::VariableNodeT { var_node } => {
+                        //     self.visiting_call_chain_literal_variable = true;
+                        //     var_node.accept(self);
+                        //     self.visiting_call_chain_literal_variable = false;
+                        // }
+                        _ => {
+                            let i = 1;
+                        }
+                    }
                 }
             },
             RefExprType::ExprListT {expr_list_node} => {
@@ -2465,6 +2508,13 @@ impl AstVisitor for PythonVisitor {
             RefExprType::AssignmentExprT {assignment_expr_node} => {
 
             }
+            RefExprType::CallExprT {call_expr_node} => {
+                // TODO - not sure if this loop should move into the CallExprNode.
+                // if so need to implement similar functionality for other expr nodes
+                for expr_t in &call_expr_node.call_expr_list.exprs_t {
+                    expr_t.auto_post_inc_dec(self);
+                }
+            }
             RefExprType::BinaryExprT {binary_expr_node} => {
                 binary_expr_node.left_rcref.borrow().auto_post_inc_dec(self);
                 binary_expr_node.right_rcref.borrow().auto_post_inc_dec(self);
@@ -2485,6 +2535,43 @@ impl AstVisitor for PythonVisitor {
                         self.add_code(&format!("{} = {} - 1", output, output));
                     }
                     _ => {}
+                }
+
+                // now generate pre inc/dec for all arguments
+                for node in &call_chain_expr_node.call_chain {
+                    match &node {
+                        // CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
+                        //     id_node.accept(self);
+                        // }
+                        CallChainLiteralNodeType::CallT { call } => {
+                            for expr_t in &call.call_expr_list.exprs_t {
+                                expr_t.auto_post_inc_dec(self);
+                            }
+                        }
+
+                        CallChainLiteralNodeType::InterfaceMethodCallT {
+                            interface_method_call_expr_node,
+                        } => {
+                            for expr_t in &interface_method_call_expr_node.call_expr_list.exprs_t {
+                                expr_t.auto_post_inc_dec(self);
+                            }
+                        }
+                        CallChainLiteralNodeType::ActionCallT {
+                            action_call_expr_node,
+                        } => {
+                            for expr_t in &action_call_expr_node.call_expr_list.exprs_t {
+                                expr_t.auto_post_inc_dec(self);
+                            }
+                        }
+                        // CallChainLiteralNodeType::VariableNodeT { var_node } => {
+                        //     self.visiting_call_chain_literal_variable = true;
+                        //     var_node.accept(self);
+                        //     self.visiting_call_chain_literal_variable = false;
+                        // }
+                        _ => {
+                            let i = 1;
+                        }
+                    }
                 }
             },
             RefExprType::ExprListT {expr_list_node} => {
