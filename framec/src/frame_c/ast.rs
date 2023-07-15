@@ -965,9 +965,9 @@ pub enum RefExprType<'a> {
     // UnaryExprT {
     //     unary_expr_node: UnaryExprNode,
     // },
-    // BinaryExprT {
-    //     binary_expr_node: BinaryExprNode,
-    // },
+    BinaryExprT {
+        binary_expr_node: &'a BinaryExprNode,
+    },
     LoopStmtT {
         loop_types: &'a LoopStmtTypes,
     }
@@ -1957,6 +1957,10 @@ impl NodeElement for CallChainLiteralExprNode {
                             let ref ref_expr_type = RefExprType::CallChainLiteralExprT {call_chain_expr_node};
                             ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
                         }
+                        ExprType::BinaryExprT {binary_expr_node} => {
+                            let ref ref_expr_type = RefExprType::BinaryExprT {binary_expr_node};
+                            ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
+                        }
                         _ => {},
                     }
                 }
@@ -1973,6 +1977,10 @@ impl NodeElement for CallChainLiteralExprNode {
                     match &b {
                         ExprType::CallChainLiteralExprT {call_chain_expr_node} => {
                             let ref ref_expr_type = RefExprType::CallChainLiteralExprT {call_chain_expr_node};
+                            ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
+                        }
+                        ExprType::BinaryExprT {binary_expr_node} => {
+                            let ref ref_expr_type = RefExprType::BinaryExprT {binary_expr_node};
                             ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
                         }
                         _ => {},
@@ -2193,6 +2201,9 @@ impl CallExprListNode {
 
 impl NodeElement for CallExprListNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        // for x in &self.exprs_t {
+        //     x.auto_pre_inc_dec(ast_visitor);
+        // }
         ast_visitor.visit_call_expr_list_node(self);
     }
 
@@ -2206,14 +2217,14 @@ impl NodeElement for CallExprListNode {
 // #[derive(Clone)]
 pub struct ExprListNode {
     pub exprs_t: Vec<ExprType>,
-    pub inc_dec: IncDecExpr,
+//    pub inc_dec: IncDecExpr,
 }
 
 impl ExprListNode {
     pub fn new(exprs_t: Vec<ExprType>) -> ExprListNode {
         ExprListNode {
             exprs_t,
-            inc_dec: IncDecExpr::None,
+//            inc_dec: IncDecExpr::None,
         }
     }
 }

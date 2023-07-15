@@ -2070,8 +2070,10 @@ impl AstVisitor for PythonVisitor {
         match &evt_handler_terminator_node.terminator_type {
             TerminatorType::Return => match &evt_handler_terminator_node.return_expr_t_opt {
                 Some(expr_t) => {
+                    expr_t.auto_pre_inc_dec(self);
                     self.add_code("e._return = ");
                     expr_t.accept(self);
+                    expr_t.auto_post_inc_dec(self);
                     self.generate_return();
                     self.newline();
                 }
@@ -2404,6 +2406,10 @@ impl AstVisitor for PythonVisitor {
             RefExprType::AssignmentExprT {assignment_expr_node} => {
 
             }
+            RefExprType::BinaryExprT {binary_expr_node} => {
+                binary_expr_node.left_rcref.borrow().auto_pre_inc_dec(self);
+                binary_expr_node.right_rcref.borrow().auto_pre_inc_dec(self);
+            },
             RefExprType::CallChainLiteralExprT {call_chain_expr_node} => {
                 match call_chain_expr_node.inc_dec {
                     IncDecExpr::PreInc => {
@@ -2458,6 +2464,10 @@ impl AstVisitor for PythonVisitor {
         match ref_expr_type {
             RefExprType::AssignmentExprT {assignment_expr_node} => {
 
+            }
+            RefExprType::BinaryExprT {binary_expr_node} => {
+                binary_expr_node.left_rcref.borrow().auto_post_inc_dec(self);
+                binary_expr_node.right_rcref.borrow().auto_post_inc_dec(self);
             }
             RefExprType::CallChainLiteralExprT {call_chain_expr_node} => {
                 match call_chain_expr_node.inc_dec {

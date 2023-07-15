@@ -2550,7 +2550,7 @@ impl<'a> Parser<'a> {
 
         if self.match_token(&[TokenType::Caret]) {
             if self.match_token(&[TokenType::LParen]) {
-                let expr_t = match self.decorated_unary_expression() {
+                let expr_t = match self.expression() {
                     Ok(Some(expr_t)) => expr_t,
                     _ => {
                         // TODO - err_msg everywhere for ParseErrors
@@ -3631,7 +3631,7 @@ impl<'a> Parser<'a> {
                         //     expr_list_node.inc_dec = IncDecExpr::PreInc;
                         // }
                         ExprType::ExprListT {ref mut expr_list_node} => {
-                            expr_list_node.inc_dec = IncDecExpr::PreDec;
+                     //       expr_list_node.inc_dec = IncDecExpr::PreDec;
                             for expr_t in &mut expr_list_node.exprs_t {
                                 match expr_t {
                                     ExprType::CallChainLiteralExprT {ref mut call_chain_expr_node} => {
@@ -3669,7 +3669,7 @@ impl<'a> Parser<'a> {
                             literal_expr_node.inc_dec = IncDecExpr::PreDec;
                         }
                         ExprType::ExprListT {ref mut expr_list_node} => {
-                            expr_list_node.inc_dec = IncDecExpr::PreDec;
+  //                          expr_list_node.inc_dec = IncDecExpr::PreDec;
                             for expr_t in &mut expr_list_node.exprs_t {
                                 match expr_t {
                                     ExprType::CallChainLiteralExprT {ref mut call_chain_expr_node} => {
