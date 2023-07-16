@@ -2694,22 +2694,6 @@ impl<'a> Parser<'a> {
         }
     }
 
-
-    /* --------------------------------------------------------------------- */
-
-    // fn loop_statements(&mut self) -> Vec<DeclOrStmtType> {
-    //     if self.match_token(&[TokenType::Continue]) {
-    //         let continue_stmt_node = ContinueStmtNode::new();
-    //         return Ok(Some(StatementType::ContinueStmt {continue_stmt_node}));
-    //     }
-    //     if self.match_token(&[TokenType::Break]) {
-    //         let break_stmt_node = BreakStmtNode::new();
-    //         return Ok(Some(StatementType::BreakStmt {break_stmt_node}));
-    //     }
-    //
-    //     self.statements()
-    // }
-
     /* --------------------------------------------------------------------- */
 
     // statement ->
@@ -4506,6 +4490,15 @@ impl<'a> Parser<'a> {
                                             // TODO - need to check parameters to confirm it matches
                                             // the interface signature.
                                             if is_first_node {
+                                                // iface calls disallowed in actions.
+                                                if self.is_action_context {
+                                                    let err_msg = format!("Interface calls disallowed inside of actions.");
+                                                    self.error_at_current(&err_msg);
+                                                    let parse_error = ParseError::new(
+                                                        err_msg.as_str(),
+                                                    );
+                                                    return Err(parse_error);
+                                                }
                                                 let mut interface_method_call_expr_node =
                                                     InterfaceMethodCallExprNode::new(
                                                         method_call_expr_node,
