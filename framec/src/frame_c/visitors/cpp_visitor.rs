@@ -799,14 +799,14 @@ impl CppVisitor {
                 self.newline();
                 self.newline();
                 self.add_code(&format!(
-                    "private void _changeState_({}Compartment compartment)",
+                    "private: void _changeState_({}Compartment* compartment)",
                     self.system_name
                 ));
                 self.newline();
                 self.add_code("{");
                 self.indent();
                 self.newline();
-                self.add_code("this._compartment_ = compartment;");
+                self.add_code("this->_compartment_ = compartment;");
                 self.outdent();
                 self.newline();
                 self.add_code("}");
@@ -1081,7 +1081,7 @@ impl CppVisitor {
         }
 
         self.newline();
-        self.add_code("this._changeState_(compartment);");
+        self.add_code("this->_changeState_(compartment);");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1104,7 +1104,7 @@ impl CppVisitor {
         ));
         //self.add_code("compartment = self.__state_stack_pop()");
         self.newline();
-        self.add_code("this._changeState_(compartment);");
+        self.add_code("this->_changeState_(compartment);");
     }
     //* --------------------------------------------------------------------- *//
 
@@ -2388,7 +2388,7 @@ impl AstVisitor for CppVisitor {
         self.newline();
         self.add_code("// Unimplemented Actions");
         self.newline();
-
+        self.add_code("public:");
         for action_rcref in &actions_block_node.actions {
             let action_node = action_rcref.borrow();
             if action_node.code_opt.is_none() {
@@ -2795,6 +2795,7 @@ impl AstVisitor for CppVisitor {
             self.indent();
 
             branch_node.accept(self);
+            self.generate_return_if_transitioned();
 
             self.outdent();
             self.newline();
