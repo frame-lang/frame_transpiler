@@ -2604,6 +2604,24 @@ impl<'a> Parser<'a> {
                                         // must be last statement in event handler so return
                                         return statements;
                                     }
+                                    StatementType::ExpressionStmt { expr_stmt_t } => {
+                                        if let ExprStmtType::CallChainLiteralStmtT {call_chain_literal_stmt_node} = expr_stmt_t {
+                                            match call_chain_literal_stmt_node.call_chain_literal_expr_node.call_chain.get(0) {
+                                                Some(CallChainLiteralNodeType::InterfaceMethodCallT {interface_method_call_expr_node}) => {
+                                                    // interface method call must be last statement.
+                                                    statements.push(statement); // return statements;
+
+                                                    return statements;
+                                                }
+                                                _ => {
+                                                    statements.push(statement); // return statements;
+                                                }
+                                            }
+                                        } else {
+                                            statements.push(statement); // return statements;
+                                        }
+
+                                    }
                                     StatementType::ChangeStateStmt { .. } => {
                                         statements.push(statement);
                                         // state changes disallowed in actions
@@ -2629,7 +2647,8 @@ impl<'a> Parser<'a> {
                                             statements.push(statement); // return statements;
                                         } else {
                                             is_err = true;
-                                        }                                    }
+                                        }
+                                    }
                                     _ => {
                                         statements.push(statement);
                                     }
@@ -4691,8 +4710,13 @@ impl<'a> Parser<'a> {
                     }
                     _ => {
                         // scope = IdentifierDeclScope::None;
+                        let msg = &format!(
+                            "Error - unknown scope identifier {}."
+                            ,identifier_node.name );
+                        self.error_at_current(msg);
+                        return Err(ParseError::new(msg));
 
-                        return Err(ParseError::new("Error - unknown scope identifier."));
+                        return Err(ParseError::new(&format!("Error - unknown scope identifier {}.",identifier_node.name)));
                     }
                 }
             }

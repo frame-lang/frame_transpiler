@@ -1887,31 +1887,6 @@ impl NodeElement for SuperStringStmtNode {
 
 //-----------------------------------------------------//
 
-// pub struct LoopExprNode {
-//     // pub loop_init_expr_opt: Option<ExprType>,
-//     // pub test_expr_opt: Option<ExprType>,
-//     // pub inc_dec_expr_opt: Option<ExprType>,
-//     // pub statements: Vec<DeclOrStmtType>,
-//
-// }
-//
-// impl LoopExprNode {
-//     pub fn new (
-//         loop_init_expr_opt: Option<ExprType>,
-//         test_expr_opt: Option<ExprType>,
-//         inc_dec_expr_opt: Option<ExprType>,
-//         statements: Vec<DeclOrStmtType>,
-//     ) -> LoopExprNode {
-//         LoopExprNode {
-//             loop_init_expr_opt,
-//             test_expr_opt,
-//             inc_dec_expr_opt,
-//             statements,
-//         }
-//     }
-// }
-//-----------------------------------------------------//
-
 #[derive(Clone)]
 pub enum IncDecExpr {
     None,
