@@ -132,7 +132,7 @@ private:
             this->_mux_(&e);
         }
         
-        void Call(String event,int arg) {
+        void Call(string event,int arg) {
             unordered_map<string, any> params;
             params["event"] = event;
 
@@ -197,18 +197,15 @@ private:
         if (e->_message == "Foo") {
             log_do("Foo",any_cast<int>(e->_parameters["arg"]));
             this->_compartment_->stateVars["counter"] = (any_cast<int>(this->_compartment_->stateVars["counter"])) + any_cast<int>(e->_parameters["arg"]);
-            print_do(std::to_string,((any_cast<int>(this->_compartment_->stateVars["counter"]))));
             Bar(any_cast<int>(e->_parameters["arg"]) * 2);
             return;
+            log_do("Unreachable",0);
             return;
         }
           //  the front-end should report the next line as a static error
-		  //  need to handle the case for unreachable code
-		  // log("Unreachable" 0)
 		else if (e->_message == "Bar") {
             log_do("Bar",any_cast<int>(e->_parameters["arg"]));
             this->_compartment_->stateVars["counter"] = (any_cast<int>(this->_compartment_->stateVars["counter"])) + any_cast<int>(e->_parameters["arg"]);
-            print_do(std::to_string,((any_cast<int>(this->_compartment_->stateVars["counter"]))));
             HandlerCallsCompartment *compartment =  new HandlerCallsCompartment(static_cast<int>(HandlerCallsState::FINAL));
             compartment->stateArgs["counter"] = any_cast<int>(this->_compartment_->stateVars["counter"]);
             
@@ -216,10 +213,10 @@ private:
             return;
         }
         else if (e->_message == "Call") {
-            if (any_cast<String>(e->_parameters["event"]) == "Foo") {
+            if ((any_cast<string>(e->_parameters["event"]) == "Foo")) {
                 Foo(any_cast<int>(e->_parameters["arg"]));
                 return;
-            } else if (any_cast<String>(e->_parameters["event"]) == "Bar") {
+            } else if ((any_cast<string>(e->_parameters["event"]) == "Bar")) {
                 Bar(any_cast<int>(e->_parameters["arg"]));
                 return;
             } else {
@@ -235,7 +232,6 @@ private:
         if (e->_message == "Foo") {
             log_do("Foo",any_cast<int>(e->_parameters["arg"]));
             this->_compartment_->stateVars["counter"] = (any_cast<int>(this->_compartment_->stateVars["counter"])) + any_cast<int>(e->_parameters["arg"]);
-            print_do(std::to_string,((any_cast<int>(this->_compartment_->stateVars["counter"]))));
             if ((any_cast<int>(this->_compartment_->stateVars["counter"])) < 100) {
                 Foo(any_cast<int>(e->_parameters["arg"]) * 2);
                 return;
@@ -250,7 +246,6 @@ private:
         else if (e->_message == "Bar") {
             log_do("Bar",any_cast<int>(e->_parameters["arg"]));
             this->_compartment_->stateVars["counter"] = (any_cast<int>(this->_compartment_->stateVars["counter"])) + any_cast<int>(e->_parameters["arg"]);
-            print_do(std::to_string,((any_cast<int>(this->_compartment_->stateVars["counter"]))));
             HandlerCallsCompartment *compartment =  new HandlerCallsCompartment(static_cast<int>(HandlerCallsState::FINAL));
             compartment->stateArgs["counter"] = any_cast<int>(this->_compartment_->stateVars["counter"]);
             
@@ -258,10 +253,10 @@ private:
             return;
         }
         else if (e->_message == "Call") {
-            if (any_cast<String>(e->_parameters["event"]) == "Foo") {
+            if ((any_cast<string>(e->_parameters["event"]) == "Foo")) {
                 Foo(any_cast<int>(e->_parameters["arg"]));
                 return;
-            } else if (any_cast<String>(e->_parameters["event"]) == "Bar") {
+            } else if ((any_cast<string>(e->_parameters["event"]) == "Bar")) {
                 Bar(any_cast<int>(e->_parameters["arg"]));
                 return;
             } else {
@@ -275,7 +270,6 @@ private:
         if (e->_message == "Foo") {
             log_do("Foo",any_cast<int>(e->_parameters["arg"]));
             this->_compartment_->stateVars["counter"] = (any_cast<int>(this->_compartment_->stateVars["counter"])) + any_cast<int>(e->_parameters["arg"]);
-            print_do(std::to_string,((any_cast<int>(this->_compartment_->stateVars["counter"]))));
             if ((any_cast<int>(this->_compartment_->stateVars["counter"])) > 100) {
                 HandlerCallsCompartment *compartment =  new HandlerCallsCompartment(static_cast<int>(HandlerCallsState::FINAL));
                 compartment->stateArgs["counter"] = any_cast<int>(this->_compartment_->stateVars["counter"]);
@@ -290,11 +284,10 @@ private:
         else if (e->_message == "Bar") {
             log_do("Bar",any_cast<int>(e->_parameters["arg"]));
             this->_compartment_->stateVars["counter"] = (any_cast<int>(this->_compartment_->stateVars["counter"])) + any_cast<int>(e->_parameters["arg"]);
-            print_do(std::to_string,((any_cast<int>(this->_compartment_->stateVars["counter"]))));
-            if (any_cast<int>(e->_parameters["arg"]) == 4)) {
+            if ((any_cast<int>(e->_parameters["arg"]) == 4)) {
                 Foo(any_cast<int>(e->_parameters["arg"]));
                 return;
-            } else if (any_cast<int>(e->_parameters["arg"]) == 8)) {
+            } else if ((any_cast<int>(e->_parameters["arg"]) == 8)) {
                 Foo(any_cast<int>(e->_parameters["arg"]) * 2);
                 return;
             } else {
@@ -304,10 +297,10 @@ private:
             return;
         }
         else if (e->_message == "Call") {
-            if (any_cast<String>(e->_parameters["event"]) == "Foo") {
+            if ((any_cast<string>(e->_parameters["event"]) == "Foo")) {
                 Foo(any_cast<int>(e->_parameters["arg"]));
                 return;
-            } else if (any_cast<String>(e->_parameters["event"]) == "Bar") {
+            } else if ((any_cast<string>(e->_parameters["event"]) == "Bar")) {
                 Bar(any_cast<int>(e->_parameters["arg"]));
                 return;
             } else {
@@ -332,21 +325,13 @@ private:
     
     
 public:
-    void print_do(const std::string& s)
+    void log_do(string from, int val)
     {
-        std::cout << s << std::endl;
-    }
-    
-    
-public:
-    void log_do(const std::string& from, int val)
-    {
-        std::string value = from + "(" + std::to_string(val) + ")";
-    this->tape.push_back(value);
+        tape.push_back(from + "(" + std::to_string(val) + ")");
     }
     
     // Unimplemented Actions
-    
+    public:
     
     //===================== Domain Block ===================//
     

@@ -20,7 +20,7 @@ using namespace std;
     Nested
     Child
     OnInt [i:int]
-    OnString [s:String]
+    OnString [s:string]
 
     -machine-
     $Init
@@ -31,7 +31,7 @@ using namespace std;
         |Child|  -> $ChildMatch ^
 
     $EmptyMatch
-        |OnString| [s:String]
+        |OnString| [s:string]
             s ?~
                 /|foo/  --- TODO: matching only the empty string is broken
                     log("empty")
@@ -52,7 +52,7 @@ using namespace std;
                 :   log("?")
             :: ^
 
-        |OnString| [s:String]
+        |OnString| [s:string]
             s ?~
                 /hello/
                     log("hello") :>
@@ -77,7 +77,7 @@ using namespace std;
                 :   log("?")
             :: ^
 
-        |OnString| [s:String]
+        |OnString| [s:string]
             s ?~
                 /$10|12.5%|@#*!/
                     log("symbols") :>
@@ -109,7 +109,7 @@ using namespace std;
             : log("too small")
             :: ^
 
-        |OnString| [s:String]
+        |OnString| [s:string]
             s ?~
                 /hello|hola|bonjour/
                     log("greeting")
@@ -139,7 +139,7 @@ using namespace std;
                 :    log("no match in child")
                 :: :>
 
-        |OnString| [s:String]
+        |OnString| [s:string]
             s ?~
                 /hello/
                     log("hello in child") :>
@@ -151,10 +151,8 @@ using namespace std;
                 :: :>
 
     $Final
-
     -actions-
     log [msg:`const std::string&`]{`tape.push_back(msg);`}
-
     -domain-
     var tape:`std::vector<std::string>` =``
 ##

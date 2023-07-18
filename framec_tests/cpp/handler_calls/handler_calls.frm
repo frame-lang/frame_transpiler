@@ -17,7 +17,7 @@ using namespace std;
     NonRec
     SelfRec
     MutRec
-    Call [event:String arg:int]
+    Call [event:string arg:int]
     Foo [arg:int]
     Bar [arg:int]
 
@@ -33,20 +33,17 @@ using namespace std;
         |Foo| [arg:int]
             log("Foo" arg)
             counter = counter + arg
-            print(`std::to_string`(counter))
             Bar(arg*2)
             --- the front-end should report the next line as a static error
-            --- need to handle the case for unreachable code
-            ---log("Unreachable" 0)
+            log("Unreachable" 0)
             ^
 
         |Bar| [arg:int]
             log("Bar" arg)
             counter = counter + arg
-            print(`std::to_string`(counter))
             -> $Final(counter) ^
 
-        |Call| [event:String arg:int]
+        |Call| [event:string arg:int]
             event ?~
                 /Foo/ Foo(arg) :>
                 /Bar/ Bar(arg)
@@ -59,7 +56,6 @@ using namespace std;
         |Foo| [arg:int]
             log("Foo" arg)
             counter = counter + arg
-            print(`std::to_string`(counter))
             counter < 100 ?
                 Foo(arg*2)
             :
@@ -69,10 +65,9 @@ using namespace std;
         |Bar| [arg:int]
             log("Bar" arg)
             counter = counter + arg
-            print(`std::to_string`(counter))
             -> $Final(counter) ^
 
-        |Call| [event:String arg:int]
+        |Call| [event:string arg:int]
             event ?~
                 /Foo/ Foo(arg) :>
                 /Bar/ Bar(arg)
@@ -84,7 +79,6 @@ using namespace std;
         |Foo| [arg:int]
             log("Foo" arg)
             counter = counter + arg
-            print(`std::to_string`(counter))
             counter > 100 ?
                 -> $Final(counter)
             :
@@ -94,14 +88,13 @@ using namespace std;
         |Bar| [arg:int]
             log("Bar" arg)
             counter = counter + arg
-            print(`std::to_string`(counter))
             arg ?#
                 /4/ Foo(arg) :>
                 /8/ Foo(arg*2)
                 :   Foo(arg*3)
             :: ^
 
-        |Call| [event:String arg:int]
+        |Call| [event:string arg:int]
             event ?~
                 /Foo/ Foo(arg) :>
                 /Bar/ Bar(arg)
@@ -113,13 +106,8 @@ using namespace std;
             -> $Init ^
 
     -actions-
-        print[s:`const std::string&`] {`std::cout << s << std::endl;`}
-        log [from:`const std::string&` val:int] {
-        `std::string value = from + "(" + std::to_string(val) + ")";
-    this->tape.push_back(value);`
-    }
+        log [from:string val:int]{`tape.push_back(from + "(" + std::to_string(val) + ")");`}
 
     -domain-
     var tape:`std::vector<std::string>` =``
-
 ##

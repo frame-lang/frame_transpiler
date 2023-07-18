@@ -160,7 +160,7 @@ private:
             this->_mux_(&e);
         }
         
-        void OnString(String s) {
+        void OnString(string s) {
             unordered_map<string, any> params;
             params["s"] = s;
 
@@ -211,7 +211,7 @@ private:
     void _sEmptyMatch_(FrameEvent *e)
     {
         if (e->_message == "OnString") {
-            if (any_cast<String>(e->_parameters["s"]) == "") || (any_cast<String>(e->_parameters["s"]) == "foo") {
+            if ((any_cast<string>(e->_parameters["s"]) == "") || (any_cast<string>(e->_parameters["s"]) == "foo")) {
                 log_do("empty");
             } else {
                 log_do("?");
@@ -224,13 +224,13 @@ private:
     void _sSimpleMatch_(FrameEvent *e)
     {
         if (e->_message == "OnInt") {
-            if (any_cast<int>(e->_parameters["i"]) == 0)) {
+            if ((any_cast<int>(e->_parameters["i"]) == 0)) {
                 log_do("0");
-            } else if (any_cast<int>(e->_parameters["i"]) == 42)) {
+            } else if ((any_cast<int>(e->_parameters["i"]) == 42)) {
                 log_do("42");
-            } else if (any_cast<int>(e->_parameters["i"]) == 42)) {
+            } else if ((any_cast<int>(e->_parameters["i"]) == 42)) {
                 log_do("!!!");
-            } else if (any_cast<int>(e->_parameters["i"]) == -200)) {
+            } else if ((any_cast<int>(e->_parameters["i"]) == -200)) {
                 log_do("-200");
             } else {
                 log_do("?");
@@ -238,15 +238,15 @@ private:
             return;
         }
         else if (e->_message == "OnString") {
-            if (any_cast<String>(e->_parameters["s"]) == "hello") {
+            if ((any_cast<string>(e->_parameters["s"]) == "hello")) {
                 log_do("hello");
-            } else if (any_cast<String>(e->_parameters["s"]) == "hello") {
+            } else if ((any_cast<string>(e->_parameters["s"]) == "hello")) {
                 log_do("!!!");
-            } else if (any_cast<String>(e->_parameters["s"]) == "goodbye") {
+            } else if ((any_cast<string>(e->_parameters["s"]) == "goodbye")) {
                 log_do("goodbye");
-            } else if (any_cast<String>(e->_parameters["s"]) == "Testing 1, 2, 3...") {
+            } else if ((any_cast<string>(e->_parameters["s"]) == "Testing 1, 2, 3...")) {
                 log_do("testing");
-            } else if (any_cast<String>(e->_parameters["s"]) == "$10!") {
+            } else if ((any_cast<string>(e->_parameters["s"]) == "$10!")) {
                 log_do("money");
             } else {
                 log_do("?");
@@ -258,9 +258,9 @@ private:
     void _sMultiMatch_(FrameEvent *e)
     {
         if (e->_message == "OnInt") {
-            if (any_cast<int>(e->_parameters["i"]) == 3) || (any_cast<int>(e->_parameters["i"]) == -7)) {
+            if ((any_cast<int>(e->_parameters["i"]) == 3) || (any_cast<int>(e->_parameters["i"]) == -7)) {
                 log_do("3|-7");
-            } else if (any_cast<int>(e->_parameters["i"]) == -4) || (any_cast<int>(e->_parameters["i"]) == 5) || (any_cast<int>(e->_parameters["i"]) == 6)) {
+            } else if ((any_cast<int>(e->_parameters["i"]) == -4) || (any_cast<int>(e->_parameters["i"]) == 5) || (any_cast<int>(e->_parameters["i"]) == 6)) {
                 log_do("-4|5|6");
             } else {
                 log_do("?");
@@ -268,9 +268,9 @@ private:
             return;
         }
         else if (e->_message == "OnString") {
-            if (any_cast<String>(e->_parameters["s"]) == "$10") || (any_cast<String>(e->_parameters["s"]) == "12.5%") || (any_cast<String>(e->_parameters["s"]) == "@#*!") {
+            if ((any_cast<string>(e->_parameters["s"]) == "$10") || (any_cast<string>(e->_parameters["s"]) == "12.5%") || (any_cast<string>(e->_parameters["s"]) == "@#*!")) {
                 log_do("symbols");
-            } else if (any_cast<String>(e->_parameters["s"]) == " ") || (any_cast<String>(e->_parameters["s"]) == "  ") || (any_cast<String>(e->_parameters["s"]) == "\t") || (any_cast<String>(e->_parameters["s"]) == "\n") {
+            } else if ((any_cast<string>(e->_parameters["s"]) == " ") || (any_cast<string>(e->_parameters["s"]) == "  ") || (any_cast<string>(e->_parameters["s"]) == "\t") || (any_cast<string>(e->_parameters["s"]) == "\n")) {
                 log_do("whitespace");
             } else {
                 log_do("?");
@@ -283,16 +283,16 @@ private:
     {
         if (e->_message == "OnInt") {
             if (any_cast<int>(e->_parameters["i"]) > 0) {
-                if (any_cast<int>(e->_parameters["i"]) == 1) || (any_cast<int>(e->_parameters["i"]) == 2) || (any_cast<int>(e->_parameters["i"]) == 3)) {
+                if ((any_cast<int>(e->_parameters["i"]) == 1) || (any_cast<int>(e->_parameters["i"]) == 2) || (any_cast<int>(e->_parameters["i"]) == 3)) {
                     log_do("1-3");
-                    if (any_cast<int>(e->_parameters["i"]) == 1)) {
+                    if ((any_cast<int>(e->_parameters["i"]) == 1)) {
                         log_do("1");
-                    } else if (any_cast<int>(e->_parameters["i"]) == 2)) {
+                    } else if ((any_cast<int>(e->_parameters["i"]) == 2)) {
                         log_do("2");
                     } else {
                         log_do("3");
                     }
-                } else if (any_cast<int>(e->_parameters["i"]) == 4) || (any_cast<int>(e->_parameters["i"]) == 5)) {
+                } else if ((any_cast<int>(e->_parameters["i"]) == 4) || (any_cast<int>(e->_parameters["i"]) == 5)) {
                     log_do("4-5");
                     if (any_cast<int>(e->_parameters["i"]) == 4) {
                         log_do("4");
@@ -308,20 +308,20 @@ private:
             return;
         }
         else if (e->_message == "OnString") {
-            if (any_cast<String>(e->_parameters["s"]) == "hello") || (any_cast<String>(e->_parameters["s"]) == "hola") || (any_cast<String>(e->_parameters["s"]) == "bonjour") {
+            if ((any_cast<string>(e->_parameters["s"]) == "hello") || (any_cast<string>(e->_parameters["s"]) == "hola") || (any_cast<string>(e->_parameters["s"]) == "bonjour")) {
                 log_do("greeting");
-                if (any_cast<String>(e->_parameters["s"]) == "hello") {
+                if ((any_cast<string>(e->_parameters["s"]) == "hello")) {
                     log_do("English");
-                } else if (any_cast<String>(e->_parameters["s"]) == "hola") {
+                } else if ((any_cast<string>(e->_parameters["s"]) == "hola")) {
                     log_do("Spanish");
                 } else {
                     log_do("French");
                 }
-            } else if (any_cast<String>(e->_parameters["s"]) == "goodbye") || (any_cast<String>(e->_parameters["s"]) == "adios") || (any_cast<String>(e->_parameters["s"]) == "au revoir") {
+            } else if ((any_cast<string>(e->_parameters["s"]) == "goodbye") || (any_cast<string>(e->_parameters["s"]) == "adios") || (any_cast<string>(e->_parameters["s"]) == "au revoir")) {
                 log_do("farewell");
-                if (any_cast<String>(e->_parameters["s"]) == "goodbye") {
+                if ((any_cast<string>(e->_parameters["s"]) == "goodbye")) {
                     log_do("English");
-                } else if (any_cast<String>(e->_parameters["s"]) == "adios") {
+                } else if ((any_cast<string>(e->_parameters["s"]) == "adios")) {
                     log_do("Spanish");
                 } else {
                     log_do("French");
@@ -336,18 +336,18 @@ private:
     void _sChildMatch_(FrameEvent *e)
     {
         if (e->_message == "OnInt") {
-            if (any_cast<int>(e->_parameters["i"]) == 0)) {
+            if ((any_cast<int>(e->_parameters["i"]) == 0)) {
                 MatchCompartment *compartment =  new MatchCompartment(static_cast<int>(MatchState::FINAL));
                 
                 this->_transition_(compartment);
-            } else if (any_cast<int>(e->_parameters["i"]) == 3)) {
+            } else if ((any_cast<int>(e->_parameters["i"]) == 3)) {
                 log_do("3");
-            } else if (any_cast<int>(e->_parameters["i"]) == 4)) {
+            } else if ((any_cast<int>(e->_parameters["i"]) == 4)) {
                 log_do("4");
                 return;
-            } else if (any_cast<int>(e->_parameters["i"]) == 42)) {
+            } else if ((any_cast<int>(e->_parameters["i"]) == 42)) {
                 log_do("42 in child");
-            } else if (any_cast<int>(e->_parameters["i"]) == 5)) {
+            } else if ((any_cast<int>(e->_parameters["i"]) == 5)) {
                 log_do("5");
                 MatchCompartment *compartment =  new MatchCompartment(static_cast<int>(MatchState::FINAL));
                 
@@ -359,13 +359,13 @@ private:
             
         }
         else if (e->_message == "OnString") {
-            if (any_cast<String>(e->_parameters["s"]) == "hello") {
+            if ((any_cast<string>(e->_parameters["s"]) == "hello")) {
                 log_do("hello in child");
-            } else if (any_cast<String>(e->_parameters["s"]) == "goodbye") {
+            } else if ((any_cast<string>(e->_parameters["s"]) == "goodbye")) {
                 MatchCompartment *compartment =  new MatchCompartment(static_cast<int>(MatchState::FINAL));
                 
                 this->_transition_(compartment);
-            } else if (any_cast<String>(e->_parameters["s"]) == "Testing 1, 2, 3...") {
+            } else if ((any_cast<string>(e->_parameters["s"]) == "Testing 1, 2, 3...")) {
                 log_do("testing in child");
                 return;
             } else {

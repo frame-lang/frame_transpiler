@@ -143,7 +143,7 @@ private:
             this->_mux_(&e);
         }
         
-        void call(const std::string& event,int param) {
+        void call(string event,int param) {
             unordered_map<string, any> params;
             params["event"] = event;
 
@@ -187,13 +187,13 @@ private:
             return;
         }
         else if (e->_message == "call") {
-            if (any_cast<std::string>(e->_parameters["event"]) == "snake_event") {
+            if ((any_cast<string>(e->_parameters["event"]) == "snake_event")) {
                 snake_event(any_cast<int>(e->_parameters["param"]));
                 return;
-            } else if (any_cast<std::string>(e->_parameters["event"]) == "CamelEvent") {
+            } else if ((any_cast<string>(e->_parameters["event"]) == "CamelEvent")) {
                 CamelEvent(any_cast<int>(e->_parameters["param"]));
                 return;
-            } else if (any_cast<std::string>(e->_parameters["event"]) == "event123") {
+            } else if ((any_cast<string>(e->_parameters["event"]) == "event123")) {
                 event123(any_cast<int>(e->_parameters["param"]));
                 return;
             } else {
@@ -233,13 +233,13 @@ private:
             return;
         }
         else if (e->_message == "call") {
-            if (any_cast<std::string>(e->_parameters["event"]) == "snake_event") {
+            if ((any_cast<string>(e->_parameters["event"]) == "snake_event")) {
                 snake_event(any_cast<int>(e->_parameters["param"]));
                 return;
-            } else if (any_cast<std::string>(e->_parameters["event"]) == "CamelEvent") {
+            } else if ((any_cast<string>(e->_parameters["event"]) == "CamelEvent")) {
                 CamelEvent(any_cast<int>(e->_parameters["param"]));
                 return;
-            } else if (any_cast<std::string>(e->_parameters["event"]) == "event123") {
+            } else if ((any_cast<string>(e->_parameters["event"]) == "event123")) {
                 event123(any_cast<int>(e->_parameters["param"]));
                 return;
             } else {
@@ -279,13 +279,13 @@ private:
             return;
         }
         else if (e->_message == "call") {
-            if (any_cast<std::string>(e->_parameters["event"]) == "snake_event") {
+            if ((any_cast<string>(e->_parameters["event"]) == "snake_event")) {
                 snake_event(any_cast<int>(e->_parameters["param"]));
                 return;
-            } else if (any_cast<std::string>(e->_parameters["event"]) == "CamelEvent") {
+            } else if ((any_cast<string>(e->_parameters["event"]) == "CamelEvent")) {
                 CamelEvent(any_cast<int>(e->_parameters["param"]));
                 return;
-            } else if (any_cast<std::string>(e->_parameters["event"]) == "event123") {
+            } else if ((any_cast<string>(e->_parameters["event"]) == "event123")) {
                 event123(any_cast<int>(e->_parameters["param"]));
                 return;
             } else {
@@ -325,13 +325,13 @@ private:
             return;
         }
         else if (e->_message == "call") {
-            if (any_cast<std::string>(e->_parameters["event"]) == "snake_event") {
+            if ((any_cast<string>(e->_parameters["event"]) == "snake_event")) {
                 snake_event(any_cast<int>(e->_parameters["param"]));
                 return;
-            } else if (any_cast<std::string>(e->_parameters["event"]) == "CamelEvent") {
+            } else if ((any_cast<string>(e->_parameters["event"]) == "CamelEvent")) {
                 CamelEvent(any_cast<int>(e->_parameters["param"]));
                 return;
-            } else if (any_cast<std::string>(e->_parameters["event"]) == "event123") {
+            } else if ((any_cast<string>(e->_parameters["event"]) == "event123")) {
                 event123(any_cast<int>(e->_parameters["param"]));
                 return;
             } else {
@@ -383,7 +383,7 @@ public:
     }
     
     // Unimplemented Actions
-    
+    public:
     
     //===================== Domain Block ===================//
     

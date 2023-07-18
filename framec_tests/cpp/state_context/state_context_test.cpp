@@ -1,11 +1,19 @@
 #include <gtest/gtest.h>
 #include <vector>
 #include <string>
+#include <unordered_map>
+#include <any>
+
 #include "state_context.cpp"
 
 class StateContextSmController : public StateContextSm {
 public:
     StateContextSmController() : StateContextSm() {}
+
+protected:
+    void log_do(const std::string& name, int val) {
+        tape.push_back(name + "=" + std::to_string(val));
+    }
 };
 
 class StateContextTest : public ::testing::Test {
