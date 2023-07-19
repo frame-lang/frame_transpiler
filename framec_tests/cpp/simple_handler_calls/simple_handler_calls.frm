@@ -33,4 +33,7 @@ using namespace std;
 
     $A
     $B
+
+    -actions-
+    -domain-
 ##

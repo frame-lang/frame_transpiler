@@ -9,18 +9,13 @@
 class StateContextSmController : public StateContextSm {
 public:
     StateContextSmController() : StateContextSm() {}
-
-protected:
-    void log_do(const std::string& name, int val) {
-        tape.push_back(name + "=" + std::to_string(val));
-    }
 };
 
 class StateContextTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        sm = new StateContextSmController();
-    }
+    sm = new StateContextSmController();
+}
 
     void TearDown() override {
         delete sm;
@@ -30,6 +25,7 @@ protected:
 };
 
 TEST_F(StateContextTest, TestInitialState) {
+    StateContextSmController* sm;
     int r = sm->Inc();
     EXPECT_EQ(4, r);
     sm->LogState();
@@ -89,7 +85,7 @@ TEST_F(StateContextTest, TestChangeState) {
     EXPECT_EQ((std::vector<std::string>{"z=1", "tmp=127", "w=0"}), sm->tape);
 }
 
-int main(int argc, char** argv) {
-    ::testing::InitGoogleTest(&argc, argv);
+int main() {
+    ::testing::InitGoogleTest();
     return RUN_ALL_TESTS();
 }
