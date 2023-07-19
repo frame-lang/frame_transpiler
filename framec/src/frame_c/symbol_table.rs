@@ -1160,7 +1160,6 @@ impl Arcanum {
     pub fn get_event_names(&self) -> Vec<String> {
         let system_symbol_rcref = self.system_symbol_opt.as_ref().unwrap();
         let system_symbol = system_symbol_rcref.borrow();
-        //        let ret = system_symbol.events.iter().map(f).collect();
         let mut ret = Vec::new();
         for (k, _v) in system_symbol.events.iter() {
             ret.push(k.clone());
@@ -1257,17 +1256,6 @@ impl Arcanum {
         let system_symbol = system_symbol_rcref.borrow_mut();
         system_symbol.events.get(&cannonical_msg).map(Rc::clone)
     }
-
-    // pub fn get_event_ret_opt(&mut self, msg:&str, state_name_opt:&Option<String>) -> Option<TypeNode> {
-    //     let a = self.get_event(msg,state_name_opt);
-    //     let b = match a {
-    //         Some(c) => c,
-    //         None => return None,
-    //     };
-    //     let d = b.borrow();
-    //     d.ret_type_opt.clone()
-    //
-    // }
 
     /* --------------------------------------------------------------------- */
 

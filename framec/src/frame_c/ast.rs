@@ -1235,6 +1235,9 @@ pub enum ExprStmtType {
     EnumeratorStmtT {
         enumerator_stmt_node: EnumeratorStmtNode,
     },
+    BinaryStmtT {
+        binary_stmt_node: BinaryStmtNode,
+    },
     // SuperStringStmtT {
     //     super_string_stmt_node: SuperStringStmtNode,
     // }
@@ -1446,6 +1449,8 @@ impl NodeElement for VariableStmtNode {
     }
 }
 
+//-----------------------------------------------------//
+
 pub struct ExprListStmtNode {
     pub expr_list_node: ExprListNode,
 }
@@ -1467,6 +1472,29 @@ impl NodeElement for ExprListStmtNode {
         ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
         ast_visitor.visit_expr_list_stmt_node(self);
         ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
+    }
+}
+
+//-----------------------------------------------------//
+
+pub struct BinaryStmtNode {
+    pub binary_expr_node: BinaryExprNode,
+}
+
+impl BinaryStmtNode {
+    pub fn new(binary_expr_node: BinaryExprNode) -> BinaryStmtNode {
+        BinaryStmtNode { binary_expr_node }
+    }
+
+    // TODO
+    // pub fn get_line(&self) -> usize {
+    //     self.expr_list_node.id_node.line
+    // }
+}
+
+impl NodeElement for BinaryStmtNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        self.binary_expr_node.accept(ast_visitor);
     }
 }
 
@@ -1505,16 +1533,7 @@ pub struct TransitionStatementNode {
 
 // TODO - why is new() commented out?
 impl TransitionStatementNode {
-    // pub fn new(target_state_context_t:StateContextType,
-    //            exit_args_opt:Option<ExprListNode>,
-    //            label_opt:Option<String>) -> TransitionStatementNode {
-    //     TransitionStatementNode {
-    //         target_state_context_t,
-    //         exit_args_opt,
-    //         label_opt,
-    //
-    //     }
-    // }
+
 }
 
 impl NodeElement for TransitionStatementNode {
@@ -1531,14 +1550,6 @@ pub struct ChangeStateStatementNode {
 }
 
 impl ChangeStateStatementNode {
-    // pub fn new( state_context_t:StateContextType,
-    //             label_opt:Option<String>) -> ChangeStateStatementNode {
-    //     ChangeStateStatementNode {
-    //         state_context_t,
-    //         label_opt,
-    //
-    //     }
-    // }
 }
 
 impl NodeElement for ChangeStateStatementNode {

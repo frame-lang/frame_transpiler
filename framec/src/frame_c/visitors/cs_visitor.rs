@@ -583,9 +583,9 @@ impl CsVisitor {
                                 ExprStmtType::EnumeratorStmtT { enumerator_stmt_node } => {
                                     enumerator_stmt_node.accept(self)
                                 }
-                                // ExprStmtType::LoopStmtT { loop_stmt_node } => {
-                                //     loop_stmt_node.accept(self)
-                                // }
+                                ExprStmtType::BinaryStmtT { binary_stmt_node } => {
+                                    binary_stmt_node.accept(self)
+                                }
                             }
                         }
                         StatementType::TransitionStmt {

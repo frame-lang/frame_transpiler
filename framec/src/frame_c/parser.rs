@@ -2901,6 +2901,13 @@ impl<'a> Parser<'a> {
                         };
                         return Ok(Some(StatementType::ExpressionStmt {expr_stmt_t}));
                     }
+                    BinaryExprT { binary_expr_node } => {
+                        let binary_stmt_node = BinaryStmtNode::new(binary_expr_node);
+                        let expr_stmt_t: ExprStmtType = ExprStmtType::BinaryStmtT {
+                            binary_stmt_node,
+                        };
+                        return Ok(Some(StatementType::ExpressionStmt {expr_stmt_t}));
+                    }
                     LiteralExprT { literal_expr_node } => {
                         // Superstring is the only permitted literal type to be a statement.
                         if  literal_expr_node.token_t == TokenType::SuperString {
@@ -2918,10 +2925,7 @@ impl<'a> Parser<'a> {
                         self.error_at_previous("Unary expression statements not allowed.");
                         return Err(ParseError::new("TODO"));
                     }
-                    BinaryExprT { .. } => {
-                        self.error_at_previous("Binary expression statements not allowed.");
-                        return Err(ParseError::new("TODO"));
-                    }
+
 
                 }
             }
@@ -4707,6 +4711,13 @@ impl<'a> Parser<'a> {
                         loop_variable_symbol_rcref,
                     } => {
                         scope = loop_variable_symbol_rcref.borrow().scope.clone();
+                    }
+                    SymbolType::EventHandlerScope {
+                        event_handler_scope_symbol,
+                    } => {
+                        // this will be a lookup for a varible that clashes with
+                        // the name of an event. Disregard.
+                        // scope = loop_variable_symbol_rcref.borrow().scope.clone();
                     }
                     _ => {
                         // scope = IdentifierDeclScope::None;

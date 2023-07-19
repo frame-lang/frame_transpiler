@@ -473,6 +473,9 @@ impl PythonVisitor {
                                 ExprStmtType::EnumeratorStmtT { enumerator_stmt_node } => {
                                     enumerator_stmt_node.accept(self)
                                 }
+                                ExprStmtType::BinaryStmtT { binary_stmt_node } => {
+                                    binary_stmt_node.accept(self)
+                                }
                             }
                         }
                         StatementType::TransitionStmt {
@@ -3776,6 +3779,7 @@ impl AstVisitor for PythonVisitor {
             binary_expr_node.right_rcref.borrow().accept(self);
             self.add_code("))");
         } else {
+            self.newline();
             binary_expr_node.left_rcref.borrow().accept(self);
             binary_expr_node.operator.accept(self);
             binary_expr_node.right_rcref.borrow().accept(self);

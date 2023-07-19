@@ -358,6 +358,9 @@ impl CsVisitorForBob {
                                 ExprStmtType::EnumeratorStmtT { enumerator_stmt_node } => {
                                     enumerator_stmt_node.accept(self)
                                 }
+                                ExprStmtType::BinaryStmtT { binary_stmt_node } => {
+                                    binary_stmt_node.accept(self)
+                                }
                             }
                         }
                         StatementType::TransitionStmt {
