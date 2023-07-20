@@ -4486,35 +4486,39 @@ impl<'a> Parser<'a> {
                 match r {
                     Ok(method_call_expr_node) => {
                         if !self.is_building_symbol_table {
-                            let s = method_call_expr_node.identifier.name.lexeme.clone();
-                            let action_decl_symbol_opt = self.arcanum.lookup_action(&s);
+                            if !is_first_node {
+                                // if not first node in the chain then the node is just an method
+                                // call on another object
+                                let call_t = CallChainLiteralNodeType::CallT {
+                                    call: method_call_expr_node,
+                                };
+                                call_chain.push_back(call_t);
+                            } else {
+                                // is first or only node in a call chain. Determine if an action,
+                                // interface or external call.
+                                let s = method_call_expr_node.identifier.name.lexeme.clone();
+                                let action_decl_symbol_opt = self.arcanum.lookup_action(&s);
 
-                            // test if identifier is in the arcanum. If so, its an action. If not, its an
-                            // external call.
+                                match action_decl_symbol_opt {
+                                    Some(ads) => {
+                                        // first node is an action
+                                        let mut action_call_expr_node =
+                                            ActionCallExprNode::new(method_call_expr_node);
+                                        action_call_expr_node.set_action_symbol(&Rc::clone(&ads));
+                                        call_chain.push_back(CallChainLiteralNodeType::ActionCallT {
+                                            action_call_expr_node,
+                                        });
+                                    }
+                                    None => {
+                                        // first node is not an action. see if interface call
+                                        let interface_method_symbol_opt =
+                                            self.arcanum.lookup_interface_method(&s);
 
-                            match action_decl_symbol_opt {
-                                Some(ads) => {
-                                    // action
-                                    let mut action_call_expr_node =
-                                        ActionCallExprNode::new(method_call_expr_node);
-                                    action_call_expr_node.set_action_symbol(&Rc::clone(&ads));
-                                    call_chain.push_back(CallChainLiteralNodeType::ActionCallT {
-                                        action_call_expr_node,
-                                    });
-                                }
-                                None => {
-                                    let interface_method_symbol_opt =
-                                        self.arcanum.lookup_interface_method(&s);
-
-                                    match interface_method_symbol_opt {
-                                        Some(interface_method_symbol) => {
-                                            // if it is the first node in the call chain and matches
-                                            // an interface identifier then add an InterfaceMethodCallT
-                                            // TODO - need to check parameters to confirm it matches
-                                            // the interface signature.
-                                            if is_first_node {
-                                                // iface calls disallowed in actions.
+                                        match interface_method_symbol_opt {
+                                            Some(interface_method_symbol) => {
+                                                // first node is an interface call.
                                                 if self.is_action_context {
+                                                    // iface calls disallowed in actions.
                                                     let err_msg = format!("Interface calls disallowed inside of actions.");
                                                     self.error_at_current(&err_msg);
                                                     let parse_error = ParseError::new(
@@ -4522,6 +4526,39 @@ impl<'a> Parser<'a> {
                                                     );
                                                     return Err(parse_error);
                                                 }
+
+                                                // validate signature
+
+                                                let a = interface_method_symbol.borrow();
+                                                let b = a.ast_node_opt.as_ref().unwrap();
+                                                let c = &b.borrow().params;
+                                                // check if difference in the existance of parameters
+                                                if (!c.is_none() && method_call_expr_node.call_expr_list.exprs_t.is_empty()) ||
+                                                    (c.is_none() && !method_call_expr_node.call_expr_list.exprs_t.is_empty()) {
+                                                    let err_msg = format!("Incorrect number of arguments.");
+                                                    self.error_at_current(&err_msg);
+                                                    let parse_error = ParseError::new(
+                                                        err_msg.as_str(),
+                                                    );
+                                                    return Err(parse_error);
+                                                }
+
+                                                match &b.borrow().params {
+                                                    Some(symbol_params) => {
+                                                        if symbol_params.len() != method_call_expr_node.call_expr_list.exprs_t.len() {
+                                                            let err_msg = format!("Number of arguments does not match parameters.");
+                                                            self.error_at_previous(&err_msg);
+                                                            let parse_error = ParseError::new(
+                                                                err_msg.as_str(),
+                                                            );
+                                                            return Err(parse_error);
+                                                        }
+                                                    }
+                                                    None => {
+
+                                                    }
+                                                }
+
                                                 let mut interface_method_call_expr_node =
                                                     InterfaceMethodCallExprNode::new(
                                                         method_call_expr_node,
@@ -4535,19 +4572,14 @@ impl<'a> Parser<'a> {
                                                         interface_method_call_expr_node,
                                                     },
                                                 );
-                                            } else {
-                                                // not an interface call so just add a CallT
+                                            }
+                                            None => {
+                                                // first node is not an action or interface call.
                                                 let call_t = CallChainLiteralNodeType::CallT {
                                                     call: method_call_expr_node,
                                                 };
                                                 call_chain.push_back(call_t);
                                             }
-                                        }
-                                        None => {
-                                            let call_t = CallChainLiteralNodeType::CallT {
-                                                call: method_call_expr_node,
-                                            };
-                                            call_chain.push_back(call_t);
                                         }
                                     }
                                 }
