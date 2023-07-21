@@ -1494,7 +1494,7 @@ impl BinaryStmtNode {
 
 impl NodeElement for BinaryStmtNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
-        self.binary_expr_node.accept(ast_visitor);
+        ast_visitor.visit_binary_stmt_node(self);
     }
 }
 

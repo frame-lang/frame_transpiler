@@ -3765,6 +3765,19 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    fn visit_binary_stmt_node(&mut self, binary_stmt_node: &BinaryStmtNode) {
+        self.newline();
+
+        binary_stmt_node.binary_expr_node.left_rcref.borrow().auto_pre_inc_dec(self);
+        binary_stmt_node.binary_expr_node.right_rcref.borrow().auto_pre_inc_dec(self);
+        binary_stmt_node.binary_expr_node.accept(self);
+        binary_stmt_node.binary_expr_node.left_rcref.borrow().auto_post_inc_dec(self);
+        binary_stmt_node.binary_expr_node.right_rcref.borrow().auto_post_inc_dec(self);
+
+    }
+
+    //* --------------------------------------------------------------------- *//
+
     fn visit_binary_expr_node(&mut self, binary_expr_node: &BinaryExprNode) {
         // TODO
         //       self.generate_comment(assignment_expr_node.line);
@@ -3779,7 +3792,7 @@ impl AstVisitor for PythonVisitor {
             binary_expr_node.right_rcref.borrow().accept(self);
             self.add_code("))");
         } else {
-            self.newline();
+//            self.newline();
             binary_expr_node.left_rcref.borrow().accept(self);
             binary_expr_node.operator.accept(self);
             binary_expr_node.right_rcref.borrow().accept(self);

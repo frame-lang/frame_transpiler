@@ -203,6 +203,7 @@ pub trait AstVisitor {
     fn visit_unary_expr_node(&mut self, _node: &UnaryExprNode) {}
     fn visit_unary_expr_node_to_string(&mut self, _node: &UnaryExprNode, _output: &mut String) {}
 
+    fn visit_binary_stmt_node(&mut self, _node: &BinaryStmtNode) {}
     fn visit_binary_expr_node(&mut self, _node: &BinaryExprNode) {}
     fn visit_binary_expr_node_to_string(&mut self, _node: &BinaryExprNode, _output: &mut String) {}
     fn auto_inc_dec_binary_expr_node(&mut self, _node: &BinaryExprNode) {}

@@ -4536,7 +4536,7 @@ impl<'a> Parser<'a> {
                                                 if (!c.is_none() && method_call_expr_node.call_expr_list.exprs_t.is_empty()) ||
                                                     (c.is_none() && !method_call_expr_node.call_expr_list.exprs_t.is_empty()) {
                                                     let err_msg = format!("Incorrect number of arguments.");
-                                                    self.error_at_current(&err_msg);
+                                                    self.error_at_previous(&err_msg);
                                                     let parse_error = ParseError::new(
                                                         err_msg.as_str(),
                                                     );
