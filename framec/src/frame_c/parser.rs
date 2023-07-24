@@ -1401,17 +1401,72 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
+    // This method wraps the call to the action_context() call which does
+    // the parsing. Here the scope stack is managed including
+    // the scope symbol creation and association with the AST node.
+
     fn action(&mut self) -> Result<Rc<RefCell<ActionNode>>, ParseError> {
+
+        let action_name = self.previous().lexeme.clone();
+
+        // The 'is_action_context' flag is used to determine which statements are valid
+        // to be called in the context of an action. Transitions, for example, are not
+        // allowed.
         self.is_action_context = true;
-        let ret = self.action_context();
+
+//        let mut action_symbol_opt = None;
+
+        if self.is_building_symbol_table {
+            // syntax pass
+            let action_symbol = ActionScopeSymbol::new(action_name.clone());
+//            action_symbol_opt = Some(action_symbol);
+
+            let action_scope_symbol_rcref = Rc::new(RefCell::new(action_symbol));
+            let action_symbol_parse_scope_t = ParseScopeType::Action {
+                action_scope_symbol_rcref
+            };
+            self.arcanum.enter_scope(action_symbol_parse_scope_t);
+
+        } else {
+            // semantic pass
+            // link action symbol to action declaration node
+            let a = self.arcanum.current_symtab.borrow().lookup(&*action_name, &IdentifierDeclScope::None);
+            // see if we can get the action symbol set in the syntax pass. if so, then move
+            // all this to the calling function and pass inthe symbol
+            self.arcanum
+                .set_parse_scope(&action_name);
+        }
+
+        let ret = self.action_context(action_name.clone());
+
+        if self.is_building_symbol_table {
+            match &ret {
+                Ok(action_node_rcref) => {
+                    let a = action_node_rcref.borrow();
+                    let b = self.arcanum.lookup_action(&action_name.clone());
+                    let c = b.unwrap();
+                    let mut d = c.borrow_mut();
+                    d.ast_node_opt = Some(action_node_rcref.clone());
+
+                }
+                Err(err)  => {
+                    // just return the error
+                }
+            }
+        }
+
+        self.arcanum.exit_parse_scope();
+
         self.is_action_context = false;
+
         ret
+
+
     }
 
     /* --------------------------------------------------------------------- */
 
-    fn action_context(&mut self) -> Result<Rc<RefCell<ActionNode>>, ParseError>  {
-        let action_name = self.previous().lexeme.clone();
+    fn action_context(&mut self, action_name:String) -> Result<Rc<RefCell<ActionNode>>, ParseError>  {
 
         let mut params: Option<Vec<ParameterNode>> = Option::None;
 
@@ -1430,21 +1485,6 @@ impl<'a> Parser<'a> {
                 Ok(type_node) => type_opt = Some(type_node),
                 Err(parse_error) => return Err(parse_error),
             }
-        }
-
-        if self.is_building_symbol_table {
-            let mut action_symbol = ActionScopeSymbol::new(action_name.clone());
-            let action_scope_symbol_rcref = Rc::new(RefCell::new(action_symbol));
-            let action_symbol_parse_scope_t = ParseScopeType::Action {
-                action_scope_symbol_rcref
-            };
-            self.arcanum.enter_scope(action_symbol_parse_scope_t);
-
-        } else {
-            // link action symbol to action declaration node
-            self.arcanum
-                .set_parse_scope(&action_name);
-
         }
 
         let mut code_opt: Option<String> = None;
@@ -1468,13 +1508,13 @@ impl<'a> Parser<'a> {
                         Ok(Some(expr_t)) => expr_t,
                         _ => {
                             self.error_at_current("Expected expression as return value.");
-                            self.arcanum.exit_parse_scope();
+                           //  self.arcanum.exit_parse_scope();
                             return Err(ParseError::new("TODO"));
                         }
                     };
 
                     if let Err(parse_error) = self.consume(TokenType::RParen, "Expected ')'.") {
-                        self.arcanum.exit_parse_scope();
+                       // self.arcanum.exit_parse_scope();
                         return Err(parse_error);
                     }
 
@@ -1489,16 +1529,35 @@ impl<'a> Parser<'a> {
             }
 
             if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
-                self.arcanum.exit_parse_scope();
+             //   self.arcanum.exit_parse_scope();
                 return Err(parse_error);
             } else {
 
             }
         }
 
-        self.arcanum.exit_parse_scope();
-
         let action_node = ActionNode::new(action_name.clone(), params, is_implemented, statements, terminator_node_opt, type_opt, code_opt);
+        // let action_node_rcref = Rc::new(RefCell::new(action_node));
+        //
+        // if self.is_building_symbol_table {
+        //     // syntactic pass.
+        //     // Add reference from action symbol to the ActionNode.
+        //     // TODO: note what is being done. We are linking to the AST node generated in the
+        //     // TODO: **syntax** pass (not the semantic pass).
+        //     // The  AST tree built during the syntax pass is otherwise disposed of, but not these
+        //     // references squirrled away in the symbol table.
+        //     // This may be fine but feels wrong. Alternatively
+        //     // we could copy this information out of the node and into the symbol.
+        //
+        //     let action_node_rcref = Rc::new(RefCell::new(action_node));
+        //
+        //     action_symbol.set_ast_node(Rc::clone(&action_node_rcref));
+        //     let action_symbol_rcref = Rc::new(RefCell::new(action_decl_symbol));
+        //     let action_decl_symbol_t = SymbolType::ActionScope {
+        //         action_decl_symbol_rcref,
+        //     };
+        // }
+
 
         let x = RefCell::new(action_node);
         let y = Rc::new(x);
@@ -4496,23 +4555,72 @@ impl<'a> Parser<'a> {
                             } else {
                                 // is first or only node in a call chain. Determine if an action,
                                 // interface or external call.
-                                let s = method_call_expr_node.identifier.name.lexeme.clone();
-                                let action_decl_symbol_opt = self.arcanum.lookup_action(&s);
+                                let method_name = method_call_expr_node.identifier.name.lexeme.clone();
+                                let action_decl_symbol_opt = self.arcanum.lookup_action(&method_name);
 
                                 match action_decl_symbol_opt {
                                     Some(ads) => {
                                         // first node is an action
-                                        let mut action_call_expr_node =
-                                            ActionCallExprNode::new(method_call_expr_node);
-                                        action_call_expr_node.set_action_symbol(&Rc::clone(&ads));
-                                        call_chain.push_back(CallChainLiteralNodeType::ActionCallT {
-                                            action_call_expr_node,
-                                        });
+
+                                        let action_symbol_opt    =
+                                            self.arcanum.lookup_action(&method_name);
+
+                                        match action_symbol_opt {
+                                            Some(action_scope_symbol) => {
+
+                                                // validate signature
+
+                                                let a = action_scope_symbol.borrow();
+                                                let b = a.ast_node_opt.as_ref().unwrap();
+                                                let c = &b.borrow().params;
+                                                // check if difference in the existance of parameters
+                                                if (!c.is_none() && method_call_expr_node.call_expr_list.exprs_t.is_empty()) ||
+                                                    (c.is_none() && !method_call_expr_node.call_expr_list.exprs_t.is_empty()) {
+                                                    let err_msg = format!("Incorrect number of arguments for action '{}'.",method_name);
+                                                    self.error_at_previous(&err_msg);
+                                                    let parse_error = ParseError::new(
+                                                        err_msg.as_str(),
+                                                    );
+                                                    return Err(parse_error);
+                                                }
+
+                                                // check parameter count equals argument count
+                                                match &b.borrow().params {
+                                                    Some(symbol_params) => {
+                                                        if symbol_params.len() != method_call_expr_node.call_expr_list.exprs_t.len() {
+                                                            let err_msg = format!("Number of arguments does not match parameters for action '{}'.", method_name);
+                                                            self.error_at_previous(&err_msg);
+                                                            let parse_error = ParseError::new(
+                                                                err_msg.as_str(),
+                                                            );
+                                                            return Err(parse_error);
+                                                        }
+                                                    }
+                                                    None => {}
+                                                }
+
+                                                let mut action_call_expr_node =
+                                                    ActionCallExprNode::new(method_call_expr_node);
+                                                action_call_expr_node.set_action_symbol(&Rc::clone(&ads));
+                                                call_chain.push_back(CallChainLiteralNodeType::ActionCallT {
+                                                    action_call_expr_node,
+                                                });
+                                            }
+                                            None => {
+                                                // first node is not an action or interface call.
+                                                let call_t = CallChainLiteralNodeType::CallT {
+                                                    call: method_call_expr_node,
+                                                };
+                                                call_chain.push_back(call_t);
+                                            }
+                                        }
+
+
                                     }
                                     None => {
-                                        // first node is not an action. see if interface call
+                                        // first node is not an action. see if it is an interface call
                                         let interface_method_symbol_opt =
-                                            self.arcanum.lookup_interface_method(&s);
+                                            self.arcanum.lookup_interface_method(&method_name);
 
                                         match interface_method_symbol_opt {
                                             Some(interface_method_symbol) => {
@@ -4535,7 +4643,7 @@ impl<'a> Parser<'a> {
                                                 // check if difference in the existance of parameters
                                                 if (!c.is_none() && method_call_expr_node.call_expr_list.exprs_t.is_empty()) ||
                                                     (c.is_none() && !method_call_expr_node.call_expr_list.exprs_t.is_empty()) {
-                                                    let err_msg = format!("Incorrect number of arguments.");
+                                                    let err_msg = format!("Incorrect number of arguments for interface '{}'.", method_name);
                                                     self.error_at_previous(&err_msg);
                                                     let parse_error = ParseError::new(
                                                         err_msg.as_str(),
@@ -4543,10 +4651,11 @@ impl<'a> Parser<'a> {
                                                     return Err(parse_error);
                                                 }
 
+                                                // check parameter count equals argument count
                                                 match &b.borrow().params {
                                                     Some(symbol_params) => {
                                                         if symbol_params.len() != method_call_expr_node.call_expr_list.exprs_t.len() {
-                                                            let err_msg = format!("Number of arguments does not match parameters.");
+                                                            let err_msg = format!("Number of arguments does not match parameters for interface call '{}'.", method_name);
                                                             self.error_at_previous(&err_msg);
                                                             let parse_error = ParseError::new(
                                                                 err_msg.as_str(),
@@ -4554,9 +4663,7 @@ impl<'a> Parser<'a> {
                                                             return Err(parse_error);
                                                         }
                                                     }
-                                                    None => {
-
-                                                    }
+                                                    None => {}
                                                 }
 
                                                 let mut interface_method_call_expr_node =
