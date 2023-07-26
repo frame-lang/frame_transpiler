@@ -1414,9 +1414,7 @@ impl<'a> Parser<'a> {
         // allowed.
         self.is_action_context = true;
 
-//        let mut action_symbol_opt = None;
-
-        if self.is_building_symbol_table {
+       if self.is_building_symbol_table {
             // syntax pass
             let action_symbol = ActionScopeSymbol::new(action_name.clone());
 //            action_symbol_opt = Some(action_symbol);
@@ -1442,6 +1440,7 @@ impl<'a> Parser<'a> {
         if self.is_building_symbol_table {
             match &ret {
                 Ok(action_node_rcref) => {
+                    // associate AST node with symbol
                     let a = action_node_rcref.borrow();
                     let b = self.arcanum.lookup_action(&action_name.clone());
                     let c = b.unwrap();
@@ -1460,7 +1459,6 @@ impl<'a> Parser<'a> {
         self.is_action_context = false;
 
         ret
-
 
     }
 
@@ -4263,10 +4261,6 @@ impl<'a> Parser<'a> {
                 return Err(err);
             }
         }
-        // if let Err(parse_error) = self.consume(TokenType::RParen, "Expected ')'.") {
-        //     return Err(parse_error);
-        // }
-
 
         // statements block
         if self.match_token(&[TokenType::OpenBrace]) {

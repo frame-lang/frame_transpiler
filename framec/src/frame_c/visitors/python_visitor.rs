@@ -10,6 +10,8 @@ use crate::frame_c::ast::*;
 use crate::frame_c::scanner::{Token, TokenType};
 use crate::frame_c::symbol_table::*;
 use crate::frame_c::visitors::*;
+use std::cell::RefCell;
+use std::rc::Rc;
 // use yaml_rust::{YamlLoader, Yaml};
 
 pub struct PythonVisitor {
@@ -38,6 +40,7 @@ pub struct PythonVisitor {
     generate_change_state: bool,
     // generate_transition_state: bool,
     event_handler_has_code: bool,
+    loop_for_inc_dec_expr_rcref_opt: Option<Rc<RefCell<ExprType>>>,
 
     /* Persistence */
     managed: bool, // Generate Managed code
@@ -93,6 +96,7 @@ impl PythonVisitor {
             generate_change_state,
             // generate_transition_state,
             event_handler_has_code: false,
+            loop_for_inc_dec_expr_rcref_opt: None,
 
             /* Persistence */
             managed: false, // Generate Managed code
@@ -2670,6 +2674,8 @@ impl AstVisitor for PythonVisitor {
         &mut self,
         loop_for_expr_node:&LoopForStmtNode,
     ) {
+        self.loop_for_inc_dec_expr_rcref_opt = loop_for_expr_node.inc_dec_expr_rcref_opt.clone();
+        // self.loop_for_inc_dec_expr_rcref_opt = ;
         self.newline();
         if let Some(expr_type_rcref) = &loop_for_expr_node.loop_init_expr_rcref_opt {
             let lfs = expr_type_rcref.borrow();
@@ -2699,6 +2705,7 @@ impl AstVisitor for PythonVisitor {
         }
         self.outdent();
         self.newline();
+        self.loop_for_inc_dec_expr_rcref_opt = None;
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2769,6 +2776,17 @@ impl AstVisitor for PythonVisitor {
         &mut self,
         _:&ContinueStmtNode,
     ) {
+
+        // In the context of a for loop, the auto inc/dec clause needs to
+        // be executed prior to generating the 'continue' statement.
+        // e.g.
+        // loop var x = 0; x < 10; x++ { .. }
+        let loop_for_inc_dec_expr_rcref_opt = self.loop_for_inc_dec_expr_rcref_opt.clone();
+        if let Some(expr_type_rcref) = loop_for_inc_dec_expr_rcref_opt {
+            let expr_t = expr_type_rcref.borrow();
+            expr_t.auto_pre_inc_dec(self);
+            expr_t.auto_post_inc_dec(self);
+        }
         self.newline();
         self.add_code("continue");
     }
