@@ -1,17 +1,13 @@
 // emitted from framec_v0.10.0
 // get include files at https://github.com/frame-lang/frame-ancillary-files
 
-#include <iostream>
 #include <vector>
 #include <any>
 #include <string>
-#include <unordered_map>
 using namespace std;
 #include "../FrameLang/FrameLang.h"
 
 //=============== Compartment ==============//
-
-using FuncPtr = void(*)();
 
 class VarScopeCompartment
 {
@@ -197,7 +193,6 @@ private:
     void _sInit_(FrameEvent *e)
     {
         if (e->_message == "to_nn") {
-             std::cout << "Transition to NN state." << std::endl;
             VarScopeCompartment *compartment =  new VarScopeCompartment(static_cast<int>(VarScopeState::NN));
             compartment->stateArgs["b"] = std::string("$NN[b]");
             compartment->stateVars["c"] = std::string("$NN.c");
@@ -207,10 +202,9 @@ private:
         }
         else if (e->_message == "to_ny") {
             VarScopeCompartment *compartment =  new VarScopeCompartment(static_cast<int>(VarScopeState::NY));
-             compartment->stateArgs["b"] = std::string("$NY[b]");
+            compartment->stateArgs["b"] = std::string("$NY[b]");
             compartment->stateVars["c"] = std::string("$NY.c");
             compartment->stateVars["x"] = std::string("$NY.x");
-            
             
             this->_transition_(compartment);
             return;

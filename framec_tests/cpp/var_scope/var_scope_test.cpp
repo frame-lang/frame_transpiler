@@ -42,17 +42,7 @@ protected:
 TEST_F(VarScopeTest, TestNoShadowing) {
     VarScopeController sm;
     sm.to_nn();
-    std::cout << "NN TestNoShadowing:" << std::endl;
-    for (const auto& item : sm.tape) {
-        std::cout << item << std::endl;
-    }
-    std::cout << "End Debugging TestNoShadowing" << std::endl;
     sm.do_nn();
-     std::cout << "do NN TestNoShadowing:" << std::endl;
-    for (const auto& item : sm.tape) {
-        std::cout << item << std::endl;
-    }
-    std::cout << "End Debugging TestNoShadowing" << std::endl;
     EXPECT_EQ(expected("NN", "nn", "#.x"), sm.tape);
 }
 

@@ -1,12 +1,9 @@
 // emitted from framec_v0.10.0
 // get include files at https://github.com/frame-lang/frame-ancillary-files
 
-#include <unordered_map>
 #include <vector>
 #include <any>
 #include <string>
-#include <iostream>
-
 #include "../FrameLang/FrameLang.h"
 using namespace std;
 
@@ -152,7 +149,7 @@ private:
         else if (e->_message == "Next") {
             TransitParamsCompartment *compartment =  new TransitParamsCompartment(static_cast<int>(TransitParamsState::B));
             compartment->enterArgs["msg"] = std::string("hi B");
-            compartment->enterArgs["val"] = 42;
+            compartment->enterArgs["val"] = std::string(42);
             
             this->_transition_(compartment);
             return;
@@ -169,16 +166,16 @@ private:
     {
         if (e->_message == ">") {
             log_do(any_cast<string>(e->_parameters["msg"]));
-            log_do(to_string(e->_parameters["val"]));
+            log_do(to_string(any_cast<int>(e->_parameters["val"])));
             return;
         }
         else if (e->_message == "<") {
-            log_do(to_string(e->_parameters["val"]));
+            log_do(to_string(any_cast<bool>(e->_parameters["val"])));
             log_do(any_cast<string>(e->_parameters["msg"]));
             return;
         }
         else if (e->_message == "Next") {
-            this->_compartment_->exitArgs["val"] = true;
+            this->_compartment_->exitArgs["val"] = std::string(true);
             this->_compartment_->exitArgs["msg"] = std::string("bye B");
             TransitParamsCompartment *compartment =  new TransitParamsCompartment(static_cast<int>(TransitParamsState::A));
             compartment->enterArgs["msg"] = std::string("hi again A");
@@ -202,10 +199,6 @@ public:
     void log_do(const std::string& msg)
     {
         tape.push_back(msg);
-        for (const auto& msg : tape)
-        {
-            std::cout << msg << std::endl;
-        }
     }
     
     // Unimplemented Actions

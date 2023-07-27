@@ -5,7 +5,6 @@
 #include <any>
 #include <unordered_map>
 #include <string>
-#include <iostream>
 using namespace std;
 #include "../FrameLang/FrameLang.h"
 
@@ -120,7 +119,7 @@ private:
         int Inc() {
             FrameEvent e("Inc", unordered_map<string, any>());
             this->_mux_(&e);
-            return any_cast<int>(e._return);
+            return any_cast<int>(*static_cast<any*>(e._return));
         }
         
         void Next(int arg) {
@@ -167,9 +166,9 @@ private:
         }
         else if (e->_message == "Start") {
             StateContextSmCompartment *compartment =  new StateContextSmCompartment(static_cast<int>(StateContextSmState::FOO));
-            compartment->enterArgs["a"] = 3;
-            compartment->enterArgs["b"] = any_cast<int>(this->_compartment_->stateVars["w"]);
-            compartment->stateVars["x"] = 0;
+            compartment->enterArgs["a"] = std::string(3);
+            compartment->enterArgs["b"] = std::string(any_cast<int>(this->_compartment_->stateVars["w"]));
+            compartment->stateVars["x"] = std::string(0);
             
             this->_transition_(compartment);
             return;
@@ -205,11 +204,11 @@ private:
         }
         else if (e->_message == "Next") {
             int tmp  = any_cast<int>(e->_parameters["arg"]) * 10;
-            this->_compartment_->exitArgs["c"] = 10;
+            this->_compartment_->exitArgs["c"] = std::string(10);
             StateContextSmCompartment *compartment =  new StateContextSmCompartment(static_cast<int>(StateContextSmState::BAR));
-            compartment->enterArgs["a"] = tmp;
-            compartment->stateArgs["y"] = any_cast<int>(this->_compartment_->stateVars["x"]);
-            compartment->stateVars["z"] = 0;
+            compartment->enterArgs["a"] = std::string(tmp);
+            compartment->stateArgs["y"] = std::string(any_cast<int>(this->_compartment_->stateVars["x"]));
+            compartment->stateVars["z"] = std::string(0);
             
             this->_transition_(compartment);
             return;
@@ -218,7 +217,7 @@ private:
 		else if (e->_message == "Change") {
             int tmp  = any_cast<int>(this->_compartment_->stateVars["x"]) + any_cast<int>(e->_parameters["arg"]);
             StateContextSmCompartment *compartment =  new StateContextSmCompartment(static_cast<int>(StateContextSmState::BAR));
-            compartment->stateArgs["y"] = tmp;
+            compartment->stateArgs["y"] = std::string(tmp);
             compartment->stateVars["z"] = 0;
             
             this->_changeState_(compartment);
