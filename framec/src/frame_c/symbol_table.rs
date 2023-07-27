@@ -2316,9 +2316,9 @@ pub struct LoopStmtScopeSymbol {
 }
 
 impl LoopStmtScopeSymbol {
-    pub fn new() -> LoopStmtScopeSymbol {
+    pub fn new(name:&String) -> LoopStmtScopeSymbol {
         LoopStmtScopeSymbol {
-            name: String::from("loop"), // todo fix
+            name:name.clone(),
             ast_node_opt: None,
             symtab_rcref: Rc::new(RefCell::new(SymbolTable::new(
                 String::from("loop"),

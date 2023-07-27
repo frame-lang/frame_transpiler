@@ -103,6 +103,7 @@ pub struct Parser<'a> {
     event_handler_has_transition: bool,
     is_action_context:bool,
     is_loop_context:bool,
+    loop_stmt_idx:i32,
     pub generate_enter_args: bool,
     pub generate_exit_args: bool,
     pub generate_state_context: bool,
@@ -144,6 +145,7 @@ impl<'a> Parser<'a> {
             generate_transition_state: false,
             is_action_context: false,
             is_loop_context: false,
+            loop_stmt_idx: 0,
         }
     }
 
@@ -2646,6 +2648,8 @@ impl<'a> Parser<'a> {
         let mut statements = Vec::new();
         let mut is_err = false;
 
+        self.loop_stmt_idx = 0;
+
         loop {
 
             match self.decl_or_stmt() {
@@ -2690,18 +2694,19 @@ impl<'a> Parser<'a> {
                                         return statements;
                                     }
                                     StatementType::LoopStmt { .. } => {
-                                        statements.push(statement); // return statements;
+                                        statements.push(statement);
+                                        self.loop_stmt_idx = self.loop_stmt_idx + 1;
                                     }
                                     StatementType::ContinueStmt { .. } => {
                                         if self.is_loop_context {
-                                            statements.push(statement); // return statements;
+                                            statements.push(statement);
                                         } else {
                                             is_err = true;
                                         }
                                     }
                                     StatementType::BreakStmt { .. } => {
                                         if self.is_loop_context {
-                                            statements.push(statement); // return statements;
+                                            statements.push(statement);
                                         } else {
                                             is_err = true;
                                         }
@@ -4086,13 +4091,16 @@ impl<'a> Parser<'a> {
         // for all loop types, push a symbol table for new scope
         self.is_loop_context = true;
         if self.is_building_symbol_table {
-            let loop_stmt_scope_symbol_rcref = Rc::new(RefCell::new(LoopStmtScopeSymbol::new()));
+            let scope_name = &format!("{}.{}",LoopStmtScopeSymbol::scope_name(),self.loop_stmt_idx);
+            let loop_stmt_scope_symbol_rcref = Rc::new(RefCell::new(LoopStmtScopeSymbol::new(scope_name)));
             self.arcanum.enter_scope(ParseScopeType::Loop {
                 loop_scope_symbol_rcref:loop_stmt_scope_symbol_rcref,
             });
         } else {
+            // give each loop in a scope a unique name
+            let scope_name = &format!("{}.{}",LoopStmtScopeSymbol::scope_name(),self.loop_stmt_idx);
             self.arcanum
-                .set_parse_scope(LoopStmtScopeSymbol::scope_name());
+                .set_parse_scope(scope_name);
         }
         // parse loop
         let ret = self.loop_statement_context();
