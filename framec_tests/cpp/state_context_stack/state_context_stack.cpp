@@ -24,6 +24,16 @@ public:
     std::unordered_map<std::string, std::any> enterArgs;
     std::unordered_map<std::string, std::any> exitArgs;
     FrameEvent *_forwardEvent = nullptr;
+
+    StateContextStackCompartment* _deepCopyCompartment(const StateContextStackCompartment* originalCompartment)
+    {
+        StateContextStackCompartment* newCompartment = new StateContextStackCompartment(originalCompartment->state);
+        newCompartment->stateArgs = originalCompartment->stateArgs;
+        newCompartment->stateVars = originalCompartment->stateVars;
+        newCompartment->enterArgs = originalCompartment->enterArgs;
+        newCompartment->exitArgs = originalCompartment->exitArgs;
+        return newCompartment;
+    }
 };
 
 class StateContextStack
@@ -362,12 +372,13 @@ private:
         this->_mux_(new FrameEvent(">", this->_compartment_->enterArgs));
     }
     
-    private:
+    public:
         stack<StateContextStackCompartment> *_stateStack_ = nullptr;
     
     public:
         void _stateStack_push_(StateContextStackCompartment *compartment)
         {
+             
             _stateStack_->push(*compartment);
         }
         

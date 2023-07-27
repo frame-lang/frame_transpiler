@@ -1,6 +1,8 @@
 ```
 #include <vector>
 #include <any>
+#include <unordered_map>
+#include <string>
 using namespace std;
 #include "../FrameLang/FrameLang.h"
 ```

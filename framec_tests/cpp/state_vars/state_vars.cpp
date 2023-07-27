@@ -181,6 +181,7 @@ private:
     
     
     // Unimplemented Actions
+    public:
     
     //===================== Domain Block ===================//
     

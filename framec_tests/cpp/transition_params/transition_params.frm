@@ -2,8 +2,8 @@
 #include <vector>
 #include <any>
 #include <string>
-using namespace std;
 #include "../FrameLang/FrameLang.h"
+using namespace std;
 ```
 #[codegen.cpp.code.public_domain:bool="true"]
 #[codegen.cpp.code.public_state_info:bool="true"]
@@ -37,10 +37,10 @@ using namespace std;
     $B
         |>| [msg:string val:int]
             log(msg)
-            log(`std::`to_string(val)) ^
+            log(to_string(val)) ^
 
         |<| [val:bool msg:string]
-            log(`std::`to_string(val))
+            log(to_string(val))
             log(msg) ^
 
         |Next|

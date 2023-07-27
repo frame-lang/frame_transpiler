@@ -85,20 +85,15 @@ TEST_F(StateStackControllerTest, TestPopTransitionEvents) {
     sm->pop();
     ASSERT_EQ("2", sm->state_info());
     ASSERT_EQ((std::vector<std::string>{"A:<", "C:>"}), sm->tape) << "Actual values: " << std::endl;
-    for (const auto& value : sm->tape) {
-        std::cout << value << std::endl;
-    }
     sm->tape.clear();
     sm->pop();
     sm->pop();
     ASSERT_EQ("1", sm->state_info());
     ASSERT_EQ((std::vector<std::string>{"C:<", "A:>", "A:<", "B:>"}), sm->tape) << "Actual values: " << std::endl;
-    for (const auto& value : sm->tape) {
-        std::cout << value << std::endl;
-    }
 }
 
 TEST_F(StateStackControllerTest, TestPopChangeStateNoEvents) {
+    sm = new StateStackController();
     sm->to_b();
     sm->push();
     sm->to_a();
@@ -111,15 +106,9 @@ TEST_F(StateStackControllerTest, TestPopChangeStateNoEvents) {
     sm->pop_change();
     ASSERT_EQ("2", sm->state_info());
     ASSERT_EQ((std::vector<std::string>{"C:<", "A:>"}), sm->tape) << "Actual values: " << std::endl;
-    for (const auto& value : sm->tape) {
-        std::cout << value << std::endl;
-    }
     sm->pop();
     sm->pop_change();
     ASSERT_EQ((std::vector<std::string>{"C:<", "A:>", "B:>"}), sm->tape) << "Actual values: " << std::endl;
-    for (const auto& value : sm->tape) {
-        std::cout << value << std::endl;
-    }
 }
 
 int main(int argc, char** argv) {

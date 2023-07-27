@@ -3,6 +3,9 @@
 
 #include <vector>
 #include <any>
+#include <unordered_map>
+#include <string>
+#include <iostream>
 using namespace std;
 #include "../FrameLang/FrameLang.h"
 
@@ -117,7 +120,7 @@ private:
         int Inc() {
             FrameEvent e("Inc", unordered_map<string, any>());
             this->_mux_(&e);
-            return any_cast<int>(*static_cast<any*>(e._return));
+            return any_cast<int>(e._return);
         }
         
         void Next(int arg) {

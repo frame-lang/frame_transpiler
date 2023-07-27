@@ -23,7 +23,6 @@ protected:
 };
 
 TEST_F(StateContextStackTest, PushPopTest) {
-    StateContextStackController* sm;
     ASSERT_EQ("0", sm->state_info());
     sm->push();
     sm->to_b();

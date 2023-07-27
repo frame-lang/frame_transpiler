@@ -25,7 +25,6 @@ protected:
 };
 
 TEST_F(StateContextTest, TestInitialState) {
-    StateContextSmController* sm;
     int r = sm->Inc();
     EXPECT_EQ(4, r);
     sm->LogState();
