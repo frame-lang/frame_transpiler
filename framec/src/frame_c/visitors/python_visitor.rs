@@ -2696,12 +2696,24 @@ impl AstVisitor for PythonVisitor {
 
         self.indent();
         //self.newline();
-        self.visit_decl_stmts(&loop_for_expr_node.statements);
-        // all pre/post inc code should be generated as the last statement in the loop
+
+        // only call if there are statements
+        if loop_for_expr_node.statements.len() != 0 {
+            self.visit_decl_stmts(&loop_for_expr_node.statements);
+        }
+
+        // all autoincdec code in loop control should be generated as the last statement
+        // in the loop
+        // for ..; ..; x++
         if let Some(expr_type_rcref) = &loop_for_expr_node.inc_dec_expr_rcref_opt {
             let expr_t = expr_type_rcref.borrow();
             expr_t.auto_pre_inc_dec(self);
             expr_t.auto_post_inc_dec(self);
+        }
+        // generate 'pass' after autoincdec if there are no statements
+        if loop_for_expr_node.statements.len() == 0 {
+            self.newline();
+            self.add_code(&format!("pass"));
         }
         self.outdent();
         self.newline();
@@ -2748,7 +2760,26 @@ impl AstVisitor for PythonVisitor {
 
         self.indent();
         // self.newline();
-        self.visit_decl_stmts(&loop_in_expr_node.statements);
+
+        // only call if there are statements
+        if loop_in_expr_node.statements.len() != 0 {
+            self.visit_decl_stmts(&loop_in_expr_node.statements);
+        }
+
+        // all autoincdec code in loop control should be generated as the last statement
+        // in the loop
+        // for var x in foo(++x,y--) {}
+        // if let Some(expr_type_rcref) = &loop_in_expr_node.inc_dec_expr_rcref_opt {
+        //     let expr_t = expr_type_rcref.borrow();
+        //     expr_t.auto_pre_inc_dec(self);
+        //     expr_t.auto_post_inc_dec(self);
+        // }
+        // generate 'pass' after autoincdec if there are no statements
+        if loop_in_expr_node.statements.len() == 0 {
+            self.newline();
+            self.add_code(&format!("pass"));
+        }
+
         self.outdent();
         self.newline();
     }
