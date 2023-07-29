@@ -1018,7 +1018,7 @@ impl ExprType {
                 binary_expr_node.right_rcref.borrow().auto_pre_inc_dec(ast_visitor);
             }
             _ => {
-
+                let x = 1;
             }
         }
     }
@@ -1805,7 +1805,7 @@ impl NodeElement for LoopFirstStmt {
 pub struct LoopForStmtNode {
     pub loop_init_expr_rcref_opt: Option<Rc<RefCell<LoopFirstStmt>>>,
     pub test_expr_rcref_opt: Option<Rc<RefCell<ExprType>>>,
-    pub inc_dec_expr_rcref_opt: Option<Rc<RefCell<ExprType>>>,
+    pub post_expr_rcref_opt: Option<Rc<RefCell<ExprType>>>,
     pub statements: Vec<DeclOrStmtType>,
 }
 
@@ -1831,7 +1831,7 @@ impl LoopForStmtNode {
         LoopForStmtNode {
             loop_init_expr_rcref_opt:lie_rcref_opt,
             test_expr_rcref_opt:te_rcref_opt,
-            inc_dec_expr_rcref_opt:id_rcref_opt,
+            post_expr_rcref_opt:id_rcref_opt,
             statements,
         }
     }

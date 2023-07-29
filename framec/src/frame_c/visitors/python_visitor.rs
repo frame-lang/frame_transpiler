@@ -2493,7 +2493,7 @@ impl AstVisitor for PythonVisitor {
             RefExprType::LoopStmtT {loop_types} => {
                 match loop_types {
                     LoopStmtTypes::LoopForStmt { loop_for_stmt_node: loop_for_expr_node } => {
-                        for expr in &loop_for_expr_node.inc_dec_expr_rcref_opt {
+                        for expr in &loop_for_expr_node.post_expr_rcref_opt {
                             expr.borrow().auto_pre_inc_dec(self);
                         }
                     }
@@ -2595,7 +2595,7 @@ impl AstVisitor for PythonVisitor {
             RefExprType::LoopStmtT {loop_types} => {
                 match loop_types {
                     LoopStmtTypes::LoopForStmt { loop_for_stmt_node: loop_for_expr_node } => {
-                        for expr in &loop_for_expr_node.inc_dec_expr_rcref_opt {
+                        for expr in &loop_for_expr_node.post_expr_rcref_opt {
                             expr.borrow().auto_pre_inc_dec(self);
                         }
                     }
@@ -2674,28 +2674,44 @@ impl AstVisitor for PythonVisitor {
         &mut self,
         loop_for_expr_node:&LoopForStmtNode,
     ) {
-        self.loop_for_inc_dec_expr_rcref_opt = loop_for_expr_node.inc_dec_expr_rcref_opt.clone();
+        self.loop_for_inc_dec_expr_rcref_opt = loop_for_expr_node.post_expr_rcref_opt.clone();
         // self.loop_for_inc_dec_expr_rcref_opt = ;
         self.newline();
         if let Some(expr_type_rcref) = &loop_for_expr_node.loop_init_expr_rcref_opt {
             let lfs = expr_type_rcref.borrow();
             lfs.accept(self);
-
             self.newline();
         }
-        match &loop_for_expr_node.test_expr_rcref_opt {
-            Some(expr_type_rcref) => {
-                let mut output = String::new();
-                expr_type_rcref.borrow().accept_to_string(self, &mut output);
-                self.add_code(&format!("while {}:", output));
-            }
-            None => {
-                self.add_code(&format!("while True:"));
-            }
-        }
+        // match &loop_for_expr_node.test_expr_rcref_opt {
+        //     Some(expr_type_rcref) => {
+        //         let mut output = String::new();
+        //         expr_type_rcref.borrow().accept_to_string(self, &mut output);
+        //         self.add_code(&format!("while {}:", output));
+        //     }
+        //     None => {
+        //         self.add_code(&format!("while True:"));
+        //     }
+        // }
 
+        self.add_code(&format!("while True:"));
         self.indent();
-        //self.newline();
+        self.newline();
+        if let Some(test_expr_rcref) = &loop_for_expr_node.test_expr_rcref_opt {
+            let mut output = String::new();
+            test_expr_rcref.borrow().accept_to_string(self, &mut output);
+
+            let test_expr = test_expr_rcref.borrow();
+            test_expr.auto_pre_inc_dec(self);
+
+            self.newline();
+            self.add_code(&format!("if !({}):", output));
+            self.indent();
+            self.newline();
+            self.add_code("break");
+            self.outdent();
+            self.newline();
+            test_expr.auto_post_inc_dec(self);
+        }
 
         // only call if there are statements
         if loop_for_expr_node.statements.len() != 0 {
@@ -2705,9 +2721,11 @@ impl AstVisitor for PythonVisitor {
         // all autoincdec code in loop control should be generated as the last statement
         // in the loop
         // for ..; ..; x++
-        if let Some(expr_type_rcref) = &loop_for_expr_node.inc_dec_expr_rcref_opt {
+        if let Some(expr_type_rcref) = &loop_for_expr_node.post_expr_rcref_opt {
             let expr_t = expr_type_rcref.borrow();
             expr_t.auto_pre_inc_dec(self);
+            self.newline();
+            expr_t.accept(self);
             expr_t.auto_post_inc_dec(self);
         }
         // generate 'pass' after autoincdec if there are no statements
@@ -3749,7 +3767,7 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_assignment_expr_node(&mut self, assignment_expr_node: &AssignmentExprNode) {
         self.generate_comment(assignment_expr_node.line);
-        self.newline();
+        // self.newline();
         // inc/dec all *rvalue* expressions before generating the
         // assignement statement
         assignment_expr_node.r_value_box.auto_pre_inc_dec(self);
