@@ -104,6 +104,7 @@ pub struct Parser<'a> {
     is_action_context:bool,
     is_loop_context:bool,
     loop_stmt_idx:i32,
+    interface_method_called:bool,
     pub generate_enter_args: bool,
     pub generate_exit_args: bool,
     pub generate_state_context: bool,
@@ -146,6 +147,7 @@ impl<'a> Parser<'a> {
             is_action_context: false,
             is_loop_context: false,
             loop_stmt_idx: 0,
+            interface_method_called: false,
         }
     }
 
@@ -2237,6 +2239,7 @@ impl<'a> Parser<'a> {
         // It just hangs upon exiting the method.
         let mut msg: String = "".to_string();
         let line_number: usize;
+        self.interface_method_called = false;
 
         self.event_handler_has_transition = false;
         //    let a = self.message();
@@ -2633,8 +2636,12 @@ impl<'a> Parser<'a> {
         } else if self.match_token(&[TokenType::ElseContinue]) {
             Ok(TerminatorExpr::new(Continue, None, self.previous().line))
         } else {
-            self.error_at_current("Expected event handler terminator.");
-            Err(ParseError::new("TODO"))
+            let mut err_msg = format!("Expected event handler terminator." );
+            if self.interface_method_called {
+                err_msg = format!("Interface method call must be last statement in an event handler.")
+            }
+            self.error_at_current(&err_msg);
+            Err(ParseError::new(&err_msg))
         }
     }
 
@@ -2670,6 +2677,7 @@ impl<'a> Parser<'a> {
                                             match call_chain_literal_stmt_node.call_chain_literal_expr_node.call_chain.get(0) {
                                                 Some(CallChainLiteralNodeType::InterfaceMethodCallT {interface_method_call_expr_node}) => {
                                                     // interface method call must be last statement.
+                                                    self.interface_method_called = true;
                                                     statements.push(statement); // return statements;
 
                                                     return statements;

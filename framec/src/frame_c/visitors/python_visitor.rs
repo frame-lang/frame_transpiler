@@ -2352,7 +2352,11 @@ impl AstVisitor for PythonVisitor {
             {
                 self.this_branch_transitioned = true;
                 interface_method_call_expr_node.accept(self);
-                self.generate_return();
+                // TODO - this next statement was problematic if not in a branch.
+                // Leaving here in case there is an unconsidered edge case.
+                // Needs to be directly solved by the mandatory event handler solution,
+                // whatever that is going to be.
+                // self.generate_return();
                 return;
             }
         }
