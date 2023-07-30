@@ -15,7 +15,7 @@ use downcast_rs::__std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
-use crate::frame_c::ast::LoopStmtTypes::{LoopInfiniteStmt, LoopInStmt};
+//use crate::frame_c::ast::LoopStmtTypes::{LoopInfiniteStmt, LoopInStmt};
 
 pub struct ParseError {
     // TODO:
@@ -2092,6 +2092,8 @@ impl<'a> Parser<'a> {
         let mut enter_event_handler = Option::None;
         let mut exit_event_handler = Option::None;
 
+        let mut event_names = HashMap::new();
+
         loop {
             while self.match_token(&[TokenType::SingleLineComment]) {
                 // consume
@@ -2147,6 +2149,16 @@ impl<'a> Parser<'a> {
                                         } else {
                                             exit_event_handler = Some(eh_rcref.clone());
                                         }
+                                    } else {
+                                        if event_names.contains_key(&evt.msg) {
+                                            let err_msg = &format!("Event handler {} already exists.", evt.msg);
+                                            self.error_at_previous(&err_msg);
+//                                            return Err(ParseError::new(err_msg));
+
+                                        } else {
+                                            event_names.insert(evt.msg.clone(),evt.msg.clone() );
+                                        }
+
                                     }
                                 }
 
