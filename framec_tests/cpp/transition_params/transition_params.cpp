@@ -123,7 +123,7 @@ private:
     {
         if (e->_message == "Next") {
             TransitParamsCompartment *compartment =  new TransitParamsCompartment(static_cast<int>(TransitParamsState::A));
-            compartment->enterArgs["msg"] = std::string("hi A");
+            compartment->enterArgs["msg"] = "hi A";
             
             this->_transition_(compartment);
             return;
@@ -148,8 +148,8 @@ private:
         }
         else if (e->_message == "Next") {
             TransitParamsCompartment *compartment =  new TransitParamsCompartment(static_cast<int>(TransitParamsState::B));
-            compartment->enterArgs["msg"] = std::string("hi B");
-            compartment->enterArgs["val"] = std::string(42);
+            compartment->enterArgs["msg"] = "hi B";
+            compartment->enterArgs["val"] = 42;
             
             this->_transition_(compartment);
             return;
@@ -175,10 +175,10 @@ private:
             return;
         }
         else if (e->_message == "Next") {
-            this->_compartment_->exitArgs["val"] = std::string(true);
-            this->_compartment_->exitArgs["msg"] = std::string("bye B");
+            this->_compartment_->exitArgs["val"] = true;
+            this->_compartment_->exitArgs["msg"] = "bye B";
             TransitParamsCompartment *compartment =  new TransitParamsCompartment(static_cast<int>(TransitParamsState::A));
-            compartment->enterArgs["msg"] = std::string("hi again A");
+            compartment->enterArgs["msg"] = "hi again A";
             
             this->_transition_(compartment);
             return;

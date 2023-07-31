@@ -1024,7 +1024,7 @@ impl CppVisitor {
                                     let mut expr = String::new();
                                     expr_t.accept_to_string(self, &mut expr);
                                     self.add_code(&format!(
-                                        "compartment->stateArgs[\"{}\"] = std::string({});",
+                                        "compartment->stateArgs[\"{}\"] = {};",
                                         param_symbol.name, expr
                                     ));
                                     self.newline();
@@ -1249,7 +1249,7 @@ impl CppVisitor {
                                     let mut expr = String::new();
                                     expr_t.accept_to_string(self, &mut expr);
                                     self.add_code(&format!(
-                                        "compartment->enterArgs[\"{}\"] = std::string({});",
+                                        "compartment->enterArgs[\"{}\"] = {};",
                                         p.name, expr
                                     ));
                                     self.newline();
@@ -1299,7 +1299,7 @@ impl CppVisitor {
                                     let mut expr = String::new();
                                     expr_t.accept_to_string(self, &mut expr);
                                     self.add_code(&format!(
-                                        "compartment->stateArgs[\"{}\"] = std::string({});",
+                                        "compartment->stateArgs[\"{}\"] = {};",
                                         param_symbol.name, expr
                                     ));
                                     self.newline();
@@ -1342,7 +1342,7 @@ impl CppVisitor {
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
                             self.add_code(&format!(
-                                "compartment->stateVars[\"{}\"] = std::string({});",
+                                "compartment->stateVars[\"{}\"] = {};",
                                 var.name, expr_code
                             ));
                             self.newline();

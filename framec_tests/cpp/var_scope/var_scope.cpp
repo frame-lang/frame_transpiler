@@ -194,36 +194,36 @@ private:
     {
         if (e->_message == "to_nn") {
             VarScopeCompartment *compartment =  new VarScopeCompartment(static_cast<int>(VarScopeState::NN));
-            compartment->stateArgs["b"] = std::string("$NN[b]");
-            compartment->stateVars["c"] = std::string("$NN.c");
+            compartment->stateArgs["b"] = "$NN[b]";
+            compartment->stateVars["c"] = "$NN.c";
             
             this->_transition_(compartment);
             return;
         }
         else if (e->_message == "to_ny") {
             VarScopeCompartment *compartment =  new VarScopeCompartment(static_cast<int>(VarScopeState::NY));
-            compartment->stateArgs["b"] = std::string("$NY[b]");
-            compartment->stateVars["c"] = std::string("$NY.c");
-            compartment->stateVars["x"] = std::string("$NY.x");
+            compartment->stateArgs["b"] = "$NY[b]";
+            compartment->stateVars["c"] = "$NY.c";
+            compartment->stateVars["x"] = "$NY.x";
             
             this->_transition_(compartment);
             return;
         }
         else if (e->_message == "to_yn") {
             VarScopeCompartment *compartment =  new VarScopeCompartment(static_cast<int>(VarScopeState::YN));
-            compartment->stateArgs["b"] = std::string("$YN[b]");
-            compartment->stateArgs["x"] = std::string("$YN[x]");
-            compartment->stateVars["c"] = std::string("$YN.c");
+            compartment->stateArgs["b"] = "$YN[b]";
+            compartment->stateArgs["x"] = "$YN[x]";
+            compartment->stateVars["c"] = "$YN.c";
             
             this->_transition_(compartment);
             return;
         }
         else if (e->_message == "to_yy") {
             VarScopeCompartment *compartment =  new VarScopeCompartment(static_cast<int>(VarScopeState::YY));
-            compartment->stateArgs["b"] = std::string("$YY[b]");
-            compartment->stateArgs["x"] = std::string("$YY[x]");
-            compartment->stateVars["c"] = std::string("$YY.c");
-            compartment->stateVars["x"] = std::string("$YY.x");
+            compartment->stateArgs["b"] = "$YY[b]";
+            compartment->stateArgs["x"] = "$YY[x]";
+            compartment->stateVars["c"] = "$YY.c";
+            compartment->stateVars["x"] = "$YY.x";
             
             this->_transition_(compartment);
             return;
