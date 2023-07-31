@@ -1178,7 +1178,7 @@ impl CppVisitor {
                                         let mut expr = String::new();
                                         expr_t.accept_to_string(self, &mut expr);
                                         self.add_code(&format!(
-                                            "this->_compartment_->exitArgs[\"{}\"] = std::string({});",
+                                            "this->_compartment_->exitArgs[\"{}\"] = {};",
                                             p.name, expr
                                         ));
                                         self.newline();
