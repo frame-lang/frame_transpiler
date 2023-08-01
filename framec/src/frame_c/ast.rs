@@ -2239,6 +2239,7 @@ pub enum IdentifierDeclScope {
     EventHandlerParam,
     EventHandlerVar,
     LoopVar,
+    BlockVar,
     None,
 }
 

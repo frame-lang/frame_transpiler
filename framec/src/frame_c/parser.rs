@@ -1814,6 +1814,9 @@ impl<'a> Parser<'a> {
                 IdentifierDeclScope::LoopVar => SymbolType::LoopVar {
                     loop_variable_symbol_rcref: variable_symbol_rcref
                 },
+                IdentifierDeclScope::BlockVar => SymbolType::BlockVar {
+                    block_variable_symbol_rcref: variable_symbol_rcref
+                },
                 _ => return Err(ParseError::new("Unrecognized variable scope.")),
             };
             // TODO: make current_symtab private
@@ -3208,11 +3211,38 @@ impl<'a> Parser<'a> {
         self.bool_test_conditional_branch_statements(is_negated, expr_t)
     }
 
+
     /* --------------------------------------------------------------------- */
 
     // bool_test_conditional_branch_statements -> statements* branch_terminator?
 
     fn bool_test_conditional_branch_statements(
+        &mut self,
+        is_negated: bool,
+        expr_t: ExprType,
+    ) -> Result<BoolTestConditionalBranchNode, ParseError> {
+        let scope_name = &format!("bool_test_conditional_branch");
+        if self.is_building_symbol_table {
+            let block_scope_rcref = Rc::new(RefCell::new(BlockScope::new(scope_name)));
+            self.arcanum.enter_scope(ParseScopeType::Block {
+                block_scope_rcref,
+            });
+        } else {
+//            let scope_name = &format!("{}.{}",LoopStmtScopeSymbol::scope_name(),self.loop_stmt_idx);
+            self.arcanum
+                .set_parse_scope(scope_name);
+        }
+        let ret = self.bool_test_conditional_branch_statements_scope(is_negated, expr_t);
+        // exit block scope
+        self.arcanum.exit_parse_scope();
+        ret
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    // bool_test_conditional_branch_statements -> statements* branch_terminator?
+
+    fn bool_test_conditional_branch_statements_scope(
         &mut self,
         is_negated: bool,
         expr_t: ExprType,
@@ -4888,7 +4918,7 @@ impl<'a> Parser<'a> {
                         self.error_at_current(msg);
                         return Err(ParseError::new(msg));
 
-                        return Err(ParseError::new(&format!("Error - unknown scope identifier {}.",identifier_node.name)));
+                       // return Err(ParseError::new(&format!("Error - unknown scope identifier {}.",identifier_node.name)));
                     }
                 }
             }

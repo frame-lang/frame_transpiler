@@ -88,7 +88,11 @@ pub enum ParseScopeType {
     Loop {
         loop_scope_symbol_rcref: Rc<RefCell<LoopStmtScopeSymbol>>,
     },
+    Block {
+        block_scope_rcref: Rc<RefCell<BlockScope>>,
+    },
 }
+
 
 // This is what gets stored in the symbol tables
 pub enum SymbolType {
@@ -159,6 +163,12 @@ pub enum SymbolType {
     LoopVar {
         loop_variable_symbol_rcref: Rc<RefCell<VariableSymbol>>,
     },
+    BlockScope {
+        block_scope_rcref: Rc<RefCell<BlockScope>>,
+    },
+    BlockVar {
+        block_variable_symbol_rcref: Rc<RefCell<VariableSymbol>>,
+    },
 }
 
 impl Symbol for SymbolType {
@@ -223,6 +233,12 @@ impl Symbol for SymbolType {
             SymbolType::LoopVar {
                 loop_variable_symbol_rcref,
             } => loop_variable_symbol_rcref.borrow().get_name(),
+            SymbolType::BlockScope {
+                block_scope_rcref,
+            } => block_scope_rcref.borrow().get_name(),
+            SymbolType::BlockVar {
+                block_variable_symbol_rcref: block_var_rcref,
+            } => block_var_rcref.borrow().get_name(),
         }
     }
 }
@@ -277,7 +293,15 @@ impl ScopeSymbol for SymbolType {
             SymbolType::LoopStmtSymbol {
                 loop_scope_symbol_rcref,
             } => loop_scope_symbol_rcref.borrow().get_symbol_table(),
-            _ => panic!("Could not find SymbolType. Giving up."),
+            SymbolType::BlockScope {
+                block_scope_rcref,
+            } => block_scope_rcref.borrow().get_symbol_table(),
+            SymbolType::BlockVar {
+                block_variable_symbol_rcref: block_var_rcref,
+            } =>   panic!("Fatal error - block variable symbol does not have a symbol table."),
+            _ => {
+                panic!("Could not find SymbolType. Giving up.")
+            },
         }
     }
 
@@ -466,6 +490,15 @@ impl SymbolTable {
                 }));
                 self.symbols.insert(name, st_ref);
             }
+            ParseScopeType::Block {
+                block_scope_rcref,
+            } => {
+                let name = block_scope_rcref.borrow().name.clone();
+                let st_ref = Rc::new(RefCell::new(SymbolType::BlockScope {
+                    block_scope_rcref
+                }));
+                self.symbols.insert(name, st_ref);
+            }
         }
     }
 
@@ -571,6 +604,15 @@ impl SymbolTable {
                 let name = loop_variable_symbol_rcref.borrow().name.clone();
                 let symbol_type_rcref = Rc::new(RefCell::new(SymbolType::LoopVar {
                     loop_variable_symbol_rcref: Rc::clone(loop_variable_symbol_rcref),
+                }));
+                self.symbols.insert(name, symbol_type_rcref);
+            }
+            SymbolType::BlockVar {
+                block_variable_symbol_rcref,
+            } => {
+                let name = block_variable_symbol_rcref.borrow().name.clone();
+                let symbol_type_rcref = Rc::new(RefCell::new(SymbolType::BlockVar {
+                    block_variable_symbol_rcref: Rc::clone(block_variable_symbol_rcref),
                 }));
                 self.symbols.insert(name, symbol_type_rcref);
             }
@@ -1047,6 +1089,28 @@ impl Arcanum {
                 self.current_symtab.borrow_mut().insert_parse_scope(scope_t);
                 // update current symbol table to new event_handler's symbol table
                 self.current_symtab = Rc::clone(&domain_block_scope_symbol_symtab_rcref);
+            }
+            ParseScopeType::Block {
+                block_scope_rcref,
+            } => {
+                // clone the Rc for the symbol table
+                let block_scope_rcref_rcref_clone =
+                    Rc::clone(block_scope_rcref);
+                let block_scope_symtab_rcref = Rc::clone(
+                    &block_scope_rcref_rcref_clone
+                        .borrow()
+                        .symtab_rcref,
+                );
+
+                let current_symtab_rcref = Rc::clone(&self.current_symtab);
+                block_scope_rcref
+                    .borrow_mut()
+                    .set_parent_symtab(&current_symtab_rcref);
+
+                // add new scope symbol to previous symbol table
+                self.current_symtab.borrow_mut().insert_parse_scope(scope_t);
+                // update current symbol table to new event_handler's symbol table
+                self.current_symtab = Rc::clone(&block_scope_symtab_rcref);
             }
         }
 
@@ -2307,6 +2371,7 @@ impl ScopeSymbol for ActionScopeSymbol {
 
 // ----------------------- //
 
+
 const LOOP_SCOPE_NAME: &str = "loop";
 
 pub struct LoopStmtScopeSymbol {
@@ -2321,6 +2386,7 @@ impl LoopStmtScopeSymbol {
             name:name.clone(),
             ast_node_opt: None,
             symtab_rcref: Rc::new(RefCell::new(SymbolTable::new(
+                // TODO: Should this use the name passed in?
                 String::from("loop"),
                 None,
                 IdentifierDeclScope::None,
@@ -2520,7 +2586,6 @@ impl EnumSymbol {
         }
     }
 
-
     pub fn set_ast_node(&mut self, ast_node: Rc<RefCell<EnumDeclNode>>) {
         self.ast_node_opt = Some(Rc::clone(&ast_node));
     }
@@ -2529,5 +2594,61 @@ impl EnumSymbol {
 impl Symbol for EnumSymbol {
     fn get_name(&self) -> String {
         self.name.clone()
+    }
+}
+
+
+// -----------------------
+
+pub struct BlockScope {
+    pub name: String,
+    pub symtab_rcref: Rc<RefCell<SymbolTable>>,
+}
+
+impl BlockScope {
+    pub fn new(name:&String) -> BlockScope {
+        BlockScope {
+            name:name.clone(),
+            symtab_rcref: Rc::new(RefCell::new(SymbolTable::new(
+                name.clone(),
+                None,
+                IdentifierDeclScope::BlockVar,
+                false,
+            ))),
+        }
+    }
+
+    pub fn set_parent_symtab(&mut self, parent_symtab: &Rc<RefCell<SymbolTable>>) {
+        self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt =
+            Option::Some(Rc::clone(parent_symtab));
+    }
+}
+
+
+// TODO - can Symbol and ScopeSymbol impls use a default implementation?
+impl Symbol for BlockScope {
+    fn get_name(&self) -> String {
+        self.name.clone()
+    }
+}
+
+impl ScopeSymbol for BlockScope {
+    fn get_symbol_table(&self) -> Rc<RefCell<SymbolTable>> {
+        Rc::clone(&self.symtab_rcref)
+    }
+
+    fn get_symbol_table_for_symbol(&self, symbol_name: &str) -> Rc<RefCell<SymbolTable>> {
+        let a = self.symtab_rcref.borrow();
+        let b = a.symbols.get(symbol_name);
+        if let Some(c) = b {
+            let d = c.borrow();
+            let e = d.get_symbol_table_for_symbol(symbol_name);
+            Rc::clone(&e)
+        } else {
+            panic!(
+                "Fatal error - could not find symbol {} in scope.",
+                symbol_name
+            );
+        }
     }
 }
