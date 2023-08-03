@@ -15,6 +15,7 @@ use downcast_rs::__std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
+use crate::frame_c::symbol_table::SymbolType::ParamSymbol;
 //use crate::frame_c::ast::LoopStmtTypes::{LoopInfiniteStmt, LoopInStmt};
 
 pub struct ParseError {
@@ -1072,12 +1073,19 @@ impl<'a> Parser<'a> {
                 interface_method_symbol_rcref,
             };
             // TODO: just insert into arcanum directly
-            self.arcanum
+           let ret = self.arcanum
                 .current_symtab
                 .borrow_mut()
                 .insert_symbol(&interface_method_symbol_t);
+            match ret {
+                Ok(()) => {}
+                Err(err_msg) => {
+                    self.error_at_previous(err_msg.as_str());
+                    return Err(ParseError::new(err_msg.as_str()))
+                }
+            }
         } else {
-            // link action symbol to action declaration node
+            // TODO? - link action symbol to action declaration node
         }
 
         Ok(interface_method_rcref)
@@ -1171,6 +1179,120 @@ impl<'a> Parser<'a> {
         MessageNode::new(name, id.line)
     }
 
+
+    /* --------------------------------------------------------------------- */
+
+    // TODO- see if all parameter lists can use a common parsing function and AST/symbol data and logic.
+    // This is currently to implement scope for parameters for actions but should
+    // be expanded to other parameter types if possible.
+
+    fn parameters_scope(&mut self) -> Result<Option<Vec<ParameterNode>>, ParseError> {
+        self.is_loop_context = true;
+        if self.is_building_symbol_table {
+            let params_scope_symbol_rcref = Rc::new(RefCell::new(ParamsScopeSymbol::new()));
+            self.arcanum.enter_scope(ParseScopeType::Params {
+                params_scope_symbol_rcref
+            });
+        } else {
+            // give each loop in a scope a unique name
+            let scope_name = &format!("{}",ParamsScopeSymbol::scope_name());
+            self.arcanum
+                .set_parse_scope(ParamsScopeSymbol::scope_name());
+        }
+
+        let ret = self.parameters2();
+
+        self.arcanum.exit_parse_scope();
+
+        ret
+    }
+
+
+    /* --------------------------------------------------------------------- */
+
+    // TODO - unify parameters() and parameters2(). parameters2() is called by
+    // methods that manage the scope and expect parameters2() to insert parameter symbols.
+
+    // TODO: consider removing ParseError as it is currently not returned.
+    fn parameters2(&mut self) -> Result<Option<Vec<ParameterNode>>, ParseError> {
+        let mut parameters: Vec<ParameterNode> = Vec::new();
+
+        loop {
+            match self.parameter() {
+                Ok(parameter_opt) => match parameter_opt {
+                    Some(parameter_node) => {
+                        let param_name = &parameter_node.param_name.clone();
+                        let mut param_type_opt: Option<TypeNode> = None;
+                        if parameter_node.param_type_opt.is_some() {
+                            let pt =
+                                &parameter_node.param_type_opt.as_ref().unwrap().clone();
+                            param_type_opt = Some(pt.clone());
+                        }
+                        let scope = self.arcanum.get_current_identifier_scope();
+                        let param_symbol = ParameterSymbol::new(
+                            param_name.clone(),
+                            param_type_opt.clone(),
+                            scope,
+                        );
+                        let param_symbol_rcref =
+                            Rc::new(RefCell::new(param_symbol));
+                        let param_symbol_enum = SymbolType::ParamSymbol {param_symbol_rcref};
+                       //  let params_scope = ParseScopeType::Params {params_scope_symbol_rcref};
+
+                        if self.is_building_symbol_table {
+                            let ret = self.arcanum.insert_symbol(param_symbol_enum);
+                            match ret {
+                                Ok(()) => {}
+                                Err(err_msg) => {
+                                    self.error_at_previous(err_msg.as_str());
+                                    return Err(ParseError::new(err_msg.as_str()))
+                                }
+                            }
+                        } else {
+
+                        }
+
+                        parameters.push(parameter_node);
+                    }
+                    None => {
+                        break;
+                    }
+                },
+                Err(_parse_error) => {
+                    let sync_tokens = &vec![
+                        TokenType::Identifier,
+                        TokenType::Colon,
+                        TokenType::RBracket,
+                        TokenType::MachineBlock,
+                        TokenType::ActionsBlock,
+                        TokenType::DomainBlock,
+                        TokenType::SystemEnd,
+                    ];
+                    self.synchronize(sync_tokens);
+                    if !self.follows(
+                        self.peek(),
+                        &[TokenType::Identifier, TokenType::Colon, TokenType::RBracket],
+                    ) {
+                        break;
+                    }
+                }
+            }
+            if self.match_token(&[TokenType::RBracket]) {
+                break;
+            } else if let Err(parse_error) = self.consume(TokenType::Comma, "Expected comma.") {
+
+                return Err(parse_error);
+            }
+        }
+
+        if !parameters.is_empty() {
+            Ok(Some(parameters))
+        } else {
+            self.error_at_current("Error - empty list declaration.");
+            Err(ParseError::new("Error - empty list declaration."))
+        }
+    }
+
     /* --------------------------------------------------------------------- */
 
     // Just get the parameters here. The calling routine will either build or
@@ -1253,7 +1375,12 @@ impl<'a> Parser<'a> {
         }
 
         let scope = self.arcanum.get_current_identifier_scope();
-        Ok(Some(ParameterNode::new(param_name, param_type_opt, scope)))
+        let param_node = ParameterNode::new(param_name, param_type_opt, scope);
+
+        if self.is_building_symbol_table {
+
+        }
+        Ok(Some(param_node))
     }
 
     /* --------------------------------------------------------------------- */
@@ -1317,7 +1444,7 @@ impl<'a> Parser<'a> {
         let mut actions = Vec::new();
 
         while self.match_token(&[TokenType::Identifier]) {
-            if let Ok(action_decl_node) = self.action() {
+            if let Ok(action_decl_node) = self.action_scope() {
                 actions.push(action_decl_node);
             }
         }
@@ -1409,7 +1536,7 @@ impl<'a> Parser<'a> {
     // the parsing. Here the scope stack is managed including
     // the scope symbol creation and association with the AST node.
 
-    fn action(&mut self) -> Result<Rc<RefCell<ActionNode>>, ParseError> {
+    fn action_scope(&mut self) -> Result<Rc<RefCell<ActionNode>>, ParseError> {
 
         let action_name = self.previous().lexeme.clone();
 
@@ -1439,7 +1566,7 @@ impl<'a> Parser<'a> {
                 .set_parse_scope(&action_name);
         }
 
-        let ret = self.action_context(action_name.clone());
+        let ret = self.action(action_name.clone());
 
         if self.is_building_symbol_table {
             match &ret {
@@ -1468,12 +1595,12 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    fn action_context(&mut self, action_name:String) -> Result<Rc<RefCell<ActionNode>>, ParseError>  {
+    fn action(&mut self, action_name:String) -> Result<Rc<RefCell<ActionNode>>, ParseError>  {
 
         let mut params: Option<Vec<ParameterNode>> = Option::None;
 
         if self.match_token(&[TokenType::LBracket]) {
-            params = match self.parameters() {
+            params = match self.parameters_scope() {
                 Ok(Some(parameters)) => Some(parameters),
                 Ok(None) => None,
                 Err(parse_error) => return Err(parse_error),
@@ -1565,7 +1692,9 @@ impl<'a> Parser<'a> {
         let y = Rc::new(x);
         Ok(y)
     }
-        /* --------------------------------------------------------------------- */
+
+
+    /* --------------------------------------------------------------------- */
 
     // TODO: Return result
     fn domain_block(&mut self) -> DomainBlockNode {
@@ -1690,13 +1819,19 @@ impl<'a> Parser<'a> {
             };
             self.arcanum
                 .debug_print_current_symbols(self.arcanum.get_current_symtab());
-            self.arcanum
+            let ret = self.arcanum
                 .current_symtab
                 .borrow_mut()
                 .insert_symbol(&enum_symbol_t);
             self.arcanum
                 .debug_print_current_symbols(self.arcanum.get_current_symtab());
-
+            match ret {
+                Ok(()) => {}
+                Err(err_msg) => {
+                    self.error_at_previous(err_msg.as_str());
+                    return Err(ParseError::new(err_msg.as_str()))
+                }
+            }
         } else {
             // semantic pass
 
@@ -1771,8 +1906,9 @@ impl<'a> Parser<'a> {
                 Ok(Some(FrameEventExprT { frame_event_part }))
                 => initializer_expr_t_opt = Some(FrameEventExprT { frame_event_part }),
                 _ => {
-                    self.error_at_current("Unexpected assignment expression value.");
-                    return Err(ParseError::new("TODO"))
+                    let err_msg = "Unexpected assignment expression value.";
+                    self.error_at_current(err_msg);
+                    return Err(ParseError::new(err_msg))
                 },
             }
         } else if matches!(self.peek().token_type,TokenType::In) {
@@ -1781,8 +1917,9 @@ impl<'a> Parser<'a> {
 
         } else {
             // All variables should be initialized to something.
-            self.error_at_current("Expected '='. All variables must be initialized.");
-            return Err(ParseError::new("TODO"));
+            let err_msg = "Expected '='. All variables must be initialized.";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
         }
 
         let variable_decl_node = VariableDeclNode::new(
@@ -1822,10 +1959,17 @@ impl<'a> Parser<'a> {
             // TODO: make current_symtab private
             self.arcanum
                 .debug_print_current_symbols(self.arcanum.get_current_symtab());
-            self.arcanum
+            let ret = self.arcanum
                 .current_symtab
                 .borrow_mut()
                 .insert_symbol(&variable_symbol_t);
+            match ret {
+                Ok(()) => {}
+                Err(err_msg) => {
+                    self.error_at_current(err_msg.as_str());
+                    return Err(ParseError::new(err_msg.as_str()))
+                }
+            }
             self.arcanum
                 .debug_print_current_symbols(self.arcanum.get_current_symtab());
         } else {
@@ -1951,7 +2095,14 @@ impl<'a> Parser<'a> {
                                         param.param_type_opt.clone(),
                                         scope,
                                     );
-                                    self.arcanum.insert_symbol(x);
+                                    let ret = self.arcanum.insert_symbol(x);
+                                    match ret {
+                                        Ok(()) => {}
+                                        Err(err_msg) => {
+                                            self.error_at_previous(err_msg.as_str());
+                                            return Err(ParseError::new(err_msg.as_str()))
+                                        }
+                                    }
                                 }
                             }
                             None => {
@@ -2411,10 +2562,17 @@ impl<'a> Parser<'a> {
                                                     self.arcanum.debug_print_current_symbols(
                                                         self.arcanum.get_current_symtab(),
                                                     );
-                                                    self.arcanum.insert_symbol(symbol_type);
+                                                    let ret = self.arcanum.insert_symbol(symbol_type);
                                                     self.arcanum.debug_print_current_symbols(
                                                         self.arcanum.get_current_symtab(),
                                                     );
+                                                    match ret {
+                                                        Ok(()) => {}
+                                                        Err(err_msg) => {
+                                                            self.error_at_previous(err_msg.as_str());
+                                                            return Err(ParseError::new(err_msg.as_str()))
+                                                        }
+                                                    }
                                                 } else {
                                                     // TODO
                                                     self.error_at_current(
@@ -2459,7 +2617,14 @@ impl<'a> Parser<'a> {
                                             param_type_opt.clone(),
                                             scope,
                                         );
-                                        self.arcanum.insert_symbol(x);
+                                        let ret = self.arcanum.insert_symbol(x);
+                                        match ret {
+                                            Ok(()) => {}
+                                            Err(err_msg) => {
+                                                self.error_at_previous(err_msg.as_str());
+                                                return Err(ParseError::new(err_msg.as_str()))
+                                            }
+                                        }
                                     }
                                     event_symbol_params_opt = Some(event_symbol_params);
                                 }
@@ -2779,6 +2944,7 @@ impl<'a> Parser<'a> {
 
     fn decl_or_stmt(&mut self) -> Result<Option<DeclOrStmtType>, ParseError> {
         if self.match_token(&[TokenType::Var, TokenType::Const]) {
+            // this is hardcoded and needs to be set based on context. specifically BlockVar
             match self.variable_decl(IdentifierDeclScope::EventHandlerVar) {
                 Ok(var_decl_t_rc_ref) => {
                     return Ok(Some(DeclOrStmtType::VarDeclT { var_decl_t_rc_ref }));
@@ -3035,7 +3201,7 @@ impl<'a> Parser<'a> {
         }
 
         if self.match_token(&[TokenType::Loop]) {
-            return match self.loop_statement() {
+            return match self.loop_statement_scope() {
                 Ok(Some(loop_stmt_t)) => Ok(Some(loop_stmt_t)),
                 Ok(None) => Err(ParseError::new("TODO")),
                 Err(parse_error) => Err(parse_error),
@@ -3256,7 +3422,9 @@ impl<'a> Parser<'a> {
                 statements,
                 branch_terminator_expr_opt,
             )),
-            Err(parse_error) => Err(parse_error),
+            Err(parse_error) => {
+                    Err(parse_error)
+            },
         }
     }
 
@@ -4137,7 +4305,7 @@ impl<'a> Parser<'a> {
     // TODO - update other scopes to follow this patter so that
     // TODO - all return paths automatically pop scope.
 
-    fn loop_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
+    fn loop_statement_scope(&mut self) -> Result<Option<StatementType>, ParseError> {
         // for all loop types, push a symbol table for new scope
         self.is_loop_context = true;
         if self.is_building_symbol_table {
@@ -4349,7 +4517,7 @@ impl<'a> Parser<'a> {
     fn loop_in_statement(&mut self,loop_first_stmt: LoopFirstStmt) -> Result<Option<StatementType>, ParseError>  {
 
         let mut statements = Vec::new();
-        let mut iterable_expr;
+        let iterable_expr;
         let second_expr_result =  self.expression();
         match second_expr_result {
             Ok(Some(expr_type)) => {

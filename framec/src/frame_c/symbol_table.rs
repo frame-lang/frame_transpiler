@@ -91,6 +91,9 @@ pub enum ParseScopeType {
     Block {
         block_scope_rcref: Rc<RefCell<BlockScope>>,
     },
+    Params {
+        params_scope_symbol_rcref: Rc<RefCell<ParamsScopeSymbol>>,
+    },
 }
 
 
@@ -169,6 +172,12 @@ pub enum SymbolType {
     BlockVar {
         block_variable_symbol_rcref: Rc<RefCell<VariableSymbol>>,
     },
+    ParamsScope {
+        params_scope_symbol_rcref: Rc<RefCell<ParamsScopeSymbol>>,
+    },
+    ParamSymbol {
+        param_symbol_rcref: Rc<RefCell<ParameterSymbol>>,
+    },
 }
 
 impl Symbol for SymbolType {
@@ -239,6 +248,12 @@ impl Symbol for SymbolType {
             SymbolType::BlockVar {
                 block_variable_symbol_rcref: block_var_rcref,
             } => block_var_rcref.borrow().get_name(),
+            SymbolType::ParamsScope {
+                params_scope_symbol_rcref,
+            } => params_scope_symbol_rcref.borrow().get_name(),
+            SymbolType::ParamSymbol {
+                param_symbol_rcref,
+            } => param_symbol_rcref.borrow().get_name(),
         }
     }
 }
@@ -299,6 +314,10 @@ impl ScopeSymbol for SymbolType {
             SymbolType::BlockVar {
                 block_variable_symbol_rcref: block_var_rcref,
             } =>   panic!("Fatal error - block variable symbol does not have a symbol table."),
+            SymbolType::ParamsScope {
+                params_scope_symbol_rcref,
+            } =>  params_scope_symbol_rcref.borrow().get_symbol_table(),
+
             _ => {
                 panic!("Could not find SymbolType. Giving up.")
             },
@@ -499,75 +518,119 @@ impl SymbolTable {
                 }));
                 self.symbols.insert(name, st_ref);
             }
+            ParseScopeType::Params {
+                params_scope_symbol_rcref,
+            } => {
+                let name = params_scope_symbol_rcref.borrow().name.clone();
+                let st_ref = Rc::new(RefCell::new(SymbolType::ParamsScope {
+                    params_scope_symbol_rcref
+                }));
+                self.symbols.insert(name, st_ref);
+            }
         }
     }
 
-    pub fn insert_symbol(&mut self, symbol_t: &SymbolType) {
+    pub fn insert_symbol(&mut self, symbol_t: &SymbolType) -> Result<(),String> {
         match symbol_t {
             SymbolType::DomainVariable {
                 domain_variable_symbol_rcref,
             } => {
                 let name = domain_variable_symbol_rcref.borrow().name.clone();
+                if self.symbols.get(&name[..]).is_some() {
+                    let msg = format!("redeclaration of {}", name).to_string();
+                    return Err(msg);
+                }
                 let st_ref = Rc::new(RefCell::new(SymbolType::DomainVariable {
                     domain_variable_symbol_rcref: Rc::clone(domain_variable_symbol_rcref),
                 }));
                 self.symbols.insert(name, st_ref);
+                return Ok(());
             }
             SymbolType::StateParam {
                 state_param_symbol_rcref,
             } => {
                 let name = state_param_symbol_rcref.borrow().name.clone();
+                if self.symbols.get(&name[..]).is_some() {
+                    let msg = format!("redeclaration of {}", name).to_string();
+                    return Err(msg);
+                }
                 let st_ref = Rc::new(RefCell::new(SymbolType::StateParam {
                     state_param_symbol_rcref: Rc::clone(state_param_symbol_rcref),
                 }));
                 self.symbols.insert(name, st_ref);
+                return Ok(());
             }
             SymbolType::StateLocalScope {
                 state_local_scope_struct_rcref,
             } => {
                 let name = state_local_scope_struct_rcref.borrow().name.clone();
+                if self.symbols.get(&name[..]).is_some() {
+                    let msg = format!("redeclaration of {}", name).to_string();
+                    return Err(msg);
+                }
                 let st_ref = Rc::new(RefCell::new(SymbolType::StateLocalScope {
                     state_local_scope_struct_rcref: Rc::clone(state_local_scope_struct_rcref),
                 }));
                 self.symbols.insert(name, st_ref);
+                return Ok(());
             }
             SymbolType::StateVariable {
                 state_variable_symbol_rcref,
             } => {
                 let name = state_variable_symbol_rcref.borrow().name.clone();
+                if self.symbols.get(&name[..]).is_some() {
+                    let msg = format!("redeclaration of {}", name).to_string();
+                    return Err(msg);
+                }
                 let st_ref = Rc::new(RefCell::new(SymbolType::StateVariable {
                     state_variable_symbol_rcref: Rc::clone(state_variable_symbol_rcref),
                 }));
                 self.symbols.insert(name, st_ref);
+                return Ok(());
             }
             SymbolType::EventHandlerParam {
                 event_handler_param_symbol_rcref,
             } => {
                 let name = event_handler_param_symbol_rcref.borrow().name.clone();
+                if self.symbols.get(&name[..]).is_some() {
+                    let msg = format!("redeclaration of {}", name).to_string();
+                    return Err(msg);
+                }
                 let st_ref = Rc::new(RefCell::new(SymbolType::EventHandlerParam {
                     event_handler_param_symbol_rcref: Rc::clone(event_handler_param_symbol_rcref),
                 }));
                 self.symbols.insert(name, st_ref);
+                return Ok(());
             }
             SymbolType::EventHandlerLocalScope {
                 event_handler_local_scope_rcref,
             } => {
                 let name = event_handler_local_scope_rcref.borrow().name.clone();
+                if self.symbols.get(&name[..]).is_some() {
+                    let msg = format!("redeclaration of {}", name).to_string();
+                    return Err(msg);
+                }
                 let st_ref = Rc::new(RefCell::new(SymbolType::EventHandlerLocalScope {
                     event_handler_local_scope_rcref: Rc::clone(event_handler_local_scope_rcref),
                 }));
                 self.symbols.insert(name, st_ref);
+                return Ok(());
             }
             SymbolType::EventHandlerVariable {
                 event_handler_variable_symbol_rcref,
             } => {
                 let name = event_handler_variable_symbol_rcref.borrow().name.clone();
+                if self.symbols.get(&name[..]).is_some() {
+                    let msg = format!("redeclaration of {}", name).to_string();
+                    return Err(msg);
+                }
                 let st_ref = Rc::new(RefCell::new(SymbolType::EventHandlerVariable {
                     event_handler_variable_symbol_rcref: Rc::clone(
                         event_handler_variable_symbol_rcref,
                     ),
                 }));
                 self.symbols.insert(name, st_ref);
+                return Ok(());
             }
             // TODO: Currently actions are just declared.
             // When actions have bodies then this should become a scope symbol.
@@ -575,46 +638,85 @@ impl SymbolTable {
                 action_scope_symbol_rcref: action_symbol_rcref,
             } => {
                 let name = action_symbol_rcref.borrow().name.clone();
+                if self.symbols.get(&name[..]).is_some() {
+                    let msg = format!("redeclaration of {}", name).to_string();
+                    return Err(msg);
+                }
                 let symbol_type_rcref = Rc::new(RefCell::new(SymbolType::ActionScope {
                     action_scope_symbol_rcref: Rc::clone(action_symbol_rcref),
                 }));
                 self.symbols.insert(name, symbol_type_rcref);
+                return Ok(());
             }
             SymbolType::InterfaceMethod {
                 interface_method_symbol_rcref,
             } => {
                 let name = interface_method_symbol_rcref.borrow().name.clone();
+                if self.symbols.get(&name[..]).is_some() {
+                    let msg = format!("redeclaration of {}", name).to_string();
+                    return Err(msg);
+                }
                 let symbol_type_rcref = Rc::new(RefCell::new(SymbolType::InterfaceMethod {
                     interface_method_symbol_rcref: Rc::clone(interface_method_symbol_rcref),
                 }));
                 self.symbols.insert(name, symbol_type_rcref);
+                return Ok(());
             }
             SymbolType::EnumDeclSymbolT {
                 enum_symbol_rcref,
             } => {
                 let name = enum_symbol_rcref.borrow().name.clone();
+                if self.symbols.get(&name[..]).is_some() {
+                    let msg = format!("redeclaration of {}", name).to_string();
+                    return Err(msg);
+                }
                 let symbol_type_rcref = Rc::new(RefCell::new(SymbolType::EnumDeclSymbolT {
                     enum_symbol_rcref: Rc::clone(enum_symbol_rcref),
                 }));
                 self.symbols.insert(name, symbol_type_rcref);
+                return Ok(());
             }
             SymbolType::LoopVar {
                 loop_variable_symbol_rcref,
             } => {
                 let name = loop_variable_symbol_rcref.borrow().name.clone();
+                if self.symbols.get(&name[..]).is_some() {
+                    let msg = format!("redeclaration of {}", name).to_string();
+                    return Err(msg);
+                }
                 let symbol_type_rcref = Rc::new(RefCell::new(SymbolType::LoopVar {
                     loop_variable_symbol_rcref: Rc::clone(loop_variable_symbol_rcref),
                 }));
                 self.symbols.insert(name, symbol_type_rcref);
+                return Ok(());
             }
             SymbolType::BlockVar {
                 block_variable_symbol_rcref,
             } => {
                 let name = block_variable_symbol_rcref.borrow().name.clone();
+                if self.symbols.get(&name[..]).is_some() {
+                    let msg = format!("redeclaration of {}", name).to_string();
+                    return Err(msg);
+                }
                 let symbol_type_rcref = Rc::new(RefCell::new(SymbolType::BlockVar {
                     block_variable_symbol_rcref: Rc::clone(block_variable_symbol_rcref),
                 }));
                 self.symbols.insert(name, symbol_type_rcref);
+                return Ok(());
+            }
+            SymbolType::ParamSymbol {
+                param_symbol_rcref,
+            } => {
+                let name = param_symbol_rcref.borrow().name.clone();
+                if self.symbols.get(&name[..]).is_some() {
+                    let msg = format!("redeclaration of {}", name).to_string();
+                    return Err(msg);
+                }
+                let symbol_type_rcref = Rc::new(RefCell::new(SymbolType::ParamSymbol {
+                    param_symbol_rcref: Rc::clone(param_symbol_rcref),
+                }));
+                self.symbols.insert(name, symbol_type_rcref);
+                return Ok(());
             }
             _ => panic!("Fatal error - missing symbol type"),
         }
@@ -1112,6 +1214,28 @@ impl Arcanum {
                 // update current symbol table to new event_handler's symbol table
                 self.current_symtab = Rc::clone(&block_scope_symtab_rcref);
             }
+            ParseScopeType::Params {
+                params_scope_symbol_rcref,
+            } => {
+                // clone the Rc for the symbol table
+                let params_scope_symbol_rcref_clone =
+                    Rc::clone(params_scope_symbol_rcref);
+                let params_scope_symtab_rcref = Rc::clone(
+                    &params_scope_symbol_rcref_clone
+                        .borrow()
+                        .symtab_rcref,
+                );
+
+                let current_symtab_rcref = Rc::clone(&self.current_symtab);
+                params_scope_symbol_rcref
+                    .borrow_mut()
+                    .set_parent_symtab(&current_symtab_rcref);
+
+                // add new scope symbol to previous symbol table
+                self.current_symtab.borrow_mut().insert_parse_scope(scope_t);
+                // update current symbol table to new event_handler's symbol table
+                self.current_symtab = Rc::clone(&params_scope_symtab_rcref);
+            }
         }
 
         Exe::debug_print(&format!(
@@ -1329,9 +1453,10 @@ impl Arcanum {
 
     /* --------------------------------------------------------------------- */
 
-    pub fn insert_symbol(&mut self, symbol_t: SymbolType) {
+    pub fn insert_symbol(&mut self, symbol_t: SymbolType) -> Result<(),String> {
         let symbol_table = self.get_symbol_table_for_type(&symbol_t);
-        symbol_table.borrow_mut().insert_symbol(&symbol_t);
+        let result = symbol_table.borrow_mut().insert_symbol(&symbol_t);
+        result
     }
 
     /* --------------------------------------------------------------------- */
@@ -1347,6 +1472,9 @@ impl Arcanum {
             } => Rc::clone(&self.current_symtab),
             SymbolType::EventHandlerParam {
                 event_handler_param_symbol_rcref: _event_handler_param_symbol_rcref,
+            } => Rc::clone(&self.current_symtab),
+            SymbolType::ParamSymbol {
+                param_symbol_rcref:_param_symbol_rcref,
             } => Rc::clone(&self.current_symtab),
             _ => panic!("TODO"),
         }
@@ -1846,6 +1974,74 @@ impl Symbol for StateParamsScopeSymbol {
 }
 
 impl ScopeSymbol for StateParamsScopeSymbol {
+    fn get_symbol_table(&self) -> Rc<RefCell<SymbolTable>> {
+        Rc::clone(&self.symtab_rcref)
+    }
+
+    fn get_symbol_table_for_symbol(&self, symbol_name: &str) -> Rc<RefCell<SymbolTable>> {
+        let a = self.symtab_rcref.borrow();
+        let b = a.symbols.get(symbol_name);
+        if let Some(c) = b {
+            let d = c.borrow();
+            let e = d.get_symbol_table_for_symbol(symbol_name);
+            Rc::clone(&e)
+        } else {
+            panic!(
+                "Fatal error - could not find symbol {} in state parameters scope.",
+                symbol_name
+            );
+        }
+    }
+}
+
+// -----------------------
+
+// TODO: figure out how to namespace this so as to not have to suffix w/ Struct.
+
+const PARAMETERS_SCOPE_NAME: &str = "-parameters-";
+
+pub struct ParamsScopeSymbol {
+    pub name: String,
+    pub symtab_rcref: Rc<RefCell<SymbolTable>>,
+}
+
+impl ParamsScopeSymbol {
+    pub fn new() -> ParamsScopeSymbol {
+        let name = String::from(PARAMETERS_SCOPE_NAME);
+        ParamsScopeSymbol {
+            name: name.clone(),
+            symtab_rcref: Rc::new(RefCell::new(SymbolTable::new(
+                name,
+                None,
+                IdentifierDeclScope::StateParam,
+                false,
+            ))),
+        }
+    }
+
+    #[inline]
+    pub fn scope_name() -> &'static str {
+        PARAMETERS_SCOPE_NAME
+    }
+
+    pub fn set_parent_symtab(&mut self, parent_symtab: &Rc<RefCell<SymbolTable>>) {
+        self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt = Some(Rc::clone(parent_symtab));
+    }
+}
+
+impl Default for ParamsScopeSymbol {
+    fn default() -> Self {
+        ParamsScopeSymbol::new()
+    }
+}
+
+impl Symbol for ParamsScopeSymbol {
+    fn get_name(&self) -> String {
+        self.name.clone() //String::from("domain")
+    }
+}
+
+impl ScopeSymbol for ParamsScopeSymbol {
     fn get_symbol_table(&self) -> Rc<RefCell<SymbolTable>> {
         Rc::clone(&self.symtab_rcref)
     }
