@@ -1629,7 +1629,7 @@ impl<'a> Parser<'a> {
             //     code_opt = Some(token.lexeme.clone());
             // }
 
-            statements = self.statements();
+            statements = self.statements(IdentifierDeclScope::BlockVar);
 
             if self.match_token(&[TokenType::Caret]) {
                 if self.match_token(&[TokenType::LParen]) {
@@ -1954,7 +1954,11 @@ impl<'a> Parser<'a> {
                 IdentifierDeclScope::BlockVar => SymbolType::BlockVar {
                     block_variable_symbol_rcref: variable_symbol_rcref
                 },
-                _ => return Err(ParseError::new("Unrecognized variable scope.")),
+                _ => {
+                    let err_msg = "Unrecognized variable scope.";
+                    self.error_at_current(err_msg);
+                    return Err(ParseError::new(err_msg));
+                },
             };
             // TODO: make current_symtab private
             self.arcanum
@@ -2007,7 +2011,17 @@ impl<'a> Parser<'a> {
                     loop_variable_symbol_rcref.borrow_mut().ast_node_opt =
                         Some(variable_decl_node_rcref.clone());
                 }
-                _ => return Err(ParseError::new("Unrecognized variable scope.")),
+                SymbolType::BlockVar {
+                    block_variable_symbol_rcref,
+                } => {
+                    block_variable_symbol_rcref.borrow_mut().ast_node_opt =
+                        Some(variable_decl_node_rcref.clone());
+                }
+                _ => {
+                    let err_msg = "Unrecognized variable scope.";
+                    self.error_at_current(err_msg);
+                    return Err(ParseError::new(err_msg));
+                }
             }
             // now need to keep current_symtab when in semantic parse phase and link to
             // ast nodes as necessary.
@@ -2719,7 +2733,7 @@ impl<'a> Parser<'a> {
         let event_symbol_rcref = self.arcanum.get_event(&*msg, &self.state_name_opt).unwrap();
         self.current_event_symbol_opt = Some(event_symbol_rcref);
 
-        let statements = self.statements();
+        let statements = self.statements(IdentifierDeclScope::EventHandlerVar);
         let event_symbol_rcref = self.arcanum.get_event(&msg, &self.state_name_opt).unwrap();
         let ret_event_symbol_rcref = Rc::clone(&event_symbol_rcref);
         let terminator_node = match self.event_handler_terminator(event_symbol_rcref) {
@@ -2831,7 +2845,7 @@ impl<'a> Parser<'a> {
 
     // TODO: need result and optional
     #[allow(clippy::vec_init_then_push)] // false positive in 1.51, fixed by 1.55
-    fn statements(&mut self) -> Vec<DeclOrStmtType> {
+    fn statements(&mut self,identifier_decl_scope:IdentifierDeclScope) -> Vec<DeclOrStmtType> {
         let mut statements = Vec::new();
         let mut is_err = false;
 
@@ -2839,7 +2853,7 @@ impl<'a> Parser<'a> {
 
         loop {
 
-            match self.decl_or_stmt() {
+            match self.decl_or_stmt(identifier_decl_scope.clone()) {
                 Ok(opt_smt) => match opt_smt {
                     Some(statement) => {
                         match &statement {
@@ -2942,10 +2956,10 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    fn decl_or_stmt(&mut self) -> Result<Option<DeclOrStmtType>, ParseError> {
+    fn decl_or_stmt(&mut self,identifier_decl_scope:IdentifierDeclScope) -> Result<Option<DeclOrStmtType>, ParseError> {
         if self.match_token(&[TokenType::Var, TokenType::Const]) {
             // this is hardcoded and needs to be set based on context. specifically BlockVar
-            match self.variable_decl(IdentifierDeclScope::EventHandlerVar) {
+            match self.variable_decl(identifier_decl_scope) {
                 Ok(var_decl_t_rc_ref) => {
                     return Ok(Some(DeclOrStmtType::VarDeclT { var_decl_t_rc_ref }));
                 }
@@ -3302,7 +3316,7 @@ impl<'a> Parser<'a> {
         let mut conditional_branches: Vec<BoolTestConditionalBranchNode> = Vec::new();
 
         let first_branch_node =
-            match self.bool_test_conditional_branch_statements(is_negated, expr_t) {
+            match self.bool_test_conditional_branch_statements_scope(is_negated, expr_t) {
                 Ok(branch_node) => branch_node,
                 Err(parse_error) => return Err(parse_error),
             };
@@ -3321,7 +3335,7 @@ impl<'a> Parser<'a> {
         // (':' bool_test_else_branch)?
         let mut bool_test_else_node_opt: Option<BoolTestElseBranchNode> = None;
         if self.match_token(&[TokenType::Colon]) {
-            bool_test_else_node_opt = Option::from(match self.bool_test_else_branch() {
+            bool_test_else_node_opt = Option::from(match self.bool_test_else_branch_scope() {
                 Ok(statements_t_opt) => statements_t_opt,
                 Err(parse_error) => return Err(parse_error),
             });
@@ -3374,7 +3388,7 @@ impl<'a> Parser<'a> {
             return Err(ParseError::new("TODO"));
         }
 
-        self.bool_test_conditional_branch_statements(is_negated, expr_t)
+        self.bool_test_conditional_branch_statements_scope(is_negated, expr_t)
     }
 
 
@@ -3382,7 +3396,7 @@ impl<'a> Parser<'a> {
 
     // bool_test_conditional_branch_statements -> statements* branch_terminator?
 
-    fn bool_test_conditional_branch_statements(
+    fn bool_test_conditional_branch_statements_scope(
         &mut self,
         is_negated: bool,
         expr_t: ExprType,
@@ -3394,11 +3408,10 @@ impl<'a> Parser<'a> {
                 block_scope_rcref,
             });
         } else {
-//            let scope_name = &format!("{}.{}",LoopStmtScopeSymbol::scope_name(),self.loop_stmt_idx);
             self.arcanum
                 .set_parse_scope(scope_name);
         }
-        let ret = self.bool_test_conditional_branch_statements_scope(is_negated, expr_t);
+        let ret = self.bool_test_conditional_branch_statements(is_negated, expr_t);
         // exit block scope
         self.arcanum.exit_parse_scope();
         ret
@@ -3408,12 +3421,12 @@ impl<'a> Parser<'a> {
 
     // bool_test_conditional_branch_statements -> statements* branch_terminator?
 
-    fn bool_test_conditional_branch_statements_scope(
+    fn bool_test_conditional_branch_statements(
         &mut self,
         is_negated: bool,
         expr_t: ExprType,
     ) -> Result<BoolTestConditionalBranchNode, ParseError> {
-        let statements = self.statements();
+        let statements = self.statements(IdentifierDeclScope::BlockVar);
         let result = self.branch_terminator();
         match result {
             Ok(branch_terminator_expr_opt) => Ok(BoolTestConditionalBranchNode::new(
@@ -3428,12 +3441,32 @@ impl<'a> Parser<'a> {
         }
     }
 
+
+    /* --------------------------------------------------------------------- */
+
+    fn bool_test_else_branch_scope(&mut self) -> Result<BoolTestElseBranchNode, ParseError> {
+        let scope_name = &format!("bool_test_else_branch_scope");
+        if self.is_building_symbol_table {
+            let block_scope_rcref = Rc::new(RefCell::new(BlockScope::new(scope_name)));
+            self.arcanum.enter_scope(ParseScopeType::Block {
+                block_scope_rcref,
+            });
+        } else {
+            self.arcanum
+                .set_parse_scope(scope_name);
+        }
+        let ret = self.bool_test_else_branch();
+        // exit block scope
+        self.arcanum.exit_parse_scope();
+        ret
+    }
+
     /* --------------------------------------------------------------------- */
 
     // bool_test_else_branch -> statements* branch_terminator?
 
     fn bool_test_else_branch(&mut self) -> Result<BoolTestElseBranchNode, ParseError> {
-        let statements = self.statements();
+        let statements = self.statements(IdentifierDeclScope::BlockVar);
         let result = self.branch_terminator();
         match result {
             Ok(branch_terminator_expr_opt) => Ok(BoolTestElseBranchNode::new(
@@ -3584,7 +3617,7 @@ impl<'a> Parser<'a> {
             return Err(parse_error);
         }
 
-        let statements = self.statements();
+        let statements = self.statements(IdentifierDeclScope::BlockVar);
         let result = self.branch_terminator();
         match result {
             Ok(branch_terminator_t_opt) => Ok(StringMatchTestMatchBranchNode::new(
@@ -3603,7 +3636,7 @@ impl<'a> Parser<'a> {
     fn string_match_test_else_branch(
         &mut self,
     ) -> Result<StringMatchTestElseBranchNode, ParseError> {
-        let statements = self.statements();
+        let statements = self.statements(IdentifierDeclScope::BlockVar);
         let result = self.branch_terminator();
         match result {
             Ok(branch_terminator_opt) => Ok(StringMatchTestElseBranchNode::new(
@@ -4442,7 +4475,7 @@ impl<'a> Parser<'a> {
 
     fn loop_infinite_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
 
-        let statements = self.statements();
+        let statements = self.statements(IdentifierDeclScope::BlockVar);
 
         if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
             return Err(parse_error);
@@ -4490,7 +4523,7 @@ impl<'a> Parser<'a> {
 
         // statements block
         if self.match_token(&[TokenType::OpenBrace]) {
-            statements = self.statements();
+            statements = self.statements(IdentifierDeclScope::BlockVar);
 
             if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
                 return Err(parse_error);
@@ -4534,7 +4567,7 @@ impl<'a> Parser<'a> {
 
         // statements block
         if self.match_token(&[TokenType::OpenBrace]) {
-            statements = self.statements();
+            statements = self.statements(IdentifierDeclScope::BlockVar);
 
             if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
                 return Err(parse_error);
@@ -5071,9 +5104,15 @@ impl<'a> Parser<'a> {
                     } => {
                         scope = loop_variable_symbol_rcref.borrow().scope.clone();
                     }
+                    SymbolType::BlockVar {
+                        block_variable_symbol_rcref,
+                    } => {
+                        scope = block_variable_symbol_rcref.borrow().scope.clone();
+                    }
                     SymbolType::EventHandlerScope {
                         event_handler_scope_symbol,
                     } => {
+                        // TODO - what??
                         // this will be a lookup for a varible that clashes with
                         // the name of an event. Disregard.
                         // scope = loop_variable_symbol_rcref.borrow().scope.clone();
@@ -5406,7 +5445,7 @@ impl<'a> Parser<'a> {
         if let Err(parse_error) = self.consume(TokenType::ForwardSlash, "Expected '/'.") {
             return Err(parse_error);
         }
-        let statements = self.statements();
+        let statements = self.statements(IdentifierDeclScope::BlockVar);
         let result = self.branch_terminator();
         match result {
             Ok(branch_terminator_t_opt) => Ok(NumberMatchTestMatchBranchNode::new(
@@ -5425,7 +5464,7 @@ impl<'a> Parser<'a> {
     fn number_match_test_else_branch(
         &mut self,
     ) -> Result<NumberMatchTestElseBranchNode, ParseError> {
-        let statements = self.statements();
+        let statements = self.statements(IdentifierDeclScope::BlockVar);
         let result = self.branch_terminator();
         match result {
             Ok(branch_terminator_opt) => Ok(NumberMatchTestElseBranchNode::new(
@@ -5612,7 +5651,7 @@ impl<'a> Parser<'a> {
         if let Err(parse_error) = self.consume(TokenType::ForwardSlash, "Expected '/'.") {
             return Err(parse_error);
         }
-        let statements = self.statements();
+        let statements = self.statements(IdentifierDeclScope::BlockVar);
         let result = self.branch_terminator();
         match result {
             Ok(branch_terminator_t_opt) => Ok(EnumMatchTestMatchBranchNode::new(
@@ -5631,7 +5670,7 @@ impl<'a> Parser<'a> {
     fn enum_match_test_else_branch(
         &mut self,
     ) -> Result<EnumMatchTestElseBranchNode, ParseError> {
-        let statements = self.statements();
+        let statements = self.statements(IdentifierDeclScope::BlockVar);
         let result = self.branch_terminator();
         match result {
             Ok(branch_terminator_opt) => Ok(EnumMatchTestElseBranchNode::new(

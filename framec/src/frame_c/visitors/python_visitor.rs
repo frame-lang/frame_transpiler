@@ -3705,6 +3705,13 @@ impl AstVisitor for PythonVisitor {
                 }
                 self.add_code(&format!(" = {}", code));
             }
+            IdentifierDeclScope::BlockVar => {
+                self.add_code(&format!("{} ", var_name));
+                if !var_type.is_empty() {
+                    self.add_code(&format!(": {}", var_type));
+                }
+                self.add_code(&format!(" = {}", code));
+            }
             _ => panic!("Error - unexpected scope for variable declaration"),
         }
 
