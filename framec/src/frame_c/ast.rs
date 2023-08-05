@@ -1286,7 +1286,7 @@ pub enum StatementType {
 #[allow(clippy::large_enum_variant)]
 pub enum DeclOrStmtType {
     VarDeclT {
-        var_decl_t_rc_ref: Rc<RefCell<VariableDeclNode>>,
+        var_decl_t_rcref: Rc<RefCell<VariableDeclNode>>,
     },
     StmtT {
         stmt_t: StatementType,

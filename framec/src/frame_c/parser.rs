@@ -2849,21 +2849,21 @@ impl<'a> Parser<'a> {
         let mut statements = Vec::new();
         let mut is_err = false;
 
-        self.stmt_idx = 0;
+       // self.stmt_idx = 0;
 
         loop {
             self.stmt_idx = self.stmt_idx + 1;
 
             match self.decl_or_stmt(identifier_decl_scope.clone()) {
                 Ok(opt_smt) => match opt_smt {
-                    Some(statement) => {
-                        match &statement {
+                    Some(decl_or_statement) => {
+                        match &decl_or_statement {
                             DeclOrStmtType::StmtT { stmt_t } => {
                                 // Transitions or state changes must be the last statement in
                                 // an event handler.
                                 match stmt_t {
                                     StatementType::TransitionStmt { .. } => {
-                                        statements.push(statement);
+                                        statements.push(decl_or_statement);
                                         // must be last statement in event handler so return
                                         return statements;
                                     }
@@ -2873,21 +2873,21 @@ impl<'a> Parser<'a> {
                                                 Some(CallChainLiteralNodeType::InterfaceMethodCallT {interface_method_call_expr_node}) => {
                                                     // interface method call must be last statement.
                                                     self.interface_method_called = true;
-                                                    statements.push(statement); // return statements;
+                                                    statements.push(decl_or_statement); // return statements;
 
                                                     return statements;
                                                 }
                                                 _ => {
-                                                    statements.push(statement); // return statements;
+                                                    statements.push(decl_or_statement); // return statements;
                                                 }
                                             }
                                         } else {
-                                            statements.push(statement); // return statements;
+                                            statements.push(decl_or_statement); // return statements;
                                         }
 
                                     }
                                     StatementType::ChangeStateStmt { .. } => {
-                                        statements.push(statement);
+                                        statements.push(decl_or_statement);
                                         // state changes disallowed in actions
                                         if self.is_action_context {
                                             self.error_at_current("Transitions disallowed in actions.");
@@ -2897,29 +2897,29 @@ impl<'a> Parser<'a> {
                                         return statements;
                                     }
                                     StatementType::LoopStmt { .. } => {
-                                        statements.push(statement);
+                                        statements.push(decl_or_statement);
                                     }
                                     StatementType::ContinueStmt { .. } => {
                                         if self.is_loop_context {
-                                            statements.push(statement);
+                                            statements.push(decl_or_statement);
                                         } else {
                                             is_err = true;
                                         }
                                     }
                                     StatementType::BreakStmt { .. } => {
                                         if self.is_loop_context {
-                                            statements.push(statement);
+                                            statements.push(decl_or_statement);
                                         } else {
                                             is_err = true;
                                         }
                                     }
                                     _ => {
-                                        statements.push(statement);
+                                        statements.push(decl_or_statement);
                                     }
                                 }
                             }
                             _ => {
-                                statements.push(statement);
+                                statements.push(decl_or_statement);
                             }
                         }
                     }
@@ -2961,7 +2961,7 @@ impl<'a> Parser<'a> {
             // this is hardcoded and needs to be set based on context. specifically BlockVar
             match self.variable_decl(identifier_decl_scope) {
                 Ok(var_decl_t_rc_ref) => {
-                    return Ok(Some(DeclOrStmtType::VarDeclT { var_decl_t_rc_ref }));
+                    return Ok(Some(DeclOrStmtType::VarDeclT { var_decl_t_rcref: var_decl_t_rc_ref }));
                 }
                 Err(parse_error) => {
                     return Err(parse_error);
@@ -3252,6 +3252,7 @@ impl<'a> Parser<'a> {
 
     fn block_scope(&mut self) -> Result<StatementType, ParseError> {
         let scope_name = &format!("block_scope_{}",self.stmt_idx);
+        let x = scope_name.clone();
         if self.is_building_symbol_table {
             let block_scope_rcref = Rc::new(RefCell::new(BlockScope::new(scope_name)));
             self.arcanum.enter_scope(ParseScopeType::Block {

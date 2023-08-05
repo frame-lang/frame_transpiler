@@ -12,6 +12,9 @@ use crate::frame_c::symbol_table::*;
 use crate::frame_c::visitors::*;
 use std::cell::RefCell;
 use std::rc::Rc;
+use crate::frame_c::ast::DeclOrStmtType;
+use crate::frame_c::ast::DeclOrStmtType::{VarDeclT, StmtT};
+
 // use yaml_rust::{YamlLoader, Yaml};
 
 pub struct PythonVisitor {
@@ -109,7 +112,34 @@ impl PythonVisitor {
         }
     }
 
+
     //* --------------------------------------------------------------------- *//
+
+    /// This helper function determines if there are any "real"  (non empty block)
+    /// statements in a vec of statements and decls.
+
+    pub fn has_non_block_statements(&self, decl_or_stmts:&Vec<DeclOrStmtType>) -> bool {
+        for decl_or_stmt in decl_or_stmts {
+            match decl_or_stmt {
+                VarDeclT {..} => {
+                    return true;
+                }
+                StmtT {stmt_t} => {
+                    if let StatementType::BlockStmt{block_stmt_node} = stmt_t {
+                        if self.has_non_block_statements(&block_stmt_node.statements) {
+                            return true;
+                        }
+                    }
+                    else {
+                        return true;
+                    }
+                }
+            }
+        }
+        false
+    }
+
+        //* --------------------------------------------------------------------- *//
 
     pub fn format_type(&self, type_node: &TypeNode) -> String {
         let mut s = String::new();
@@ -448,7 +478,7 @@ impl PythonVisitor {
     fn visit_decl_stmts(&mut self, decl_stmt_types: &Vec<DeclOrStmtType>) {
         for decl_stmt_t in decl_stmt_types.iter() {
             match decl_stmt_t {
-                DeclOrStmtType::VarDeclT { var_decl_t_rc_ref } => {
+                DeclOrStmtType::VarDeclT { var_decl_t_rcref: var_decl_t_rc_ref } => {
                     let variable_decl_node = var_decl_t_rc_ref.borrow();
                     variable_decl_node.accept(self);
                 }
@@ -2913,9 +2943,17 @@ impl AstVisitor for PythonVisitor {
         &mut self,
         bool_test_true_branch_node: &BoolTestConditionalBranchNode,
     ) {
-        let mut generate_pass = false;
-        if bool_test_true_branch_node.statements.is_empty() {
-            generate_pass = true
+        // generate 'pass' unless there is a statement that will generate code
+        let mut generate_pass = true;
+        if bool_test_true_branch_node.branch_terminator_expr_opt.is_some() {
+            generate_pass = false;
+        }
+
+        // even if there statements, it is possible there are only empty
+        // blocks, which should generate a pass. Check if there are only
+        // empty blocks.
+        if generate_pass && self.has_non_block_statements(&bool_test_true_branch_node.statements) {
+            generate_pass = false;
         }
 
         if generate_pass {
@@ -2957,7 +2995,7 @@ impl AstVisitor for PythonVisitor {
         self.add_code("else:");
         self.indent();
         let mut generate_pass = false;
-        if bool_test_else_branch_node.statements.is_empty() {
+        if bool_test_else_branch_node.statements.is_empty() && bool_test_else_branch_node.branch_terminator_expr_opt.is_none() {
             generate_pass = true
         }
         if generate_pass {
@@ -3084,7 +3122,7 @@ impl AstVisitor for PythonVisitor {
         string_match_test_match_branch_node: &StringMatchTestMatchBranchNode,
     ) {
         let mut generate_pass = false;
-        if string_match_test_match_branch_node.statements.is_empty() {
+        if string_match_test_match_branch_node.statements.is_empty() && string_match_test_match_branch_node.branch_terminator_expr_opt.is_none() {
             generate_pass = true;
         }
 
@@ -3127,7 +3165,7 @@ impl AstVisitor for PythonVisitor {
         self.add_code("else:");
         self.indent();
         let mut generate_pass = false;
-        if string_match_test_else_branch_node.statements.is_empty() {
+        if string_match_test_else_branch_node.statements.is_empty() && string_match_test_else_branch_node.branch_terminator_expr_opt.is_none() {
             generate_pass = true;
         }
 

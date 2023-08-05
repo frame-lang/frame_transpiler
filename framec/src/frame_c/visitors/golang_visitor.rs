@@ -453,7 +453,7 @@ impl GolangVisitor {
     fn visit_decl_stmts(&mut self, decl_stmt_types: &Vec<DeclOrStmtType>) {
         for decl_stmt_t in decl_stmt_types.iter() {
             match decl_stmt_t {
-                DeclOrStmtType::VarDeclT { var_decl_t_rc_ref } => {
+                DeclOrStmtType::VarDeclT { var_decl_t_rcref: var_decl_t_rc_ref } => {
                     let variable_decl_node = var_decl_t_rc_ref.borrow();
                     variable_decl_node.accept(self);
                 }
