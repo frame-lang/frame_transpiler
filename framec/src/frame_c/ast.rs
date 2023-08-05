@@ -1272,6 +1272,9 @@ pub enum StatementType {
     SuperStringStmt {
         super_string_stmt_node: SuperStringStmtNode,
     },
+    BlockStmt {
+        block_stmt_node: BlockStmtNode,
+    },
     #[allow(dead_code)] // is used, don't know why I need this
     NoStmt,
 }
@@ -1840,6 +1843,30 @@ impl LoopForStmtNode {
 impl NodeElement for LoopForStmtNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         ast_visitor.visit_loop_for_stmt_node(self);
+    }
+}
+
+
+//-----------------------------------------------------//
+
+pub struct BlockStmtNode {
+    pub statements: Vec<DeclOrStmtType>,
+}
+
+
+impl BlockStmtNode {
+    pub fn new (
+        statements: Vec<DeclOrStmtType>,
+    ) -> BlockStmtNode {
+        BlockStmtNode {
+            statements,
+        }
+    }
+}
+
+impl NodeElement for BlockStmtNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_block_stmt_node(self);
     }
 }
 

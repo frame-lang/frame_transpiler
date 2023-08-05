@@ -501,6 +501,9 @@ impl PythonVisitor {
                         StatementType::LoopStmt {loop_stmt_node} => {
                             loop_stmt_node.accept(self);
                         }
+                        StatementType::BlockStmt {block_stmt_node} => {
+                            block_stmt_node.accept(self);
+                        }
                         StatementType::ContinueStmt {continue_stmt_node} => {
                             continue_stmt_node.accept(self);
                         }
@@ -2822,6 +2825,19 @@ impl AstVisitor for PythonVisitor {
         self.newline();
     }
 
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_block_stmt_node(
+        &mut self,
+        block_stmt_node: &BlockStmtNode,
+    ) {
+        self.indent();
+        // Generate statements
+        self.visit_decl_stmts(&block_stmt_node.statements);
+        self.outdent();
+
+    }
 
     //* --------------------------------------------------------------------- *//
 

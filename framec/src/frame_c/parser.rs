@@ -104,7 +104,7 @@ pub struct Parser<'a> {
     event_handler_has_transition: bool,
     is_action_context:bool,
     is_loop_context:bool,
-    loop_stmt_idx:i32,
+    stmt_idx:i32,
     interface_method_called:bool,
     pub generate_enter_args: bool,
     pub generate_exit_args: bool,
@@ -147,7 +147,7 @@ impl<'a> Parser<'a> {
             generate_transition_state: false,
             is_action_context: false,
             is_loop_context: false,
-            loop_stmt_idx: 0,
+            stmt_idx: 0,
             interface_method_called: false,
         }
     }
@@ -1970,7 +1970,7 @@ impl<'a> Parser<'a> {
             match ret {
                 Ok(()) => {}
                 Err(err_msg) => {
-                    self.error_at_current(err_msg.as_str());
+                    self.error_at_previous(err_msg.as_str());
                     return Err(ParseError::new(err_msg.as_str()))
                 }
             }
@@ -2849,9 +2849,10 @@ impl<'a> Parser<'a> {
         let mut statements = Vec::new();
         let mut is_err = false;
 
-        self.loop_stmt_idx = 0;
+        self.stmt_idx = 0;
 
         loop {
+            self.stmt_idx = self.stmt_idx + 1;
 
             match self.decl_or_stmt(identifier_decl_scope.clone()) {
                 Ok(opt_smt) => match opt_smt {
@@ -2897,7 +2898,6 @@ impl<'a> Parser<'a> {
                                     }
                                     StatementType::LoopStmt { .. } => {
                                         statements.push(statement);
-                                        self.loop_stmt_idx = self.loop_stmt_idx + 1;
                                     }
                                     StatementType::ContinueStmt { .. } => {
                                         if self.is_loop_context {
@@ -3222,6 +3222,13 @@ impl<'a> Parser<'a> {
             };
         }
 
+        if self.match_token(&[TokenType::OpenBrace]) {
+            return match self.block_scope() {
+                Ok(block_stmt_t) => Ok(Some(block_stmt_t)),
+                Err(parse_error) => Err(parse_error),
+            };
+        }
+
         if self.match_token(&[TokenType::Continue]) {
             let continue_stmt_node = ContinueStmtNode::new();
             return Ok(Some(StatementType::ContinueStmt {continue_stmt_node}));
@@ -3230,11 +3237,48 @@ impl<'a> Parser<'a> {
             let break_stmt_node = BreakStmtNode::new();
             return Ok(Some(StatementType::BreakStmt {break_stmt_node}));
         }
+        if self.match_token(&[TokenType::OpenBrace]) {
+            let break_stmt_node = BreakStmtNode::new();
+            return Ok(Some(StatementType::BreakStmt {break_stmt_node}));
+        }
         if self.match_token(&[TokenType::SuperString]) {
-
+            // TODO?
         }
 
         Ok(None)
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn block_scope(&mut self) -> Result<StatementType, ParseError> {
+        let scope_name = &format!("block_scope_{}",self.stmt_idx);
+        if self.is_building_symbol_table {
+            let block_scope_rcref = Rc::new(RefCell::new(BlockScope::new(scope_name)));
+            self.arcanum.enter_scope(ParseScopeType::Block {
+                block_scope_rcref,
+            });
+        } else {
+            self.arcanum
+                .set_parse_scope(scope_name);
+        }
+        let ret = self.block();
+        // exit block scope
+        self.arcanum.exit_parse_scope();
+        ret
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn block(&mut self) -> Result<StatementType, ParseError> {
+        let statements = self.statements(IdentifierDeclScope::BlockVar);
+
+        if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
+            return Err(parse_error);
+        }
+
+        let block_stmt_node = BlockStmtNode::new(statements);
+        let stmt_type = StatementType::BlockStmt {block_stmt_node};
+        Ok(stmt_type)
     }
 
     /* --------------------------------------------------------------------- */
@@ -3401,7 +3445,7 @@ impl<'a> Parser<'a> {
         is_negated: bool,
         expr_t: ExprType,
     ) -> Result<BoolTestConditionalBranchNode, ParseError> {
-        let scope_name = &format!("bool_test_conditional_branch");
+        let scope_name = &format!("bool_test_conditional_branch_{}",self.stmt_idx);
         if self.is_building_symbol_table {
             let block_scope_rcref = Rc::new(RefCell::new(BlockScope::new(scope_name)));
             self.arcanum.enter_scope(ParseScopeType::Block {
@@ -3445,7 +3489,7 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     fn bool_test_else_branch_scope(&mut self) -> Result<BoolTestElseBranchNode, ParseError> {
-        let scope_name = &format!("bool_test_else_branch_scope");
+        let scope_name = &format!("bool_test_else_branch_scope_{}", self.stmt_idx);
         if self.is_building_symbol_table {
             let block_scope_rcref = Rc::new(RefCell::new(BlockScope::new(scope_name)));
             self.arcanum.enter_scope(ParseScopeType::Block {
@@ -4342,19 +4386,19 @@ impl<'a> Parser<'a> {
         // for all loop types, push a symbol table for new scope
         self.is_loop_context = true;
         if self.is_building_symbol_table {
-            let scope_name = &format!("{}.{}",LoopStmtScopeSymbol::scope_name(),self.loop_stmt_idx);
+            let scope_name = &format!("{}.{}",LoopStmtScopeSymbol::scope_name(),self.stmt_idx);
             let loop_stmt_scope_symbol_rcref = Rc::new(RefCell::new(LoopStmtScopeSymbol::new(scope_name)));
             self.arcanum.enter_scope(ParseScopeType::Loop {
                 loop_scope_symbol_rcref:loop_stmt_scope_symbol_rcref,
             });
         } else {
             // give each loop in a scope a unique name
-            let scope_name = &format!("{}.{}",LoopStmtScopeSymbol::scope_name(),self.loop_stmt_idx);
+            let scope_name = &format!("{}.{}",LoopStmtScopeSymbol::scope_name(),self.stmt_idx);
             self.arcanum
                 .set_parse_scope(scope_name);
         }
         // parse loop
-        let ret = self.loop_statement_context();
+        let ret = self.loop_statement();
         // exit loop scope
         self.arcanum.exit_parse_scope();
         self.is_loop_context = false;
@@ -4368,7 +4412,7 @@ impl<'a> Parser<'a> {
     // loop var x in range(5) { foo(x) }
     // loop .. { foo() continue break }
 
-    fn loop_statement_context(&mut self) -> Result<Option<StatementType>, ParseError> {
+    fn loop_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
 
         if self.match_token(&[TokenType::OpenBrace]) {
             // loop { foo() }
@@ -4487,7 +4531,7 @@ impl<'a> Parser<'a> {
             LoopStmtTypes::LoopInfiniteStmt { loop_infinite_stmt_node }
         );
         let stmt_type = StatementType::LoopStmt {loop_stmt_node};
-        return Ok(Some(stmt_type));
+        Ok(Some(stmt_type))
 
     }
 
@@ -4597,7 +4641,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-        /* --------------------------------------------------------------------- */
+    /* --------------------------------------------------------------------- */
 
     // Parse FrameEvent "part" identifier:
     // @||  - Event message

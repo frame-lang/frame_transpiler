@@ -152,6 +152,7 @@ pub trait AstVisitor {
     fn visit_break_stmt_node(&mut self, _break_expr_node: &BreakStmtNode) {}
     fn visit_continue_stmt_node(&mut self, _continue_expr_node: &ContinueStmtNode) {}
     fn visit_superstring_stmt_node(&mut self, _continue_expr_node: &SuperStringStmtNode) {}
+    fn visit_block_stmt_node(&mut self, block_stmt_node: &BlockStmtNode) {}
     // fn visit_loop_expr_node(&mut self, _loop_types: &LoopTypes) {}
     // fn visit_loop_expr_node_to_string(&mut self, _loop_types: &LoopTypes, _output: &mut String) {}
 
