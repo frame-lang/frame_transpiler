@@ -2994,10 +2994,24 @@ impl AstVisitor for PythonVisitor {
     ) {
         self.add_code("else:");
         self.indent();
-        let mut generate_pass = false;
-        if bool_test_else_branch_node.statements.is_empty() && bool_test_else_branch_node.branch_terminator_expr_opt.is_none() {
-            generate_pass = true
+        // let mut generate_pass = false;
+        // if bool_test_else_branch_node.statements.is_empty() && bool_test_else_branch_node.branch_terminator_expr_opt.is_none() {
+        //     generate_pass = true
+        // }
+
+        // generate 'pass' unless there is a statement that will generate code
+        let mut generate_pass = true;
+        if bool_test_else_branch_node.branch_terminator_expr_opt.is_some() {
+            generate_pass = false;
         }
+
+        // even if there statements, it is possible there are only empty
+        // blocks, which should generate a pass. Check if there are only
+        // empty blocks.
+        if generate_pass && self.has_non_block_statements(&bool_test_else_branch_node.statements) {
+            generate_pass = false;
+        }
+
         if generate_pass {
             self.newline();
             self.add_code("pass");
@@ -3121,9 +3135,22 @@ impl AstVisitor for PythonVisitor {
         &mut self,
         string_match_test_match_branch_node: &StringMatchTestMatchBranchNode,
     ) {
-        let mut generate_pass = false;
-        if string_match_test_match_branch_node.statements.is_empty() && string_match_test_match_branch_node.branch_terminator_expr_opt.is_none() {
-            generate_pass = true;
+        // let mut generate_pass = false;
+        // if string_match_test_match_branch_node.statements.is_empty() && string_match_test_match_branch_node.branch_terminator_expr_opt.is_none() {
+        //     generate_pass = true;
+        // }
+
+        // generate 'pass' unless there is a statement that will generate code
+        let mut generate_pass = true;
+        if string_match_test_match_branch_node.branch_terminator_expr_opt.is_some() {
+            generate_pass = false;
+        }
+
+        // even if there statements, it is possible there are only empty
+        // blocks, which should generate a pass. Check if there are only
+        // empty blocks.
+        if generate_pass && self.has_non_block_statements(&string_match_test_match_branch_node.statements) {
+            generate_pass = false;
         }
 
         if generate_pass {
@@ -3165,8 +3192,21 @@ impl AstVisitor for PythonVisitor {
         self.add_code("else:");
         self.indent();
         let mut generate_pass = false;
-        if string_match_test_else_branch_node.statements.is_empty() && string_match_test_else_branch_node.branch_terminator_expr_opt.is_none() {
-            generate_pass = true;
+        // if string_match_test_else_branch_node.statements.is_empty() && string_match_test_else_branch_node.branch_terminator_expr_opt.is_none() {
+        //     generate_pass = true;
+        // }
+
+        // generate 'pass' unless there is a statement that will generate code
+        let mut generate_pass = true;
+        if string_match_test_else_branch_node.branch_terminator_expr_opt.is_some() {
+            generate_pass = false;
+        }
+
+        // even if there statements, it is possible there are only empty
+        // blocks, which should generate a pass. Check if there are only
+        // empty blocks.
+        if generate_pass && self.has_non_block_statements(&string_match_test_else_branch_node.statements) {
+            generate_pass = false;
         }
 
         if generate_pass {

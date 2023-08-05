@@ -3430,7 +3430,9 @@ impl<'a> Parser<'a> {
         } else if self.match_token(&[TokenType::BoolTestFalse]) {
             is_negated = true;
         } else {
-            return Err(ParseError::new("TODO"));
+            let err_msg = "Expected '?' test token for else-continue next test.";
+            self.error_at_current(err_msg.clone());
+            return Err(ParseError::new(err_msg));
         }
 
         self.bool_test_conditional_branch_statements_scope(is_negated, expr_t)
