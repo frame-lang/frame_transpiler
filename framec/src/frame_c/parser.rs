@@ -112,6 +112,7 @@ pub struct Parser<'a> {
     pub generate_state_stack: bool,
     pub generate_change_state: bool,
     pub generate_transition_state: bool,
+    pub sync_tokens_from_error_context: Vec<TokenType>,
 }
 
 impl<'a> Parser<'a> {
@@ -149,6 +150,7 @@ impl<'a> Parser<'a> {
             is_loop_context: false,
             stmt_idx: 0,
             interface_method_called: false,
+            sync_tokens_from_error_context: Vec::new(),
         }
     }
 
@@ -398,8 +400,8 @@ impl<'a> Parser<'a> {
                 .is_err()
             {
                 self.error_at_current("Expected closing ```.");
-                let sync_tokens = &vec![TokenType::System];
-                self.synchronize(sync_tokens);
+                let sync_tokens = vec![TokenType::System];
+                self.synchronize(&sync_tokens);
             }
         }
 
@@ -411,19 +413,19 @@ impl<'a> Parser<'a> {
         // TODO: Error handling
         if !self.match_token(&[TokenType::System]) {
             self.error_at_current("Expected #.");
-            let sync_tokens = &vec![TokenType::Identifier];
-            self.synchronize(sync_tokens);
+            let sync_tokens = vec![TokenType::Identifier];
+            self.synchronize(&sync_tokens);
         }
         if !self.match_token(&[TokenType::Identifier]) {
             self.error_at_current("Expected system identifer.");
-            let sync_tokens = &vec![
+            let sync_tokens = vec![
                 TokenType::InterfaceBlock,
                 TokenType::MachineBlock,
                 TokenType::ActionsBlock,
                 TokenType::DomainBlock,
                 TokenType::SystemEnd,
             ];
-            self.synchronize(sync_tokens);
+            self.synchronize(&sync_tokens);
         }
 
         let id = self.previous();
@@ -450,7 +452,7 @@ impl<'a> Parser<'a> {
 
         if self.match_token(&[TokenType::State]) {
             if self.consume(TokenType::LBracket, "Expected '['").is_err() {
-                let sync_tokens = &vec![
+                let sync_tokens = vec![
                     TokenType::GT,
                     TokenType::System,
                     TokenType::InterfaceBlock,
@@ -459,7 +461,7 @@ impl<'a> Parser<'a> {
                     TokenType::DomainBlock,
                     TokenType::SystemEnd,
                 ];
-                self.synchronize(sync_tokens);
+                self.synchronize(&sync_tokens);
             }
             match self.parameters() {
                 Ok(Some(parameters)) => system_start_state_state_params_opt = Some(parameters),
@@ -472,7 +474,7 @@ impl<'a> Parser<'a> {
 
         if self.match_token(&[TokenType::GT]) {
             if self.consume(TokenType::LBracket, "Expected '['").is_err() {
-                let sync_tokens = &vec![
+                let sync_tokens = vec![
                     TokenType::System,
                     TokenType::InterfaceBlock,
                     TokenType::ActionsBlock,
@@ -480,7 +482,7 @@ impl<'a> Parser<'a> {
                     TokenType::DomainBlock,
                     TokenType::SystemEnd,
                 ];
-                self.synchronize(sync_tokens);
+                self.synchronize(&sync_tokens);
             }
             match self.parameters() {
                 Ok(Some(parameters)) => system_enter_params_opt = Some(parameters),
@@ -505,14 +507,14 @@ impl<'a> Parser<'a> {
                                     "System domain parameter '{}' does not exist in the domain.",
                                     name
                                 ));
-                                let sync_tokens = &vec![
+                                let sync_tokens = vec![
                                     TokenType::InterfaceBlock,
                                     TokenType::MachineBlock,
                                     TokenType::ActionsBlock,
                                     TokenType::DomainBlock,
                                     TokenType::SystemEnd,
                                 ];
-                                self.synchronize(sync_tokens);
+                                self.synchronize(&sync_tokens);
                             } else {
                                 // domain var exists, check type matches
                                 let symbol_type_rcref = domain_symbol_rcref_opt.unwrap();
@@ -546,26 +548,26 @@ impl<'a> Parser<'a> {
                                             {
                                                 // error - one has a type and the other does not.
                                                 self.error_at_current(&format!("System domain parameter '{}' type does not match domain variable type.",name));
-                                                let sync_tokens = &vec![
+                                                let sync_tokens = vec![
                                                     TokenType::InterfaceBlock,
                                                     TokenType::MachineBlock,
                                                     TokenType::ActionsBlock,
                                                     TokenType::DomainBlock,
                                                     TokenType::SystemEnd,
                                                 ];
-                                                self.synchronize(sync_tokens);
+                                                self.synchronize(&sync_tokens);
                                             }
                                         } else {
                                             // error - one has a type and the other does not.
                                             self.error_at_current(&format!("System domain parameter '{}' type does not match domain variable type.",name));
-                                            let sync_tokens = &vec![
+                                            let sync_tokens = vec![
                                                 TokenType::InterfaceBlock,
                                                 TokenType::MachineBlock,
                                                 TokenType::ActionsBlock,
                                                 TokenType::DomainBlock,
                                                 TokenType::SystemEnd,
                                             ];
-                                            self.synchronize(sync_tokens);
+                                            self.synchronize(&sync_tokens);
                                         }
                                     }
                                     _ => {
@@ -924,14 +926,14 @@ impl<'a> Parser<'a> {
                     interface_methods.push(interface_method_node);
                 }
                 Err(_parse_error) => {
-                    let sync_tokens = &vec![
+                    let sync_tokens = vec![
                         TokenType::Identifier,
                         TokenType::MachineBlock,
                         TokenType::ActionsBlock,
                         TokenType::DomainBlock,
                         TokenType::SystemEnd,
                     ];
-                    self.synchronize(sync_tokens);
+                    self.synchronize(&sync_tokens);
                 }
             }
         }
@@ -975,35 +977,35 @@ impl<'a> Parser<'a> {
         if self.match_token(&[TokenType::At]) {
             if self.consume(TokenType::LParen, "Expected '('").is_err() {
                 self.error_at_current("Expected '('.");
-                let sync_tokens = &vec![TokenType::Pipe];
-                self.synchronize(sync_tokens);
+                let sync_tokens = vec![TokenType::Pipe];
+                self.synchronize(&sync_tokens);
             }
 
             match self.message() {
                 Ok(MessageType::CustomMessage { message_node }) => alias_opt = Some(message_node),
                 Ok(AnyMessage { .. }) => {
                     self.error_at_previous("Expected message, found '||*");
-                    let sync_tokens = &vec![
+                    let sync_tokens = vec![
                         TokenType::RParen,
                         TokenType::MachineBlock,
                         TokenType::ActionsBlock,
                         TokenType::DomainBlock,
                         TokenType::SystemEnd,
                     ];
-                    self.synchronize(sync_tokens);
+                    self.synchronize(&sync_tokens);
                 }
                 Err(err) => return Err(err),
             }
 
             if self.consume(TokenType::RParen, "Expected ')'").is_err() {
-                let sync_tokens = &vec![
+                let sync_tokens = vec![
                     TokenType::Identifier,
                     TokenType::MachineBlock,
                     TokenType::ActionsBlock,
                     TokenType::DomainBlock,
                     TokenType::SystemEnd,
                 ];
-                self.synchronize(sync_tokens);
+                self.synchronize(&sync_tokens);
             }
         }
 
@@ -1259,7 +1261,7 @@ impl<'a> Parser<'a> {
                     }
                 },
                 Err(_parse_error) => {
-                    let sync_tokens = &vec![
+                    let sync_tokens = vec![
                         TokenType::Identifier,
                         TokenType::Colon,
                         TokenType::RBracket,
@@ -1268,7 +1270,7 @@ impl<'a> Parser<'a> {
                         TokenType::DomainBlock,
                         TokenType::SystemEnd,
                     ];
-                    self.synchronize(sync_tokens);
+                    self.synchronize(&sync_tokens);
                     if !self.follows(
                         self.peek(),
                         &[TokenType::Identifier, TokenType::Colon, TokenType::RBracket],
@@ -1313,7 +1315,7 @@ impl<'a> Parser<'a> {
                     }
                 },
                 Err(_parse_error) => {
-                    let sync_tokens = &vec![
+                    let sync_tokens = vec![
                         TokenType::Identifier,
                         TokenType::Colon,
                         TokenType::RBracket,
@@ -1322,7 +1324,7 @@ impl<'a> Parser<'a> {
                         TokenType::DomainBlock,
                         TokenType::SystemEnd,
                     ];
-                    self.synchronize(sync_tokens);
+                    self.synchronize(&sync_tokens);
                     if !self.follows(
                         self.peek(),
                         &[TokenType::Identifier, TokenType::Colon, TokenType::RBracket],
@@ -1406,16 +1408,16 @@ impl<'a> Parser<'a> {
                 }
                 Err(_) => {
                     self.error_at_current("Error parsing Machine Block.");
-                    let sync_tokens = &vec![TokenType::State];
-                    if self.synchronize(sync_tokens) {
+                    let sync_tokens = vec![TokenType::State];
+                    if self.synchronize(&sync_tokens) {
                         continue;
                     } else {
-                        let sync_tokens = &vec![
+                        let sync_tokens = vec![
                             TokenType::ActionsBlock,
                             TokenType::DomainBlock,
                             TokenType::SystemEnd,
                         ];
-                        self.synchronize(sync_tokens);
+                        self.synchronize(&sync_tokens);
                         break;
                     }
                 }
@@ -1720,16 +1722,16 @@ impl<'a> Parser<'a> {
                         enums.push(enum_decl_node);
                     },
                     Err(_parse_err) => {
-                        let sync_tokens = &vec![TokenType::Var, TokenType::Const, TokenType::SystemEnd];
-                        self.synchronize(sync_tokens);
+                        let sync_tokens = vec![TokenType::Var, TokenType::Const, TokenType::SystemEnd];
+                        self.synchronize(&sync_tokens);
                     },
                 }
             } else {
                 match self.variable_decl(IdentifierDeclScope::DomainBlock) {
                     Ok(domain_variable_node) => domain_variables.push(domain_variable_node),
                     Err(_parse_err) => {
-                        let sync_tokens = &vec![TokenType::Var, TokenType::Const, TokenType::SystemEnd];
-                        self.synchronize(sync_tokens);
+                        let sync_tokens = vec![TokenType::Var, TokenType::Const, TokenType::SystemEnd];
+                        self.synchronize(&sync_tokens);
                     }
                 }
             }
@@ -2041,13 +2043,13 @@ impl<'a> Parser<'a> {
         if !self.match_token(&[TokenType::Identifier]) {
             // error message and synchronize
             self.error_at_current("Expected state name.");
-            let sync_tokens = &vec![
+            let sync_tokens = vec![
                 TokenType::State,
                 TokenType::ActionsBlock,
                 TokenType::DomainBlock,
                 TokenType::SystemEnd,
             ];
-            self.synchronize(sync_tokens);
+            self.synchronize(&sync_tokens);
 
             let state_node = StateNode::new(
                 String::from("error"),
@@ -2152,26 +2154,26 @@ impl<'a> Parser<'a> {
                         dispatch_opt = Some(DispatchNode::new(target_state_ref, id.line));
                     } else {
                         self.error_at_current("Expected dispatch target state identifier.");
-                        let sync_tokens = &vec![
+                        let sync_tokens = vec![
                             TokenType::Pipe,
                             TokenType::State,
                             TokenType::ActionsBlock,
                             TokenType::DomainBlock,
                             TokenType::SystemEnd,
                         ];
-                        self.synchronize(sync_tokens);
+                        self.synchronize(&sync_tokens);
                     }
                 }
                 Err(_) => {
                     // synchronize to next event handler, state, remaining blocks or the end token
-                    let sync_tokens = &vec![
+                    let sync_tokens = vec![
                         TokenType::Pipe,
                         TokenType::State,
                         TokenType::ActionsBlock,
                         TokenType::DomainBlock,
                         TokenType::SystemEnd,
                     ];
-                    self.synchronize(sync_tokens);
+                    self.synchronize(&sync_tokens);
                 }
             }
         }
@@ -2224,6 +2226,8 @@ impl<'a> Parser<'a> {
                     vars.push(variable_node);
                 }
                 Err(err) => {
+                    // TODO - The main sync logic is in statements().
+                    // TODO - Need to add here as well to continue parse.
                     return Err(err);
                 }
             }
@@ -2335,14 +2339,14 @@ impl<'a> Parser<'a> {
                             }
                         }
                         Err(_) => {
-                            let sync_tokens = &vec![
+                            let sync_tokens = vec![
                                 TokenType::Pipe,
                                 TokenType::State,
                                 TokenType::ActionsBlock,
                                 TokenType::DomainBlock,
                                 TokenType::SystemEnd,
                             ];
-                            self.synchronize(sync_tokens);
+                            self.synchronize(&sync_tokens);
                         }
                     }
                 }
@@ -2358,14 +2362,14 @@ impl<'a> Parser<'a> {
                     break;
                 } else {
                     self.error_at_current("Unexpected token in event handler message");
-                    let sync_tokens = &vec![
+                    let sync_tokens = vec![
                         TokenType::Pipe,
                         TokenType::AnyMessage,
                         TokenType::State,
                         TokenType::ActionsBlock,
                         TokenType::DomainBlock,
                     ];
-                    if !self.synchronize(sync_tokens) {
+                    if !self.synchronize(&sync_tokens) {
                         return Err(ParseError::new("TODO"));
                     }
                 }
@@ -2740,14 +2744,14 @@ impl<'a> Parser<'a> {
             Ok(terminator_node) => terminator_node,
             Err(_parse_error) => {
                 // TODO: this vec keeps the parser from hanging. don't know why
-                let sync_tokens = &vec![
+                let sync_tokens = vec![
                     TokenType::Pipe,
                     TokenType::State,
                     TokenType::ActionsBlock,
                     TokenType::DomainBlock,
                     TokenType::SystemEnd,
                 ];
-                self.synchronize(sync_tokens);
+                self.synchronize(&sync_tokens);
                 // create "dummy" node to keep processing
                 // TODO: 1) make line # an int so as to set it to -1 when it is a dummy node and 2) confirm this is the best way
                 // to keep going
@@ -2934,7 +2938,7 @@ impl<'a> Parser<'a> {
 
             if is_err {
                 is_err = false;
-                let sync_tokens = &vec![
+                let mut sync_tokens = vec![
                     TokenType::Identifier,
                     TokenType::LParen,
                     TokenType::Caret,
@@ -2949,7 +2953,10 @@ impl<'a> Parser<'a> {
                     TokenType::DomainBlock,
                     TokenType::SystemEnd,
                 ];
-                self.synchronize(sync_tokens);
+                // Concat contextual sync tokens.
+                sync_tokens.append( self.sync_tokens_from_error_context.as_mut());
+                self.sync_tokens_from_error_context = Vec::new();
+                self.synchronize(&sync_tokens);
             }
         }
     }
@@ -2988,7 +2995,7 @@ impl<'a> Parser<'a> {
         match self.expression() {
             Ok(et_opt) => expr_t_opt = et_opt,
             Err(_) => {
-                let sync_tokens = &vec![
+                let sync_tokens = vec![
                     TokenType::Caret,
                     TokenType::ElseContinue,
                     TokenType::Identifier,
@@ -2998,7 +3005,7 @@ impl<'a> Parser<'a> {
                     TokenType::DomainBlock,
                     TokenType::SystemEnd,
                 ];
-                self.synchronize(sync_tokens);
+                self.synchronize(&sync_tokens);
             }
         }
 
@@ -3347,6 +3354,8 @@ impl<'a> Parser<'a> {
     fn bool_test(&mut self, expr_t: ExprType) -> Result<BoolTestNode, ParseError> {
         let is_negated: bool;
 
+        self.sync_tokens_from_error_context = vec![TokenType::ColonColon];
+
         // '?'
         if self.match_token(&[TokenType::BoolTestTrue]) {
             is_negated = false;
@@ -3483,7 +3492,7 @@ impl<'a> Parser<'a> {
                 branch_terminator_expr_opt,
             )),
             Err(parse_error) => {
-                    Err(parse_error)
+                Err(parse_error)
             },
         }
     }

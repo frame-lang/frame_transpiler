@@ -2761,7 +2761,6 @@ impl AstVisitor for PythonVisitor {
         if let Some(expr_type_rcref) = &loop_for_expr_node.post_expr_rcref_opt {
             let expr_t = expr_type_rcref.borrow();
             expr_t.auto_pre_inc_dec(self);
-            self.newline();
             expr_t.accept(self);
             expr_t.auto_post_inc_dec(self);
         }
