@@ -1907,6 +1907,9 @@ impl<'a> Parser<'a> {
                 => initializer_expr_t_opt = Some(BinaryExprT { binary_expr_node }),
                 Ok(Some(FrameEventExprT { frame_event_part }))
                 => initializer_expr_t_opt = Some(FrameEventExprT { frame_event_part }),
+                Ok(Some(EnumeratorExprT { enum_expr_node }))
+                => initializer_expr_t_opt = Some(EnumeratorExprT { enum_expr_node }),
+
                 _ => {
                     let err_msg = "Unexpected assignment expression value.";
                     self.error_at_current(err_msg);
@@ -3783,7 +3786,9 @@ impl<'a> Parser<'a> {
 
     fn equality(&mut self) -> Result<Option<ExprType>, ParseError> {
         let mut l_value = match self.comparison() {
-            Ok(Some(expr_type)) => expr_type,
+            Ok(Some(expr_type)) => {
+                expr_type
+            },
             Ok(None) => return Ok(None),
             Err(parse_error) => return Err(parse_error),
         };
