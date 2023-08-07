@@ -139,75 +139,13 @@ impl PythonVisitor {
         false
     }
 
-        //* --------------------------------------------------------------------- *//
+    //* --------------------------------------------------------------------- *//
 
     pub fn format_type(&self, type_node: &TypeNode) -> String {
         let mut s = String::new();
-
-        // if let Some(frame_event_part) = &type_node.frame_event_part_opt {
-        //     match frame_event_part {
-        //         FrameEventPart::Event { is_reference } => {
-        //             if *is_reference {
-        //                 s.push();
-        //             }
-        //             s.push_str(&*self.config.code.frame_event_type_name.clone());
-        //         }
-        //         _ => {}
-        //     }
-        // } else {
-        //     if type_node.is_reference {
-        //         s.push('&');
-        //     }
-
         s.push_str(&type_node.type_str.clone());
-        // }
-
         s
     }
-
-    //* --------------------------------------------------------------------- *//
-
-    // fn get_variable_type(&mut self, symbol_type: &SymbolType) -> String {
-    //     let var_type = match &*symbol_type {
-    //         SymbolType::DomainVariable {
-    //             domain_variable_symbol_rcref,
-    //         } => match &domain_variable_symbol_rcref.borrow().var_type {
-    //             Some(type_node) => self.format_type(type_node),
-    //             None => String::from(""),
-    //         },
-    //         SymbolType::StateParam {
-    //             state_param_symbol_rcref,
-    //         } => match &state_param_symbol_rcref.borrow().param_type_opt {
-    //             Some(type_node) => self.format_type(type_node),
-    //             None => String::from(""),
-    //         },
-    //         SymbolType::StateVariable {
-    //             state_variable_symbol_rcref,
-    //         } => match &state_variable_symbol_rcref.borrow().var_type {
-    //             Some(type_node) => self.format_type(type_node),
-    //             None => String::from(""),
-    //         },
-    //         SymbolType::EventHandlerParam {
-    //             event_handler_param_symbol_rcref,
-    //         } => match &event_handler_param_symbol_rcref.borrow().param_type_opt {
-    //             Some(type_node) => self.format_type(type_node),
-    //             None => String::from(""),
-    //         },
-    //         SymbolType::EventHandlerVariable {
-    //             event_handler_variable_symbol_rcref,
-    //         } => match &event_handler_variable_symbol_rcref.borrow().var_type {
-    //             Some(type_node) => self.format_type(type_node),
-    //             None => String::from(""),
-    //         },
-
-    //         _ => {
-    //             self.errors.push("Unknown scope.".to_string());
-    //             return "error".to_string(); // won't get emitted
-    //         }
-    //     };
-
-    //     var_type
-    // }
 
     //* --------------------------------------------------------------------- *//
 
@@ -2060,15 +1998,16 @@ impl AstVisitor for PythonVisitor {
             // AnyMessage ( ||* )
             if self.first_event_handler {
                 // This logic is for when there is only the catch all event handler ||*
-                self.add_code("if true:");
+                self.add_code("if True:");
             } else {
                 // other event handlers preceded ||*
                 self.add_code("else:");
             }
         }
         self.generate_comment(evt_handler_node.line);
-
         self.indent();
+       // self.newline();
+
         //  if let MessageType::CustomMessage {message_node} =
         match &evt_handler_node.msg_t {
             MessageType::CustomMessage { .. } => {
@@ -2740,19 +2679,20 @@ impl AstVisitor for PythonVisitor {
             let test_expr = test_expr_rcref.borrow();
             test_expr.auto_pre_inc_dec(self);
 
-            self.newline();
+//            self.newline();
             self.add_code(&format!("if !({}):", output));
             self.indent();
             self.newline();
             self.add_code("break");
             self.outdent();
-            self.newline();
+//            self.newline();
             test_expr.auto_post_inc_dec(self);
         }
 
         // only call if there are statements
         if loop_for_expr_node.statements.len() != 0 {
             self.visit_decl_stmts(&loop_for_expr_node.statements);
+            self.newline();
         }
 
         // all autoincdec code in loop control should be generated as the last statement
@@ -2761,7 +2701,12 @@ impl AstVisitor for PythonVisitor {
         if let Some(expr_type_rcref) = &loop_for_expr_node.post_expr_rcref_opt {
             let expr_t = expr_type_rcref.borrow();
             expr_t.auto_pre_inc_dec(self);
-            expr_t.accept(self);
+            match *expr_t {
+                ExprType::CallChainLiteralExprT {..} => {
+                    // don't emit just a simple expression.
+                }
+                _ => expr_t.accept(self)
+            }
             expr_t.auto_post_inc_dec(self);
         }
         // generate 'pass' after autoincdec if there are no statements
@@ -3871,7 +3816,7 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_assignment_expr_node(&mut self, assignment_expr_node: &AssignmentExprNode) {
         self.generate_comment(assignment_expr_node.line);
-        // self.newline();
+        self.newline();
         // inc/dec all *rvalue* expressions before generating the
         // assignement statement
         assignment_expr_node.r_value_box.auto_pre_inc_dec(self);
@@ -3907,6 +3852,7 @@ impl AstVisitor for PythonVisitor {
     fn visit_assignment_statement_node(&mut self, assignment_stmt_node: &AssignmentStmtNode) {
         self.generate_comment(assignment_stmt_node.get_line());
         assignment_stmt_node.assignment_expr_node.accept(self);
+
     }
 
     //* --------------------------------------------------------------------- *//
