@@ -1,4 +1,37 @@
 #Test
+
+    -machine-
+
+    $S1
+        |e| [x,y]
+            var x:int = 0
+
+            loop var x in foo(--a,b++) {
+                bar()
+            }
+
+            z = a + b
+            x ? a(x) b() : c() ::
+
+            z = y++ - --x
+            bar(x++, y++)
+
+            loop var a = 0; a < 100; a++ { foo(a) }
+            ^
+    -actions-
+
+    foo1 [a:int, b:string] {
+
+        var x:int = 0
+
+        loop x = 1; x < 10; x++ {
+            x ? a(x) b() : c() ::
+        }
+        ^(42)
+    }
+##
+
+#Test
     -machine-
 
     $S1
@@ -802,13 +835,13 @@
 
     $S1
         |z|
-            var mark := "guy"
-            var x := 23
+            var mark = "guy"
+            var x = 23
 
             loop {
                 loop {
                     continue
-                    loop x := 0; x < 10; ++x {
+                    loop x = 0; x < 10; ++x {
                         foo()
                     }
                 }
