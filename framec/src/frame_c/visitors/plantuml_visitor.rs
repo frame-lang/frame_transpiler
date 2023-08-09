@@ -331,20 +331,22 @@ impl PlantUmlVisitor {
                         StatementType::ChangeStateStmt { change_state_stmt } => {
                             change_state_stmt.accept(self);
                         }
-                        StatementType::LoopStmt {loop_stmt_node} => {
+                        StatementType::LoopStmt { loop_stmt_node } => {
                             loop_stmt_node.accept(self);
                         }
-                        StatementType::BlockStmt {block_stmt_node} => {
+                        StatementType::BlockStmt { block_stmt_node } => {
                             block_stmt_node.accept(self);
                         }
-                        StatementType::ContinueStmt {continue_stmt_node} => {
-                           // continue_stmt_node.accept(self);
+                        StatementType::ContinueStmt { continue_stmt_node } => {
+                            // continue_stmt_node.accept(self);
                         }
-                        StatementType::BreakStmt {break_stmt_node} => {
-                           // break_stmt_node.accept(self);
+                        StatementType::BreakStmt { break_stmt_node } => {
+                            // break_stmt_node.accept(self);
                         }
-                        StatementType::SuperStringStmt {super_string_stmt_node} => {
-                           // super_string_stmt_node.accept(self);
+                        StatementType::SuperStringStmt {
+                            super_string_stmt_node,
+                        } => {
+                            // super_string_stmt_node.accept(self);
                         }
                         StatementType::NoStmt => {
                             // TODO
