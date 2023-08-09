@@ -84,16 +84,17 @@ TEST_F(StateStackControllerTest, TestPopTransitionEvents) {
     ASSERT_EQ("0", sm->state_info());
     sm->pop();
     ASSERT_EQ("2", sm->state_info());
-    ASSERT_EQ((std::vector<std::string>{"A:<", "C:>"}), sm->tape) << "Actual values: " << std::endl;
+    std::vector<std::string> expected_tape = {"A:<", "C:>"};
+    ASSERT_EQ(expected_tape, sm->tape);
     sm->tape.clear();
     sm->pop();
     sm->pop();
     ASSERT_EQ("1", sm->state_info());
-    ASSERT_EQ((std::vector<std::string>{"C:<", "A:>", "A:<", "B:>"}), sm->tape) << "Actual values: " << std::endl;
+    expected_tape = {"C:<", "A:>", "A:<", "B:>"};
+    ASSERT_EQ(expected_tape, sm->tape);
 }
 
 TEST_F(StateStackControllerTest, TestPopChangeStateNoEvents) {
-    sm = new StateStackController();
     sm->to_b();
     sm->push();
     sm->to_a();
@@ -105,11 +106,13 @@ TEST_F(StateStackControllerTest, TestPopChangeStateNoEvents) {
     ASSERT_EQ("0", sm->state_info());
     sm->pop_change();
     ASSERT_EQ("2", sm->state_info());
-    ASSERT_EQ((std::vector<std::string>{"C:<", "A:>"}), sm->tape) << "Actual values: " << std::endl;
+    ASSERT_EQ(0, sm->tape.size());
     sm->pop();
     sm->pop_change();
-    ASSERT_EQ((std::vector<std::string>{"C:<", "A:>", "B:>"}), sm->tape) << "Actual values: " << std::endl;
-}
+    std::vector<std::string> expected_tape = {"C:<", "A:>"};
+    ASSERT_EQ(expected_tape, sm->tape);
+}   
+
 
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);

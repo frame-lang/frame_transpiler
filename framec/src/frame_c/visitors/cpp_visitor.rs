@@ -1023,10 +1023,21 @@ impl CppVisitor {
                                     };
                                     let mut expr = String::new();
                                     expr_t.accept_to_string(self, &mut expr);
-                                    self.add_code(&format!(
-                                        "compartment->stateArgs[\"{}\"] = {};",
-                                        param_symbol.name, expr
-                                    ));
+
+                                    match _param_type.as_str() {
+                                        "string" => {
+                                            self.add_code(&format!(
+                                                "compartment->stateArgs[\"{}\"] = std::string({});",
+                                                param_symbol.name, expr
+                                            ));
+                                        }
+                                        _ => {
+                                            self.add_code(&format!(
+                                                "compartment->stateArgs[\"{}\"] = {};",
+                                                param_symbol.name, expr
+                                            ));
+                                        }
+                                    }
                                     self.newline();
                                 }
                                 None => self.errors.push(format!(
@@ -1066,10 +1077,20 @@ impl CppVisitor {
                             let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
-                            self.add_code(&format!(
-                                "compartment->stateVars[\"{}\"] = {};",
-                                var.name, expr_code
-                            ));
+                                    match _var_type.as_str() {
+                                        "string" => {
+                                            self.add_code(&format!(
+                                                "compartment->stateVars[\"{}\"] = std::string({});",
+                                                var.name, expr_code
+                                            ));
+                                        }
+                                        _ => {
+                                            self.add_code(&format!(
+                                                "compartment->stateVars[\"{}\"] = {};",
+                                                var.name, expr_code
+                                            ));
+                                        }
+                                    }
                             self.newline();
                         }
                     }
@@ -1298,10 +1319,20 @@ impl CppVisitor {
                                     };
                                     let mut expr = String::new();
                                     expr_t.accept_to_string(self, &mut expr);
-                                    self.add_code(&format!(
-                                        "compartment->stateArgs[\"{}\"] = {};",
-                                        param_symbol.name, expr
-                                    ));
+                                    match _param_type.as_str() {
+                                        "string" => {
+                                            self.add_code(&format!(
+                                                "compartment->stateArgs[\"{}\"] = std::string({});",
+                                                param_symbol.name, expr
+                                            ));
+                                        }
+                                        _ => {
+                                            self.add_code(&format!(
+                                                "compartment->stateArgs[\"{}\"] = {};",
+                                                param_symbol.name, expr
+                                            ));
+                                        }
+                                    }
                                     self.newline();
                                 }
                                 None => self.errors.push(format!(
@@ -1341,10 +1372,20 @@ impl CppVisitor {
                             let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
-                            self.add_code(&format!(
-                                "compartment->stateVars[\"{}\"] = {};",
-                                var.name, expr_code
-                            ));
+                                    match _var_type.as_str() {
+                                        "string" => {
+                                            self.add_code(&format!(
+                                                "compartment->stateVars[\"{}\"] = std::string({});",
+                                                var.name, expr_code
+                                            ));
+                                        }
+                                        _ => {
+                                            self.add_code(&format!(
+                                                "compartment->stateVars[\"{}\"] = {};",
+                                                var.name, expr_code
+                                            ));
+                                        }
+                                    }
                             self.newline();
                         }
                     }
@@ -2316,7 +2357,7 @@ impl AstVisitor for CppVisitor {
             Some(return_type) => {
                 self.newline();
                 self.add_code(&format!(
-                    "return any_cast<{}>(*static_cast<any*>(e._return));",
+                    "return any_cast<{}>(e._return);",
                     return_type.get_type_str()
                 ));
             }

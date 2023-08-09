@@ -385,6 +385,7 @@ private:
     {
         delete _compartment_;
         delete _nextCompartment_;
+        delete _stateStack_;
     }
     string state_info(){
         return std::to_string(_compartment_->state);
