@@ -787,7 +787,7 @@ impl Display for TokenType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         //write!(f, "{}", self)
         match self {
-            Plus => write!(f,"+"),
+            TokenType::Plus => write!(f,"+"),
             _ => write!(f,"TODO")
         }
     }
