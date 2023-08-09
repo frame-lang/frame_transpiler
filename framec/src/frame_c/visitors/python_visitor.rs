@@ -1867,6 +1867,9 @@ impl AstVisitor for PythonVisitor {
         self.add_code("# ===================== Actions Block =================== #");
         self.newline();
 
+        // TODO - for some reason action_node.accept_action_impl() isn't being
+        // called but action_node.accept_action_decl() is.
+
         for action_rcref in &actions_block_node.actions {
             let action_node = action_rcref.borrow();
             if action_node.code_opt.is_some() {
@@ -2386,7 +2389,7 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_auto_pre_inc_dec_expr_node(&mut self, ref_expr_type: &RefExprType) {
         match ref_expr_type {
-            RefExprType::AssignmentExprT {assignment_expr_node} => {
+            RefExprType::AssignmentExprT {..} => {
 
             }
             RefExprType::CallExprT {call_expr_node} => {
@@ -2450,14 +2453,7 @@ impl AstVisitor for PythonVisitor {
                                 expr_t.auto_pre_inc_dec(self);
                             }
                         }
-                        // CallChainLiteralNodeType::VariableNodeT { var_node } => {
-                        //     self.visiting_call_chain_literal_variable = true;
-                        //     var_node.accept(self);
-                        //     self.visiting_call_chain_literal_variable = false;
-                        // }
-                        _ => {
-                            let i = 1;
-                        }
+                        _ => {}
                     }
                 }
             },
@@ -2473,10 +2469,10 @@ impl AstVisitor for PythonVisitor {
                             expr.borrow().auto_pre_inc_dec(self);
                         }
                     }
-                    LoopStmtTypes::LoopInStmt { loop_in_stmt_node: loop_in_expr_node } => {
-                        // TODO
+                    LoopStmtTypes::LoopInStmt {loop_in_stmt_node} => {
+                        loop_in_stmt_node.iterable_expr.auto_pre_inc_dec(self);
                     }
-                    LoopStmtTypes::LoopInfiniteStmt {loop_infinite_stmt_node} => {
+                    LoopStmtTypes::LoopInfiniteStmt {..} => {
                         // TODO
                     }
                 }
@@ -2658,16 +2654,6 @@ impl AstVisitor for PythonVisitor {
             lfs.accept(self);
             self.newline();
         }
-        // match &loop_for_expr_node.test_expr_rcref_opt {
-        //     Some(expr_type_rcref) => {
-        //         let mut output = String::new();
-        //         expr_type_rcref.borrow().accept_to_string(self, &mut output);
-        //         self.add_code(&format!("while {}:", output));
-        //     }
-        //     None => {
-        //         self.add_code(&format!("while True:"));
-        //     }
-        // }
 
         self.add_code(&format!("while True:"));
         self.indent();
@@ -2726,6 +2712,9 @@ impl AstVisitor for PythonVisitor {
         loop_in_expr_node:&LoopInStmtNode,
     ) {
         self.newline();
+
+        // autoinc any arguments to the iterable expression
+        loop_in_expr_node.iterable_expr.auto_pre_inc_dec(self);
         let mut output = String::new();
         loop_in_expr_node.iterable_expr.accept_to_string(self, &mut output);
 
@@ -2855,31 +2844,6 @@ impl AstVisitor for PythonVisitor {
         self.newline();
         self.add_code("break");
     }
-
-    //* --------------------------------------------------------------------- *//
-    //
-    // fn visit_loop_expr_node(
-    //     &mut self,
-    //     loop_stmt_node: &LoopForExprNode,
-    // ) {
-    //     self.newline();
-    // }
-    //
-    //
-    // //* --------------------------------------------------------------------- *//
-    //
-    // fn visit_loop_expr_node_to_string(
-    //     &mut self,
-    //     loop_stmt_node: &LoopForExprNode,
-    //     output: &mut String,
-    //
-    // ) {
-    //
-    //     self.newline();
-    //     self.add_code("for () {");
-    //     self.newline();
-    //     self.add_code("}");
-    // }
 
     //* --------------------------------------------------------------------- *//
 
@@ -3349,6 +3313,205 @@ impl AstVisitor for PythonVisitor {
         match_pattern_node: &NumberMatchTestPatternNode,
     ) {
         self.add_code(&match_pattern_node.match_pattern_number.to_string());
+    }
+
+
+    //-----------------------------------------------------//
+
+    fn visit_enum_match_test_node(&mut self, enum_match_test_node: &EnumMatchTestNode) {
+        let mut if_or_else_if = "if";
+
+        self.newline();
+        for match_branch_node in &enum_match_test_node.match_branch_nodes {
+            self.add_code(&format!("{} (", if_or_else_if));
+            match &enum_match_test_node.expr_t {
+                ExprType::CallExprT {
+                    call_expr_node: method_call_expr_node,
+                } => method_call_expr_node.accept(self),
+                ExprType::ActionCallExprT {
+                    action_call_expr_node,
+                } => action_call_expr_node.accept(self),
+                ExprType::CallChainLiteralExprT {
+                    call_chain_expr_node,
+                } => call_chain_expr_node.accept(self),
+                ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
+                ExprType::ExprListT { expr_list_node } => {
+                    // must be only 1 expression in the list
+                    if expr_list_node.exprs_t.len() != 1 {
+                        // TODO: how to do this better.
+                        self.errors
+                            .push("Error - expression list is not testable.".to_string());
+                    }
+                    let x = expr_list_node.exprs_t.first().unwrap();
+                    x.accept(self);
+                }
+                _ => self.errors.push("TODO.".to_string()),
+            }
+
+            let mut first_match = true;
+            for match_test_pattern_node in &match_branch_node.enum_match_pattern_node {
+                if first_match {
+
+                    self.add_code(&format!(" == {}.{})",enum_match_test_node.enum_type_name, match_test_pattern_node.match_pattern_strings));
+                    first_match = false;
+                } else {
+                    self.add_code(" or (");
+                    match &enum_match_test_node.expr_t {
+                        ExprType::CallExprT {
+                            call_expr_node: method_call_expr_node,
+                        } => method_call_expr_node.accept(self),
+                        ExprType::ActionCallExprT {
+                            action_call_expr_node,
+                        } => action_call_expr_node.accept(self),
+                        ExprType::CallChainLiteralExprT {
+                            call_chain_expr_node,
+                        } => call_chain_expr_node.accept(self),
+                        ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
+                        _ => self.errors.push("TODO.".to_string()),
+                    }
+                    self.add_code(&format!(" == {}.{})", enum_match_test_node.enum_type_name,match_test_pattern_node.match_pattern_strings));
+                }
+            }
+
+            self.add_code(":");
+            self.indent();
+
+            match_branch_node.accept(self);
+            self.generate_return_if_transitioned();
+
+            self.outdent();
+            self.newline();
+
+            if_or_else_if = "elif";
+        }
+
+        // (':' number_test_else_branch)?
+        if let Some(number_match_else_branch_node) = &enum_match_test_node.else_branch_node_opt {
+            number_match_else_branch_node.accept(self);
+        }
+    }
+
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_enum_match_test_match_branch_node(
+        &mut self,
+        enum_match_test_match_branch_node: &EnumMatchTestMatchBranchNode,
+    ) {
+        // let mut generate_pass = false;
+        // if string_match_test_match_branch_node.statements.is_empty() && string_match_test_match_branch_node.branch_terminator_expr_opt.is_none() {
+        //     generate_pass = true;
+        // }
+
+        // generate 'pass' unless there is a statement that will generate code
+        let mut generate_pass = true;
+        if enum_match_test_match_branch_node.branch_terminator_t_opt.is_some() {
+            generate_pass = false;
+        }
+
+        // even if there statements, it is possible there are only empty
+        // blocks, which should generate a pass. Check if there are only
+        // empty blocks.
+        if generate_pass && self.has_non_block_statements(&enum_match_test_match_branch_node.statements) {
+            generate_pass = false;
+        }
+
+        if generate_pass {
+            self.newline();
+            self.add_code("pass");
+        } else {
+            self.visit_decl_stmts(&enum_match_test_match_branch_node.statements);
+        }
+
+        match &enum_match_test_match_branch_node.branch_terminator_t_opt {
+            Some(branch_terminator_expr) => {
+                self.newline();
+                match &branch_terminator_expr.terminator_type {
+                    TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
+                        Some(expr_t) => {
+                            self.add_code("e._return = ");
+                            expr_t.accept(self);
+                            self.generate_return();
+                        }
+                        None => self.generate_return(),
+                    },
+                    TerminatorType::Continue => {
+                        self.generate_return_if_transitioned();
+                    }
+                }
+            }
+            None => {
+                self.generate_return_if_transitioned();
+            }
+        }
+    }
+
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_enum_match_test_else_branch_node(
+        &mut self,
+        enum_match_test_else_branch_node: &EnumMatchTestElseBranchNode,
+    ) {
+        self.add_code("else:");
+        self.indent();
+
+        // generate 'pass' unless there is a statement that will generate code
+        let mut generate_pass = true;
+        if enum_match_test_else_branch_node.branch_terminator_expr_opt.is_some() {
+            generate_pass = false;
+        }
+
+        // even if there statements, it is possible there are only empty
+        // blocks, which should generate a pass. Check if there are only
+        // empty blocks.
+        if generate_pass && self.has_non_block_statements(&enum_match_test_else_branch_node.statements) {
+            generate_pass = false;
+        }
+
+        if generate_pass {
+            self.newline();
+            self.add_code("pass");
+        } else {
+            self.visit_decl_stmts(&enum_match_test_else_branch_node.statements);
+        }
+
+        // TODO - factor this out to work w/ other terminator code.
+        match &enum_match_test_else_branch_node.branch_terminator_expr_opt {
+            Some(branch_terminator_expr) => {
+                self.newline();
+                match &branch_terminator_expr.terminator_type {
+                    TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
+                        Some(expr_t) => {
+                            self.add_code("e._return = ");
+                            expr_t.accept(self);
+                            self.newline();
+                            self.generate_return();
+                        }
+                        None => self.generate_return(),
+                    },
+                    TerminatorType::Continue => {
+                        self.generate_return_if_transitioned();
+                    }
+                }
+            }
+            None => {
+                self.generate_return_if_transitioned();
+            }
+        }
+
+        self.outdent();
+        self.newline();
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_enum_match_test_pattern_node(
+        &mut self,
+        enum_match_test_pattern_node: &EnumMatchTestPatternNode,
+    ) {
+        // TODO
+        self.errors.push("Not implemented.".to_string());
     }
 
     //* --------------------------------------------------------------------- *//

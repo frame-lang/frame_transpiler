@@ -5645,6 +5645,7 @@ impl<'a> Parser<'a> {
         }
 
         Ok(EnumMatchTestNode::new(
+            enum_type_name,
             expr_t,
             conditional_branches,
             else_branch_opt,
@@ -5671,6 +5672,7 @@ impl<'a> Parser<'a> {
 
         let match_enum_tok = self.previous();
         let match_pattern_enum = match_enum_tok.lexeme.clone();
+        let mut enum_type_name = String::new();
 
         if !self.is_building_symbol_table {
             let mut found_match = false;
@@ -5690,6 +5692,8 @@ impl<'a> Parser<'a> {
                 self.error_at_current(&err_msg);
                 return Err(ParseError::new(&err_msg));
             }
+
+            enum_type_name = c.borrow().name.clone();
         }
 
         let match_enum_tok = self.previous();
@@ -5716,6 +5720,7 @@ impl<'a> Parser<'a> {
         let result = self.branch_terminator();
         match result {
             Ok(branch_terminator_t_opt) => Ok(EnumMatchTestMatchBranchNode::new(
+                enum_type_name,
                 match_enums,
                 statements,
                 branch_terminator_t_opt,

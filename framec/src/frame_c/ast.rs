@@ -2736,6 +2736,7 @@ impl NodeElement for NumberMatchTestPatternNode {
 //-----------------------------------------------------//
 
 pub struct EnumMatchTestNode {
+    pub enum_type_name:String,
     pub expr_t: ExprType,
     pub match_branch_nodes: Vec<EnumMatchTestMatchBranchNode>,
     pub else_branch_node_opt: Option<EnumMatchTestElseBranchNode>,
@@ -2743,11 +2744,13 @@ pub struct EnumMatchTestNode {
 
 impl EnumMatchTestNode {
     pub fn new(
+        enum_type_name:String,
         expr_t: ExprType,
         match_branch_nodes: Vec<EnumMatchTestMatchBranchNode>,
         else_branch_node_opt: Option<EnumMatchTestElseBranchNode>,
     ) -> EnumMatchTestNode {
         EnumMatchTestNode {
+            enum_type_name,
             expr_t,
             match_branch_nodes,
             else_branch_node_opt,
@@ -2764,6 +2767,7 @@ impl NodeElement for EnumMatchTestNode {
 //-----------------------------------------------------//
 
 pub struct EnumMatchTestMatchBranchNode {
+    pub enum_type_name:String,
     pub enum_match_pattern_node: Vec<EnumMatchTestPatternNode>,
     pub statements: Vec<DeclOrStmtType>,
     pub branch_terminator_t_opt: Option<TerminatorExpr>,
@@ -2771,11 +2775,13 @@ pub struct EnumMatchTestMatchBranchNode {
 
 impl EnumMatchTestMatchBranchNode {
     pub fn new(
+        enum_type_name:String,
         enum_match_pattern_node: Vec<EnumMatchTestPatternNode>,
         statements: Vec<DeclOrStmtType>,
         branch_terminator_t_opt: Option<TerminatorExpr>,
     ) -> EnumMatchTestMatchBranchNode {
         EnumMatchTestMatchBranchNode {
+            enum_type_name,
             enum_match_pattern_node,
             statements,
             branch_terminator_t_opt,
