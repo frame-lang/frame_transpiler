@@ -19,22 +19,22 @@
             log("bye A") ^
 
         |Next|
-            -> ("hi B" 42) $B ^
+            -> ("hi B", 42) $B ^
 
         |Change|
             ->> $B ^
 
     $B
-        |>| [msg:String val:i16]
+        |>| [msg:String, val:i16]
             log(msg.clone())
             log(val.to_string()) ^
 
-        |<| [val:bool msg:String]
+        |<| [val:bool, msg:String]
             log(val.to_string())
             log(msg.clone()) ^
 
         |Next|
-            (true "bye B") -> ("hi again A") $A ^
+            (true, "bye B") -> ("hi again A") $A ^
 
         |Change|
             ->> $A ^

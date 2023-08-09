@@ -10,12 +10,12 @@ use super::ast::TerminatorType::{Continue, Return};
 use super::ast::*;
 use super::scanner::*;
 use super::symbol_table::*;
+use crate::frame_c::symbol_table::SymbolType::ParamSymbol;
 use crate::frame_c::utils::SystemHierarchy;
 use downcast_rs::__std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
-use crate::frame_c::symbol_table::SymbolType::ParamSymbol;
 //use crate::frame_c::ast::LoopStmtTypes::{LoopInfiniteStmt, LoopInStmt};
 
 pub struct ParseError {
@@ -102,10 +102,10 @@ pub struct Parser<'a> {
     system_hierarchy_opt: Option<SystemHierarchy>,
     is_parsing_rhs: bool,
     event_handler_has_transition: bool,
-    is_action_context:bool,
-    is_loop_context:bool,
-    stmt_idx:i32,
-    interface_method_called:bool,
+    is_action_context: bool,
+    is_loop_context: bool,
+    stmt_idx: i32,
+    interface_method_called: bool,
     pub generate_enter_args: bool,
     pub generate_exit_args: bool,
     pub generate_state_context: bool,
@@ -1075,7 +1075,8 @@ impl<'a> Parser<'a> {
                 interface_method_symbol_rcref,
             };
             // TODO: just insert into arcanum directly
-           let ret = self.arcanum
+            let ret = self
+                .arcanum
                 .current_symtab
                 .borrow_mut()
                 .insert_symbol(&interface_method_symbol_t);
@@ -1083,7 +1084,7 @@ impl<'a> Parser<'a> {
                 Ok(()) => {}
                 Err(err_msg) => {
                     self.error_at_previous(err_msg.as_str());
-                    return Err(ParseError::new(err_msg.as_str()))
+                    return Err(ParseError::new(err_msg.as_str()));
                 }
             }
         } else {
@@ -1181,7 +1182,6 @@ impl<'a> Parser<'a> {
         MessageNode::new(name, id.line)
     }
 
-
     /* --------------------------------------------------------------------- */
 
     // TODO- see if all parameter lists can use a common parsing function and AST/symbol data and logic.
@@ -1193,11 +1193,11 @@ impl<'a> Parser<'a> {
         if self.is_building_symbol_table {
             let params_scope_symbol_rcref = Rc::new(RefCell::new(ParamsScopeSymbol::new()));
             self.arcanum.enter_scope(ParseScopeType::Params {
-                params_scope_symbol_rcref
+                params_scope_symbol_rcref,
             });
         } else {
             // give each loop in a scope a unique name
-            let scope_name = &format!("{}",ParamsScopeSymbol::scope_name());
+            let scope_name = &format!("{}", ParamsScopeSymbol::scope_name());
             self.arcanum
                 .set_parse_scope(ParamsScopeSymbol::scope_name());
         }
@@ -1208,7 +1208,6 @@ impl<'a> Parser<'a> {
 
         ret
     }
-
 
     /* --------------------------------------------------------------------- */
 
@@ -1226,20 +1225,15 @@ impl<'a> Parser<'a> {
                         let param_name = &parameter_node.param_name.clone();
                         let mut param_type_opt: Option<TypeNode> = None;
                         if parameter_node.param_type_opt.is_some() {
-                            let pt =
-                                &parameter_node.param_type_opt.as_ref().unwrap().clone();
+                            let pt = &parameter_node.param_type_opt.as_ref().unwrap().clone();
                             param_type_opt = Some(pt.clone());
                         }
                         let scope = self.arcanum.get_current_identifier_scope();
-                        let param_symbol = ParameterSymbol::new(
-                            param_name.clone(),
-                            param_type_opt.clone(),
-                            scope,
-                        );
-                        let param_symbol_rcref =
-                            Rc::new(RefCell::new(param_symbol));
-                        let param_symbol_enum = SymbolType::ParamSymbol {param_symbol_rcref};
-                       //  let params_scope = ParseScopeType::Params {params_scope_symbol_rcref};
+                        let param_symbol =
+                            ParameterSymbol::new(param_name.clone(), param_type_opt.clone(), scope);
+                        let param_symbol_rcref = Rc::new(RefCell::new(param_symbol));
+                        let param_symbol_enum = SymbolType::ParamSymbol { param_symbol_rcref };
+                        //  let params_scope = ParseScopeType::Params {params_scope_symbol_rcref};
 
                         if self.is_building_symbol_table {
                             let ret = self.arcanum.insert_symbol(param_symbol_enum);
@@ -1247,11 +1241,10 @@ impl<'a> Parser<'a> {
                                 Ok(()) => {}
                                 Err(err_msg) => {
                                     self.error_at_previous(err_msg.as_str());
-                                    return Err(ParseError::new(err_msg.as_str()))
+                                    return Err(ParseError::new(err_msg.as_str()));
                                 }
                             }
                         } else {
-
                         }
 
                         parameters.push(parameter_node);
@@ -1282,7 +1275,6 @@ impl<'a> Parser<'a> {
             if self.match_token(&[TokenType::RBracket]) {
                 break;
             } else if let Err(parse_error) = self.consume(TokenType::Comma, "Expected comma.") {
-
                 return Err(parse_error);
             }
         }
@@ -1336,7 +1328,6 @@ impl<'a> Parser<'a> {
             if self.match_token(&[TokenType::RBracket]) {
                 break;
             } else if let Err(parse_error) = self.consume(TokenType::Comma, "Expected comma.") {
-
                 return Err(parse_error);
             }
         }
@@ -1379,9 +1370,7 @@ impl<'a> Parser<'a> {
         let scope = self.arcanum.get_current_identifier_scope();
         let param_node = ParameterNode::new(param_name, param_type_opt, scope);
 
-        if self.is_building_symbol_table {
-
-        }
+        if self.is_building_symbol_table {}
         Ok(Some(param_node))
     }
 
@@ -1531,7 +1520,6 @@ impl<'a> Parser<'a> {
     //     Ok(action_decl_rcref)
     // }
 
-
     /* --------------------------------------------------------------------- */
 
     // This method wraps the call to the action_context() call which does
@@ -1539,7 +1527,6 @@ impl<'a> Parser<'a> {
     // the scope symbol creation and association with the AST node.
 
     fn action_scope(&mut self) -> Result<Rc<RefCell<ActionNode>>, ParseError> {
-
         let action_name = self.previous().lexeme.clone();
 
         // The 'is_action_context' flag is used to determine which statements are valid
@@ -1547,25 +1534,27 @@ impl<'a> Parser<'a> {
         // allowed.
         self.is_action_context = true;
 
-       if self.is_building_symbol_table {
+        if self.is_building_symbol_table {
             // syntax pass
             let action_symbol = ActionScopeSymbol::new(action_name.clone());
-//            action_symbol_opt = Some(action_symbol);
+            //            action_symbol_opt = Some(action_symbol);
 
             let action_scope_symbol_rcref = Rc::new(RefCell::new(action_symbol));
             let action_symbol_parse_scope_t = ParseScopeType::Action {
-                action_scope_symbol_rcref
+                action_scope_symbol_rcref,
             };
             self.arcanum.enter_scope(action_symbol_parse_scope_t);
-
         } else {
             // semantic pass
             // link action symbol to action declaration node
-            let a = self.arcanum.current_symtab.borrow().lookup(&*action_name, &IdentifierDeclScope::None);
+            let a = self
+                .arcanum
+                .current_symtab
+                .borrow()
+                .lookup(&*action_name, &IdentifierDeclScope::None);
             // see if we can get the action symbol set in the syntax pass. if so, then move
             // all this to the calling function and pass inthe symbol
-            self.arcanum
-                .set_parse_scope(&action_name);
+            self.arcanum.set_parse_scope(&action_name);
         }
 
         let ret = self.action(action_name.clone());
@@ -1579,9 +1568,8 @@ impl<'a> Parser<'a> {
                     let c = b.unwrap();
                     let mut d = c.borrow_mut();
                     d.ast_node_opt = Some(action_node_rcref.clone());
-
                 }
-                Err(err)  => {
+                Err(err) => {
                     // just return the error
                 }
             }
@@ -1592,13 +1580,11 @@ impl<'a> Parser<'a> {
         self.is_action_context = false;
 
         ret
-
     }
 
     /* --------------------------------------------------------------------- */
 
-    fn action(&mut self, action_name:String) -> Result<Rc<RefCell<ActionNode>>, ParseError>  {
-
+    fn action(&mut self, action_name: String) -> Result<Rc<RefCell<ActionNode>>, ParseError> {
         let mut params: Option<Vec<ParameterNode>> = Option::None;
 
         if self.match_token(&[TokenType::LBracket]) {
@@ -1639,13 +1625,13 @@ impl<'a> Parser<'a> {
                         Ok(Some(expr_t)) => expr_t,
                         _ => {
                             self.error_at_current("Expected expression as return value.");
-                           //  self.arcanum.exit_parse_scope();
+                            //  self.arcanum.exit_parse_scope();
                             return Err(ParseError::new("TODO"));
                         }
                     };
 
                     if let Err(parse_error) = self.consume(TokenType::RParen, "Expected ')'.") {
-                       // self.arcanum.exit_parse_scope();
+                        // self.arcanum.exit_parse_scope();
                         return Err(parse_error);
                     }
 
@@ -1655,19 +1641,27 @@ impl<'a> Parser<'a> {
                         self.previous().line,
                     ));
                 } else {
-                    terminator_node_opt = Some(TerminatorExpr::new(Return, None, self.previous().line));
+                    terminator_node_opt =
+                        Some(TerminatorExpr::new(Return, None, self.previous().line));
                 }
             }
 
             if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
-             //   self.arcanum.exit_parse_scope();
+                //   self.arcanum.exit_parse_scope();
                 return Err(parse_error);
             } else {
-
             }
         }
 
-        let action_node = ActionNode::new(action_name.clone(), params, is_implemented, statements, terminator_node_opt, type_opt, code_opt);
+        let action_node = ActionNode::new(
+            action_name.clone(),
+            params,
+            is_implemented,
+            statements,
+            terminator_node_opt,
+            type_opt,
+            code_opt,
+        );
         // let action_node_rcref = Rc::new(RefCell::new(action_node));
         //
         // if self.is_building_symbol_table {
@@ -1689,12 +1683,10 @@ impl<'a> Parser<'a> {
         //     };
         // }
 
-
         let x = RefCell::new(action_node);
         let y = Rc::new(x);
         Ok(y)
     }
-
 
     /* --------------------------------------------------------------------- */
 
@@ -1720,31 +1712,31 @@ impl<'a> Parser<'a> {
                 match self.enum_decl() {
                     Ok(enum_decl_node) => {
                         enums.push(enum_decl_node);
-                    },
+                    }
                     Err(_parse_err) => {
-                        let sync_tokens = vec![TokenType::Var, TokenType::Const, TokenType::SystemEnd];
+                        let sync_tokens =
+                            vec![TokenType::Var, TokenType::Const, TokenType::SystemEnd];
                         self.synchronize(&sync_tokens);
-                    },
+                    }
                 }
             } else {
                 match self.variable_decl(IdentifierDeclScope::DomainBlock) {
                     Ok(domain_variable_node) => domain_variables.push(domain_variable_node),
                     Err(_parse_err) => {
-                        let sync_tokens = vec![TokenType::Var, TokenType::Const, TokenType::SystemEnd];
+                        let sync_tokens =
+                            vec![TokenType::Var, TokenType::Const, TokenType::SystemEnd];
                         self.synchronize(&sync_tokens);
                     }
                 }
             }
-
         }
 
         self.arcanum
             .debug_print_current_symbols(self.arcanum.get_current_symtab());
         self.arcanum.exit_parse_scope();
 
-        DomainBlockNode::new(domain_variables,enums)
+        DomainBlockNode::new(domain_variables, enums)
     }
-
 
     //* --------------------------------------------------------------------- *//
 
@@ -1754,10 +1746,7 @@ impl<'a> Parser<'a> {
     //     TUESDAY = 2
     // }
 
-    fn enum_decl(
-        &mut self,
-    ) -> Result<Rc<RefCell<EnumDeclNode>>, ParseError> {
-
+    fn enum_decl(&mut self) -> Result<Rc<RefCell<EnumDeclNode>>, ParseError> {
         let identifier = match self.match_token(&[TokenType::Identifier]) {
             false => {
                 self.error_at_current("Expected enum identifier");
@@ -1802,13 +1791,13 @@ impl<'a> Parser<'a> {
             return Err(ParseError::new("TODO"));
         }
 
-        let enum_decl_node = EnumDeclNode::new(identifier.clone(),enums);
+        let enum_decl_node = EnumDeclNode::new(identifier.clone(), enums);
         let enum_decl_node_rcref = Rc::new(RefCell::new(enum_decl_node));
 
         if self.is_building_symbol_table {
             // syntactic pass
             let scope = self.arcanum.get_current_identifier_scope();
-            let mut enum_symbol = EnumSymbol::new(identifier.clone(),scope);
+            let mut enum_symbol = EnumSymbol::new(identifier.clone(), scope);
 
             // TODO: note what is being done. We are linking to the AST node generated in the syntax pass.
             // This AST tree is otherwise disposed of. This may be fine but feels wrong. Alternatively
@@ -1816,12 +1805,11 @@ impl<'a> Parser<'a> {
             enum_symbol.set_ast_node(Rc::clone(&enum_decl_node_rcref));
 
             let enum_symbol_rcref = Rc::new(RefCell::new(enum_symbol));
-            let enum_symbol_t = SymbolType::EnumDeclSymbolT {
-                enum_symbol_rcref
-            };
+            let enum_symbol_t = SymbolType::EnumDeclSymbolT { enum_symbol_rcref };
             self.arcanum
                 .debug_print_current_symbols(self.arcanum.get_current_symtab());
-            let ret = self.arcanum
+            let ret = self
+                .arcanum
                 .current_symtab
                 .borrow_mut()
                 .insert_symbol(&enum_symbol_t);
@@ -1831,7 +1819,7 @@ impl<'a> Parser<'a> {
                 Ok(()) => {}
                 Err(err_msg) => {
                     self.error_at_previous(err_msg.as_str());
-                    return Err(ParseError::new(err_msg.as_str()))
+                    return Err(ParseError::new(err_msg.as_str()));
                 }
             }
         } else {
@@ -1844,9 +1832,7 @@ impl<'a> Parser<'a> {
             let y = x.unwrap();
             let z = y.borrow();
             match &*z {
-                SymbolType::EnumDeclSymbolT {
-                    enum_symbol_rcref,
-                } => {
+                SymbolType::EnumDeclSymbolT { enum_symbol_rcref } => {
                     // assign enum decl node to symbol created in syntactic pass
                     enum_symbol_rcref.borrow_mut().ast_node_opt =
                         Some(enum_decl_node_rcref.clone());
@@ -1886,7 +1872,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let mut initializer_expr_t_opt= None;
+        let mut initializer_expr_t_opt = None;
 
         if self.match_token(&[TokenType::Equals]) {
             match self.equality() {
@@ -1916,10 +1902,9 @@ impl<'a> Parser<'a> {
                     return Err(ParseError::new(err_msg))
                 },
             }
-        } else if matches!(self.peek().token_type,TokenType::In) {
+        } else if matches!(self.peek().token_type, TokenType::In) {
             // pass
             let x = 1;
-
         } else {
             // All variables should be initialized to something.
             let err_msg = "Expected '='. All variables must be initialized.";
@@ -1954,21 +1939,22 @@ impl<'a> Parser<'a> {
                     event_handler_variable_symbol_rcref: variable_symbol_rcref,
                 },
                 IdentifierDeclScope::LoopVar => SymbolType::LoopVar {
-                    loop_variable_symbol_rcref: variable_symbol_rcref
+                    loop_variable_symbol_rcref: variable_symbol_rcref,
                 },
                 IdentifierDeclScope::BlockVar => SymbolType::BlockVar {
-                    block_variable_symbol_rcref: variable_symbol_rcref
+                    block_variable_symbol_rcref: variable_symbol_rcref,
                 },
                 _ => {
                     let err_msg = "Unrecognized variable scope.";
                     self.error_at_current(err_msg);
                     return Err(ParseError::new(err_msg));
-                },
+                }
             };
             // TODO: make current_symtab private
             self.arcanum
                 .debug_print_current_symbols(self.arcanum.get_current_symtab());
-            let ret = self.arcanum
+            let ret = self
+                .arcanum
                 .current_symtab
                 .borrow_mut()
                 .insert_symbol(&variable_symbol_t);
@@ -1976,7 +1962,7 @@ impl<'a> Parser<'a> {
                 Ok(()) => {}
                 Err(err_msg) => {
                     self.error_at_previous(err_msg.as_str());
-                    return Err(ParseError::new(err_msg.as_str()))
+                    return Err(ParseError::new(err_msg.as_str()));
                 }
             }
             self.arcanum
@@ -2007,8 +1993,9 @@ impl<'a> Parser<'a> {
                 SymbolType::EventHandlerVariable {
                     event_handler_variable_symbol_rcref,
                 } => {
-                    event_handler_variable_symbol_rcref.borrow_mut().ast_node_opt =
-                        Some(variable_decl_node_rcref.clone());
+                    event_handler_variable_symbol_rcref
+                        .borrow_mut()
+                        .ast_node_opt = Some(variable_decl_node_rcref.clone());
                 }
                 SymbolType::LoopVar {
                     loop_variable_symbol_rcref,
@@ -2119,7 +2106,7 @@ impl<'a> Parser<'a> {
                                         Ok(()) => {}
                                         Err(err_msg) => {
                                             self.error_at_previous(err_msg.as_str());
-                                            return Err(ParseError::new(err_msg.as_str()))
+                                            return Err(ParseError::new(err_msg.as_str()));
                                         }
                                     }
                                 }
@@ -2326,14 +2313,15 @@ impl<'a> Parser<'a> {
                                         }
                                     } else {
                                         if event_names.contains_key(&evt.msg) {
-                                            let err_msg = &format!("Event handler {} already exists.", evt.msg);
+                                            let err_msg = &format!(
+                                                "Event handler {} already exists.",
+                                                evt.msg
+                                            );
                                             self.error_at_previous(&err_msg);
-//                                            return Err(ParseError::new(err_msg));
-
+                                        //                                            return Err(ParseError::new(err_msg));
                                         } else {
-                                            event_names.insert(evt.msg.clone(),evt.msg.clone() );
+                                            event_names.insert(evt.msg.clone(), evt.msg.clone());
                                         }
-
                                     }
                                 }
 
@@ -2583,15 +2571,20 @@ impl<'a> Parser<'a> {
                                                     self.arcanum.debug_print_current_symbols(
                                                         self.arcanum.get_current_symtab(),
                                                     );
-                                                    let ret = self.arcanum.insert_symbol(symbol_type);
+                                                    let ret =
+                                                        self.arcanum.insert_symbol(symbol_type);
                                                     self.arcanum.debug_print_current_symbols(
                                                         self.arcanum.get_current_symtab(),
                                                     );
                                                     match ret {
                                                         Ok(()) => {}
                                                         Err(err_msg) => {
-                                                            self.error_at_previous(err_msg.as_str());
-                                                            return Err(ParseError::new(err_msg.as_str()))
+                                                            self.error_at_previous(
+                                                                err_msg.as_str(),
+                                                            );
+                                                            return Err(ParseError::new(
+                                                                err_msg.as_str(),
+                                                            ));
                                                         }
                                                     }
                                                 } else {
@@ -2643,7 +2636,7 @@ impl<'a> Parser<'a> {
                                             Ok(()) => {}
                                             Err(err_msg) => {
                                                 self.error_at_previous(err_msg.as_str());
-                                                return Err(ParseError::new(err_msg.as_str()))
+                                                return Err(ParseError::new(err_msg.as_str()));
                                             }
                                         }
                                     }
@@ -2837,9 +2830,10 @@ impl<'a> Parser<'a> {
         } else if self.match_token(&[TokenType::ElseContinue]) {
             Ok(TerminatorExpr::new(Continue, None, self.previous().line))
         } else {
-            let mut err_msg = format!("Expected event handler terminator." );
+            let mut err_msg = format!("Expected event handler terminator.");
             if self.interface_method_called {
-                err_msg = format!("Interface method call must be last statement in an event handler.")
+                err_msg =
+                    format!("Interface method call must be last statement in an event handler.")
             }
             self.error_at_current(&err_msg);
             Err(ParseError::new(&err_msg))
@@ -2852,11 +2846,11 @@ impl<'a> Parser<'a> {
 
     // TODO: need result and optional
     #[allow(clippy::vec_init_then_push)] // false positive in 1.51, fixed by 1.55
-    fn statements(&mut self,identifier_decl_scope:IdentifierDeclScope) -> Vec<DeclOrStmtType> {
+    fn statements(&mut self, identifier_decl_scope: IdentifierDeclScope) -> Vec<DeclOrStmtType> {
         let mut statements = Vec::new();
         let mut is_err = false;
 
-       // self.stmt_idx = 0;
+        // self.stmt_idx = 0;
 
         loop {
             self.stmt_idx = self.stmt_idx + 1;
@@ -2875,7 +2869,10 @@ impl<'a> Parser<'a> {
                                         return statements;
                                     }
                                     StatementType::ExpressionStmt { expr_stmt_t } => {
-                                        if let ExprStmtType::CallChainLiteralStmtT {call_chain_literal_stmt_node} = expr_stmt_t {
+                                        if let ExprStmtType::CallChainLiteralStmtT {
+                                            call_chain_literal_stmt_node,
+                                        } = expr_stmt_t
+                                        {
                                             match call_chain_literal_stmt_node.call_chain_literal_expr_node.call_chain.get(0) {
                                                 Some(CallChainLiteralNodeType::InterfaceMethodCallT {interface_method_call_expr_node}) => {
                                                     // interface method call must be last statement.
@@ -2891,13 +2888,14 @@ impl<'a> Parser<'a> {
                                         } else {
                                             statements.push(decl_or_statement); // return statements;
                                         }
-
                                     }
                                     StatementType::ChangeStateStmt { .. } => {
                                         statements.push(decl_or_statement);
                                         // state changes disallowed in actions
                                         if self.is_action_context {
-                                            self.error_at_current("Transitions disallowed in actions.");
+                                            self.error_at_current(
+                                                "Transitions disallowed in actions.",
+                                            );
                                             // is_err = true;
                                         }
                                         // must be last statement so return
@@ -2957,7 +2955,7 @@ impl<'a> Parser<'a> {
                     TokenType::SystemEnd,
                 ];
                 // Concat contextual sync tokens.
-                sync_tokens.append( self.sync_tokens_from_error_context.as_mut());
+                sync_tokens.append(self.sync_tokens_from_error_context.as_mut());
                 self.sync_tokens_from_error_context = Vec::new();
                 self.synchronize(&sync_tokens);
             }
@@ -2966,12 +2964,17 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    fn decl_or_stmt(&mut self,identifier_decl_scope:IdentifierDeclScope) -> Result<Option<DeclOrStmtType>, ParseError> {
+    fn decl_or_stmt(
+        &mut self,
+        identifier_decl_scope: IdentifierDeclScope,
+    ) -> Result<Option<DeclOrStmtType>, ParseError> {
         if self.match_token(&[TokenType::Var, TokenType::Const]) {
             // this is hardcoded and needs to be set based on context. specifically BlockVar
             match self.variable_decl(identifier_decl_scope) {
                 Ok(var_decl_t_rc_ref) => {
-                    return Ok(Some(DeclOrStmtType::VarDeclT { var_decl_t_rcref: var_decl_t_rc_ref }));
+                    return Ok(Some(DeclOrStmtType::VarDeclT {
+                        var_decl_t_rcref: var_decl_t_rc_ref,
+                    }));
                 }
                 Err(parse_error) => {
                     return Err(parse_error);
@@ -3092,7 +3095,6 @@ impl<'a> Parser<'a> {
                             Err(parse_error)
                         }
                     };
-
                 }
 
                 match expr_t {
@@ -3106,7 +3108,9 @@ impl<'a> Parser<'a> {
                             }
                         } else {
                             let expr_list_stmt_node = ExprListStmtNode::new(expr_list_node);
-                            let expr_stmt_t = ExprListStmtT {expr_list_stmt_node};
+                            let expr_stmt_t = ExprListStmtT {
+                                expr_list_stmt_node,
+                            };
                             return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
                             // self.error_at_previous(
                             //     "Expected '->' token following expression list.",
@@ -3174,20 +3178,22 @@ impl<'a> Parser<'a> {
                         let expr_stmt_t: ExprStmtType = ExprStmtType::EnumeratorStmtT {
                             enumerator_stmt_node,
                         };
-                        return Ok(Some(StatementType::ExpressionStmt {expr_stmt_t}));
+                        return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
                     }
                     BinaryExprT { binary_expr_node } => {
                         let binary_stmt_node = BinaryStmtNode::new(binary_expr_node);
-                        let expr_stmt_t: ExprStmtType = ExprStmtType::BinaryStmtT {
-                            binary_stmt_node,
-                        };
-                        return Ok(Some(StatementType::ExpressionStmt {expr_stmt_t}));
+                        let expr_stmt_t: ExprStmtType =
+                            ExprStmtType::BinaryStmtT { binary_stmt_node };
+                        return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
                     }
                     LiteralExprT { literal_expr_node } => {
                         // Superstring is the only permitted literal type to be a statement.
-                        if  literal_expr_node.token_t == TokenType::SuperString {
-                            let super_string_stmt_node = SuperStringStmtNode::new(literal_expr_node);
-                            return Ok(Some(StatementType::SuperStringStmt {super_string_stmt_node}))
+                        if literal_expr_node.token_t == TokenType::SuperString {
+                            let super_string_stmt_node =
+                                SuperStringStmtNode::new(literal_expr_node);
+                            return Ok(Some(StatementType::SuperStringStmt {
+                                super_string_stmt_node,
+                            }));
                         }
                         self.error_at_previous("Literal statements not allowed.");
                         return Err(ParseError::new("TODO"));
@@ -3200,8 +3206,6 @@ impl<'a> Parser<'a> {
                         self.error_at_previous("Unary expression statements not allowed.");
                         return Err(ParseError::new("TODO"));
                     }
-
-
                 }
             }
             None => {
@@ -3211,7 +3215,7 @@ impl<'a> Parser<'a> {
                         Ok(Some(transition)) => Ok(Some(transition)),
                         Ok(_) => Err(ParseError::new("TODO")),
                         Err(parse_error) => Err(parse_error),
-                    }
+                    };
                 }
             }
         }
@@ -3241,15 +3245,15 @@ impl<'a> Parser<'a> {
 
         if self.match_token(&[TokenType::Continue]) {
             let continue_stmt_node = ContinueStmtNode::new();
-            return Ok(Some(StatementType::ContinueStmt {continue_stmt_node}));
+            return Ok(Some(StatementType::ContinueStmt { continue_stmt_node }));
         }
         if self.match_token(&[TokenType::Break]) {
             let break_stmt_node = BreakStmtNode::new();
-            return Ok(Some(StatementType::BreakStmt {break_stmt_node}));
+            return Ok(Some(StatementType::BreakStmt { break_stmt_node }));
         }
         if self.match_token(&[TokenType::OpenBrace]) {
             let break_stmt_node = BreakStmtNode::new();
-            return Ok(Some(StatementType::BreakStmt {break_stmt_node}));
+            return Ok(Some(StatementType::BreakStmt { break_stmt_node }));
         }
         if self.match_token(&[TokenType::SuperString]) {
             // TODO?
@@ -3261,16 +3265,14 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     fn block_scope(&mut self) -> Result<StatementType, ParseError> {
-        let scope_name = &format!("block_scope_{}",self.stmt_idx);
+        let scope_name = &format!("block_scope_{}", self.stmt_idx);
         let x = scope_name.clone();
         if self.is_building_symbol_table {
             let block_scope_rcref = Rc::new(RefCell::new(BlockScope::new(scope_name)));
-            self.arcanum.enter_scope(ParseScopeType::Block {
-                block_scope_rcref,
-            });
-        } else {
             self.arcanum
-                .set_parse_scope(scope_name);
+                .enter_scope(ParseScopeType::Block { block_scope_rcref });
+        } else {
+            self.arcanum.set_parse_scope(scope_name);
         }
         let ret = self.block();
         // exit block scope
@@ -3288,7 +3290,7 @@ impl<'a> Parser<'a> {
         }
 
         let block_stmt_node = BlockStmtNode::new(statements);
-        let stmt_type = StatementType::BlockStmt {block_stmt_node};
+        let stmt_type = StatementType::BlockStmt { block_stmt_node };
         Ok(stmt_type)
     }
 
@@ -3399,9 +3401,7 @@ impl<'a> Parser<'a> {
         }
 
         // '::'
-        if let Err(parse_error) =
-            self.consume(TokenType::ColonColon, "Expected TestTerminator.")
-        {
+        if let Err(parse_error) = self.consume(TokenType::ColonColon, "Expected TestTerminator.") {
             return Err(parse_error);
         }
 
@@ -3450,7 +3450,6 @@ impl<'a> Parser<'a> {
         self.bool_test_conditional_branch_statements_scope(is_negated, expr_t)
     }
 
-
     /* --------------------------------------------------------------------- */
 
     // bool_test_conditional_branch_statements -> statements* branch_terminator?
@@ -3460,15 +3459,13 @@ impl<'a> Parser<'a> {
         is_negated: bool,
         expr_t: ExprType,
     ) -> Result<BoolTestConditionalBranchNode, ParseError> {
-        let scope_name = &format!("bool_test_conditional_branch_{}",self.stmt_idx);
+        let scope_name = &format!("bool_test_conditional_branch_{}", self.stmt_idx);
         if self.is_building_symbol_table {
             let block_scope_rcref = Rc::new(RefCell::new(BlockScope::new(scope_name)));
-            self.arcanum.enter_scope(ParseScopeType::Block {
-                block_scope_rcref,
-            });
-        } else {
             self.arcanum
-                .set_parse_scope(scope_name);
+                .enter_scope(ParseScopeType::Block { block_scope_rcref });
+        } else {
+            self.arcanum.set_parse_scope(scope_name);
         }
         let ret = self.bool_test_conditional_branch_statements(is_negated, expr_t);
         // exit block scope
@@ -3494,12 +3491,9 @@ impl<'a> Parser<'a> {
                 statements,
                 branch_terminator_expr_opt,
             )),
-            Err(parse_error) => {
-                Err(parse_error)
-            },
+            Err(parse_error) => Err(parse_error),
         }
     }
-
 
     /* --------------------------------------------------------------------- */
 
@@ -3507,12 +3501,10 @@ impl<'a> Parser<'a> {
         let scope_name = &format!("bool_test_else_branch_scope_{}", self.stmt_idx);
         if self.is_building_symbol_table {
             let block_scope_rcref = Rc::new(RefCell::new(BlockScope::new(scope_name)));
-            self.arcanum.enter_scope(ParseScopeType::Block {
-                block_scope_rcref,
-            });
-        } else {
             self.arcanum
-                .set_parse_scope(scope_name);
+                .enter_scope(ParseScopeType::Block { block_scope_rcref });
+        } else {
+            self.arcanum.set_parse_scope(scope_name);
         }
         let ret = self.bool_test_else_branch();
         // exit block scope
@@ -3624,9 +3616,7 @@ impl<'a> Parser<'a> {
         }
 
         // '::'
-        if let Err(parse_error) =
-            self.consume(TokenType::ColonColon, "Expected TestTerminator.")
-        {
+        if let Err(parse_error) = self.consume(TokenType::ColonColon, "Expected TestTerminator.") {
             return Err(parse_error);
         }
 
@@ -3786,9 +3776,7 @@ impl<'a> Parser<'a> {
 
     fn equality(&mut self) -> Result<Option<ExprType>, ParseError> {
         let mut l_value = match self.comparison() {
-            Ok(Some(expr_type)) => {
-                expr_type
-            },
+            Ok(Some(expr_type)) => expr_type,
             Ok(None) => return Ok(None),
             Err(parse_error) => return Err(parse_error),
         };
@@ -3855,14 +3843,15 @@ impl<'a> Parser<'a> {
             let r_value = match self.factor() {
                 Ok(Some(expr_type)) => expr_type,
                 Ok(None) => {
-
-                    let err_msg = format!("Expected binary expression. Found \"{} {}\".", l_value.to_string(), operator_token.lexeme);
-                    self.error_at_current(&err_msg);
-                    let parse_error = ParseError::new(
-                        err_msg.as_str(),
+                    let err_msg = format!(
+                        "Expected binary expression. Found \"{} {}\".",
+                        l_value.to_string(),
+                        operator_token.lexeme
                     );
+                    self.error_at_current(&err_msg);
+                    let parse_error = ParseError::new(err_msg.as_str());
                     return Err(parse_error);
-                },
+                }
                 Err(parse_error) => return Err(parse_error),
             };
 
@@ -3973,25 +3962,19 @@ impl<'a> Parser<'a> {
         Ok(Some(l_value))
     }
 
-
     /* --------------------------------------------------------------------- */
 
     fn decorated_unary_expression(&mut self) -> Result<Option<ExprType>, ParseError> {
-
         match self.prefix_unary_expression() {
             Ok(Some(expr_t)) => {
                 return Ok(Some(expr_t));
             }
-            Ok(None) => {
-                match self.unary_expression2() {
-                    Ok(Some(expr_t)) => return Ok(Some(expr_t)),
-                    Ok(None) => return Ok(None),
-                    Err(parse_err) => return Err(parse_err),
-                }
+            Ok(None) => match self.unary_expression2() {
+                Ok(Some(expr_t)) => return Ok(Some(expr_t)),
+                Ok(None) => return Ok(None),
+                Err(parse_err) => return Err(parse_err),
             },
-            Err(parse_error) => {
-                return Err(parse_error)
-            },
+            Err(parse_error) => return Err(parse_error),
         }
     }
 
@@ -4002,23 +3985,33 @@ impl<'a> Parser<'a> {
             match self.unary_expression2() {
                 Ok(Some(mut expr_t)) => {
                     match expr_t {
-                        ExprType::CallChainLiteralExprT {ref mut call_chain_expr_node} => {
+                        ExprType::CallChainLiteralExprT {
+                            ref mut call_chain_expr_node,
+                        } => {
                             call_chain_expr_node.inc_dec = IncDecExpr::PreInc;
                         }
-                        ExprType::LiteralExprT {ref mut literal_expr_node} => {
+                        ExprType::LiteralExprT {
+                            ref mut literal_expr_node,
+                        } => {
                             literal_expr_node.inc_dec = IncDecExpr::PreInc;
                         }
                         // ExprType::ExprListT {ref mut expr_list_node} => {
                         //     expr_list_node.inc_dec = IncDecExpr::PreInc;
                         // }
-                        ExprType::ExprListT {ref mut expr_list_node} => {
-                     //       expr_list_node.inc_dec = IncDecExpr::PreDec;
+                        ExprType::ExprListT {
+                            ref mut expr_list_node,
+                        } => {
+                            //       expr_list_node.inc_dec = IncDecExpr::PreDec;
                             for expr_t in &mut expr_list_node.exprs_t {
                                 match expr_t {
-                                    ExprType::CallChainLiteralExprT {ref mut call_chain_expr_node} => {
+                                    ExprType::CallChainLiteralExprT {
+                                        ref mut call_chain_expr_node,
+                                    } => {
                                         call_chain_expr_node.inc_dec = IncDecExpr::PreDec;
                                     }
-                                    ExprType::LiteralExprT {ref mut literal_expr_node} => {
+                                    ExprType::LiteralExprT {
+                                        ref mut literal_expr_node,
+                                    } => {
                                         literal_expr_node.inc_dec = IncDecExpr::PreDec;
                                     }
                                     _ => {
@@ -4026,16 +4019,13 @@ impl<'a> Parser<'a> {
                                         self.error_at_current(err_msg);
                                         return Err(ParseError::new(err_msg));
                                     }
-
                                 }
                             }
                         }
-                        _ => {
-
-                        }
+                        _ => {}
                     }
                     return Ok(Some(expr_t));
-                },
+                }
                 Ok(None) => return Ok(None),
                 Err(parse_err) => return Err(parse_err),
             }
@@ -4043,20 +4033,30 @@ impl<'a> Parser<'a> {
             match self.unary_expression2() {
                 Ok(Some(mut expr_t)) => {
                     match expr_t {
-                        ExprType::CallChainLiteralExprT {ref mut call_chain_expr_node} => {
+                        ExprType::CallChainLiteralExprT {
+                            ref mut call_chain_expr_node,
+                        } => {
                             call_chain_expr_node.inc_dec = IncDecExpr::PreDec;
                         }
-                        ExprType::LiteralExprT {ref mut literal_expr_node} => {
+                        ExprType::LiteralExprT {
+                            ref mut literal_expr_node,
+                        } => {
                             literal_expr_node.inc_dec = IncDecExpr::PreDec;
                         }
-                        ExprType::ExprListT {ref mut expr_list_node} => {
-  //                          expr_list_node.inc_dec = IncDecExpr::PreDec;
+                        ExprType::ExprListT {
+                            ref mut expr_list_node,
+                        } => {
+                            //                          expr_list_node.inc_dec = IncDecExpr::PreDec;
                             for expr_t in &mut expr_list_node.exprs_t {
                                 match expr_t {
-                                    ExprType::CallChainLiteralExprT {ref mut call_chain_expr_node} => {
+                                    ExprType::CallChainLiteralExprT {
+                                        ref mut call_chain_expr_node,
+                                    } => {
                                         call_chain_expr_node.inc_dec = IncDecExpr::PreDec;
                                     }
-                                    ExprType::LiteralExprT {ref mut literal_expr_node} => {
+                                    ExprType::LiteralExprT {
+                                        ref mut literal_expr_node,
+                                    } => {
                                         literal_expr_node.inc_dec = IncDecExpr::PreDec;
                                     }
                                     _ => {
@@ -4064,16 +4064,13 @@ impl<'a> Parser<'a> {
                                         self.error_at_current(err_msg);
                                         return Err(ParseError::new(err_msg));
                                     }
-
                                 }
                             }
                         }
-                        _ => {
-
-                        }
+                        _ => {}
                     }
                     return Ok(Some(expr_t));
-                },
+                }
                 Ok(None) => return Ok(None),
                 Err(parse_err) => return Err(parse_err),
             }
@@ -4082,15 +4079,16 @@ impl<'a> Parser<'a> {
         return self.postfix_unary_expression();
     }
 
-
     /* --------------------------------------------------------------------- */
 
     fn postfix_unary_expression(&mut self) -> Result<Option<ExprType>, ParseError> {
         match self.unary_expression2() {
             Ok(Some(CallChainLiteralExprT {
-                        mut call_chain_expr_node,
-                    })) => {
-                let mut x = CallChainLiteralExprT {call_chain_expr_node};
+                mut call_chain_expr_node,
+            })) => {
+                let mut x = CallChainLiteralExprT {
+                    call_chain_expr_node,
+                };
                 self.post_inc_dec_expression(&mut x);
                 return Ok(Some(x));
             }
@@ -4105,7 +4103,6 @@ impl<'a> Parser<'a> {
     // unary_expression -> TODO
 
     fn unary_expression2(&mut self) -> Result<Option<ExprType>, ParseError> {
-
         if self.match_token(&[TokenType::Bang, TokenType::Dash]) {
             let token = self.previous();
             let mut operator_type = OperatorType::get_operator_type(&token.token_type);
@@ -4316,20 +4313,17 @@ impl<'a> Parser<'a> {
                         call_chain_first_node.setIsReference(is_reference);
                     }
 
-
-                    let mut x = CallChainLiteralExprT {call_chain_expr_node};
-                   // self.post_inc_dec_expression(&mut x);
+                    let mut x = CallChainLiteralExprT {
+                        call_chain_expr_node,
+                    };
+                    // self.post_inc_dec_expression(&mut x);
                     return Ok(Some(x));
                     // return Ok(Some(CallChainLiteralExprT {
                     //     call_chain_expr_node,
                     // }));
                 }
-                Ok(Some(EnumeratorExprT {
-                            enum_expr_node,
-                        })) => {
-                    return Ok(Some(EnumeratorExprT {
-                        enum_expr_node,
-                    }))
+                Ok(Some(EnumeratorExprT { enum_expr_node })) => {
+                    return Ok(Some(EnumeratorExprT { enum_expr_node }))
                 }
                 Ok(Some(_)) => return Err(ParseError::new("TODO")),
                 Err(parse_error) => return Err(parse_error),
@@ -4393,7 +4387,6 @@ impl<'a> Parser<'a> {
         Ok(None)
     }
 
-
     /* --------------------------------------------------------------------- */
 
     // TODO - update other scopes to follow this patter so that
@@ -4403,16 +4396,16 @@ impl<'a> Parser<'a> {
         // for all loop types, push a symbol table for new scope
         self.is_loop_context = true;
         if self.is_building_symbol_table {
-            let scope_name = &format!("{}.{}",LoopStmtScopeSymbol::scope_name(),self.stmt_idx);
-            let loop_stmt_scope_symbol_rcref = Rc::new(RefCell::new(LoopStmtScopeSymbol::new(scope_name)));
+            let scope_name = &format!("{}.{}", LoopStmtScopeSymbol::scope_name(), self.stmt_idx);
+            let loop_stmt_scope_symbol_rcref =
+                Rc::new(RefCell::new(LoopStmtScopeSymbol::new(scope_name)));
             self.arcanum.enter_scope(ParseScopeType::Loop {
-                loop_scope_symbol_rcref:loop_stmt_scope_symbol_rcref,
+                loop_scope_symbol_rcref: loop_stmt_scope_symbol_rcref,
             });
         } else {
             // give each loop in a scope a unique name
-            let scope_name = &format!("{}.{}",LoopStmtScopeSymbol::scope_name(),self.stmt_idx);
-            self.arcanum
-                .set_parse_scope(scope_name);
+            let scope_name = &format!("{}.{}", LoopStmtScopeSymbol::scope_name(), self.stmt_idx);
+            self.arcanum.set_parse_scope(scope_name);
         }
         // parse loop
         let ret = self.loop_statement();
@@ -4430,7 +4423,6 @@ impl<'a> Parser<'a> {
     // loop .. { foo() continue break }
 
     fn loop_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
-
         if self.match_token(&[TokenType::OpenBrace]) {
             // loop { foo() }
             return self.loop_infinite_statement();
@@ -4443,7 +4435,7 @@ impl<'a> Parser<'a> {
             match self.variable_decl(IdentifierDeclScope::LoopVar) {
                 Ok(var_decl_t_rc_ref) => {
                     init_stmt = LoopFirstStmt::VarDecl {
-                        var_decl_node_rcref:var_decl_t_rc_ref
+                        var_decl_node_rcref: var_decl_t_rc_ref,
                     };
                 }
                 Err(parse_error) => {
@@ -4452,33 +4444,26 @@ impl<'a> Parser<'a> {
             }
         } else {
             // loop y in foo() { bar(y) }
-            let first_expr_result =  self.expression();
+            let first_expr_result = self.expression();
             match first_expr_result {
                 Ok(Some(expr_type)) => {
                     init_stmt = match expr_type {
-                        VariableExprT { var_node } => {
-                            LoopFirstStmt::Var {
-                                var_node
-                            }
-                        }
-                        AssignmentExprT {assignment_expr_node} => {
-                            LoopFirstStmt::VarAssign {
-                                assign_expr_node: assignment_expr_node
-                            }
-                        }
-                        CallChainLiteralExprT {call_chain_expr_node} => {
-
-                            LoopFirstStmt::CallChain {
-                                call_chain_expr_node
-                            }
-                        }
+                        VariableExprT { var_node } => LoopFirstStmt::Var { var_node },
+                        AssignmentExprT {
+                            assignment_expr_node,
+                        } => LoopFirstStmt::VarAssign {
+                            assign_expr_node: assignment_expr_node,
+                        },
+                        CallChainLiteralExprT {
+                            call_chain_expr_node,
+                        } => LoopFirstStmt::CallChain {
+                            call_chain_expr_node,
+                        },
                         _ => {
                             // TODO - improve error msg
                             let err_msg = format!("Invalid initial clause in loop.");
                             self.error_at_current(&err_msg);
-                            let parse_error = ParseError::new(
-                                err_msg.as_str(),
-                            );
+                            let parse_error = ParseError::new(err_msg.as_str());
                             return Err(parse_error);
                         }
                     };
@@ -4488,7 +4473,7 @@ impl<'a> Parser<'a> {
                     //     };
                     // }
 
-                   // loop_first_expr_opt = Some(expr_type);
+                    // loop_first_expr_opt = Some(expr_type);
                 }
                 Ok(None) => {}
                 Err(err) => {
@@ -4506,7 +4491,6 @@ impl<'a> Parser<'a> {
         // loop var x:int in range(5) { foo(x) }
         // loop x in range(5) { foo(x) }
         if self.match_token(&[TokenType::In]) {
-
             return self.loop_in_statement(init_stmt);
 
             // match  self.expression() {
@@ -4528,14 +4512,12 @@ impl<'a> Parser<'a> {
             // }
         }
 
-        return  Err(ParseError::new("Unrecognized loop syntax."));
+        return Err(ParseError::new("Unrecognized loop syntax."));
     }
-
 
     /* --------------------------------------------------------------------- */
 
     fn loop_infinite_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
-
         let statements = self.statements(IdentifierDeclScope::BlockVar);
 
         if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
@@ -4544,23 +4526,24 @@ impl<'a> Parser<'a> {
 
         let loop_infinite_stmt_node = LoopInfiniteStmtNode::new(statements);
 
-        let loop_stmt_node = LoopStmtNode::new(
-            LoopStmtTypes::LoopInfiniteStmt { loop_infinite_stmt_node }
-        );
-        let stmt_type = StatementType::LoopStmt {loop_stmt_node};
+        let loop_stmt_node = LoopStmtNode::new(LoopStmtTypes::LoopInfiniteStmt {
+            loop_infinite_stmt_node,
+        });
+        let stmt_type = StatementType::LoopStmt { loop_stmt_node };
         Ok(Some(stmt_type))
-
     }
 
     /* --------------------------------------------------------------------- */
 
-    fn loop_for_statement(&mut self, init_stmt: Option<LoopFirstStmt>) -> Result<Option<StatementType>, ParseError>  {
-
+    fn loop_for_statement(
+        &mut self,
+        init_stmt: Option<LoopFirstStmt>,
+    ) -> Result<Option<StatementType>, ParseError> {
         let mut statements = Vec::new();
         let mut test_expr_opt = Option::None;
         let mut inc_dec_expr_opt = Option::None;
 
-        let second_expr_result =  self.expression();
+        let second_expr_result = self.expression();
         match second_expr_result {
             Ok(Some(expr_type)) => {
                 test_expr_opt = Some(expr_type);
@@ -4571,7 +4554,7 @@ impl<'a> Parser<'a> {
             }
         }
         if self.match_token(&[TokenType::Semicolon]) {}
-        let third_expr_result =  self.expression();
+        let third_expr_result = self.expression();
         match third_expr_result {
             Ok(Some(expr_type)) => {
                 inc_dec_expr_opt = Some(expr_type);
@@ -4590,29 +4573,27 @@ impl<'a> Parser<'a> {
                 return Err(parse_error);
             }
 
-            let loop_for_stmt_node = LoopForStmtNode::new(init_stmt,
-                                                      test_expr_opt,
-                                                      inc_dec_expr_opt,
-                                                      statements );
+            let loop_for_stmt_node =
+                LoopForStmtNode::new(init_stmt, test_expr_opt, inc_dec_expr_opt, statements);
 
-            let loop_stmt_node = LoopStmtNode::new(
-                LoopStmtTypes::LoopForStmt { loop_for_stmt_node }
-            );
-            let stmt_type = StatementType::LoopStmt {loop_stmt_node};
+            let loop_stmt_node =
+                LoopStmtNode::new(LoopStmtTypes::LoopForStmt { loop_for_stmt_node });
+            let stmt_type = StatementType::LoopStmt { loop_stmt_node };
             return Ok(Some(stmt_type));
         } else {
             return Err(ParseError::new("Missing loop open brace '{'"));
         }
     }
 
-
     /* --------------------------------------------------------------------- */
 
-    fn loop_in_statement(&mut self,loop_first_stmt: LoopFirstStmt) -> Result<Option<StatementType>, ParseError>  {
-
+    fn loop_in_statement(
+        &mut self,
+        loop_first_stmt: LoopFirstStmt,
+    ) -> Result<Option<StatementType>, ParseError> {
         let mut statements = Vec::new();
         let iterable_expr;
-        let second_expr_result =  self.expression();
+        let second_expr_result = self.expression();
         match second_expr_result {
             Ok(Some(expr_type)) => {
                 iterable_expr = Box::new(expr_type);
@@ -4644,14 +4625,10 @@ impl<'a> Parser<'a> {
             //         return Err(ParseError::new(err_msg));
             //     }
             // };
-            let loop_in_stmt_node = LoopInStmtNode::new(loop_first_stmt,
-                                                          iterable_expr,
-                                                          statements );
+            let loop_in_stmt_node = LoopInStmtNode::new(loop_first_stmt, iterable_expr, statements);
 
-            let loop_stmt_node = LoopStmtNode::new(
-                LoopStmtTypes::LoopInStmt { loop_in_stmt_node }
-            );
-            let stmt_type = StatementType::LoopStmt {loop_stmt_node};
+            let loop_stmt_node = LoopStmtNode::new(LoopStmtTypes::LoopInStmt { loop_in_stmt_node });
+            let stmt_type = StatementType::LoopStmt { loop_stmt_node };
             return Ok(Some(stmt_type));
         } else {
             return Err(ParseError::new("Missing loop open brace '{'"));
@@ -4801,11 +4778,9 @@ impl<'a> Parser<'a> {
     //     Ok(Some(expr_list))
     // }
 
-
     /* --------------------------------------------------------------------- */
 
-    fn post_inc_dec_expression(&mut self, expr_t:&mut ExprType) -> Result<(), ParseError> {
-
+    fn post_inc_dec_expression(&mut self, expr_t: &mut ExprType) -> Result<(), ParseError> {
         let mut inc_dec = IncDecExpr::None;
 
         if self.match_token(&[TokenType::PlusPlus]) {
@@ -4815,7 +4790,9 @@ impl<'a> Parser<'a> {
         }
 
         match expr_t {
-            ExprType::CallChainLiteralExprT{ref mut call_chain_expr_node} => {
+            ExprType::CallChainLiteralExprT {
+                ref mut call_chain_expr_node,
+            } => {
                 call_chain_expr_node.inc_dec = inc_dec;
             }
             _ => {
@@ -4869,44 +4846,57 @@ impl<'a> Parser<'a> {
                             } else {
                                 // is first or only node in a call chain. Determine if an action,
                                 // interface or external call.
-                                let method_name = method_call_expr_node.identifier.name.lexeme.clone();
-                                let action_decl_symbol_opt = self.arcanum.lookup_action(&method_name);
+                                let method_name =
+                                    method_call_expr_node.identifier.name.lexeme.clone();
+                                let action_decl_symbol_opt =
+                                    self.arcanum.lookup_action(&method_name);
 
                                 match action_decl_symbol_opt {
                                     Some(ads) => {
                                         // first node is an action
 
-                                        let action_symbol_opt    =
+                                        let action_symbol_opt =
                                             self.arcanum.lookup_action(&method_name);
 
                                         match action_symbol_opt {
                                             Some(action_scope_symbol) => {
-
                                                 // validate signature
 
                                                 let a = action_scope_symbol.borrow();
                                                 let b = a.ast_node_opt.as_ref().unwrap();
                                                 let c = &b.borrow().params;
                                                 // check if difference in the existance of parameters
-                                                if (!c.is_none() && method_call_expr_node.call_expr_list.exprs_t.is_empty()) ||
-                                                    (c.is_none() && !method_call_expr_node.call_expr_list.exprs_t.is_empty()) {
+                                                if (!c.is_none()
+                                                    && method_call_expr_node
+                                                        .call_expr_list
+                                                        .exprs_t
+                                                        .is_empty())
+                                                    || (c.is_none()
+                                                        && !method_call_expr_node
+                                                            .call_expr_list
+                                                            .exprs_t
+                                                            .is_empty())
+                                                {
                                                     let err_msg = format!("Incorrect number of arguments for action '{}'.",method_name);
                                                     self.error_at_previous(&err_msg);
-                                                    let parse_error = ParseError::new(
-                                                        err_msg.as_str(),
-                                                    );
+                                                    let parse_error =
+                                                        ParseError::new(err_msg.as_str());
                                                     return Err(parse_error);
                                                 }
 
                                                 // check parameter count equals argument count
                                                 match &b.borrow().params {
                                                     Some(symbol_params) => {
-                                                        if symbol_params.len() != method_call_expr_node.call_expr_list.exprs_t.len() {
+                                                        if symbol_params.len()
+                                                            != method_call_expr_node
+                                                                .call_expr_list
+                                                                .exprs_t
+                                                                .len()
+                                                        {
                                                             let err_msg = format!("Number of arguments does not match parameters for action '{}'.", method_name);
                                                             self.error_at_previous(&err_msg);
-                                                            let parse_error = ParseError::new(
-                                                                err_msg.as_str(),
-                                                            );
+                                                            let parse_error =
+                                                                ParseError::new(err_msg.as_str());
                                                             return Err(parse_error);
                                                         }
                                                     }
@@ -4915,10 +4905,13 @@ impl<'a> Parser<'a> {
 
                                                 let mut action_call_expr_node =
                                                     ActionCallExprNode::new(method_call_expr_node);
-                                                action_call_expr_node.set_action_symbol(&Rc::clone(&ads));
-                                                call_chain.push_back(CallChainLiteralNodeType::ActionCallT {
-                                                    action_call_expr_node,
-                                                });
+                                                action_call_expr_node
+                                                    .set_action_symbol(&Rc::clone(&ads));
+                                                call_chain.push_back(
+                                                    CallChainLiteralNodeType::ActionCallT {
+                                                        action_call_expr_node,
+                                                    },
+                                                );
                                             }
                                             None => {
                                                 // first node is not an action or interface call.
@@ -4928,8 +4921,6 @@ impl<'a> Parser<'a> {
                                                 call_chain.push_back(call_t);
                                             }
                                         }
-
-
                                     }
                                     None => {
                                         // first node is not an action. see if it is an interface call
@@ -4943,9 +4934,8 @@ impl<'a> Parser<'a> {
                                                     // iface calls disallowed in actions.
                                                     let err_msg = format!("Interface calls disallowed inside of actions.");
                                                     self.error_at_current(&err_msg);
-                                                    let parse_error = ParseError::new(
-                                                        err_msg.as_str(),
-                                                    );
+                                                    let parse_error =
+                                                        ParseError::new(err_msg.as_str());
                                                     return Err(parse_error);
                                                 }
 
@@ -4955,25 +4945,37 @@ impl<'a> Parser<'a> {
                                                 let b = a.ast_node_opt.as_ref().unwrap();
                                                 let c = &b.borrow().params;
                                                 // check if difference in the existance of parameters
-                                                if (!c.is_none() && method_call_expr_node.call_expr_list.exprs_t.is_empty()) ||
-                                                    (c.is_none() && !method_call_expr_node.call_expr_list.exprs_t.is_empty()) {
+                                                if (!c.is_none()
+                                                    && method_call_expr_node
+                                                        .call_expr_list
+                                                        .exprs_t
+                                                        .is_empty())
+                                                    || (c.is_none()
+                                                        && !method_call_expr_node
+                                                            .call_expr_list
+                                                            .exprs_t
+                                                            .is_empty())
+                                                {
                                                     let err_msg = format!("Incorrect number of arguments for interface '{}'.", method_name);
                                                     self.error_at_previous(&err_msg);
-                                                    let parse_error = ParseError::new(
-                                                        err_msg.as_str(),
-                                                    );
+                                                    let parse_error =
+                                                        ParseError::new(err_msg.as_str());
                                                     return Err(parse_error);
                                                 }
 
                                                 // check parameter count equals argument count
                                                 match &b.borrow().params {
                                                     Some(symbol_params) => {
-                                                        if symbol_params.len() != method_call_expr_node.call_expr_list.exprs_t.len() {
+                                                        if symbol_params.len()
+                                                            != method_call_expr_node
+                                                                .call_expr_list
+                                                                .exprs_t
+                                                                .len()
+                                                        {
                                                             let err_msg = format!("Number of arguments does not match parameters for interface call '{}'.", method_name);
                                                             self.error_at_previous(&err_msg);
-                                                            let parse_error = ParseError::new(
-                                                                err_msg.as_str(),
-                                                            );
+                                                            let parse_error =
+                                                                ParseError::new(err_msg.as_str());
                                                             return Err(parse_error);
                                                         }
                                                     }
@@ -5012,9 +5014,7 @@ impl<'a> Parser<'a> {
             } else {
                 let token_name = id_node.name.lexeme.clone();
                 match self.get_identifier_scope(&id_node, &explicit_scope) {
-                    Ok(id_decl_scope) => {
-                        scope = id_decl_scope
-                    },
+                    Ok(id_decl_scope) => scope = id_decl_scope,
                     Err(err) => return Err(err),
                 }
                 let node = if scope == IdentifierDeclScope::None || !is_first_node {
@@ -5030,10 +5030,11 @@ impl<'a> Parser<'a> {
                     match &symbol_type_rcref_opt {
                         Some(symbol_t) => {
                             match &*symbol_t.borrow() {
-                                SymbolType::EnumDeclSymbolT {enum_symbol_rcref} => {
+                                SymbolType::EnumDeclSymbolT { enum_symbol_rcref } => {
                                     let enum_symbol = enum_symbol_rcref.borrow();
 
-                                    let enum_decl_node = enum_symbol.ast_node_opt.as_ref().unwrap().borrow();
+                                    let enum_decl_node =
+                                        enum_symbol.ast_node_opt.as_ref().unwrap().borrow();
                                     // match '.'
                                     if !self.match_token(&[TokenType::Dot]) {
                                         let msg = &format!(
@@ -5047,7 +5048,13 @@ impl<'a> Parser<'a> {
                                     if self.match_token(&[TokenType::Identifier]) {
                                         let enumerator_name = &self.previous().lexeme;
                                         let mut found_enumerator = false;
-                                        for enum_decl_node in &enum_symbol.ast_node_opt.as_ref().unwrap().borrow().enums {
+                                        for enum_decl_node in &enum_symbol
+                                            .ast_node_opt
+                                            .as_ref()
+                                            .unwrap()
+                                            .borrow()
+                                            .enums
+                                        {
                                             if *enumerator_name == enum_decl_node.name {
                                                 found_enumerator = true;
                                                 break;
@@ -5056,19 +5063,22 @@ impl<'a> Parser<'a> {
                                         if !found_enumerator {
                                             let msg = &format!(
                                                 "Expected enumerator for {} - found {}.",
-                                                enum_symbol.name,
-                                                enumerator_name,
+                                                enum_symbol.name, enumerator_name,
                                             );
                                             self.error_at_current(msg);
                                             return Err(ParseError::new(msg));
                                         }
 
-                                        let enum_expr_node = EnumeratorExprNode::new(enum_decl_node.name.clone(), enumerator_name.clone());
-                                        return Ok(Some(ExprType::EnumeratorExprT {enum_expr_node}));
+                                        let enum_expr_node = EnumeratorExprNode::new(
+                                            enum_decl_node.name.clone(),
+                                            enumerator_name.clone(),
+                                        );
+                                        return Ok(Some(ExprType::EnumeratorExprT {
+                                            enum_expr_node,
+                                        }));
                                     } else {
                                         return Err(ParseError::new("TODO"));
                                     }
-
                                 }
                                 _ => {}
                             }
@@ -5155,9 +5165,7 @@ impl<'a> Parser<'a> {
                     } => {
                         scope = IdentifierDeclScope::None;
                     }
-                    SymbolType::EnumDeclSymbolT {
-                        enum_symbol_rcref,
-                    } => {
+                    SymbolType::EnumDeclSymbolT { enum_symbol_rcref } => {
                         scope = enum_symbol_rcref.borrow().scope.clone();
                     }
                     SymbolType::LoopVar {
@@ -5180,13 +5188,12 @@ impl<'a> Parser<'a> {
                     }
                     _ => {
                         // scope = IdentifierDeclScope::None;
-                        let msg = &format!(
-                            "Error - unknown scope identifier {}."
-                            ,identifier_node.name );
+                        let msg =
+                            &format!("Error - unknown scope identifier {}.", identifier_node.name);
                         self.error_at_current(msg);
                         return Err(ParseError::new(msg));
 
-                       // return Err(ParseError::new(&format!("Error - unknown scope identifier {}.",identifier_node.name)));
+                        // return Err(ParseError::new(&format!("Error - unknown scope identifier {}.",identifier_node.name)));
                     }
                 }
             }
@@ -5315,9 +5322,7 @@ impl<'a> Parser<'a> {
         if self.is_action_context {
             let err_msg = format!("Transitions disallowed inside of actions.");
             self.error_at_current(&err_msg);
-            let parse_error = ParseError::new(
-                err_msg.as_str(),
-            );
+            let parse_error = ParseError::new(err_msg.as_str());
             return Err(parse_error);
         }
         let eh_rc_refcell = self.current_event_symbol_opt.as_ref().unwrap().clone();
@@ -5455,9 +5460,7 @@ impl<'a> Parser<'a> {
         }
 
         // '::'
-        if let Err(parse_error) =
-            self.consume(TokenType::ColonColon, "Expected TestTerminator.")
-        {
+        if let Err(parse_error) = self.consume(TokenType::ColonColon, "Expected TestTerminator.") {
             return Err(parse_error);
         }
 
@@ -5552,9 +5555,7 @@ impl<'a> Parser<'a> {
         if !self.match_token(&[TokenType::Identifier]) {
             let err_msg = format!("Expected enum type name. Found {}.", self.previous().lexeme);
             self.error_at_current(&err_msg);
-            let parse_error = ParseError::new(
-                err_msg.as_str(),
-            );
+            let parse_error = ParseError::new(err_msg.as_str());
             return Err(parse_error);
         }
 
@@ -5562,49 +5563,41 @@ impl<'a> Parser<'a> {
         let mut enum_symbol_rcref_opt = None;
 
         if !self.is_building_symbol_table {
-        //     // semantic pass
-        //
+            //     // semantic pass
+            //
 
             enum_type_name = self.previous().lexeme.clone();
-            let enum_symbol_t_rcref_opt = self.arcanum.lookup(enum_type_name.as_str(), &IdentifierDeclScope::DomainBlock);
+            let enum_symbol_t_rcref_opt = self
+                .arcanum
+                .lookup(enum_type_name.as_str(), &IdentifierDeclScope::DomainBlock);
             match enum_symbol_t_rcref_opt {
                 None => {
-                    let err_msg = &format!(
-                        "Enumerated type '{}' does not exist.",
-                        enum_type_name
-                    );
+                    let err_msg = &format!("Enumerated type '{}' does not exist.", enum_type_name);
                     self.error_at_current(err_msg);
-                    let parse_error = ParseError::new(
-                        err_msg.as_str(),
-                    );
+                    let parse_error = ParseError::new(err_msg.as_str());
                     return Err(parse_error);
                 }
                 Some(symbol_t_rcref) => {
                     let symbol_t = symbol_t_rcref.borrow();
                     match &*symbol_t {
-                        SymbolType::EnumDeclSymbolT {enum_symbol_rcref:enum_symbol_rcref_local} => {
+                        SymbolType::EnumDeclSymbolT {
+                            enum_symbol_rcref: enum_symbol_rcref_local,
+                        } => {
                             // ok - enum type symbol exists
                             // let enum_symbol = enum_symbol_rcref.borrow();
                             enum_symbol_rcref_opt = Some(enum_symbol_rcref_local.clone());
-
                         }
                         _ => {
-                            let err_msg = &format!(
-                                "Enumerated type '{}' does not exist.",
-                                enum_type_name
-                            );
+                            let err_msg =
+                                &format!("Enumerated type '{}' does not exist.", enum_type_name);
                             self.error_at_current(err_msg);
-                            let parse_error = ParseError::new(
-                                err_msg.as_str(),
-                            );
+                            let parse_error = ParseError::new(err_msg.as_str());
                             return Err(parse_error);
                         }
                     }
                 }
             }
-
         }
-
 
         if let Err(parse_error) = self.consume(TokenType::RParen, "Expected ')'.") {
             return Err(parse_error);
@@ -5638,9 +5631,7 @@ impl<'a> Parser<'a> {
         }
 
         // '::'
-        if let Err(parse_error) =
-        self.consume(TokenType::ColonColon, "Expected TestTerminator.")
-        {
+        if let Err(parse_error) = self.consume(TokenType::ColonColon, "Expected TestTerminator.") {
             return Err(parse_error);
         }
 
@@ -5657,7 +5648,7 @@ impl<'a> Parser<'a> {
 
     fn enum_match_test_match_branch(
         &mut self,
-        enum_symbol_rcref_opt:&Option<Rc<RefCell<EnumSymbol>>>
+        enum_symbol_rcref_opt: &Option<Rc<RefCell<EnumSymbol>>>,
     ) -> Result<EnumMatchTestMatchBranchNode, ParseError> {
         if let Err(parse_error) = self.consume(TokenType::ForwardSlash, "Expected '/'.") {
             return Err(parse_error);
@@ -5686,7 +5677,10 @@ impl<'a> Parser<'a> {
                 }
             }
             if !found_match {
-                let err_msg = format!("'{}' is not an enumeration in enum type {}",match_pattern_enum, d.name );
+                let err_msg = format!(
+                    "'{}' is not an enumeration in enum type {}",
+                    match_pattern_enum, d.name
+                );
                 self.error_at_current(&err_msg);
                 return Err(ParseError::new(&err_msg));
             }
@@ -5728,9 +5722,7 @@ impl<'a> Parser<'a> {
 
     // enum_match_test_else_branch -> statements* branch_terminator?
 
-    fn enum_match_test_else_branch(
-        &mut self,
-    ) -> Result<EnumMatchTestElseBranchNode, ParseError> {
+    fn enum_match_test_else_branch(&mut self) -> Result<EnumMatchTestElseBranchNode, ParseError> {
         let statements = self.statements(IdentifierDeclScope::BlockVar);
         let result = self.branch_terminator();
         match result {
@@ -5741,5 +5733,4 @@ impl<'a> Parser<'a> {
             Err(parse_error) => Err(parse_error),
         }
     }
-
 }

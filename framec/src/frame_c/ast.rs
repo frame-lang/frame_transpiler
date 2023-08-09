@@ -12,8 +12,8 @@ use crate::frame_c::visitors::*;
 use downcast_rs::__std::cell::RefCell;
 use downcast_rs::*;
 use std::collections::VecDeque;
-use std::rc::Rc;
 use std::fmt;
+use std::rc::Rc;
 use wasm_bindgen::__rt::std::collections::HashMap;
 
 pub trait NodeElement {
@@ -446,13 +446,11 @@ impl NodeElement for VariableNode {
     }
 }
 
-
 impl fmt::Display for VariableNode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f,"{}", self.id_node.to_string())
+        write!(f, "{}", self.id_node.to_string())
     }
 }
-
 
 //-----------------------------------------------------//
 
@@ -462,7 +460,7 @@ pub struct EnumDeclNode {
 }
 
 impl EnumDeclNode {
-    pub fn new(identifier:String, enums:Vec<Rc<EnumeratorDeclNode>>) -> EnumDeclNode {
+    pub fn new(identifier: String, enums: Vec<Rc<EnumeratorDeclNode>>) -> EnumDeclNode {
         EnumDeclNode {
             name: identifier,
             enums,
@@ -478,11 +476,11 @@ impl NodeElement for EnumDeclNode {
 
 pub struct EnumeratorDeclNode {
     pub name: String,
-    pub value:i32,
+    pub value: i32,
 }
 
 impl EnumeratorDeclNode {
-    pub fn new(name:String, value:i32) -> EnumeratorDeclNode {
+    pub fn new(name: String, value: i32) -> EnumeratorDeclNode {
         EnumeratorDeclNode { name, value }
     }
 }
@@ -499,8 +497,11 @@ pub struct EnumeratorExprNode {
 }
 
 impl EnumeratorExprNode {
-    pub fn new(enum_type: String, enumerator:String) -> EnumeratorExprNode {
-        EnumeratorExprNode { enum_type,enumerator }
+    pub fn new(enum_type: String, enumerator: String) -> EnumeratorExprNode {
+        EnumeratorExprNode {
+            enum_type,
+            enumerator,
+        }
     }
 }
 
@@ -564,9 +565,14 @@ pub struct DomainBlockNode {
 }
 
 impl DomainBlockNode {
-    pub fn new(member_variables: Vec<Rc<RefCell<VariableDeclNode>>>,
-                enums: Vec<Rc<RefCell<EnumDeclNode>>>) -> DomainBlockNode {
-        DomainBlockNode { member_variables,enums }
+    pub fn new(
+        member_variables: Vec<Rc<RefCell<VariableDeclNode>>>,
+        enums: Vec<Rc<RefCell<EnumDeclNode>>>,
+    ) -> DomainBlockNode {
+        DomainBlockNode {
+            member_variables,
+            enums,
+        }
     }
 }
 
@@ -916,9 +922,8 @@ pub enum ExprType {
     },
     EnumeratorExprT {
         enum_expr_node: EnumeratorExprNode,
-    }
+    },
 }
-
 
 pub enum RefExprType<'a> {
     AssignmentExprT {
@@ -962,16 +967,18 @@ pub enum RefExprType<'a> {
     },
     LoopStmtT {
         loop_types: &'a LoopStmtTypes,
-    }
+    },
 }
 
 impl fmt::Display for ExprType {
     // This trait requires `fmt` with this exact signature.
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ExprType::CallChainLiteralExprT {call_chain_expr_node} => {
-                write!(f,"{}", call_chain_expr_node.to_string())
-            },
+            ExprType::CallChainLiteralExprT {
+                call_chain_expr_node,
+            } => {
+                write!(f, "{}", call_chain_expr_node.to_string())
+            }
             _ => {
                 write!(f, "TODO")
             }
@@ -1001,8 +1008,12 @@ impl ExprType {
 
     pub fn auto_pre_inc_dec(&self, ast_visitor: &mut dyn AstVisitor) {
         match self {
-            ExprType::CallChainLiteralExprT { call_chain_expr_node } => {
-                let ref ref_expr_type = RefExprType::CallChainLiteralExprT { call_chain_expr_node };
+            ExprType::CallChainLiteralExprT {
+                call_chain_expr_node,
+            } => {
+                let ref ref_expr_type = RefExprType::CallChainLiteralExprT {
+                    call_chain_expr_node,
+                };
                 ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
             }
             ExprType::ExprListT { expr_list_node } => {
@@ -1014,8 +1025,14 @@ impl ExprType {
                 ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
             }
             ExprType::BinaryExprT { binary_expr_node } => {
-                binary_expr_node.left_rcref.borrow().auto_pre_inc_dec(ast_visitor);
-                binary_expr_node.right_rcref.borrow().auto_pre_inc_dec(ast_visitor);
+                binary_expr_node
+                    .left_rcref
+                    .borrow()
+                    .auto_pre_inc_dec(ast_visitor);
+                binary_expr_node
+                    .right_rcref
+                    .borrow()
+                    .auto_pre_inc_dec(ast_visitor);
             }
             _ => {
                 let x = 1;
@@ -1024,10 +1041,13 @@ impl ExprType {
     }
 
     pub fn auto_post_inc_dec(&self, ast_visitor: &mut dyn AstVisitor) {
-
         match self {
-            ExprType::CallChainLiteralExprT { call_chain_expr_node } => {
-                let ref ref_expr_type = RefExprType::CallChainLiteralExprT { call_chain_expr_node };
+            ExprType::CallChainLiteralExprT {
+                call_chain_expr_node,
+            } => {
+                let ref ref_expr_type = RefExprType::CallChainLiteralExprT {
+                    call_chain_expr_node,
+                };
                 ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
             }
             ExprType::ExprListT { expr_list_node } => {
@@ -1035,12 +1055,16 @@ impl ExprType {
                 ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
             }
             ExprType::BinaryExprT { binary_expr_node } => {
-                binary_expr_node.left_rcref.borrow().auto_post_inc_dec(ast_visitor);
-                binary_expr_node.right_rcref.borrow().auto_post_inc_dec(ast_visitor);
+                binary_expr_node
+                    .left_rcref
+                    .borrow()
+                    .auto_post_inc_dec(ast_visitor);
+                binary_expr_node
+                    .right_rcref
+                    .borrow()
+                    .auto_post_inc_dec(ast_visitor);
             }
-            _ => {
-
-            }
+            _ => {}
         }
     }
 }
@@ -1207,7 +1231,6 @@ impl NodeElement for ExprType {
     //         }
     //     }
     // }
-
 }
 
 //-----------------------------------------------------//
@@ -1400,9 +1423,8 @@ impl NodeElement for AssignmentStmtNode {
 pub struct AssignmentExprNode {
     pub l_value_box: Box<ExprType>,
     pub r_value_box: Box<ExprType>,
-//    pub is_decl: bool,
+    //    pub is_decl: bool,
     pub line: usize,
-
 }
 
 impl AssignmentExprNode {
@@ -1410,7 +1432,7 @@ impl AssignmentExprNode {
         AssignmentExprNode {
             l_value_box: Box::new(l_value),
             r_value_box: Box::new(r_value),
-//            is_decl,
+            //            is_decl,
             line,
         }
     }
@@ -1471,7 +1493,9 @@ impl ExprListStmtNode {
 
 impl NodeElement for ExprListStmtNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
-        let ref ref_expr_type = RefExprType::ExprListT {expr_list_node: &self.expr_list_node };
+        let ref ref_expr_type = RefExprType::ExprListT {
+            expr_list_node: &self.expr_list_node,
+        };
         ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
         ast_visitor.visit_expr_list_stmt_node(self);
         ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
@@ -1520,7 +1544,7 @@ impl LoopStmtNode {
 
 impl NodeElement for LoopStmtNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
-//        let ref ref_expr_type = RefExprType::LoopExprT {loop_expr_node: &self.loop_expr_node };
+        //        let ref ref_expr_type = RefExprType::LoopExprT {loop_expr_node: &self.loop_expr_node };
         ast_visitor.visit_loop_stmt_node(self);
     }
 }
@@ -1535,9 +1559,7 @@ pub struct TransitionStatementNode {
 }
 
 // TODO - why is new() commented out?
-impl TransitionStatementNode {
-
-}
+impl TransitionStatementNode {}
 
 impl NodeElement for TransitionStatementNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
@@ -1552,8 +1574,7 @@ pub struct ChangeStateStatementNode {
     pub label_opt: Option<String>,
 }
 
-impl ChangeStateStatementNode {
-}
+impl ChangeStateStatementNode {}
 
 impl NodeElement for ChangeStateStatementNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
@@ -1639,10 +1660,9 @@ impl NodeElement for InterfaceMethodCallExprNode {
     }
 }
 
-
 impl fmt::Display for InterfaceMethodCallExprNode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f,"{}", self.identifier.to_string())
+        write!(f, "{}", self.identifier.to_string())
     }
 }
 
@@ -1683,16 +1703,22 @@ impl NodeElement for ActionCallExprNode {
 
 impl fmt::Display for ActionCallExprNode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f,"{}", self.identifier.to_string())
+        write!(f, "{}", self.identifier.to_string())
     }
 }
 
 //-----------------------------------------------------//
 
 pub enum LoopStmtTypes {
-    LoopInfiniteStmt { loop_infinite_stmt_node: LoopInfiniteStmtNode },
-    LoopForStmt { loop_for_stmt_node: LoopForStmtNode },
-    LoopInStmt { loop_in_stmt_node: LoopInStmtNode },
+    LoopInfiniteStmt {
+        loop_infinite_stmt_node: LoopInfiniteStmtNode,
+    },
+    LoopForStmt {
+        loop_for_stmt_node: LoopForStmtNode,
+    },
+    LoopInStmt {
+        loop_in_stmt_node: LoopInStmtNode,
+    },
 }
 
 //-----------------------------------------------------//
@@ -1701,14 +1727,9 @@ pub struct LoopInfiniteStmtNode {
     pub statements: Vec<DeclOrStmtType>,
 }
 
-
 impl LoopInfiniteStmtNode {
-    pub fn new (
-        statements: Vec<DeclOrStmtType>,
-    ) -> LoopInfiniteStmtNode {
-        LoopInfiniteStmtNode {
-            statements,
-        }
+    pub fn new(statements: Vec<DeclOrStmtType>) -> LoopInfiniteStmtNode {
+        LoopInfiniteStmtNode { statements }
     }
 }
 
@@ -1727,7 +1748,7 @@ pub struct LoopInStmtNode {
 }
 
 impl LoopInStmtNode {
-    pub fn new (
+    pub fn new(
         loop_first_stmt: LoopFirstStmt,
         iterable_expr: Box<ExprType>,
         statements: Vec<DeclOrStmtType>,
@@ -1745,7 +1766,6 @@ impl NodeElement for LoopInStmtNode {
         ast_visitor.visit_loop_in_stmt_node(self);
     }
 }
-
 
 //-----------------------------------------------------//
 
@@ -1773,29 +1793,29 @@ pub enum LoopFirstStmt {
         var_decl_node_rcref: Rc<RefCell<VariableDeclNode>>,
     },
 
-
     None,
 }
-
 
 impl NodeElement for LoopFirstStmt {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         match self {
-            LoopFirstStmt::Var {var_node} => {
+            LoopFirstStmt::Var { var_node } => {
                 ast_visitor.visit_variable_expr_node(var_node);
             }
-            LoopFirstStmt::CallChain {call_chain_expr_node} => {
+            LoopFirstStmt::CallChain {
+                call_chain_expr_node,
+            } => {
                 ast_visitor.visit_call_chain_literal_expr_node(call_chain_expr_node);
             }
-            LoopFirstStmt::VarAssign {assign_expr_node} => {
+            LoopFirstStmt::VarAssign { assign_expr_node } => {
                 ast_visitor.visit_assignment_expr_node(assign_expr_node);
             }
-            LoopFirstStmt::VarDecl {var_decl_node_rcref} => {
-                ast_visitor.visit_variable_decl_node(&*var_decl_node_rcref.borrow())
-            }
-            LoopFirstStmt::VarDeclAssign {var_decl_node_rcref} => {
-                ast_visitor.visit_variable_decl_node(&*var_decl_node_rcref.borrow())
-            }
+            LoopFirstStmt::VarDecl {
+                var_decl_node_rcref,
+            } => ast_visitor.visit_variable_decl_node(&*var_decl_node_rcref.borrow()),
+            LoopFirstStmt::VarDeclAssign {
+                var_decl_node_rcref,
+            } => ast_visitor.visit_variable_decl_node(&*var_decl_node_rcref.borrow()),
 
             LoopFirstStmt::None => {}
         }
@@ -1813,7 +1833,7 @@ pub struct LoopForStmtNode {
 }
 
 impl LoopForStmtNode {
-    pub fn new (
+    pub fn new(
         loop_init_expr_opt: Option<LoopFirstStmt>,
         test_expr_opt: Option<ExprType>,
         inc_dec_expr_opt: Option<ExprType>,
@@ -1832,9 +1852,9 @@ impl LoopForStmtNode {
             id_rcref_opt = Some(Rc::new(RefCell::new(expr_t)));
         }
         LoopForStmtNode {
-            loop_init_expr_rcref_opt:lie_rcref_opt,
-            test_expr_rcref_opt:te_rcref_opt,
-            post_expr_rcref_opt:id_rcref_opt,
+            loop_init_expr_rcref_opt: lie_rcref_opt,
+            test_expr_rcref_opt: te_rcref_opt,
+            post_expr_rcref_opt: id_rcref_opt,
             statements,
         }
     }
@@ -1846,21 +1866,15 @@ impl NodeElement for LoopForStmtNode {
     }
 }
 
-
 //-----------------------------------------------------//
 
 pub struct BlockStmtNode {
     pub statements: Vec<DeclOrStmtType>,
 }
 
-
 impl BlockStmtNode {
-    pub fn new (
-        statements: Vec<DeclOrStmtType>,
-    ) -> BlockStmtNode {
-        BlockStmtNode {
-            statements,
-        }
+    pub fn new(statements: Vec<DeclOrStmtType>) -> BlockStmtNode {
+        BlockStmtNode { statements }
     }
 }
 
@@ -1874,7 +1888,7 @@ impl NodeElement for BlockStmtNode {
 
 pub struct ContinueStmtNode {}
 
-impl ContinueStmtNode  {
+impl ContinueStmtNode {
     pub fn new() -> ContinueStmtNode {
         ContinueStmtNode {}
     }
@@ -1890,7 +1904,7 @@ impl NodeElement for ContinueStmtNode {
 
 pub struct BreakStmtNode {}
 
-impl BreakStmtNode  {
+impl BreakStmtNode {
     pub fn new() -> BreakStmtNode {
         BreakStmtNode {}
     }
@@ -1902,18 +1916,15 @@ impl NodeElement for BreakStmtNode {
     }
 }
 
-
 //-----------------------------------------------------//
 
 pub struct SuperStringStmtNode {
-    pub literal_expr_node:LiteralExprNode,
+    pub literal_expr_node: LiteralExprNode,
 }
 
-impl SuperStringStmtNode  {
-    pub fn new(literal_expr_node:LiteralExprNode) -> SuperStringStmtNode {
-        SuperStringStmtNode {
-            literal_expr_node
-        }
+impl SuperStringStmtNode {
+    pub fn new(literal_expr_node: LiteralExprNode) -> SuperStringStmtNode {
+        SuperStringStmtNode { literal_expr_node }
     }
 }
 
@@ -1954,23 +1965,29 @@ impl CallChainLiteralExprNode {
 
 impl NodeElement for CallChainLiteralExprNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
-        let ref ref_expr_type = RefExprType::CallChainLiteralExprT {call_chain_expr_node: &self };
-        ast_visitor.visit_auto_pre_inc_dec_expr_node( ref_expr_type);
+        let ref ref_expr_type = RefExprType::CallChainLiteralExprT {
+            call_chain_expr_node: &self,
+        };
+        ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
 
         // search for pre autoupdated  parameters
         for a in &self.call_chain {
             if let CallChainLiteralNodeType::CallT { call } = a {
                 for b in &call.call_expr_list.exprs_t {
                     match &b {
-                        ExprType::CallChainLiteralExprT {call_chain_expr_node} => {
-                            let ref ref_expr_type = RefExprType::CallChainLiteralExprT {call_chain_expr_node};
+                        ExprType::CallChainLiteralExprT {
+                            call_chain_expr_node,
+                        } => {
+                            let ref ref_expr_type = RefExprType::CallChainLiteralExprT {
+                                call_chain_expr_node,
+                            };
                             ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
                         }
-                        ExprType::BinaryExprT {binary_expr_node} => {
-                            let ref ref_expr_type = RefExprType::BinaryExprT {binary_expr_node};
+                        ExprType::BinaryExprT { binary_expr_node } => {
+                            let ref ref_expr_type = RefExprType::BinaryExprT { binary_expr_node };
                             ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
                         }
-                        _ => {},
+                        _ => {}
                     }
                 }
             }
@@ -1984,15 +2001,19 @@ impl NodeElement for CallChainLiteralExprNode {
             if let CallChainLiteralNodeType::CallT { call } = a {
                 for b in &call.call_expr_list.exprs_t {
                     match &b {
-                        ExprType::CallChainLiteralExprT {call_chain_expr_node} => {
-                            let ref ref_expr_type = RefExprType::CallChainLiteralExprT {call_chain_expr_node};
+                        ExprType::CallChainLiteralExprT {
+                            call_chain_expr_node,
+                        } => {
+                            let ref ref_expr_type = RefExprType::CallChainLiteralExprT {
+                                call_chain_expr_node,
+                            };
                             ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
                         }
-                        ExprType::BinaryExprT {binary_expr_node} => {
-                            let ref ref_expr_type = RefExprType::BinaryExprT {binary_expr_node};
+                        ExprType::BinaryExprT { binary_expr_node } => {
+                            let ref ref_expr_type = RefExprType::BinaryExprT { binary_expr_node };
                             ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
                         }
-                        _ => {},
+                        _ => {}
                     }
                 }
             }
@@ -2006,7 +2027,6 @@ impl NodeElement for CallChainLiteralExprNode {
 
 impl fmt::Display for CallChainLiteralExprNode {
     // This trait requires `fmt` with this exact signature.
-
 
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut output = String::new();
@@ -2036,10 +2056,10 @@ impl fmt::Display for CallChainLiteralExprNode {
             }
             separator = ".";
         }
-        write!(f,"{}", output)
+        write!(f, "{}", output)
     }
 }
-        //-----------------------------------------------------//
+//-----------------------------------------------------//
 #[derive(PartialEq)]
 pub enum OperatorType {
     Plus,
@@ -2190,10 +2210,9 @@ impl CallableExpr for CallExprNode {
 
 impl fmt::Display for CallExprNode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f,"{}", self.identifier)
+        write!(f, "{}", self.identifier)
     }
 }
-
 
 //-----------------------------------------------------//
 
@@ -2226,14 +2245,14 @@ impl NodeElement for CallExprListNode {
 // #[derive(Clone)]
 pub struct ExprListNode {
     pub exprs_t: Vec<ExprType>,
-//    pub inc_dec: IncDecExpr,
+    //    pub inc_dec: IncDecExpr,
 }
 
 impl ExprListNode {
     pub fn new(exprs_t: Vec<ExprType>) -> ExprListNode {
         ExprListNode {
             exprs_t,
-//            inc_dec: IncDecExpr::None,
+            //            inc_dec: IncDecExpr::None,
         }
     }
 }
@@ -2316,10 +2335,9 @@ impl CallableExpr for IdentifierNode {
     }
 }
 
-
 impl fmt::Display for IdentifierNode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f,"{}", self.name.lexeme)
+        write!(f, "{}", self.name.lexeme)
     }
 }
 
@@ -2353,7 +2371,6 @@ impl NodeElement for LiteralExprNode {
         ast_visitor.visit_literal_expression_node_to_string(self, output);
     }
 }
-
 
 //-----------------------------------------------------//
 

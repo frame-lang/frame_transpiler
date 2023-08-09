@@ -367,7 +367,9 @@ impl JavaScriptVisitor {
     fn visit_decl_stmts(&mut self, decl_stmt_types: &Vec<DeclOrStmtType>) {
         for decl_stmt_t in decl_stmt_types.iter() {
             match decl_stmt_t {
-                DeclOrStmtType::VarDeclT { var_decl_t_rcref: var_decl_t_rc_ref } => {
+                DeclOrStmtType::VarDeclT {
+                    var_decl_t_rcref: var_decl_t_rc_ref,
+                } => {
                     let variable_decl_node = var_decl_t_rc_ref.borrow();
                     variable_decl_node.accept(self);
                 }
@@ -390,12 +392,12 @@ impl JavaScriptVisitor {
                                 ExprStmtType::VariableStmtT { variable_stmt_node } => {
                                     variable_stmt_node.accept(self)
                                 }
-                                ExprStmtType::ExprListStmtT { expr_list_stmt_node } => {
-                                    expr_list_stmt_node.accept(self)
-                                }
-                                ExprStmtType::EnumeratorStmtT { enumerator_stmt_node } => {
-                                    enumerator_stmt_node.accept(self)
-                                }
+                                ExprStmtType::ExprListStmtT {
+                                    expr_list_stmt_node,
+                                } => expr_list_stmt_node.accept(self),
+                                ExprStmtType::EnumeratorStmtT {
+                                    enumerator_stmt_node,
+                                } => enumerator_stmt_node.accept(self),
                                 ExprStmtType::BinaryStmtT { binary_stmt_node } => {
                                     binary_stmt_node.accept(self)
                                 }
@@ -417,19 +419,21 @@ impl JavaScriptVisitor {
                         StatementType::ChangeStateStmt { change_state_stmt } => {
                             change_state_stmt.accept(self);
                         }
-                        StatementType::LoopStmt {loop_stmt_node} => {
+                        StatementType::LoopStmt { loop_stmt_node } => {
                             loop_stmt_node.accept(self);
                         }
-                        StatementType::BlockStmt {block_stmt_node} => {
+                        StatementType::BlockStmt { block_stmt_node } => {
                             block_stmt_node.accept(self);
                         }
-                        StatementType::ContinueStmt {continue_stmt_node} => {
+                        StatementType::ContinueStmt { continue_stmt_node } => {
                             continue_stmt_node.accept(self);
                         }
-                        StatementType::BreakStmt {break_stmt_node} => {
+                        StatementType::BreakStmt { break_stmt_node } => {
                             break_stmt_node.accept(self);
                         }
-                        StatementType::SuperStringStmt {super_string_stmt_node} => {
+                        StatementType::SuperStringStmt {
+                            super_string_stmt_node,
+                        } => {
                             super_string_stmt_node.accept(self);
                         }
                         StatementType::NoStmt => {

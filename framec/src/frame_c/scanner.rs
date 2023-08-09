@@ -175,11 +175,11 @@ impl Scanner {
             }
             '*' => self.add_token(TokenType::Star),
             '+' => {
-                    if self.match_char('+') {
-                        self.add_token(TokenType::PlusPlus);
-                    } else {
-                        self.add_token(TokenType::Plus);
-                    }
+                if self.match_char('+') {
+                    self.add_token(TokenType::PlusPlus);
+                } else {
+                    self.add_token(TokenType::Plus);
+                }
             }
             '!' => {
                 if self.match_char('=') {
@@ -458,7 +458,7 @@ impl Scanner {
             self.advance();
         }
 
-        let num_type =  if is_integer {
+        let num_type = if is_integer {
             let number: i32 = self.source[self.start..self.current].parse().unwrap();
             TokenLiteral::Integer(number)
         } else {
@@ -699,67 +699,67 @@ pub enum TokenType {
     Eof,
     Identifier,
     State,
-    GT,             // >
-    GTx2,           // >>
-    GTx3,           // >>
-    Plus,           // +
-    PlusPlus,       // ++
-    Dash,           // -
-    DashDash,       // --
-    Star,           // *
-    EqualEqual,     // ==
-    Bang,           // !
-    BangEqual,      // !=
-    GreaterEqual,   // >=
-    LessEqual,      // <=
-    LT,             // <
-    LTx2,           // <<
-    LTx3,           // <<<
-    And,            // &
-    Pipe,           // |
-    Caret,          // ^
-    LogicalAnd,     // &&
-    LogicalXor,     // &|
-    System,         // #
-    SystemEnd,      // ##
-    OuterAttribute, // #[
-    InnerAttribute, // #![
-    InterfaceBlock, // -interface-
-    MachineBlock,   // -machine-
-    ActionsBlock,   // -actions-
-    DomainBlock,    // -domain-
-    LParen,                  // (
-    RParen,                  // )
-    LBracket,                // [
-    RBracket,                // ]
-    Transition,              // ->
-    ChangeState,             // ->>
-    String,                  // "foo"
-    ThreeTicks,              // ```
-    SuperString,             // `stuff + "stuff"`
-    Number,                  // 1, 1.01
-    Var,                     // var kw
-    Const,                   // const kw
-    New,                     // new kw
-    Loop,                    // loop kw
-    Continue,                // continue kw
-    Break,                   // break kw
-    In,                      // 'in' kw
-    Enum,                    // 'enum' kw
-    SingleLineComment,       // --- comment
-    MultiLineComment,        // {-- comments --}
-    OpenBrace,               // {
-    CloseBrace,              // }
-    True,                    // true
-    False,                   // false
-    Null,                    // null
-    Nil,                     // nil
-    Colon,                   // :
-    Semicolon,               // ;
-    Comma,                   // ,
-    Dispatch,                // =>
-    Equals,                  // =
-//    DeclAssignment,          // :=
+    GT,                // >
+    GTx2,              // >>
+    GTx3,              // >>
+    Plus,              // +
+    PlusPlus,          // ++
+    Dash,              // -
+    DashDash,          // --
+    Star,              // *
+    EqualEqual,        // ==
+    Bang,              // !
+    BangEqual,         // !=
+    GreaterEqual,      // >=
+    LessEqual,         // <=
+    LT,                // <
+    LTx2,              // <<
+    LTx3,              // <<<
+    And,               // &
+    Pipe,              // |
+    Caret,             // ^
+    LogicalAnd,        // &&
+    LogicalXor,        // &|
+    System,            // #
+    SystemEnd,         // ##
+    OuterAttribute,    // #[
+    InnerAttribute,    // #![
+    InterfaceBlock,    // -interface-
+    MachineBlock,      // -machine-
+    ActionsBlock,      // -actions-
+    DomainBlock,       // -domain-
+    LParen,            // (
+    RParen,            // )
+    LBracket,          // [
+    RBracket,          // ]
+    Transition,        // ->
+    ChangeState,       // ->>
+    String,            // "foo"
+    ThreeTicks,        // ```
+    SuperString,       // `stuff + "stuff"`
+    Number,            // 1, 1.01
+    Var,               // var kw
+    Const,             // const kw
+    New,               // new kw
+    Loop,              // loop kw
+    Continue,          // continue kw
+    Break,             // break kw
+    In,                // 'in' kw
+    Enum,              // 'enum' kw
+    SingleLineComment, // --- comment
+    MultiLineComment,  // {-- comments --}
+    OpenBrace,         // {
+    CloseBrace,        // }
+    True,              // true
+    False,             // false
+    Null,              // null
+    Nil,               // nil
+    Colon,             // :
+    Semicolon,         // ;
+    Comma,             // ,
+    Dispatch,          // =>
+    Equals,            // =
+    //    DeclAssignment,          // :=
     BoolTestTrue,            // ?
     BoolTestFalse,           // ?!
     StringTest,              // ?~
@@ -787,8 +787,8 @@ impl Display for TokenType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         //write!(f, "{}", self)
         match self {
-            TokenType::Plus => write!(f,"+"),
-            _ => write!(f,"TODO")
+            TokenType::Plus => write!(f, "+"),
+            _ => write!(f, "TODO"),
         }
     }
 }
@@ -805,7 +805,7 @@ impl Display for TokenLiteral {
     #[allow(clippy::all)]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         //write!(f, "{}", self)
-        write!(f,"TODO")
+        write!(f, "TODO")
     }
 }
 

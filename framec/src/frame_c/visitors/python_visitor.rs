@@ -6,14 +6,14 @@
 #![allow(non_snake_case)]
 
 use crate::config::*;
+use crate::frame_c::ast::DeclOrStmtType;
+use crate::frame_c::ast::DeclOrStmtType::{StmtT, VarDeclT};
 use crate::frame_c::ast::*;
 use crate::frame_c::scanner::{Token, TokenType};
 use crate::frame_c::symbol_table::*;
 use crate::frame_c::visitors::*;
 use std::cell::RefCell;
 use std::rc::Rc;
-use crate::frame_c::ast::DeclOrStmtType;
-use crate::frame_c::ast::DeclOrStmtType::{VarDeclT, StmtT};
 
 // use yaml_rust::{YamlLoader, Yaml};
 
@@ -55,7 +55,7 @@ pub struct PythonVisitor {
 
     // keeping track of traversal context
     this_branch_transitioned: bool,
-    skip_next_newline:bool,
+    skip_next_newline: bool,
 }
 
 impl PythonVisitor {
@@ -112,25 +112,23 @@ impl PythonVisitor {
         }
     }
 
-
     //* --------------------------------------------------------------------- *//
 
     /// This helper function determines if there are any "real"  (non empty block)
     /// statements in a vec of statements and decls.
 
-    pub fn has_non_block_statements(&self, decl_or_stmts:&Vec<DeclOrStmtType>) -> bool {
+    pub fn has_non_block_statements(&self, decl_or_stmts: &Vec<DeclOrStmtType>) -> bool {
         for decl_or_stmt in decl_or_stmts {
             match decl_or_stmt {
-                VarDeclT {..} => {
+                VarDeclT { .. } => {
                     return true;
                 }
-                StmtT {stmt_t} => {
-                    if let StatementType::BlockStmt{block_stmt_node} = stmt_t {
+                StmtT { stmt_t } => {
+                    if let StatementType::BlockStmt { block_stmt_node } = stmt_t {
                         if self.has_non_block_statements(&block_stmt_node.statements) {
                             return true;
                         }
-                    }
-                    else {
+                    } else {
                         return true;
                     }
                 }
@@ -378,7 +376,6 @@ impl PythonVisitor {
         } else {
             self.code.push_str(&*format!("\n{}", self.dent()));
         }
-
     }
     //* --------------------------------------------------------------------- *//
 
@@ -410,13 +407,14 @@ impl PythonVisitor {
         self.dent -= 1;
     }
 
-
     //* --------------------------------------------------------------------- *//
 
     fn visit_decl_stmts(&mut self, decl_stmt_types: &Vec<DeclOrStmtType>) {
         for decl_stmt_t in decl_stmt_types.iter() {
             match decl_stmt_t {
-                DeclOrStmtType::VarDeclT { var_decl_t_rcref: var_decl_t_rc_ref } => {
+                DeclOrStmtType::VarDeclT {
+                    var_decl_t_rcref: var_decl_t_rc_ref,
+                } => {
                     let variable_decl_node = var_decl_t_rc_ref.borrow();
                     variable_decl_node.accept(self);
                 }
@@ -439,12 +437,12 @@ impl PythonVisitor {
                                 ExprStmtType::VariableStmtT { variable_stmt_node } => {
                                     variable_stmt_node.accept(self)
                                 }
-                                ExprStmtType::ExprListStmtT { expr_list_stmt_node } => {
-                                    expr_list_stmt_node.accept(self)
-                                }
-                                ExprStmtType::EnumeratorStmtT { enumerator_stmt_node } => {
-                                    enumerator_stmt_node.accept(self)
-                                }
+                                ExprStmtType::ExprListStmtT {
+                                    expr_list_stmt_node,
+                                } => expr_list_stmt_node.accept(self),
+                                ExprStmtType::EnumeratorStmtT {
+                                    enumerator_stmt_node,
+                                } => enumerator_stmt_node.accept(self),
                                 ExprStmtType::BinaryStmtT { binary_stmt_node } => {
                                     binary_stmt_node.accept(self)
                                 }
@@ -466,19 +464,21 @@ impl PythonVisitor {
                         StatementType::ChangeStateStmt { change_state_stmt } => {
                             change_state_stmt.accept(self);
                         }
-                        StatementType::LoopStmt {loop_stmt_node} => {
+                        StatementType::LoopStmt { loop_stmt_node } => {
                             loop_stmt_node.accept(self);
                         }
-                        StatementType::BlockStmt {block_stmt_node} => {
+                        StatementType::BlockStmt { block_stmt_node } => {
                             block_stmt_node.accept(self);
                         }
-                        StatementType::ContinueStmt {continue_stmt_node} => {
+                        StatementType::ContinueStmt { continue_stmt_node } => {
                             continue_stmt_node.accept(self);
                         }
-                        StatementType::BreakStmt {break_stmt_node} => {
+                        StatementType::BreakStmt { break_stmt_node } => {
                             break_stmt_node.accept(self);
                         }
-                        StatementType::SuperStringStmt {super_string_stmt_node} => {
+                        StatementType::SuperStringStmt {
+                            super_string_stmt_node,
+                        } => {
                             super_string_stmt_node.accept(self);
                         }
                         StatementType::NoStmt => {
@@ -1580,7 +1580,9 @@ impl AstVisitor for PythonVisitor {
                 //
                 let _current_index = 0;
                 let len = machine_block_node.states.len();
-                for (current_index, state_node_rcref) in machine_block_node.states.iter().enumerate() {
+                for (current_index, state_node_rcref) in
+                    machine_block_node.states.iter().enumerate()
+                {
                     let state_name = &self
                         .format_target_state_name(&state_node_rcref.borrow().name)
                         .to_string();
@@ -1602,7 +1604,6 @@ impl AstVisitor for PythonVisitor {
                     if current_index != len {
                         self.newline();
                     }
-
 
                     // current_index += 1
                 }
@@ -2006,7 +2007,7 @@ impl AstVisitor for PythonVisitor {
         }
         self.generate_comment(evt_handler_node.line);
         self.indent();
-       // self.newline();
+        // self.newline();
 
         //  if let MessageType::CustomMessage {message_node} =
         match &evt_handler_node.msg_t {
@@ -2386,21 +2387,23 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_auto_pre_inc_dec_expr_node(&mut self, ref_expr_type: &RefExprType) {
         match ref_expr_type {
-            RefExprType::AssignmentExprT {assignment_expr_node} => {
-
-            }
-            RefExprType::CallExprT {call_expr_node} => {
+            RefExprType::AssignmentExprT {
+                assignment_expr_node,
+            } => {}
+            RefExprType::CallExprT { call_expr_node } => {
                 // TODO - not sure if this loop should move into the CallExprNode.
                 // if so need to implement similar functionality for other expr nodes
                 for expr_t in &call_expr_node.call_expr_list.exprs_t {
                     expr_t.auto_pre_inc_dec(self);
                 }
             }
-            RefExprType::BinaryExprT {binary_expr_node} => {
+            RefExprType::BinaryExprT { binary_expr_node } => {
                 binary_expr_node.left_rcref.borrow().auto_pre_inc_dec(self);
                 binary_expr_node.right_rcref.borrow().auto_pre_inc_dec(self);
-            },
-            RefExprType::CallChainLiteralExprT {call_chain_expr_node} => {
+            }
+            RefExprType::CallChainLiteralExprT {
+                call_chain_expr_node,
+            } => {
                 match call_chain_expr_node.inc_dec {
                     IncDecExpr::PreInc => {
                         // this is a hack coordinating newline generation
@@ -2460,23 +2463,29 @@ impl AstVisitor for PythonVisitor {
                         }
                     }
                 }
-            },
-            RefExprType::ExprListT {expr_list_node} => {
+            }
+            RefExprType::ExprListT { expr_list_node } => {
                 for expr in &expr_list_node.exprs_t {
                     expr.auto_pre_inc_dec(self);
                 }
-            },
-            RefExprType::LoopStmtT {loop_types} => {
+            }
+            RefExprType::LoopStmtT { loop_types } => {
                 match loop_types {
-                    LoopStmtTypes::LoopForStmt { loop_for_stmt_node: loop_for_expr_node } => {
+                    LoopStmtTypes::LoopForStmt {
+                        loop_for_stmt_node: loop_for_expr_node,
+                    } => {
                         for expr in &loop_for_expr_node.post_expr_rcref_opt {
                             expr.borrow().auto_pre_inc_dec(self);
                         }
                     }
-                    LoopStmtTypes::LoopInStmt { loop_in_stmt_node: loop_in_expr_node } => {
+                    LoopStmtTypes::LoopInStmt {
+                        loop_in_stmt_node: loop_in_expr_node,
+                    } => {
                         // TODO
                     }
-                    LoopStmtTypes::LoopInfiniteStmt {loop_infinite_stmt_node} => {
+                    LoopStmtTypes::LoopInfiniteStmt {
+                        loop_infinite_stmt_node,
+                    } => {
                         // TODO
                     }
                 }
@@ -2488,28 +2497,32 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_auto_post_inc_dec_expr_node(&mut self, ref_expr_type: &RefExprType) {
         match ref_expr_type {
-            RefExprType::AssignmentExprT {assignment_expr_node} => {
-
-            }
-            RefExprType::CallExprT {call_expr_node} => {
+            RefExprType::AssignmentExprT {
+                assignment_expr_node,
+            } => {}
+            RefExprType::CallExprT { call_expr_node } => {
                 // TODO - not sure if this loop should move into the CallExprNode.
                 // if so need to implement similar functionality for other expr nodes
                 for expr_t in &call_expr_node.call_expr_list.exprs_t {
                     expr_t.auto_post_inc_dec(self);
                 }
             }
-            RefExprType::BinaryExprT {binary_expr_node} => {
+            RefExprType::BinaryExprT { binary_expr_node } => {
                 binary_expr_node.left_rcref.borrow().auto_post_inc_dec(self);
-                binary_expr_node.right_rcref.borrow().auto_post_inc_dec(self);
+                binary_expr_node
+                    .right_rcref
+                    .borrow()
+                    .auto_post_inc_dec(self);
             }
-            RefExprType::CallChainLiteralExprT {call_chain_expr_node} => {
+            RefExprType::CallChainLiteralExprT {
+                call_chain_expr_node,
+            } => {
                 match call_chain_expr_node.inc_dec {
                     IncDecExpr::PostInc => {
                         self.newline();
                         let mut output = String::new();
                         call_chain_expr_node.accept_to_string(self, &mut output);
                         self.add_code(&format!("{} = {} + 1", output, output));
-
                     }
                     IncDecExpr::PostDec => {
                         self.newline();
@@ -2556,34 +2569,39 @@ impl AstVisitor for PythonVisitor {
                         }
                     }
                 }
-            },
-            RefExprType::ExprListT {expr_list_node} => {
+            }
+            RefExprType::ExprListT { expr_list_node } => {
                 for expr in &expr_list_node.exprs_t {
                     expr.auto_post_inc_dec(self);
                 }
-            },
+            }
             // RefExprType::LoopExprT {loop_expr_node} => {
             //     for expr in &loop_expr_node.inc_dec_expr_rcref_opt {
             //         let x = expr.borrow();
             //         x.auto_post_inc_dec(self);
             //     }
             // }
-            RefExprType::LoopStmtT {loop_types} => {
+            RefExprType::LoopStmtT { loop_types } => {
                 match loop_types {
-                    LoopStmtTypes::LoopForStmt { loop_for_stmt_node: loop_for_expr_node } => {
+                    LoopStmtTypes::LoopForStmt {
+                        loop_for_stmt_node: loop_for_expr_node,
+                    } => {
                         for expr in &loop_for_expr_node.post_expr_rcref_opt {
                             expr.borrow().auto_pre_inc_dec(self);
                         }
                     }
-                    LoopStmtTypes::LoopInStmt { loop_in_stmt_node: loop_in_expr_node } => {
+                    LoopStmtTypes::LoopInStmt {
+                        loop_in_stmt_node: loop_in_expr_node,
+                    } => {
                         // TODO
                     }
-                    LoopStmtTypes::LoopInfiniteStmt {loop_infinite_stmt_node} => {
+                    LoopStmtTypes::LoopInfiniteStmt {
+                        loop_infinite_stmt_node,
+                    } => {
                         // TODO
                     }
                 }
             }
-
         }
     }
 
@@ -2623,22 +2641,23 @@ impl AstVisitor for PythonVisitor {
         }
     }
 
-
     //* --------------------------------------------------------------------- *//
 
-    fn visit_loop_stmt_node(
-        &mut self,
-        loop_stmt_node: &LoopStmtNode,
-    ) {
-
+    fn visit_loop_stmt_node(&mut self, loop_stmt_node: &LoopStmtNode) {
         match &loop_stmt_node.loop_types {
-            LoopStmtTypes::LoopForStmt { loop_for_stmt_node: loop_for_expr_node } => {
+            LoopStmtTypes::LoopForStmt {
+                loop_for_stmt_node: loop_for_expr_node,
+            } => {
                 loop_for_expr_node.accept(self);
             }
-            LoopStmtTypes::LoopInStmt { loop_in_stmt_node: loop_in_expr_node } => {
+            LoopStmtTypes::LoopInStmt {
+                loop_in_stmt_node: loop_in_expr_node,
+            } => {
                 loop_in_expr_node.accept(self);
             }
-            LoopStmtTypes::LoopInfiniteStmt {loop_infinite_stmt_node} => {
+            LoopStmtTypes::LoopInfiniteStmt {
+                loop_infinite_stmt_node,
+            } => {
                 loop_infinite_stmt_node.accept(self);
             }
         }
@@ -2646,10 +2665,7 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_loop_for_stmt_node(
-        &mut self,
-        loop_for_expr_node:&LoopForStmtNode,
-    ) {
+    fn visit_loop_for_stmt_node(&mut self, loop_for_expr_node: &LoopForStmtNode) {
         self.loop_for_inc_dec_expr_rcref_opt = loop_for_expr_node.post_expr_rcref_opt.clone();
         // self.loop_for_inc_dec_expr_rcref_opt = ;
         self.newline();
@@ -2679,13 +2695,13 @@ impl AstVisitor for PythonVisitor {
             let test_expr = test_expr_rcref.borrow();
             test_expr.auto_pre_inc_dec(self);
 
-//            self.newline();
+            //            self.newline();
             self.add_code(&format!("if !({}):", output));
             self.indent();
             self.newline();
             self.add_code("break");
             self.outdent();
-//            self.newline();
+            //            self.newline();
             test_expr.auto_post_inc_dec(self);
         }
 
@@ -2702,10 +2718,10 @@ impl AstVisitor for PythonVisitor {
             let expr_t = expr_type_rcref.borrow();
             expr_t.auto_pre_inc_dec(self);
             match *expr_t {
-                ExprType::CallChainLiteralExprT {..} => {
+                ExprType::CallChainLiteralExprT { .. } => {
                     // don't emit just a simple expression.
                 }
-                _ => expr_t.accept(self)
+                _ => expr_t.accept(self),
             }
             expr_t.auto_post_inc_dec(self);
         }
@@ -2721,31 +2737,32 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_loop_in_stmt_node(
-        &mut self,
-        loop_in_expr_node:&LoopInStmtNode,
-    ) {
+    fn visit_loop_in_stmt_node(&mut self, loop_in_expr_node: &LoopInStmtNode) {
         self.newline();
         let mut output = String::new();
-        loop_in_expr_node.iterable_expr.accept_to_string(self, &mut output);
+        loop_in_expr_node
+            .iterable_expr
+            .accept_to_string(self, &mut output);
 
         match &loop_in_expr_node.loop_first_stmt {
-            LoopFirstStmt::Var {var_node} => {
-                self.add_code(&format!("for {} in {}:"
-                                       , var_node.id_node.name
-                                       , output));
+            LoopFirstStmt::Var { var_node } => {
+                self.add_code(&format!("for {} in {}:", var_node.id_node.name, output));
             }
-            LoopFirstStmt::CallChain {call_chain_expr_node} => {
+            LoopFirstStmt::CallChain {
+                call_chain_expr_node,
+            } => {
                 let mut output_first_stmt = String::new();
                 call_chain_expr_node.accept_to_string(self, &mut output_first_stmt);
-                self.add_code(&format!("for {} in {}:"
-                                       , output_first_stmt
-                                       , output));
+                self.add_code(&format!("for {} in {}:", output_first_stmt, output));
             }
-            LoopFirstStmt::VarDecl {var_decl_node_rcref} => {
-                self.add_code(&format!("for {} in {}:"
-                                       , var_decl_node_rcref.borrow().name
-                                       , output));
+            LoopFirstStmt::VarDecl {
+                var_decl_node_rcref,
+            } => {
+                self.add_code(&format!(
+                    "for {} in {}:",
+                    var_decl_node_rcref.borrow().name,
+                    output
+                ));
             }
             // LoopFirstStmt::VarDeclAssign {var_decl_node_rcref} => {
             //     self.add_code(&format!("for {} in {}:"
@@ -2754,7 +2771,6 @@ impl AstVisitor for PythonVisitor {
             // }
             // TODO
             _ => panic!("Error - unexpected target expression in 'in' loop."),
-
         };
 
         self.indent();
@@ -2785,10 +2801,7 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_loop_infinite_stmt_node(
-        &mut self,
-        loop_in_expr_node:&LoopInfiniteStmtNode,
-    ) {
+    fn visit_loop_infinite_stmt_node(&mut self, loop_in_expr_node: &LoopInfiniteStmtNode) {
         self.newline();
         self.add_code(&format!("while True:"));
 
@@ -2799,27 +2812,18 @@ impl AstVisitor for PythonVisitor {
         self.newline();
     }
 
-
     //* --------------------------------------------------------------------- *//
 
-    fn visit_block_stmt_node(
-        &mut self,
-        block_stmt_node: &BlockStmtNode,
-    ) {
+    fn visit_block_stmt_node(&mut self, block_stmt_node: &BlockStmtNode) {
         self.indent();
         // Generate statements
         self.visit_decl_stmts(&block_stmt_node.statements);
         self.outdent();
-
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_continue_stmt_node(
-        &mut self,
-        _:&ContinueStmtNode,
-    ) {
-
+    fn visit_continue_stmt_node(&mut self, _: &ContinueStmtNode) {
         // In the context of a for loop, the auto inc/dec clause needs to
         // be executed prior to generating the 'continue' statement.
         // e.g.
@@ -2836,22 +2840,14 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_superstring_stmt_node(
-        &mut self,
-        super_string_stmt_node:&SuperStringStmtNode,
-    ) {
-
-//        self.newline();
+    fn visit_superstring_stmt_node(&mut self, super_string_stmt_node: &SuperStringStmtNode) {
+        //        self.newline();
         super_string_stmt_node.literal_expr_node.accept(self);
-
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_break_stmt_node(
-        &mut self,
-        _:&BreakStmtNode,
-    ) {
+    fn visit_break_stmt_node(&mut self, _: &BreakStmtNode) {
         self.newline();
         self.add_code("break");
     }
@@ -2889,7 +2885,10 @@ impl AstVisitor for PythonVisitor {
     ) {
         // generate 'pass' unless there is a statement that will generate code
         let mut generate_pass = true;
-        if bool_test_true_branch_node.branch_terminator_expr_opt.is_some() {
+        if bool_test_true_branch_node
+            .branch_terminator_expr_opt
+            .is_some()
+        {
             generate_pass = false;
         }
 
@@ -2945,7 +2944,10 @@ impl AstVisitor for PythonVisitor {
 
         // generate 'pass' unless there is a statement that will generate code
         let mut generate_pass = true;
-        if bool_test_else_branch_node.branch_terminator_expr_opt.is_some() {
+        if bool_test_else_branch_node
+            .branch_terminator_expr_opt
+            .is_some()
+        {
             generate_pass = false;
         }
 
@@ -3086,14 +3088,19 @@ impl AstVisitor for PythonVisitor {
 
         // generate 'pass' unless there is a statement that will generate code
         let mut generate_pass = true;
-        if string_match_test_match_branch_node.branch_terminator_expr_opt.is_some() {
+        if string_match_test_match_branch_node
+            .branch_terminator_expr_opt
+            .is_some()
+        {
             generate_pass = false;
         }
 
         // even if there statements, it is possible there are only empty
         // blocks, which should generate a pass. Check if there are only
         // empty blocks.
-        if generate_pass && self.has_non_block_statements(&string_match_test_match_branch_node.statements) {
+        if generate_pass
+            && self.has_non_block_statements(&string_match_test_match_branch_node.statements)
+        {
             generate_pass = false;
         }
 
@@ -3142,14 +3149,19 @@ impl AstVisitor for PythonVisitor {
 
         // generate 'pass' unless there is a statement that will generate code
         let mut generate_pass = true;
-        if string_match_test_else_branch_node.branch_terminator_expr_opt.is_some() {
+        if string_match_test_else_branch_node
+            .branch_terminator_expr_opt
+            .is_some()
+        {
             generate_pass = false;
         }
 
         // even if there statements, it is possible there are only empty
         // blocks, which should generate a pass. Check if there are only
         // empty blocks.
-        if generate_pass && self.has_non_block_statements(&string_match_test_else_branch_node.statements) {
+        if generate_pass
+            && self.has_non_block_statements(&string_match_test_else_branch_node.statements)
+        {
             generate_pass = false;
         }
 
@@ -3386,7 +3398,6 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_expr_list_stmt_node(&mut self, expr_list_stmt_node: &ExprListStmtNode) {
-
         let ref expr_list_node = expr_list_stmt_node.expr_list_node;
         self.test_skip_newline();
         expr_list_node.accept(self);
@@ -3578,7 +3589,6 @@ impl AstVisitor for PythonVisitor {
             None => {}
         }
 
-
         self.add_code("):");
         subclass_code.push_str("):");
 
@@ -3591,7 +3601,8 @@ impl AstVisitor for PythonVisitor {
         } else {
             // Generate statements
             if action_decl_node.statements.is_empty()
-                && action_decl_node.terminator_node_opt.is_none() {
+                && action_decl_node.terminator_node_opt.is_none()
+            {
                 self.indent();
                 self.newline();
                 self.add_code("pass");
@@ -3613,11 +3624,12 @@ impl AstVisitor for PythonVisitor {
                             None => {
                                 self.add_code("return");
                                 self.newline();
-                            },
+                            }
                         },
                         TerminatorType::Continue => {
                             // shouldn't happen.
-                            self.errors.push("Continue not allowed as action terminator.".to_string());
+                            self.errors
+                                .push("Continue not allowed as action terminator.".to_string());
                         }
                     }
                 }
@@ -3655,13 +3667,11 @@ impl AstVisitor for PythonVisitor {
         self.outdent();
     }
 
-
     //* --------------------------------------------------------------------- *//
 
     fn visit_enum_decl_node(&mut self, enum_decl_node: &EnumDeclNode) {
-
         self.newline();
-        self.add_code(&format!("class {}(Enum):",enum_decl_node.name));
+        self.add_code(&format!("class {}(Enum):", enum_decl_node.name));
         self.indent();
 
         for enumerator_decl_node in &enum_decl_node.enums {
@@ -3675,30 +3685,38 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_enumerator_decl_node(&mut self, enumerator_decl_node: &EnumeratorDeclNode) {
-
         self.newline();
-        self.add_code(&format!("{} = {}",enumerator_decl_node.name, enumerator_decl_node.value));
+        self.add_code(&format!(
+            "{} = {}",
+            enumerator_decl_node.name, enumerator_decl_node.value
+        ));
     }
 
     //* --------------------------------------------------------------------- *//
 
     fn visit_enumerator_expr_node(&mut self, enum_expr_node: &EnumeratorExprNode) {
-
-        self.add_code(&format!("{}.{}",enum_expr_node.enum_type, enum_expr_node.enumerator));
+        self.add_code(&format!(
+            "{}.{}",
+            enum_expr_node.enum_type, enum_expr_node.enumerator
+        ));
     }
-
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_enumerator_expr_node_to_string(&mut self, enum_expr_node: &EnumeratorExprNode, output: &mut String) {
-
-        output.push_str(&format!("{}.{}",enum_expr_node.enum_type, enum_expr_node.enumerator));
+    fn visit_enumerator_expr_node_to_string(
+        &mut self,
+        enum_expr_node: &EnumeratorExprNode,
+        output: &mut String,
+    ) {
+        output.push_str(&format!(
+            "{}.{}",
+            enum_expr_node.enum_type, enum_expr_node.enumerator
+        ));
     }
 
     //* --------------------------------------------------------------------- *//
 
     fn visit_enumerator_statement_node(&mut self, enumerator_stmt_node: &EnumeratorStmtNode) {
-
         self.newline();
         enumerator_stmt_node.enumerator_expr_node.accept(self);
     }
@@ -3759,7 +3777,6 @@ impl AstVisitor for PythonVisitor {
             .push(format!("\t{} = bag.domain[\"{}\"]", var_name, var_name));
     }
 
-
     //* --------------------------------------------------------------------- *//
 
     fn visit_loop_variable_decl_node(&mut self, loop_variable_decl_node: &LoopVariableDeclNode) {
@@ -3768,7 +3785,10 @@ impl AstVisitor for PythonVisitor {
             None => String::from(""),
         };
         let var_name = &loop_variable_decl_node.name;
-        let var_init_expr = &loop_variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
+        let var_init_expr = &loop_variable_decl_node
+            .initializer_expr_t_opt
+            .as_ref()
+            .unwrap();
         self.newline();
         let mut code = String::new();
         var_init_expr.accept_to_string(self, &mut code);
@@ -3823,7 +3843,7 @@ impl AstVisitor for PythonVisitor {
         // now generate assignment expression
         assignment_expr_node.l_value_box.accept(self);
         self.add_code(" = ");
- //       assignment_expr_node.r_value_box.auto_pre_inc_dec(self);
+        //       assignment_expr_node.r_value_box.auto_pre_inc_dec(self);
         assignment_expr_node.r_value_box.accept(self);
         assignment_expr_node.r_value_box.auto_post_inc_dec(self);
     }
@@ -3852,7 +3872,6 @@ impl AstVisitor for PythonVisitor {
     fn visit_assignment_statement_node(&mut self, assignment_stmt_node: &AssignmentStmtNode) {
         self.generate_comment(assignment_stmt_node.get_line());
         assignment_stmt_node.assignment_expr_node.accept(self);
-
     }
 
     //* --------------------------------------------------------------------- *//
@@ -3885,12 +3904,27 @@ impl AstVisitor for PythonVisitor {
     fn visit_binary_stmt_node(&mut self, binary_stmt_node: &BinaryStmtNode) {
         self.newline();
 
-        binary_stmt_node.binary_expr_node.left_rcref.borrow().auto_pre_inc_dec(self);
-        binary_stmt_node.binary_expr_node.right_rcref.borrow().auto_pre_inc_dec(self);
+        binary_stmt_node
+            .binary_expr_node
+            .left_rcref
+            .borrow()
+            .auto_pre_inc_dec(self);
+        binary_stmt_node
+            .binary_expr_node
+            .right_rcref
+            .borrow()
+            .auto_pre_inc_dec(self);
         binary_stmt_node.binary_expr_node.accept(self);
-        binary_stmt_node.binary_expr_node.left_rcref.borrow().auto_post_inc_dec(self);
-        binary_stmt_node.binary_expr_node.right_rcref.borrow().auto_post_inc_dec(self);
-
+        binary_stmt_node
+            .binary_expr_node
+            .left_rcref
+            .borrow()
+            .auto_post_inc_dec(self);
+        binary_stmt_node
+            .binary_expr_node
+            .right_rcref
+            .borrow()
+            .auto_post_inc_dec(self);
     }
 
     //* --------------------------------------------------------------------- *//
@@ -3909,7 +3943,7 @@ impl AstVisitor for PythonVisitor {
             binary_expr_node.right_rcref.borrow().accept(self);
             self.add_code("))");
         } else {
-//            self.newline();
+            //            self.newline();
             binary_expr_node.left_rcref.borrow().accept(self);
             binary_expr_node.operator.accept(self);
             binary_expr_node.right_rcref.borrow().accept(self);
