@@ -1077,20 +1077,20 @@ impl CppVisitor {
                             let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
-                                    match _var_type.as_str() {
-                                        "string" => {
-                                            self.add_code(&format!(
-                                                "compartment->stateVars[\"{}\"] = std::string({});",
-                                                var.name, expr_code
-                                            ));
-                                        }
-                                        _ => {
-                                            self.add_code(&format!(
-                                                "compartment->stateVars[\"{}\"] = {};",
-                                                var.name, expr_code
-                                            ));
-                                        }
-                                    }
+                            match _var_type.as_str() {
+                                "string" => {
+                                    self.add_code(&format!(
+                                        "compartment->stateVars[\"{}\"] = std::string({});",
+                                        var.name, expr_code
+                                    ));
+                                }
+                                _ => {
+                                    self.add_code(&format!(
+                                        "compartment->stateVars[\"{}\"] = {};",
+                                        var.name, expr_code
+                                    ));
+                                }
+                            }
                             self.newline();
                         }
                     }
@@ -1372,20 +1372,20 @@ impl CppVisitor {
                             let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
-                                    match _var_type.as_str() {
-                                        "string" => {
-                                            self.add_code(&format!(
-                                                "compartment->stateVars[\"{}\"] = std::string({});",
-                                                var.name, expr_code
-                                            ));
-                                        }
-                                        _ => {
-                                            self.add_code(&format!(
-                                                "compartment->stateVars[\"{}\"] = {};",
-                                                var.name, expr_code
-                                            ));
-                                        }
-                                    }
+                            match _var_type.as_str() {
+                                "string" => {
+                                    self.add_code(&format!(
+                                        "compartment->stateVars[\"{}\"] = std::string({});",
+                                        var.name, expr_code
+                                    ));
+                                }
+                                _ => {
+                                    self.add_code(&format!(
+                                        "compartment->stateVars[\"{}\"] = {};",
+                                        var.name, expr_code
+                                    ));
+                                }
+                            }
                             self.newline();
                         }
                     }
@@ -1765,13 +1765,13 @@ impl AstVisitor for CppVisitor {
         self.newline();
         self.newline();
         // if self.config.code.generate_import_export {
-            
+
         //     // struct FrameEvent {
         //     //     std::string _message;
         //     //     std::string _parameters;
         //     //     std::string _return;
         //     // };
-            
+
         //     // FrameEvent createFrameEvent(const std::string& message, const std::string& parameters) {
         //     //     FrameEvent event;
         //     //     event._message = message;

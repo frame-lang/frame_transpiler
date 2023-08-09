@@ -256,7 +256,7 @@ impl Default for CppCode {
             public_domain: false,
             public_state_info: false,
             public_compartment: false,
-            generate_import_export: false
+            generate_import_export: false,
         }
     }
 }
