@@ -2390,7 +2390,6 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_auto_pre_inc_dec_expr_node(&mut self, ref_expr_type: &RefExprType) {
         match ref_expr_type {
-
             RefExprType::AssignmentExprT {
                 assignment_expr_node,
             } => {}
@@ -3329,7 +3328,6 @@ impl AstVisitor for PythonVisitor {
         self.add_code(&match_pattern_node.match_pattern_number.to_string());
     }
 
-
     //-----------------------------------------------------//
 
     fn visit_enum_match_test_node(&mut self, enum_match_test_node: &EnumMatchTestNode) {
@@ -3365,8 +3363,11 @@ impl AstVisitor for PythonVisitor {
             let mut first_match = true;
             for match_test_pattern_node in &match_branch_node.enum_match_pattern_node {
                 if first_match {
-
-                    self.add_code(&format!(" == {}.{})",enum_match_test_node.enum_type_name, match_test_pattern_node.match_pattern_strings));
+                    self.add_code(&format!(
+                        " == {}.{})",
+                        enum_match_test_node.enum_type_name,
+                        match_test_pattern_node.match_pattern_strings
+                    ));
                     first_match = false;
                 } else {
                     self.add_code(" or (");
@@ -3383,7 +3384,11 @@ impl AstVisitor for PythonVisitor {
                         ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
                         _ => self.errors.push("TODO.".to_string()),
                     }
-                    self.add_code(&format!(" == {}.{})", enum_match_test_node.enum_type_name,match_test_pattern_node.match_pattern_strings));
+                    self.add_code(&format!(
+                        " == {}.{})",
+                        enum_match_test_node.enum_type_name,
+                        match_test_pattern_node.match_pattern_strings
+                    ));
                 }
             }
 
@@ -3405,7 +3410,6 @@ impl AstVisitor for PythonVisitor {
         }
     }
 
-
     //* --------------------------------------------------------------------- *//
 
     fn visit_enum_match_test_match_branch_node(
@@ -3419,14 +3423,19 @@ impl AstVisitor for PythonVisitor {
 
         // generate 'pass' unless there is a statement that will generate code
         let mut generate_pass = true;
-        if enum_match_test_match_branch_node.branch_terminator_t_opt.is_some() {
+        if enum_match_test_match_branch_node
+            .branch_terminator_t_opt
+            .is_some()
+        {
             generate_pass = false;
         }
 
         // even if there statements, it is possible there are only empty
         // blocks, which should generate a pass. Check if there are only
         // empty blocks.
-        if generate_pass && self.has_non_block_statements(&enum_match_test_match_branch_node.statements) {
+        if generate_pass
+            && self.has_non_block_statements(&enum_match_test_match_branch_node.statements)
+        {
             generate_pass = false;
         }
 
@@ -3460,7 +3469,6 @@ impl AstVisitor for PythonVisitor {
         }
     }
 
-
     //* --------------------------------------------------------------------- *//
 
     fn visit_enum_match_test_else_branch_node(
@@ -3472,14 +3480,19 @@ impl AstVisitor for PythonVisitor {
 
         // generate 'pass' unless there is a statement that will generate code
         let mut generate_pass = true;
-        if enum_match_test_else_branch_node.branch_terminator_expr_opt.is_some() {
+        if enum_match_test_else_branch_node
+            .branch_terminator_expr_opt
+            .is_some()
+        {
             generate_pass = false;
         }
 
         // even if there statements, it is possible there are only empty
         // blocks, which should generate a pass. Check if there are only
         // empty blocks.
-        if generate_pass && self.has_non_block_statements(&enum_match_test_else_branch_node.statements) {
+        if generate_pass
+            && self.has_non_block_statements(&enum_match_test_else_branch_node.statements)
+        {
             generate_pass = false;
         }
 
