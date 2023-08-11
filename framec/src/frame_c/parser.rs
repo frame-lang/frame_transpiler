@@ -2876,17 +2876,21 @@ impl<'a> Parser<'a> {
                                             match call_chain_literal_stmt_node.call_chain_literal_expr_node.call_chain.get(0) {
                                                 Some(CallChainLiteralNodeType::InterfaceMethodCallT {interface_method_call_expr_node}) => {
                                                     // interface method call must be last statement.
-                                                    self.interface_method_called = true;
-                                                    statements.push(decl_or_statement); // return statements;
+                                                    // TODO!!! - add this back when scope issue is fixed with parse errors
+                                                    // self.interface_method_called = true;
+                                                    statements.push(decl_or_statement);
 
-                                                    return statements;
+                                                    // TODO!!! - add this back when scope issue is fixed with parse errors
+                                                    // return statements;
+
+
                                                 }
                                                 _ => {
-                                                    statements.push(decl_or_statement); // return statements;
+                                                    statements.push(decl_or_statement);
                                                 }
                                             }
                                         } else {
-                                            statements.push(decl_or_statement); // return statements;
+                                            statements.push(decl_or_statement);
                                         }
                                     }
                                     StatementType::ChangeStateStmt { .. } => {
@@ -2955,7 +2959,9 @@ impl<'a> Parser<'a> {
                     TokenType::SystemEnd,
                 ];
                 // Concat contextual sync tokens.
-                sync_tokens.append(self.sync_tokens_from_error_context.as_mut());
+                // TODO - removing this until I can confirm this isn't screwing up
+                // scope management.
+                //  sync_tokens.append(self.sync_tokens_from_error_context.as_mut());
                 self.sync_tokens_from_error_context = Vec::new();
                 self.synchronize(&sync_tokens);
             }
@@ -2999,7 +3005,15 @@ impl<'a> Parser<'a> {
         let mut expr_t_opt: Option<ExprType> = None;
 
         match self.expression() {
-            Ok(et_opt) => expr_t_opt = et_opt,
+            Ok(Some(expr_t)) => {
+                match expr_t {
+                    _ => {
+                        let debug = 1;
+                    }
+                }
+                expr_t_opt = Some(expr_t)
+            },
+            Ok(None) => expr_t_opt = None,
             Err(_) => {
                 let sync_tokens = vec![
                     TokenType::Caret,
@@ -4285,6 +4299,9 @@ impl<'a> Parser<'a> {
 
         // TODO: I think only identifier is allowed?
         if self.match_token(&[TokenType::Identifier]) {
+            let debug_is_building_symbol_table = self.is_building_symbol_table;
+            let debug_current_token = self.current_token.clone();
+            let debug_processed_tokens = self.processed_tokens.clone();
             match self.variable_or_call_expr(scope) {
                 Ok(Some(VariableExprT { mut var_node })) => {
                     var_node.id_node.is_reference = is_reference;
@@ -4815,6 +4832,7 @@ impl<'a> Parser<'a> {
     ) -> Result<Option<ExprType>, ParseError> {
         let mut scope: IdentifierDeclScope;
 
+        let debug_id_token = self.previous().lexeme.clone();
         let mut id_node = IdentifierNode::new(
             self.previous().clone(),
             None,
