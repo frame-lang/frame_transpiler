@@ -18,7 +18,7 @@
         |transit| [x:u32]
             (3) -> (4) $B ^
 
-        |mult| [a:i32 b:i32] : i32
+        |mult| [a:i32, b:i32] : i32
             var out = a * b
             ^(out)
 
@@ -34,7 +34,7 @@
         |transit| [x:u32]
             (13) -> (14) $C ^
 
-        |mult| [a:i32 b:i32] : i32
+        |mult| [a:i32, b:i32] : i32
             var out = a * b
             ^(out)
 
@@ -53,7 +53,7 @@
         |transit| [x:u32]
             (23) -> (24) $D ^
 
-        |mult| [a:i32 b:i32] : i32
+        |mult| [a:i32, b:i32] : i32
             var out = a * b
             ^(out)
 
@@ -72,7 +72,7 @@
         |transit| [x:u32]
             (33) -> $A ^
 
-        |mult| [a:i32 b:i32] : i32
+        |mult| [a:i32, b:i32] : i32
             var out = a * b
             ^(out)
 

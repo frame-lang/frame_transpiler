@@ -5,7 +5,7 @@
     snake_event [snake_param:i32]
     CamelEvent [CamelParam:i32]
     event123 [param123:i32]
-    call [event:String param:i32]
+    call [event:String, param:i32]
 
     -machine-
     $Init
@@ -18,7 +18,7 @@
         |event123| [param123:i32]
             -> $state123(param123) ^
 
-        |call| [event:String param:i32]
+        |call| [event:String, param:i32]
             event ?~
                 /snake_event/ snake_event(param) :>
                 /CamelEvent/ CamelEvent(param) :>
@@ -45,7 +45,7 @@
             action123(localVar123)
             -> $Final(localVar123) ^
 
-        |call| [event:String param:i32]
+        |call| [event:String, param:i32]
             event ?~
                 /snake_event/ snake_event(param) :>
                 /CamelEvent/ CamelEvent(param) :>
@@ -72,7 +72,7 @@
             action123(localVar123)
             -> $Final(localVar123) ^
 
-        |call| [event:String param:i32]
+        |call| [event:String, param:i32]
             event ?~
                 /snake_event/ snake_event(param) :>
                 /CamelEvent/ CamelEvent(param) :>
@@ -99,7 +99,7 @@
             action123(localVar123)
             -> $Final(localVar123) ^
 
-        |call| [event:String param:i32]
+        |call| [event:String, param:i32]
             event ?~
                 /snake_event/ snake_event(param) :>
                 /CamelEvent/ CamelEvent(param) :>
