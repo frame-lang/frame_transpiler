@@ -21,7 +21,7 @@
             counter = counter + arg
             Bar(arg*2)
             --- the front-end should report the next line as a static error
-            log("Unreachable" 0)
+            log("Unreachable", 0)
             ^
 
         |Bar| [arg:i32]
@@ -40,7 +40,7 @@
         var counter:i32 = 0
 
         |Foo| [arg:i32]
-            log("Foo" arg)
+            log("Foo", arg)
             counter = counter + arg
             counter < 100 ?
                 Foo(arg*2)
@@ -49,11 +49,11 @@
             :: ^
 
         |Bar| [arg:i32]
-            log("Bar" arg)
+            log("Bar", arg)
             counter = counter + arg
             -> $Final(counter) ^
 
-        |Call| [event:String arg:i32]
+        |Call| [event:String, arg:i32]
             event ?~
                 /Foo/ Foo(arg) :>
                 /Bar/ Bar(arg)
@@ -63,7 +63,7 @@
         var counter:i32 = 0
 
         |Foo| [arg:i32]
-            log("Foo" arg)
+            log("Foo", arg)
             counter = counter + arg
             counter > 100 ?
                 -> $Final(counter)
@@ -72,7 +72,7 @@
             :: ^
 
         |Bar| [arg:i32]
-            log("Bar" arg)
+            log("Bar", arg)
             counter = counter + arg
             arg ?#
                 /4/ Foo(arg) :>
@@ -80,7 +80,7 @@
                 :   Foo(arg*3)
             :: ^
 
-        |Call| [event:String arg:i32]
+        |Call| [event:String, arg:i32]
             event ?~
                 /Foo/ Foo(arg) :>
                 /Bar/ Bar(arg)

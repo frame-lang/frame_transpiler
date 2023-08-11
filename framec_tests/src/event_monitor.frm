@@ -5,7 +5,7 @@
     -interface-
     change : u32
     transit [x:u32]
-    mult [a:i32 b:i32] : i32
+    mult [a:i32, b:i32] : i32
     reset
 
     -machine-
