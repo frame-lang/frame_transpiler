@@ -13,45 +13,45 @@
 
         |>|
             w = 3
-            log("w" w)
+            log("w", w)
             ^
 
         |Inc|:i32
             w = w + 1
-            log("w" w)
+            log("w", w)
             ^(w)
 
         |LogState|
-            log("w" w)
+            log("w", w)
             ^
 
         |Start|
-            -> (3 w) $Foo
+            -> (3, w) $Foo
             ^
 
     $Foo
         var x:i32 = 0
 
-        |>| [a:i32 b:i32]
-            log("a" a)
-            log("b" b)
+        |>| [a:i32, b:i32]
+            log("a", a)
+            log("b", b)
             x = a * b
-            log("x" x)
+            log("x", x)
             ^
 
         |<| [c:i32]
-            log("c" c)
+            log("c", c)
             x = x + c
-            log("x" x)
+            log("x", x)
             ^
 
         |LogState|
-            log("x" x)
+            log("x", x)
             ^
 
         |Inc|:i32
             x = x + 1
-            log("x" x)
+            log("x", x)
             ^(x)
 
         |Next| [arg:i32]
@@ -69,15 +69,15 @@
         var z:i32 = 0
 
         |>| [a:i32]
-            log("a" a)
-            log("y" y)
+            log("a", a)
+            log("y", y)
             z = a + y
-            log("z" z)
+            log("z", z)
             ^
 
         |LogState|
-            log("y" y)
-            log("z" z)
+            log("y", y)
+            log("z", z)
             ^
 
         |Inc|:i32
@@ -87,7 +87,7 @@
 
         |Change| [arg:i32]
             var tmp = y + z + arg
-            log("tmp" tmp)
+            log("tmp", tmp)
             ->> $Init
             ^
 

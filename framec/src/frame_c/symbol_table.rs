@@ -1312,6 +1312,15 @@ impl Arcanum {
         }
     }
 
+
+    /* --------------------------------------------------------------------- */
+
+    // Get the system symbol, retrieve the machine block symbol and then find the state.
+
+    pub fn has_state(&mut self, state_name: &str) -> bool {
+        self.get_state(state_name).is_some()
+    }
+
     /* --------------------------------------------------------------------- */
 
     pub fn declare_event(&mut self, event_symbol_rcref: Rc<RefCell<EventSymbol>>) {

@@ -3008,6 +3008,7 @@ impl<'a> Parser<'a> {
             Ok(Some(expr_t)) => {
                 match expr_t {
                     _ => {
+                        // TODO - remove
                         let debug = 1;
                     }
                 }
@@ -5290,21 +5291,34 @@ impl<'a> Parser<'a> {
     fn state_context(
         &mut self,
         enter_args_opt: Option<ExprListNode>,
+        context_change_type: &str,
     ) -> Result<Option<StateContextType>, ParseError> {
         if self.match_token(&[TokenType::StateStackOperationPop]) {
             Ok(Some(StateContextType::StateStackPop {}))
         } else {
             // parse state ref e.g. '$S1'
             if !self.match_token(&[TokenType::State]) {
-                return Err(ParseError::new("Missing $"));
+                let err_msg = "Missing $.";
+                self.error_at_current(err_msg.clone());
+                return Err(ParseError::new(err_msg));
             }
 
             if !self.match_token(&[TokenType::Identifier]) {
-                return Err(ParseError::new("Missing state identifier"));
+                let err_msg = "Missing state identifier.";
+                self.error_at_current(err_msg.clone());
+                return Err(ParseError::new(err_msg));
             }
 
             let state_id = self.previous();
             let name = state_id.lexeme.clone();
+
+            if !self.is_building_symbol_table {
+                if !self.arcanum.has_state(&*name) {
+                    let err_msg = format!("{} target state ${} not declared.",context_change_type, name);
+                    self.error_at_current(&*err_msg.clone());
+                    return Err(ParseError::new(&*err_msg));
+                }
+            }
 
             // parse optional state ref expression list
             // '(' ')' | '(' expr ')'
@@ -5392,7 +5406,7 @@ impl<'a> Parser<'a> {
         }
 
         let state_context_t;
-        match self.state_context(enter_args_opt) {
+        match self.state_context(enter_args_opt, "Transition") {
             Ok(Some(scn)) => state_context_t = scn,
             Ok(None) => return Err(ParseError::new("TODO")),
             Err(parse_error) => return Err(parse_error),
@@ -5427,7 +5441,7 @@ impl<'a> Parser<'a> {
         }
 
         let state_context_t;
-        match self.state_context(None) {
+        match self.state_context(None, "State change") {
             Ok(Some(scn)) => state_context_t = scn,
             Ok(None) => return Err(ParseError::new("TODO")),
             Err(parse_error) => return Err(parse_error),
