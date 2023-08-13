@@ -2475,9 +2475,9 @@ impl AstVisitor for PythonVisitor {
                         }
                     }
                     LoopStmtTypes::LoopInStmt {
-                        loop_in_stmt_node: loop_in_expr_node,
+                        loop_in_stmt_node,
                     } => {
-                        // TODO
+                        loop_in_stmt_node.iterable_expr.auto_pre_inc_dec(self);
                     }
                     LoopStmtTypes::LoopInfiniteStmt {
                         loop_infinite_stmt_node,
@@ -2581,16 +2581,16 @@ impl AstVisitor for PythonVisitor {
             RefExprType::LoopStmtT { loop_types } => {
                 match loop_types {
                     LoopStmtTypes::LoopForStmt {
-                        loop_for_stmt_node: loop_for_expr_node,
+                        loop_for_stmt_node,
                     } => {
-                        for expr in &loop_for_expr_node.post_expr_rcref_opt {
-                            expr.borrow().auto_pre_inc_dec(self);
+                        for expr in &loop_for_stmt_node.post_expr_rcref_opt {
+                            expr.borrow().auto_post_inc_dec(self);
                         }
                     }
                     LoopStmtTypes::LoopInStmt {
-                        loop_in_stmt_node: loop_in_expr_node,
+                        loop_in_stmt_node,
                     } => {
-                        // TODO
+                        loop_in_stmt_node.iterable_expr.auto_post_inc_dec(self);
                     }
                     LoopStmtTypes::LoopInfiniteStmt {
                         loop_infinite_stmt_node,
@@ -2648,9 +2648,9 @@ impl AstVisitor for PythonVisitor {
                 loop_for_expr_node.accept(self);
             }
             LoopStmtTypes::LoopInStmt {
-                loop_in_stmt_node: loop_in_expr_node,
+                loop_in_stmt_node,
             } => {
-                loop_in_expr_node.accept(self);
+                loop_in_stmt_node.accept(self);
             }
             LoopStmtTypes::LoopInfiniteStmt {
                 loop_infinite_stmt_node,
@@ -2724,17 +2724,32 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_loop_in_stmt_node(&mut self, loop_in_expr_node: &LoopInStmtNode) {
+    fn visit_loop_in_stmt_node(&mut self, loop_in_stmt_node: &LoopInStmtNode) {
         self.newline();
 
+        // TODO - this won't work properly for autoincdec.
+        // See https://www.w3schools.com/python/python_iterators.asp
+        // See https://www.w3schools.com/python/python_while_loops.asp
+        // Need to turn for in loop into a while statement that does something like
+        // this for non-function
+
+        // _frame_iterable_1_ = [1, 2, 3]
+        // _frame_iterator_1_ = iter(_frame_iterable_1_)
+        //
+        // while True:
+        //     try:
+        //     print(next(_frame_iterator_1_))
+        // except StopIteration as e:
+        //      break
+
         // autoinc any arguments to the iterable expression
-        loop_in_expr_node.iterable_expr.auto_pre_inc_dec(self);
+        loop_in_stmt_node.iterable_expr.auto_pre_inc_dec(self);
         let mut output = String::new();
-        loop_in_expr_node
+        loop_in_stmt_node
             .iterable_expr
             .accept_to_string(self, &mut output);
 
-        match &loop_in_expr_node.loop_first_stmt {
+        match &loop_in_stmt_node.loop_first_stmt {
             LoopFirstStmt::Var { var_node } => {
                 self.add_code(&format!("for {} in {}:", var_node.id_node.name, output));
             }
@@ -2767,8 +2782,8 @@ impl AstVisitor for PythonVisitor {
         // self.newline();
 
         // only call if there are statements
-        if loop_in_expr_node.statements.len() != 0 {
-            self.visit_decl_stmts(&loop_in_expr_node.statements);
+        if loop_in_stmt_node.statements.len() != 0 {
+            self.visit_decl_stmts(&loop_in_stmt_node.statements);
         }
 
         // all autoincdec code in loop control should be generated as the last statement
@@ -2780,7 +2795,7 @@ impl AstVisitor for PythonVisitor {
         //     expr_t.auto_post_inc_dec(self);
         // }
         // generate 'pass' after autoincdec if there are no statements
-        if loop_in_expr_node.statements.len() == 0 {
+        if loop_in_stmt_node.statements.len() == 0 {
             self.newline();
             self.add_code(&format!("pass"));
         }

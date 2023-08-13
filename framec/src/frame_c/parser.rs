@@ -10,7 +10,7 @@ use super::ast::TerminatorType::{Continue, Return};
 use super::ast::*;
 use super::scanner::*;
 use super::symbol_table::*;
-use crate::frame_c::symbol_table::SymbolType::ParamSymbol;
+// use crate::frame_c::symbol_table::SymbolType::ParamSymbol;
 use crate::frame_c::utils::SystemHierarchy;
 use downcast_rs::__std::cell::RefCell;
 use std::collections::HashMap;
@@ -1196,8 +1196,6 @@ impl<'a> Parser<'a> {
                 params_scope_symbol_rcref,
             });
         } else {
-            // give each loop in a scope a unique name
-            let scope_name = &format!("{}", ParamsScopeSymbol::scope_name());
             self.arcanum
                 .set_parse_scope(ParamsScopeSymbol::scope_name());
         }
@@ -1547,11 +1545,14 @@ impl<'a> Parser<'a> {
         } else {
             // semantic pass
             // link action symbol to action declaration node
-            let a = self
-                .arcanum
-                .current_symtab
-                .borrow()
-                .lookup(&*action_name, &IdentifierDeclScope::None);
+
+            // TODO - remove?
+            // let a = self
+            //     .arcanum
+            //     .current_symtab
+            //     .borrow()
+            //     .lookup(&*action_name, &IdentifierDeclScope::None);
+
             // see if we can get the action symbol set in the syntax pass. if so, then move
             // all this to the calling function and pass inthe symbol
             self.arcanum.set_parse_scope(&action_name);
@@ -1563,14 +1564,15 @@ impl<'a> Parser<'a> {
             match &ret {
                 Ok(action_node_rcref) => {
                     // associate AST node with symbol
-                    let a = action_node_rcref.borrow();
+                    // let a = action_node_rcref.borrow();
                     let b = self.arcanum.lookup_action(&action_name.clone());
                     let c = b.unwrap();
                     let mut d = c.borrow_mut();
                     d.ast_node_opt = Some(action_node_rcref.clone());
                 }
-                Err(err) => {
-                    // just return the error
+                Err(_err) => {
+                    // just return the error upon exiting the function
+
                 }
             }
         }
@@ -1904,7 +1906,7 @@ impl<'a> Parser<'a> {
             }
         } else if matches!(self.peek().token_type, TokenType::In) {
             // pass
-            let x = 1;
+            // let debug = 1;
         } else {
             // All variables should be initialized to something.
             let err_msg = "Expected '='. All variables must be initialized.";
@@ -2874,7 +2876,7 @@ impl<'a> Parser<'a> {
                                         } = expr_stmt_t
                                         {
                                             match call_chain_literal_stmt_node.call_chain_literal_expr_node.call_chain.get(0) {
-                                                Some(CallChainLiteralNodeType::InterfaceMethodCallT {interface_method_call_expr_node}) => {
+                                                Some(CallChainLiteralNodeType::InterfaceMethodCallT {..}) => {
                                                     // interface method call must be last statement.
                                                     // TODO!!! - add this back when scope issue is fixed with parse errors
                                                     // self.interface_method_called = true;
@@ -3009,7 +3011,7 @@ impl<'a> Parser<'a> {
                 match expr_t {
                     _ => {
                         // TODO - remove
-                        let debug = 1;
+                       // let debug = 1;
                     }
                 }
                 expr_t_opt = Some(expr_t)
@@ -3281,7 +3283,7 @@ impl<'a> Parser<'a> {
 
     fn block_scope(&mut self) -> Result<StatementType, ParseError> {
         let scope_name = &format!("block_scope_{}", self.stmt_idx);
-        let x = scope_name.clone();
+
         if self.is_building_symbol_table {
             let block_scope_rcref = Rc::new(RefCell::new(BlockScope::new(scope_name)));
             self.arcanum
@@ -4104,8 +4106,14 @@ impl<'a> Parser<'a> {
                 let mut x = CallChainLiteralExprT {
                     call_chain_expr_node,
                 };
-                self.post_inc_dec_expression(&mut x);
-                return Ok(Some(x));
+                match self.post_inc_dec_expression(&mut x) {
+                    Ok(_result) => {
+                        return Ok(Some(x));
+                    }
+                    Err(err) => {
+                        return Err(err);
+                    }
+                }
             }
             Ok(Some(expr_t)) => return Ok(Some(expr_t)),
             Err(parse_error) => return Err(parse_error),
@@ -4300,9 +4308,9 @@ impl<'a> Parser<'a> {
 
         // TODO: I think only identifier is allowed?
         if self.match_token(&[TokenType::Identifier]) {
-            let debug_is_building_symbol_table = self.is_building_symbol_table;
-            let debug_current_token = self.current_token.clone();
-            let debug_processed_tokens = self.processed_tokens.clone();
+            // let debug_is_building_symbol_table = self.is_building_symbol_table;
+            // let debug_current_token = self.current_token.clone();
+            // let debug_processed_tokens = self.processed_tokens.clone();
             match self.variable_or_call_expr(scope) {
                 Ok(Some(VariableExprT { mut var_node })) => {
                     var_node.id_node.is_reference = is_reference;
@@ -5031,7 +5039,6 @@ impl<'a> Parser<'a> {
                     _ => return Err(ParseError::new("TODO")),
                 }
             } else {
-                let token_name = id_node.name.lexeme.clone();
                 match self.get_identifier_scope(&id_node, &explicit_scope) {
                     Ok(id_decl_scope) => scope = id_decl_scope,
                     Err(err) => return Err(err),
@@ -5180,7 +5187,7 @@ impl<'a> Parser<'a> {
                         scope = event_handler_param_symbol_rcref.borrow().scope.clone();
                     }
                     SymbolType::EventHandlerLocalScope {
-                        event_handler_local_scope_rcref,
+                        ..
                     } => {
                         scope = IdentifierDeclScope::None;
                     }
@@ -5198,7 +5205,7 @@ impl<'a> Parser<'a> {
                         scope = block_variable_symbol_rcref.borrow().scope.clone();
                     }
                     SymbolType::EventHandlerScope {
-                        event_handler_scope_symbol,
+                        ..
                     } => {
                         // TODO - what??
                         // this will be a lookup for a varible that clashes with

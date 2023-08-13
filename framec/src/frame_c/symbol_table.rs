@@ -310,7 +310,7 @@ impl ScopeSymbol for SymbolType {
                 block_scope_rcref.borrow().get_symbol_table()
             }
             SymbolType::BlockVar {
-                block_variable_symbol_rcref: block_var_rcref,
+                ..
             } => panic!("Fatal error - block variable symbol does not have a symbol table."),
             SymbolType::ParamsScope {
                 params_scope_symbol_rcref,
