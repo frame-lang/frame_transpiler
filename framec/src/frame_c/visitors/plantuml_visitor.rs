@@ -337,14 +337,14 @@ impl PlantUmlVisitor {
                         StatementType::BlockStmt { block_stmt_node } => {
                             block_stmt_node.accept(self);
                         }
-                        StatementType::ContinueStmt { continue_stmt_node } => {
+                        StatementType::ContinueStmt { .. } => {
                             // continue_stmt_node.accept(self);
                         }
-                        StatementType::BreakStmt { break_stmt_node } => {
+                        StatementType::BreakStmt { .. } => {
                             // break_stmt_node.accept(self);
                         }
                         StatementType::SuperStringStmt {
-                            super_string_stmt_node,
+                            ..
                         } => {
                             // super_string_stmt_node.accept(self);
                         }

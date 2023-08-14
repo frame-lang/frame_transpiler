@@ -1,4 +1,4 @@
-# emitted from framec_v0.10.0
+# emitted from framec_v0.11.0
 # get include files at https://github.com/frame-lang/frame-ancillary-files
 from framelang.framelang import FrameEvent
 
@@ -189,7 +189,6 @@ class StateContextSm:
     # ===================== Actions Block =================== #
     
     
-    # Unimplemented Actions
     
     def log_do(self,name: str,val: int):
         raise NotImplementedError

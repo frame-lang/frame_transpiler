@@ -1,4 +1,4 @@
-# emitted from framec_v0.10.0
+# emitted from framec_v0.11.0
 # get include files at https://github.com/frame-lang/frame-ancillary-files
 from framelang.framelang import FrameEvent
 
@@ -80,13 +80,11 @@ class SimpleHandlerCalls:
         
         elif e._message == "C":
             self.A()
-            return
             
             return
         
         elif e._message == "D":
             self.B()
-            return
             compartment = SimpleHandlerCallsCompartment(self.__simplehandlercalls_state_A)
             self.__transition(compartment)
             
@@ -94,9 +92,7 @@ class SimpleHandlerCalls:
         
         elif e._message == "E":
             self.D()
-            return
             self.C()
-            return
             
             return
         

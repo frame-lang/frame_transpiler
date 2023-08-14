@@ -1,4 +1,4 @@
-# emitted from framec_v0.10.0
+# emitted from framec_v0.11.0
 # get include files at https://github.com/frame-lang/frame-ancillary-files
 from framelang.framelang import FrameEvent
 
@@ -108,6 +108,8 @@ class EventHandler:
             self.log_do("b",e._parameters["b"])
             r  = e._parameters["a"] + e._parameters["b"]
             self.log_do("r",r)
+            compartment = EventHandlerCompartment(self.__eventhandler_state_S2)
+            self.__transition(compartment)
             e._return = r
             return
             
@@ -139,7 +141,6 @@ class EventHandler:
     # ===================== Actions Block =================== #
     
     
-    # Unimplemented Actions
     
     def log_do(self,msg: str,val: int):
         raise NotImplementedError

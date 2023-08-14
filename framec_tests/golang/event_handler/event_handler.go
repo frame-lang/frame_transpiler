@@ -1,4 +1,4 @@
-// emitted from framec_v0.10.0
+// emitted from framec_v0.11.0
 // get include files at https://github.com/frame-lang/frame-ancillary-files
 package event_handler
 import ( "golang/framelang")
@@ -139,6 +139,8 @@ func (m *eventHandlerStruct) _EventHandlerState_S1_(e *framelang.FrameEvent) {
         m.log("b",e.Params["b"].(int))
         var r  = e.Params["a"].(int) + e.Params["b"].(int)
         m.log("r",r)
+        compartment := NewEventHandlerCompartment(EventHandlerState_S2)
+        m._transition_(compartment)
         e.Ret = r
         return
         

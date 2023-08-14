@@ -2391,7 +2391,7 @@ impl AstVisitor for PythonVisitor {
     fn visit_auto_pre_inc_dec_expr_node(&mut self, ref_expr_type: &RefExprType) {
         match ref_expr_type {
             RefExprType::AssignmentExprT {
-                assignment_expr_node,
+                ..
             } => {}
             RefExprType::CallExprT { call_expr_node } => {
                 // TODO - not sure if this loop should move into the CallExprNode.
@@ -2480,7 +2480,7 @@ impl AstVisitor for PythonVisitor {
                         loop_in_stmt_node.iterable_expr.auto_pre_inc_dec(self);
                     }
                     LoopStmtTypes::LoopInfiniteStmt {
-                        loop_infinite_stmt_node,
+                        ..
                     } => {
 
                         // TODO
@@ -2495,7 +2495,7 @@ impl AstVisitor for PythonVisitor {
     fn visit_auto_post_inc_dec_expr_node(&mut self, ref_expr_type: &RefExprType) {
         match ref_expr_type {
             RefExprType::AssignmentExprT {
-                assignment_expr_node,
+                ..
             } => {}
             RefExprType::CallExprT { call_expr_node } => {
                 // TODO - not sure if this loop should move into the CallExprNode.
@@ -2562,7 +2562,7 @@ impl AstVisitor for PythonVisitor {
                         //     self.visiting_call_chain_literal_variable = false;
                         // }
                         _ => {
-                            let i = 1;
+
                         }
                     }
                 }
@@ -2593,7 +2593,7 @@ impl AstVisitor for PythonVisitor {
                         loop_in_stmt_node.iterable_expr.auto_post_inc_dec(self);
                     }
                     LoopStmtTypes::LoopInfiniteStmt {
-                        loop_infinite_stmt_node,
+                        ..
                     } => {
                         // TODO
                     }
@@ -3122,7 +3122,7 @@ impl AstVisitor for PythonVisitor {
     ) {
         self.add_code("else:");
         self.indent();
-        let mut generate_pass = false;
+
         // if string_match_test_else_branch_node.statements.is_empty() && string_match_test_else_branch_node.branch_terminator_expr_opt.is_none() {
         //     generate_pass = true;
         // }
@@ -3550,7 +3550,7 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_enum_match_test_pattern_node(
         &mut self,
-        enum_match_test_pattern_node: &EnumMatchTestPatternNode,
+        _enum_match_test_pattern_node: &EnumMatchTestPatternNode,
     ) {
         // TODO
         self.errors.push("Not implemented.".to_string());

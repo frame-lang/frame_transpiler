@@ -26,22 +26,22 @@ import (
             log("bye A") ^
 
         |Next|
-            -> ("hi B" 42) $B ^
+            -> ("hi B", 42) $B ^
 
         |Change|
             ->> $B ^
 
     $B
-        |>| [msg:string val:int]
+        |>| [msg:string, val:int]
             log(msg)
             log(strconv.Itoa(val)) ^
 
-        |<| [val:bool msg:string]
+        |<| [val:bool, msg:string]
             log(strconv.FormatBool(val))
             log(msg) ^
 
         |Next|
-            (true "bye B") -> ("hi again A") $A ^
+            (true, "bye B") -> ("hi again A") $A ^
 
         |Change|
             ->> $A ^

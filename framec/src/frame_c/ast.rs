@@ -766,6 +766,7 @@ impl NodeElement for EventHandlerNode {
 pub enum MessageType {
     CustomMessage { message_node: MessageNode },
     AnyMessage { line: usize },
+    None,
 }
 //-----------------------------------------------------//
 

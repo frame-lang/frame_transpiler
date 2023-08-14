@@ -2276,9 +2276,9 @@ impl AstVisitor for CppVisitor {
 
         self.add_code(") {");
         self.indent();
-        let params_param_code;
+        // let params_param_code;
         if interface_method_node.params.is_some() {
-            params_param_code = String::from("&params");
+            // params_param_code = String::from("&params");
             self.newline();
             self.add_code("map<string,void *> params;");
             match &interface_method_node.params {

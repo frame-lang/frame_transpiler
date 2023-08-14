@@ -17,45 +17,45 @@ from framelang.framelang import FrameEvent
 
         |>|
             w = 3
-            log("w" w)
+            log("w", w)
             ^
 
         |Inc|:int
             w = w + 1
-            log("w" w)
+            log("w", w)
             ^(w)
 
         |LogState|
-            log("w" w)
+            log("w", w)
             ^
 
         |Start|
-            -> (3 w) $Foo
+            -> (3, w) $Foo
             ^
 
     $Foo
         var x:int = 0
 
-        |>| [a:int b:int]
-            log("a" a)
-            log("b" b)
+        |>| [a:int, b:int]
+            log("a", a)
+            log("b", b)
             x = a * b
-            log("x" x)
+            log("x", x)
             ^
 
         |<| [c:int]
-            log("c" c)
+            log("c", c)
             x = x + c
-            log("x" x)
+            log("x", x)
             ^
 
         |LogState|
-            log("x" x)
+            log("x", x)
             ^
 
         |Inc|:int
             x = x + 1
-            log("x" x)
+            log("x", x)
             ^(x)
 
         |Next| [arg:int]
@@ -73,30 +73,30 @@ from framelang.framelang import FrameEvent
         var z:int = 0
 
         |>| [a:int]
-            log("a" a)
-            log("y" y)
+            log("a", a)
+            log("y", y)
             z = a + y
-            log("z" z)
+            log("z", z)
             ^
 
         |LogState|
-            log("y" y)
-            log("z" z)
+            log("y", y)
+            log("z", z)
             ^
 
         |Inc|:int
             z = z + 1
-            log("z" z)
+            log("z", z)
             ^(z)
 
         |Change| [arg:int]
             var tmp = y + z + arg
-            log("tmp" tmp)
+            log("tmp", tmp)
             ->> $Init
             ^
 
     -actions-
-    log [name:str val:int]
+    log [name:str, val:int]
 
     -domain-
     var tape = `[]`

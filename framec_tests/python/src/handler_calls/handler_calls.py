@@ -1,4 +1,4 @@
-# emitted from framec_v0.10.0
+# emitted from framec_v0.11.0
 # get include files at https://github.com/frame-lang/frame-ancillary-files
 from framelang.framelang import FrameEvent
 
@@ -113,7 +113,6 @@ class HandlerCalls:
             self.log_do("Foo",e._parameters["arg"])
             (self.__compartment.state_vars["counter"]) = (self.__compartment.state_vars["counter"]) + e._parameters["arg"]
             self.Bar(e._parameters["arg"] * 2)
-            return
             self.log_do("Unreachable",0)
             
             return
@@ -237,7 +236,6 @@ class HandlerCalls:
     # ===================== Actions Block =================== #
     
     
-    # Unimplemented Actions
     
     def log_do(self,through: str,val: int):
         raise NotImplementedError

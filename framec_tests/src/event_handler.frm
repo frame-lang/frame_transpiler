@@ -37,7 +37,7 @@
             log("p", p) ^
 
     -actions-
-    log [val:i32]
+    log [msg:String, val:i32]
 
     -domain-
     var tape:Log = `vec![]`

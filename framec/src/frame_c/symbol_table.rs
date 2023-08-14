@@ -1134,8 +1134,8 @@ impl Arcanum {
                     .set_parent_symtab(&current_symbtab_rcref);
 
                 let action_scope_symbol_rcref_clone = Rc::clone(action_scope_symbol_rcref);
-                let action_symbol_symtab_rcref =
-                    Rc::clone(&action_scope_symbol_rcref_clone.borrow().symtab_rcref);
+                //let action_symbol_symtab_rcref =
+                    //Rc::clone(&action_scope_symbol_rcref_clone.borrow().symtab_rcref);
 
                 // add new scope symbol to previous symbol table
                 self.current_symtab.borrow_mut().insert_parse_scope(scope_t);

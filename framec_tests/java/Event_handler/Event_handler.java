@@ -1,6 +1,5 @@
-// emitted from framec_v0.10.0
+// emitted from framec_v0.11.0
 // get include files at https://github.com/frame-lang/frame-ancillary-files
-
 package framec_tests.java.Event_handler;
 import java.util.*;
 import framec_tests.java.FrameLang.FrameEvent;
@@ -128,12 +127,14 @@ class EventHandler {
     private void _sS1_(FrameEvent e) {
         if(e._message == "LogIt") {
             log_do("x",((int) e._parameters.get("x")));
+            
             return;
         }
         else if(e._message == "LogAdd") {
             log_do("a",((int) e._parameters.get("a")));
             log_do("b",((int) e._parameters.get("b")));
             log_do("a+b",((int) e._parameters.get("a")) + ((int) e._parameters.get("b")));
+            
             return;
         }
         else if(e._message == "LogReturn") {
@@ -141,7 +142,11 @@ class EventHandler {
             log_do("b",((int) e._parameters.get("b")));
             int r  = (int) e._parameters.get("a") + (int) e._parameters.get("b");
             log_do("r",r);
+            EventHandlerCompartment compartment =  new EventHandlerCompartment(EventHandlerState.S2.getValue());
+            
+            this._transition_(compartment);
             e._return = r;
+            
             return;
             
         }
@@ -150,6 +155,7 @@ class EventHandler {
             compartment.stateArgs.put("p", (int) e._parameters.get("a") + (int) e._parameters.get("b"));
             
             this._transition_(compartment);
+            
             return;
         }
         else if(e._message == "PassReturn") {
@@ -160,6 +166,7 @@ class EventHandler {
             
             this._transition_(compartment);
             e._return = r;
+            
             return;
             
         }
@@ -168,6 +175,7 @@ class EventHandler {
     private void _sS2_(FrameEvent e) {
         if(e._message == ">") {
             log_do("p",((int) this._compartment_.stateArgs.get("p")));
+            
             return;
         }
     }
@@ -198,38 +206,96 @@ class EventHandler {
     
     public String state_info(){
         return String.valueOf(this._compartment_.state);
-            }
-            
-    }
-    
-    //=============== Compartment ==============//
-    
-    class EventHandlerCompartment {
-    
-        int state;
-        
-        EventHandlerCompartment(int state) {
-            this.state = state;
         }
         
-        HashMap<String, Object> stateArgs = new HashMap<String, Object>();
-        HashMap<String, Object> stateVars = new HashMap<String, Object>();
-        HashMap<String, Object> enterArgs = new HashMap<String, Object>();
-        HashMap<String, Object> exitArgs = new HashMap<String, Object>();
-        FrameEvent _forwardEvent = new FrameEvent();
+}
+
+//=============== Compartment ==============//
+
+class EventHandlerCompartment {
+
+    public int getState() {
+        return state;
     }
     
+    public void setState(int state) {
+        this.state = state;
+    }
     
-    /********************
-
-    class EventHandlerController extends EventHandler {
-
-    	EventHandlerController() {
-    	  super();
-    	}
+    public HashMap<String, Object> getStateArgs() {
+        return stateArgs;
+    }
     
+    public void setStateArgs(HashMap<String, Object> stateArgs) {
+        this.stateArgs = stateArgs;
+    }
+    
+    public HashMap<String, Object> getStateVars() {
+        return stateVars;
+    }
+    
+    public void setStateVars(HashMap<String, Object> stateVars) {
+        this.stateVars = stateVars;
+    }
+    
+    public HashMap<String, Object> getEnterArgs() {
+        return enterArgs;
+    }
+    
+    public void setEnterArgs(HashMap<String, Object> enterArgs) {
+        this.enterArgs = enterArgs;
+    }
+    
+    public HashMap<String, Object> getExitArgs() {
+        return exitArgs;
+    }
+    
+    public void setExitArgs(HashMap<String, Object> exitArgs) {
+        this.exitArgs = exitArgs;
+    }
+    
+    public FrameEvent get_forwardEvent() {
+        return _forwardEvent;
+    }
+    
+    public void set_forwardEvent(FrameEvent _forwardEvent) {
+        this._forwardEvent = _forwardEvent;
+    }
+    int state;
+    EventHandlerCompartment(){
+    
+    }
+    EventHandlerCompartment(int state) {
+        this.state = state;
+    }
+    
+    HashMap<String, Object> stateArgs = new HashMap<String, Object>();
+    HashMap<String, Object> stateVars = new HashMap<String, Object>();
+    HashMap<String, Object> enterArgs = new HashMap<String, Object>();
+    HashMap<String, Object> exitArgs = new HashMap<String, Object>();
+    FrameEvent _forwardEvent = new FrameEvent();
+    
+    public EventHandlerCompartment(int state, HashMap<String, Object> stateArgs, HashMap<String, Object> stateVars,
+            HashMap<String, Object> enterArgs, HashMap<String, Object> exitArgs, FrameEvent _forwardEvent) {
+        this.state = state;
+        this.stateArgs = stateArgs;
+        this.stateVars = stateVars;
+        this.enterArgs = enterArgs;
+        this.exitArgs = exitArgs;
+        this._forwardEvent = _forwardEvent;
+    }
+}
+
+
+/********************
+
+class EventHandlerController extends EventHandler {
+
+	EventHandlerController() {
+	  super();
+	}
+
     protected void log_do(String msg, int val) {}
-    }
-    
+}
+
 ********************/
-    

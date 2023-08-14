@@ -82,7 +82,7 @@
 
         |Inc|:i32
             z = z + 1
-            log("z" z)
+            log("z", z)
             ^(z)
 
         |Change| [arg:i32]
@@ -92,7 +92,7 @@
             ^
 
     -actions-
-    log [name:String val:i32]
+    log [name:String, val:i32]
 
     -domain-
     var tape:Log = `vec![]`

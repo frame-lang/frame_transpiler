@@ -1,4 +1,4 @@
-# emitted from framec_v0.10.0
+# emitted from framec_v0.11.0
 # get include files at https://github.com/frame-lang/frame-ancillary-files
 from framelang.framelang import FrameEvent
 
@@ -275,7 +275,6 @@ class Naming:
     # ===================== Actions Block =================== #
     
     
-    # Unimplemented Actions
     
     def snake_action_do(self,snake_param: int):
         raise NotImplementedError

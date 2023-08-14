@@ -1,6 +1,5 @@
-// emitted from framec_v0.10.0
+// emitted from framec_v0.11.0
 // get include files at https://github.com/frame-lang/frame-ancillary-files
-
 package framec_tests.java.Branch;
 import java.util.*;
 import framec_tests.java.FrameLang.FrameEvent;
@@ -150,36 +149,42 @@ class Branch {
             BranchCompartment compartment =  new BranchCompartment(BranchState.SIMPLEIF.getValue());
             
             this._transition_(compartment);
+            
             return;
         }
         else if(e._message == "B") {
             BranchCompartment compartment =  new BranchCompartment(BranchState.NEGATEDIF.getValue());
             
             this._transition_(compartment);
+            
             return;
         }
         else if(e._message == "C") {
             BranchCompartment compartment =  new BranchCompartment(BranchState.PRECEDENCE.getValue());
             
             this._transition_(compartment);
+            
             return;
         }
         else if(e._message == "D") {
             BranchCompartment compartment =  new BranchCompartment(BranchState.NESTEDIF.getValue());
             
             this._transition_(compartment);
+            
             return;
         }
         else if(e._message == "E") {
             BranchCompartment compartment =  new BranchCompartment(BranchState.GUARDEDTRANSITION.getValue());
             
             this._transition_(compartment);
+            
             return;
         }
         else if(e._message == "F") {
             BranchCompartment compartment =  new BranchCompartment(BranchState.NESTEDGUARDEDTRANSITION.getValue());
             
             this._transition_(compartment);
+            
             return;
         }
     }
@@ -208,6 +213,7 @@ class Branch {
                 
                 this._transition_(compartment);
             }
+            
             return;
         }
         else if(e._message == "OnInt") {
@@ -232,6 +238,7 @@ class Branch {
                 
                 this._transition_(compartment);
             }
+            
             return;
         }
     }
@@ -260,6 +267,7 @@ class Branch {
                 
                 this._transition_(compartment);
             }
+            
             return;
         }
         else if(e._message == "OnInt") {
@@ -284,6 +292,7 @@ class Branch {
                 
                 this._transition_(compartment);
             }
+            
             return;
         }
     }
@@ -310,6 +319,7 @@ class Branch {
             } else {
                 log_do("else 4");
             }
+            
             return;
         }
     }
@@ -337,6 +347,7 @@ class Branch {
                     this._transition_(compartment);
                 }
             }
+            
             return;
         }
     }
@@ -348,6 +359,7 @@ class Branch {
                 BranchCompartment compartment =  new BranchCompartment(BranchState.F1.getValue());
                 
                 this._transition_(compartment);
+                
                 return;
             } else {
             }
@@ -357,12 +369,14 @@ class Branch {
                 BranchCompartment compartment =  new BranchCompartment(BranchState.F2.getValue());
                 
                 this._transition_(compartment);
+                
                 return;
             }
             log_do("-> $F3");
             BranchCompartment compartment =  new BranchCompartment(BranchState.F3.getValue());
             
             this._transition_(compartment);
+            
             return;
         }
     }
@@ -375,6 +389,7 @@ class Branch {
                     BranchCompartment compartment =  new BranchCompartment(BranchState.F1.getValue());
                     
                     this._transition_(compartment);
+                    
                     return;
                 } else {
                 }
@@ -384,6 +399,7 @@ class Branch {
                     BranchCompartment compartment =  new BranchCompartment(BranchState.F2.getValue());
                     
                     this._transition_(compartment);
+                    
                     return;
                 }
             } else {
@@ -392,6 +408,7 @@ class Branch {
             BranchCompartment compartment =  new BranchCompartment(BranchState.F3.getValue());
             
             this._transition_(compartment);
+            
             return;
         }
     }
@@ -431,38 +448,96 @@ class Branch {
     
     public String state_info(){
         return String.valueOf(this._compartment_.state);
-            }
-            
-    }
-    
-    //=============== Compartment ==============//
-    
-    class BranchCompartment {
-    
-        int state;
-        
-        BranchCompartment(int state) {
-            this.state = state;
         }
         
-        HashMap<String, Object> stateArgs = new HashMap<String, Object>();
-        HashMap<String, Object> stateVars = new HashMap<String, Object>();
-        HashMap<String, Object> enterArgs = new HashMap<String, Object>();
-        HashMap<String, Object> exitArgs = new HashMap<String, Object>();
-        FrameEvent _forwardEvent = new FrameEvent();
+}
+
+//=============== Compartment ==============//
+
+class BranchCompartment {
+
+    public int getState() {
+        return state;
     }
     
+    public void setState(int state) {
+        this.state = state;
+    }
     
-    /********************
-
-    class BranchController extends Branch {
-
-    	BranchController() {
-    	  super();
-    	}
+    public HashMap<String, Object> getStateArgs() {
+        return stateArgs;
+    }
     
+    public void setStateArgs(HashMap<String, Object> stateArgs) {
+        this.stateArgs = stateArgs;
+    }
+    
+    public HashMap<String, Object> getStateVars() {
+        return stateVars;
+    }
+    
+    public void setStateVars(HashMap<String, Object> stateVars) {
+        this.stateVars = stateVars;
+    }
+    
+    public HashMap<String, Object> getEnterArgs() {
+        return enterArgs;
+    }
+    
+    public void setEnterArgs(HashMap<String, Object> enterArgs) {
+        this.enterArgs = enterArgs;
+    }
+    
+    public HashMap<String, Object> getExitArgs() {
+        return exitArgs;
+    }
+    
+    public void setExitArgs(HashMap<String, Object> exitArgs) {
+        this.exitArgs = exitArgs;
+    }
+    
+    public FrameEvent get_forwardEvent() {
+        return _forwardEvent;
+    }
+    
+    public void set_forwardEvent(FrameEvent _forwardEvent) {
+        this._forwardEvent = _forwardEvent;
+    }
+    int state;
+    BranchCompartment(){
+    
+    }
+    BranchCompartment(int state) {
+        this.state = state;
+    }
+    
+    HashMap<String, Object> stateArgs = new HashMap<String, Object>();
+    HashMap<String, Object> stateVars = new HashMap<String, Object>();
+    HashMap<String, Object> enterArgs = new HashMap<String, Object>();
+    HashMap<String, Object> exitArgs = new HashMap<String, Object>();
+    FrameEvent _forwardEvent = new FrameEvent();
+    
+    public BranchCompartment(int state, HashMap<String, Object> stateArgs, HashMap<String, Object> stateVars,
+            HashMap<String, Object> enterArgs, HashMap<String, Object> exitArgs, FrameEvent _forwardEvent) {
+        this.state = state;
+        this.stateArgs = stateArgs;
+        this.stateVars = stateVars;
+        this.enterArgs = enterArgs;
+        this.exitArgs = exitArgs;
+        this._forwardEvent = _forwardEvent;
+    }
+}
+
+
+/********************
+
+class BranchController extends Branch {
+
+	BranchController() {
+	  super();
+	}
+
     protected void log_do(String msg) {}
-    }
-    
+}
+
 ********************/
-    

@@ -8,7 +8,7 @@ from framelang.framelang import FrameEvent
     NonRec
     SelfRec
     MutRec
-    Call [event:str arg:int]
+    Call [event:str, arg:int]
     Foo [arg:int]
     Bar [arg:int]
 
@@ -22,30 +22,30 @@ from framelang.framelang import FrameEvent
         var counter:int = 0
 
         |Foo| [arg:int]
-            log("Foo" arg)
+            log("Foo", arg)
             counter = counter + arg
             Bar(arg*2)
             --- the front-end should report the next line as a static error
-            log("Unreachable" 0)
+            log("Unreachable", 0)
             ^
 
         |Bar| [arg:int]
-            log("Bar" arg)
+            log("Bar", arg)
             counter = counter + arg
             -> $Final(counter) ^
 
-        |Call| [event:str arg:int]
+        |Call| [event:str, arg:int]
             event ?~
                 /Foo/ Foo(arg) :>
                 /Bar/ Bar(arg)
-                : Call("Foo" 1000)
+                : Call("Foo", 1000)
                 :: ^
 
     $SelfRecursive
         var counter:int = 0
 
         |Foo| [arg:int]
-            log("Foo" arg)
+            log("Foo", arg)
             counter = counter + arg
             counter < 100 ?
                 Foo(arg*2)
@@ -54,11 +54,11 @@ from framelang.framelang import FrameEvent
             :: ^
 
         |Bar| [arg:int]
-            log("Bar" arg)
+            log("Bar", arg)
             counter = counter + arg
             -> $Final(counter) ^
 
-        |Call| [event:str arg:int]
+        |Call| [event:str, arg:int]
             event ?~
                 /Foo/ Foo(arg) :>
                 /Bar/ Bar(arg)
@@ -68,7 +68,7 @@ from framelang.framelang import FrameEvent
         var counter:int = 0
 
         |Foo| [arg:int]
-            log("Foo" arg)
+            log("Foo", arg)
             counter = counter + arg
             counter > 100 ?
                 -> $Final(counter)
@@ -77,7 +77,7 @@ from framelang.framelang import FrameEvent
             :: ^
 
         |Bar| [arg:int]
-            log("Bar" arg)
+            log("Bar", arg)
             counter = counter + arg
             arg ?#
                 /4/ Foo(arg) :>
@@ -85,7 +85,7 @@ from framelang.framelang import FrameEvent
                 :   Foo(arg*3)
             :: ^
 
-        |Call| [event:str arg:int]
+        |Call| [event:str, arg:int]
             event ?~
                 /Foo/ Foo(arg) :>
                 /Bar/ Bar(arg)
@@ -93,11 +93,11 @@ from framelang.framelang import FrameEvent
 
     $Final [counter:int]
         |>|
-            log("Final" counter)
+            log("Final", counter)
             -> $Init ^
 
     -actions-
-        log [through:str val:int]
+        log [through:str, val:int]
 
     -domain-
     var tape = `[]`

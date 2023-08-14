@@ -12,16 +12,16 @@ import "golang/framelang"
     to_yy
     nn [d:string]
     ny [d:string]
-    yn [d:string x:string]
-    yy [d:string x:string]
+    yn [d:string, x:string]
+    yy [d:string, x:string]
     sigils [x:string]
 
     -machine-
     $Init
         |to_nn| -> $NN ("$NN[b]") ^
         |to_ny| -> $NY ("$NY[b]") ^
-        |to_yn| -> $YN ("$YN[b]" "$YN[x]") ^
-        |to_yy| -> $YY ("$YY[b]" "$YY[x]") ^
+        |to_yn| -> $YN ("$YN[b]", "$YN[x]") ^
+        |to_yy| -> $YY ("$YY[b]", "$YY[x]") ^
 
     $NN [b:string]
         var c:string = "$NN.c"
@@ -47,7 +47,7 @@ import "golang/framelang"
             log(x)
             ^
 
-        |yn| [d:string x:string]
+        |yn| [d:string, x:string]
             var et:string = "|yn|.e"
             log(a)
             log(b)
@@ -57,7 +57,7 @@ import "golang/framelang"
             log(x)
             ^
 
-        |yy| [d:string x:string]
+        |yy| [d:string, x:string]
             var et:string = "|yy|.e"
             var x:string = "|yy|.x"
             log(a)
@@ -100,7 +100,7 @@ import "golang/framelang"
             log(x)
             ^
 
-        |yn| [d:string x:string]
+        |yn| [d:string, x:string]
             var et:string = "|yn|.e"
             log(a)
             log(b)
@@ -110,7 +110,7 @@ import "golang/framelang"
             log(x)
             ^
 
-        |yy| [d:string x:string]
+        |yy| [d:string, x:string]
             var et:string = "|yy|.e"
             var x:string = "|yy|.x"
             log(a)
@@ -129,7 +129,7 @@ import "golang/framelang"
             --- log(||.x)
             ^
 
-    $YN [b:string x:string]
+    $YN [b:string, x:string]
         var c:string = "$YN.c"
 
         |nn| [d:string]
@@ -153,7 +153,7 @@ import "golang/framelang"
             log(x)
             ^
 
-        |yn| [d:string x:string]
+        |yn| [d:string, x:string]
             var et:string = "|yn|.e"
             log(a)
             log(b)
@@ -163,7 +163,7 @@ import "golang/framelang"
             log(x)
             ^
 
-        |yy| [d:string x:string]
+        |yy| [d:string, x:string]
             var et:string = "|yy|.e"
             var x:string = "|yy|.x"
             log(a)
@@ -182,7 +182,7 @@ import "golang/framelang"
             --- log(||.x)
             ^
 
-    $YY [b:string x:string]
+    $YY [b:string, x:string]
         var c:string = "$YY.c"
         var x:string = "$YY.x"
 
@@ -207,7 +207,7 @@ import "golang/framelang"
             log(x)
             ^
 
-        |yn| [d:string x:string]
+        |yn| [d:string, x:string]
             var et:string = "|yn|.e"
             log(a)
             log(b)
@@ -217,7 +217,7 @@ import "golang/framelang"
             log(x)
             ^
 
-        |yy| [d:string x:string]
+        |yy| [d:string, x:string]
             var et:string = "|yy|.e"
             var x:string = "|yy|.x"
             log(a)

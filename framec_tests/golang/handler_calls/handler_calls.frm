@@ -10,7 +10,7 @@ import "golang/framelang"
     NonRec
     SelfRec
     MutRec
-    Call [event:string arg:int]
+    Call [event:string, arg:int]
     Foo [arg:int]
     Bar [arg:int]
 
@@ -24,30 +24,30 @@ import "golang/framelang"
         var counter:int = 0
 
         |Foo| [arg:int]
-            log("Foo" arg)
+            log("Foo", arg)
             counter = counter + arg
             Bar(arg*2)
             --- the front-end should report the next line as a static error
-            log("Unreachable" 0)
+            log("Unreachable", 0)
             ^
 
         |Bar| [arg:int]
-            log("Bar" arg)
+            log("Bar", arg)
             counter = counter + arg
             -> $Final(counter) ^
 
-        |Call| [event:string arg:int]
+        |Call| [event:string, arg:int]
             event ?~
                 /Foo/ Foo(arg) :>
                 /Bar/ Bar(arg)
-                : Call("Foo" 1000)
+                : Call("Foo", 1000)
                 :: ^
 
     $SelfRecursive
         var counter:int = 0
 
         |Foo| [arg:int]
-            log("Foo" arg)
+            log("Foo", arg)
             counter = counter + arg
             counter < 100 ?
                 Foo(arg*2)
@@ -56,11 +56,11 @@ import "golang/framelang"
             :: ^
 
         |Bar| [arg:int]
-            log("Bar" arg)
+            log("Bar", arg)
             counter = counter + arg
             -> $Final(counter) ^
 
-        |Call| [event:string arg:int]
+        |Call| [event:string, arg:int]
             event ?~
                 /Foo/ Foo(arg) :>
                 /Bar/ Bar(arg)
@@ -70,7 +70,7 @@ import "golang/framelang"
         var counter:int = 0
 
         |Foo| [arg:int]
-            log("Foo" arg)
+            log("Foo", arg)
             counter = counter + arg
             counter > 100 ?
                 -> $Final(counter)
@@ -79,7 +79,7 @@ import "golang/framelang"
             :: ^
 
         |Bar| [arg:int]
-            log("Bar" arg)
+            log("Bar", arg)
             counter = counter + arg
             arg ?#
                 /4/ Foo(arg) :>
@@ -87,7 +87,7 @@ import "golang/framelang"
                 :   Foo(arg*3)
             :: ^
 
-        |Call| [event:string arg:int]
+        |Call| [event:string, arg:int]
             event ?~
                 /Foo/ Foo(arg) :>
                 /Bar/ Bar(arg)
@@ -95,11 +95,11 @@ import "golang/framelang"
 
     $Final [counter:int]
         |>|
-            log("Final" counter)
+            log("Final", counter)
             -> $Init ^
 
     -actions-
-        log [from:string val:int]
+        log [from:string, val:int]
 
     -domain-
     var tape:`[]string` = `[]string{}`

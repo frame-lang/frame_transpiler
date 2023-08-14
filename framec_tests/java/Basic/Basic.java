@@ -1,4 +1,5 @@
-// emitted fro
+// emitted from framec_v0.11.0
+// get include files at https://github.com/frame-lang/frame-ancillary-files
 package framec_tests.java.Basic;
 import java.util.*;
 import framec_tests.java.FrameLang.FrameEvent;
@@ -86,10 +87,12 @@ class Basic {
     private void _sS0_(FrameEvent e) {
         if(e._message == ">") {
             entered_do("S0");
+            
             return;
         }
         else if(e._message == "<") {
             left_do("S0");
+            
             return;
         }
         else if(e._message == "A") {
@@ -97,6 +100,7 @@ class Basic {
             BasicCompartment compartment =  new BasicCompartment(BasicState.S1.getValue());
             
             this._transition_(compartment);
+            
             return;
         }
     }
@@ -104,10 +108,12 @@ class Basic {
     private void _sS1_(FrameEvent e) {
         if(e._message == ">") {
             entered_do("S1");
+            
             return;
         }
         else if(e._message == "<") {
             left_do("S1");
+            
             return;
         }
         else if(e._message == "B") {
@@ -115,6 +121,7 @@ class Basic {
             BasicCompartment compartment =  new BasicCompartment(BasicState.S0.getValue());
             
             this._transition_(compartment);
+            
             return;
         }
     }
@@ -147,15 +154,65 @@ class Basic {
     
     public String state_info(){
         return String.valueOf(this._compartment_.state);
-    }   
+        }
+        
 }
 
 //=============== Compartment ==============//
 
 class BasicCompartment {
 
-    int state;
+    public int getState() {
+        return state;
+    }
     
+    public void setState(int state) {
+        this.state = state;
+    }
+    
+    public HashMap<String, Object> getStateArgs() {
+        return stateArgs;
+    }
+    
+    public void setStateArgs(HashMap<String, Object> stateArgs) {
+        this.stateArgs = stateArgs;
+    }
+    
+    public HashMap<String, Object> getStateVars() {
+        return stateVars;
+    }
+    
+    public void setStateVars(HashMap<String, Object> stateVars) {
+        this.stateVars = stateVars;
+    }
+    
+    public HashMap<String, Object> getEnterArgs() {
+        return enterArgs;
+    }
+    
+    public void setEnterArgs(HashMap<String, Object> enterArgs) {
+        this.enterArgs = enterArgs;
+    }
+    
+    public HashMap<String, Object> getExitArgs() {
+        return exitArgs;
+    }
+    
+    public void setExitArgs(HashMap<String, Object> exitArgs) {
+        this.exitArgs = exitArgs;
+    }
+    
+    public FrameEvent get_forwardEvent() {
+        return _forwardEvent;
+    }
+    
+    public void set_forwardEvent(FrameEvent _forwardEvent) {
+        this._forwardEvent = _forwardEvent;
+    }
+    int state;
+    BasicCompartment(){
+    
+    }
     BasicCompartment(int state) {
         this.state = state;
     }
@@ -165,6 +222,16 @@ class BasicCompartment {
     HashMap<String, Object> enterArgs = new HashMap<String, Object>();
     HashMap<String, Object> exitArgs = new HashMap<String, Object>();
     FrameEvent _forwardEvent = new FrameEvent();
+    
+    public BasicCompartment(int state, HashMap<String, Object> stateArgs, HashMap<String, Object> stateVars,
+            HashMap<String, Object> enterArgs, HashMap<String, Object> exitArgs, FrameEvent _forwardEvent) {
+        this.state = state;
+        this.stateArgs = stateArgs;
+        this.stateVars = stateVars;
+        this.enterArgs = enterArgs;
+        this.exitArgs = exitArgs;
+        this._forwardEvent = _forwardEvent;
+    }
 }
 
 

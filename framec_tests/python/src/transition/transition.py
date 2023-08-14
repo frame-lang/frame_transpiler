@@ -1,4 +1,4 @@
-# emitted from framec_v0.10.0
+# emitted from framec_v0.11.0
 # get include files at https://github.com/frame-lang/frame-ancillary-files
 from framelang.framelang import FrameEvent
 
@@ -176,7 +176,6 @@ class TransitionSm:
     # ===================== Actions Block =================== #
     
     
-    # Unimplemented Actions
     
     def enter_do(self,state: str):
         raise NotImplementedError

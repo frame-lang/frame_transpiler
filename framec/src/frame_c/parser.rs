@@ -333,7 +333,8 @@ impl<'a> Parser<'a> {
 
         while self.peek().token_type != TokenType::Eof {
             for sync_token in sync_tokens {
-                if *sync_token == self.peek().token_type {
+                let current_token_type = self.peek().token_type;
+                if *sync_token == current_token_type {
                     return true;
                 }
             }
@@ -835,8 +836,9 @@ impl<'a> Parser<'a> {
         if self.match_token(&[TokenType::Identifier]) {
             name = self.previous().lexeme.clone();
         } else {
-            self.error_at_current("Expected attribute name.");
-            let parse_error = ParseError::new("TODO");
+            let err_msg = "Expected attribute name.";
+            self.error_at_current(err_msg);
+            let parse_error = ParseError::new(err_msg);
             return Err(parse_error);
         }
         while self.match_token(&[TokenType::Identifier, TokenType::Colon, TokenType::Dot]) {
@@ -994,6 +996,11 @@ impl<'a> Parser<'a> {
                     ];
                     self.synchronize(&sync_tokens);
                 }
+                Ok(MessageType::None) => {
+                    let err_msg = "Unknown message type.";
+                    self.error_at_current(err_msg.clone());
+                    return Err(ParseError::new(err_msg));
+                }
                 Err(err) => return Err(err),
             }
 
@@ -1111,8 +1118,9 @@ impl<'a> Parser<'a> {
             if self.match_token(&[TokenType::At]) {
                 frame_event_part_opt = Some(FrameEventPart::Event { is_reference })
             } else if !self.match_token(&[TokenType::Identifier]) {
-                self.error_at_current("Expected return type name.");
-                return Err(ParseError::new("TODO"));
+                let err_msg = &format!("Expected return type name.");
+                self.error_at_current(err_msg);
+                return Err(ParseError::new(err_msg));
             }
 
             let id = self.previous();
@@ -1129,7 +1137,7 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    // message => '|' ( identifier | string | '>' | '>>' | '>>>' | '<' | '<<' | '<<<' ) '|'
+    // message => '|' ( identifier | string | '>' | '<' ) '|'
 
     fn message(&mut self) -> Result<MessageType, ParseError> {
         let message_node;
@@ -1139,14 +1147,17 @@ impl<'a> Parser<'a> {
                 return Err(parse_error);
             }
         }
+        // TODO - review removing AnyMessage
         if self.match_token(&[TokenType::AnyMessage]) {
             let tok = self.previous();
 
             return Ok(MessageType::AnyMessage { line: tok.line });
         }
         if !self.match_token(&[TokenType::Pipe]) {
-            self.error_at_previous("Expected '|'.");
-            return Err(ParseError::new("TODO"));
+            let token_str = self.peek().lexeme.clone();
+            let err_msg = &format!("Expected closing '|' in message selector. Found {}. ", token_str );
+            self.error_at_previous(err_msg);
+            return Err(ParseError::new(err_msg));
         }
 
         let tt = self.peek().token_type;
@@ -1154,18 +1165,26 @@ impl<'a> Parser<'a> {
             TokenType::Identifier
             | TokenType::String
             | TokenType::GT
-            | TokenType::GTx2
-            | TokenType::GTx3
             | TokenType::LT
-            | TokenType::LTx2
-            | TokenType::LTx3 => message_node = self.create_message_node(tt),
+            // | TokenType::GTx2
+            // | TokenType::GTx3
+            // | TokenType::LTx2
+            // | TokenType::LTx3
+
+             => {
+                message_node = self.create_message_node(tt)
+            },
             _ => {
-                self.error_at_current("Expected '|'");
-                return Err(ParseError::new("TODO"));
+                let token_str = self.peek().lexeme.clone();
+                let err_msg = &format!("Expected closing '|' in message selector. Found {}. ", token_str );
+                self.error_at_current(err_msg);
+                return Err(ParseError::new(err_msg));
             }
         }
 
-        if let Err(parse_error) = self.consume(TokenType::Pipe, "Expected '|'.") {
+        let token_str = self.peek().lexeme.clone();
+        let err_msg = &format!("Expected closing '|' in message selector. Found {}. ", token_str );
+        if let Err(parse_error) = self.consume(TokenType::Pipe, err_msg) {
             return Err(parse_error);
         }
 
@@ -1606,7 +1625,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let mut code_opt: Option<String> = None;
+        let code_opt: Option<String> = None;
         let mut statements = Vec::new();
         let mut terminator_node_opt = None;
         let mut is_implemented = false;
@@ -2411,11 +2430,11 @@ impl<'a> Parser<'a> {
     // event_handler -> '|' Identifier '|' event_handler_terminator
 
     fn event_handler(&mut self) -> Result<Option<EventHandlerNode>, ParseError> {
-        let message_type: MessageType;
+        let mut message_type = MessageType::None;
         // Hack - there is a weird bug w/ Clion that doesn't let msg be uninitialized.
         // It just hangs upon exiting the method.
         let mut msg: String = "".to_string();
-        let line_number: usize;
+        let mut line_number = 0; // TODO - review
         self.interface_method_called = false;
 
         self.event_handler_has_transition = false;
@@ -2432,9 +2451,21 @@ impl<'a> Parser<'a> {
 
                 message_type = CustomMessage { message_node };
             }
+            Ok(MessageType::None) => {
+                let err_msg = "Unknown message type.";
+                self.error_at_current(err_msg.clone());
+                return Err(ParseError::new(err_msg));
+            }
             Err(parse_error) => {
-                self.error_at_current("Error parsing event handler message.");
-                return Err(parse_error);
+                // I don't think I need this:
+               // self.error_at_current("Error parsing event handler message.");
+                //return Err(parse_error);
+                let sync_tokens = vec![
+                    TokenType::Caret,
+                ];
+                if !self.synchronize(&sync_tokens) {
+                    return Err(parse_error);
+                }
             }
         }
 
@@ -3019,6 +3050,7 @@ impl<'a> Parser<'a> {
             Ok(None) => expr_t_opt = None,
             Err(_) => {
                 let sync_tokens = vec![
+                    TokenType::CloseBrace,
                     TokenType::Caret,
                     TokenType::ElseContinue,
                     TokenType::Identifier,
@@ -4101,7 +4133,7 @@ impl<'a> Parser<'a> {
     fn postfix_unary_expression(&mut self) -> Result<Option<ExprType>, ParseError> {
         match self.unary_expression2() {
             Ok(Some(CallChainLiteralExprT {
-                mut call_chain_expr_node,
+                call_chain_expr_node,
             })) => {
                 let mut x = CallChainLiteralExprT {
                     call_chain_expr_node,
@@ -4339,7 +4371,7 @@ impl<'a> Parser<'a> {
                         call_chain_first_node.setIsReference(is_reference);
                     }
 
-                    let mut x = CallChainLiteralExprT {
+                    let x = CallChainLiteralExprT {
                         call_chain_expr_node,
                     };
                     // self.post_inc_dec_expression(&mut x);
@@ -4841,7 +4873,7 @@ impl<'a> Parser<'a> {
     ) -> Result<Option<ExprType>, ParseError> {
         let mut scope: IdentifierDeclScope;
 
-        let debug_id_token = self.previous().lexeme.clone();
+        // let debug_id_token = self.previous().lexeme.clone();
         let mut id_node = IdentifierNode::new(
             self.previous().clone(),
             None,
@@ -4922,9 +4954,9 @@ impl<'a> Parser<'a> {
                                                         {
                                                             let err_msg = format!("Number of arguments does not match parameters for action '{}'.", method_name);
                                                             self.error_at_previous(&err_msg);
-                                                            let parse_error =
-                                                                ParseError::new(err_msg.as_str());
-                                                            return Err(parse_error);
+                                                            // let parse_error =
+                                                            //     ParseError::new(err_msg.as_str());
+                                                            // return Err(parse_error);
                                                         }
                                                     }
                                                     None => {}
@@ -4961,9 +4993,9 @@ impl<'a> Parser<'a> {
                                                     // iface calls disallowed in actions.
                                                     let err_msg = format!("Interface calls disallowed inside of actions.");
                                                     self.error_at_current(&err_msg);
-                                                    let parse_error =
-                                                        ParseError::new(err_msg.as_str());
-                                                    return Err(parse_error);
+                                                    // let parse_error =
+                                                    //     ParseError::new(err_msg.as_str());
+                                                    // return Err(parse_error);
                                                 }
 
                                                 // validate signature
