@@ -12,7 +12,8 @@ use super::scanner::*;
 use super::symbol_table::*;
 // use crate::frame_c::symbol_table::SymbolType::ParamSymbol;
 use crate::frame_c::utils::SystemHierarchy;
-use downcast_rs::__std::cell::RefCell;
+// use downcast_rs::__std::cell::RefCell;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
@@ -1572,7 +1573,6 @@ impl<'a> Parser<'a> {
                 }
                 Err(_err) => {
                     // just return the error upon exiting the function
-
                 }
             }
         }
@@ -1774,12 +1774,12 @@ impl<'a> Parser<'a> {
                         enum_value = *value;
                     } else {
                         let err_msg = "Expected integer in enum assignment. Found float.";
-                        self.error_at_current(err_msg.clone());
+                        self.error_at_current(&&err_msg);
                         return Err(ParseError::new(err_msg));
                     }
                 } else {
                     let err_msg = "Expected number after '='.";
-                    self.error_at_current(err_msg.clone());
+                    self.error_at_current(&&err_msg);
                     return Err(ParseError::new(err_msg));
                 }
             }
@@ -3011,11 +3011,11 @@ impl<'a> Parser<'a> {
                 match expr_t {
                     _ => {
                         // TODO - remove
-                       // let debug = 1;
+                        // let debug = 1;
                     }
                 }
                 expr_t_opt = Some(expr_t)
-            },
+            }
             Ok(None) => expr_t_opt = None,
             Err(_) => {
                 let sync_tokens = vec![
@@ -3460,7 +3460,7 @@ impl<'a> Parser<'a> {
             is_negated = true;
         } else {
             let err_msg = "Expected '?' test token for else-continue next test.";
-            self.error_at_current(err_msg.clone());
+            self.error_at_current(&&err_msg);
             return Err(ParseError::new(err_msg));
         }
 
@@ -4647,7 +4647,7 @@ impl<'a> Parser<'a> {
             //     }
             //     _ => {
             //         let err_msg = "Expected variable or var declaration.";
-            //         self.error_at_current(err_msg.clone());
+            //         self.error_at_current(&&err_msg);
             //         return Err(ParseError::new(err_msg));
             //     }
             // };
@@ -5186,9 +5186,7 @@ impl<'a> Parser<'a> {
                     } => {
                         scope = event_handler_param_symbol_rcref.borrow().scope.clone();
                     }
-                    SymbolType::EventHandlerLocalScope {
-                        ..
-                    } => {
+                    SymbolType::EventHandlerLocalScope { .. } => {
                         scope = IdentifierDeclScope::None;
                     }
                     SymbolType::EnumDeclSymbolT { enum_symbol_rcref } => {
@@ -5204,9 +5202,7 @@ impl<'a> Parser<'a> {
                     } => {
                         scope = block_variable_symbol_rcref.borrow().scope.clone();
                     }
-                    SymbolType::EventHandlerScope {
-                        ..
-                    } => {
+                    SymbolType::EventHandlerScope { .. } => {
                         // TODO - what??
                         // this will be a lookup for a varible that clashes with
                         // the name of an event. Disregard.
@@ -5306,13 +5302,13 @@ impl<'a> Parser<'a> {
             // parse state ref e.g. '$S1'
             if !self.match_token(&[TokenType::State]) {
                 let err_msg = "Missing $.";
-                self.error_at_current(err_msg.clone());
+                self.error_at_current(&&err_msg);
                 return Err(ParseError::new(err_msg));
             }
 
             if !self.match_token(&[TokenType::Identifier]) {
                 let err_msg = "Missing state identifier.";
-                self.error_at_current(err_msg.clone());
+                self.error_at_current(&&err_msg);
                 return Err(ParseError::new(err_msg));
             }
 
@@ -5321,7 +5317,10 @@ impl<'a> Parser<'a> {
 
             if !self.is_building_symbol_table {
                 if !self.arcanum.has_state(&*name) {
-                    let err_msg = format!("{} target state ${} not declared.",context_change_type, name);
+                    let err_msg = format!(
+                        "{} target state ${} not declared.",
+                        context_change_type, name
+                    );
                     self.error_at_current(&*err_msg.clone());
                     return Err(ParseError::new(&*err_msg));
                 }
@@ -5706,8 +5705,8 @@ impl<'a> Parser<'a> {
 
         if !self.is_building_symbol_table {
             let mut found_match = false;
-            let a = enum_symbol_rcref_opt.as_ref().unwrap().as_ref();
-            let c = a.clone();
+            let a = enum_symbol_rcref_opt.as_ref().unwrap();
+            let c = Rc::clone(a);
             let b = c.borrow();
             let c = b.ast_node_opt.as_ref().unwrap();
             let d = c.borrow();

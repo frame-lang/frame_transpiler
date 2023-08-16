@@ -32,12 +32,10 @@
             -> $S2(r) ^(r)
 
     $S2 [p:i32]
-
-        |>|
-            log("p", p) ^
+        |>| log("p", p) ^
 
     -actions-
-    log [val:i32]
+    log [msg:String, val:i32]
 
     -domain-
     var tape:Log = `vec![]`

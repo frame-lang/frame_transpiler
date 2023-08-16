@@ -8,7 +8,7 @@ from framelang.framelang import FrameEvent
     snake_event [snake_param:int]
     CamelEvent [CamelParam:int]
     event123 [param123:int]
-    call [event:str param:int]
+    call [event:str, param:int]
 
     -machine-
     $Init
@@ -21,7 +21,7 @@ from framelang.framelang import FrameEvent
         |event123| [param123:int]
             -> $state123(param123) ^
 
-        |call| [event:str param:int]
+        |call| [event:str, param:int]
             event ?~
                 /snake_event/ snake_event(param) :>
                 /CamelEvent/ CamelEvent(param) :>
@@ -48,7 +48,7 @@ from framelang.framelang import FrameEvent
             action123(localVar123)
             -> $Final(localVar123) ^
 
-        |call| [event:str param:int]
+        |call| [event:str, param:int]
             event ?~
                 /snake_event/ snake_event(param) :>
                 /CamelEvent/ CamelEvent(param) :>
@@ -75,7 +75,7 @@ from framelang.framelang import FrameEvent
             action123(localVar123)
             -> $Final(localVar123) ^
 
-        |call| [event:str param:int]
+        |call| [event:str, param:int]
             event ?~
                 /snake_event/ snake_event(param) :>
                 /CamelEvent/ CamelEvent(param) :>
@@ -102,7 +102,7 @@ from framelang.framelang import FrameEvent
             action123(localVar123)
             -> $Final(localVar123) ^
 
-        |call| [event:str param:int]
+        |call| [event:str, param:int]
             event ?~
                 /snake_event/ snake_event(param) :>
                 /CamelEvent/ CamelEvent(param) :>

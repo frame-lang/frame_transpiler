@@ -309,9 +309,9 @@ impl ScopeSymbol for SymbolType {
             SymbolType::BlockScope { block_scope_rcref } => {
                 block_scope_rcref.borrow().get_symbol_table()
             }
-            SymbolType::BlockVar {
-                ..
-            } => panic!("Fatal error - block variable symbol does not have a symbol table."),
+            SymbolType::BlockVar { .. } => {
+                panic!("Fatal error - block variable symbol does not have a symbol table.")
+            }
             SymbolType::ParamsScope {
                 params_scope_symbol_rcref,
             } => params_scope_symbol_rcref.borrow().get_symbol_table(),
@@ -1311,7 +1311,6 @@ impl Arcanum {
             None => None,
         }
     }
-
 
     /* --------------------------------------------------------------------- */
 

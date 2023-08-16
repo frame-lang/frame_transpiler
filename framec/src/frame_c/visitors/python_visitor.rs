@@ -2474,9 +2474,7 @@ impl AstVisitor for PythonVisitor {
                             expr.borrow().auto_pre_inc_dec(self);
                         }
                     }
-                    LoopStmtTypes::LoopInStmt {
-                        loop_in_stmt_node,
-                    } => {
+                    LoopStmtTypes::LoopInStmt { loop_in_stmt_node } => {
                         loop_in_stmt_node.iterable_expr.auto_pre_inc_dec(self);
                     }
                     LoopStmtTypes::LoopInfiniteStmt {
@@ -2580,16 +2578,12 @@ impl AstVisitor for PythonVisitor {
             // }
             RefExprType::LoopStmtT { loop_types } => {
                 match loop_types {
-                    LoopStmtTypes::LoopForStmt {
-                        loop_for_stmt_node,
-                    } => {
+                    LoopStmtTypes::LoopForStmt { loop_for_stmt_node } => {
                         for expr in &loop_for_stmt_node.post_expr_rcref_opt {
                             expr.borrow().auto_post_inc_dec(self);
                         }
                     }
-                    LoopStmtTypes::LoopInStmt {
-                        loop_in_stmt_node,
-                    } => {
+                    LoopStmtTypes::LoopInStmt { loop_in_stmt_node } => {
                         loop_in_stmt_node.iterable_expr.auto_post_inc_dec(self);
                     }
                     LoopStmtTypes::LoopInfiniteStmt {
@@ -2647,9 +2641,7 @@ impl AstVisitor for PythonVisitor {
             } => {
                 loop_for_expr_node.accept(self);
             }
-            LoopStmtTypes::LoopInStmt {
-                loop_in_stmt_node,
-            } => {
+            LoopStmtTypes::LoopInStmt { loop_in_stmt_node } => {
                 loop_in_stmt_node.accept(self);
             }
             LoopStmtTypes::LoopInfiniteStmt {
