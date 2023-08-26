@@ -2117,12 +2117,12 @@ impl<'a> Parser<'a> {
                                 });
                                 for param in &parameters {
                                     let scope = self.arcanum.get_current_identifier_scope();
-                                    let x = state_symbol.borrow_mut().add_parameter(
+                                    let symbol_t = state_symbol.borrow_mut().add_parameter(
                                         param.param_name.clone(),
                                         param.param_type_opt.clone(),
                                         scope,
                                     );
-                                    let ret = self.arcanum.insert_symbol(x);
+                                    let ret = self.arcanum.insert_symbol(symbol_t);
                                     match ret {
                                         Ok(()) => {}
                                         Err(err_msg) => {
@@ -5364,11 +5364,78 @@ impl<'a> Parser<'a> {
             if self.match_token(&[TokenType::LParen]) {
                 match self.expr_list() {
                     Ok(Some(ExprListT { expr_list_node })) => {
+                        if expr_list_node.exprs_t.is_empty() {
+                            // Error - number of state params does not match number of expression arguments
+                            let err_msg = &format!("Empty expression list not allowed for state parameters for transition target state {}.",name);
+                            self.error_at_current(err_msg.as_str());
+                            return Err(ParseError::new(err_msg));
+                        }
                         state_ref_args_opt = Some(expr_list_node)
                     }
                     Ok(Some(_)) => return Err(ParseError::new("TODO")), // TODO
                     Err(parse_error) => return Err(parse_error),
-                    Ok(None) => {} // continue
+                    Ok(None) => {
+                        // Error - number of state params does not match number of expression arguments
+                        let err_msg = &format!("Empty expression list not allowed for state parameters for transition target state {}.",name);
+                        self.error_at_current(err_msg.as_str());
+                        return Err(ParseError::new(err_msg));
+                    } // continue
+                }
+            }
+
+            if !self.is_building_symbol_table {
+                // validate state parameters with transition target state parameters
+                let state_rcref_opt = self.arcanum.get_state(name.as_str());
+                match state_rcref_opt {
+                    Some(state_symbol) => {
+                        match &state_ref_args_opt {
+                            Some(expr_list_node) => {
+                                 match &state_symbol.borrow().params_opt  {
+                                     Some(params) => {
+                                         if params.len() != expr_list_node.exprs_t.len() {
+                                             // Error - number of state params does not match number of expression arguments
+                                             let err_msg = &format!("Transition target state arguments do not match {} state parameters.", name);
+                                             self.error_at_current(err_msg.as_str());
+                                             return Err(ParseError::new(err_msg));
+                                         }
+                                     }
+                                     None => {
+                                         if expr_list_node.exprs_t.len() != 0 {
+                                             // Error - number of state params does not match number of expression arguments
+                                             let err_msg = &format!("Transition target state arguments do not match {} state parameters.", name);
+                                             self.error_at_current(err_msg.as_str());
+                                             return Err(ParseError::new(err_msg));
+                                         }
+                                     }
+
+                                }
+                            }
+                            None => {
+
+                                // Error - there exist state parameters but no args are passed
+                                if let Some(params) = &state_symbol.borrow().params_opt {
+                                    if params.len() != 0 {
+                                        // Error - number of state params does not match number of expression arguments
+                                        let err_msg = &format!("Transition target state arguments do not match {} state parameters.", name);
+                                        self.error_at_current(err_msg.as_str());
+                                        return Err(ParseError::new(err_msg));
+                                    }
+
+                                    // Ok - state params matches number of arguments.
+                                }
+                            }
+                        }
+                    }
+                    None => {
+                        // There has been some parser error. The absense of a state
+                        // in the arcanum should have been caught above first.
+                        let err_msg = format!(
+                            "{} target state ${} not declared.",
+                            context_change_type, name
+                        );
+                        self.error_at_current(&*err_msg.clone());
+                        return Err(ParseError::new(&*err_msg));
+                    }
                 }
             }
 
