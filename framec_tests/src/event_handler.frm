@@ -32,9 +32,7 @@
             -> $S2(r) ^(r)
 
     $S2 [p:i32]
-
-        |>|
-            log("p", p) ^
+        |>| log("p", p) ^
 
     -actions-
     log [msg:String, val:i32]

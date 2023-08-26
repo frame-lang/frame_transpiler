@@ -195,7 +195,7 @@ dependencies = [
 
 [[package]]
 name = "framec_tests"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "anyhow",
  "frame_build",

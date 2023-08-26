@@ -40,8 +40,7 @@ from framelang.framelang import FrameEvent
 
     $S2 [p:int]
 
-        |>|
-            log("p", p) ^
+        |>| log("p", p) ^
 
     -actions-
     log [msg:str, val:int]
