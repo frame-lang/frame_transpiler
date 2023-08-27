@@ -142,9 +142,6 @@ class EventHandler {
             log_do("b",((int) e._parameters.get("b")));
             int r  = (int) e._parameters.get("a") + (int) e._parameters.get("b");
             log_do("r",r);
-            EventHandlerCompartment compartment =  new EventHandlerCompartment(EventHandlerState.S2.getValue());
-            
-            this._transition_(compartment);
             e._return = r;
             
             return;

@@ -120,10 +120,6 @@ class EventHandler {
                 this.log_do("b",(e._parameters["b"]));
                 let r = e._parameters["a"] + e._parameters["b"];
                 this.log_do("r",r);
-                let compartment =  new EventHandlerCompartment(this.#sS2_);
-                
-                
-                this.#transition(compartment);
                 e._return = r
                 return;
                 }

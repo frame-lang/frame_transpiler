@@ -29,7 +29,7 @@ import framec_tests.java.FrameLang.FrameEvent;
             log("b", b)
             var r:int = a + b
             log("r", r)
-            -> $S2 ^(r)
+            ^(r)
 
         |PassAdd| [a:int, b:int]
             -> $S2(a+b) ^

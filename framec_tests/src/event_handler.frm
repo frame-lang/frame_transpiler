@@ -21,7 +21,7 @@
             log("b", b)
             var r = a + b
             log("r", r)
-            -> $S2 ^(r)
+            ^(r)
 
         |PassAdd| [a:i32, b:i32]
             -> $S2(a+b) ^
