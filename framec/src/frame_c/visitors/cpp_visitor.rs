@@ -40,7 +40,7 @@ pub struct CppVisitor {
     has_states: bool,
     errors: Vec<String>,
     visiting_call_chain_literal_variable: bool,
-    generate_exit_args: bool,
+    // generate_exit_args: bool,
     generate_state_context: bool,
     generate_state_stack: bool,
     generate_change_state: bool,
@@ -102,7 +102,7 @@ impl CppVisitor {
             visiting_call_chain_literal_variable: false,
             errors: Vec::new(),
             subclass_code: Vec::new(),
-            generate_exit_args,
+            // generate_exit_args,
             generate_state_context,
             generate_state_stack,
 

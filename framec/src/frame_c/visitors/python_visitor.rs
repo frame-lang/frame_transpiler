@@ -1153,6 +1153,12 @@ impl PythonVisitor {
 
         self.add_code("compartment = self.__state_stack_pop()");
         self.newline();
+
+        if transition_statement.forward_event {
+            self.add_code("compartment.forward_event = e");
+            self.newline();
+        }
+
         self.add_code("self.__transition(compartment)");
     }
 

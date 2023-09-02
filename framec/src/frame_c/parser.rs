@@ -2976,7 +2976,7 @@ impl<'a> Parser<'a> {
 
             if is_err {
                 is_err = false;
-                let mut sync_tokens = vec![
+                let sync_tokens = vec![
                     TokenType::Identifier,
                     TokenType::LParen,
                     TokenType::Caret,
@@ -5330,6 +5330,10 @@ impl<'a> Parser<'a> {
     ) -> Result<Option<StateContextType>, ParseError> {
         if self.match_token(&[TokenType::StateStackOperationPop]) {
             Ok(Some(StateContextType::StateStackPop {}))
+        } else if self.match_token(&[TokenType::StateStackOperationPush]) {
+            let err_msg = "Error - $$[+] is an invalid transition target. Try replacing with $$[-]. ";
+            self.error_at_previous(&&err_msg);
+            return Err(ParseError::new(err_msg));
         } else {
             // parse state ref e.g. '$S1'
             if !self.match_token(&[TokenType::State]) {
@@ -5504,6 +5508,14 @@ impl<'a> Parser<'a> {
         if self.match_token(&[TokenType::Dispatch]) {
             forward_event = true;
             if enter_msg_with_enter_args {
+
+                // TODO - revisit this rule and document, update or remove.
+                // Disallowed:
+                // $S0
+                //     |>| -> ("hi") => $S1 ^ --- I think this is ok
+                //     |>| -> ("hi") => $$[-] ^ --- I think this should be illegal
+                //                              --- as the enter args are on the compartment
+
                 self.error_at_current(
                     "Transition dispatch disallowed in enter message with enter event parameters.",
                 )
