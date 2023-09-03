@@ -1,4 +1,3 @@
-from readline import append_history_file
 from state_params.state_params import StateParams
 
 class StateParamsController(StateParams):
