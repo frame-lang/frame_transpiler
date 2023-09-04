@@ -1438,6 +1438,12 @@ impl AstVisitor for PythonVisitor {
         self.newline();
         self.add_code(&system_node.header);
 
+        // Generate any enums
+
+        if let Some(domain_block_node) = &system_node.domain_block_node_opt {
+            domain_block_node.accept_enums(self);
+        }
+
         self.newline();
         self.newline();
         self.add_code(&format!("class {}:", system_node.name));
@@ -1918,10 +1924,6 @@ impl AstVisitor for PythonVisitor {
         for variable_decl_node_rcref in &domain_block_node.member_variables {
             let variable_decl_node = variable_decl_node_rcref.borrow();
             variable_decl_node.accept(self);
-        }
-
-        for enum_decl_node_rcref in &domain_block_node.enums {
-            enum_decl_node_rcref.borrow().accept(self);
         }
 
         self.newline();
@@ -3862,6 +3864,7 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_enum_decl_node(&mut self, enum_decl_node: &EnumDeclNode) {
         self.newline();
+        self.newline();
         self.add_code(&format!("class {}(Enum):", enum_decl_node.name));
         self.indent();
 
@@ -3870,7 +3873,7 @@ impl AstVisitor for PythonVisitor {
         }
 
         self.outdent();
-        self.newline()
+        // self.newline()
     }
 
     //* --------------------------------------------------------------------- *//

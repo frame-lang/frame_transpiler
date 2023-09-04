@@ -103,8 +103,9 @@ pub struct Parser<'a> {
     system_hierarchy_opt: Option<SystemHierarchy>,
     is_parsing_rhs: bool,
     event_handler_has_transition: bool,
-    is_action_context: bool,
-    is_loop_context: bool,
+    is_action_scope: bool,
+    is_function_scope: bool,
+    is_loop_scope: bool,
     stmt_idx: i32,
     interface_method_called: bool,
     pub generate_enter_args: bool,
@@ -147,8 +148,9 @@ impl<'a> Parser<'a> {
             generate_state_stack: false,
             generate_change_state: false,
             generate_transition_state: false,
-            is_action_context: false,
-            is_loop_context: false,
+            is_action_scope: false,
+            is_function_scope: false,
+            is_loop_scope: false,
             stmt_idx: 0,
             interface_method_called: false,
             sync_tokens_from_error_context: Vec::new(),
@@ -407,10 +409,17 @@ impl<'a> Parser<'a> {
             }
         }
 
+        // let functions_opt = match self.functions() {
+        //     Ok(functions_opt) => functions_opt,
+        //     Err(_parse_error) => None,
+        // };
+
+        // #[attribute]
         let attributes_opt = match self.attributes() {
             Ok(attributes_opt) => attributes_opt,
             Err(_parse_error) => None,
         };
+
 
         // TODO: Error handling
         if !self.match_token(&[TokenType::System]) {
@@ -772,7 +781,8 @@ impl<'a> Parser<'a> {
         }
 
         if !self.match_token(&[TokenType::SystemEnd]) {
-            self.error_at_current("Expected ##.");
+            let err_msg = &format!("Expected ## - found {}.", self.previous().lexeme);
+            self.error_at_current(err_msg);
         }
 
         let line = self.previous().line;
@@ -792,6 +802,200 @@ impl<'a> Parser<'a> {
             domain_block_node_opt,
             line,
         )
+    }
+
+
+    /* --------------------------------------------------------------------- */
+
+    fn functions(&mut self) -> Result<Option<Vec<Rc<RefCell<FunctionNode>>>>, ParseError> {
+        let mut functions = Vec::new();
+
+        while self.match_token(&[TokenType::Function]) {
+            if let Ok(function) = self.function_scope() {
+                functions.push(function);
+            }
+        }
+
+        if functions.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(functions))
+        }
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    // This method wraps the call to the function_context() call which does
+    // the parsing. Here the scope stack is managed including
+    // the scope symbol creation and association with the AST node.
+
+    fn function_scope(&mut self) -> Result<Rc<RefCell<FunctionNode>>, ParseError> {
+        if !self.match_token(&[TokenType::Identifier]) {
+            let err_msg = "Expected function name.";
+            self.error_at_current(&err_msg);
+            return Err(ParseError::new(err_msg));
+
+        }
+
+        let function_name = self.previous().lexeme.clone();
+
+        // The 'is_function_context' flag is used to determine which statements are valid
+        // to be called in the context of an function. Transitions, for example, are not
+        // allowed.
+        self.is_function_scope = true;
+        
+        if self.is_building_symbol_table {
+            // syntax pass
+            let function_symbol = FunctionScopeSymbol::new(function_name.clone());
+            //            function_symbol_opt = Some(function_symbol);
+        
+            let function_scope_symbol_rcref = Rc::new(RefCell::new(function_symbol));
+            let function_symbol_parse_scope_t = ParseScopeType::Function {
+                function_scope_symbol_rcref,
+            };
+            self.arcanum.enter_scope(function_symbol_parse_scope_t);
+        } else {
+            // semantic pass
+            // link function symbol to function declaration node
+        
+            // TODO - remove?
+            // let a = self
+            //     .arcanum
+            //     .current_symtab
+            //     .borrow()
+            //     .lookup(&*function_name, &IdentifierDeclScope::None);
+        
+            // see if we can get the function symbol set in the syntax pass. if so, then move
+            // all this to the calling function and pass inthe symbol
+            self.arcanum.set_parse_scope(&function_name);
+        }
+
+        let ret = self.function(function_name.clone());
+
+        // if self.is_building_symbol_table {
+        //     match &ret {
+        //         Ok(function_node_rcref) => {
+        //             // associate AST node with symbol
+        //
+        //             let b = self.arcanum.lookup_function(&function_name.clone());
+        //             let c = b.unwrap();
+        //             let mut d = c.borrow_mut();
+        //             d.ast_node_opt = Some(function_node_rcref.clone());
+        //         }
+        //         Err(_err) => {
+        //             // just return the error upon exiting the function
+        //         }
+        //     }
+        // }
+        
+        self.arcanum.exit_parse_scope();
+        ret
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn function(&mut self, action_name: String) -> Result<Rc<RefCell<FunctionNode>>, ParseError> {
+        let mut params: Option<Vec<ParameterNode>> = Option::None;
+
+        if self.match_token(&[TokenType::LBracket]) {
+            params = match self.parameters_scope() {
+                Ok(Some(parameters)) => Some(parameters),
+                Ok(None) => None,
+                Err(parse_error) => return Err(parse_error),
+            }
+        }
+
+        let mut type_opt: Option<TypeNode> = None;
+
+        if self.match_token(&[TokenType::Colon]) {
+            match self.type_decl() {
+                Ok(type_node) => type_opt = Some(type_node),
+                Err(parse_error) => return Err(parse_error),
+            }
+        }
+
+        let code_opt: Option<String> = None;
+        let mut statements = Vec::new();
+        let mut terminator_node_opt = None;
+        let mut is_implemented = false;
+
+        if self.match_token(&[TokenType::OpenBrace]) {
+            is_implemented = true;
+            // TODO - figure out how this needs to be added to statements
+            // if self.match_token(&[TokenType::SuperString]) {
+            //     let token = self.previous();
+            //     code_opt = Some(token.lexeme.clone());
+            // }
+
+            statements = self.statements(IdentifierDeclScope::BlockVar);
+
+            if self.match_token(&[TokenType::Caret]) {
+                if self.match_token(&[TokenType::LParen]) {
+                    let expr_t = match self.decorated_unary_expression() {
+                        Ok(Some(expr_t)) => expr_t,
+                        _ => {
+                            self.error_at_current("Expected expression as return value.");
+                            //  self.arcanum.exit_parse_scope();
+                            return Err(ParseError::new("TODO"));
+                        }
+                    };
+
+                    if let Err(parse_error) = self.consume(TokenType::RParen, "Expected ')'.") {
+                        // self.arcanum.exit_parse_scope();
+                        return Err(parse_error);
+                    }
+
+                    terminator_node_opt = Some(TerminatorExpr::new(
+                        Return,
+                        Some(expr_t),
+                        self.previous().line,
+                    ));
+                } else {
+                    terminator_node_opt =
+                        Some(TerminatorExpr::new(Return, None, self.previous().line));
+                }
+            }
+
+            if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
+                //   self.arcanum.exit_parse_scope();
+                return Err(parse_error);
+            } else {
+            }
+        }
+
+        let function_node = FunctionNode::new(
+            action_name.clone(),
+            // params,
+            // is_implemented,
+            // statements,
+            // terminator_node_opt,
+            // type_opt,
+            // code_opt,
+        );
+        // let action_node_rcref = Rc::new(RefCell::new(action_node));
+        //
+        // if self.is_building_symbol_table {
+        //     // syntactic pass.
+        //     // Add reference from action symbol to the ActionNode.
+        //     // TODO: note what is being done. We are linking to the AST node generated in the
+        //     // TODO: **syntax** pass (not the semantic pass).
+        //     // The  AST tree built during the syntax pass is otherwise disposed of, but not these
+        //     // references squirrled away in the symbol table.
+        //     // This may be fine but feels wrong. Alternatively
+        //     // we could copy this information out of the node and into the symbol.
+        //
+        //     let action_node_rcref = Rc::new(RefCell::new(action_node));
+        //
+        //     action_symbol.set_ast_node(Rc::clone(&action_node_rcref));
+        //     let action_symbol_rcref = Rc::new(RefCell::new(action_decl_symbol));
+        //     let action_decl_symbol_t = SymbolType::ActionScope {
+        //         action_decl_symbol_rcref,
+        //     };
+        // }
+
+        let x = RefCell::new(function_node);
+        let y = Rc::new(x);
+        Ok(y)
     }
 
     /* --------------------------------------------------------------------- */
@@ -1209,7 +1413,7 @@ impl<'a> Parser<'a> {
     // be expanded to other parameter types if possible.
 
     fn parameters_scope(&mut self) -> Result<Option<Vec<ParameterNode>>, ParseError> {
-        self.is_loop_context = true;
+        self.is_loop_scope = true;
         if self.is_building_symbol_table {
             let params_scope_symbol_rcref = Rc::new(RefCell::new(ParamsScopeSymbol::new()));
             self.arcanum.enter_scope(ParseScopeType::Params {
@@ -1540,7 +1744,7 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    // This method wraps the call to the action_context() call which does
+    // This method wraps the call to the action() call which does
     // the parsing. Here the scope stack is managed including
     // the scope symbol creation and association with the AST node.
 
@@ -1550,7 +1754,7 @@ impl<'a> Parser<'a> {
         // The 'is_action_context' flag is used to determine which statements are valid
         // to be called in the context of an action. Transitions, for example, are not
         // allowed.
-        self.is_action_context = true;
+        self.is_action_scope = true;
 
         if self.is_building_symbol_table {
             // syntax pass
@@ -1598,7 +1802,7 @@ impl<'a> Parser<'a> {
 
         self.arcanum.exit_parse_scope();
 
-        self.is_action_context = false;
+        self.is_action_scope = false;
 
         ret
     }
@@ -2929,7 +3133,7 @@ impl<'a> Parser<'a> {
                                     StatementType::ChangeStateStmt { .. } => {
                                         statements.push(decl_or_statement);
                                         // state changes disallowed in actions
-                                        if self.is_action_context {
+                                        if self.is_action_scope {
                                             self.error_at_current(
                                                 "Transitions disallowed in actions.",
                                             );
@@ -2942,14 +3146,14 @@ impl<'a> Parser<'a> {
                                         statements.push(decl_or_statement);
                                     }
                                     StatementType::ContinueStmt { .. } => {
-                                        if self.is_loop_context {
+                                        if self.is_loop_scope {
                                             statements.push(decl_or_statement);
                                         } else {
                                             is_err = true;
                                         }
                                     }
                                     StatementType::BreakStmt { .. } => {
-                                        if self.is_loop_context {
+                                        if self.is_loop_scope {
                                             statements.push(decl_or_statement);
                                         } else {
                                             is_err = true;
@@ -4452,7 +4656,7 @@ impl<'a> Parser<'a> {
 
     fn loop_statement_scope(&mut self) -> Result<Option<StatementType>, ParseError> {
         // for all loop types, push a symbol table for new scope
-        self.is_loop_context = true;
+        self.is_loop_scope = true;
         if self.is_building_symbol_table {
             let scope_name = &format!("{}.{}", LoopStmtScopeSymbol::scope_name(), self.stmt_idx);
             let loop_stmt_scope_symbol_rcref =
@@ -4469,7 +4673,7 @@ impl<'a> Parser<'a> {
         let ret = self.loop_statement();
         // exit loop scope
         self.arcanum.exit_parse_scope();
-        self.is_loop_context = false;
+        self.is_loop_scope = false;
         ret
     }
 
@@ -4989,7 +5193,7 @@ impl<'a> Parser<'a> {
                                         match interface_method_symbol_opt {
                                             Some(interface_method_symbol) => {
                                                 // first node is an interface call.
-                                                if self.is_action_context {
+                                                if self.is_action_scope {
                                                     // iface calls disallowed in actions.
                                                     let err_msg = format!("Interface calls disallowed inside of actions.");
                                                     self.error_at_current(&err_msg);
@@ -5460,7 +5664,7 @@ impl<'a> Parser<'a> {
     ) -> Result<Option<StatementType>, ParseError> {
         self.generate_transition_state = true;
 
-        if self.is_action_context {
+        if self.is_action_scope {
             let err_msg = format!("Transitions disallowed inside of actions.");
             self.error_at_current(&err_msg);
             let parse_error = ParseError::new(err_msg.as_str());

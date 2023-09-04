@@ -47,6 +47,9 @@ pub trait ScopeSymbol {
 }
 
 pub enum ParseScopeType {
+    Function {
+        function_scope_symbol_rcref: Rc<RefCell<FunctionScopeSymbol>>,
+    },
     System {
         system_symbol: Rc<RefCell<SystemSymbol>>,
     },
@@ -98,6 +101,9 @@ pub enum ParseScopeType {
 
 // This is what gets stored in the symbol tables
 pub enum SymbolType {
+    FunctionScope {
+        function_symbol_ref: Rc<RefCell<FunctionScopeSymbol>>,
+    },
     System {
         system_symbol_ref: Rc<RefCell<SystemSymbol>>,
     },
@@ -182,7 +188,12 @@ pub enum SymbolType {
 impl Symbol for SymbolType {
     fn get_name(&self) -> String {
         match self {
-            SymbolType::System { system_symbol_ref } => system_symbol_ref.borrow().get_name(),
+            SymbolType::FunctionScope { function_symbol_ref } => {
+                function_symbol_ref.borrow().get_name()
+            },
+            SymbolType::System { system_symbol_ref } => {
+                system_symbol_ref.borrow().get_name()
+            },
             SymbolType::InterfaceBlock {
                 interface_block_symbol_rcref,
             } => interface_block_symbol_rcref.borrow().get_name(),
@@ -258,6 +269,11 @@ impl Symbol for SymbolType {
 impl ScopeSymbol for SymbolType {
     fn get_symbol_table(&self) -> Rc<RefCell<SymbolTable>> {
         match self {
+            SymbolType::FunctionScope {
+                function_symbol_ref,
+            } => {
+                function_symbol_ref.borrow().get_symbol_table()
+            },
             SymbolType::System { system_symbol_ref } => {
                 system_symbol_ref.borrow().get_symbol_table()
             }
@@ -315,6 +331,7 @@ impl ScopeSymbol for SymbolType {
             SymbolType::ParamsScope {
                 params_scope_symbol_rcref,
             } => params_scope_symbol_rcref.borrow().get_symbol_table(),
+
 
             _ => {
                 panic!("Could not find SymbolType. Giving up.")
@@ -391,6 +408,13 @@ impl SymbolTable {
 
     pub fn insert_parse_scope(&mut self, scope_t: ParseScopeType) {
         match scope_t {
+            ParseScopeType::Function { function_scope_symbol_rcref } => {
+                let name = function_scope_symbol_rcref.borrow().name.clone();
+                let st_ref = Rc::new(RefCell::new(SymbolType::FunctionScope {
+                    function_symbol_ref:function_scope_symbol_rcref
+                }));
+                self.symbols.insert(name, st_ref);
+            }
             ParseScopeType::System { system_symbol } => {
                 let name = system_symbol.borrow().name.clone();
                 let st_ref = Rc::new(RefCell::new(SymbolType::System {
@@ -782,7 +806,7 @@ impl fmt::Display for SymbolTable {
 }
 
 pub struct Arcanum {
-    pub root_symtab: Rc<RefCell<SymbolTable>>,
+    pub global_symtab: Rc<RefCell<SymbolTable>>,
     pub current_symtab: Rc<RefCell<SymbolTable>>,
     pub system_symbol_opt: Option<Rc<RefCell<SystemSymbol>>>,
     pub symbol_config: SymbolConfig,
@@ -797,11 +821,11 @@ impl Arcanum {
             IdentifierDeclScope::None,
             false,
         );
-        let root_symbtab_rc = Rc::new(RefCell::new(st));
+        let global_symbtab_rc = Rc::new(RefCell::new(st));
 
         Arcanum {
-            current_symtab: Rc::clone(&root_symbtab_rc),
-            root_symtab: root_symbtab_rc,
+            current_symtab: Rc::clone(&global_symbtab_rc),
+            global_symtab: global_symbtab_rc,
             system_symbol_opt: None,
             symbol_config: SymbolConfig::new(), // TODO
             serializable: false,
@@ -899,11 +923,59 @@ impl Arcanum {
         }
     }
 
+
+    // Actions are only declared in the -actions- block.
+    // Get -actions-block- symtab from the system symbol and lookup.
+    #[allow(clippy::many_single_char_names)] // TODO
+    pub fn lookup_function(&self, name: &str) -> Option<Rc<RefCell<FunctionScopeSymbol>>> {
+        // let a = &self.system_symbol_opt.as_ref().unwrap();
+        // match &a.borrow().actions_block_symbol_opt {
+        //     Some(actions_block_scope_symbol) => {
+        //         let b = actions_block_scope_symbol.borrow();
+        //         let x = &b.symtab_rcref.borrow();
+        //         match x.lookup(name, &IdentifierDeclScope::ActionsBlock) {
+        //             Some(c) => {
+        //                 let d = c.borrow();
+        //                 match &*d {
+        //                     SymbolType::ActionScope {
+        //                         action_scope_symbol_rcref: action_symbol_rcref,
+        //                     } => Some(Rc::clone(action_symbol_rcref)),
+        //                     _ => None,
+        //                 }
+        //             }
+        //             None => None,
+        //         }
+        //     }
+        //     None => None,
+        // }
+        None
+    }
+
     /* --------------------------------------------------------------------- */
 
     pub fn enter_scope(&mut self, scope_t: ParseScopeType) {
         // do scope specific actions
         match &scope_t {
+            ParseScopeType::Function {
+                function_scope_symbol_rcref,
+            } => {
+                // set parent symbol table
+                let current_symbtab_rcref = Rc::clone(&self.current_symtab);
+                function_scope_symbol_rcref
+                    .borrow_mut()
+                    .set_parent_symtab(&current_symbtab_rcref);
+
+                // add new scope symbol to previous symbol table
+                let function_scope_symbol_rcref_clone = Rc::clone(function_scope_symbol_rcref);
+                // clone the Rc for the symbol table
+                let function_symbol_symtab_rcref =
+                    Rc::clone(&function_scope_symbol_rcref_clone.borrow().symtab_rcref);
+
+                // add new scope symbol to previous symbol table
+                self.current_symtab.borrow_mut().insert_parse_scope(scope_t);
+                // clone the Rc for the symbol table
+                self.current_symtab = Rc::clone(&function_symbol_symtab_rcref);
+            }
             ParseScopeType::System {
                 system_symbol: system_symbol_rcref,
             } => {
@@ -2494,7 +2566,7 @@ impl ScopeSymbol for DomainBlockScopeSymbol {
 
 // ----------------------- //
 
-// ActionScopeSymbol creates both a symbol table as well as
+
 pub struct ActionScopeSymbol {
     pub name: String,
     pub ast_node_opt: Option<Rc<RefCell<ActionNode>>>,
@@ -2620,75 +2692,67 @@ impl ScopeSymbol for LoopStmtScopeSymbol {
     }
 }
 
-// -----------------------
 
-// TODO: figure out how to namespace this so as to not have to suffix w/ Struct.
-//
-// pub const ACTION_LOCAL_SCOPE_NAME: &str = "-action-local-scope-";
-//
-// pub struct ActionScopeSymbol {
-//     pub name: String,
-//     pub symtab_rcref: Rc<RefCell<SymbolTable>>,
-// }
-//
-// impl ActionScopeSymbol {
-//     pub fn new() -> ActionScopeSymbol {
-//         ActionScopeSymbol {
-//             name: ACTION_LOCAL_SCOPE_NAME.to_string(),
-//             symtab_rcref: Rc::new(RefCell::new(SymbolTable::new(
-//                 ACTION_LOCAL_SCOPE_NAME.to_string(),
-//                 None,
-//                 IdentifierDeclScope::ActionVar,
-//                 false,
-//
-//             ))),
-//         }
-//     }
-//
-//     #[inline]
-//     pub fn scope_name() -> &'static str {
-//         ACTION_LOCAL_SCOPE_NAME
-//     }
-//
-//     pub fn set_parent_symtab(&mut self, parent_symtab: &Rc<RefCell<SymbolTable>>) {
-//         self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt =
-//             Option::Some(Rc::clone(parent_symtab));
-//     }
-// }
-//
-// impl Default for ActionScopeSymbol {
-//     fn default() -> Self {
-//         ActionScopeSymbol::new()
-//     }
-// }
-//
-// // TODO is this used?
-// impl Symbol for ActionScopeSymbol {
-//     fn get_name(&self) -> String {
-//         self.name.clone()
-//     }
-// }
-//
-// impl ScopeSymbol for ActionScopeSymbol {
-//     fn get_symbol_table(&self) -> Rc<RefCell<SymbolTable>> {
-//         Rc::clone(&self.symtab_rcref)
-//     }
-//
-//     fn get_symbol_table_for_symbol(&self, symbol_name: &str) -> Rc<RefCell<SymbolTable>> {
-//         let a = self.symtab_rcref.borrow();
-//         let b = a.symbols.get(symbol_name);
-//         if let Some(c) = b {
-//             let d = c.borrow();
-//             let e = d.get_symbol_table_for_symbol(symbol_name);
-//             Rc::clone(&e)
-//         } else {
-//             panic!(
-//                 "Fatal error - could not find symbol {} in event handler local scope.",
-//                 symbol_name
-//             );
-//         }
-//     }
-// }
+// ----------------------- //
+
+
+pub struct FunctionScopeSymbol {
+    pub name: String,
+    pub ast_node_opt: Option<Rc<RefCell<FunctionNode>>>,
+    pub symtab_rcref: Rc<RefCell<SymbolTable>>,
+}
+
+impl FunctionScopeSymbol {
+    pub fn new(name: String) -> FunctionScopeSymbol {
+        FunctionScopeSymbol {
+            name: name.to_string(),
+            ast_node_opt: None,
+            symtab_rcref: Rc::new(RefCell::new(SymbolTable::new(
+                name.to_string(),
+                None,
+                IdentifierDeclScope::None,
+                false,
+            ))),
+        }
+    }
+
+    pub fn set_parent_symtab(&mut self, parent_symtab: &Rc<RefCell<SymbolTable>>) {
+        self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt =
+            Option::Some(Rc::clone(parent_symtab));
+    }
+
+    pub fn set_ast_node(&mut self, ast_node: Rc<RefCell<FunctionNode>>) {
+        self.ast_node_opt = Some(Rc::clone(&ast_node));
+    }
+}
+
+// TODO - can Symbol and ScopeSymbol impls use a default implementation?
+impl Symbol for FunctionScopeSymbol {
+    fn get_name(&self) -> String {
+        self.name.clone()
+    }
+}
+
+impl ScopeSymbol for FunctionScopeSymbol {
+    fn get_symbol_table(&self) -> Rc<RefCell<SymbolTable>> {
+        Rc::clone(&self.symtab_rcref)
+    }
+
+    fn get_symbol_table_for_symbol(&self, symbol_name: &str) -> Rc<RefCell<SymbolTable>> {
+        let a = self.symtab_rcref.borrow();
+        let b = a.symbols.get(symbol_name);
+        if let Some(c) = b {
+            let d = c.borrow();
+            let e = d.get_symbol_table_for_symbol(symbol_name);
+            Rc::clone(&e)
+        } else {
+            panic!(
+                "Fatal error - could not find symbol {} in action scope.",
+                symbol_name
+            );
+        }
+    }
+}
 
 // ----------------------- //
 

@@ -46,6 +46,9 @@ pub trait NodeElement {
     fn accept_action_impl(&self, _ast_visitor: &mut dyn AstVisitor) {
         // no_op
     }
+    fn accept_enums(&self, _ast_visitor: &mut dyn AstVisitor) {
+        // no_op
+    }
 }
 
 // TODO: is this a good name for Identifier and Call expressions?
@@ -294,6 +297,43 @@ impl NodeElement for ParameterNode {
 //         return true;
 //     }
 // }
+
+
+//-----------------------------------------------------//
+
+pub struct FunctionNode {
+    pub name: String,
+    // pub params: Option<Vec<ParameterNode>>,
+    // pub is_implemented: bool,
+    // pub statements: Vec<DeclOrStmtType>,
+    // pub terminator_node_opt: Option<TerminatorExpr>,
+    // pub type_opt: Option<TypeNode>,
+    // pub code_opt: Option<String>,
+}
+
+impl FunctionNode {
+    pub fn new(
+        name: String,
+        // params: Option<Vec<ParameterNode>>,
+        // is_implemented: bool,
+        // statements: Vec<DeclOrStmtType>,
+        // terminator_node_opt: Option<TerminatorExpr>,
+        // type_opt: Option<TypeNode>,
+        // code_opt: Option<String>,
+    ) -> FunctionNode {
+        FunctionNode {
+            name,
+            // params,
+            // is_implemented,
+            // statements,
+            // terminator_node_opt,
+            // type_opt,
+            // code_opt,
+        }
+    }
+}
+
+
 //-----------------------------------------------------//
 
 pub struct ActionNode {
@@ -579,6 +619,13 @@ impl DomainBlockNode {
 impl NodeElement for DomainBlockNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         ast_visitor.visit_domain_block_node(self);
+    }
+
+    fn accept_enums(&self, ast_visitor: &mut dyn AstVisitor) {
+        for enum_decl_node_rcref in &self.enums {
+            let enum_decl_node = enum_decl_node_rcref.borrow();
+            ast_visitor.visit_enum_decl_node(&*enum_decl_node);
+        }
     }
 }
 

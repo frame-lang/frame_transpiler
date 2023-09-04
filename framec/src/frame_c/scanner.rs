@@ -45,10 +45,12 @@ impl Scanner {
             ("continue".to_string(), TokenType::Continue),
             ("break".to_string(), TokenType::Break),
             ("enum".to_string(), TokenType::Enum),
+            ("fn".to_string(), TokenType::Function),
             ("-interface-".to_string(), TokenType::InterfaceBlock),
             ("-machine-".to_string(), TokenType::MachineBlock),
             ("-actions-".to_string(), TokenType::ActionsBlock),
             ("-domain-".to_string(), TokenType::DomainBlock),
+
         ]
         .iter()
         .cloned()
@@ -738,14 +740,15 @@ pub enum TokenType {
     ThreeTicks,        // ```
     SuperString,       // `stuff + "stuff"`
     Number,            // 1, 1.01
-    Var,               // var kw
-    Const,             // const kw
-    New,               // new kw
-    Loop,              // loop kw
-    Continue,          // continue kw
-    Break,             // break kw
-    In,                // 'in' kw
-    Enum,              // 'enum' kw
+    Var,               // var keyword
+    Const,             // const keyword
+    New,               // new keyword
+    Loop,              // loop keyword
+    Continue,          // continue keyword
+    Break,             // break keyword
+    In,                // 'in' keyword
+    Enum,              // 'enum' keyword
+    Function,          // 'fn' keyword
     SingleLineComment, // --- comment
     MultiLineComment,  // {-- comments --}
     OpenBrace,         // {
