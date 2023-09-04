@@ -3865,7 +3865,8 @@ impl AstVisitor for PythonVisitor {
     fn visit_enum_decl_node(&mut self, enum_decl_node: &EnumDeclNode) {
         self.newline();
         self.newline();
-        self.add_code(&format!("class {}(Enum):", enum_decl_node.name));
+
+        self.add_code(&format!("class {}_{}(Enum):", self.system_name, enum_decl_node.name));
         self.indent();
 
         for enumerator_decl_node in &enum_decl_node.enums {
@@ -3882,7 +3883,7 @@ impl AstVisitor for PythonVisitor {
         self.newline();
         self.add_code(&format!(
             "{} = {}",
-            enumerator_decl_node.name, enumerator_decl_node.value
+             enumerator_decl_node.name, enumerator_decl_node.value
         ));
     }
 
@@ -3890,8 +3891,8 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_enumerator_expr_node(&mut self, enum_expr_node: &EnumeratorExprNode) {
         self.add_code(&format!(
-            "{}.{}",
-            enum_expr_node.enum_type, enum_expr_node.enumerator
+            "{}_{}.{}",
+            self.system_name, enum_expr_node.enum_type, enum_expr_node.enumerator
         ));
     }
 
@@ -3903,8 +3904,8 @@ impl AstVisitor for PythonVisitor {
         output: &mut String,
     ) {
         output.push_str(&format!(
-            "{}.{}",
-            enum_expr_node.enum_type, enum_expr_node.enumerator
+            "{}_{}.{}",
+            self.system_name, enum_expr_node.enum_type, enum_expr_node.enumerator
         ));
     }
 
