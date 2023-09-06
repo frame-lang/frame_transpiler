@@ -1112,7 +1112,8 @@ impl ExprType {
                     .borrow()
                     .auto_post_inc_dec(ast_visitor);
             }
-            _ => {}
+            _ => {
+            }
         }
     }
 }

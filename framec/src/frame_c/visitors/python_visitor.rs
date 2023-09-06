@@ -2683,7 +2683,7 @@ impl AstVisitor for PythonVisitor {
             test_expr.auto_pre_inc_dec(self);
 
             //            self.newline();
-            self.add_code(&format!("if !({}):", output));
+            self.add_code(&format!("if not({}):", output));
             self.indent();
             self.newline();
             self.add_code("break");
