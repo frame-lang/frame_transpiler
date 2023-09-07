@@ -2272,14 +2272,23 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_bool_test_node(&mut self, bool_test_node: &BoolTestNode) {
-        let mut if_or_else_if = "if ";
+        let mut is_first_loop = true;
+        let mut outdent_cnt = 0;
+        let bool_var_name = "___b___";
 
         self.newline();
         for branch_node in &bool_test_node.conditional_branch_nodes {
+            if !is_first_loop {
+                self.add_code("else:");
+                self.indent();
+                self.newline();
+                outdent_cnt += 1;
+            }
+
+            branch_node.expr_t.auto_pre_inc_dec(self);
+            self.add_code(&format!("{} = ",bool_var_name));
             if branch_node.is_negated {
-                self.add_code(&format!("{} not (", if_or_else_if));
-            } else {
-                self.add_code(&format!("{} ", if_or_else_if));
+                self.add_code(&format!("not (",));
             }
 
             branch_node.expr_t.accept(self);
@@ -2287,7 +2296,10 @@ impl AstVisitor for PythonVisitor {
             if branch_node.is_negated {
                 self.add_code(")");
             }
-            self.add_code(":");
+            branch_node.expr_t.auto_post_inc_dec(self);
+
+            self.newline();
+            self.add_code(&format!("if {}:", bool_var_name));
             self.indent();
 
             branch_node.accept(self);
@@ -2296,12 +2308,17 @@ impl AstVisitor for PythonVisitor {
             self.outdent();
             self.newline();
 
-            if_or_else_if = "elif ";
+            is_first_loop = false;
         }
 
         // (':' bool_test_else_branch)?
         if let Some(bool_test_else_branch_node) = &bool_test_node.else_branch_node_opt {
             bool_test_else_branch_node.accept(self);
+        }
+
+        // unwind the accumulated indents
+        for i in 0..outdent_cnt {
+            self.outdent();
         }
     }
 
@@ -4138,7 +4155,6 @@ impl AstVisitor for PythonVisitor {
             binary_expr_node.right_rcref.borrow().accept(self);
             self.add_code("))");
         } else {
-            //            self.newline();
             binary_expr_node.left_rcref.borrow().accept(self);
             binary_expr_node.operator.accept(self);
             binary_expr_node.right_rcref.borrow().accept(self);

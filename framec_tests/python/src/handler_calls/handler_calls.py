@@ -145,7 +145,8 @@ class HandlerCalls:
         if e._message == "Foo":
             self.log_do("Foo",e._parameters["arg"])
             (self.__compartment.state_vars["counter"]) = (self.__compartment.state_vars["counter"]) + e._parameters["arg"]
-            if  (self.__compartment.state_vars["counter"]) < 100:
+            ___b___ = (self.__compartment.state_vars["counter"]) < 100
+            if ___b___:
                 self.Foo(e._parameters["arg"] * 2)
                 return
             else:
@@ -183,7 +184,8 @@ class HandlerCalls:
         if e._message == "Foo":
             self.log_do("Foo",e._parameters["arg"])
             (self.__compartment.state_vars["counter"]) = (self.__compartment.state_vars["counter"]) + e._parameters["arg"]
-            if  (self.__compartment.state_vars["counter"]) > 100:
+            ___b___ = (self.__compartment.state_vars["counter"]) > 100
+            if ___b___:
                 compartment = HandlerCallsCompartment(self.__handlercalls_state_Final)
                 compartment.state_args["counter"] = self.__compartment.state_vars["counter"]
                 self.__transition(compartment)
