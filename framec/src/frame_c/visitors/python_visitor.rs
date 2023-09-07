@@ -3908,7 +3908,7 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_enumerator_expr_node(&mut self, enum_expr_node: &EnumeratorExprNode) {
         self.add_code(&format!(
-            "{}_{}.{}",
+            "{}_{}.{}.value",
             self.system_name, enum_expr_node.enum_type, enum_expr_node.enumerator
         ));
     }
@@ -3921,7 +3921,7 @@ impl AstVisitor for PythonVisitor {
         output: &mut String,
     ) {
         output.push_str(&format!(
-            "{}_{}.{}",
+            "{}_{}.{}.value",
             self.system_name, enum_expr_node.enum_type, enum_expr_node.enumerator
         ));
     }
