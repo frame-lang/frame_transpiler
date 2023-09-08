@@ -1,4 +1,4 @@
-from enum_case.enum_case import EnumTest
+from enum_case.enum_case import EnumTest, EnumTest_Days
 
 class EnumTestController(EnumTest):
 
@@ -44,4 +44,25 @@ def test_state_transition_():
     assert "FRIDAY=5" in sm.days
     assert "SUNDAY=0" in sm.days
 
+# def test_enum_value_modification():
 
+#     sm = EnumTestController()
+#     assert EnumTest_Days.SUNDAY.value == 0
+#     assert EnumTest_Days.MONDAY.value == 1
+
+#     # Modify an enum value
+#     EnumTest_Days.SUNDAY.value = 42
+#     # new_sunday._value_ = 42 
+#     assert EnumTest_Days.SUNDAY.value == 42
+#     sm.entered_do("Modified Sunday", EnumTest_Days.SUNDAY.value)
+#     assert "Modified Sunday=42" in sm.days
+
+
+def test_attempt_to_modify_enum():
+    try:
+        EnumTest_Days.SUNDAY.value = 42
+    except AttributeError:
+        pass
+    else:
+        # If no exception is raised, the test should fail
+        assert False, "Enum modification should raise an AttributeError"

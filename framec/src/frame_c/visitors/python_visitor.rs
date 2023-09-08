@@ -2357,7 +2357,7 @@ impl AstVisitor for PythonVisitor {
                 // Leaving here in case there is an unconsidered edge case.
                 // Needs to be directly solved by the mandatory event handler solution,
                 // whatever that is going to be.
-                // self.generate_return();
+                self.generate_return();
                 return;
             }
         }
