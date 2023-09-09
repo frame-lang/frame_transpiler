@@ -2430,7 +2430,7 @@ impl AstVisitor for PythonVisitor {
                 // Leaving here in case there is an unconsidered edge case.
                 // Needs to be directly solved by the mandatory event handler solution,
                 // whatever that is going to be.
-                // self.generate_return();
+                self.generate_return();
                 return;
             }
         }
@@ -3981,7 +3981,7 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_enumerator_expr_node(&mut self, enum_expr_node: &EnumeratorExprNode) {
         self.add_code(&format!(
-            "{}_{}.{}",
+            "{}_{}.{}.value",
             self.system_name, enum_expr_node.enum_type, enum_expr_node.enumerator
         ));
     }
@@ -3994,7 +3994,7 @@ impl AstVisitor for PythonVisitor {
         output: &mut String,
     ) {
         output.push_str(&format!(
-            "{}_{}.{}",
+            "{}_{}.{}.value",
             self.system_name, enum_expr_node.enum_type, enum_expr_node.enumerator
         ));
     }
