@@ -390,6 +390,7 @@ impl<'a> Parser<'a> {
                 None,
                 None,
                 0,
+                None,
             );
         }
 
@@ -409,10 +410,10 @@ impl<'a> Parser<'a> {
             }
         }
 
-        // let functions_opt = match self.functions() {
-        //     Ok(functions_opt) => functions_opt,
-        //     Err(_parse_error) => None,
-        // };
+        let functions_opt = match self.functions() {
+            Ok(functions_opt) => functions_opt,
+            Err(_parse_error) => None,
+        };
 
         // #[attribute]
         let attributes_opt = match self.attributes() {
@@ -456,147 +457,13 @@ impl<'a> Parser<'a> {
             self.arcanum.set_parse_scope(&system_name);
         }
 
-        // Parse optional system params.
-        // #SystemName $[start_state_param:T] >[start_state_enter_param:U] #[domain_params:V]
-
         let mut system_start_state_state_params_opt: Option<Vec<ParameterNode>> = Option::None;
-
-        if self.match_token(&[TokenType::State]) {
-            if self.consume(TokenType::LBracket, "Expected '['").is_err() {
-                let sync_tokens = vec![
-                    TokenType::GT,
-                    TokenType::System,
-                    TokenType::InterfaceBlock,
-                    TokenType::ActionsBlock,
-                    TokenType::MachineBlock,
-                    TokenType::DomainBlock,
-                    TokenType::SystemEnd,
-                ];
-                self.synchronize(&sync_tokens);
-            }
-            match self.parameters() {
-                Ok(Some(parameters)) => system_start_state_state_params_opt = Some(parameters),
-                Ok(None) => {}
-                Err(_) => {}
-            }
-        }
-
         let mut system_enter_params_opt: Option<Vec<ParameterNode>> = Option::None;
-
-        if self.match_token(&[TokenType::GT]) {
-            if self.consume(TokenType::LBracket, "Expected '['").is_err() {
-                let sync_tokens = vec![
-                    TokenType::System,
-                    TokenType::InterfaceBlock,
-                    TokenType::ActionsBlock,
-                    TokenType::MachineBlock,
-                    TokenType::DomainBlock,
-                    TokenType::SystemEnd,
-                ];
-                self.synchronize(&sync_tokens);
-            }
-            match self.parameters() {
-                Ok(Some(parameters)) => system_enter_params_opt = Some(parameters),
-                Ok(None) => {}
-                Err(_) => {}
-            }
-        }
-
         let mut domain_params_opt: Option<Vec<ParameterNode>> = Option::None;
 
-        if self.match_token(&[TokenType::LBracket]) {
-            match self.parameters() {
-                Ok(Some(parameters)) => {
-                    if !self.is_building_symbol_table {
-                        // check system domain params override a domain variable and match type
-                        for param in &parameters {
-                            let name = &param.param_name;
-                            let domain_symbol_rcref_opt =
-                                self.arcanum.lookup(name, &IdentifierDeclScope::DomainBlock);
-                            if domain_symbol_rcref_opt.is_none() {
-                                self.error_at_current(&format!(
-                                    "System domain parameter '{}' does not exist in the domain.",
-                                    name
-                                ));
-                                let sync_tokens = vec![
-                                    TokenType::InterfaceBlock,
-                                    TokenType::MachineBlock,
-                                    TokenType::ActionsBlock,
-                                    TokenType::DomainBlock,
-                                    TokenType::SystemEnd,
-                                ];
-                                self.synchronize(&sync_tokens);
-                            } else {
-                                // domain var exists, check type matches
-                                let symbol_type_rcref = domain_symbol_rcref_opt.unwrap();
-                                let symbol_type = symbol_type_rcref.borrow();
-                                match &*symbol_type {
-                                    SymbolType::DomainVariable {
-                                        domain_variable_symbol_rcref,
-                                    } => {
-                                        let domain_variable_symbol =
-                                            domain_variable_symbol_rcref.borrow();
-                                        let domain_variable_symbol_type_node_opt =
-                                            &domain_variable_symbol.var_type;
-                                        let param_type_node_opt = &param.param_type_opt;
-                                        if domain_variable_symbol_type_node_opt.is_none()
-                                            && param_type_node_opt.is_none()
-                                        {
-                                            // ok
-                                        } else if domain_variable_symbol_type_node_opt.is_some()
-                                            && param_type_node_opt.is_some()
-                                        {
-                                            // maybe ok, check types match
-                                            let domain_variable_type_node =
-                                                domain_variable_symbol_type_node_opt
-                                                    .as_ref()
-                                                    .unwrap();
-                                            let param_type_node =
-                                                param_type_node_opt.as_ref().unwrap();
-                                            if domain_variable_type_node
-                                                .get_type_str()
-                                                .ne(&param_type_node.get_type_str())
-                                            {
-                                                // error - one has a type and the other does not.
-                                                self.error_at_current(&format!("System domain parameter '{}' type does not match domain variable type.",name));
-                                                let sync_tokens = vec![
-                                                    TokenType::InterfaceBlock,
-                                                    TokenType::MachineBlock,
-                                                    TokenType::ActionsBlock,
-                                                    TokenType::DomainBlock,
-                                                    TokenType::SystemEnd,
-                                                ];
-                                                self.synchronize(&sync_tokens);
-                                            }
-                                        } else {
-                                            // error - one has a type and the other does not.
-                                            self.error_at_current(&format!("System domain parameter '{}' type does not match domain variable type.",name));
-                                            let sync_tokens = vec![
-                                                TokenType::InterfaceBlock,
-                                                TokenType::MachineBlock,
-                                                TokenType::ActionsBlock,
-                                                TokenType::DomainBlock,
-                                                TokenType::SystemEnd,
-                                            ];
-                                            self.synchronize(&sync_tokens);
-                                        }
-                                    }
-                                    _ => {
-                                        self.error_at_current(&format!(
-                                            "Compiler error - wrong type found for '{}'.",
-                                            name
-                                        ));
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    domain_params_opt = Some(parameters)
-                }
-                Ok(None) => {}
-                Err(_) => {}
-            }
-        }
+        (system_start_state_state_params_opt,
+         system_enter_params_opt,
+         domain_params_opt) = self.system_params();
 
         if self.match_token(&[TokenType::InterfaceBlock]) {
             self.arcanum
@@ -801,9 +668,236 @@ impl<'a> Parser<'a> {
             actions_block_node_opt,
             domain_block_node_opt,
             line,
+            functions_opt,
         )
     }
 
+
+    /* --------------------------------------------------------------------- */
+    // Parse optional system params.
+    // [ $[start_state_param:T], >[start_state_enter_param:U], #[domain_params:V] ]
+
+    fn system_params(&mut self) -> (Option<Vec<ParameterNode>>,Option<Vec<ParameterNode>>,Option<Vec<ParameterNode>>) {
+        let mut system_start_state_state_params_opt: Option<Vec<ParameterNode>> = Option::None;
+        let mut system_enter_params_opt: Option<Vec<ParameterNode>> = Option::None;
+        let mut domain_params_opt: Option<Vec<ParameterNode>> = Option::None;
+
+
+        if self.match_token(&[TokenType::LBracket]) {
+
+            system_start_state_state_params_opt = self.system_start_state_params();
+            if system_start_state_state_params_opt.is_some() {
+                if self.match_token(&[TokenType::Comma]) {
+                    (system_enter_params_opt,domain_params_opt) = self.system_enter_or_domain_params();
+                    if system_enter_params_opt.is_none() && domain_params_opt.is_none() {
+                        self.error_at_current("Expected ], found ','")
+                    }
+                }
+
+            } else {
+                (system_enter_params_opt,domain_params_opt) = self.system_enter_or_domain_params();
+            }
+
+            if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
+                let sync_tokens = vec![
+                    TokenType::Identifier,
+                    TokenType::MachineBlock,
+                    TokenType::ActionsBlock,
+                    TokenType::DomainBlock,
+                    TokenType::SystemEnd,
+                ];
+                self.synchronize(&sync_tokens);
+            } else {
+                if system_start_state_state_params_opt.is_none() && system_enter_params_opt.is_none() && domain_params_opt.is_none() {
+                    self.error_at_current("Empty system parameter list.")
+                }
+            }
+
+        }
+
+        (system_start_state_state_params_opt,system_enter_params_opt,domain_params_opt)
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn system_enter_or_domain_params(&mut self) -> (Option<Vec<ParameterNode>>,Option<Vec<ParameterNode>>) {
+        let mut system_enter_params_opt: Option<Vec<ParameterNode>> = Option::None;
+        let mut domain_params_opt: Option<Vec<ParameterNode>> = Option::None;
+
+        system_enter_params_opt = self.system_enter_params();
+        if system_enter_params_opt.is_some() {
+            if self.match_token(&[TokenType::Comma]) {
+                domain_params_opt = self.system_domain_params();
+                if domain_params_opt.is_none() {
+                    self.error_at_current("Expected ], found ','")
+                }
+            }
+
+        } else {
+            domain_params_opt = self.system_domain_params();
+        }
+
+        (system_enter_params_opt,domain_params_opt)
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn system_start_state_params(&mut self) -> Option<Vec<ParameterNode>> {
+        let mut system_start_state_state_params_opt: Option<Vec<ParameterNode>> = Option::None;
+
+        if self.match_token(&[TokenType::State]) {
+            if self.consume(TokenType::LBracket, "Expected '['").is_err() {
+                let sync_tokens = vec![
+                    TokenType::GT,
+                    TokenType::System,
+                    TokenType::InterfaceBlock,
+                    TokenType::ActionsBlock,
+                    TokenType::MachineBlock,
+                    TokenType::DomainBlock,
+                    TokenType::SystemEnd,
+                ];
+                self.synchronize(&sync_tokens);
+            }
+            match self.parameters() {
+                Ok(Some(parameters)) => system_start_state_state_params_opt = Some(parameters),
+                Ok(None) => {}
+                Err(_) => {}
+            }
+
+        }
+
+        system_start_state_state_params_opt
+    }
+
+
+    /* --------------------------------------------------------------------- */
+
+    fn system_enter_params(&mut self) -> Option<Vec<ParameterNode>> {
+        let mut system_enter_params_opt: Option<Vec<ParameterNode>> = Option::None;
+
+        if self.match_token(&[TokenType::GT]) {
+            if self.consume(TokenType::LBracket, "Expected '['").is_err() {
+                let sync_tokens = vec![
+                    TokenType::System,
+                    TokenType::InterfaceBlock,
+                    TokenType::ActionsBlock,
+                    TokenType::MachineBlock,
+                    TokenType::DomainBlock,
+                    TokenType::SystemEnd,
+                ];
+                self.synchronize(&sync_tokens);
+            }
+            match self.parameters() {
+                Ok(Some(parameters)) => system_enter_params_opt = Some(parameters),
+                Ok(None) => {}
+                Err(_) => {}
+            }
+        }
+
+        system_enter_params_opt
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn system_domain_params(&mut self) -> Option<Vec<ParameterNode>> {
+        let mut domain_params_opt: Option<Vec<ParameterNode>> = Option::None;
+
+        if self.match_token(&[TokenType::LBracket]) {
+            match self.parameters() {
+                Ok(Some(parameters)) => {
+                    if !self.is_building_symbol_table {
+                        // check system domain params override a domain variable and match type
+                        for param in &parameters {
+                            let name = &param.param_name;
+                            let domain_symbol_rcref_opt =
+                                self.arcanum.lookup(name, &IdentifierDeclScope::DomainBlock);
+                            if domain_symbol_rcref_opt.is_none() {
+                                self.error_at_current(&format!(
+                                    "System domain parameter '{}' does not exist in the domain.",
+                                    name
+                                ));
+                                let sync_tokens = vec![
+                                    TokenType::InterfaceBlock,
+                                    TokenType::MachineBlock,
+                                    TokenType::ActionsBlock,
+                                    TokenType::DomainBlock,
+                                    TokenType::SystemEnd,
+                                ];
+                                self.synchronize(&sync_tokens);
+                            } else {
+                                // domain var exists, check type matches
+                                let symbol_type_rcref = domain_symbol_rcref_opt.unwrap();
+                                let symbol_type = symbol_type_rcref.borrow();
+                                match &*symbol_type {
+                                    SymbolType::DomainVariable {
+                                        domain_variable_symbol_rcref,
+                                    } => {
+                                        let domain_variable_symbol =
+                                            domain_variable_symbol_rcref.borrow();
+                                        let domain_variable_symbol_type_node_opt =
+                                            &domain_variable_symbol.var_type;
+                                        let param_type_node_opt = &param.param_type_opt;
+                                        if domain_variable_symbol_type_node_opt.is_none()
+                                            && param_type_node_opt.is_none()
+                                        {
+                                            // ok
+                                        } else if domain_variable_symbol_type_node_opt.is_some()
+                                            && param_type_node_opt.is_some()
+                                        {
+                                            // maybe ok, check types match
+                                            let domain_variable_type_node =
+                                                domain_variable_symbol_type_node_opt
+                                                    .as_ref()
+                                                    .unwrap();
+                                            let param_type_node =
+                                                param_type_node_opt.as_ref().unwrap();
+                                            if domain_variable_type_node
+                                                .get_type_str()
+                                                .ne(&param_type_node.get_type_str())
+                                            {
+                                                // error - one has a type and the other does not.
+                                                self.error_at_current(&format!("System domain parameter '{}' type does not match domain variable type.",name));
+                                                let sync_tokens = vec![
+                                                    TokenType::InterfaceBlock,
+                                                    TokenType::MachineBlock,
+                                                    TokenType::ActionsBlock,
+                                                    TokenType::DomainBlock,
+                                                    TokenType::SystemEnd,
+                                                ];
+                                                self.synchronize(&sync_tokens);
+                                            }
+                                        } else {
+                                            // error - one has a type and the other does not.
+                                            self.error_at_current(&format!("System domain parameter '{}' type does not match domain variable type.",name));
+                                            let sync_tokens = vec![
+                                                TokenType::InterfaceBlock,
+                                                TokenType::MachineBlock,
+                                                TokenType::ActionsBlock,
+                                                TokenType::DomainBlock,
+                                                TokenType::SystemEnd,
+                                            ];
+                                            self.synchronize(&sync_tokens);
+                                        }
+                                    }
+                                    _ => {
+                                        self.error_at_current(&format!(
+                                            "Compiler error - wrong type found for '{}'.",
+                                            name
+                                        ));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    domain_params_opt = Some(parameters)
+                }
+                Ok(None) => {}
+                Err(_) => {}
+            }
+        }
+
+        domain_params_opt
+    }
 
     /* --------------------------------------------------------------------- */
 
@@ -872,21 +966,21 @@ impl<'a> Parser<'a> {
 
         let ret = self.function(function_name.clone());
 
-        // if self.is_building_symbol_table {
-        //     match &ret {
-        //         Ok(function_node_rcref) => {
-        //             // associate AST node with symbol
-        //
-        //             let b = self.arcanum.lookup_function(&function_name.clone());
-        //             let c = b.unwrap();
-        //             let mut d = c.borrow_mut();
-        //             d.ast_node_opt = Some(function_node_rcref.clone());
-        //         }
-        //         Err(_err) => {
-        //             // just return the error upon exiting the function
-        //         }
-        //     }
-        // }
+        if self.is_building_symbol_table {
+            match &ret {
+                Ok(function_node_rcref) => {
+                    // associate AST node with symbol
+
+                    let function_scope_symbol_rcref_opt = self.arcanum.lookup_function(&function_name.clone());
+                    let function_scope_symbol_rcref = function_scope_symbol_rcref_opt.unwrap();
+                    let mut function_scope_symbol = function_scope_symbol_rcref.borrow_mut();
+                    function_scope_symbol.ast_node_opt = Some(function_node_rcref.clone());
+                }
+                Err(_err) => {
+                    // just return the error upon exiting the function
+                }
+            }
+        }
         
         self.arcanum.exit_parse_scope();
         ret
@@ -965,12 +1059,11 @@ impl<'a> Parser<'a> {
 
         let function_node = FunctionNode::new(
             action_name.clone(),
-            // params,
-            // is_implemented,
-            // statements,
-            // terminator_node_opt,
-            // type_opt,
-            // code_opt,
+            params,
+            is_implemented,
+            statements,
+            terminator_node_opt,
+            type_opt,
         );
         // let action_node_rcref = Rc::new(RefCell::new(action_node));
         //

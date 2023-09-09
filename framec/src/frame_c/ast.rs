@@ -157,6 +157,7 @@ pub struct SystemNode {
     pub actions_block_node_opt: Option<ActionsBlockNode>,
     pub domain_block_node_opt: Option<DomainBlockNode>,
     pub line: usize,
+    pub functions_opt: Option<Vec<Rc<RefCell<FunctionNode>>>>, // TODO - move this int a module node
 }
 
 impl SystemNode {
@@ -172,6 +173,7 @@ impl SystemNode {
         actions_block_node_opt: Option<ActionsBlockNode>,
         domain_block_node_opt: Option<DomainBlockNode>,
         line: usize,
+        functions_node_opt: Option<Vec<Rc<RefCell<FunctionNode>>>>,
     ) -> SystemNode {
         SystemNode {
             name,
@@ -185,6 +187,7 @@ impl SystemNode {
             actions_block_node_opt,
             domain_block_node_opt,
             line,
+            functions_opt: functions_node_opt,
         }
     }
 
@@ -303,36 +306,46 @@ impl NodeElement for ParameterNode {
 
 pub struct FunctionNode {
     pub name: String,
-    // pub params: Option<Vec<ParameterNode>>,
-    // pub is_implemented: bool,
-    // pub statements: Vec<DeclOrStmtType>,
-    // pub terminator_node_opt: Option<TerminatorExpr>,
-    // pub type_opt: Option<TypeNode>,
-    // pub code_opt: Option<String>,
+    pub params: Option<Vec<ParameterNode>>,
+    pub is_implemented: bool,
+    pub statements: Vec<DeclOrStmtType>,
+    pub terminator_node_opt: Option<TerminatorExpr>,
+    pub type_opt: Option<TypeNode>,
 }
 
 impl FunctionNode {
     pub fn new(
         name: String,
-        // params: Option<Vec<ParameterNode>>,
-        // is_implemented: bool,
-        // statements: Vec<DeclOrStmtType>,
-        // terminator_node_opt: Option<TerminatorExpr>,
-        // type_opt: Option<TypeNode>,
-        // code_opt: Option<String>,
+        params: Option<Vec<ParameterNode>>,
+        is_implemented: bool,
+        statements: Vec<DeclOrStmtType>,
+        terminator_node_opt: Option<TerminatorExpr>,
+        type_opt: Option<TypeNode>,
     ) -> FunctionNode {
         FunctionNode {
             name,
-            // params,
-            // is_implemented,
-            // statements,
-            // terminator_node_opt,
-            // type_opt,
-            // code_opt,
+            params,
+            is_implemented,
+            statements,
+            terminator_node_opt,
+            type_opt,
         }
     }
 }
 
+
+impl NodeElement for FunctionNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_function_node(self);
+    }
+
+    // fn accept_action_decl(&self, ast_visitor: &mut dyn AstVisitor) {
+    //     ast_visitor.visit_action_node(self);
+    // }
+    // fn accept_action_impl(&self, ast_visitor: &mut dyn AstVisitor) {
+    //     ast_visitor.visit_action_impl_node(self);
+    // }
+}
 
 //-----------------------------------------------------//
 
@@ -343,7 +356,7 @@ pub struct ActionNode {
     pub statements: Vec<DeclOrStmtType>,
     pub terminator_node_opt: Option<TerminatorExpr>,
     pub type_opt: Option<TypeNode>,
-    pub code_opt: Option<String>,
+    pub code_opt: Option<String>, // TODO - remove
 }
 
 impl ActionNode {

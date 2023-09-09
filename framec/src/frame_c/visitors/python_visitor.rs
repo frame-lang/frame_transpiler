@@ -1444,6 +1444,13 @@ impl AstVisitor for PythonVisitor {
             domain_block_node.accept_enums(self);
         }
 
+        if let Some(vec) = &system_node.functions_opt {
+            for function_node_rcref in vec {
+                let function_node = function_node_rcref.borrow();
+                function_node.accept(self);
+            }
+
+        }
         self.newline();
         self.newline();
         self.add_code(&format!("class {}:", system_node.name));
@@ -1713,6 +1720,72 @@ impl AstVisitor for PythonVisitor {
         self.generate_compartment(&system_node.name);
 
         self.generate_subclass();
+    }
+
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_function_node(&mut self, function_node: &FunctionNode) {
+        self.add_code(&format!(
+            "def {}(",
+            function_node.name
+        ));
+
+        self.format_parameter_list(&function_node.params);
+
+        self.add_code("):");
+
+        if !function_node.is_implemented {
+            self.newline();
+            self.add_code("raise NotImplementedError");
+        } else {
+            // Generate statements
+            if function_node.statements.is_empty()
+                && function_node.terminator_node_opt.is_none()
+            {
+                self.indent();
+                self.newline();
+                self.add_code("pass");
+                self.outdent();
+                self.newline();
+            } else {
+                if !function_node.statements.is_empty() {
+                    self.visit_decl_stmts(&function_node.statements);
+                }
+                if let Some(terminator_expr) = &function_node.terminator_node_opt {
+                    self.newline();
+                    match &terminator_expr.terminator_type {
+                        TerminatorType::Return => match &terminator_expr.return_expr_t_opt {
+                            Some(expr_t) => {
+                                self.add_code("return ");
+                                expr_t.accept(self);
+                                self.newline();
+                            }
+                            None => {
+                                self.add_code("return");
+                                self.newline();
+                            }
+                        },
+                        TerminatorType::Continue => {
+                            // shouldn't happen.
+                            self.errors
+                                .push("Continue not allowed as action terminator.".to_string());
+                        }
+                    }
+                }
+            }
+        }
+
+        if function_node.name == "main" {
+            self.newline();
+            self.add_code("if __name__ == '__main__':");
+            self.indent();
+            self.newline();
+            self.add_code("main()");
+            self.outdent();
+            self.newline();
+        }
+
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2317,7 +2390,7 @@ impl AstVisitor for PythonVisitor {
         }
 
         // unwind the accumulated indents
-        for i in 0..outdent_cnt {
+        for _ in 0..outdent_cnt {
             self.outdent();
         }
     }
@@ -3780,17 +3853,17 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_node(&mut self, action_decl_node: &ActionNode) {
+    fn visit_action_node(&mut self, action_node: &ActionNode) {
         let mut subclass_code = String::new();
 
         self.newline();
 
-        let action_name = self.format_action_name(&action_decl_node.name);
+        let action_name = self.format_action_name(&action_node.name);
         self.add_code(&format!("def {}(self", action_name));
         self.newline_to_string(&mut subclass_code);
         subclass_code.push_str(&format!("#def {}(self", action_name));
 
-        match &action_decl_node.params {
+        match &action_node.params {
             Some(params) => {
                 self.add_code(",");
                 subclass_code.push(',');
@@ -3803,15 +3876,15 @@ impl AstVisitor for PythonVisitor {
         subclass_code.push_str("):");
 
         self.indent();
-        if !action_decl_node.is_implemented {
+        if !action_node.is_implemented {
             self.newline();
             self.add_code("raise NotImplementedError");
             self.newline_to_string(&mut subclass_code);
             subclass_code.push_str("#pass");
         } else {
             // Generate statements
-            if action_decl_node.statements.is_empty()
-                && action_decl_node.terminator_node_opt.is_none()
+            if action_node.statements.is_empty()
+                && action_node.terminator_node_opt.is_none()
             {
                 self.indent();
                 self.newline();
@@ -3819,10 +3892,10 @@ impl AstVisitor for PythonVisitor {
                 self.outdent();
                 self.newline();
             } else {
-                if !action_decl_node.statements.is_empty() {
-                    self.visit_decl_stmts(&action_decl_node.statements);
+                if !action_node.statements.is_empty() {
+                    self.visit_decl_stmts(&action_node.statements);
                 }
-                if let Some(terminator_expr) = &action_decl_node.terminator_node_opt {
+                if let Some(terminator_expr) = &action_node.terminator_node_opt {
                     self.newline();
                     match &terminator_expr.terminator_type {
                         TerminatorType::Return => match &terminator_expr.return_expr_t_opt {

@@ -901,8 +901,8 @@ impl Arcanum {
     // Get -actions-block- symtab from the system symbol and lookup.
     #[allow(clippy::many_single_char_names)] // TODO
     pub fn lookup_action(&self, name: &str) -> Option<Rc<RefCell<ActionScopeSymbol>>> {
-        let a = &self.system_symbol_opt.as_ref().unwrap();
-        match &a.borrow().actions_block_symbol_opt {
+        let system_symbol = &self.system_symbol_opt.as_ref().unwrap();
+        match &system_symbol.borrow().actions_block_symbol_opt {
             Some(actions_block_scope_symbol) => {
                 let b = actions_block_scope_symbol.borrow();
                 let x = &b.symtab_rcref.borrow();
@@ -928,27 +928,25 @@ impl Arcanum {
     // Get -actions-block- symtab from the system symbol and lookup.
     #[allow(clippy::many_single_char_names)] // TODO
     pub fn lookup_function(&self, name: &str) -> Option<Rc<RefCell<FunctionScopeSymbol>>> {
-        // let a = &self.system_symbol_opt.as_ref().unwrap();
-        // match &a.borrow().actions_block_symbol_opt {
-        //     Some(actions_block_scope_symbol) => {
-        //         let b = actions_block_scope_symbol.borrow();
-        //         let x = &b.symtab_rcref.borrow();
-        //         match x.lookup(name, &IdentifierDeclScope::ActionsBlock) {
-        //             Some(c) => {
-        //                 let d = c.borrow();
-        //                 match &*d {
-        //                     SymbolType::ActionScope {
-        //                         action_scope_symbol_rcref: action_symbol_rcref,
-        //                     } => Some(Rc::clone(action_symbol_rcref)),
-        //                     _ => None,
-        //                 }
-        //             }
-        //             None => None,
-        //         }
-        //     }
-        //     None => None,
-        // }
-        None
+        let symbol_type_rcref_opt = self.global_symtab.borrow().lookup_local(name);
+
+        match symbol_type_rcref_opt {
+            Some(x)=> {
+                let y = x.borrow();
+                match &*y {
+                    SymbolType::FunctionScope {function_symbol_ref} => {
+                        Some(function_symbol_ref.clone())
+                    }
+                    _ => {
+                        None
+                    }
+                }
+
+            }
+            _ => {
+                None
+            }
+        }
     }
 
     /* --------------------------------------------------------------------- */

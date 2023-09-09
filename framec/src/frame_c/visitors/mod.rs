@@ -92,6 +92,7 @@ use super::ast::*;
 
 #[rustfmt::skip]
 pub trait AstVisitor {
+    fn visit_function_node(&mut self, _node: &FunctionNode) {}
     fn visit_system_node(&mut self, _node: &SystemNode) {}
     fn visit_interface_block_node(&mut self, _node: &InterfaceBlockNode) {}
     fn visit_interface_method_node(&mut self, _node: &InterfaceMethodNode) {}
