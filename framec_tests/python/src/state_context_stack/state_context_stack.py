@@ -10,7 +10,7 @@ class StateContextStack:
         
         self.__state_stack = []
         
-        # Create and intialize start state compartment.
+         # Create and intialize start state compartment.
         self.__state = self.__statecontextstack_state_A
         self.__compartment: 'StateContextStackCompartment' = StateContextStackCompartment(self.__state)
         self.__next_compartment: 'StateContextStackCompartment' = None

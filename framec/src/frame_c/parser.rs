@@ -3444,6 +3444,11 @@ impl<'a> Parser<'a> {
                 }
 
                 match expr_t {
+                    SystemInstanceExprT { system_instance_expr_node } => {
+                        let system_instance_stmt_node = SystemInstanceStmtNode::new(system_instance_expr_node);
+                        let expr_stmt_t: ExprStmtType = SystemInstanceStmtT { system_instance_stmt_node };
+                        return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
+                    }
                     ExprListT { expr_list_node } => {
                         // path for transitions w/ an exit params group
                         if self.match_token(&[TokenType::Transition]) {
@@ -3458,10 +3463,6 @@ impl<'a> Parser<'a> {
                                 expr_list_stmt_node,
                             };
                             return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
-                            // self.error_at_previous(
-                            //     "Expected '->' token following expression list.",
-                            // );
-                            // return Err(ParseError::new("TODO"));
                         }
                     }
                     CallExprT { call_expr_node } => {
@@ -4496,20 +4497,40 @@ impl<'a> Parser<'a> {
         if self.match_token(&[TokenType::System]) {
             if self.match_token(&[TokenType::Dot]) {
                 scope = IdentifierDeclScope::DomainBlock;
-            } else {
-                // System reference
-                //               scope = IdentifierDeclScope::System;
+            } else if self.match_token(&[TokenType::Identifier]) {
+                let system_name =  self.previous().clone();
                 let id_node = IdentifierNode::new(
                     self.previous().clone(),
                     None,
-                    IdentifierDeclScope::System,
+                    IdentifierDeclScope::None,
                     false,
                     self.previous().line,
                 );
-                let var_scope = id_node.scope.clone();
-                let var_node = VariableNode::new(id_node, var_scope, None);
-                return Ok(Some(VariableExprT { var_node }));
+                if let Err(parse_error) = self.consume(TokenType::LParen, "Expected '('.") {
+                    return Err(parse_error);
+                }
+                if let Err(parse_error) = self.consume(TokenType::RParen, "Expected ')'.") {
+                    return Err(parse_error);
+                }
+
+                let system_instance_expr_node = SystemInstanceExprNode::new(id_node);
+
+                return Ok(Some(SystemInstanceExprT {system_instance_expr_node}));
             }
+            // else {
+            //     // System reference
+            //     //               scope = IdentifierDeclScope::System;
+            //     let id_node = IdentifierNode::new(
+            //         self.previous().clone(),
+            //         None,
+            //         IdentifierDeclScope::System,
+            //         false,
+            //         self.previous().line,
+            //     );
+            //     let var_scope = id_node.scope.clone();
+            //     let var_node = VariableNode::new(id_node, var_scope, None);
+            //     return Ok(Some(VariableExprT { var_node }));
+            // }
 
         //           scope_override = true;
         } else if self.match_token(&[TokenType::State]) {

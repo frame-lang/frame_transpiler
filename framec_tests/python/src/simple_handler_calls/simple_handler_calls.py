@@ -6,7 +6,7 @@ class SimpleHandlerCalls:
     
     def __init__(self):
         
-        # Create and intialize start state compartment.
+         # Create and intialize start state compartment.
         self.__state = self.__simplehandlercalls_state_Init
         self.__compartment: 'SimpleHandlerCallsCompartment' = SimpleHandlerCallsCompartment(self.__state)
         self.__next_compartment: 'SimpleHandlerCallsCompartment' = None
@@ -80,11 +80,13 @@ class SimpleHandlerCalls:
         
         elif e._message == "C":
             self.A()
+            return
             
             return
         
         elif e._message == "D":
             self.B()
+            return
             compartment = SimpleHandlerCallsCompartment(self.__simplehandlercalls_state_A)
             self.__transition(compartment)
             
@@ -92,7 +94,9 @@ class SimpleHandlerCalls:
         
         elif e._message == "E":
             self.D()
+            return
             self.C()
+            return
             
             return
         

@@ -6,7 +6,7 @@ class Basic:
     
     def __init__(self):
         
-        # Create and intialize start state compartment.
+         # Create and intialize start state compartment.
         self.__state = self.__basic_state_S0
         self.__compartment: 'BasicCompartment' = BasicCompartment(self.__state)
         self.__next_compartment: 'BasicCompartment' = None

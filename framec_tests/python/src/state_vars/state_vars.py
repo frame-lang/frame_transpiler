@@ -6,7 +6,7 @@ class StateVars:
     
     def __init__(self):
         
-        # Create and intialize start state compartment.
+         # Create and intialize start state compartment.
         self.__state = self.__statevars_state_Init
         self.__compartment: 'StateVarsCompartment' = StateVarsCompartment(self.__state)
         self.__next_compartment: 'StateVarsCompartment' = None

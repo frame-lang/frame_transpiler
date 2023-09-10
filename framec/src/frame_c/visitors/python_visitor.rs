@@ -56,6 +56,7 @@ pub struct PythonVisitor {
     // keeping track of traversal context
     this_branch_transitioned: bool,
     skip_next_newline: bool,
+    generate_main: bool,
 }
 
 impl PythonVisitor {
@@ -109,6 +110,7 @@ impl PythonVisitor {
             // keeping track of traversal context
             this_branch_transitioned: false,
             skip_next_newline: false,
+            generate_main: false
         }
     }
 
@@ -422,6 +424,9 @@ impl PythonVisitor {
                     match stmt_t {
                         StatementType::ExpressionStmt { expr_stmt_t } => {
                             match expr_stmt_t {
+                                ExprStmtType::SystemInstanceStmtT { system_instance_stmt_node } => {
+                                    system_instance_stmt_node.accept(self)
+                                }
                                 ExprStmtType::ActionCallStmtT {
                                     action_call_stmt_node,
                                 } => action_call_stmt_node.accept(self), // // TODO
@@ -1212,14 +1217,14 @@ impl PythonVisitor {
                 self.newline();
             }
 
-            self.add_code("# Create and intialize start state compartment.");
+            self.add_code(" # Create and intialize start state compartment.");
             self.newline();
             self.add_code(&format!(
                 "self.__state = self.{}",
                 self.format_target_state_name(&self.first_state_name)
             ));
         } else {
-            self.add_code("# Create and intialize start state compartment.");
+            self.add_code(" # Create and intialize start state compartment.");
             self.newline();
             self.newline();
             self.add_code("self.__state = None");
@@ -1412,6 +1417,7 @@ impl PythonVisitor {
 //* --------------------------------------------------------------------- *//
 
 impl AstVisitor for PythonVisitor {
+
     //* --------------------------------------------------------------------- *//
 
     fn visit_system_node(&mut self, system_node: &SystemNode) {
@@ -1673,6 +1679,7 @@ impl AstVisitor for PythonVisitor {
                 self.newline();
             }
             _ => {
+                self.add_code("pass");
                 self.outdent();
                 self.newline();
             }
@@ -1720,12 +1727,42 @@ impl AstVisitor for PythonVisitor {
         self.generate_compartment(&system_node.name);
 
         self.generate_subclass();
+
+        if self.generate_main {
+            self.newline();
+            self.add_code("if __name__ == '__main__':");
+            self.indent();
+            self.newline();
+            self.add_code("main()");
+            self.outdent();
+            self.newline();
+        }
     }
 
 
     //* --------------------------------------------------------------------- *//
 
+    fn visit_system_instance_statement_node(&mut self, system_instance_stmt_node: &SystemInstanceStmtNode) {
+        system_instance_stmt_node.system_instance_expr_node.accept(self);
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_system_instance_expr_node(&mut self, system_instance_expr_node: &SystemInstanceExprNode) {
+        let system_name = &system_instance_expr_node.identifier.name.lexeme;
+
+        self.add_code(&format!(
+            "{}",
+            system_name
+        ));
+        self.add_code("(");
+        self.add_code(")");
+    }
+
+    //* --------------------------------------------------------------------- *//
+
     fn visit_function_node(&mut self, function_node: &FunctionNode) {
+        self.newline();
         self.add_code(&format!(
             "def {}(",
             function_node.name
@@ -1750,7 +1787,11 @@ impl AstVisitor for PythonVisitor {
                 self.newline();
             } else {
                 if !function_node.statements.is_empty() {
+                    self.indent();
+                    self.newline();
                     self.visit_decl_stmts(&function_node.statements);
+                    self.outdent();
+                    self.newline();
                 }
                 if let Some(terminator_expr) = &function_node.terminator_node_opt {
                     self.newline();
@@ -1777,13 +1818,7 @@ impl AstVisitor for PythonVisitor {
         }
 
         if function_node.name == "main" {
-            self.newline();
-            self.add_code("if __name__ == '__main__':");
-            self.indent();
-            self.newline();
-            self.add_code("main()");
-            self.outdent();
-            self.newline();
+            self.generate_main = true;
         }
 
     }

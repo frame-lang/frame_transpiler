@@ -205,6 +205,50 @@ impl NodeElement for SystemNode {
     }
 }
 
+
+//-----------------------------------------------------//
+
+pub struct SystemInstanceExprNode {
+    pub identifier: IdentifierNode,
+}
+
+impl SystemInstanceExprNode {
+    pub fn new(
+        identifier: IdentifierNode,
+    ) -> SystemInstanceExprNode {
+        SystemInstanceExprNode {
+            identifier,
+
+        }
+    }
+}
+
+impl NodeElement for SystemInstanceExprNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_system_instance_expr_node(self);
+    }
+
+    // fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
+    //     ast_visitor.visit_call_expression_node_to_string(self, output);
+    // }
+}
+//
+// impl SystemInstanceableExpr for SystemInstanceExprNode {
+//     fn set_call_chain(&mut self, call_chain: Vec<Box<dyn SystemInstanceableExpr>>) {
+//         self.call_chain = Some(call_chain);
+//     }
+//
+//     fn callable_accept(&self, ast_visitor: &mut dyn AstVisitor) {
+//         self.accept(ast_visitor);
+//     }
+// }
+
+impl fmt::Display for SystemInstanceExprNode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.identifier)
+    }
+}
+
 //-----------------------------------------------------//
 
 pub struct InterfaceBlockNode {
@@ -984,6 +1028,9 @@ pub enum ExprType {
     EnumeratorExprT {
         enum_expr_node: EnumeratorExprNode,
     },
+    SystemInstanceExprT {
+        system_instance_expr_node: SystemInstanceExprNode,
+    },
 }
 
 pub enum RefExprType<'a> {
@@ -1064,6 +1111,7 @@ impl ExprType {
             ExprType::UnaryExprT { .. } => "UnaryExprT",
             ExprType::BinaryExprT { .. } => "BinaryExprT",
             ExprType::EnumeratorExprT { .. } => "EnumExprT",
+            ExprType::SystemInstanceExprT { .. } => "SystemInstanceExprT",
         }
     }
 
@@ -1144,6 +1192,9 @@ impl NodeElement for ExprType {
             } => {
                 ast_visitor.visit_call_chain_literal_expr_node(call_chain_expr_node);
             }
+            ExprType::SystemInstanceExprT { system_instance_expr_node } => {
+                ast_visitor.visit_system_instance_expr_node(system_instance_expr_node);
+            }
             ExprType::CallExprT { call_expr_node } => {
                 ast_visitor.visit_call_expression_node(call_expr_node);
             }
@@ -1199,6 +1250,9 @@ impl NodeElement for ExprType {
             } => {
                 ast_visitor
                     .visit_call_chain_literal_expr_node_to_string(call_chain_expr_node, output);
+            }
+            ExprType::SystemInstanceExprT { system_instance_expr_node } => {
+                ast_visitor.visit_system_instance_expr_node_to_string(system_instance_expr_node, output);
             }
             ExprType::CallExprT { call_expr_node } => {
                 ast_visitor.visit_call_expression_node_to_string(call_expr_node, output);
@@ -1299,6 +1353,9 @@ impl NodeElement for ExprType {
 //                  -Statements-
 
 pub enum ExprStmtType {
+    SystemInstanceStmtT {
+        system_instance_stmt_node: SystemInstanceStmtNode,
+    },
     CallStmtT {
         call_stmt_node: CallStmtNode,
     },
@@ -1376,6 +1433,25 @@ pub enum DeclOrStmtType {
     StmtT {
         stmt_t: StatementType,
     },
+}
+
+
+//-----------------------------------------------------//
+
+pub struct SystemInstanceStmtNode {
+    pub system_instance_expr_node: SystemInstanceExprNode,
+}
+
+impl SystemInstanceStmtNode {
+    pub fn new(system_instance_expr_node: SystemInstanceExprNode) -> SystemInstanceStmtNode {
+        SystemInstanceStmtNode { system_instance_expr_node }
+    }
+}
+
+impl NodeElement for SystemInstanceStmtNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_system_instance_statement_node(self);
+    }
 }
 
 //-----------------------------------------------------//

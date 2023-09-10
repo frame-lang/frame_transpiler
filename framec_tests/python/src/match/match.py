@@ -6,7 +6,7 @@ class Match:
     
     def __init__(self):
         
-        # Create and intialize start state compartment.
+         # Create and intialize start state compartment.
         self.__state = self.__match_state_Init
         self.__compartment: 'MatchCompartment' = MatchCompartment(self.__state)
         self.__next_compartment: 'MatchCompartment' = None

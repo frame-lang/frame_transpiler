@@ -6,7 +6,7 @@ class Naming:
     
     def __init__(self):
         
-        # Create and intialize start state compartment.
+         # Create and intialize start state compartment.
         self.__state = self.__naming_state_Init
         self.__compartment: 'NamingCompartment' = NamingCompartment(self.__state)
         self.__next_compartment: 'NamingCompartment' = None
