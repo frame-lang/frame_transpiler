@@ -6,7 +6,7 @@ class StateParams:
     
     def __init__(self):
         
-        # Create and intialize start state compartment.
+         # Create and intialize start state compartment.
         self.__state = self.__stateparams_state_Init
         self.__compartment: 'StateParamsCompartment' = StateParamsCompartment(self.__state)
         self.__next_compartment: 'StateParamsCompartment' = None

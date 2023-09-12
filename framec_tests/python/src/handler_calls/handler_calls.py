@@ -6,7 +6,7 @@ class HandlerCalls:
     
     def __init__(self):
         
-        # Create and intialize start state compartment.
+         # Create and intialize start state compartment.
         self.__state = self.__handlercalls_state_Init
         self.__compartment: 'HandlerCallsCompartment' = HandlerCallsCompartment(self.__state)
         self.__next_compartment: 'HandlerCallsCompartment' = None
@@ -113,6 +113,7 @@ class HandlerCalls:
             self.log_do("Foo",e._parameters["arg"])
             (self.__compartment.state_vars["counter"]) = (self.__compartment.state_vars["counter"]) + e._parameters["arg"]
             self.Bar(e._parameters["arg"] * 2)
+            return
             self.log_do("Unreachable",0)
             
             return

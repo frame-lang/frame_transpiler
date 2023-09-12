@@ -6,7 +6,7 @@ class VarScope:
     
     def __init__(self):
         
-        # Create and intialize start state compartment.
+         # Create and intialize start state compartment.
         self.__state = self.__varscope_state_Init
         self.__compartment: 'VarScopeCompartment' = VarScopeCompartment(self.__state)
         self.__next_compartment: 'VarScopeCompartment' = None

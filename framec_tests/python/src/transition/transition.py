@@ -6,7 +6,7 @@ class TransitionSm:
     
     def __init__(self):
         
-        # Create and intialize start state compartment.
+         # Create and intialize start state compartment.
         self.__state = self.__transitionsm_state_S0
         self.__compartment: 'TransitionSmCompartment' = TransitionSmCompartment(self.__state)
         self.__next_compartment: 'TransitionSmCompartment' = None

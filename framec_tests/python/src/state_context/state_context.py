@@ -6,7 +6,7 @@ class StateContextSm:
     
     def __init__(self):
         
-        # Create and intialize start state compartment.
+         # Create and intialize start state compartment.
         self.__state = self.__statecontextsm_state_Init
         self.__compartment: 'StateContextSmCompartment' = StateContextSmCompartment(self.__state)
         self.__next_compartment: 'StateContextSmCompartment' = None
