@@ -421,7 +421,6 @@ impl<'a> Parser<'a> {
             Err(_parse_error) => None,
         };
 
-
         // TODO: Error handling
         if !self.match_token(&[TokenType::System]) {
             self.error_at_current("Expected #.");
@@ -461,9 +460,11 @@ impl<'a> Parser<'a> {
         let mut system_enter_params_opt: Option<Vec<ParameterNode>> = Option::None;
         let mut domain_params_opt: Option<Vec<ParameterNode>> = Option::None;
 
-        (system_start_state_state_params_opt,
-         system_enter_params_opt,
-         domain_params_opt) = self.system_params();
+        (
+            system_start_state_state_params_opt,
+            system_enter_params_opt,
+            domain_params_opt,
+        ) = self.system_params();
 
         if self.match_token(&[TokenType::InterfaceBlock]) {
             self.arcanum
@@ -672,30 +673,33 @@ impl<'a> Parser<'a> {
         )
     }
 
-
     /* --------------------------------------------------------------------- */
     // Parse optional system params.
     // [ $[start_state_param:T], >[start_state_enter_param:U], #[domain_params:V] ]
 
-    fn system_params(&mut self) -> (Option<Vec<ParameterNode>>,Option<Vec<ParameterNode>>,Option<Vec<ParameterNode>>) {
+    fn system_params(
+        &mut self,
+    ) -> (
+        Option<Vec<ParameterNode>>,
+        Option<Vec<ParameterNode>>,
+        Option<Vec<ParameterNode>>,
+    ) {
         let mut system_start_state_state_params_opt: Option<Vec<ParameterNode>> = Option::None;
         let mut system_enter_params_opt: Option<Vec<ParameterNode>> = Option::None;
         let mut domain_params_opt: Option<Vec<ParameterNode>> = Option::None;
 
-
         if self.match_token(&[TokenType::LBracket]) {
-
             system_start_state_state_params_opt = self.system_start_state_params();
             if system_start_state_state_params_opt.is_some() {
                 if self.match_token(&[TokenType::Comma]) {
-                    (system_enter_params_opt,domain_params_opt) = self.system_enter_or_domain_params();
+                    (system_enter_params_opt, domain_params_opt) =
+                        self.system_enter_or_domain_params();
                     if system_enter_params_opt.is_none() && domain_params_opt.is_none() {
                         self.error_at_current("Expected ], found ','")
                     }
                 }
-
             } else {
-                (system_enter_params_opt,domain_params_opt) = self.system_enter_or_domain_params();
+                (system_enter_params_opt, domain_params_opt) = self.system_enter_or_domain_params();
             }
 
             if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
@@ -708,19 +712,27 @@ impl<'a> Parser<'a> {
                 ];
                 self.synchronize(&sync_tokens);
             } else {
-                if system_start_state_state_params_opt.is_none() && system_enter_params_opt.is_none() && domain_params_opt.is_none() {
+                if system_start_state_state_params_opt.is_none()
+                    && system_enter_params_opt.is_none()
+                    && domain_params_opt.is_none()
+                {
                     self.error_at_current("Empty system parameter list.")
                 }
             }
-
         }
 
-        (system_start_state_state_params_opt,system_enter_params_opt,domain_params_opt)
+        (
+            system_start_state_state_params_opt,
+            system_enter_params_opt,
+            domain_params_opt,
+        )
     }
 
     /* --------------------------------------------------------------------- */
 
-    fn system_enter_or_domain_params(&mut self) -> (Option<Vec<ParameterNode>>,Option<Vec<ParameterNode>>) {
+    fn system_enter_or_domain_params(
+        &mut self,
+    ) -> (Option<Vec<ParameterNode>>, Option<Vec<ParameterNode>>) {
         let mut system_enter_params_opt: Option<Vec<ParameterNode>> = Option::None;
         let mut domain_params_opt: Option<Vec<ParameterNode>> = Option::None;
 
@@ -732,12 +744,11 @@ impl<'a> Parser<'a> {
                     self.error_at_current("Expected ], found ','")
                 }
             }
-
         } else {
             domain_params_opt = self.system_domain_params();
         }
 
-        (system_enter_params_opt,domain_params_opt)
+        (system_enter_params_opt, domain_params_opt)
     }
 
     /* --------------------------------------------------------------------- */
@@ -763,12 +774,10 @@ impl<'a> Parser<'a> {
                 Ok(None) => {}
                 Err(_) => {}
             }
-
         }
 
         system_start_state_state_params_opt
     }
-
 
     /* --------------------------------------------------------------------- */
 
@@ -928,7 +937,6 @@ impl<'a> Parser<'a> {
             let err_msg = "Expected function name.";
             self.error_at_current(&err_msg);
             return Err(ParseError::new(err_msg));
-
         }
 
         let function_name = self.previous().lexeme.clone();
@@ -937,12 +945,12 @@ impl<'a> Parser<'a> {
         // to be called in the context of an function. Transitions, for example, are not
         // allowed.
         self.is_function_scope = true;
-        
+
         if self.is_building_symbol_table {
             // syntax pass
             let function_symbol = FunctionScopeSymbol::new(function_name.clone());
             //            function_symbol_opt = Some(function_symbol);
-        
+
             let function_scope_symbol_rcref = Rc::new(RefCell::new(function_symbol));
             let function_symbol_parse_scope_t = ParseScopeType::Function {
                 function_scope_symbol_rcref,
@@ -951,14 +959,14 @@ impl<'a> Parser<'a> {
         } else {
             // semantic pass
             // link function symbol to function declaration node
-        
+
             // TODO - remove?
             // let a = self
             //     .arcanum
             //     .current_symtab
             //     .borrow()
             //     .lookup(&*function_name, &IdentifierDeclScope::None);
-        
+
             // see if we can get the function symbol set in the syntax pass. if so, then move
             // all this to the calling function and pass inthe symbol
             self.arcanum.set_parse_scope(&function_name);
@@ -971,7 +979,8 @@ impl<'a> Parser<'a> {
                 Ok(function_node_rcref) => {
                     // associate AST node with symbol
 
-                    let function_scope_symbol_rcref_opt = self.arcanum.lookup_function(&function_name.clone());
+                    let function_scope_symbol_rcref_opt =
+                        self.arcanum.lookup_function(&function_name.clone());
                     let function_scope_symbol_rcref = function_scope_symbol_rcref_opt.unwrap();
                     let mut function_scope_symbol = function_scope_symbol_rcref.borrow_mut();
                     function_scope_symbol.ast_node_opt = Some(function_node_rcref.clone());
@@ -981,7 +990,7 @@ impl<'a> Parser<'a> {
                 }
             }
         }
-        
+
         self.arcanum.exit_parse_scope();
         ret
     }
@@ -1453,7 +1462,10 @@ impl<'a> Parser<'a> {
         }
         if !self.match_token(&[TokenType::Pipe]) {
             let token_str = self.peek().lexeme.clone();
-            let err_msg = &format!("Expected closing '|' in message selector. Found {}. ", token_str );
+            let err_msg = &format!(
+                "Expected closing '|' in message selector. Found {}. ",
+                token_str
+            );
             self.error_at_previous(err_msg);
             return Err(ParseError::new(err_msg));
         }
@@ -1481,7 +1493,10 @@ impl<'a> Parser<'a> {
         }
 
         let token_str = self.peek().lexeme.clone();
-        let err_msg = &format!("Expected closing '|' in message selector. Found {}. ", token_str );
+        let err_msg = &format!(
+            "Expected closing '|' in message selector. Found {}. ",
+            token_str
+        );
         if let Err(parse_error) = self.consume(TokenType::Pipe, err_msg) {
             return Err(parse_error);
         }
@@ -2755,11 +2770,9 @@ impl<'a> Parser<'a> {
             }
             Err(parse_error) => {
                 // I don't think I need this:
-               // self.error_at_current("Error parsing event handler message.");
+                // self.error_at_current("Error parsing event handler message.");
                 //return Err(parse_error);
-                let sync_tokens = vec![
-                    TokenType::Caret,
-                ];
+                let sync_tokens = vec![TokenType::Caret];
                 if !self.synchronize(&sync_tokens) {
                     return Err(parse_error);
                 }
@@ -3444,9 +3457,14 @@ impl<'a> Parser<'a> {
                 }
 
                 match expr_t {
-                    SystemInstanceExprT { system_instance_expr_node } => {
-                        let system_instance_stmt_node = SystemInstanceStmtNode::new(system_instance_expr_node);
-                        let expr_stmt_t: ExprStmtType = SystemInstanceStmtT { system_instance_stmt_node };
+                    SystemInstanceExprT {
+                        system_instance_expr_node,
+                    } => {
+                        let system_instance_stmt_node =
+                            SystemInstanceStmtNode::new(system_instance_expr_node);
+                        let expr_stmt_t: ExprStmtType = SystemInstanceStmtT {
+                            system_instance_stmt_node,
+                        };
                         return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
                     }
                     ExprListT { expr_list_node } => {
@@ -4498,7 +4516,7 @@ impl<'a> Parser<'a> {
             if self.match_token(&[TokenType::Dot]) {
                 scope = IdentifierDeclScope::DomainBlock;
             } else if self.match_token(&[TokenType::Identifier]) {
-                let system_name =  self.previous().clone();
+                let system_name = self.previous().clone();
                 let id_node = IdentifierNode::new(
                     self.previous().clone(),
                     None,
@@ -4515,7 +4533,9 @@ impl<'a> Parser<'a> {
 
                 let system_instance_expr_node = SystemInstanceExprNode::new(id_node);
 
-                return Ok(Some(SystemInstanceExprT {system_instance_expr_node}));
+                return Ok(Some(SystemInstanceExprT {
+                    system_instance_expr_node,
+                }));
             }
             // else {
             //     // System reference
@@ -4532,7 +4552,7 @@ impl<'a> Parser<'a> {
             //     return Ok(Some(VariableExprT { var_node }));
             // }
 
-        //           scope_override = true;
+            //           scope_override = true;
         } else if self.match_token(&[TokenType::State]) {
             if self.match_token(&[TokenType::LBracket]) {
                 return if self.match_token(&[TokenType::Identifier]) {
@@ -5649,7 +5669,8 @@ impl<'a> Parser<'a> {
         if self.match_token(&[TokenType::StateStackOperationPop]) {
             Ok(Some(StateContextType::StateStackPop {}))
         } else if self.match_token(&[TokenType::StateStackOperationPush]) {
-            let err_msg = "Error - $$[+] is an invalid transition target. Try replacing with $$[-]. ";
+            let err_msg =
+                "Error - $$[+] is an invalid transition target. Try replacing with $$[-]. ";
             self.error_at_previous(&&err_msg);
             return Err(ParseError::new(err_msg));
         } else {
@@ -5712,28 +5733,26 @@ impl<'a> Parser<'a> {
                     Some(state_symbol) => {
                         match &state_ref_args_opt {
                             Some(expr_list_node) => {
-                                 match &state_symbol.borrow().params_opt  {
-                                     Some(params) => {
-                                         if params.len() != expr_list_node.exprs_t.len() {
-                                             // Error - number of state params does not match number of expression arguments
-                                             let err_msg = &format!("Transition target state arguments do not match {} state parameters.", name);
-                                             self.error_at_current(err_msg.as_str());
-                                             return Err(ParseError::new(err_msg));
-                                         }
-                                     }
-                                     None => {
-                                         if expr_list_node.exprs_t.len() != 0 {
-                                             // Error - number of state params does not match number of expression arguments
-                                             let err_msg = &format!("Transition target state arguments do not match {} state parameters.", name);
-                                             self.error_at_current(err_msg.as_str());
-                                             return Err(ParseError::new(err_msg));
-                                         }
-                                     }
-
+                                match &state_symbol.borrow().params_opt {
+                                    Some(params) => {
+                                        if params.len() != expr_list_node.exprs_t.len() {
+                                            // Error - number of state params does not match number of expression arguments
+                                            let err_msg = &format!("Transition target state arguments do not match {} state parameters.", name);
+                                            self.error_at_current(err_msg.as_str());
+                                            return Err(ParseError::new(err_msg));
+                                        }
+                                    }
+                                    None => {
+                                        if expr_list_node.exprs_t.len() != 0 {
+                                            // Error - number of state params does not match number of expression arguments
+                                            let err_msg = &format!("Transition target state arguments do not match {} state parameters.", name);
+                                            self.error_at_current(err_msg.as_str());
+                                            return Err(ParseError::new(err_msg));
+                                        }
+                                    }
                                 }
                             }
                             None => {
-
                                 // Error - there exist state parameters but no args are passed
                                 if let Some(params) = &state_symbol.borrow().params_opt {
                                     if params.len() != 0 {
@@ -5826,7 +5845,6 @@ impl<'a> Parser<'a> {
         if self.match_token(&[TokenType::Dispatch]) {
             forward_event = true;
             if enter_msg_with_enter_args {
-
                 // TODO - revisit this rule and document, update or remove.
                 // Disallowed:
                 // $S0

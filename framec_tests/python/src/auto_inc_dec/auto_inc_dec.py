@@ -6,8 +6,8 @@ class AutoIncDec:
     
     def __init__(self):
         
-        # Create and intialize start state compartment.
-        self.__state = self.__autoincdec_state_S1
+         # Create and intialize start state compartment.
+        self.__state = self.__autoincdec_state_Inc
         self.__compartment: 'AutoIncDecCompartment' = AutoIncDecCompartment(self.__state)
         self.__next_compartment: 'AutoIncDecCompartment' = None
         
@@ -23,19 +23,25 @@ class AutoIncDec:
     
     # ===================== Interface Block =================== #
     
-    def inc(self,):
-        e = FrameEvent("inc",None)
+    def pre(self,):
+        e = FrameEvent("pre",None)
         self.__mux(e)
     
-    def dec(self,):
-        e = FrameEvent("dec",None)
+    def post(self,):
+        e = FrameEvent("post",None)
+        self.__mux(e)
+    
+    def trans(self,):
+        e = FrameEvent("trans",None)
         self.__mux(e)
     
     # ====================== Multiplexer ==================== #
     
     def __mux(self, e):
-        if self.__compartment.state.__name__ == '__autoincdec_state_S1':
-            self.__autoincdec_state_S1(e)
+        if self.__compartment.state.__name__ == '__autoincdec_state_Inc':
+            self.__autoincdec_state_Inc(e)
+        elif self.__compartment.state.__name__ == '__autoincdec_state_Dec':
+            self.__autoincdec_state_Dec(e)
         
         if self.__next_compartment != None:
             next_compartment = self.__next_compartment
@@ -53,26 +59,47 @@ class AutoIncDec:
     
     # ===================== Machine Block =================== #
     
-    def __autoincdec_state_S1(self, e):
-        if e._message == "inc":
-            self.b = self.a
-            self.a = self.a + 1
-            print(self.b)
+    def __autoincdec_state_Inc(self, e):
+        if e._message == "pre":
             
             self.a = self.a + 1
+            self.b = self.a
+            print(self.b)
+            
+            return
+        
+        elif e._message == "post":
             self.c = self.a
+            self.a = self.a + 1
             print(self.c)
             
             return
         
-        elif e._message == "dec":
-            self.b = self.a
-            self.a = self.a - 1
-            print(self.b)
+        elif e._message == "trans":
+            compartment = AutoIncDecCompartment(self.__autoincdec_state_Dec)
+            self.__transition(compartment)
+            
+            return
+        
+    def __autoincdec_state_Dec(self, e):
+        if e._message == "pre":
             
             self.a = self.a - 1
+            self.b = self.a
+            print(self.b)
+            
+            return
+        
+        elif e._message == "post":
             self.c = self.a
+            self.a = self.a - 1
             print(self.c)
+            
+            return
+        
+        elif e._message == "trans":
+            compartment = AutoIncDecCompartment(self.__autoincdec_state_Inc)
+            self.__transition(compartment)
             
             return
         

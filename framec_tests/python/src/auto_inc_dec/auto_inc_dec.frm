@@ -6,24 +6,35 @@ from framelang.framelang import FrameEvent
 
     -interface-
 
-    inc
-    dec
-
+    pre
+    post
+    trans
     -machine-
 
-    $S1
+    $Inc
 
-        |inc|
-            b = a++
-            print(b)
-            c = ++a
-            print(c) ^
+        |pre|
+            b = ++a
+            print(b)^
 
-        |dec|
-            b = a--
-            print(b)
-            c = --a
+        |post|
+            c = a++
             print(c)^
+
+        |trans|
+            -> $Dec ^
+    $Dec
+
+        |pre|
+            b = --a
+            print(b)^
+
+        |post|
+            c = a--
+            print(c)^
+
+        |trans|
+            -> $Inc ^
 
     -actions-
     print_it[val]  {

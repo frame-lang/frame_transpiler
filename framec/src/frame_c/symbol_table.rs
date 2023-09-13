@@ -188,12 +188,10 @@ pub enum SymbolType {
 impl Symbol for SymbolType {
     fn get_name(&self) -> String {
         match self {
-            SymbolType::FunctionScope { function_symbol_ref } => {
-                function_symbol_ref.borrow().get_name()
-            },
-            SymbolType::System { system_symbol_ref } => {
-                system_symbol_ref.borrow().get_name()
-            },
+            SymbolType::FunctionScope {
+                function_symbol_ref,
+            } => function_symbol_ref.borrow().get_name(),
+            SymbolType::System { system_symbol_ref } => system_symbol_ref.borrow().get_name(),
             SymbolType::InterfaceBlock {
                 interface_block_symbol_rcref,
             } => interface_block_symbol_rcref.borrow().get_name(),
@@ -271,9 +269,7 @@ impl ScopeSymbol for SymbolType {
         match self {
             SymbolType::FunctionScope {
                 function_symbol_ref,
-            } => {
-                function_symbol_ref.borrow().get_symbol_table()
-            },
+            } => function_symbol_ref.borrow().get_symbol_table(),
             SymbolType::System { system_symbol_ref } => {
                 system_symbol_ref.borrow().get_symbol_table()
             }
@@ -331,7 +327,6 @@ impl ScopeSymbol for SymbolType {
             SymbolType::ParamsScope {
                 params_scope_symbol_rcref,
             } => params_scope_symbol_rcref.borrow().get_symbol_table(),
-
 
             _ => {
                 panic!("Could not find SymbolType. Giving up.")
@@ -408,10 +403,12 @@ impl SymbolTable {
 
     pub fn insert_parse_scope(&mut self, scope_t: ParseScopeType) {
         match scope_t {
-            ParseScopeType::Function { function_scope_symbol_rcref } => {
+            ParseScopeType::Function {
+                function_scope_symbol_rcref,
+            } => {
                 let name = function_scope_symbol_rcref.borrow().name.clone();
                 let st_ref = Rc::new(RefCell::new(SymbolType::FunctionScope {
-                    function_symbol_ref:function_scope_symbol_rcref
+                    function_symbol_ref: function_scope_symbol_rcref,
                 }));
                 self.symbols.insert(name, st_ref);
             }
@@ -923,7 +920,6 @@ impl Arcanum {
         }
     }
 
-
     // Actions are only declared in the -actions- block.
     // Get -actions-block- symtab from the system symbol and lookup.
     #[allow(clippy::many_single_char_names)] // TODO
@@ -931,21 +927,16 @@ impl Arcanum {
         let symbol_type_rcref_opt = self.global_symtab.borrow().lookup_local(name);
 
         match symbol_type_rcref_opt {
-            Some(x)=> {
+            Some(x) => {
                 let y = x.borrow();
                 match &*y {
-                    SymbolType::FunctionScope {function_symbol_ref} => {
-                        Some(function_symbol_ref.clone())
-                    }
-                    _ => {
-                        None
-                    }
+                    SymbolType::FunctionScope {
+                        function_symbol_ref,
+                    } => Some(function_symbol_ref.clone()),
+                    _ => None,
                 }
-
             }
-            _ => {
-                None
-            }
+            _ => None,
         }
     }
 
@@ -1205,7 +1196,7 @@ impl Arcanum {
 
                 // let action_scope_symbol_rcref_clone = Rc::clone(action_scope_symbol_rcref);
                 //let action_symbol_symtab_rcref =
-                    //Rc::clone(&action_scope_symbol_rcref_clone.borrow().symtab_rcref);
+                //Rc::clone(&action_scope_symbol_rcref_clone.borrow().symtab_rcref);
 
                 // add new scope symbol to previous symbol table
                 self.current_symtab.borrow_mut().insert_parse_scope(scope_t);
@@ -2564,7 +2555,6 @@ impl ScopeSymbol for DomainBlockScopeSymbol {
 
 // ----------------------- //
 
-
 pub struct ActionScopeSymbol {
     pub name: String,
     pub ast_node_opt: Option<Rc<RefCell<ActionNode>>>,
@@ -2690,9 +2680,7 @@ impl ScopeSymbol for LoopStmtScopeSymbol {
     }
 }
 
-
 // ----------------------- //
-
 
 pub struct FunctionScopeSymbol {
     pub name: String,
