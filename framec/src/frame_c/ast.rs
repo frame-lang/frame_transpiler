@@ -1122,67 +1122,67 @@ impl ExprType {
         }
     }
 
-    pub fn auto_pre_inc_dec(&self, ast_visitor: &mut dyn AstVisitor) {
-        match self {
-            ExprType::CallChainLiteralExprT {
-                call_chain_expr_node,
-            } => {
-                let ref ref_expr_type = RefExprType::CallChainLiteralExprT {
-                    call_chain_expr_node,
-                };
-                ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
-            }
-            ExprType::ExprListT { expr_list_node } => {
-                let ref ref_expr_type = RefExprType::ExprListT { expr_list_node };
-                ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
-            }
-            ExprType::CallExprT { call_expr_node } => {
-                let ref ref_expr_type = RefExprType::CallExprT { call_expr_node };
-                ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
-            }
-            ExprType::BinaryExprT { binary_expr_node } => {
-                binary_expr_node
-                    .left_rcref
-                    .borrow()
-                    .auto_pre_inc_dec(ast_visitor);
-                binary_expr_node
-                    .right_rcref
-                    .borrow()
-                    .auto_pre_inc_dec(ast_visitor);
-            }
-            _ => {
-                // let debug = 1;
-            }
-        }
-    }
+    // pub fn auto_pre_inc_dec(&self, ast_visitor: &mut dyn AstVisitor) {
+    //     match self {
+    //         ExprType::CallChainLiteralExprT {
+    //             call_chain_expr_node,
+    //         } => {
+    //             let ref ref_expr_type = RefExprType::CallChainLiteralExprT {
+    //                 call_chain_expr_node,
+    //             };
+    //             ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
+    //         }
+    //         ExprType::ExprListT { expr_list_node } => {
+    //             let ref ref_expr_type = RefExprType::ExprListT { expr_list_node };
+    //             ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
+    //         }
+    //         ExprType::CallExprT { call_expr_node } => {
+    //             let ref ref_expr_type = RefExprType::CallExprT { call_expr_node };
+    //             ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
+    //         }
+    //         ExprType::BinaryExprT { binary_expr_node } => {
+    //             binary_expr_node
+    //                 .left_rcref
+    //                 .borrow()
+    //                 .auto_pre_inc_dec(ast_visitor);
+    //             binary_expr_node
+    //                 .right_rcref
+    //                 .borrow()
+    //                 .auto_pre_inc_dec(ast_visitor);
+    //         }
+    //         _ => {
+    //             // let debug = 1;
+    //         }
+    //     }
+    // }
 
-    pub fn auto_post_inc_dec(&self, ast_visitor: &mut dyn AstVisitor) {
-        match self {
-            ExprType::CallChainLiteralExprT {
-                call_chain_expr_node,
-            } => {
-                let ref ref_expr_type = RefExprType::CallChainLiteralExprT {
-                    call_chain_expr_node,
-                };
-                ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
-            }
-            ExprType::ExprListT { expr_list_node } => {
-                let ref ref_expr_type = RefExprType::ExprListT { expr_list_node };
-                ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
-            }
-            ExprType::BinaryExprT { binary_expr_node } => {
-                binary_expr_node
-                    .left_rcref
-                    .borrow()
-                    .auto_post_inc_dec(ast_visitor);
-                binary_expr_node
-                    .right_rcref
-                    .borrow()
-                    .auto_post_inc_dec(ast_visitor);
-            }
-            _ => {}
-        }
-    }
+    // pub fn auto_post_inc_dec(&self, ast_visitor: &mut dyn AstVisitor) {
+    //     match self {
+    //         ExprType::CallChainLiteralExprT {
+    //             call_chain_expr_node,
+    //         } => {
+    //             let ref ref_expr_type = RefExprType::CallChainLiteralExprT {
+    //                 call_chain_expr_node,
+    //             };
+    //             ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
+    //         }
+    //         ExprType::ExprListT { expr_list_node } => {
+    //             let ref ref_expr_type = RefExprType::ExprListT { expr_list_node };
+    //             ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
+    //         }
+    //         ExprType::BinaryExprT { binary_expr_node } => {
+    //             binary_expr_node
+    //                 .left_rcref
+    //                 .borrow()
+    //                 .auto_post_inc_dec(ast_visitor);
+    //             binary_expr_node
+    //                 .right_rcref
+    //                 .borrow()
+    //                 .auto_post_inc_dec(ast_visitor);
+    //         }
+    //         _ => {}
+    //     }
+    // }
 }
 
 impl NodeElement for ExprType {
@@ -1646,9 +1646,9 @@ impl NodeElement for ExprListStmtNode {
         let ref ref_expr_type = RefExprType::ExprListT {
             expr_list_node: &self.expr_list_node,
         };
-        ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
+       // ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
         ast_visitor.visit_expr_list_stmt_node(self);
-        ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
+       // ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
     }
 
     // fn accept_mut(&mut self, ast_visitor: &mut dyn AstVisitor) {
@@ -2096,6 +2096,7 @@ impl NodeElement for SuperStringStmtNode {
 //-----------------------------------------------------//
 
 #[derive(Clone)]
+#[derive(PartialEq)]
 pub enum IncDecExpr {
     None,
     PreInc,
@@ -2128,7 +2129,7 @@ impl NodeElement for CallChainLiteralExprNode {
             call_chain_expr_node: &self,
         };
 
-        ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
+    //    ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
 
         // search for pre autoupdated  parameters
         // for a in &self.call_chain {
@@ -2155,7 +2156,7 @@ impl NodeElement for CallChainLiteralExprNode {
 
         ast_visitor.visit_call_chain_literal_expr_node(self);
 
-        ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
+   //     ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
 
         // search for post autoupdated  parameters
         // for a in &self.call_chain {

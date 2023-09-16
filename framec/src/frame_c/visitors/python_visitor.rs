@@ -43,7 +43,7 @@ pub struct PythonVisitor {
     generate_change_state: bool,
     // generate_transition_state: bool,
     event_handler_has_code: bool,
-    loop_for_inc_dec_expr_rcref_opt: Option<Rc<RefCell<ExprType>>>,
+    // loop_for_inc_dec_expr_rcref_opt: Option<Rc<RefCell<ExprType>>>,
 
     /* Persistence */
     managed: bool, // Generate Managed code
@@ -100,7 +100,7 @@ impl PythonVisitor {
             generate_change_state,
             // generate_transition_state,
             event_handler_has_code: false,
-            loop_for_inc_dec_expr_rcref_opt: None,
+            // loop_for_inc_dec_expr_rcref_opt: None,
 
             /* Persistence */
             managed: false, // Generate Managed code
@@ -2165,10 +2165,10 @@ impl AstVisitor for PythonVisitor {
         match &evt_handler_terminator_node.terminator_type {
             TerminatorType::Return => match &evt_handler_terminator_node.return_expr_t_opt {
                 Some(expr_t) => {
-                    expr_t.auto_pre_inc_dec(self);
+                    // expr_t.auto_pre_inc_dec(self);
                     self.add_code("e._return = ");
                     expr_t.accept(self);
-                    expr_t.auto_post_inc_dec(self);
+                    // expr_t.auto_post_inc_dec(self);
                     self.generate_return();
                     self.newline();
                 }
@@ -2389,7 +2389,7 @@ impl AstVisitor for PythonVisitor {
                 outdent_cnt += 1;
             }
 
-            branch_node.expr_t.auto_pre_inc_dec(self);
+            // branch_node.expr_t.auto_pre_inc_dec(self);
             self.add_code(&format!("{} = ", bool_var_name));
             if branch_node.is_negated {
                 self.add_code(&format!("not (",));
@@ -2400,7 +2400,7 @@ impl AstVisitor for PythonVisitor {
             if branch_node.is_negated {
                 self.add_code(")");
             }
-            branch_node.expr_t.auto_post_inc_dec(self);
+            // branch_node.expr_t.auto_post_inc_dec(self);
 
             self.newline();
             self.add_code(&format!("if {}:", bool_var_name));
@@ -2480,13 +2480,18 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_call_chain_literal_expr_node(
         &mut self,
-        method_call_chain_expression_node: &CallChainLiteralExprNode,
+        calll_chain_expression_node: &CallChainLiteralExprNode,
     ) {
         // TODO: maybe put this in an AST node
 
         let mut separator = "";
 
-        for node in &method_call_chain_expression_node.call_chain {
+        if calll_chain_expression_node.inc_dec != IncDecExpr::None {
+            self.errors
+                .push("Error - auto increment/decrement operator (++/--) not allowed in Python.".to_string());
+            return;
+        }
+        for node in &calll_chain_expression_node.call_chain {
             self.add_code(separator);
             match &node {
                 CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
@@ -2517,219 +2522,225 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_auto_pre_inc_dec_expr_node(&mut self, ref_expr_type: &RefExprType) {
-
-        // match ref_expr_type.as_mut() {
-        //     RefExprType::CallChainLiteralExprT {
-        //         ref mut call_chain_expr_node,
-        //     } => {
-        //         *call_chain_expr_node.is_new_expr = false;
-        //     }
-        //     _ => {
-        //
-        //     }
-        // };
-
-        match ref_expr_type {
-            RefExprType::AssignmentExprT { .. } => {}
-            RefExprType::CallExprT { call_expr_node } => {
-                // TODO - not sure if this loop should move into the CallExprNode.
-                // if so need to implement similar functionality for other expr nodes
-                for expr_t in &call_expr_node.call_expr_list.exprs_t {
-                    expr_t.auto_pre_inc_dec(self);
-                }
-            }
-            RefExprType::BinaryExprT { binary_expr_node } => {
-                binary_expr_node.left_rcref.borrow().auto_pre_inc_dec(self);
-                binary_expr_node.right_rcref.borrow().auto_pre_inc_dec(self);
-            }
-            RefExprType::CallChainLiteralExprT {
-                call_chain_expr_node,
-            } => {
-                // *call_chain_expr_node.inc_dec = IncDecExpr::None;
-                match call_chain_expr_node.inc_dec {
-                    IncDecExpr::PreInc => {
-                        // this is a hack coordinating newline generation
-                        // in multiple different paths. One path is a pure
-                        // expression and no newline should be generated.
-                        self.test_skip_newline();
-                        let mut output = String::new();
-                        call_chain_expr_node.accept_to_string(self, &mut output);
-                        self.add_code(&format!("{} = {} + 1", output, output));
-                        self.skip_next_newline();
-                        // *call_chain_expr_node.inc_dec = IncDecExpr::None;
-
-
-                    }
-                    IncDecExpr::PreDec => {
-                        // this is a hack coordinating newline generation
-                        // in multiple different paths. One path is a pure
-                        // expression and no newline should be generated.
-                        self.test_skip_newline();
-                        let mut output = String::new();
-                        call_chain_expr_node.accept_to_string(self, &mut output);
-                        self.add_code(&format!("{} = {} - 1", output, output));
-                        self.skip_next_newline();
-                    }
-                    _ => {}
-                }
-
-                // now generate pre inc/dec for all arguments
-                for node in &call_chain_expr_node.call_chain {
-                    match &node {
-                        // CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
-                        //     id_node.accept(self);
-                        // }
-                        CallChainLiteralNodeType::CallT { call } => {
-                            for expr_t in &call.call_expr_list.exprs_t {
-                                expr_t.auto_pre_inc_dec(self);
-                            }
-                        }
-                        CallChainLiteralNodeType::InterfaceMethodCallT {
-                            interface_method_call_expr_node,
-                        } => {
-                            for expr_t in &interface_method_call_expr_node.call_expr_list.exprs_t {
-                                expr_t.auto_pre_inc_dec(self);
-                            }
-                        }
-                        CallChainLiteralNodeType::ActionCallT {
-                            action_call_expr_node,
-                        } => {
-                            for expr_t in &action_call_expr_node.call_expr_list.exprs_t {
-                                expr_t.auto_pre_inc_dec(self);
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-            }
-            RefExprType::ExprListT { expr_list_node } => {
-                for expr in &expr_list_node.exprs_t {
-                    expr.auto_pre_inc_dec(self);
-                }
-            }
-            RefExprType::LoopStmtT { loop_types } => {
-                match loop_types {
-                    LoopStmtTypes::LoopForStmt {
-                        loop_for_stmt_node: loop_for_expr_node,
-                    } => {
-                        for expr in &loop_for_expr_node.post_expr_rcref_opt {
-                            expr.borrow().auto_pre_inc_dec(self);
-                        }
-                    }
-                    LoopStmtTypes::LoopInStmt { loop_in_stmt_node } => {
-                        loop_in_stmt_node.iterable_expr.auto_pre_inc_dec(self);
-                    }
-                    LoopStmtTypes::LoopInfiniteStmt { .. } => {
-
-                        // TODO
-                    }
-                }
-            }
-        }
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_auto_post_inc_dec_expr_node(&mut self, ref_expr_type: &RefExprType) {
-        match ref_expr_type {
-            RefExprType::AssignmentExprT { .. } => {}
-            RefExprType::CallExprT { call_expr_node } => {
-                // TODO - not sure if this loop should move into the CallExprNode.
-                // if so need to implement similar functionality for other expr nodes
-                for expr_t in &call_expr_node.call_expr_list.exprs_t {
-                    expr_t.auto_post_inc_dec(self);
-                }
-            }
-            RefExprType::BinaryExprT { binary_expr_node } => {
-                binary_expr_node.left_rcref.borrow().auto_post_inc_dec(self);
-                binary_expr_node
-                    .right_rcref
-                    .borrow()
-                    .auto_post_inc_dec(self);
-            }
-            RefExprType::CallChainLiteralExprT {
-                call_chain_expr_node,
-            } => {
-                match call_chain_expr_node.inc_dec {
-                    IncDecExpr::PostInc => {
-                        self.newline();
-                        let mut output = String::new();
-                        call_chain_expr_node.accept_to_string(self, &mut output);
-                        self.add_code(&format!("{} = {} + 1", output, output));
-                    }
-                    IncDecExpr::PostDec => {
-                        self.newline();
-                        let mut output = String::new();
-                        call_chain_expr_node.accept_to_string(self, &mut output);
-                        self.add_code(&format!("{} = {} - 1", output, output));
-                    }
-                    _ => {}
-                }
-
-                // now generate pre inc/dec for all arguments
-                for node in &call_chain_expr_node.call_chain {
-                    match &node {
-                        // CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
-                        //     id_node.accept(self);
-                        // }
-                        CallChainLiteralNodeType::CallT { call } => {
-                            for expr_t in &call.call_expr_list.exprs_t {
-                                expr_t.auto_post_inc_dec(self);
-                            }
-                        }
-
-                        CallChainLiteralNodeType::InterfaceMethodCallT {
-                            interface_method_call_expr_node,
-                        } => {
-                            for expr_t in &interface_method_call_expr_node.call_expr_list.exprs_t {
-                                expr_t.auto_post_inc_dec(self);
-                            }
-                        }
-                        CallChainLiteralNodeType::ActionCallT {
-                            action_call_expr_node,
-                        } => {
-                            for expr_t in &action_call_expr_node.call_expr_list.exprs_t {
-                                expr_t.auto_post_inc_dec(self);
-                            }
-                        }
-                        // CallChainLiteralNodeType::VariableNodeT { var_node } => {
-                        //     self.visiting_call_chain_literal_variable = true;
-                        //     var_node.accept(self);
-                        //     self.visiting_call_chain_literal_variable = false;
-                        // }
-                        _ => {}
-                    }
-                }
-            }
-            RefExprType::ExprListT { expr_list_node } => {
-                for expr in &expr_list_node.exprs_t {
-                    expr.auto_post_inc_dec(self);
-                }
-            }
-            // RefExprType::LoopExprT {loop_expr_node} => {
-            //     for expr in &loop_expr_node.inc_dec_expr_rcref_opt {
-            //         let x = expr.borrow();
-            //         x.auto_post_inc_dec(self);
-            //     }
-            // }
-            RefExprType::LoopStmtT { loop_types } => {
-                match loop_types {
-                    LoopStmtTypes::LoopForStmt { loop_for_stmt_node } => {
-                        for expr in &loop_for_stmt_node.post_expr_rcref_opt {
-                            expr.borrow().auto_post_inc_dec(self);
-                        }
-                    }
-                    LoopStmtTypes::LoopInStmt { loop_in_stmt_node } => {
-                        loop_in_stmt_node.iterable_expr.auto_post_inc_dec(self);
-                    }
-                    LoopStmtTypes::LoopInfiniteStmt { .. } => {
-                        // TODO
-                    }
-                }
-            }
-        }
-    }
+    // fn visit_auto_pre_inc_dec_expr_node(&mut self, ref_expr_type: &RefExprType) {
+    //
+    //     // match ref_expr_type.as_mut() {
+    //     //     RefExprType::CallChainLiteralExprT {
+    //     //         ref mut call_chain_expr_node,
+    //     //     } => {
+    //     //         *call_chain_expr_node.is_new_expr = false;
+    //     //     }
+    //     //     _ => {
+    //     //
+    //     //     }
+    //     // };
+    //
+    //     match ref_expr_type {
+    //         RefExprType::AssignmentExprT { .. } => {}
+    //         RefExprType::CallExprT { call_expr_node } => {
+    //             // TODO - not sure if this loop should move into the CallExprNode.
+    //             // if so need to implement similar functionality for other expr nodes
+    //             for expr_t in &call_expr_node.call_expr_list.exprs_t {
+    //                 expr_t.auto_pre_inc_dec(self);
+    //             }
+    //         }
+    //         RefExprType::BinaryExprT { binary_expr_node } => {
+    //             binary_expr_node.left_rcref.borrow().auto_pre_inc_dec(self);
+    //             binary_expr_node.right_rcref.borrow().auto_pre_inc_dec(self);
+    //         }
+    //         RefExprType::CallChainLiteralExprT {
+    //             call_chain_expr_node,
+    //         } => {
+    //             // *call_chain_expr_node.inc_dec = IncDecExpr::None;
+    //             match call_chain_expr_node.inc_dec {
+    //                 IncDecExpr::PreInc => {
+    //                     // this is a hack coordinating newline generation
+    //                     // in multiple different paths. One path is a pure
+    //                     // expression and no newline should be generated.
+    //                     // self.test_skip_newline();
+    //                     let mut output = String::new();
+    //                     call_chain_expr_node.accept_to_string(self, &mut output);
+    //                     // self.add_code(&format!("{} = {} + 1", output, output));
+    //                     // self.skip_next_newline();
+    //                     // *call_chain_expr_node.inc_dec = IncDecExpr::None;
+    //                    // let err = format!("[line {}] Error - autoincrement of variables disallowed in Python",call_chain_expr_node.call_chain.);
+    //                     self.errors
+    //                         .push("Error - autoincrement of variables disallowed in Python".to_string());
+    //
+    //
+    //                 }
+    //                 IncDecExpr::PreDec => {
+    //                     // this is a hack coordinating newline generation
+    //                     // in multiple different paths. One path is a pure
+    //                     // expression and no newline should be generated.
+    //                     // self.test_skip_newline();
+    //                     // let mut output = String::new();
+    //                     // call_chain_expr_node.accept_to_string(self, &mut output);
+    //                     // self.add_code(&format!("{} = {} - 1", output, output));
+    //                     // self.skip_next_newline();
+    //                     self.errors
+    //                         .push("Error - autodecrement of variables disallowed in Python".to_string());
+    //
+    //                 }
+    //                 _ => {}
+    //             }
+    //
+    //             // now generate pre inc/dec for all arguments
+    //             for node in &call_chain_expr_node.call_chain {
+    //                 match &node {
+    //                     // CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
+    //                     //     id_node.accept(self);
+    //                     // }
+    //                     CallChainLiteralNodeType::CallT { call } => {
+    //                         for expr_t in &call.call_expr_list.exprs_t {
+    //                             expr_t.auto_pre_inc_dec(self);
+    //                         }
+    //                     }
+    //                     CallChainLiteralNodeType::InterfaceMethodCallT {
+    //                         interface_method_call_expr_node,
+    //                     } => {
+    //                         for expr_t in &interface_method_call_expr_node.call_expr_list.exprs_t {
+    //                             expr_t.auto_pre_inc_dec(self);
+    //                         }
+    //                     }
+    //                     CallChainLiteralNodeType::ActionCallT {
+    //                         action_call_expr_node,
+    //                     } => {
+    //                         for expr_t in &action_call_expr_node.call_expr_list.exprs_t {
+    //                             expr_t.auto_pre_inc_dec(self);
+    //                         }
+    //                     }
+    //                     _ => {}
+    //                 }
+    //             }
+    //         }
+    //         RefExprType::ExprListT { expr_list_node } => {
+    //             for expr in &expr_list_node.exprs_t {
+    //                 expr.auto_pre_inc_dec(self);
+    //             }
+    //         }
+    //         RefExprType::LoopStmtT { loop_types } => {
+    //             match loop_types {
+    //                 LoopStmtTypes::LoopForStmt {
+    //                     loop_for_stmt_node: loop_for_expr_node,
+    //                 } => {
+    //                     for expr in &loop_for_expr_node.post_expr_rcref_opt {
+    //                         expr.borrow().auto_pre_inc_dec(self);
+    //                     }
+    //                 }
+    //                 LoopStmtTypes::LoopInStmt { loop_in_stmt_node } => {
+    //                     loop_in_stmt_node.iterable_expr.auto_pre_inc_dec(self);
+    //                 }
+    //                 LoopStmtTypes::LoopInfiniteStmt { .. } => {
+    //
+    //                     // TODO
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
+    //
+    // //* --------------------------------------------------------------------- *//
+    //
+    // fn visit_auto_post_inc_dec_expr_node(&mut self, ref_expr_type: &RefExprType) {
+    //     match ref_expr_type {
+    //         RefExprType::AssignmentExprT { .. } => {}
+    //         RefExprType::CallExprT { call_expr_node } => {
+    //             // TODO - not sure if this loop should move into the CallExprNode.
+    //             // if so need to implement similar functionality for other expr nodes
+    //             for expr_t in &call_expr_node.call_expr_list.exprs_t {
+    //                 expr_t.auto_post_inc_dec(self);
+    //             }
+    //         }
+    //         RefExprType::BinaryExprT { binary_expr_node } => {
+    //             binary_expr_node.left_rcref.borrow().auto_post_inc_dec(self);
+    //             binary_expr_node
+    //                 .right_rcref
+    //                 .borrow()
+    //                 .auto_post_inc_dec(self);
+    //         }
+    //         RefExprType::CallChainLiteralExprT {
+    //             call_chain_expr_node,
+    //         } => {
+    //             match call_chain_expr_node.inc_dec {
+    //                 IncDecExpr::PostInc => {
+    //                     self.newline();
+    //                     let mut output = String::new();
+    //                     call_chain_expr_node.accept_to_string(self, &mut output);
+    //                     self.add_code(&format!("{} = {} + 1", output, output));
+    //                 }
+    //                 IncDecExpr::PostDec => {
+    //                     self.newline();
+    //                     let mut output = String::new();
+    //                     call_chain_expr_node.accept_to_string(self, &mut output);
+    //                     self.add_code(&format!("{} = {} - 1", output, output));
+    //                 }
+    //                 _ => {}
+    //             }
+    //
+    //             // now generate pre inc/dec for all arguments
+    //             for node in &call_chain_expr_node.call_chain {
+    //                 match &node {
+    //                     // CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
+    //                     //     id_node.accept(self);
+    //                     // }
+    //                     CallChainLiteralNodeType::CallT { call } => {
+    //                         for expr_t in &call.call_expr_list.exprs_t {
+    //                             expr_t.auto_post_inc_dec(self);
+    //                         }
+    //                     }
+    //
+    //                     CallChainLiteralNodeType::InterfaceMethodCallT {
+    //                         interface_method_call_expr_node,
+    //                     } => {
+    //                         for expr_t in &interface_method_call_expr_node.call_expr_list.exprs_t {
+    //                             expr_t.auto_post_inc_dec(self);
+    //                         }
+    //                     }
+    //                     CallChainLiteralNodeType::ActionCallT {
+    //                         action_call_expr_node,
+    //                     } => {
+    //                         for expr_t in &action_call_expr_node.call_expr_list.exprs_t {
+    //                             expr_t.auto_post_inc_dec(self);
+    //                         }
+    //                     }
+    //                     // CallChainLiteralNodeType::VariableNodeT { var_node } => {
+    //                     //     self.visiting_call_chain_literal_variable = true;
+    //                     //     var_node.accept(self);
+    //                     //     self.visiting_call_chain_literal_variable = false;
+    //                     // }
+    //                     _ => {}
+    //                 }
+    //             }
+    //         }
+    //         RefExprType::ExprListT { expr_list_node } => {
+    //             for expr in &expr_list_node.exprs_t {
+    //                 expr.auto_post_inc_dec(self);
+    //             }
+    //         }
+    //         // RefExprType::LoopExprT {loop_expr_node} => {
+    //         //     for expr in &loop_expr_node.inc_dec_expr_rcref_opt {
+    //         //         let x = expr.borrow();
+    //         //         x.auto_post_inc_dec(self);
+    //         //     }
+    //         // }
+    //         RefExprType::LoopStmtT { loop_types } => {
+    //             match loop_types {
+    //                 LoopStmtTypes::LoopForStmt { loop_for_stmt_node } => {
+    //                     for expr in &loop_for_stmt_node.post_expr_rcref_opt {
+    //                         expr.borrow().auto_post_inc_dec(self);
+    //                     }
+    //                 }
+    //                 LoopStmtTypes::LoopInStmt { loop_in_stmt_node } => {
+    //                     loop_in_stmt_node.iterable_expr.auto_post_inc_dec(self);
+    //                 }
+    //                 LoopStmtTypes::LoopInfiniteStmt { .. } => {
+    //                     // TODO
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
 
     //* --------------------------------------------------------------------- *//
 
@@ -2790,7 +2801,7 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_loop_for_stmt_node(&mut self, loop_for_expr_node: &LoopForStmtNode) {
-        self.loop_for_inc_dec_expr_rcref_opt = loop_for_expr_node.post_expr_rcref_opt.clone();
+        // self.loop_for_inc_dec_expr_rcref_opt = loop_for_expr_node.post_expr_rcref_opt.clone();
         // self.loop_for_inc_dec_expr_rcref_opt = ;
         self.newline();
         if let Some(expr_type_rcref) = &loop_for_expr_node.loop_init_expr_rcref_opt {
@@ -2807,7 +2818,7 @@ impl AstVisitor for PythonVisitor {
             test_expr_rcref.borrow().accept_to_string(self, &mut output);
 
             let test_expr = test_expr_rcref.borrow();
-            test_expr.auto_pre_inc_dec(self);
+           // test_expr.auto_pre_inc_dec(self);
 
             //            self.newline();
             self.add_code(&format!("if not({}):", output));
@@ -2816,7 +2827,7 @@ impl AstVisitor for PythonVisitor {
             self.add_code("break");
             self.outdent();
             //            self.newline();
-            test_expr.auto_post_inc_dec(self);
+            // test_expr.auto_post_inc_dec(self);
         }
 
         // only call if there are statements
@@ -2830,14 +2841,14 @@ impl AstVisitor for PythonVisitor {
         // for ..; ..; x++
         if let Some(expr_type_rcref) = &loop_for_expr_node.post_expr_rcref_opt {
             let expr_t = expr_type_rcref.borrow();
-            expr_t.auto_pre_inc_dec(self);
+            // expr_t.auto_pre_inc_dec(self);
             match *expr_t {
                 ExprType::CallChainLiteralExprT { .. } => {
                     // don't emit just a simple expression.
                 }
                 _ => expr_t.accept(self),
             }
-            expr_t.auto_post_inc_dec(self);
+            // expr_t.auto_post_inc_dec(self);
         }
         // generate 'pass' after autoincdec if there are no statements
         if loop_for_expr_node.statements.len() == 0 {
@@ -2846,7 +2857,7 @@ impl AstVisitor for PythonVisitor {
         }
         self.outdent();
         self.newline();
-        self.loop_for_inc_dec_expr_rcref_opt = None;
+        // self.loop_for_inc_dec_expr_rcref_opt = None;
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2870,7 +2881,7 @@ impl AstVisitor for PythonVisitor {
         //      break
 
         // autoinc any arguments to the iterable expression
-        loop_in_stmt_node.iterable_expr.auto_pre_inc_dec(self);
+       //  loop_in_stmt_node.iterable_expr.auto_pre_inc_dec(self);
         let mut output = String::new();
         loop_in_stmt_node
             .iterable_expr
@@ -2958,14 +2969,13 @@ impl AstVisitor for PythonVisitor {
     fn visit_continue_stmt_node(&mut self, _: &ContinueStmtNode) {
         // In the context of a for loop, the auto inc/dec clause needs to
         // be executed prior to generating the 'continue' statement.
-        // e.g.
-        // loop var x = 0; x < 10; x++ { .. }
-        let loop_for_inc_dec_expr_rcref_opt = self.loop_for_inc_dec_expr_rcref_opt.clone();
-        if let Some(expr_type_rcref) = loop_for_inc_dec_expr_rcref_opt {
-            let expr_t = expr_type_rcref.borrow();
-            expr_t.auto_pre_inc_dec(self);
-            expr_t.auto_post_inc_dec(self);
-        }
+        // e.g.: loop var x = 0; x < 10; x++ { .. }
+        // let loop_for_inc_dec_expr_rcref_opt = self.loop_for_inc_dec_expr_rcref_opt.clone();
+        // if let Some(expr_type_rcref) = loop_for_inc_dec_expr_rcref_opt {
+        //     let expr_t = expr_type_rcref.borrow();
+        //     expr_t.auto_pre_inc_dec(self);
+        //     expr_t.auto_post_inc_dec(self);
+        // }
         self.newline();
         self.add_code("continue");
     }
@@ -3334,7 +3344,9 @@ impl AstVisitor for PythonVisitor {
                 } => action_call_expr_node.accept(self),
                 ExprType::CallChainLiteralExprT {
                     call_chain_expr_node,
-                } => call_chain_expr_node.accept(self),
+                } => {
+                    call_chain_expr_node.accept(self)
+                },
                 ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
                 ExprType::ExprListT { expr_list_node } => {
                     // must be only 1 expression in the list
@@ -4162,13 +4174,13 @@ impl AstVisitor for PythonVisitor {
         self.newline();
         // inc/dec all *rvalue* expressions before generating the
         // assignement statement
-        assignment_expr_node.r_value_box.auto_pre_inc_dec(self);
+        // assignment_expr_node.r_value_box.auto_pre_inc_dec(self);
         // now generate assignment expression
         assignment_expr_node.l_value_box.accept(self);
         self.add_code(" = ");
         //       assignment_expr_node.r_value_box.auto_pre_inc_dec(self);
         assignment_expr_node.r_value_box.accept(self);
-        assignment_expr_node.r_value_box.auto_post_inc_dec(self);
+        // assignment_expr_node.r_value_box.auto_post_inc_dec(self);
     }
 
     //* --------------------------------------------------------------------- *//
@@ -4227,27 +4239,27 @@ impl AstVisitor for PythonVisitor {
     fn visit_binary_stmt_node(&mut self, binary_stmt_node: &BinaryStmtNode) {
         self.newline();
 
-        binary_stmt_node
-            .binary_expr_node
-            .left_rcref
-            .borrow()
-            .auto_pre_inc_dec(self);
-        binary_stmt_node
-            .binary_expr_node
-            .right_rcref
-            .borrow()
-            .auto_pre_inc_dec(self);
+        // binary_stmt_node
+        //     .binary_expr_node
+        //     .left_rcref
+        //     .borrow()
+        //     .auto_pre_inc_dec(self);
+        // binary_stmt_node
+        //     .binary_expr_node
+        //     .right_rcref
+        //     .borrow()
+        //     .auto_pre_inc_dec(self);
         binary_stmt_node.binary_expr_node.accept(self);
-        binary_stmt_node
-            .binary_expr_node
-            .left_rcref
-            .borrow()
-            .auto_post_inc_dec(self);
-        binary_stmt_node
-            .binary_expr_node
-            .right_rcref
-            .borrow()
-            .auto_post_inc_dec(self);
+        // binary_stmt_node
+        //     .binary_expr_node
+        //     .left_rcref
+        //     .borrow()
+        //     .auto_post_inc_dec(self);
+        // binary_stmt_node
+        //     .binary_expr_node
+        //     .right_rcref
+        //     .borrow()
+        //     .auto_post_inc_dec(self);
     }
 
     //* --------------------------------------------------------------------- *//

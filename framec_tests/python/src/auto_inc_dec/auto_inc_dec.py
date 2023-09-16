@@ -61,8 +61,6 @@ class AutoIncDec:
     
     def __autoincdec_state_Inc(self, e):
         if e._message == "pre":
-            
-            self.a = self.a + 1
             self.b = self.a
             print(self.b)
             
@@ -70,7 +68,6 @@ class AutoIncDec:
         
         elif e._message == "post":
             self.c = self.a
-            self.a = self.a + 1
             print(self.c)
             
             return
@@ -83,8 +80,6 @@ class AutoIncDec:
         
     def __autoincdec_state_Dec(self, e):
         if e._message == "pre":
-            
-            self.a = self.a - 1
             self.b = self.a
             print(self.b)
             
@@ -92,7 +87,6 @@ class AutoIncDec:
         
         elif e._message == "post":
             self.c = self.a
-            self.a = self.a - 1
             print(self.c)
             
             return
