@@ -205,20 +205,27 @@ impl NodeElement for SystemNode {
     }
 }
 
-
 //-----------------------------------------------------//
 
 pub struct SystemInstanceExprNode {
     pub identifier: IdentifierNode,
+    pub start_state_state_args: Vec<ExprType>,
+    pub start_state_enter_args: Vec<ExprType>,
+    pub domain_args: Vec<ExprType>,
 }
 
 impl SystemInstanceExprNode {
     pub fn new(
         identifier: IdentifierNode,
+        start_state_state_args: Vec<ExprType>,
+        start_state_enter_args: Vec<ExprType>,
+        domain_args: Vec<ExprType>,
     ) -> SystemInstanceExprNode {
         SystemInstanceExprNode {
             identifier,
-
+            start_state_state_args,
+            start_state_enter_args,
+            domain_args,
         }
     }
 }
@@ -1638,6 +1645,15 @@ impl NodeElement for ExprListStmtNode {
         ast_visitor.visit_expr_list_stmt_node(self);
         ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
     }
+
+    // fn accept_mut(&mut self, ast_visitor: &mut dyn AstVisitor) {
+    //     let ref mut  ref_expr_type = RefExprType::ExprListT {
+    //         expr_list_node: &mut self.expr_list_node,
+    //     };
+    //     ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
+    //     ast_visitor.visit_expr_list_stmt_node(self);
+    //     ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
+    // }
 }
 
 //-----------------------------------------------------//
@@ -2106,56 +2122,58 @@ impl NodeElement for CallChainLiteralExprNode {
         let ref ref_expr_type = RefExprType::CallChainLiteralExprT {
             call_chain_expr_node: &self,
         };
+
         ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
 
         // search for pre autoupdated  parameters
-        for a in &self.call_chain {
-            if let CallChainLiteralNodeType::CallT { call } = a {
-                for b in &call.call_expr_list.exprs_t {
-                    match &b {
-                        ExprType::CallChainLiteralExprT {
-                            call_chain_expr_node,
-                        } => {
-                            let ref ref_expr_type = RefExprType::CallChainLiteralExprT {
-                                call_chain_expr_node,
-                            };
-                            ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
-                        }
-                        ExprType::BinaryExprT { binary_expr_node } => {
-                            let ref ref_expr_type = RefExprType::BinaryExprT { binary_expr_node };
-                            ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
-                        }
-                        _ => {}
-                    }
-                }
-            }
-        }
+        // for a in &self.call_chain {
+        //     if let CallChainLiteralNodeType::CallT { call } = a {
+        //         for b in &call.call_expr_list.exprs_t {
+        //             match &b {
+        //                 ExprType::CallChainLiteralExprT {
+        //                     call_chain_expr_node,
+        //                 } => {
+        //                     let ref ref_expr_type = RefExprType::CallChainLiteralExprT {
+        //                         call_chain_expr_node,
+        //                     };
+        //                     ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
+        //                 }
+        //                 ExprType::BinaryExprT { binary_expr_node } => {
+        //                     let ref ref_expr_type = RefExprType::BinaryExprT { binary_expr_node };
+        //                     ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
+        //                 }
+        //                 _ => {}
+        //             }
+        //         }
+        //     }
+        // }
 
         ast_visitor.visit_call_chain_literal_expr_node(self);
+
         ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
 
         // search for post autoupdated  parameters
-        for a in &self.call_chain {
-            if let CallChainLiteralNodeType::CallT { call } = a {
-                for b in &call.call_expr_list.exprs_t {
-                    match &b {
-                        ExprType::CallChainLiteralExprT {
-                            call_chain_expr_node,
-                        } => {
-                            let ref ref_expr_type = RefExprType::CallChainLiteralExprT {
-                                call_chain_expr_node,
-                            };
-                            ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
-                        }
-                        ExprType::BinaryExprT { binary_expr_node } => {
-                            let ref ref_expr_type = RefExprType::BinaryExprT { binary_expr_node };
-                            ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
-                        }
-                        _ => {}
-                    }
-                }
-            }
-        }
+        // for a in &self.call_chain {
+        //     if let CallChainLiteralNodeType::CallT { call } = a {
+        //         for b in &call.call_expr_list.exprs_t {
+        //             match &b {
+        //                 ExprType::CallChainLiteralExprT {
+        //                     call_chain_expr_node,
+        //                 } => {
+        //                     let ref ref_expr_type = RefExprType::CallChainLiteralExprT {
+        //                         call_chain_expr_node,
+        //                     };
+        //                     ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
+        //                 }
+        //                 ExprType::BinaryExprT { binary_expr_node } => {
+        //                     let ref ref_expr_type = RefExprType::BinaryExprT { binary_expr_node };
+        //                     ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
+        //                 }
+        //                 _ => {}
+        //             }
+        //         }
+        //     }
+        // }
     }
 
     fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {

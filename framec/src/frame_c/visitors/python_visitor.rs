@@ -2522,6 +2522,18 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_auto_pre_inc_dec_expr_node(&mut self, ref_expr_type: &RefExprType) {
+
+        // match ref_expr_type.as_mut() {
+        //     RefExprType::CallChainLiteralExprT {
+        //         ref mut call_chain_expr_node,
+        //     } => {
+        //         *call_chain_expr_node.is_new_expr = false;
+        //     }
+        //     _ => {
+        //
+        //     }
+        // };
+
         match ref_expr_type {
             RefExprType::AssignmentExprT {
                 ..
@@ -2540,6 +2552,7 @@ impl AstVisitor for PythonVisitor {
             RefExprType::CallChainLiteralExprT {
                 call_chain_expr_node,
             } => {
+                // *call_chain_expr_node.inc_dec = IncDecExpr::None;
                 match call_chain_expr_node.inc_dec {
                     IncDecExpr::PreInc => {
                         // this is a hack coordinating newline generation
@@ -2550,6 +2563,9 @@ impl AstVisitor for PythonVisitor {
                         call_chain_expr_node.accept_to_string(self, &mut output);
                         self.add_code(&format!("{} = {} + 1", output, output));
                         self.skip_next_newline();
+                        // *call_chain_expr_node.inc_dec = IncDecExpr::None;
+
+
                     }
                     IncDecExpr::PreDec => {
                         // this is a hack coordinating newline generation
