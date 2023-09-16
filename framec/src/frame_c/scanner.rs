@@ -50,7 +50,6 @@ impl Scanner {
             ("-machine-".to_string(), TokenType::MachineBlock),
             ("-actions-".to_string(), TokenType::ActionsBlock),
             ("-domain-".to_string(), TokenType::DomainBlock),
-
         ]
         .iter()
         .cloned()

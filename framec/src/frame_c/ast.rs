@@ -215,6 +215,7 @@ pub struct SystemInstanceExprNode {
 }
 
 impl SystemInstanceExprNode {
+
     pub fn new(
         identifier: IdentifierNode,
         start_state_state_args: Vec<ExprType>,
@@ -227,6 +228,7 @@ impl SystemInstanceExprNode {
             start_state_enter_args,
             domain_args,
         }
+
     }
 }
 
@@ -352,7 +354,6 @@ impl NodeElement for ParameterNode {
 //     }
 // }
 
-
 //-----------------------------------------------------//
 
 pub struct FunctionNode {
@@ -383,7 +384,6 @@ impl FunctionNode {
         }
     }
 }
-
 
 impl NodeElement for FunctionNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
@@ -1180,8 +1180,7 @@ impl ExprType {
                     .borrow()
                     .auto_post_inc_dec(ast_visitor);
             }
-            _ => {
-            }
+            _ => {}
         }
     }
 }
@@ -1199,7 +1198,9 @@ impl NodeElement for ExprType {
             } => {
                 ast_visitor.visit_call_chain_literal_expr_node(call_chain_expr_node);
             }
-            ExprType::SystemInstanceExprT { system_instance_expr_node } => {
+            ExprType::SystemInstanceExprT {
+                system_instance_expr_node,
+            } => {
                 ast_visitor.visit_system_instance_expr_node(system_instance_expr_node);
             }
             ExprType::CallExprT { call_expr_node } => {
@@ -1258,8 +1259,11 @@ impl NodeElement for ExprType {
                 ast_visitor
                     .visit_call_chain_literal_expr_node_to_string(call_chain_expr_node, output);
             }
-            ExprType::SystemInstanceExprT { system_instance_expr_node } => {
-                ast_visitor.visit_system_instance_expr_node_to_string(system_instance_expr_node, output);
+            ExprType::SystemInstanceExprT {
+                system_instance_expr_node,
+            } => {
+                ast_visitor
+                    .visit_system_instance_expr_node_to_string(system_instance_expr_node, output);
             }
             ExprType::CallExprT { call_expr_node } => {
                 ast_visitor.visit_call_expression_node_to_string(call_expr_node, output);
@@ -1442,7 +1446,6 @@ pub enum DeclOrStmtType {
     },
 }
 
-
 //-----------------------------------------------------//
 
 pub struct SystemInstanceStmtNode {
@@ -1451,7 +1454,9 @@ pub struct SystemInstanceStmtNode {
 
 impl SystemInstanceStmtNode {
     pub fn new(system_instance_expr_node: SystemInstanceExprNode) -> SystemInstanceStmtNode {
-        SystemInstanceStmtNode { system_instance_expr_node }
+        SystemInstanceStmtNode {
+            system_instance_expr_node,
+        }
     }
 }
 

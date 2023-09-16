@@ -122,9 +122,7 @@ impl SmcatVisitor {
                         StatementType::BreakStmt { .. } => {
                             // break_stmt_node.accept(self);
                         }
-                        StatementType::SuperStringStmt {
-                            ..
-                        } => {
+                        StatementType::SuperStringStmt { .. } => {
                             // TODO
                             // super_string_stmt_node.accept(self);
                         }
