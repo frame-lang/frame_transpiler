@@ -1756,8 +1756,33 @@ impl AstVisitor for PythonVisitor {
     ) {
         let system_name = &system_instance_expr_node.identifier.name.lexeme;
 
+        self.newline();
         self.add_code(&format!("{}", system_name));
         self.add_code("(");
+        let mut separator = "";
+        if let Some(start_state_state_args) = &system_instance_expr_node.start_state_state_args_opt {
+            for expr_t in &start_state_state_args.exprs_t {
+                self.add_code(separator);
+                expr_t.accept(self);
+                separator = ",";
+            }
+        }
+
+        if let Some(start_state_enter_args) = &system_instance_expr_node.start_state_enter_args_opt {
+            for expr_t in &start_state_enter_args.exprs_t {
+                self.add_code(separator);
+                expr_t.accept(self);
+                separator = ",";
+            }
+        }
+
+        if let Some(domain_args) = &system_instance_expr_node.domain_args_opt {
+            for expr_t in &domain_args.exprs_t {
+                self.add_code(separator);
+                expr_t.accept(self);
+                separator = ",";
+            }
+        }
         self.add_code(")");
     }
 
