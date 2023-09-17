@@ -209,24 +209,24 @@ impl NodeElement for SystemNode {
 
 pub struct SystemInstanceExprNode {
     pub identifier: IdentifierNode,
-    pub start_state_state_args: Vec<ExprType>,
-    pub start_state_enter_args: Vec<ExprType>,
-    pub domain_args: Vec<ExprType>,
+    pub start_state_state_args_opt: Option<ExprListNode>,
+    pub start_state_enter_args_opt: Option<ExprListNode>,
+    pub domain_args_opt: Option<ExprListNode>,
 }
 
 impl SystemInstanceExprNode {
 
     pub fn new(
         identifier: IdentifierNode,
-        start_state_state_args: Vec<ExprType>,
-        start_state_enter_args: Vec<ExprType>,
-        domain_args: Vec<ExprType>,
+        start_state_state_args_opt: Option<ExprListNode>,
+        start_state_enter_args_opt: Option<ExprListNode>,
+        domain_args_opt: Option<ExprListNode>,
     ) -> SystemInstanceExprNode {
         SystemInstanceExprNode {
             identifier,
-            start_state_state_args,
-            start_state_enter_args,
-            domain_args,
+            start_state_state_args_opt,
+            start_state_enter_args_opt,
+            domain_args_opt,
         }
 
     }
@@ -989,6 +989,7 @@ impl NodeElement for FrameEventPart {
 //     }
 // }
 
+
 //-----------------------------------------------------//
 //                  -Expressions-
 
@@ -1358,6 +1359,32 @@ impl NodeElement for ExprType {
     //         }
     //     }
     // }
+}
+
+// TODO - need to create new types for permitted expressions
+//        inside functions as opposed to systems. This is a start.
+
+//-----------------------------------------------------//
+//                  -Function Arg Expressions-
+
+pub enum FunctionArgExprType {
+    CallChainLiteralExprT {
+        call_chain_expr_node: CallChainLiteralExprNode,
+    },
+    #[allow(dead_code)] // is used, don't know why I need this
+    CallExprT {
+        call_expr_node: CallExprNode,
+    },
+    VariableExprT {
+        var_node: VariableNode,
+    },
+    LiteralExprT {
+        literal_expr_node: LiteralExprNode,
+    },
+
+    // TODO
+    // - FunctionBinaryExprNode
+    // - FunctionAssignment
 }
 
 //-----------------------------------------------------//

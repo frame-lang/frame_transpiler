@@ -349,7 +349,7 @@ impl Scanner {
                 if self.match_char('#') {
                     self.add_token(TokenType::SystemEnd);
                 } else if self.match_char('[') {
-                    self.add_token(TokenType::OuterAttribute) // #[
+                    self.add_token(TokenType::OuterAttributeOrDomainParams) // #[
                 } else if self.match_char('!') {
                     if self.match_char('[') {
                         // #![
@@ -723,7 +723,7 @@ pub enum TokenType {
     LogicalXor,        // &|
     System,            // #
     SystemEnd,         // ##
-    OuterAttribute,    // #[
+    OuterAttributeOrDomainParams,    // #[
     InnerAttribute,    // #![
     InterfaceBlock,    // -interface-
     MachineBlock,      // -machine-
