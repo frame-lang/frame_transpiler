@@ -358,7 +358,7 @@ impl Java8Visitor {
     fn format_new_params(&mut self, system_node: &SystemNode) -> (String, String) {
         let mut ref_params: String = String::new(); // ref params is passing reference of constructor params
         let mut separator = String::new();
-        let mut new_params: String = match &system_node.start_state_state_params_opt {
+        let mut new_params: String = match &system_node.start_state_state_param_opt {
             Some(param_list) => {
                 let mut params = String::new();
                 for param_node in param_list {
@@ -1579,7 +1579,7 @@ impl Java8Visitor {
         self.add_code("this._nextCompartment_ = null;");
 
         // Initialize state arguments.
-        match &system_node.start_state_state_params_opt {
+        match &system_node.start_state_state_param_opt {
             Some(params) => {
                 for param in params {
                     self.newline();

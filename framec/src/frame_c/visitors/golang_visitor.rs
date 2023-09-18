@@ -1204,7 +1204,7 @@ impl GolangVisitor {
         self.newline();
         // format system params,if any.
         let mut separator = String::new();
-        let mut new_params: String = match &system_node.start_state_state_params_opt {
+        let mut new_params: String = match &system_node.start_state_state_param_opt {
             Some(param_list) => {
                 let mut params = String::new();
                 for param_node in param_list {
@@ -1324,7 +1324,7 @@ impl GolangVisitor {
         ));
 
         // Initialize state arguments.
-        match &system_node.start_state_state_params_opt {
+        match &system_node.start_state_state_param_opt {
             Some(params) => {
                 for param in params {
                     self.newline();

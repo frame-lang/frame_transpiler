@@ -57,6 +57,7 @@ pub struct PythonVisitor {
     this_branch_transitioned: bool,
     skip_next_newline: bool,
     generate_main: bool,
+    variable_init_override_opt: Option<String>,
 }
 
 impl PythonVisitor {
@@ -111,6 +112,7 @@ impl PythonVisitor {
             this_branch_transitioned: false,
             skip_next_newline: false,
             generate_main: false,
+            variable_init_override_opt: Option::None,
         }
     }
 
@@ -274,17 +276,6 @@ impl PythonVisitor {
             separator = ",";
         }
     }
-
-    //* --------------------------------------------------------------------- *//
-
-    // fn format_parameter_list_to_string(&mut self,params:&Vec<ParameterNode>,output:&mut String) {
-    //     let mut separator = "";
-    //     for param in params {
-    //         output.push_str(&format!("{}", separator));
-    //         output.push_str(&format!("{}", param.param_name));
-    //         separator = ",";
-    //     }
-    // }
 
     //* --------------------------------------------------------------------- *//
 
@@ -1178,8 +1169,7 @@ impl PythonVisitor {
         self.newline();
         self.indent();
         self.newline();
-        self.add_code("def __init__(self, state):");
-        // self.newline();
+        self.add_code("def __init__(self,state):");
         self.indent();
         self.newline();
         self.add_code("self.state = state");
@@ -1219,6 +1209,7 @@ impl PythonVisitor {
 
             self.add_code(" # Create and intialize start state compartment.");
             self.newline();
+            self.newline();
             self.add_code(&format!(
                 "self.__state = self.{}",
                 self.format_target_state_name(&self.first_state_name)
@@ -1247,12 +1238,12 @@ impl PythonVisitor {
         ));
 
         // Initialize state arguments.
-        match &system_node.start_state_state_params_opt {
+        match &system_node.start_state_state_param_opt {
             Some(params) => {
                 for param in params {
                     self.newline();
                     self.add_code(&format!(
-                        "self.__compartment.state_args[\"{}\"] = {}",
+                        "self.__compartment.state_args[\"{}\"] = start_state_state_param_{}",
                         param.param_name, param.param_name,
                     ));
                 }
@@ -1288,23 +1279,37 @@ impl PythonVisitor {
             for param in enter_params {
                 self.newline();
                 self.add_code(&format!(
-                    "self.__compartment.enter_args[\"{}\"] = {}",
+                    "self.__compartment.enter_args[\"{}\"] = start_state_enter_param_{}",
                     param.param_name, param.param_name,
                 ));
             }
         }
-
-        // if self.config.code.public_state_info {
-        //     self.newline();
-        //     self.add_code("this.state = this.#compartment.state.name");
-        // }
 
         self.newline();
         self.newline();
         self.add_code("# Initialize domain");
 
         if let Some(domain_block_node) = &system_node.domain_block_node_opt {
-            domain_block_node.accept(self);
+            // domain_block_node.accept(self);
+            self.newline();
+
+            for variable_decl_node_rcref in &domain_block_node.member_variables {
+                let mut variable_decl_node = variable_decl_node_rcref.borrow_mut();
+       //         variable_decl_node.initializer_expr_t_opt = Option::None;
+                if let Some(domain_params_vec) = &system_node.domain_params_opt {
+                    for domain_param in domain_params_vec {
+                        if domain_param.param_name == variable_decl_node.name {
+                            self.variable_init_override_opt = Some(domain_param.param_name.clone());
+                            break;
+                        }
+                    }
+                }
+
+                variable_decl_node.accept(self);
+                self.variable_init_override_opt = Option::None;
+            }
+
+            self.newline();
         } else {
             self.newline();
         }
@@ -1473,7 +1478,7 @@ impl AstVisitor for PythonVisitor {
 
         // format system params,if any.
         let mut separator = String::new();
-        let mut new_params: String = match &system_node.start_state_state_params_opt {
+        let mut new_params: String = match &system_node.start_state_state_param_opt {
             Some(param_list) => {
                 let mut params = String::new();
                 for param_node in param_list {
@@ -1481,7 +1486,7 @@ impl AstVisitor for PythonVisitor {
                         Some(type_node) => self.format_type(type_node),
                         None => String::from(""),
                     };
-                    params.push_str(&format!("{}{}", separator, param_node.param_name));
+                    params.push_str(&format!("{}start_state_state_param_{}", separator, param_node.param_name));
                     if !param_type.is_empty() {
                         params.push_str(&format!(": {}", param_type));
                     }
@@ -1499,7 +1504,7 @@ impl AstVisitor for PythonVisitor {
                         Some(type_node) => self.format_type(type_node),
                         None => String::from(""),
                     };
-                    new_params.push_str(&format!("{}{}", separator, param_node.param_name));
+                    new_params.push_str(&format!("{}start_state_enter_param_{}", separator, param_node.param_name));
                     if !param_type.is_empty() {
                         new_params.push_str(&format!(": {}", param_type));
                     }
@@ -1515,7 +1520,7 @@ impl AstVisitor for PythonVisitor {
                         Some(type_node) => self.format_type(type_node),
                         None => String::from(""),
                     };
-                    new_params.push_str(&format!("{}{}", separator, param_node.param_name));
+                    new_params.push_str(&format!("{}domain_param_{}", separator, param_node.param_name));
                     if !param_type.is_empty() {
                         new_params.push_str(&format!(": {}", param_type));
                     }
@@ -1528,12 +1533,12 @@ impl AstVisitor for PythonVisitor {
         self.newline();
         if self.managed {
             if new_params.is_empty() {
-                self.add_code("def __init__(self, manager):");
+                self.add_code("def __init__(self,manager):");
             } else {
-                self.add_code(&format!("def __init__(self, manager, {}):", new_params));
+                self.add_code(&format!("def __init__(self,manager, {}):", new_params));
             }
         } else if !self.managed && !new_params.is_empty() {
-            self.add_code(&format!("def __init__(self, {}):", new_params));
+            self.add_code(&format!("def __init__(self,{}):", new_params));
         } else {
             self.add_code("def __init__(self):");
         }
@@ -1561,7 +1566,7 @@ impl AstVisitor for PythonVisitor {
         if self.managed {
             if new_params.is_empty() {
                 self.subclass_code
-                    .push("\t#def __init__(self, manager):".to_string());
+                    .push("\t#def __init__(self,manager):".to_string());
                 self.subclass_code
                     .push("\t#  super().__init__(manager)".to_string());
             } else {
@@ -1726,12 +1731,33 @@ impl AstVisitor for PythonVisitor {
 
         self.generate_subclass();
 
+
         if self.generate_main {
             self.newline();
             self.add_code("if __name__ == '__main__':");
             self.indent();
             self.newline();
-            self.add_code("main()");
+            let mut arg_cnt:usize = 0;
+            if let Some(functions) = &system_node.functions_opt {
+                for function_rcref in functions {
+                    let function_node = function_rcref.borrow();
+                    if function_node.name == "main" {
+                        if let Some(params) = &function_node.params {
+                            arg_cnt = params.len();
+                        } else {
+                            arg_cnt = 0;
+                        }
+                        break;
+                    }
+                }
+            };
+            self.add_code("main(");
+            let mut separator = "";
+            for i in 1..arg_cnt+1 {
+                self.add_code(&format!("{}sys.argv[{}]",separator,i));
+                separator = ",";
+            }
+            self.add_code(")");
             self.outdent();
             self.newline();
         }
@@ -2044,19 +2070,19 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_domain_block_node(&mut self, domain_block_node: &DomainBlockNode) {
-        // self.newline();
-        // self.newline();
-        // self.add_code("# ===================== Domain Block =================== #");
-        self.newline();
-
-        for variable_decl_node_rcref in &domain_block_node.member_variables {
-            let variable_decl_node = variable_decl_node_rcref.borrow();
-            variable_decl_node.accept(self);
-        }
-
-        self.newline();
-    }
+    // fn visit_domain_block_node(&mut self, domain_block_node: &DomainBlockNode) {
+    //     // self.newline();
+    //     // self.newline();
+    //     // self.add_code("# ===================== Domain Block =================== #");
+    //     self.newline();
+    //
+    //     for variable_decl_node_rcref in &domain_block_node.member_variables {
+    //         let variable_decl_node = variable_decl_node_rcref.borrow();
+    //         variable_decl_node.accept(self);
+    //     }
+    //
+    //     self.newline();
+    // }
 
     //* --------------------------------------------------------------------- *//
 
@@ -4105,7 +4131,13 @@ impl AstVisitor for PythonVisitor {
                 if !var_type.is_empty() {
                     self.add_code(&format!(": {}", var_type));
                 }
-                self.add_code(&format!(" = {}", code));
+                if let Some(variable_init_override) = &self.variable_init_override_opt {
+                    // TODO - move "domain_param_" prefix into config variables.
+                    self.add_code(&format!(" = domain_param_{}", variable_init_override));
+                } else {
+                    self.add_code(&format!(" = {}", code));
+                }
+
             }
             IdentifierDeclScope::EventHandlerVar => {
                 self.add_code(&format!("{} ", var_name));
