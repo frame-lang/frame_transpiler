@@ -7,6 +7,7 @@ class HandlerCalls:
     def __init__(self):
         
          # Create and intialize start state compartment.
+        
         self.__state = self.__handlercalls_state_Init
         self.__compartment: 'HandlerCallsCompartment' = HandlerCallsCompartment(self.__state)
         self.__next_compartment: 'HandlerCallsCompartment' = None
@@ -262,7 +263,7 @@ class HandlerCalls:
 
 class HandlerCallsCompartment:
 
-    def __init__(self, state):
+    def __init__(self,state):
         self.state = state
         self.state_args = {}
         self.state_vars = {}

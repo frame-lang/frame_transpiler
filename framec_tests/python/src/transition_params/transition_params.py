@@ -7,6 +7,7 @@ class TransitParams:
     def __init__(self):
         
          # Create and intialize start state compartment.
+        
         self.__state = self.__transitparams_state_Init
         self.__compartment: 'TransitParamsCompartment' = TransitParamsCompartment(self.__state)
         self.__next_compartment: 'TransitParamsCompartment' = None
@@ -156,7 +157,7 @@ class TransitParams:
 
 class TransitParamsCompartment:
 
-    def __init__(self, state):
+    def __init__(self,state):
         self.state = state
         self.state_args = {}
         self.state_vars = {}

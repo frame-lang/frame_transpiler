@@ -7,6 +7,7 @@ class SimpleHandlerCalls:
     def __init__(self):
         
          # Create and intialize start state compartment.
+        
         self.__state = self.__simplehandlercalls_state_Init
         self.__compartment: 'SimpleHandlerCallsCompartment' = SimpleHandlerCallsCompartment(self.__state)
         self.__next_compartment: 'SimpleHandlerCallsCompartment' = None
@@ -126,7 +127,7 @@ class SimpleHandlerCalls:
 
 class SimpleHandlerCallsCompartment:
 
-    def __init__(self, state):
+    def __init__(self,state):
         self.state = state
         self.state_args = {}
         self.state_vars = {}

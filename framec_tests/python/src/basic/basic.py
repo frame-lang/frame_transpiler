@@ -7,6 +7,7 @@ class Basic:
     def __init__(self):
         
          # Create and intialize start state compartment.
+        
         self.__state = self.__basic_state_S0
         self.__compartment: 'BasicCompartment' = BasicCompartment(self.__state)
         self.__next_compartment: 'BasicCompartment' = None
@@ -120,7 +121,7 @@ class Basic:
 
 class BasicCompartment:
 
-    def __init__(self, state):
+    def __init__(self,state):
         self.state = state
         self.state_args = {}
         self.state_vars = {}

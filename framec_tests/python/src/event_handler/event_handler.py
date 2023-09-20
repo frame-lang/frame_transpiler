@@ -7,6 +7,7 @@ class EventHandler:
     def __init__(self):
         
          # Create and intialize start state compartment.
+        
         self.__state = self.__eventhandler_state_S1
         self.__compartment: 'EventHandlerCompartment' = EventHandlerCompartment(self.__state)
         self.__next_compartment: 'EventHandlerCompartment' = None
@@ -162,7 +163,7 @@ class EventHandler:
 
 class EventHandlerCompartment:
 
-    def __init__(self, state):
+    def __init__(self,state):
         self.state = state
         self.state_args = {}
         self.state_vars = {}

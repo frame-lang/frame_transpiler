@@ -7,6 +7,7 @@ class HierarchicalGuard:
     def __init__(self):
         
          # Create and intialize start state compartment.
+        
         self.__state = self.__hierarchicalguard_state_I
         self.__compartment: 'HierarchicalGuardCompartment' = HierarchicalGuardCompartment(self.__state)
         self.__next_compartment: 'HierarchicalGuardCompartment' = None
@@ -241,7 +242,7 @@ class HierarchicalGuard:
 
 class HierarchicalGuardCompartment:
 
-    def __init__(self, state):
+    def __init__(self,state):
         self.state = state
         self.state_args = {}
         self.state_vars = {}

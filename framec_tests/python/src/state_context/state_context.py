@@ -7,6 +7,7 @@ class StateContextSm:
     def __init__(self):
         
          # Create and intialize start state compartment.
+        
         self.__state = self.__statecontextsm_state_Init
         self.__compartment: 'StateContextSmCompartment' = StateContextSmCompartment(self.__state)
         self.__next_compartment: 'StateContextSmCompartment' = None
@@ -216,7 +217,7 @@ class StateContextSm:
 
 class StateContextSmCompartment:
 
-    def __init__(self, state):
+    def __init__(self,state):
         self.state = state
         self.state_args = {}
         self.state_vars = {}

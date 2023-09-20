@@ -11,6 +11,7 @@ class ForwardEvents:
         self.__state_stack = []
         
          # Create and intialize start state compartment.
+        
         self.__state = self.__forwardevents_state_S0
         self.__compartment: 'ForwardEventsCompartment' = ForwardEventsCompartment(self.__state)
         self.__next_compartment: 'ForwardEventsCompartment' = None
@@ -174,7 +175,7 @@ class ForwardEvents:
 
 class ForwardEventsCompartment:
 
-    def __init__(self, state):
+    def __init__(self,state):
         self.state = state
         self.state_args = {}
         self.state_vars = {}

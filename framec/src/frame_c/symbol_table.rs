@@ -1540,8 +1540,11 @@ pub struct SystemSymbol {
     pub machine_block_symbol_opt: Option<Rc<RefCell<MachineBlockScopeSymbol>>>,
     pub actions_block_symbol_opt: Option<Rc<RefCell<ActionsBlockScopeSymbol>>>,
     pub domain_block_symbol_opt: Option<Rc<RefCell<DomainBlockScopeSymbol>>>,
-
     pub symbol_config: SymbolConfig,
+    // pub ast_node_opt: Option<Rc<RefCell<SystemNode>>>, // TODO??
+    pub start_state_params_cnt: usize,
+    pub state_enter_params_cnt: usize,
+    pub domain_params_cnt: usize,
 }
 
 impl SystemSymbol {
@@ -1560,12 +1563,21 @@ impl SystemSymbol {
             actions_block_symbol_opt: None,
             domain_block_symbol_opt: None,
             symbol_config: SymbolConfig::new(), // TODO
+            // ast_node_opt: Option::None, // TODO
+            start_state_params_cnt: 0,
+            state_enter_params_cnt: 0,
+            domain_params_cnt: 0,
+
         }
     }
 
     pub fn set_parent_symtab(&mut self, parent_symtab: &Rc<RefCell<SymbolTable>>) {
         self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt = Some(Rc::clone(parent_symtab));
     }
+
+    // pub fn set_ast_node(&mut self, ast_node: Rc<RefCell<SystemNode>>) {
+    //     self.ast_node_opt = Some(Rc::clone(&ast_node));
+    // }
 }
 
 impl Symbol for SystemSymbol {

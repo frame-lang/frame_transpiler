@@ -7,6 +7,7 @@ class Branch:
     def __init__(self):
         
          # Create and intialize start state compartment.
+        
         self.__state = self.__branch_state_I
         self.__compartment: 'BranchCompartment' = BranchCompartment(self.__state)
         self.__next_compartment: 'BranchCompartment' = None
@@ -409,7 +410,7 @@ class Branch:
 
 class BranchCompartment:
 
-    def __init__(self, state):
+    def __init__(self,state):
         self.state = state
         self.state_args = {}
         self.state_vars = {}

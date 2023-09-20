@@ -444,9 +444,30 @@ impl<'a> Parser<'a> {
 
         self.system_hierarchy_opt = Some(SystemHierarchy::new(system_name.clone()));
 
+
+        let mut system_start_state_state_params_opt: Option<Vec<ParameterNode>> = Option::None;
+        let mut system_enter_params_opt: Option<Vec<ParameterNode>> = Option::None;
+        let mut domain_params_opt: Option<Vec<ParameterNode>> = Option::None;
+
         if self.is_building_symbol_table {
             //           let st = self.get_current_symtab();
-            let system_symbol = SystemSymbol::new(system_name.clone());
+            let mut system_symbol = SystemSymbol::new(system_name.clone());
+
+            (
+                system_start_state_state_params_opt,
+                system_enter_params_opt,
+                domain_params_opt,
+            ) = self.system_params();
+            // cache off param count for instance arg verification
+            if let Some(system_start_state_state_params) = &system_start_state_state_params_opt {
+                system_symbol.start_state_params_cnt = system_start_state_state_params.len();
+            }
+            if let Some(system_enter_params) = &system_enter_params_opt {
+                system_symbol.state_enter_params_cnt = system_enter_params.len();
+            }
+            if let Some(domain_params) = &domain_params_opt {
+                system_symbol.domain_params_cnt = domain_params.len();
+            }
             let system_symbol_rcref = Rc::new(RefCell::new(system_symbol));
             // TODO: it would be better to find some way to bake the identifier scope into the SystemScope type
             self.arcanum.enter_scope(ParseScopeType::System {
@@ -454,17 +475,12 @@ impl<'a> Parser<'a> {
             });
         } else {
             self.arcanum.set_parse_scope(&system_name);
+            (
+                system_start_state_state_params_opt,
+                system_enter_params_opt,
+                domain_params_opt,
+            ) = self.system_params();
         }
-
-        let mut system_start_state_state_params_opt: Option<Vec<ParameterNode>> = Option::None;
-        let mut system_enter_params_opt: Option<Vec<ParameterNode>> = Option::None;
-        let mut domain_params_opt: Option<Vec<ParameterNode>> = Option::None;
-
-        (
-            system_start_state_state_params_opt,
-            system_enter_params_opt,
-            domain_params_opt,
-        ) = self.system_params();
 
         if self.match_token(&[TokenType::InterfaceBlock]) {
             self.arcanum
@@ -657,7 +673,7 @@ impl<'a> Parser<'a> {
 
         self.arcanum.exit_parse_scope();
 
-        SystemNode::new(
+        let system_node = SystemNode::new(
             system_name,
             header,
             attributes_opt,
@@ -670,7 +686,17 @@ impl<'a> Parser<'a> {
             domain_block_node_opt,
             line,
             functions_opt,
-        )
+        );
+
+        // TODO - change reference to SystemNode to use an rc refcell data structure.
+        // if self.is_building_symbol_table {
+        //     if let Some(system_symbol_rcref) = self.arcanum.system_symbol_opt {
+        //         let system_node_rcref = Rc::new(RefCell::new(system_node));
+        //         system_symbol_rcref.borrow_mut().set_ast_node(system_node_rcref);
+        //     }
+        // }
+
+        system_node
     }
 
     /* --------------------------------------------------------------------- */
@@ -733,6 +759,46 @@ impl<'a> Parser<'a> {
 
         if let Err(parse_error) = self.consume(TokenType::RParen, "Expected ')'.") {
             return Err(parse_error);
+        }
+
+        let mut start_state_args_cnt = 0;
+        let mut start_state_params_cnt = 0;
+        let mut start_enter_args_cnt = 0;
+        let mut start_enter_params_cnt = 0;
+        let mut domain_args_cnt = 0;
+        let mut domain_params_cnt = 0;
+
+        if let Some(ref start_state_args) = start_state_args_opt {
+            start_state_args_cnt = start_state_args.exprs_t.len();
+        }
+        if let Some(ref start_enter_args) = start_enter_args_opt {
+            start_enter_args_cnt = start_enter_args.exprs_t.len();
+        }
+        if let Some(ref domain_args) = domain_args_opt {
+            domain_args_cnt = domain_args.exprs_t.len();
+        }
+        if !self.is_building_symbol_table {
+            // This section is organized slightly strangely because we have to release
+            // the mutable reference to "self" before calling self.error_at_current().
+            // So we get it in a scope to get the system_symbol and release it first.
+            if let Some(ref system_symbol_rcref) = &self.arcanum.system_symbol_opt {
+                let system_symbol = &self.arcanum.system_symbol_opt.as_ref().unwrap().borrow();
+                    start_state_params_cnt = system_symbol.start_state_params_cnt;
+                start_enter_params_cnt = system_symbol.state_enter_params_cnt;
+                domain_params_cnt = system_symbol.domain_params_cnt;
+            }
+            if start_state_args_cnt != start_state_params_cnt {
+                let err_msg = "System start state arg count not equal to system start state param count.";
+                self.error_at_previous(err_msg);
+            }
+            if start_enter_args_cnt != start_enter_params_cnt {
+                let err_msg = "System start enter arg count not equal to system start enter param count.";
+                self.error_at_previous(err_msg);
+            }
+            if domain_args_cnt != domain_params_cnt {
+                let err_msg = "System initialize domain arg count not equal to system intialize domain param count.";
+                self.error_at_previous(err_msg);
+            }
         }
 
         Ok((start_state_args_opt,start_enter_args_opt,domain_args_opt))
@@ -4810,18 +4876,19 @@ impl<'a> Parser<'a> {
                     start_enter_args,
                     domain_args) =
                     match self.system_arguments() {
-                        Ok((system_start_state_args,start_enter_args,domain_args)) => {
-                            (system_start_state_args,start_enter_args,domain_args)
+                        Ok((system_start_state_args, start_enter_args, domain_args)) => {
+                            (system_start_state_args, start_enter_args, domain_args)
                         }
                         Err(parse_err) => {
                             return Err(parse_err);
                         }
                     };
 
-                let system_instance_expr_node = SystemInstanceExprNode::new(id_node
-                                                                            ,system_start_state_args
-                                                                            ,start_enter_args
-                                                                            ,domain_args);
+                let system_instance_expr_node
+                    = SystemInstanceExprNode::new(id_node
+                                                  , system_start_state_args
+                                                  , start_enter_args
+                                                  , domain_args);
 
                 return Ok(Some(SystemInstanceExprT {
                     system_instance_expr_node,

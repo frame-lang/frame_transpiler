@@ -11,6 +11,7 @@ class StateContextStack:
         self.__state_stack = []
         
          # Create and intialize start state compartment.
+        
         self.__state = self.__statecontextstack_state_A
         self.__compartment: 'StateContextStackCompartment' = StateContextStackCompartment(self.__state)
         self.__next_compartment: 'StateContextStackCompartment' = None
@@ -300,7 +301,7 @@ class StateContextStack:
 
 class StateContextStackCompartment:
 
-    def __init__(self, state):
+    def __init__(self,state):
         self.state = state
         self.state_args = {}
         self.state_vars = {}

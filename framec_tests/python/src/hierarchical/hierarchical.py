@@ -7,6 +7,7 @@ class Hierarchical:
     def __init__(self):
         
          # Create and intialize start state compartment.
+        
         self.__state = self.__hierarchical_state_I
         self.__compartment: 'HierarchicalCompartment' = HierarchicalCompartment(self.__state)
         self.__next_compartment: 'HierarchicalCompartment' = None
@@ -267,7 +268,7 @@ class Hierarchical:
 
 class HierarchicalCompartment:
 
-    def __init__(self, state):
+    def __init__(self,state):
         self.state = state
         self.state_args = {}
         self.state_vars = {}

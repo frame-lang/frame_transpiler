@@ -16,6 +16,7 @@ class EnumTest:
     def __init__(self):
         
          # Create and intialize start state compartment.
+        
         self.__state = self.__enumtest_state_SUN
         self.__compartment: 'EnumTestCompartment' = EnumTestCompartment(self.__state)
         self.__next_compartment: 'EnumTestCompartment' = None
@@ -178,7 +179,7 @@ class EnumTest:
 
 class EnumTestCompartment:
 
-    def __init__(self, state):
+    def __init__(self,state):
         self.state = state
         self.state_args = {}
         self.state_vars = {}
