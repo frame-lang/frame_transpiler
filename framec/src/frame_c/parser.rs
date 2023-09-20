@@ -389,10 +389,18 @@ impl<'a> Parser<'a> {
                 None,
                 None,
                 None,
+                None,
                 0,
                 None,
+
             );
         }
+
+        // #![module_attribute]
+        let module_attributes_opt = match self.module_attributes() {
+            Ok(attributes_opt) => attributes_opt,
+            Err(_parse_error) => None,
+        };
 
         // Parse free-form header ```whatever```
         if self.match_token(&[TokenType::ThreeTicks]) {
@@ -415,8 +423,8 @@ impl<'a> Parser<'a> {
             Err(_parse_error) => None,
         };
 
-        // #[attribute]
-        let attributes_opt = match self.attributes() {
+        // #[system_attribute]
+        let system_attributes_opt = match self.system_attributes() {
             Ok(attributes_opt) => attributes_opt,
             Err(_parse_error) => None,
         };
@@ -676,7 +684,8 @@ impl<'a> Parser<'a> {
         let system_node = SystemNode::new(
             system_name,
             header,
-            attributes_opt,
+            module_attributes_opt,
+            system_attributes_opt,
             system_start_state_state_params_opt,
             system_enter_params_opt,
             domain_params_opt,
@@ -1444,18 +1453,23 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    fn attributes(&mut self) -> Result<Option<HashMap<String, AttributeNode>>, ParseError> {
+    // These are attributes that relate to the a program module.
+    // See this about attribute affinity:  https://doc.rust-lang.org/reference/attributes.html
+    fn module_attributes(&mut self) -> Result<Option<HashMap<String, AttributeNode>>, ParseError> {
         let mut attributes: HashMap<String, AttributeNode> = HashMap::new();
 
         loop {
-            if self.match_token(&[TokenType::InnerAttribute]) {
-                // not supported yet
-                let parse_error = ParseError::new(
-                    "Found '#![' token - inner attribute syntax not currently supported.",
-                );
-                return Err(parse_error);
-            } else if self.match_token(&[TokenType::OuterAttributeOrDomainParams]) {
-                let attribute_node = match self.attribute() {
+            if self.peek().token_type == TokenType::OuterAttributeOrDomainParams {
+                return Ok(None);
+            // if self.peek(TokenType::OuterAttributeOrDomainParams) {
+            //     let err_msg = "Found '#[' token - outer attribute syntax not currently supported for modules.";
+            //     self.error_at_current(err_msg);
+            //     let parse_error = ParseError::new(
+            //         err_msg
+            //     );
+            //     return Err(parse_error);
+            } else if self.match_token(&[TokenType::InnerAttribute]) {
+                let attribute_node = match self.attribute(AttributeAffinity::Inner) {
                     Ok(attribute_node) => attribute_node,
                     Err(err) => {
                         return Err(err);
@@ -1479,7 +1493,44 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    fn attribute(&mut self) -> Result<AttributeNode, ParseError> {
+    // These are attributes that relate to a system, not a module.
+
+    fn system_attributes(&mut self) -> Result<Option<HashMap<String, AttributeNode>>, ParseError> {
+        let mut attributes: HashMap<String, AttributeNode> = HashMap::new();
+
+        loop {
+            if self.match_token(&[TokenType::InnerAttribute]) {
+                // not supported yet
+                let parse_error = ParseError::new(
+                    "Found '#![' token - inner attribute syntax not currently supported.",
+                );
+                return Err(parse_error);
+            } else if self.match_token(&[TokenType::OuterAttributeOrDomainParams]) {
+                let attribute_node = match self.attribute(AttributeAffinity::Outer) {
+                    Ok(attribute_node) => attribute_node,
+                    Err(err) => {
+                        return Err(err);
+                    }
+                };
+                attributes.insert(attribute_node.get_name(), attribute_node);
+                if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
+                    return Err(parse_error);
+                }
+            } else {
+                break;
+            }
+        }
+
+        if attributes.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(attributes))
+        }
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn attribute(&mut self, affinity: AttributeAffinity) -> Result<AttributeNode, ParseError> {
         // attribute name: identifier (identifier | : | .)*
         let mut name;
         if self.match_token(&[TokenType::Identifier]) {
@@ -1498,31 +1549,36 @@ impl<'a> Parser<'a> {
             // MetaListIdents
             match self.meta_list_idents() {
                 Ok(idents) => {
-                    let attrib_idents = AttributeMetaListIdents::new(name, idents);
+                    let attrib_idents = AttributeMetaListIdents::new(name, idents, affinity);
                     return Ok(AttributeNode::MetaListIdents {
                         attr: attrib_idents,
                     });
                 }
                 Err(err) => return Err(err),
             }
-        } else if let Err(err) = self.consume(TokenType::Equals, "Expected '='") {
-            // equals
-            return Err(err);
+        } else if self.match_token(&[TokenType::Equals]) {
+            // attribute value: string
+            let value;
+            if self.match_token(&[TokenType::String]) {
+                value = self.previous().lexeme.clone();
+            } else {
+                let err_msg = "Expected attribute value.";
+                self.error_at_current(err_msg);
+                let parse_error = ParseError::new(err_msg);
+                return Err(parse_error);
+            }
+            let attr_namevalue = AttributeMetaNameValueStr::new(name, value, affinity);
+            Ok(AttributeNode::MetaNameValueStr {
+                attr: attr_namevalue,
+            })
+        } else {
+            let attr_word = AttributeMetaWord::new(name, affinity);
+            Ok(AttributeNode::MetaWord {
+                attr: attr_word,
+            })
         }
 
-        // attribute value: string
-        let value;
-        if self.match_token(&[TokenType::String]) {
-            value = self.previous().lexeme.clone();
-        } else {
-            self.error_at_current("Expected attribute value.");
-            let parse_error = ParseError::new("TODO");
-            return Err(parse_error);
-        }
-        let attr_namevalue = AttributeMetaNameValueStr::new(name, value);
-        Ok(AttributeNode::MetaNameValueStr {
-            attr: attr_namevalue,
-        })
+
     }
 
     /* --------------------------------------------------------------------- */

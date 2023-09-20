@@ -207,7 +207,7 @@ impl Exe {
         };
 
         // check for language attribute override in spec specifying target language
-        match &system_node.attributes_opt {
+        match &system_node.system_attributes_opt {
             Some(attributes) => {
                 if let Some(attr_node) = attributes.get("language") {
                     match attr_node {

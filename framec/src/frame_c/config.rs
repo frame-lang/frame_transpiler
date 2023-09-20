@@ -678,7 +678,7 @@ impl Provider for SystemNode {
     }
     fn data(&self) -> Result<Map<Profile, Dict>, Error> {
         let mut figment = Figment::new();
-        if let Some(attributes) = &self.attributes_opt {
+        if let Some(attributes) = &self.system_attributes_opt {
             for attr in attributes.values() {
                 figment = figment.merge(Figment::from(attr));
             }

@@ -345,10 +345,14 @@ impl GolangVisitor {
     pub fn run(&mut self, system_node: &SystemNode) {
         // Initialize configuration values from spec attributes.
 
-        match &system_node.attributes_opt {
+        match &system_node.system_attributes_opt {
             Some(attributes) => {
                 for value in (*attributes).values() {
                     match value {
+                        AttributeNode::MetaWord { attr } => {
+                            // TODO
+                            panic!("Need to implement attribute MetaWord.")
+                        }
                         AttributeNode::MetaNameValueStr { attr } => {
                             match attr.name.as_str() {
                                 // TODO: constants
@@ -1204,7 +1208,7 @@ impl GolangVisitor {
         self.newline();
         // format system params,if any.
         let mut separator = String::new();
-        let mut new_params: String = match &system_node.start_state_state_param_opt {
+        let mut new_params: String = match &system_node.start_state_state_params_opt {
             Some(param_list) => {
                 let mut params = String::new();
                 for param_node in param_list {
@@ -1324,7 +1328,7 @@ impl GolangVisitor {
         ));
 
         // Initialize state arguments.
-        match &system_node.start_state_state_param_opt {
+        match &system_node.start_state_state_params_opt {
             Some(params) => {
                 for param in params {
                     self.newline();

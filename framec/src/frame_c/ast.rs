@@ -101,6 +101,7 @@ impl CallChainLiteralNodeType {
 // see https://doc.rust-lang.org/reference/attributes.html#attributes
 
 pub enum AttributeNode {
+    MetaWord { attr: AttributeMetaWord },
     MetaNameValueStr { attr: AttributeMetaNameValueStr },
     MetaListIdents { attr: AttributeMetaListIdents },
 }
@@ -108,26 +109,53 @@ pub enum AttributeNode {
 impl AttributeNode {
     pub fn get_name(&self) -> String {
         match self {
+            AttributeNode::MetaWord { attr } => attr.name.clone(),
             AttributeNode::MetaNameValueStr { attr } => attr.name.clone(),
             AttributeNode::MetaListIdents { attr } => attr.name.clone(),
         }
     }
 }
 
-// impl AttributeNode {
-//     pub fn new(name: String, value: String) -> AttributeNode {
-//         AttributeNode { name, value }
-//     }
-// }
+// Enum indicating if an attribute applies to the entity
+// it is inside of or the next entity it comes before
+// in the parse.
 
+#[derive(Clone)]
+pub enum AttributeAffinity {
+    Inner,
+    Outer,
+}
+
+// e.g. generate_frame_event
+pub struct AttributeMetaWord {
+    pub name: String,
+    pub affinity: AttributeAffinity,
+}
+
+impl AttributeMetaWord {
+    pub fn new(name: String, affinity: AttributeAffinity) -> AttributeMetaWord {
+        AttributeMetaWord { name, affinity }
+    }
+
+    fn get_affinity(&self) -> AttributeAffinity {
+        self.affinity.clone()
+    }
+}
+
+// e.g. name="foo"
 pub struct AttributeMetaNameValueStr {
     pub name: String,
     pub value: String,
+    pub affinity: AttributeAffinity,
 }
 
 impl AttributeMetaNameValueStr {
-    pub fn new(name: String, value: String) -> AttributeMetaNameValueStr {
-        AttributeMetaNameValueStr { name, value }
+    pub fn new(name: String, value: String, affinity: AttributeAffinity) -> AttributeMetaNameValueStr {
+        AttributeMetaNameValueStr { name, value, affinity }
+    }
+
+    fn get_affinity(&self) -> AttributeAffinity {
+        self.affinity.clone()
     }
 }
 
@@ -135,11 +163,16 @@ impl AttributeMetaNameValueStr {
 pub struct AttributeMetaListIdents {
     pub name: String,
     pub idents: Vec<String>,
+    pub affinity: AttributeAffinity,
 }
 
 impl AttributeMetaListIdents {
-    pub fn new(name: String, idents: Vec<String>) -> AttributeMetaListIdents {
-        AttributeMetaListIdents { name, idents }
+    pub fn new(name: String, idents: Vec<String>, affinity: AttributeAffinity) -> AttributeMetaListIdents {
+        AttributeMetaListIdents { name, idents, affinity }
+    }
+
+    fn get_affinity(&self) -> AttributeAffinity {
+        self.affinity.clone()
     }
 }
 
@@ -148,8 +181,10 @@ impl AttributeMetaListIdents {
 pub struct SystemNode {
     pub name: String,
     pub header: String,
-    pub attributes_opt: Option<HashMap<String, AttributeNode>>,
-    pub start_state_state_param_opt: Option<Vec<ParameterNode>>,
+    // TODO - module attributes need to move to a program "module"
+    pub module_attributes_opt: Option<HashMap<String, AttributeNode>>,
+    pub system_attributes_opt: Option<HashMap<String, AttributeNode>>,
+    pub start_state_state_params_opt: Option<Vec<ParameterNode>>,
     pub start_state_enter_params_opt: Option<Vec<ParameterNode>>,
     pub domain_params_opt: Option<Vec<ParameterNode>>,
     pub interface_block_node_opt: Option<InterfaceBlockNode>,
@@ -157,14 +192,16 @@ pub struct SystemNode {
     pub actions_block_node_opt: Option<ActionsBlockNode>,
     pub domain_block_node_opt: Option<DomainBlockNode>,
     pub line: usize,
-    pub functions_opt: Option<Vec<Rc<RefCell<FunctionNode>>>>, // TODO - move this int a module node
+    // TODO - move this int a module node
+    pub functions_opt: Option<Vec<Rc<RefCell<FunctionNode>>>>,
 }
 
 impl SystemNode {
     pub fn new(
         name: String,
         header: String,
-        attributes_opt: Option<HashMap<String, AttributeNode>>,
+        module_attributes_opt: Option<HashMap<String, AttributeNode>>,
+        system_attributes_opt: Option<HashMap<String, AttributeNode>>,
         start_state_state_params_opt: Option<Vec<ParameterNode>>,
         start_state_enter_params_opt: Option<Vec<ParameterNode>>,
         domain_params_opt: Option<Vec<ParameterNode>>,
@@ -178,8 +215,9 @@ impl SystemNode {
         SystemNode {
             name,
             header,
-            attributes_opt,
-            start_state_state_param_opt: start_state_state_params_opt,
+            module_attributes_opt,
+            system_attributes_opt,
+            start_state_state_params_opt,
             start_state_enter_params_opt,
             domain_params_opt,
             interface_block_node_opt,

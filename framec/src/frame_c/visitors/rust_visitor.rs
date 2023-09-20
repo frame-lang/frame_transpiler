@@ -1211,7 +1211,7 @@ impl RustVisitor {
     fn generate_state_enum(&mut self, system_node: &SystemNode) {
         // add derived traits
         let mut traits = self.config.code.state_enum_traits.clone();
-        match &system_node.attributes_opt {
+        match &system_node.system_attributes_opt {
             Some(attributes) => {
                 if let Some(new_traits) = attributes.get("override_state_enum_traits") {
                     if let AttributeNode::MetaNameValueStr { attr } = new_traits {
