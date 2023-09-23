@@ -9,8 +9,7 @@ use crate::frame_c::ast::OperatorType::{
 };
 use crate::frame_c::symbol_table::{InterfaceMethodSymbol, ParameterSymbol};
 use crate::frame_c::visitors::*;
-use downcast_rs::__std::cell::RefCell;
-use downcast_rs::*;
+use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::fmt;
 use std::rc::Rc;
@@ -53,14 +52,13 @@ pub trait NodeElement {
 
 // TODO: is this a good name for Identifier and Call expressions?
 
-pub trait CallableExpr: Downcast {
-    fn set_call_chain(&mut self, call_chain: Vec<Box<dyn CallableExpr>>);
+pub trait CallableExpr {
     fn callable_accept(&self, ast_visitor: &mut dyn AstVisitor);
     fn callable_accept_to_string(&self, _ast_visitor: &mut dyn AstVisitor, _output: &mut String) {
         // no_op
     }
 }
-impl_downcast!(CallableExpr);
+
 
 // TODO: note - exploring if this enum can replace the Callable : Downcast approach
 pub enum CallChainLiteralNodeType {
@@ -194,6 +192,7 @@ pub struct SystemNode {
     pub line: usize,
     // TODO - move this int a module node
     pub functions_opt: Option<Vec<Rc<RefCell<FunctionNode>>>>,
+
 }
 
 impl SystemNode {
@@ -275,9 +274,9 @@ impl NodeElement for SystemInstanceExprNode {
         ast_visitor.visit_system_instance_expr_node(self);
     }
 
-    // fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
-    //     ast_visitor.visit_call_expression_node_to_string(self, output);
-    // }
+    fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
+        ast_visitor.visit_system_instance_expr_node_to_string(self, output);
+    }
 }
 //
 // impl SystemInstanceableExpr for SystemInstanceExprNode {
@@ -560,7 +559,6 @@ impl NodeElement for LoopVariableDeclNode {
 
 pub struct VariableNode {
     pub id_node: IdentifierNode,
-    //   pub call_chain:Option<Vec<Box<dyn CallableExpr>>>,
     pub scope: IdentifierDeclScope,
     pub symbol_type_rcref_opt: Option<Rc<RefCell<SymbolType>>>, // TODO: consider a new enum for just variable types
 }
@@ -2426,10 +2424,6 @@ impl NodeElement for CallExprNode {
 }
 
 impl CallableExpr for CallExprNode {
-    fn set_call_chain(&mut self, call_chain: Vec<Box<dyn CallableExpr>>) {
-        self.call_chain = Some(call_chain);
-    }
-
     fn callable_accept(&self, ast_visitor: &mut dyn AstVisitor) {
         self.accept(ast_visitor);
     }
@@ -2554,9 +2548,6 @@ impl NodeElement for IdentifierNode {
 }
 
 impl CallableExpr for IdentifierNode {
-    fn set_call_chain(&mut self, call_chain: Vec<Box<dyn CallableExpr>>) {
-        self.call_chain = Some(call_chain);
-    }
     fn callable_accept(&self, ast_visitor: &mut dyn AstVisitor) {
         self.accept(ast_visitor);
     }
@@ -2631,7 +2622,8 @@ impl NodeElement for StateStackOperationNode {
 #[derive(Clone, PartialEq)]
 pub struct TypeNode {
     #[allow(dead_code)]
-    is_superstring: bool,
+    pub is_superstring: bool,
+    pub is_system: bool,
     pub(crate) is_reference: bool,
     pub(crate) frame_event_part_opt: Option<FrameEventPart>,
     pub(crate) type_str: String,
@@ -2644,12 +2636,14 @@ pub struct TypeNode {
 impl TypeNode {
     pub fn new(
         is_superstring: bool,
+        is_system: bool,
         is_reference: bool,
         frame_event_part_opt: Option<FrameEventPart>,
         type_str: String,
     ) -> TypeNode {
         TypeNode {
             is_superstring,
+            is_system,
             is_reference,
             frame_event_part_opt,
             type_str,

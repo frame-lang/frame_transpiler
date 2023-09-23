@@ -2289,6 +2289,7 @@ impl AstVisitor for GolangVisitor {
         let type_node = TypeNode::new(
             false,
             false,
+            false,
             Some(FrameEventPart::Event {
                 is_reference: false,
             }),

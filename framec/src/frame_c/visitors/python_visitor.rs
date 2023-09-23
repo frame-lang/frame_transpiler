@@ -12,7 +12,7 @@ use crate::frame_c::ast::*;
 use crate::frame_c::scanner::{Token, TokenType};
 use crate::frame_c::symbol_table::*;
 use crate::frame_c::visitors::*;
-use std::cell::RefCell;
+// use std::cell::RefCell;
 use std::rc::Rc;
 
 // use yaml_rust::{YamlLoader, Yaml};
@@ -144,9 +144,14 @@ impl PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     pub fn format_type(&self, type_node: &TypeNode) -> String {
-        let mut s = String::new();
-        s.push_str(&type_node.type_str.clone());
-        s
+        if type_node.is_system {
+            String::new()
+        } else {
+            let mut s = String::new();
+            s.push_str(&type_node.type_str.clone());
+            s
+        }
+
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1814,6 +1819,44 @@ impl AstVisitor for PythonVisitor {
             }
         }
         self.add_code(")");
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_system_instance_expr_node_to_string(
+        &mut self,
+        system_instance_expr_node: &SystemInstanceExprNode,
+        output: &mut String
+    ) {
+        let system_name = &system_instance_expr_node.identifier.name.lexeme;
+
+        output.push_str(&format!("{}", system_name));
+        output.push_str("(");
+        let mut separator = "";
+        if let Some(start_state_state_args) = &system_instance_expr_node.start_state_state_args_opt {
+            for expr_t in &start_state_state_args.exprs_t {
+                output.push_str(separator);
+                expr_t.accept_to_string(self, output);
+                separator = ",";
+            }
+        }
+
+        if let Some(start_state_enter_args) = &system_instance_expr_node.start_state_enter_args_opt {
+            for expr_t in &start_state_enter_args.exprs_t {
+                output.push_str(separator);
+                expr_t.accept_to_string(self, output);
+                separator = ",";
+            }
+        }
+
+        if let Some(domain_args) = &system_instance_expr_node.domain_args_opt {
+            for expr_t in &domain_args.exprs_t {
+                output.push_str(separator);
+                expr_t.accept_to_string(self, output);
+                separator = ",";
+            }
+        }
+        output.push_str(")");
     }
 
     //* --------------------------------------------------------------------- *//

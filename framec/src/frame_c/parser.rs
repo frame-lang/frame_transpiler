@@ -10,9 +10,7 @@ use super::ast::TerminatorType::{Continue, Return};
 use super::ast::*;
 use super::scanner::*;
 use super::symbol_table::*;
-// use crate::frame_c::symbol_table::SymbolType::ParamSymbol;
 use crate::frame_c::utils::SystemHierarchy;
-// use downcast_rs::__std::cell::RefCell;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
@@ -1810,18 +1808,22 @@ impl<'a> Parser<'a> {
 
     fn type_decl(&mut self) -> Result<TypeNode, ParseError> {
         let mut is_reference = false;
+        let mut is_system = false;
 
         if self.match_token(&[TokenType::SuperString]) {
             let id = self.previous();
             let type_str = id.lexeme.clone();
-            Ok(TypeNode::new(true, false, None, type_str))
+            Ok(TypeNode::new(true, false,false, None, type_str))
         } else {
             if self.match_token(&[TokenType::And]) {
                 is_reference = true
             }
             let mut frame_event_part_opt = None;
             if self.match_token(&[TokenType::At]) {
+                // TODO - review this
                 frame_event_part_opt = Some(FrameEventPart::Event { is_reference })
+            } else if self.match_token( &[TokenType::System]) {
+                is_system = true;
             } else if !self.match_token(&[TokenType::Identifier]) {
                 let err_msg = &format!("Expected return type name.");
                 self.error_at_current(err_msg);
@@ -1833,6 +1835,7 @@ impl<'a> Parser<'a> {
 
             Ok(TypeNode::new(
                 false,
+                is_system,
                 is_reference,
                 frame_event_part_opt,
                 type_str,
@@ -2626,6 +2629,11 @@ impl<'a> Parser<'a> {
                 => initializer_expr_t_opt = Some(FrameEventExprT { frame_event_part }),
                 Ok(Some(EnumeratorExprT { enum_expr_node }))
                 => initializer_expr_t_opt = Some(EnumeratorExprT { enum_expr_node }),
+                Ok(Some(EnumeratorExprT { enum_expr_node }))
+                => initializer_expr_t_opt = Some(EnumeratorExprT { enum_expr_node }),
+                Ok(Some(SystemInstanceExprT { system_instance_expr_node }))
+                => initializer_expr_t_opt = Some(SystemInstanceExprT { system_instance_expr_node }),
+
 
                 _ => {
                     let err_msg = "Unexpected assignment expression value.";
