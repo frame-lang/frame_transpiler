@@ -15,6 +15,7 @@ use std::fmt;
 use std::rc::Rc;
 use wasm_bindgen::__rt::std::collections::HashMap;
 
+
 pub trait NodeElement {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor);
     // for Rust actions
@@ -48,6 +49,37 @@ pub trait NodeElement {
     fn accept_enums(&self, _ast_visitor: &mut dyn AstVisitor) {
         // no_op
     }
+}
+
+pub struct Module {
+    pub module_elements:Vec<ModuleElement>,
+}
+
+impl Module {
+    pub fn new(
+        module_elements: Vec<ModuleElement>,
+    ) -> Module {
+        Module {
+            module_elements
+        }
+    }
+}
+
+
+
+impl NodeElement for Module {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_module(self);
+    }
+
+    // fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
+    //     ast_visitor.visit_system_instance_expr_node_to_string(self, output);
+    // }
+}
+
+pub enum ModuleElement {
+    CodeBlock {code_block:String},
+    ModuleAttribute {attribute_node:AttributeNode},
 }
 
 // TODO: is this a good name for Identifier and Call expressions?
@@ -178,9 +210,9 @@ impl AttributeMetaListIdents {
 
 pub struct SystemNode {
     pub name: String,
-    pub header: String,
+    pub module: Module,
     // TODO - module attributes need to move to a program "module"
-    pub module_attributes_opt: Option<HashMap<String, AttributeNode>>,
+//    pub module_attributes_opt: Option<HashMap<String, AttributeNode>>,
     pub system_attributes_opt: Option<HashMap<String, AttributeNode>>,
     pub start_state_state_params_opt: Option<Vec<ParameterNode>>,
     pub start_state_enter_params_opt: Option<Vec<ParameterNode>>,
@@ -198,8 +230,8 @@ pub struct SystemNode {
 impl SystemNode {
     pub fn new(
         name: String,
-        header: String,
-        module_attributes_opt: Option<HashMap<String, AttributeNode>>,
+        module: Module,
+//        module_attributes_opt: Option<HashMap<String, AttributeNode>>,
         system_attributes_opt: Option<HashMap<String, AttributeNode>>,
         start_state_state_params_opt: Option<Vec<ParameterNode>>,
         start_state_enter_params_opt: Option<Vec<ParameterNode>>,
@@ -213,8 +245,7 @@ impl SystemNode {
     ) -> SystemNode {
         SystemNode {
             name,
-            header,
-            module_attributes_opt,
+            module,
             system_attributes_opt,
             start_state_state_params_opt,
             start_state_enter_params_opt,
@@ -278,16 +309,6 @@ impl NodeElement for SystemInstanceExprNode {
         ast_visitor.visit_system_instance_expr_node_to_string(self, output);
     }
 }
-//
-// impl SystemInstanceableExpr for SystemInstanceExprNode {
-//     fn set_call_chain(&mut self, call_chain: Vec<Box<dyn SystemInstanceableExpr>>) {
-//         self.call_chain = Some(call_chain);
-//     }
-//
-//     fn callable_accept(&self, ast_visitor: &mut dyn AstVisitor) {
-//         self.accept(ast_visitor);
-//     }
-// }
 
 impl fmt::Display for SystemInstanceExprNode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

@@ -1,10 +1,5 @@
 // emitted from framec_v0.11.0
 // get include files at https://github.com/frame-lang/frame-ancillary-files
-package transition_params
-
-import (
-    "strconv"
-    "golang/framelang")
 
 
 func NewTransitParams() TransitParams {

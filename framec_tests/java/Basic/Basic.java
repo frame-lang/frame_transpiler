@@ -1,8 +1,6 @@
 // emitted from framec_v0.11.0
 // get include files at https://github.com/frame-lang/frame-ancillary-files
-package framec_tests.java.Basic;
-import java.util.*;
-import framec_tests.java.FrameLang.FrameEvent;
+
 
 class Basic {
     

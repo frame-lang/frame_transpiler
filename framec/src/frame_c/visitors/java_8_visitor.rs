@@ -1748,7 +1748,7 @@ impl AstVisitor for Java8Visitor {
             "// get include files at https://github.com/frame-lang/frame-ancillary-files",
         );
         self.newline();
-        self.add_code(&system_node.header);
+        // self.add_code(&system_node.header);
         self.newline();
         self.newline();
         self.add_code(&format!("class {} {{", system_node.name));

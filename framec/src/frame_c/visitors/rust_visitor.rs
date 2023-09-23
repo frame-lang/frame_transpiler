@@ -3475,7 +3475,7 @@ impl AstVisitor for RustVisitor {
 
         self.add_code(&format!("// {}", self.compiler_version));
         self.newline();
-        self.add_code(&system_node.header);
+        // self.add_code(&system_node.header);
         self.newline();
         self.add_code("#[allow(unused_imports)]");
         self.newline();

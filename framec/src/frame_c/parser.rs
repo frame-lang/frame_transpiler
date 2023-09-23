@@ -15,7 +15,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
-//use crate::frame_c::ast::LoopStmtTypes::{LoopInfiniteStmt, LoopInStmt};
+use crate::frame_c::ast::ModuleElement::*;
 
 pub struct ParseError {
     // TODO:
@@ -158,7 +158,7 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     pub fn parse(&mut self) -> SystemNode {
-        self.system()
+        self.module()
     }
 
     /* --------------------------------------------------------------------- */
@@ -367,19 +367,12 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    fn system(&mut self) -> SystemNode {
-        let mut header = String::new();
-        let mut interface_block_node_opt = Option::None;
-        let mut machine_block_node_opt = Option::None;
-        let mut actions_block_node_opt = Option::None;
-        let mut domain_block_node_opt = Option::None;
-
+    fn module(&mut self) -> SystemNode {
         if self.match_token(&[TokenType::Eof]) {
-            self.error_at_current("Empty system.");
+            self.error_at_current("Empty module.");
             return SystemNode::new(
                 String::from("error"),
-                header,
-                None,
+                Module { module_elements: vec![] },
                 None,
                 None,
                 None,
@@ -394,32 +387,86 @@ impl<'a> Parser<'a> {
             );
         }
 
-        // #![module_attribute]
-        let module_attributes_opt = match self.module_attributes() {
-            Ok(attributes_opt) => attributes_opt,
+        let module_elements_opt = match self.header() {
+            Ok(module_elements_opt) => module_elements_opt,
+            // TODO - review error logic
             Err(_parse_error) => None,
         };
-
-        // Parse free-form header ```whatever```
-        if self.match_token(&[TokenType::ThreeTicks]) {
-            while self.match_token(&[TokenType::SuperString]) {
-                let tok = self.previous();
-                header.push_str(&*tok.lexeme.clone());
-            }
-            if self
-                .consume(TokenType::ThreeTicks, "Expected '```'.")
-                .is_err()
-            {
-                self.error_at_current("Expected closing ```.");
-                let sync_tokens = vec![TokenType::System];
-                self.synchronize(&sync_tokens);
-            }
-        }
 
         let functions_opt = match self.functions() {
             Ok(functions_opt) => functions_opt,
+            // TODO - review error logic
             Err(_parse_error) => None,
         };
+
+        self.system(module_elements_opt, functions_opt)
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn header(&mut self) -> Result<Option<Vec<ModuleElement>>,ParseError> {
+
+        let mut module_elements = Vec::new();
+
+        loop {
+            // #![module_attribute]
+            if self.match_token(&[TokenType::InnerAttribute]) {
+                match self.attribute(AttributeAffinity::Inner) {
+                    Ok(attribute_node) => {
+                        if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
+                            return Err(parse_error);
+                        }
+                        module_elements.push(ModuleElement::ModuleAttribute {attribute_node});
+                    },
+                    Err(err) => {
+                        return Err(err);
+                    }
+                }
+
+            }
+            else if self.match_token(&[TokenType::SuperString]) {
+                let mut code_block = String::new();
+                let tok = self.previous();
+                code_block.push_str(&tok.lexeme.clone());
+                module_elements.push(CodeBlock {code_block});
+            }
+            // else if self.match_token(&[TokenType::ThreeTicks]) {
+            //     // Parse code_block ```whatever```
+            //     let mut code_block = String::new();
+            //     while self.match_token(&[TokenType::SuperString]) {
+            //         let tok = self.previous();
+            //         code_block.push_str(&tok.lexeme.clone());
+            //     }
+            //     if self
+            //         .consume(TokenType::ThreeTicks, "Expected '```'.")
+            //         .is_err()
+            //     {
+            //         // TODO
+            //         self.error_at_current("Expected closing ```.");
+            //         let sync_tokens = vec![TokenType::System];
+            //         self.synchronize(&sync_tokens);
+            //     }
+            //     module_elements.push(CodeBlock {code_block});
+            // }
+            else {
+                let a = 1;
+                break;
+            }
+        }
+
+        Ok(Some(module_elements))
+    }
+
+
+    /* --------------------------------------------------------------------- */
+
+    fn system(&mut self, module_elements_opt: Option<Vec<ModuleElement>>
+                        ,functions_opt:Option<Vec<Rc<RefCell<FunctionNode>>>>) -> SystemNode {
+
+        let mut interface_block_node_opt = Option::None;
+        let mut machine_block_node_opt = Option::None;
+        let mut actions_block_node_opt = Option::None;
+        let mut domain_block_node_opt = Option::None;
 
         // #[system_attribute]
         let system_attributes_opt = match self.system_attributes() {
@@ -679,10 +726,13 @@ impl<'a> Parser<'a> {
 
         self.arcanum.exit_parse_scope();
 
+        let module = match module_elements_opt {
+            Some(module_elements) => Module {module_elements},
+            None => Module{module_elements:vec![]},
+        };
         let system_node = SystemNode::new(
             system_name,
-            header,
-            module_attributes_opt,
+            module ,
             system_attributes_opt,
             system_start_state_state_params_opt,
             system_enter_params_opt,
@@ -1453,8 +1503,8 @@ impl<'a> Parser<'a> {
 
     // These are attributes that relate to the a program module.
     // See this about attribute affinity:  https://doc.rust-lang.org/reference/attributes.html
-    fn module_attributes(&mut self) -> Result<Option<HashMap<String, AttributeNode>>, ParseError> {
-        let mut attributes: HashMap<String, AttributeNode> = HashMap::new();
+    fn module_attributes(&mut self) -> Result<Option<Vec<AttributeNode>>, ParseError> {
+        let mut attributes= Vec::new();
 
         loop {
             if self.peek().token_type == TokenType::OuterAttributeOrDomainParams {
@@ -1473,7 +1523,7 @@ impl<'a> Parser<'a> {
                         return Err(err);
                     }
                 };
-                attributes.insert(attribute_node.get_name(), attribute_node);
+                attributes.push(attribute_node);
                 if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
                     return Err(parse_error);
                 }

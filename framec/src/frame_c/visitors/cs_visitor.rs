@@ -1706,7 +1706,7 @@ impl AstVisitor for CsVisitor {
             "// get include files at https://github.com/frame-lang/frame-ancillary-files",
         );
         self.newline();
-        self.add_code(&system_node.header);
+        // self.add_code(&system_node.header);
         self.newline();
         self.add_code("{");
         self.newline();

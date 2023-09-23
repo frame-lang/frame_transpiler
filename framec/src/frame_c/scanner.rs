@@ -78,23 +78,23 @@ impl Scanner {
         while self.is_whitespace() {
             self.advance();
         }
-        if self.peek() == '`' {
-            self.sync_start();
-            if !self.match_first_header_token() {
-                return (self.has_errors, self.errors.clone(), self.tokens);
-            }
-            self.sync_start();
-            while !self.is_at_end() {
-                if self.peek() == '`' {
-                    self.add_string_token_literal(TokenType::SuperString, TokenLiteral::None);
-                    self.sync_start();
-                    if self.match_last_header_token() {
-                        break;
-                    }
-                }
-                self.advance();
-            }
-        }
+        // if self.peek() == '`' {
+        //     self.sync_start();
+        //     if !self.match_first_header_token() {
+        //         return (self.has_errors, self.errors.clone(), self.tokens);
+        //     }
+        //     self.sync_start();
+        //     while !self.is_at_end() {
+        //         if self.peek() == '`' {
+        //             self.add_string_token_literal(TokenType::SuperString, TokenLiteral::None);
+        //             self.sync_start();
+        //             if self.match_last_header_token() {
+        //                 break;
+        //             }
+        //         }
+        //         self.advance();
+        //     }
+        // }
 
         while !self.is_at_end() {
             self.sync_start();

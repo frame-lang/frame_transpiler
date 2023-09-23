@@ -297,7 +297,8 @@ impl PythonVisitor {
                     match value {
                         AttributeNode::MetaWord { attr } => {
                             // TODO
-                            panic!("Need to implement attribute MetaWord.")
+                            let err_msg = format!("Unknown attribute {}.",attr.name);
+                            self.errors.push(err_msg);
                         }
                         AttributeNode::MetaNameValueStr { attr } => {
                             match attr.name.as_str() {
@@ -1431,6 +1432,47 @@ impl PythonVisitor {
 //* --------------------------------------------------------------------- *//
 
 impl AstVisitor for PythonVisitor {
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_module(&mut self, module: &Module) {
+
+        for module_element in &module.module_elements {
+            match module_element {
+                ModuleElement::CodeBlock {code_block} => {
+                    self.add_code(code_block);
+                    self.newline();
+                }
+                ModuleElement::ModuleAttribute {attribute_node} => {
+                    if attribute_node.get_name() == "generate_frame_event" {
+                        self.add_code("class FrameEvent:");
+                        self.indent();
+                        self.newline();
+                        self.add_code("def __init__(self, message, parameters):");
+                        self.indent();
+                        self.newline();
+                        self.add_code("self._message = message");
+                        self.newline();
+                        self.add_code("self._parameters = parameters");
+                        self.newline();
+                        self.add_code("self._return = None");
+                        self.outdent();
+                        self.outdent();
+                        self.newline();
+                    }
+
+
+
+
+
+
+
+                }
+            }
+        }
+
+    }
+
     //* --------------------------------------------------------------------- *//
 
     fn visit_system_node(&mut self, system_node: &SystemNode) {
@@ -1455,7 +1497,7 @@ impl AstVisitor for PythonVisitor {
         self.add_code("# get include files at https://github.com/frame-lang/frame-ancillary-files");
 
         self.newline();
-        self.add_code(&system_node.header);
+        &system_node.module.accept(self);
 
         // Generate any enums
 

@@ -1788,7 +1788,7 @@ impl AstVisitor for CppVisitor {
             "// get include files at https://github.com/frame-lang/frame-ancillary-files",
         );
         self.newline();
-        self.add_code(&system_node.header);
+        // self.add_code(&system_node.header);
         self.newline();
         self.newline();
         self.generate_compartment(&system_node.name);

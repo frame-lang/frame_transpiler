@@ -1732,7 +1732,7 @@ impl AstVisitor for GolangVisitor {
             "// get include files at https://github.com/frame-lang/frame-ancillary-files",
         );
         self.newline();
-        self.add_code(&system_node.header);
+       //  self.add_code(&system_node.header);
 
         let state_prefix = if !self.config.code.state_type.is_empty() {
             self.config.code.state_type.clone()

@@ -1,7 +1,12 @@
 # emitted from framec_v0.11.0
 # get include files at https://github.com/frame-lang/frame-ancillary-files
+
+
 from framelang.framelang import FrameEvent
 from enum import Enum
+
+
+
 
 class EnumTest_Days(Enum):
     SUNDAY = 0
