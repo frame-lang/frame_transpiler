@@ -11,7 +11,7 @@ use super::ast::*;
 use super::scanner::*;
 use super::symbol_table::*;
 use crate::frame_c::utils::SystemHierarchy;
-use std::cell::RefCell;
+use std::cell::{RefCell, Ref};
 use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
@@ -163,210 +163,6 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    pub fn get_arcanum(self) -> Arcanum {
-        self.arcanum
-    }
-
-    /* --------------------------------------------------------------------- */
-
-    pub fn get_system_hierarchy(self) -> SystemHierarchy {
-        self.system_hierarchy_opt.unwrap()
-    }
-
-    /* --------------------------------------------------------------------- */
-
-    pub fn get_all(self) -> (Arcanum, SystemHierarchy) {
-        (self.arcanum, self.system_hierarchy_opt.unwrap())
-    }
-
-    /* --------------------------------------------------------------------- */
-
-    pub fn had_error(&self) -> bool {
-        self.had_error
-    }
-
-    /* --------------------------------------------------------------------- */
-
-    pub fn get_errors(&self) -> String {
-        self.errors.clone()
-    }
-
-    /* --------------------------------------------------------------------- */
-
-    // Helper functions
-
-    fn match_token(&mut self, token_types: &[TokenType]) -> bool {
-        // cache off comments
-        while self.check(TokenType::SingleLineComment) || self.check(TokenType::MultiLineComment) {
-            self.comments.push(self.peek().clone());
-            self.advance();
-        }
-
-        if self.check(TokenType::Error) {
-            self.error_at_current("Unexpected token.");
-            self.advance();
-            return false;
-        }
-
-        for token_type in token_types {
-            if self.check(*token_type) {
-                //              println!("Consumed {:?}",token_type);
-                if !self.is_at_end() {
-                    self.advance();
-                }
-
-                return true;
-            }
-        }
-
-        false
-    }
-
-    /* --------------------------------------------------------------------- */
-
-    fn advance(&mut self) -> &Token {
-        if !self.is_at_end() {
-            self.current += 1;
-            self.current_tok_ref = &self.tokens[self.current];
-            self.current_token = self.peek().lexeme.clone();
-            self.processed_tokens.push(' ');
-            self.processed_tokens.push_str(&self.peek().lexeme.clone());
-            //            println!("Current token = {:?}",self.peek());
-        }
-
-        self.previous()
-    }
-
-    /* --------------------------------------------------------------------- */
-
-    fn check(&self, token_type: TokenType) -> bool {
-        let t = self.peek();
-        if token_type == t.token_type {
-            return true;
-        }
-
-        false
-    }
-
-    /* --------------------------------------------------------------------- */
-
-    fn is_at_end(&self) -> bool {
-        matches!(self.peek().token_type, TokenType::Eof)
-    }
-
-    /* --------------------------------------------------------------------- */
-
-    fn peek(&self) -> &Token {
-        &self.tokens[self.current]
-    }
-
-    /* --------------------------------------------------------------------- */
-
-    fn previous(&self) -> &Token {
-        &self.tokens[self.current - 1]
-    }
-
-    /* --------------------------------------------------------------------- */
-
-    fn consume(&mut self, token_type: TokenType, message: &str) -> Result<&Token, ParseError> {
-        if self.check(token_type) {
-            return Ok(self.advance());
-        }
-
-        self.error_at_current(message);
-        Err(ParseError::new(message))
-    }
-
-    /* --------------------------------------------------------------------- */
-
-    fn error_at_current(&mut self, message: &str) {
-        self.error_at(&self.tokens[self.current], message);
-    }
-
-    /* --------------------------------------------------------------------- */
-
-    fn error_at_previous(&mut self, message: &str) {
-        self.error_at(&self.tokens[self.current - 1], message);
-    }
-
-    /* --------------------------------------------------------------------- */
-
-    // TODO: put the message in the ParseError
-    fn error_at(&mut self, token: &Token, message: &str) {
-        if self.panic_mode {
-            return;
-        }
-
-        self.panic_mode = true;
-        self.had_error = true;
-
-        let mut error_msg = format!("[line {}] Error", token.line);
-
-        match token.token_type {
-            TokenType::Eof => error_msg.push_str(" at end"),
-            TokenType::Error => error_msg.push_str(&format!(" at '{}'", token.lexeme)),
-            _ => error_msg.push_str(&format!(" at '{}'", token.lexeme)),
-        }
-
-        self.errors
-            .push_str(&format!("{} : {}\n", error_msg, message));
-
-        //        println!("{} : {}", error_msg, message);
-        // TODO:?
-        //       ParseError::new( /* error_msg */ )
-    }
-
-    /* --------------------------------------------------------------------- */
-
-    fn synchronize(&mut self, sync_tokens: &[TokenType]) -> bool {
-        self.panic_mode = false;
-
-        if self.is_at_end() {
-            return false;
-        }
-
-        // in case not advancing
-        if self.last_sync_token_idx == self.current {
-            self.advance();
-        }
-
-        self.last_sync_token_idx = self.current;
-
-        while self.peek().token_type != TokenType::Eof {
-            for sync_token in sync_tokens {
-                let current_token_type = self.peek().token_type;
-                if *sync_token == current_token_type {
-                    return true;
-                }
-            }
-
-            self.advance();
-        }
-
-        false
-    }
-
-    /* --------------------------------------------------------------------- */
-
-    fn follows(&self, token: &Token, follows_vec: &[TokenType]) -> bool {
-        for follows_token_type in follows_vec {
-            if *follows_token_type == token.token_type {
-                return true;
-            }
-        }
-
-        let vec_comments = &vec![TokenType::SingleLineComment, TokenType::MultiLineComment];
-        for comment_token_type in vec_comments {
-            if *comment_token_type == token.token_type {
-                return true;
-            }
-        }
-
-        false
-    }
-
-    /* --------------------------------------------------------------------- */
-
     fn module(&mut self) -> SystemNode {
         if self.match_token(&[TokenType::Eof]) {
             self.error_at_current("Empty module.");
@@ -383,7 +179,6 @@ impl<'a> Parser<'a> {
                 None,
                 0,
                 None,
-
             );
         }
 
@@ -404,8 +199,7 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    fn header(&mut self) -> Result<Option<Vec<ModuleElement>>,ParseError> {
-
+    fn header(&mut self) -> Result<Option<Vec<ModuleElement>>, ParseError> {
         let mut module_elements = Vec::new();
 
         loop {
@@ -416,19 +210,17 @@ impl<'a> Parser<'a> {
                         if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
                             return Err(parse_error);
                         }
-                        module_elements.push(ModuleElement::ModuleAttribute {attribute_node});
+                        module_elements.push(ModuleElement::ModuleAttribute { attribute_node });
                     },
                     Err(err) => {
                         return Err(err);
                     }
                 }
-
-            }
-            else if self.match_token(&[TokenType::SuperString]) {
+            } else if self.match_token(&[TokenType::SuperString]) {
                 let mut code_block = String::new();
                 let tok = self.previous();
                 code_block.push_str(&tok.lexeme.clone());
-                module_elements.push(CodeBlock {code_block});
+                module_elements.push(CodeBlock { code_block });
             }
             // else if self.match_token(&[TokenType::ThreeTicks]) {
             //     // Parse code_block ```whatever```
@@ -461,8 +253,7 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     fn system(&mut self, module_elements_opt: Option<Vec<ModuleElement>>
-                        ,functions_opt:Option<Vec<Rc<RefCell<FunctionNode>>>>) -> SystemNode {
-
+              , functions_opt: Option<Vec<Rc<RefCell<FunctionNode>>>>) -> SystemNode {
         let mut interface_block_node_opt = Option::None;
         let mut machine_block_node_opt = Option::None;
         let mut actions_block_node_opt = Option::None;
@@ -624,7 +415,7 @@ impl<'a> Parser<'a> {
                             let y = enter_event_handler.as_ref().borrow();
                             let z = &y.event_symbol_rcref;
                             let a = z.borrow();
-                            let enter_event_handler_params_opt = &a.params_opt;
+                            let enter_event_handler_params_opt = &a.event_symbol_params_opt;
                             if enter_event_handler_params_opt.is_none() {
                                 if system_enter_params_opt.is_none() {
                                     // ok
@@ -664,7 +455,7 @@ impl<'a> Parser<'a> {
                                             } else if (parameter_symbol.param_type_opt.is_none()
                                                 && param.param_type_opt.is_some())
                                                 || (parameter_symbol.param_type_opt.is_some()
-                                                    && param.param_type_opt.is_none())
+                                                && param.param_type_opt.is_none())
                                             {
                                                 // error
                                                 self.error_at_current("Start state and system enter parameters are different.");
@@ -727,12 +518,12 @@ impl<'a> Parser<'a> {
         self.arcanum.exit_parse_scope();
 
         let module = match module_elements_opt {
-            Some(module_elements) => Module {module_elements},
-            None => Module{module_elements:vec![]},
+            Some(module_elements) => Module { module_elements },
+            None => Module { module_elements: vec![] },
         };
         let system_node = SystemNode::new(
             system_name,
-            module ,
+            module,
             system_attributes_opt,
             system_start_state_state_params_opt,
             system_enter_params_opt,
@@ -761,7 +552,6 @@ impl<'a> Parser<'a> {
     // [ $(start_state_param), >(start_state_enter_param), #(domain_param) ]
 
     fn system_arguments(&mut self) -> Result<(Option<ExprListNode>, Option<ExprListNode>, Option<ExprListNode>), ParseError> {
-
         let mut start_state_args_opt = Option::None;
         let mut start_enter_args_opt = Option::None;
         let mut domain_args_opt = Option::None;
@@ -771,7 +561,7 @@ impl<'a> Parser<'a> {
                 start_state_args_opt = Some(expr_list_node);
                 if self.match_token(&[TokenType::Comma]) {
                     match self.system_enter_or_domain_args() {
-                        Ok( (start_enter_args,domain_args) ) => {
+                        Ok((start_enter_args, domain_args)) => {
                             start_enter_args_opt = start_enter_args;
                             domain_args_opt = domain_args;
                             // as there was a comma, one of these must exist
@@ -785,11 +575,11 @@ impl<'a> Parser<'a> {
                             return Err(parse_err);
                         }
                     }
-               }
+                }
             }
             Ok(None) => {
                 match self.system_enter_or_domain_args() {
-                    Ok( (start_enter_args,domain_args) ) => {
+                    Ok((start_enter_args, domain_args)) => {
                         start_enter_args_opt = start_enter_args;
                         domain_args_opt = domain_args;
                     }
@@ -840,7 +630,7 @@ impl<'a> Parser<'a> {
             // So we get it in a scope to get the system_symbol and release it first.
             if let Some(ref system_symbol_rcref) = &self.arcanum.system_symbol_opt {
                 let system_symbol = &self.arcanum.system_symbol_opt.as_ref().unwrap().borrow();
-                    start_state_params_cnt = system_symbol.start_state_params_cnt;
+                start_state_params_cnt = system_symbol.start_state_params_cnt;
                 start_enter_params_cnt = system_symbol.state_enter_params_cnt;
                 domain_params_cnt = system_symbol.domain_params_cnt;
             }
@@ -858,7 +648,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        Ok((start_state_args_opt,start_enter_args_opt,domain_args_opt))
+        Ok((start_state_args_opt, start_enter_args_opt, domain_args_opt))
     }
 
 
@@ -866,10 +656,9 @@ impl<'a> Parser<'a> {
     // Parse optional system start state args.
     // >(start_state_enter_args_list)
 
-    fn system_start_state_args(&mut self) -> Result<Option<ExprListNode>,ParseError> {
-
+    fn system_start_state_args(&mut self) -> Result<Option<ExprListNode>, ParseError> {
         if self.match_token(&[TokenType::State]) {
-            if let Err(parse_err) = self.consume(TokenType::LParen,"Expected '('" ) {
+            if let Err(parse_err) = self.consume(TokenType::LParen, "Expected '('") {
                 return Err(parse_err);
             }
 
@@ -934,7 +723,6 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     fn system_enter_args(&mut self) -> Result<Option<ExprListNode>, ParseError> {
-
         if self.match_token(&[TokenType::GT]) {
             if self.match_token(&[TokenType::LParen]) {
                 match self.expr_list_node() {
@@ -1159,7 +947,7 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    fn system_enter_or_domain_params(&mut self) -> (Option<Vec<ParameterNode>>,Option<Vec<ParameterNode>>) {
+    fn system_enter_or_domain_params(&mut self) -> (Option<Vec<ParameterNode>>, Option<Vec<ParameterNode>>) {
         let mut system_enter_params_opt: Option<Vec<ParameterNode>> = Option::None;
         let mut domain_params_opt: Option<Vec<ParameterNode>> = Option::None;
 
@@ -1171,12 +959,11 @@ impl<'a> Parser<'a> {
                     self.error_at_current("Expected ], found ','")
                 }
             }
-
         } else {
             domain_params_opt = self.system_domain_params();
         }
 
-        (system_enter_params_opt,domain_params_opt)
+        (system_enter_params_opt, domain_params_opt)
     }
 
     /* --------------------------------------------------------------------- */
@@ -1461,8 +1248,7 @@ impl<'a> Parser<'a> {
             if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
                 //   self.arcanum.exit_parse_scope();
                 return Err(parse_error);
-            } else {
-            }
+            } else {}
         }
 
         let function_node = FunctionNode::new(
@@ -1504,18 +1290,18 @@ impl<'a> Parser<'a> {
     // These are attributes that relate to the a program module.
     // See this about attribute affinity:  https://doc.rust-lang.org/reference/attributes.html
     fn module_attributes(&mut self) -> Result<Option<Vec<AttributeNode>>, ParseError> {
-        let mut attributes= Vec::new();
+        let mut attributes = Vec::new();
 
         loop {
             if self.peek().token_type == TokenType::OuterAttributeOrDomainParams {
                 return Ok(None);
-            // if self.peek(TokenType::OuterAttributeOrDomainParams) {
-            //     let err_msg = "Found '#[' token - outer attribute syntax not currently supported for modules.";
-            //     self.error_at_current(err_msg);
-            //     let parse_error = ParseError::new(
-            //         err_msg
-            //     );
-            //     return Err(parse_error);
+                // if self.peek(TokenType::OuterAttributeOrDomainParams) {
+                //     let err_msg = "Found '#[' token - outer attribute syntax not currently supported for modules.";
+                //     self.error_at_current(err_msg);
+                //     let parse_error = ParseError::new(
+                //         err_msg
+                //     );
+                //     return Err(parse_error);
             } else if self.match_token(&[TokenType::InnerAttribute]) {
                 let attribute_node = match self.attribute(AttributeAffinity::Inner) {
                     Ok(attribute_node) => attribute_node,
@@ -1625,8 +1411,6 @@ impl<'a> Parser<'a> {
                 attr: attr_word,
             })
         }
-
-
     }
 
     /* --------------------------------------------------------------------- */
@@ -1863,7 +1647,7 @@ impl<'a> Parser<'a> {
         if self.match_token(&[TokenType::SuperString]) {
             let id = self.previous();
             let type_str = id.lexeme.clone();
-            Ok(TypeNode::new(true, false,false, None, type_str))
+            Ok(TypeNode::new(true, false, false, None, type_str))
         } else {
             if self.match_token(&[TokenType::And]) {
                 is_reference = true
@@ -1872,7 +1656,7 @@ impl<'a> Parser<'a> {
             if self.match_token(&[TokenType::At]) {
                 // TODO - review this
                 frame_event_part_opt = Some(FrameEventPart::Event { is_reference })
-            } else if self.match_token( &[TokenType::System]) {
+            } else if self.match_token(&[TokenType::System]) {
                 is_system = true;
             } else if !self.match_token(&[TokenType::Identifier]) {
                 let err_msg = &format!("Expected return type name.");
@@ -1932,12 +1716,12 @@ impl<'a> Parser<'a> {
             // | TokenType::LTx2
             // | TokenType::LTx3
 
-             => {
+            => {
                 message_node = self.create_message_node(tt)
             },
             _ => {
                 let token_str = self.peek().lexeme.clone();
-                let err_msg = &format!("Expected closing '|' in message selector. Found {}. ", token_str );
+                let err_msg = &format!("Expected closing '|' in message selector. Found {}. ", token_str);
                 self.error_at_current(err_msg);
                 return Err(ParseError::new(err_msg));
             }
@@ -2025,8 +1809,7 @@ impl<'a> Parser<'a> {
                                     return Err(ParseError::new(err_msg.as_str()));
                                 }
                             }
-                        } else {
-                        }
+                        } else {}
 
                         parameters.push(parameter_node);
                     }
@@ -2433,8 +2216,7 @@ impl<'a> Parser<'a> {
             if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
                 //   self.arcanum.exit_parse_scope();
                 return Err(parse_error);
-            } else {
-            }
+            } else {}
         }
 
         let action_node = ActionNode::new(
@@ -2683,7 +2465,6 @@ impl<'a> Parser<'a> {
                 => initializer_expr_t_opt = Some(EnumeratorExprT { enum_expr_node }),
                 Ok(Some(SystemInstanceExprT { system_instance_expr_node }))
                 => initializer_expr_t_opt = Some(SystemInstanceExprT { system_instance_expr_node }),
-
 
                 _ => {
                     let err_msg = "Unexpected assignment expression value.";
@@ -3024,8 +2805,8 @@ impl<'a> Parser<'a> {
         while self.match_token(&[TokenType::Identifier]) {
             match self.variable_or_call_expr(IdentifierDeclScope::None) {
                 Ok(Some(CallChainLiteralExprT {
-                    call_chain_expr_node,
-                })) => calls.push(call_chain_expr_node),
+                            call_chain_expr_node,
+                        })) => calls.push(call_chain_expr_node),
                 Ok(Some(_)) => return Err(ParseError::new("TODO")),
                 Err(parse_error) => return Err(parse_error),
                 Ok(None) => {} // continue
@@ -3107,7 +2888,7 @@ impl<'a> Parser<'a> {
                                                 evt.msg
                                             );
                                             self.error_at_previous(&err_msg);
-                                        //                                            return Err(ParseError::new(err_msg));
+                                            //                                            return Err(ParseError::new(err_msg));
                                         } else {
                                             event_names.insert(evt.msg.clone(), evt.msg.clone());
                                         }
@@ -3173,7 +2954,7 @@ impl<'a> Parser<'a> {
         let state_node_rcref = Rc::new(RefCell::new(state_node));
 
         // If this is the 2nd pass, set the reference to the AST state node.
-        if !self.is_building_symbol_table {
+        if self.is_building_symbol_table {
             // let state_validator = StateSemanticValidator::new();
             // if !state_validator.has_valid_exit_semantics(&state_node_rcref.borrow()) {
             //     return Err(ParseError::new("TODO"));
@@ -3311,14 +3092,14 @@ impl<'a> Parser<'a> {
                                 );
                                 vec.push(param_symbol);
                             }
-                            event_symbol_rcref.borrow_mut().params_opt = Some(vec);
+                            event_symbol_rcref.borrow_mut().event_symbol_params_opt = Some(vec);
                         } else {
                             // validate event handler's parameters match the event symbol's parameters
-                            if event_symbol_rcref.borrow().params_opt.is_none()
+                            if event_symbol_rcref.borrow().event_symbol_params_opt.is_none()
                                 && !parameters.is_empty()
                             {
                                 self.error_at_current(&format!("Event handler {} parameters do not match a previous declaration."
-                                                               ,msg
+                                                               , msg
                                 ));
                             }
                         }
@@ -3349,7 +3130,7 @@ impl<'a> Parser<'a> {
                         let event_symbol_rcref =
                             self.arcanum.get_event(&msg, &self.state_name_opt).unwrap();
                         {
-                            match &event_symbol_rcref.borrow().params_opt {
+                            match &event_symbol_rcref.borrow().event_symbol_params_opt {
                                 Some(symbol_params) => {
                                     // compare existing event symbol params w/ parsed ones
                                     for (i, x) in symbol_params.iter().enumerate() {
@@ -3444,7 +3225,7 @@ impl<'a> Parser<'a> {
                             }
                         }
                         if let Some(parameter_symbols) = event_symbol_params_opt {
-                            event_symbol_rcref.borrow_mut().params_opt = Some(parameter_symbols)
+                            event_symbol_rcref.borrow_mut().event_symbol_params_opt = Some(parameter_symbols)
                         }
                     } else {
                         // leave these comments to show how to debug scope errors.
@@ -3460,7 +3241,7 @@ impl<'a> Parser<'a> {
         } else {
             // no parameter list
             let event_symbol_rcref = self.arcanum.get_event(&msg, &self.state_name_opt).unwrap();
-            if event_symbol_rcref.borrow().params_opt.is_some() {
+            if event_symbol_rcref.borrow().event_symbol_params_opt.is_some() {
                 self.error_at_current(&format!(
                     "Event handler {} parameters do not match a previous declaration.",
                     msg
@@ -3560,7 +3341,7 @@ impl<'a> Parser<'a> {
         let st_name = match &self.state_name_opt {
             Some(state_name) => state_name.clone(),
             None => {
-                return Err(ParseError::new(&format!("[line {}] Fatal error - event handler {} missing enclosing state context. Please notify bugs@frame-lang.org.",line_number,msg)));
+                return Err(ParseError::new(&format!("[line {}] Fatal error - event handler {} missing enclosing state context. Please notify bugs@frame-lang.org.", line_number, msg)));
             }
         };
 
@@ -3673,7 +3454,7 @@ impl<'a> Parser<'a> {
                                         } = expr_stmt_t
                                         {
                                             match call_chain_literal_stmt_node.call_chain_literal_expr_node.call_chain.get(0) {
-                                                Some(CallChainLiteralNodeType::InterfaceMethodCallT {..}) => {
+                                                Some(CallChainLiteralNodeType::InterfaceMethodCallT { .. }) => {
                                                     // interface method call must be last statement.
                                                     // TODO!!! - add this back when scope issue is fixed with parse errors
                                                     // self.interface_method_called = true;
@@ -3681,8 +3462,6 @@ impl<'a> Parser<'a> {
 
                                                     // TODO!!! - add this back when scope issue is fixed with parse errors
                                                     // return statements;
-
-
                                                 }
                                                 _ => {
                                                     statements.push(decl_or_statement);
@@ -4186,7 +3965,7 @@ impl<'a> Parser<'a> {
         if self.match_token(&[TokenType::BoolTestTrue]) {
             is_negated = false;
 
-        // ?!
+            // ?!
         } else if self.match_token(&[TokenType::BoolTestFalse]) {
             is_negated = true;
         } else {
@@ -4259,7 +4038,7 @@ impl<'a> Parser<'a> {
         if self.match_token(&[TokenType::BoolTestTrue]) {
             is_negated = false;
 
-        // ?!
+            // ?!
         } else if self.match_token(&[TokenType::BoolTestFalse]) {
             is_negated = true;
         } else {
@@ -4905,8 +4684,8 @@ impl<'a> Parser<'a> {
     fn postfix_unary_expression(&mut self) -> Result<Option<ExprType>, ParseError> {
         match self.unary_expression2() {
             Ok(Some(CallChainLiteralExprT {
-                call_chain_expr_node,
-            })) => {
+                        call_chain_expr_node,
+                    })) => {
                 let mut x = CallChainLiteralExprT {
                     call_chain_expr_node,
                 };
@@ -4953,8 +4732,8 @@ impl<'a> Parser<'a> {
         if self.match_token(&[TokenType::LParen]) {
             match self.expr_list() {
                 Ok(Some(ExprListT {
-                    expr_list_node: expr_node,
-                })) => {
+                            expr_list_node: expr_node,
+                        })) => {
                     return Ok(Some(ExprListT {
                         expr_list_node: expr_node,
                     }))
@@ -5116,8 +4895,8 @@ impl<'a> Parser<'a> {
             if self.match_token(&[TokenType::Identifier]) {
                 match self.variable_or_call_expr(IdentifierDeclScope::None) {
                     Ok(Some(CallChainLiteralExprT {
-                        mut call_chain_expr_node,
-                    })) => {
+                                mut call_chain_expr_node,
+                            })) => {
                         call_chain_expr_node.is_new_expr = true;
                         return Ok(Some(CallChainLiteralExprT {
                             call_chain_expr_node,
@@ -5157,22 +4936,22 @@ impl<'a> Parser<'a> {
                     return Ok(Some(VariableExprT { var_node }));
                 }
                 Ok(Some(CallExprT {
-                    call_expr_node: method_call_expr_node,
-                })) => {
+                            call_expr_node: method_call_expr_node,
+                        })) => {
                     return Ok(Some(CallExprT {
                         call_expr_node: method_call_expr_node,
                     }))
                 }
                 Ok(Some(ActionCallExprT {
-                    action_call_expr_node,
-                })) => {
+                            action_call_expr_node,
+                        })) => {
                     return Ok(Some(ActionCallExprT {
                         action_call_expr_node,
                     }))
                 }
                 Ok(Some(CallChainLiteralExprT {
-                    mut call_chain_expr_node,
-                })) => {
+                            mut call_chain_expr_node,
+                        })) => {
                     // set the is_reference on first variable in the call chain
                     let call_chain_first_node_opt = call_chain_expr_node.call_chain.get_mut(0);
                     if let Some(call_chain_first_node) = call_chain_first_node_opt {
@@ -5590,7 +5369,7 @@ impl<'a> Parser<'a> {
 
     fn expr_list_node(&mut self) -> Result<Option<ExprListNode>, ParseError> {
         match self.expr_list() {
-            Ok(Some(ExprListT {expr_list_node})) => {
+            Ok(Some(ExprListT { expr_list_node })) => {
                 return Ok(Some(expr_list_node));
             }
             Err(parse_err) => {
@@ -5759,16 +5538,16 @@ impl<'a> Parser<'a> {
                                                 // check if difference in the existance of parameters
                                                 if (!c.is_none()
                                                     && method_call_expr_node
-                                                        .call_expr_list
-                                                        .exprs_t
-                                                        .is_empty())
+                                                    .call_expr_list
+                                                    .exprs_t
+                                                    .is_empty())
                                                     || (c.is_none()
-                                                        && !method_call_expr_node
-                                                            .call_expr_list
-                                                            .exprs_t
-                                                            .is_empty())
+                                                    && !method_call_expr_node
+                                                    .call_expr_list
+                                                    .exprs_t
+                                                    .is_empty())
                                                 {
-                                                    let err_msg = format!("Incorrect number of arguments for action '{}'.",method_name);
+                                                    let err_msg = format!("Incorrect number of arguments for action '{}'.", method_name);
                                                     self.error_at_previous(&err_msg);
                                                     let parse_error =
                                                         ParseError::new(err_msg.as_str());
@@ -5780,9 +5559,9 @@ impl<'a> Parser<'a> {
                                                     Some(symbol_params) => {
                                                         if symbol_params.len()
                                                             != method_call_expr_node
-                                                                .call_expr_list
-                                                                .exprs_t
-                                                                .len()
+                                                            .call_expr_list
+                                                            .exprs_t
+                                                            .len()
                                                         {
                                                             let err_msg = format!("Number of arguments does not match parameters for action '{}'.", method_name);
                                                             self.error_at_previous(&err_msg);
@@ -5838,14 +5617,14 @@ impl<'a> Parser<'a> {
                                                 // check if difference in the existance of parameters
                                                 if (!c.is_none()
                                                     && method_call_expr_node
-                                                        .call_expr_list
-                                                        .exprs_t
-                                                        .is_empty())
+                                                    .call_expr_list
+                                                    .exprs_t
+                                                    .is_empty())
                                                     || (c.is_none()
-                                                        && !method_call_expr_node
-                                                            .call_expr_list
-                                                            .exprs_t
-                                                            .is_empty())
+                                                    && !method_call_expr_node
+                                                    .call_expr_list
+                                                    .exprs_t
+                                                    .is_empty())
                                                 {
                                                     let err_msg = format!("Incorrect number of arguments for interface '{}'.", method_name);
                                                     self.error_at_previous(&err_msg);
@@ -5859,9 +5638,9 @@ impl<'a> Parser<'a> {
                                                     Some(symbol_params) => {
                                                         if symbol_params.len()
                                                             != method_call_expr_node
-                                                                .call_expr_list
-                                                                .exprs_t
-                                                                .len()
+                                                            .call_expr_list
+                                                            .exprs_t
+                                                            .len()
                                                         {
                                                             let err_msg = format!("Number of arguments does not match parameters for interface call '{}'.", method_name);
                                                             self.error_at_previous(&err_msg);
@@ -6155,19 +5934,30 @@ impl<'a> Parser<'a> {
 
     // state_context ->
 
-    fn state_context(
+    fn target_state(
         &mut self,
         enter_args_opt: Option<ExprListNode>,
         context_change_type: &str,
+        is_transition: bool,
     ) -> Result<Option<StateContextType>, ParseError> {
         if self.match_token(&[TokenType::StateStackOperationPop]) {
+            if !is_transition {
+                let err_msg =
+                    "State change disallowed to a popped state.";
+                self.error_at_previous(&err_msg);
+            } else if let (Some(enter_args_opt)) = enter_args_opt {
+                let err_msg =
+                    "Transition enter arguments disallowed when transitioning to a popped state.";
+                self.error_at_previous(&err_msg);
+            }
             Ok(Some(StateContextType::StateStackPop {}))
         } else if self.match_token(&[TokenType::StateStackOperationPush]) {
             let err_msg =
                 "Error - $$[+] is an invalid transition target. Try replacing with $$[-]. ";
-            self.error_at_previous(&&err_msg);
+            self.error_at_previous(&err_msg);
             return Err(ParseError::new(err_msg));
         } else {
+
             // parse state ref e.g. '$S1'
             if !self.match_token(&[TokenType::State]) {
                 let err_msg = "Missing $.";
@@ -6195,7 +5985,52 @@ impl<'a> Parser<'a> {
                 }
             }
 
-            // parse optional state ref expression list
+            let mut args_cnt: usize = 0;
+            if let Some(expr_list_node) = &enter_args_opt {
+                args_cnt = expr_list_node.exprs_t.len();
+            }
+            // validate transition enter args equal target state enter params
+            let mut params_cnt: usize = 0;
+            if !self.is_building_symbol_table {
+                match self.get_state_enter_eventhandler(name.as_str()) {
+                    Some(enter_event_handler_rcref) => {
+                        let err_msg = &format!("State change disallowed to states with enter eventhandler.");
+                        self.error_at_current(err_msg.as_str());
+                    }
+                    None => {}
+                }
+                // let state_rcref_opt = self.arcanum.get_state(name.as_str());
+                // match state_rcref_opt {
+                //     Some(state_symbol) => {
+                //         match &state_symbol.borrow().state_node_opt {
+                //             Some(state_node_rcref) => {
+                //                 let state_node = state_node_rcref.borrow();
+                //                 if let Some(enter_event_handler) = &state_node.enter_event_handler_opt {
+                //                     let x = enter_event_handler.borrow();
+                //                     let y = x.event_symbol_rcref.borrow();
+                //                     match &y.event_symbol_params_opt {
+                //                         Some(params) => {
+                //                             params_cnt = params.len();
+                //                         }
+                //                         None => {}
+                //                     }
+                //                 }
+                //             }
+                //             None => {}
+                //         }
+                //     }
+                //     None => {}
+                // }
+
+                // This error is only valid for transitions.
+                if args_cnt != params_cnt && is_transition {
+                    let err_msg = &format!("Number of transition enter arguments not equal to number of event handler parameters.");
+                    self.error_at_current(err_msg.as_str());
+                }
+            }
+
+
+            // parse optional state argument list
             // '(' ')' | '(' expr ')'
             let mut state_ref_args_opt = None;
             if self.match_token(&[TokenType::LParen]) {
@@ -6203,7 +6038,7 @@ impl<'a> Parser<'a> {
                     Ok(Some(ExprListT { expr_list_node })) => {
                         if expr_list_node.exprs_t.is_empty() {
                             // Error - number of state params does not match number of expression arguments
-                            let err_msg = &format!("Empty expression list not allowed for state parameters for transition target state {}.",name);
+                            let err_msg = &format!("Empty expression list not allowed for state parameters for transition target state {}.", name);
                             self.error_at_current(err_msg.as_str());
                             return Err(ParseError::new(err_msg));
                         }
@@ -6213,7 +6048,7 @@ impl<'a> Parser<'a> {
                     Err(parse_error) => return Err(parse_error),
                     Ok(None) => {
                         // Error - number of state params does not match number of expression arguments
-                        let err_msg = &format!("Empty expression list not allowed for state parameters for transition target state {}.",name);
+                        let err_msg = &format!("Empty expression list not allowed for state parameters for transition target state {}.", name);
                         self.error_at_current(err_msg.as_str());
                         return Err(ParseError::new(err_msg));
                     } // continue
@@ -6221,7 +6056,7 @@ impl<'a> Parser<'a> {
             }
 
             if !self.is_building_symbol_table {
-                // validate state parameters with transition target state parameters
+                // validate state arguments match transition target state parameters
                 let state_rcref_opt = self.arcanum.get_state(name.as_str());
                 match state_rcref_opt {
                     Some(state_symbol) => {
@@ -6247,7 +6082,6 @@ impl<'a> Parser<'a> {
                                 }
                             }
                             None => {
-                                // Error - there exist state parameters but no args are passed
                                 if let Some(params) = &state_symbol.borrow().params_opt {
                                     if params.len() != 0 {
                                         // Error - number of state params does not match number of expression arguments
@@ -6353,7 +6187,7 @@ impl<'a> Parser<'a> {
         }
 
         let state_context_t;
-        match self.state_context(enter_args_opt, "Transition") {
+        match self.target_state(enter_args_opt, "Transition", true) {
             Ok(Some(scn)) => state_context_t = scn,
             Ok(None) => return Err(ParseError::new("TODO")),
             Err(parse_error) => return Err(parse_error),
@@ -6387,8 +6221,32 @@ impl<'a> Parser<'a> {
             label_opt = Some(self.previous().lexeme.clone());
         }
 
+        // check that we are not changing state out of a state with
+        // an exit event handler
+
+        let state_name = &self.state_name_opt.as_ref().unwrap().clone();
+        match &self.get_state_exit_eventhandler(state_name) {
+            Some(exit_eventhandler_node_rcref) => {
+                let err_msg = &format!("State change disallowed out of states with exit eventhandler.");
+                self.error_at_current(err_msg.as_str());
+
+            }
+            None => {}
+            // Some(exit_eventhandler_node_rcref) = exit_eventhandler_node_rcref_opt {
+            //     let event_handler_node = exit_eventhandler_node_rcref.borrow();
+            //     let event_symbol = event_handler_node.event_symbol_rcref.borrow();
+            //     match event_symbol.event_symbol_params_opt {
+            //         Some(params) => {
+            //         if params.len() > 0 {
+            //             let err_msg = & format ! ("State change disallowed out of states with exit parameters.");
+            //             self.error_at_current(err_msg.as_str());
+            //         }
+            //     }
+            //     None => {}
+            // }
+        }
         let state_context_t;
-        match self.state_context(None, "State change") {
+        match self.target_state(None, "State change", false) {
             Ok(Some(scn)) => state_context_t = scn,
             Ok(None) => return Err(ParseError::new("TODO")),
             Err(parse_error) => return Err(parse_error),
@@ -6715,6 +6573,262 @@ impl<'a> Parser<'a> {
                 branch_terminator_opt,
             )),
             Err(parse_error) => Err(parse_error),
+        }
+    }
+
+
+    /* --------------------------------------------------------------------- */
+    /* --------------------------------------------------------------------- */
+    // helper functions
+
+
+    /* --------------------------------------------------------------------- */
+
+    pub fn get_arcanum(self) -> Arcanum {
+        self.arcanum
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    pub fn get_system_hierarchy(self) -> SystemHierarchy {
+        self.system_hierarchy_opt.unwrap()
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    pub fn get_all(self) -> (Arcanum, SystemHierarchy) {
+        (self.arcanum, self.system_hierarchy_opt.unwrap())
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    pub fn had_error(&self) -> bool {
+        self.had_error
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    pub fn get_errors(&self) -> String {
+        self.errors.clone()
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    // Helper functions
+
+    fn match_token(&mut self, token_types: &[TokenType]) -> bool {
+        // cache off comments
+        while self.check(TokenType::SingleLineComment) || self.check(TokenType::MultiLineComment) {
+            self.comments.push(self.peek().clone());
+            self.advance();
+        }
+
+        if self.check(TokenType::Error) {
+            self.error_at_current("Unexpected token.");
+            self.advance();
+            return false;
+        }
+
+        for token_type in token_types {
+            if self.check(*token_type) {
+                //              println!("Consumed {:?}",token_type);
+                if !self.is_at_end() {
+                    self.advance();
+                }
+
+                return true;
+            }
+        }
+
+        false
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn advance(&mut self) -> &Token {
+        if !self.is_at_end() {
+            self.current += 1;
+            self.current_tok_ref = &self.tokens[self.current];
+            self.current_token = self.peek().lexeme.clone();
+            self.processed_tokens.push(' ');
+            self.processed_tokens.push_str(&self.peek().lexeme.clone());
+            //            println!("Current token = {:?}",self.peek());
+        }
+
+        self.previous()
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn check(&self, token_type: TokenType) -> bool {
+        let t = self.peek();
+        if token_type == t.token_type {
+            return true;
+        }
+
+        false
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn is_at_end(&self) -> bool {
+        matches!(self.peek().token_type, TokenType::Eof)
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn peek(&self) -> &Token {
+        &self.tokens[self.current]
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn previous(&self) -> &Token {
+        &self.tokens[self.current - 1]
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn consume(&mut self, token_type: TokenType, message: &str) -> Result<&Token, ParseError> {
+        if self.check(token_type) {
+            return Ok(self.advance());
+        }
+
+        self.error_at_current(message);
+        Err(ParseError::new(message))
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn error_at_current(&mut self, message: &str) {
+        self.error_at(&self.tokens[self.current], message);
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn error_at_previous(&mut self, message: &str) {
+        self.error_at(&self.tokens[self.current - 1], message);
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    // TODO: put the message in the ParseError
+    fn error_at(&mut self, token: &Token, message: &str) {
+        if self.panic_mode {
+            return;
+        }
+
+        self.panic_mode = true;
+        self.had_error = true;
+
+        let mut error_msg = format!("[line {}] Error", token.line);
+
+        match token.token_type {
+            TokenType::Eof => error_msg.push_str(" at end"),
+            TokenType::Error => error_msg.push_str(&format!(" at '{}'", token.lexeme)),
+            _ => error_msg.push_str(&format!(" at '{}'", token.lexeme)),
+        }
+
+        self.errors
+            .push_str(&format!("{} : {}\n", error_msg, message));
+
+        //        println!("{} : {}", error_msg, message);
+        // TODO:?
+        //       ParseError::new( /* error_msg */ )
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn synchronize(&mut self, sync_tokens: &[TokenType]) -> bool {
+        self.panic_mode = false;
+
+        if self.is_at_end() {
+            return false;
+        }
+
+        // in case not advancing
+        if self.last_sync_token_idx == self.current {
+            self.advance();
+        }
+
+        self.last_sync_token_idx = self.current;
+
+        while self.peek().token_type != TokenType::Eof {
+            for sync_token in sync_tokens {
+                let current_token_type = self.peek().token_type;
+                if *sync_token == current_token_type {
+                    return true;
+                }
+            }
+
+            self.advance();
+        }
+
+        false
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn follows(&self, token: &Token, follows_vec: &[TokenType]) -> bool {
+        for follows_token_type in follows_vec {
+            if *follows_token_type == token.token_type {
+                return true;
+            }
+        }
+
+        let vec_comments = &vec![TokenType::SingleLineComment, TokenType::MultiLineComment];
+        for comment_token_type in vec_comments {
+            if *comment_token_type == token.token_type {
+                return true;
+            }
+        }
+
+        false
+    }
+
+
+    /* --------------------------------------------------------------------- */
+
+    fn get_state_enter_eventhandler(&mut self, state_name: &str) -> Option<Rc<RefCell<EventHandlerNode>>> {
+        let state_rcref_opt = self.arcanum.get_state(state_name);
+        match state_rcref_opt {
+            Some(state_symbol) => {
+                match &state_symbol.borrow().state_node_opt {
+                    Some(state_node_rcref) => {
+                        let state_node = state_node_rcref.borrow();
+                        if let Some(enter_event_handler_rcref) = &state_node.enter_event_handler_opt {
+                            Some(enter_event_handler_rcref.clone())
+                        } else {
+                            None
+                        }
+                    }
+                    None => None
+                }
+            }
+            None => None
+        }
+
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn get_state_exit_eventhandler(&mut self, state_name: &str) -> Option<Rc<RefCell<EventHandlerNode>>> {
+        let state_rcref_opt = self.arcanum.get_state(state_name);
+        match state_rcref_opt {
+            Some(state_symbol) => {
+                match &state_symbol.borrow().state_node_opt {
+                    Some(state_node_rcref) => {
+                        let state_node = state_node_rcref.borrow();
+                        if let Some(exit_event_handler_rcref) = &state_node.exit_event_handler_opt {
+                            Some(exit_event_handler_rcref.clone())
+                        } else {
+                            None
+                        }
+                    }
+                    None => None
+                }
+            }
+            None => None
         }
     }
 }

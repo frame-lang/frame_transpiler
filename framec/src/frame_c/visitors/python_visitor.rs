@@ -695,7 +695,7 @@ impl PythonVisitor {
             msg.push_str(&self.symbol_config.enter_msg_symbol);
 
             if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt) {
-                match &event_sym.borrow().params_opt {
+                match &event_sym.borrow().event_symbol_params_opt {
                     Some(event_params) => {
                         if enter_args.exprs_t.len() != event_params.len() {
                             panic!("Fatal error: misaligned parameters to arguments.")
@@ -786,7 +786,7 @@ impl PythonVisitor {
                 //                target_state_vars = "stateVars".to_string();
                 if let Some(state_symbol_rcref) = self.arcanium.get_state(&q.borrow().name) {
                     let state_symbol = state_symbol_rcref.borrow();
-                    let state_node = &state_symbol.state_node.as_ref().unwrap().borrow();
+                    let state_node = &state_symbol.state_node_opt.as_ref().unwrap().borrow();
                     // generate local state variables
                     if state_node.vars_opt.is_some() {
                         //                        let mut separator = "";
@@ -883,7 +883,7 @@ impl PythonVisitor {
 
                 if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt)
                 {
-                    match &event_sym.borrow().params_opt {
+                    match &event_sym.borrow().event_symbol_params_opt {
                         Some(event_params) => {
                             if exit_args.exprs_t.len() != event_params.len() {
                                 panic!("Fatal error: misaligned parameters to arguments.")
@@ -951,7 +951,7 @@ impl PythonVisitor {
             msg.push_str(&self.symbol_config.enter_msg_symbol);
 
             if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt) {
-                match &event_sym.borrow().params_opt {
+                match &event_sym.borrow().event_symbol_params_opt {
                     Some(event_params) => {
                         if enter_args.exprs_t.len() != event_params.len() {
                             panic!("Fatal error: misaligned parameters to arguments.")
@@ -1045,7 +1045,7 @@ impl PythonVisitor {
                 //                target_state_vars = "stateVars".to_string();
                 if let Some(state_symbol_rcref) = self.arcanium.get_state(&q.borrow().name) {
                     let state_symbol = state_symbol_rcref.borrow();
-                    let state_node = &state_symbol.state_node.as_ref().unwrap().borrow();
+                    let state_node = &state_symbol.state_node_opt.as_ref().unwrap().borrow();
                     // generate local state variables
                     if state_node.vars_opt.is_some() {
                         //                        let mut separator = "";
@@ -1117,7 +1117,7 @@ impl PythonVisitor {
 
                 if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt)
                 {
-                    match &event_sym.borrow().params_opt {
+                    match &event_sym.borrow().event_symbol_params_opt {
                         Some(event_params) => {
                             if exit_args.exprs_t.len() != event_params.len() {
                                 panic!("Fatal error: misaligned parameters to arguments.")

@@ -797,7 +797,7 @@ impl PlantUmlVisitor {
 
                 if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt)
                 {
-                    match &event_sym.borrow().params_opt {
+                    match &event_sym.borrow().event_symbol_params_opt {
                         Some(event_params) => {
                             if exit_args.exprs_t.len() != event_params.len() {
                                 panic!("Fatal error: misaligned parameters to arguments.")

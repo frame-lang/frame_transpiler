@@ -836,7 +836,7 @@ impl Java8Visitor {
             msg.push_str(&self.symbol_config.enter_msg_symbol);
 
             if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt) {
-                match &event_sym.borrow().params_opt {
+                match &event_sym.borrow().event_symbol_params_opt {
                     Some(event_params) => {
                         if enter_args.exprs_t.len() != event_params.len() {
                             self.errors.push(
@@ -932,7 +932,7 @@ impl Java8Visitor {
                 //                target_state_vars = "stateVars".to_string();
                 if let Some(state_symbol_rcref) = self.arcanium.get_state(&q.borrow().name) {
                     let state_symbol = state_symbol_rcref.borrow();
-                    let state_node = &state_symbol.state_node.as_ref().unwrap().borrow();
+                    let state_node = &state_symbol.state_node_opt.as_ref().unwrap().borrow();
                     // generate local state variables
                     if state_node.vars_opt.is_some() {
                         //                        let mut separator = "";
@@ -1037,7 +1037,7 @@ impl Java8Visitor {
 
                 if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt)
                 {
-                    match &event_sym.borrow().params_opt {
+                    match &event_sym.borrow().event_symbol_params_opt {
                         Some(event_params) => {
                             if exit_args.exprs_t.len() != event_params.len() {
                                 self.errors.push(
@@ -1112,7 +1112,7 @@ impl Java8Visitor {
             msg.push_str(&self.symbol_config.enter_msg_symbol);
 
             if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt) {
-                match &event_sym.borrow().params_opt {
+                match &event_sym.borrow().event_symbol_params_opt {
                     Some(event_params) => {
                         if enter_args.exprs_t.len() != event_params.len() {
                             self.errors.push(
@@ -1209,7 +1209,7 @@ impl Java8Visitor {
                 //                target_state_vars = "stateVars".to_string();
                 if let Some(state_symbol_rcref) = self.arcanium.get_state(&q.borrow().name) {
                     let state_symbol = state_symbol_rcref.borrow();
-                    let state_node = &state_symbol.state_node.as_ref().unwrap().borrow();
+                    let state_node = &state_symbol.state_node_opt.as_ref().unwrap().borrow();
                     // generate local state variables
                     if state_node.vars_opt.is_some() {
                         //                        let mut separator = "";
@@ -1286,7 +1286,7 @@ impl Java8Visitor {
 
                 if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt)
                 {
-                    match &event_sym.borrow().params_opt {
+                    match &event_sym.borrow().event_symbol_params_opt {
                         Some(event_params) => {
                             if exit_args.exprs_t.len() != event_params.len() {
                                 self.errors.push(
@@ -3424,7 +3424,7 @@ impl AstVisitor for Java8Visitor {
                         .get_event(&self.current_event_msg, &Option::None);
                     let x = &event_symbol_opt_rcref.unwrap();
                     let event_symbol = x.borrow();
-                    let param_type: String = match &event_symbol.params_opt {
+                    let param_type: String = match &event_symbol.event_symbol_params_opt {
                         Some(param_symbols) => {
                             let mut param_type: String = String::new();
                             for param_symbol in param_symbols {

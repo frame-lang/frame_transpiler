@@ -989,7 +989,7 @@ impl RustVisitor {
                 if let Some(event_rcref) = self.arcanum.get_event(event_name, &None) {
                     let event = event_rcref.borrow();
                     self.add_code("parameters: &[");
-                    if let Some(params) = &event.params_opt {
+                    if let Some(params) = &event.event_symbol_params_opt {
                         if !params.is_empty() {
                             self.indent();
                             for param in params {
@@ -1114,7 +1114,7 @@ impl RustVisitor {
         let state_name = state_node.name.clone();
         let state_symbol_rcref = self.arcanum.get_state(&state_name).unwrap();
         let state_symbol = state_symbol_rcref.borrow();
-        let state_node_rcref = state_symbol.state_node.as_ref().unwrap();
+        let state_node_rcref = state_symbol.state_node_opt.as_ref().unwrap();
         let state_node = state_node_rcref.borrow();
 
         // begin constant, machine, and name
@@ -1550,7 +1550,7 @@ impl RustVisitor {
         // generate an arg struct for all events that have parameters
         for event_name in self.arcanum.get_event_names() {
             if let Some(event_sym) = self.arcanum.get_event(&event_name, &None) {
-                if let Some(params) = &event_sym.borrow().params_opt {
+                if let Some(params) = &event_sym.borrow().event_symbol_params_opt {
                     let event_type_name = self.format_event_type_name(&event_name);
                     let args_struct_name = self.format_args_struct_name(&event_type_name);
                     let mut bound_names: Vec<String> = Vec::new();
@@ -2846,7 +2846,7 @@ impl RustVisitor {
                 .arcanum
                 .get_event(&exit_msg, &self.current_state_name_opt)
             {
-                match &event_sym.borrow().params_opt {
+                match &event_sym.borrow().event_symbol_params_opt {
                     Some(event_params) => {
                         let param_names = event_params.iter().map(|p| &p.name).collect();
                         has_args = self.generate_arguments(
@@ -2903,7 +2903,7 @@ impl RustVisitor {
                 .arcanum
                 .get_event(&enter_msg, &self.current_state_name_opt)
             {
-                match &event_sym.borrow().params_opt {
+                match &event_sym.borrow().event_symbol_params_opt {
                     Some(event_params) => {
                         let param_names = event_params.iter().map(|p| &p.name).collect();
                         has_args = self.generate_arguments(
@@ -2987,7 +2987,7 @@ impl RustVisitor {
         let mut has_vars = false;
         if let Some(state_symbol_rcref) = self.arcanum.get_state(target_state_name) {
             let state_symbol = state_symbol_rcref.borrow();
-            let state_node = &state_symbol.state_node.as_ref().unwrap().borrow();
+            let state_node = &state_symbol.state_node_opt.as_ref().unwrap().borrow();
             // generate local state variables
             if state_node.vars_opt.is_some() {
                 has_vars = true;

@@ -865,8 +865,8 @@ impl Arcanum {
         self.current_symtab.borrow().lookup(name, search_scope)
     }
 
-    // Actions are only declared in the -actions- block.
-    // Get -actions-block- symtab from the system symbol and lookup.
+    // Interface methods are only declared in the -interface- block.
+    // Get -interface-block- symtab from the system symbol and lookup.
     pub fn lookup_interface_method(
         &self,
         name: &str,
@@ -1721,7 +1721,7 @@ impl Symbol for InterfaceMethodSymbol {
 pub struct EventSymbol {
     pub msg: String,
     pub interface_name_opt: Option<String>,
-    pub params_opt: Option<Vec<ParameterSymbol>>,
+    pub event_symbol_params_opt: Option<Vec<ParameterSymbol>>,
     pub ret_type_opt: Option<TypeNode>,
     pub is_enter_msg: bool,
     pub is_exit_msg: bool,
@@ -1742,7 +1742,7 @@ impl EventSymbol {
         EventSymbol {
             msg: msg_name,
             interface_name_opt,
-            params_opt,
+            event_symbol_params_opt: params_opt,
             ret_type_opt,
             is_enter_msg,
             is_exit_msg,
@@ -1851,9 +1851,9 @@ impl ScopeSymbol for MachineBlockScopeSymbol {
 pub struct StateSymbol {
     pub name: String,
     pub params_opt: Option<Vec<Rc<RefCell<ParameterSymbol>>>>,
-    pub event_handlers_opt: Option<Vec<String>>,
+ //   pub event_handlers_opt: Option<Vec<String>>,
     pub symtab_rcref: Rc<RefCell<SymbolTable>>,
-    pub state_node: Option<Rc<RefCell<StateNode>>>,
+    pub state_node_opt: Option<Rc<RefCell<StateNode>>>,
     //    pub uses_enter_params:bool,
     requires_state_context: bool,
 }
@@ -1869,9 +1869,9 @@ impl StateSymbol {
         StateSymbol {
             name: state_name.to_string(),
             params_opt: None,
-            event_handlers_opt: None,
+         //   event_handlers_opt: None,
             symtab_rcref: Rc::new(RefCell::new(st_rcref)),
-            state_node: None,
+            state_node_opt: None,
             requires_state_context: false,
         }
     }
@@ -1881,7 +1881,7 @@ impl StateSymbol {
     }
 
     pub fn set_state_node(&mut self, state_node: Rc<RefCell<StateNode>>) {
-        self.state_node = Some(state_node);
+        self.state_node_opt = Some(state_node);
     }
 
     // pub fn requires_state_context(&self) -> bool {
