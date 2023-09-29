@@ -5992,13 +5992,16 @@ impl<'a> Parser<'a> {
             // validate transition enter args equal target state enter params
             let mut params_cnt: usize = 0;
             if !self.is_building_symbol_table {
-                match self.get_state_enter_eventhandler(name.as_str()) {
-                    Some(enter_event_handler_rcref) => {
-                        let err_msg = &format!("State change disallowed to states with enter eventhandler.");
-                        self.error_at_current(err_msg.as_str());
+                if !is_transition {
+                    match self.get_state_enter_eventhandler(name.as_str()) {
+                        Some(enter_event_handler_rcref) => {
+                            let err_msg = &format!("State change disallowed to states with enter eventhandler.");
+                            self.error_at_current(err_msg.as_str());
+                        }
+                        None => {}
                     }
-                    None => {}
                 }
+
                 // let state_rcref_opt = self.arcanum.get_state(name.as_str());
                 // match state_rcref_opt {
                 //     Some(state_symbol) => {
