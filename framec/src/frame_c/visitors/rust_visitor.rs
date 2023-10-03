@@ -2167,7 +2167,7 @@ impl RustVisitor {
             for variable_decl_node_rcref in &domain_block_node.member_variables {
                 let variable_decl_node = variable_decl_node_rcref.borrow();
                 let variable_name = self.format_value_name(&variable_decl_node.name);
-                let var_init_expr = &variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
+                let var_init_expr = &variable_decl_node.value;
                 let mut code = String::new();
                 var_init_expr.accept_to_string(self, &mut code);
                 self.newline();
@@ -2998,7 +2998,7 @@ impl RustVisitor {
                 self.indent();
                 for var_rcref in state_node.vars_opt.as_ref().unwrap() {
                     let var = var_rcref.borrow();
-                    let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
+                    let expr_t = &var.value;
                     let mut expr_code = String::new();
                     expr_t.accept_to_string(self, &mut expr_code);
                     self.newline_to_string(var_code);
@@ -5592,7 +5592,7 @@ impl AstVisitor for RustVisitor {
             None => String::new(),
         };
         let var_name = self.format_value_name(&variable_decl_node.name);
-        let var_init_expr = &variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
+        let var_init_expr = &variable_decl_node.value;
         self.newline();
         let mut code = String::new();
         var_init_expr.accept_to_string(self, &mut code);
@@ -5671,7 +5671,7 @@ impl AstVisitor for RustVisitor {
                 self.enter_block_to_string(output);
                 output.push_str("return_value: ");
                 assignment_expr_node
-                    .r_value_box
+                    .r_value_rc
                     .accept_to_string(self, output);
                 self.exit_block_to_string(output);
                 if !self.config.features.thread_safe {
@@ -5691,7 +5691,7 @@ impl AstVisitor for RustVisitor {
                 // compute rhs
                 self.indent();
                 assignment_expr_node
-                    .r_value_box
+                    .r_value_rc
                     .accept_to_string(self, &mut rhs);
                 self.outdent();
                 // stick em together

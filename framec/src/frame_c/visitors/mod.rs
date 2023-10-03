@@ -5,8 +5,8 @@ use std::convert::TryFrom;
 pub enum TargetLanguage {
     Cpp,
     CSharp,
-    CSharpForBob,
-    GdScript,
+ //   CSharpForBob,
+ //   GdScript,
     GoLang,
     Java8,
     JavaScript,
@@ -22,8 +22,8 @@ impl TargetLanguage {
         match self {
             TargetLanguage::Cpp => "cpp",
             TargetLanguage::CSharp => "cs",
-            TargetLanguage::CSharpForBob => "cs",
-            TargetLanguage::GdScript => "gd",
+     //       TargetLanguage::CSharpForBob => "cs",
+     //       TargetLanguage::GdScript => "gd",
             TargetLanguage::GoLang => "go",
             TargetLanguage::Java8 => "java",
             TargetLanguage::JavaScript => "js",
@@ -42,10 +42,10 @@ impl TryFrom<&str> for TargetLanguage {
             Ok(TargetLanguage::Cpp)
         } else if value == "c_sharp" {
             Ok(TargetLanguage::CSharp)
-        } else if value == "c_sharp_bob" {
-            Ok(TargetLanguage::CSharpForBob)
-        } else if value == "gdscript" {
-            Ok(TargetLanguage::GdScript)
+        // } else if value == "c_sharp_bob" {
+        //     Ok(TargetLanguage::CSharpForBob)
+        // } else if value == "gdscript" {
+        //     Ok(TargetLanguage::GdScript)
         } else if value == "golang" {
             Ok(TargetLanguage::GoLang)
         } else if value == "java_8" {
@@ -77,8 +77,8 @@ impl TryFrom<String> for TargetLanguage {
 
 pub mod cpp_visitor;
 pub mod cs_visitor;
-pub mod cs_visitor_for_bob;
-pub mod gdscript_3_2_visitor;
+//pub mod cs_visitor_for_bob;
+//pub mod gdscript_3_2_visitor;
 pub mod golang_visitor;
 pub mod java_8_visitor;
 pub mod javascript_visitor;

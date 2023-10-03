@@ -12,8 +12,8 @@ use crate::frame_c::ast::*;
 use crate::frame_c::scanner::{Token, TokenType};
 use crate::frame_c::symbol_table::*;
 use crate::frame_c::visitors::*;
-// use std::cell::RefCell;
-use std::rc::Rc;
+
+
 
 // use yaml_rust::{YamlLoader, Yaml};
 
@@ -796,7 +796,7 @@ impl PythonVisitor {
                                 Some(var_type) => var_type.get_type_str(),
                                 None => String::from(""),
                             };
-                            let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
+                            let expr_t = &var.value;
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
                             self.add_code(&format!(
@@ -1056,7 +1056,7 @@ impl PythonVisitor {
                                 // TODO: check this
                                 None => String::from(""),
                             };
-                            let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
+                            let expr_t = &var.value;
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
                             self.newline();
@@ -1268,7 +1268,7 @@ impl PythonVisitor {
                     Some(vars) => {
                         for var_rcref in vars {
                             let var_decl_node = var_rcref.borrow();
-                            let expr_t = var_decl_node.initializer_expr_t_opt.as_ref().unwrap();
+                            let expr_t = &var_decl_node.value;
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
 
@@ -1304,7 +1304,7 @@ impl PythonVisitor {
             self.newline();
 
             for variable_decl_node_rcref in &domain_block_node.member_variables {
-                let mut variable_decl_node = variable_decl_node_rcref.borrow_mut();
+                let variable_decl_node = variable_decl_node_rcref.borrow_mut();
        //         variable_decl_node.initializer_expr_t_opt = Option::None;
                 if let Some(domain_params_vec) = &system_node.domain_params_opt {
                     for domain_param in domain_params_vec {
@@ -1483,7 +1483,7 @@ impl AstVisitor for PythonVisitor {
             for var_rcref in &domain_block_node.member_variables {
                 let var_name = var_rcref.borrow().name.clone();
                 let var = var_rcref.borrow();
-                let var_init_expr = var.initializer_expr_t_opt.as_ref().unwrap();
+                let var_init_expr = &var.value;
                 let mut init_expression = String::new();
                 var_init_expr.accept_to_string(self, &mut init_expression);
                 // push for later initialization
@@ -1497,7 +1497,7 @@ impl AstVisitor for PythonVisitor {
         self.add_code("# get include files at https://github.com/frame-lang/frame-ancillary-files");
 
         self.newline();
-        &system_node.module.accept(self);
+        let _ = &system_node.module.accept(self);
 
         // Generate any enums
 
@@ -2957,7 +2957,7 @@ impl AstVisitor for PythonVisitor {
             let mut output = String::new();
             test_expr_rcref.borrow().accept_to_string(self, &mut output);
 
-            let test_expr = test_expr_rcref.borrow();
+            // let test_expr = test_expr_rcref.borrow();
            // test_expr.auto_pre_inc_dec(self);
 
             //            self.newline();
@@ -4210,7 +4210,7 @@ impl AstVisitor for PythonVisitor {
             None => String::from(""),
         };
         let var_name = &variable_decl_node.name;
-        let var_init_expr = &variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
+        let var_init_expr = &variable_decl_node.value;
         self.newline();
         let mut code = String::new();
         var_init_expr.accept_to_string(self, &mut code);
@@ -4325,7 +4325,7 @@ impl AstVisitor for PythonVisitor {
         assignment_expr_node.l_value_box.accept(self);
         self.add_code(" = ");
         //       assignment_expr_node.r_value_box.auto_pre_inc_dec(self);
-        assignment_expr_node.r_value_box.accept(self);
+        assignment_expr_node.r_value_rc.accept(self);
         // assignment_expr_node.r_value_box.auto_post_inc_dec(self);
     }
 
@@ -4344,7 +4344,7 @@ impl AstVisitor for PythonVisitor {
             .accept_to_string(self, output);
         output.push_str(" = ");
         assignment_expr_node
-            .r_value_box
+            .r_value_rc
             .accept_to_string(self, output);
     }
 

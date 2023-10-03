@@ -349,7 +349,7 @@ impl GolangVisitor {
             Some(attributes) => {
                 for value in (*attributes).values() {
                     match value {
-                        AttributeNode::MetaWord { attr } => {
+                        AttributeNode::MetaWord { .. } => {
                             // TODO
                             panic!("Need to implement attribute MetaWord.")
                         }
@@ -850,7 +850,7 @@ impl GolangVisitor {
                                 Some(var_type) => var_type.get_type_str(),
                                 None => String::from("<?>"),
                             };
-                            let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
+                            let expr_t = &var.value;
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
                             self.add_code(&format!(
@@ -1079,7 +1079,7 @@ impl GolangVisitor {
                         //                        let mut separator = "";
                         for var_rcref in state_node.vars_opt.as_ref().unwrap() {
                             let var = var_rcref.borrow();
-                            let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
+                            let expr_t = &var.value;
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
                             self.newline();
@@ -1348,7 +1348,7 @@ impl GolangVisitor {
                     Some(vars) => {
                         for var_rcref in vars {
                             let var_decl_node = var_rcref.borrow();
-                            let expr_t = var_decl_node.initializer_expr_t_opt.as_ref().unwrap();
+                            let expr_t = &var_decl_node.value;
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
 
@@ -1746,7 +1746,7 @@ impl AstVisitor for GolangVisitor {
             for var_rcref in &domain_block_node.member_variables {
                 let var_name = var_rcref.borrow().name.clone();
                 let var = var_rcref.borrow();
-                let var_init_expr = var.initializer_expr_t_opt.as_ref().unwrap();
+                let var_init_expr = &var.value;
                 let mut init_expression = String::new();
                 var_init_expr.accept_to_string(self, &mut init_expression);
                 // push for later initialization
@@ -1947,7 +1947,7 @@ impl AstVisitor for GolangVisitor {
                     ));
                     // get init expression and cache code
                     let var = var_rcref.borrow();
-                    let var_init_expr = var.initializer_expr_t_opt.as_ref().unwrap();
+                    let var_init_expr = &var.value;
                     let mut init_expression = String::new();
                     var_init_expr.accept_to_string(self, &mut init_expression);
                     // push for later initialization
@@ -3483,7 +3483,7 @@ impl AstVisitor for GolangVisitor {
             None => String::from(""),
         };
         let var_name = &variable_decl_node.name;
-        let var_init_expr = &variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
+        let var_init_expr = &variable_decl_node.value;
         self.newline();
         let mut code = String::new();
         // TODO: this may be a bit of a hack, but need to format e.Param[] differently
@@ -3548,7 +3548,7 @@ impl AstVisitor for GolangVisitor {
         output.push_str(" = ");
         self.expr_context = ExprContext::Rvalue;
         assignment_expr_node
-            .r_value_box
+            .r_value_rc
             .accept_to_string(self, output);
         self.expr_context = ExprContext::None;
     }

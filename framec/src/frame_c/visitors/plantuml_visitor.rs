@@ -2145,7 +2145,7 @@ impl AstVisitor for PlantUmlVisitor {
             None => String::from("<?>"),
         };
         let var_name = &variable_decl_node.name;
-        let var_init_expr = &variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
+        let var_init_expr = &variable_decl_node.value;
         self.newline();
         let mut code = String::new();
         var_init_expr.accept_to_string(self, &mut code);
@@ -2187,7 +2187,7 @@ impl AstVisitor for PlantUmlVisitor {
         self.newline();
         assignment_expr_node.l_value_box.accept(self);
         self.add_code(" = ");
-        assignment_expr_node.r_value_box.accept(self);
+        assignment_expr_node.r_value_rc.accept(self);
         self.add_code(";");
     }
 
@@ -2206,7 +2206,7 @@ impl AstVisitor for PlantUmlVisitor {
             .accept_to_string(self, output);
         output.push_str(" = ");
         assignment_expr_node
-            .r_value_box
+            .r_value_rc
             .accept_to_string(self, output);
         output.push(';');
     }

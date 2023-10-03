@@ -185,6 +185,19 @@ pub enum SymbolType {
     },
 }
 
+impl SymbolType {
+    pub fn assign(&mut self, r_value:Rc<ExprType>) -> Result<(),&str> {
+        match self {
+            SymbolType::BlockVar {block_variable_symbol_rcref} => {
+                let mut variable_symbol = block_variable_symbol_rcref.borrow_mut();
+                variable_symbol.value = r_value.clone();
+                Ok(())
+            }
+            _ => Err("Invalid l_value."),
+        }
+    }
+}
+
 impl Symbol for SymbolType {
     fn get_name(&self) -> String {
         match self {
@@ -545,7 +558,7 @@ impl SymbolTable {
         }
     }
 
-    pub fn insert_symbol(&mut self, symbol_t: &SymbolType) -> Result<(), String> {
+    pub fn define(&mut self, symbol_t: &SymbolType) -> Result<(), String> {
         match symbol_t {
             SymbolType::DomainVariable {
                 domain_variable_symbol_rcref,
@@ -787,10 +800,8 @@ impl SymbolTable {
     }
 
     pub fn get_parent_symtab(&self) -> Option<Rc<RefCell<SymbolTable>>> {
-        //     let x = self.parent_symtab_opt_ref;
-        let x = self.parent_symtab_rcref_opt.as_ref()?;
-        let y = Rc::clone(x);
-        Some(y)
+        let parent_symtab_rcref = self.parent_symtab_rcref_opt.as_ref()?;
+        Some(Rc::clone(parent_symtab_rcref))
     }
 }
 
@@ -1296,7 +1307,7 @@ impl Arcanum {
 
     /* --------------------------------------------------------------------- */
 
-    pub fn exit_parse_scope(&mut self) {
+    pub fn exit_scope(&mut self) {
         let x = match self.current_symtab.borrow_mut().get_parent_symtab() {
             Some(symtab_ref) => symtab_ref,
             None => panic!("Fatal error - could not find parent symtab."),
@@ -1506,7 +1517,7 @@ impl Arcanum {
 
     pub fn insert_symbol(&mut self, symbol_t: SymbolType) -> Result<(), String> {
         let symbol_table = self.get_symbol_table_for_type(&symbol_t);
-        let result = symbol_table.borrow_mut().insert_symbol(&symbol_t);
+        let result = symbol_table.borrow_mut().define(&symbol_t);
         result
     }
 
@@ -2785,6 +2796,7 @@ pub struct VariableSymbol {
     pub var_type: Option<TypeNode>,
     pub scope: IdentifierDeclScope,
     pub ast_node_opt: Option<Rc<RefCell<VariableDeclNode>>>,
+    pub value: Rc<ExprType>, // The latest assigned expression
 }
 
 impl VariableSymbol {
@@ -2792,12 +2804,14 @@ impl VariableSymbol {
         name: String,
         var_type: Option<TypeNode>,
         scope: IdentifierDeclScope,
+        value_opt: Rc<ExprType>,
     ) -> VariableSymbol {
         VariableSymbol {
             name,
             var_type,
             scope,
-            ast_node_opt: None,
+            value: value_opt,
+            ast_node_opt: None, // TODO: I think this is dead code
         }
     }
 
@@ -2805,6 +2819,10 @@ impl VariableSymbol {
     //     self.ast_node = Some(Rc::new(RefCell::new(ast_node)));
     // }
 }
+
+// impl VariableSymbol {
+//     fn get_decl_initializer_expr() ->
+// }
 
 impl Symbol for VariableSymbol {
     fn get_name(&self) -> String {

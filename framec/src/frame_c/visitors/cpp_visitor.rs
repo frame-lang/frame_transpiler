@@ -1129,7 +1129,7 @@ impl CppVisitor {
                                 Some(var_type) => var_type.get_type_str(),
                                 None => String::from("<?>"),
                             };
-                            let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
+                            let expr_t = &var.value;
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
                             self.add_code(&format!(
@@ -1404,7 +1404,7 @@ impl CppVisitor {
                                 Some(var_type) => var_type.get_type_str(),
                                 None => String::from("<?>"),
                             };
-                            let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
+                            let expr_t = &var.value;
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
                             self.add_code(&format!(
@@ -1639,7 +1639,7 @@ impl CppVisitor {
                     Some(vars) => {
                         for var_rcref in vars {
                             let var_decl_node = var_rcref.borrow();
-                            let expr_t = var_decl_node.initializer_expr_t_opt.as_ref().unwrap();
+                            let expr_t = &var_decl_node.value;
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
 
@@ -3649,7 +3649,7 @@ impl AstVisitor for CppVisitor {
             None => String::from("<?>"),
         };
         let var_name = &variable_decl_node.name;
-        let var_init_expr = &variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
+        let var_init_expr = &variable_decl_node.value;
         self.newline();
         let mut code = String::new();
         self.current_var_type = var_type.clone(); // used for casting
@@ -3736,7 +3736,7 @@ impl AstVisitor for CppVisitor {
         assignment_expr_node.l_value_box.accept(self);
         self.add_code(" = ");
         self.expr_context = ExprContext::Rvalue;
-        assignment_expr_node.r_value_box.accept(self);
+        assignment_expr_node.r_value_rc.accept(self);
         self.add_code(";");
     }
 
@@ -3757,7 +3757,7 @@ impl AstVisitor for CppVisitor {
         output.push_str(" = ");
         self.expr_context = ExprContext::Rvalue;
         assignment_expr_node
-            .r_value_box
+            .r_value_rc
             .accept_to_string(self, output);
         output.push(';');
     }

@@ -11,7 +11,7 @@ use super::ast::*;
 use super::scanner::*;
 use super::symbol_table::*;
 use crate::frame_c::utils::SystemHierarchy;
-use std::cell::{RefCell, Ref};
+use std::cell::{RefCell};
 use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
@@ -241,7 +241,6 @@ impl<'a> Parser<'a> {
             //     module_elements.push(CodeBlock {code_block});
             // }
             else {
-                let a = 1;
                 break;
             }
         }
@@ -515,7 +514,7 @@ impl<'a> Parser<'a> {
 
         let line = self.previous().line;
 
-        self.arcanum.exit_parse_scope();
+        self.arcanum.exit_scope();
 
         let module = match module_elements_opt {
             Some(module_elements) => Module { module_elements },
@@ -628,7 +627,7 @@ impl<'a> Parser<'a> {
             // This section is organized slightly strangely because we have to release
             // the mutable reference to "self" before calling self.error_at_current().
             // So we get it in a scope to get the system_symbol and release it first.
-            if let Some(ref system_symbol_rcref) = &self.arcanum.system_symbol_opt {
+            if let Some(ref _system_symbol_rcref) = &self.arcanum.system_symbol_opt {
                 let system_symbol = &self.arcanum.system_symbol_opt.as_ref().unwrap().borrow();
                 start_state_params_cnt = system_symbol.start_state_params_cnt;
                 start_enter_params_cnt = system_symbol.state_enter_params_cnt;
@@ -867,7 +866,7 @@ impl<'a> Parser<'a> {
                 (system_enter_params_opt, domain_params_opt) = self.system_enter_or_domain_params();
             }
 
-            if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
+            if let Err(_parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
                 let sync_tokens = vec![
                     TokenType::Identifier,
                     TokenType::MachineBlock,
@@ -1178,7 +1177,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        self.arcanum.exit_parse_scope();
+        self.arcanum.exit_scope();
         ret
     }
 
@@ -1480,7 +1479,7 @@ impl<'a> Parser<'a> {
         let y = &self.arcanum.current_symtab;
         self.arcanum.debug_print_current_symbols(y.clone());
 
-        self.arcanum.exit_parse_scope();
+        self.arcanum.exit_scope();
 
         InterfaceBlockNode::new(interface_methods)
     }
@@ -1623,7 +1622,7 @@ impl<'a> Parser<'a> {
                 .arcanum
                 .current_symtab
                 .borrow_mut()
-                .insert_symbol(&interface_method_symbol_t);
+                .define(&interface_method_symbol_t);
             match ret {
                 Ok(()) => {}
                 Err(err_msg) => {
@@ -1769,7 +1768,7 @@ impl<'a> Parser<'a> {
 
         let ret = self.parameters2();
 
-        self.arcanum.exit_parse_scope();
+        self.arcanum.exit_scope();
 
         ret
     }
@@ -1977,7 +1976,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        self.arcanum.exit_parse_scope();
+        self.arcanum.exit_scope();
 
         MachineBlockNode::new(states)
     }
@@ -2004,7 +2003,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        self.arcanum.exit_parse_scope();
+        self.arcanum.exit_scope();
 
         ActionsBlockNode::new(actions)
     }
@@ -2142,7 +2141,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        self.arcanum.exit_parse_scope();
+        self.arcanum.exit_scope();
 
         self.is_action_scope = false;
 
@@ -2286,7 +2285,7 @@ impl<'a> Parser<'a> {
                     }
                 }
             } else {
-                match self.variable_decl(IdentifierDeclScope::DomainBlock) {
+                match self.var_declaration(IdentifierDeclScope::DomainBlock) {
                     Ok(domain_variable_node) => domain_variables.push(domain_variable_node),
                     Err(_parse_err) => {
                         let sync_tokens =
@@ -2299,7 +2298,7 @@ impl<'a> Parser<'a> {
 
         self.arcanum
             .debug_print_current_symbols(self.arcanum.get_current_symtab());
-        self.arcanum.exit_parse_scope();
+        self.arcanum.exit_scope();
 
         DomainBlockNode::new(domain_variables, enums)
     }
@@ -2378,7 +2377,7 @@ impl<'a> Parser<'a> {
                 .arcanum
                 .current_symtab
                 .borrow_mut()
-                .insert_symbol(&enum_symbol_t);
+                .define(&enum_symbol_t);
             self.arcanum
                 .debug_print_current_symbols(self.arcanum.get_current_symtab());
             match ret {
@@ -2411,7 +2410,7 @@ impl<'a> Parser<'a> {
 
     //* --------------------------------------------------------------------- *//
 
-    fn variable_decl(
+    fn var_declaration(
         &mut self,
         identifier_decl_scope: IdentifierDeclScope,
     ) -> Result<Rc<RefCell<VariableDeclNode>>, ParseError> {
@@ -2438,33 +2437,33 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let mut initializer_expr_t_opt = None;
+        let mut value = Rc::new(ExprType::DefaultLiteralValueForTypeExprT);
 
         if self.match_token(&[TokenType::Equals]) {
             match self.equality() {
                 Ok(Some(LiteralExprT { literal_expr_node }))
-                => initializer_expr_t_opt = Some(LiteralExprT { literal_expr_node }),
+                => value = Rc::new(LiteralExprT { literal_expr_node }),
                 Ok(Some(VariableExprT { var_node: id_node }))
-                => initializer_expr_t_opt = Some(VariableExprT { var_node: id_node }),
+                => value = Rc::new(VariableExprT { var_node: id_node }),
                 Ok(Some(ActionCallExprT { action_call_expr_node }))
                 // TODO this may be dead code. CallChainLiteralExprT may do it all
-                => initializer_expr_t_opt = Some(ActionCallExprT { action_call_expr_node }),
+                => value = Rc::new(ActionCallExprT { action_call_expr_node }),
                 Ok(Some(ExprListT { expr_list_node }))
-                => initializer_expr_t_opt = Some(ExprListT { expr_list_node }),
+                => value = Rc::new(ExprListT { expr_list_node }),
                 Ok(Some(CallChainLiteralExprT { call_chain_expr_node }))
-                => initializer_expr_t_opt = Some(CallChainLiteralExprT { call_chain_expr_node }),
+                => value = Rc::new(CallChainLiteralExprT { call_chain_expr_node }),
                 Ok(Some(UnaryExprT { unary_expr_node }))
-                => initializer_expr_t_opt = Some(UnaryExprT { unary_expr_node }),
+                => value = Rc::new(UnaryExprT { unary_expr_node }),
                 Ok(Some(BinaryExprT { binary_expr_node }))
-                => initializer_expr_t_opt = Some(BinaryExprT { binary_expr_node }),
+                => value = Rc::new(BinaryExprT { binary_expr_node }),
                 Ok(Some(FrameEventExprT { frame_event_part }))
-                => initializer_expr_t_opt = Some(FrameEventExprT { frame_event_part }),
+                => value = Rc::new(FrameEventExprT { frame_event_part }),
                 Ok(Some(EnumeratorExprT { enum_expr_node }))
-                => initializer_expr_t_opt = Some(EnumeratorExprT { enum_expr_node }),
+                => value = Rc::new(EnumeratorExprT { enum_expr_node }),
                 Ok(Some(EnumeratorExprT { enum_expr_node }))
-                => initializer_expr_t_opt = Some(EnumeratorExprT { enum_expr_node }),
+                => value = Rc::new(EnumeratorExprT { enum_expr_node }),
                 Ok(Some(SystemInstanceExprT { system_instance_expr_node }))
-                => initializer_expr_t_opt = Some(SystemInstanceExprT { system_instance_expr_node }),
+                => value = Rc::new(SystemInstanceExprT { system_instance_expr_node }),
 
                 _ => {
                     let err_msg = "Unexpected assignment expression value.";
@@ -2473,8 +2472,8 @@ impl<'a> Parser<'a> {
                 },
             }
         } else if matches!(self.peek().token_type, TokenType::In) {
+            // TODO!! - develop for-in statement
             // pass
-            // let debug = 1;
         } else {
             // All variables should be initialized to something.
             let err_msg = "Expected '='. All variables must be initialized.";
@@ -2486,7 +2485,7 @@ impl<'a> Parser<'a> {
             name.clone(),
             type_node_opt.clone(),
             is_constant,
-            initializer_expr_t_opt,
+            value.clone(),
             identifier_decl_scope.clone(),
         );
 
@@ -2496,7 +2495,8 @@ impl<'a> Parser<'a> {
             // syntactic pass
             // add variable to current symbol table
             let scope = self.arcanum.get_current_identifier_scope();
-            let variable_symbol = VariableSymbol::new(name, type_node_opt, scope);
+            // Create variable symbol and set value to the intializer expression.
+            let variable_symbol = VariableSymbol::new(name, type_node_opt, scope, value.clone());
             let variable_symbol_rcref = Rc::new(RefCell::new(variable_symbol));
             let variable_symbol_t = match identifier_decl_scope {
                 IdentifierDeclScope::DomainBlock => SymbolType::DomainVariable {
@@ -2527,7 +2527,7 @@ impl<'a> Parser<'a> {
                 .arcanum
                 .current_symtab
                 .borrow_mut()
-                .insert_symbol(&variable_symbol_t);
+                .define(&variable_symbol_t);
             match ret {
                 Ok(()) => {}
                 Err(err_msg) => {
@@ -2781,7 +2781,7 @@ impl<'a> Parser<'a> {
         // const c   (immutable)
         while self.match_token(&[TokenType::Var, TokenType::Const]) {
             self.generate_state_context = true;
-            match self.variable_decl(IdentifierDeclScope::StateVar) {
+            match self.var_declaration(IdentifierDeclScope::StateVar) {
                 Ok(variable_node) => {
                     vars.push(variable_node);
                 }
@@ -2938,7 +2938,7 @@ impl<'a> Parser<'a> {
         }
 
         // TODO: Moved this down here as I think is a bug to hve it above but not sure.
-        self.arcanum.exit_parse_scope(); // state block scope (StateBlockScopeSymbol)
+        self.arcanum.exit_scope(); // state block scope (StateBlockScopeSymbol)
 
         let state_node = StateNode::new(
             state_name,
@@ -2967,9 +2967,9 @@ impl<'a> Parser<'a> {
         self.state_name_opt = None;
 
         if pop_state_params_scope {
-            self.arcanum.exit_parse_scope(); // state params scope
+            self.arcanum.exit_scope(); // state params scope
         }
-        self.arcanum.exit_parse_scope(); // state scope
+        self.arcanum.exit_scope(); // state scope
 
         Ok(state_node_rcref)
     }
@@ -3346,11 +3346,11 @@ impl<'a> Parser<'a> {
         };
 
         // TODO: Moved this down here as I think is a bug to hve it above but not sure.
-        self.arcanum.exit_parse_scope(); // event handler local block scope (EventHandlerLocalScopeSymbol)
+        self.arcanum.exit_scope(); // event handler local block scope (EventHandlerLocalScopeSymbol)
         if pop_params_scope {
-            self.arcanum.exit_parse_scope(); // event handler params scope (EventHandlerParamsScopeSymbol)
+            self.arcanum.exit_scope(); // event handler params scope (EventHandlerParamsScopeSymbol)
         }
-        self.arcanum.exit_parse_scope(); // event handler lscope (EventHandlerScopeSymbol)
+        self.arcanum.exit_scope(); // event handler lscope (EventHandlerScopeSymbol)
 
         if self.panic_mode {
             return Err(ParseError::new("TODO"));
@@ -3554,7 +3554,7 @@ impl<'a> Parser<'a> {
     ) -> Result<Option<DeclOrStmtType>, ParseError> {
         if self.match_token(&[TokenType::Var, TokenType::Const]) {
             // this is hardcoded and needs to be set based on context. specifically BlockVar
-            match self.variable_decl(identifier_decl_scope) {
+            match self.var_declaration(identifier_decl_scope) {
                 Ok(var_decl_t_rc_ref) => {
                     return Ok(Some(DeclOrStmtType::VarDeclT {
                         var_decl_t_rcref: var_decl_t_rc_ref,
@@ -3806,6 +3806,9 @@ impl<'a> Parser<'a> {
                         self.error_at_previous("Unary expression statements not allowed.");
                         return Err(ParseError::new("TODO"));
                     }
+                    ExprType::DefaultLiteralValueForTypeExprT => {
+                        panic!("TODO");
+                    }
                 }
             }
             None => {
@@ -3876,7 +3879,7 @@ impl<'a> Parser<'a> {
         }
         let ret = self.block();
         // exit block scope
-        self.arcanum.exit_parse_scope();
+        self.arcanum.exit_scope();
         ret
     }
 
@@ -4069,7 +4072,7 @@ impl<'a> Parser<'a> {
         }
         let ret = self.bool_test_conditional_branch_statements(is_negated, expr_t);
         // exit block scope
-        self.arcanum.exit_parse_scope();
+        self.arcanum.exit_scope();
         ret
     }
 
@@ -4108,7 +4111,7 @@ impl<'a> Parser<'a> {
         }
         let ret = self.bool_test_else_branch();
         // exit block scope
-        self.arcanum.exit_parse_scope();
+        self.arcanum.exit_scope();
         ret
     }
 
@@ -4317,7 +4320,7 @@ impl<'a> Parser<'a> {
 
         if self.match_token(&[TokenType::Equals]) {
             // this changes the tokens generated for expression lists
-            // like (a) and (a b c)
+            // like (a) and (a,b,c)
             self.is_parsing_rhs = true;
 
             let line = self.previous().line;
@@ -4336,38 +4339,39 @@ impl<'a> Parser<'a> {
                 }
             };
 
-            let assignment_expr_node = AssignmentExprNode::new(l_value, r_value, line);
+            let r_value_rc = Rc::new(r_value);
+
+            // Now get the variable and assign new value
+            let name_opt = l_value.get_name();
+            if name_opt.is_none() {
+                let err_msg = format!("Assignment to invalid l_value");
+                self.error_at_current(&err_msg);
+            }
+            let l_value_name = name_opt.unwrap();
+            let symbol_t_opt = self.arcanum.lookup(l_value_name.as_str(), &IdentifierDeclScope::None);
+            match symbol_t_opt {
+                Some(symbol_t_rcref) => {
+                    let mut symbol_t = symbol_t_rcref.borrow_mut();
+                 //   let x = symbol_t.assign(r_value_rc.clone());
+                    match symbol_t.assign(r_value_rc.clone()) {
+                        Ok(()) => {
+
+                        }
+                        Err(err_msg) => {
+                            let err_msg = format!("Assignment to invalid l_value");
+                            self.error_at_current(&err_msg);
+                        }
+                    }
+                }
+                None => {
+
+                }
+            }
+            let assignment_expr_node = AssignmentExprNode::new(l_value, r_value_rc.clone(), line);
             return Ok(Some(AssignmentExprT {
                 assignment_expr_node,
             }));
         }
-
-        // if self.match_token(&[TokenType::DeclAssignment]) {
-        //     // this changes the tokens generated for expression lists
-        //     // like (a) and (a b c)
-        //     self.is_parsing_rhs = true;
-        //
-        //     let line = self.previous().line;
-        //     let r_value = match self.equality() {
-        //         Ok(Some(expr_type)) => {
-        //             self.is_parsing_rhs = false;
-        //             expr_type
-        //         }
-        //         Ok(None) => {
-        //             self.is_parsing_rhs = false;
-        //             return Ok(None);
-        //         }
-        //         Err(parse_error) => {
-        //             self.is_parsing_rhs = false;
-        //             return Err(parse_error);
-        //         }
-        //     };
-        //
-        //     let assignment_expr_node = AssignmentExprNode::new(l_value, r_value, true,line);
-        //     return Ok(Some(AssignmentExprT {
-        //         assignment_expr_node,
-        //     }));
-        // }
 
         Ok(Some(l_value))
     }
@@ -5055,7 +5059,7 @@ impl<'a> Parser<'a> {
         // parse loop
         let ret = self.loop_statement();
         // exit loop scope
-        self.arcanum.exit_parse_scope();
+        self.arcanum.exit_scope();
         self.is_loop_scope = false;
         ret
     }
@@ -5077,7 +5081,7 @@ impl<'a> Parser<'a> {
 
         if self.match_token(&[TokenType::Var]) {
             // loop var x:int = 0; ...
-            match self.variable_decl(IdentifierDeclScope::LoopVar) {
+            match self.var_declaration(IdentifierDeclScope::LoopVar) {
                 Ok(var_decl_t_rc_ref) => {
                     init_stmt = LoopFirstStmt::VarDecl {
                         var_decl_node_rcref: var_decl_t_rc_ref,
@@ -5945,7 +5949,7 @@ impl<'a> Parser<'a> {
                 let err_msg =
                     "State change disallowed to a popped state.";
                 self.error_at_previous(&err_msg);
-            } else if let (Some(enter_args_opt)) = enter_args_opt {
+            } else if let Some(enter_args_opt) = enter_args_opt {
                 let err_msg =
                     "Transition enter arguments disallowed when transitioning to a popped state.";
                 self.error_at_previous(&err_msg);
@@ -6001,29 +6005,6 @@ impl<'a> Parser<'a> {
                         None => {}
                     }
                 }
-
-                // let state_rcref_opt = self.arcanum.get_state(name.as_str());
-                // match state_rcref_opt {
-                //     Some(state_symbol) => {
-                //         match &state_symbol.borrow().state_node_opt {
-                //             Some(state_node_rcref) => {
-                //                 let state_node = state_node_rcref.borrow();
-                //                 if let Some(enter_event_handler) = &state_node.enter_event_handler_opt {
-                //                     let x = enter_event_handler.borrow();
-                //                     let y = x.event_symbol_rcref.borrow();
-                //                     match &y.event_symbol_params_opt {
-                //                         Some(params) => {
-                //                             params_cnt = params.len();
-                //                         }
-                //                         None => {}
-                //                     }
-                //                 }
-                //             }
-                //             None => {}
-                //         }
-                //     }
-                //     None => {}
-                // }
 
                 // This error is only valid for transitions.
                 if args_cnt != params_cnt && is_transition {

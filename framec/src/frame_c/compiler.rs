@@ -5,8 +5,8 @@ use crate::frame_c::symbol_table::*;
 use crate::frame_c::utils::{frame_exitcode, RunError};
 use crate::frame_c::visitors::cpp_visitor::CppVisitor;
 use crate::frame_c::visitors::cs_visitor::CsVisitor;
-use crate::frame_c::visitors::cs_visitor_for_bob::CsVisitorForBob;
-use crate::frame_c::visitors::gdscript_3_2_visitor::GdScript32Visitor;
+//use crate::frame_c::visitors::cs_visitor_for_bob::CsVisitorForBob;
+// use crate::frame_c::visitors::gdscript_3_2_visitor::GdScript32Visitor;
 use crate::frame_c::visitors::golang_visitor::GolangVisitor;
 use crate::frame_c::visitors::java_8_visitor::Java8Visitor;
 use crate::frame_c::visitors::javascript_visitor::JavaScriptVisitor;
@@ -258,34 +258,34 @@ impl Exe {
                     visitor.run(&system_node);
                     output = visitor.get_code();
                 }
-                TargetLanguage::CSharpForBob => {
-                    let mut visitor = CsVisitorForBob::new(
-                        semantic_parser.get_arcanum(),
-                        generate_exit_args,
-                        generate_enter_args || generate_state_context,
-                        generate_state_stack,
-                        generate_change_state,
-                        generate_transition_state,
-                        FRAMEC_VERSION,
-                        comments,
-                    );
-                    visitor.run(&system_node);
-                    output = visitor.get_code();
-                }
-                TargetLanguage::GdScript => {
-                    let mut visitor = GdScript32Visitor::new(
-                        semantic_parser.get_arcanum(),
-                        generate_exit_args,
-                        generate_enter_args || generate_state_context,
-                        generate_state_stack,
-                        generate_change_state,
-                        generate_transition_state,
-                        FRAMEC_VERSION,
-                        comments,
-                    );
-                    visitor.run(&system_node);
-                    output = visitor.get_code();
-                }
+                // TargetLanguage::CSharpForBob => {
+                //     let mut visitor = CsVisitorForBob::new(
+                //         semantic_parser.get_arcanum(),
+                //         generate_exit_args,
+                //         generate_enter_args || generate_state_context,
+                //         generate_state_stack,
+                //         generate_change_state,
+                //         generate_transition_state,
+                //         FRAMEC_VERSION,
+                //         comments,
+                //     );
+                //     visitor.run(&system_node);
+                //     output = visitor.get_code();
+                // }
+                // TargetLanguage::GdScript => {
+                //     let mut visitor = GdScript32Visitor::new(
+                //         semantic_parser.get_arcanum(),
+                //         generate_exit_args,
+                //         generate_enter_args || generate_state_context,
+                //         generate_state_stack,
+                //         generate_change_state,
+                //         generate_transition_state,
+                //         FRAMEC_VERSION,
+                //         comments,
+                //     );
+                //     visitor.run(&system_node);
+                //     output = visitor.get_code();
+                // }
                 TargetLanguage::GoLang => {
                     let mut visitor = GolangVisitor::new(
                         semantic_parser.get_arcanum(),

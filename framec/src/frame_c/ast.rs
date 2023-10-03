@@ -511,7 +511,7 @@ pub struct VariableDeclNode {
     pub name: String,
     pub type_opt: Option<TypeNode>,
     pub is_constant: bool,
-    pub initializer_expr_t_opt: Option<ExprType>,
+    pub value: Rc<ExprType>,
     pub identifier_decl_scope: IdentifierDeclScope,
 }
 
@@ -520,14 +520,14 @@ impl VariableDeclNode {
         name: String,
         type_opt: Option<TypeNode>,
         is_constant: bool,
-        initializer_expr_t_opt: Option<ExprType>,
+        value: Rc<ExprType>,
         identifier_decl_scope: IdentifierDeclScope,
     ) -> VariableDeclNode {
         VariableDeclNode {
             name,
             type_opt,
             is_constant,
-            initializer_expr_t_opt,
+            value,
             identifier_decl_scope,
         }
     }
@@ -594,6 +594,10 @@ impl VariableNode {
             scope, // TODO: consider accessor or moving out of IdentifierNode
             symbol_type_rcref_opt,
         }
+    }
+
+    pub fn get_name(&self) -> &str {
+        self.id_node.name.lexeme.as_str()
     }
 }
 
@@ -1078,6 +1082,8 @@ pub enum ExprType {
     LiteralExprT {
         literal_expr_node: LiteralExprNode,
     },
+    // Expression for default literal for type
+    DefaultLiteralValueForTypeExprT,
     StateStackOperationExprT {
         state_stack_op_node: StateStackOperationNode,
     },
@@ -1098,51 +1104,6 @@ pub enum ExprType {
     },
 }
 
-pub enum RefExprType<'a> {
-    AssignmentExprT {
-        assignment_expr_node: &'a AssignmentExprNode,
-    },
-    // #[allow(dead_code)] // is used, don't know why I need this
-    // ActionCallExprT {
-    //     action_call_expr_node: ActionCallExprNode,
-    // },
-    CallChainLiteralExprT {
-        call_chain_expr_node: &'a CallChainLiteralExprNode,
-    },
-    // #[allow(dead_code)] // is used, don't know why I need this
-    CallExprT {
-        call_expr_node: &'a CallExprNode,
-    },
-    // #[allow(dead_code)] // is used, don't know why I need this
-    // CallExprListT {
-    //     call_expr_list_node: CallExprListNode,
-    // },
-    ExprListT {
-        expr_list_node: &'a ExprListNode,
-    },
-    // VariableExprT {
-    //     var_node: VariableNode,
-    // },
-    // LiteralExprT {
-    //     literal_expr_node: LiteralExprNode,
-    // },
-    // StateStackOperationExprT {
-    //     state_stack_op_node: StateStackOperationNode,
-    // },
-    // FrameEventExprT {
-    //     frame_event_part: FrameEventPart,
-    // },
-    // UnaryExprT {
-    //     unary_expr_node: UnaryExprNode,
-    // },
-    BinaryExprT {
-        binary_expr_node: &'a BinaryExprNode,
-    },
-    LoopStmtT {
-        loop_types: &'a LoopStmtTypes,
-    },
-}
-
 impl fmt::Display for ExprType {
     // This trait requires `fmt` with this exact signature.
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -1160,6 +1121,16 @@ impl fmt::Display for ExprType {
 }
 
 impl ExprType {
+    pub fn get_name(&self) -> Option<String> {
+        match self {
+            ExprType::VariableExprT {var_node} => {
+                let name = var_node.id_node.name.lexeme.clone();
+                Some(name)
+            } ,
+            _ => None,
+        }
+    }
+
     /// Get the name of expression type we're looking at. Useful for debugging.
     pub fn expr_type_name(&self) -> &'static str {
         match self {
@@ -1177,6 +1148,7 @@ impl ExprType {
             ExprType::BinaryExprT { .. } => "BinaryExprT",
             ExprType::EnumeratorExprT { .. } => "EnumExprT",
             ExprType::SystemInstanceExprT { .. } => "SystemInstanceExprT",
+            ExprType::DefaultLiteralValueForTypeExprT { .. } => "DefaultLiteralValueForTypeExprT",
         }
     }
 
@@ -1300,6 +1272,9 @@ impl NodeElement for ExprType {
             ExprType::EnumeratorExprT { enum_expr_node } => {
                 ast_visitor.visit_enumerator_expr_node(enum_expr_node);
             }
+            ExprType::DefaultLiteralValueForTypeExprT => {
+                panic!("TODO");
+            }
         }
     }
 
@@ -1362,6 +1337,9 @@ impl NodeElement for ExprType {
             }
             ExprType::EnumeratorExprT { enum_expr_node } => {
                 ast_visitor.visit_enumerator_expr_node_to_string(enum_expr_node, output);
+            }
+            ExprType::DefaultLiteralValueForTypeExprT => {
+                panic!("TODO");
             }
         }
     }
@@ -1442,6 +1420,52 @@ pub enum FunctionArgExprType {
     // TODO
     // - FunctionBinaryExprNode
     // - FunctionAssignment
+}
+
+
+pub enum RefExprType<'a> {
+    AssignmentExprT {
+        assignment_expr_node: &'a AssignmentExprNode,
+    },
+    // #[allow(dead_code)] // is used, don't know why I need this
+    // ActionCallExprT {
+    //     action_call_expr_node: ActionCallExprNode,
+    // },
+    CallChainLiteralExprT {
+        call_chain_expr_node: &'a CallChainLiteralExprNode,
+    },
+    // #[allow(dead_code)] // is used, don't know why I need this
+    CallExprT {
+        call_expr_node: &'a CallExprNode,
+    },
+    // #[allow(dead_code)] // is used, don't know why I need this
+    // CallExprListT {
+    //     call_expr_list_node: CallExprListNode,
+    // },
+    ExprListT {
+        expr_list_node: &'a ExprListNode,
+    },
+    // VariableExprT {
+    //     var_node: VariableNode,
+    // },
+    // LiteralExprT {
+    //     literal_expr_node: LiteralExprNode,
+    // },
+    // StateStackOperationExprT {
+    //     state_stack_op_node: StateStackOperationNode,
+    // },
+    // FrameEventExprT {
+    //     frame_event_part: FrameEventPart,
+    // },
+    // UnaryExprT {
+    //     unary_expr_node: UnaryExprNode,
+    // },
+    BinaryExprT {
+        binary_expr_node: &'a BinaryExprNode,
+    },
+    LoopStmtT {
+        loop_types: &'a LoopStmtTypes,
+    },
 }
 
 //-----------------------------------------------------//
@@ -1656,16 +1680,16 @@ impl NodeElement for AssignmentStmtNode {
 
 pub struct AssignmentExprNode {
     pub l_value_box: Box<ExprType>,
-    pub r_value_box: Box<ExprType>,
+    pub r_value_rc: Rc<ExprType>,
     //    pub is_decl: bool,
     pub line: usize,
 }
 
 impl AssignmentExprNode {
-    pub fn new(l_value: ExprType, r_value: ExprType, line: usize) -> AssignmentExprNode {
+    pub fn new(l_value: ExprType, r_value: Rc<ExprType>, line: usize) -> AssignmentExprNode {
         AssignmentExprNode {
             l_value_box: Box::new(l_value),
-            r_value_box: Box::new(r_value),
+            r_value_rc: r_value.clone(),
             //            is_decl,
             line,
         }
@@ -1727,9 +1751,9 @@ impl ExprListStmtNode {
 
 impl NodeElement for ExprListStmtNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
-        let ref ref_expr_type = RefExprType::ExprListT {
-            expr_list_node: &self.expr_list_node,
-        };
+        // let ref ref_expr_type = RefExprType::ExprListT {
+        //     expr_list_node: &self.expr_list_node,
+        // };
        // ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
         ast_visitor.visit_expr_list_stmt_node(self);
        // ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
@@ -2191,6 +2215,9 @@ pub enum IncDecExpr {
 
 //-----------------------------------------------------//
 
+// TODO - I think this should be renmed to CallChainExprNode.
+// No idea why I thought this was a literal.
+
 pub struct CallChainLiteralExprNode {
     pub call_chain: VecDeque<CallChainLiteralNodeType>,
     pub is_new_expr: bool,
@@ -2209,9 +2236,9 @@ impl CallChainLiteralExprNode {
 
 impl NodeElement for CallChainLiteralExprNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
-        let ref ref_expr_type = RefExprType::CallChainLiteralExprT {
-            call_chain_expr_node: &self,
-        };
+        // let ref ref_expr_type = RefExprType::CallChainLiteralExprT {
+        //     call_chain_expr_node: &self,
+        // };
 
     //    ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
 

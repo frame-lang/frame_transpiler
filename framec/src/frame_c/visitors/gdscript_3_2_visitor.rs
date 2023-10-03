@@ -706,7 +706,7 @@ impl GdScript32Visitor {
                         //                        let mut separator = "";
                         for var_rcref in state_node.vars_opt.as_ref().unwrap() {
                             let var = var_rcref.borrow();
-                            let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
+                            let expr_t = var.value;
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
                             self.add_code(&format!(
@@ -899,7 +899,7 @@ impl AstVisitor for GdScript32Visitor {
                     if state_node.vars_opt.is_some() {
                         for var_rcref in state_node.vars_opt.as_ref().unwrap() {
                             let var = var_rcref.borrow();
-                            let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
+                            let expr_t = var.value;
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
                             self.newline();
@@ -2257,7 +2257,7 @@ impl AstVisitor for GdScript32Visitor {
             None => String::from(""),
         };
         let var_name = &variable_decl_node.name;
-        let var_init_expr = &variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
+        let var_init_expr = &variable_decl_node.value;
         self.newline();
         let mut code = String::new();
         var_init_expr.accept_to_string(self, &mut code);
@@ -2308,7 +2308,7 @@ impl AstVisitor for GdScript32Visitor {
         self.newline();
         assignment_expr_node.l_value_box.accept(self);
         self.add_code(" = ");
-        assignment_expr_node.r_value_box.accept(self);
+        assignment_expr_node.r_value_rc.accept(self);
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2326,7 +2326,7 @@ impl AstVisitor for GdScript32Visitor {
             .accept_to_string(self, output);
         output.push_str(" = ");
         assignment_expr_node
-            .r_value_box
+            .r_value_rc
             .accept_to_string(self, output);
     }
 

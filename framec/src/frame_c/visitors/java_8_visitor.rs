@@ -64,7 +64,7 @@ impl Java8Visitor {
 
     pub fn new(
         arcanium: Arcanum,
-        generate_state_context: bool,
+        _generate_state_context: bool,
         generate_state_stack: bool,
         generate_change_state: bool,
         // generate_transition_state: bool,
@@ -429,7 +429,7 @@ impl Java8Visitor {
             Some(attributes) => {
                 for value in (*attributes).values() {
                     match value {
-                        AttributeNode::MetaWord { attr } => {
+                        AttributeNode::MetaWord { .. } => {
                             // TODO
                             panic!("Need to implement attribute MetaWord.")
                         }
@@ -942,7 +942,7 @@ impl Java8Visitor {
                                 Some(var_type) => var_type.get_type_str(),
                                 None => String::from("<?>"),
                             };
-                            let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
+                            let expr_t = &var.value;
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
                             self.add_code(&format!(
@@ -1219,7 +1219,7 @@ impl Java8Visitor {
                                 Some(var_type) => var_type.get_type_str(),
                                 None => String::from("<?>"),
                             };
-                            let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
+                            let expr_t = &var.value;
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
                             self.add_code(&format!(
@@ -1603,7 +1603,7 @@ impl Java8Visitor {
                     Some(vars) => {
                         for var_rcref in vars {
                             let var_decl_node = var_rcref.borrow();
-                            let expr_t = var_decl_node.initializer_expr_t_opt.as_ref().unwrap();
+                            let expr_t = &var_decl_node.value;
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
 
@@ -3554,7 +3554,7 @@ impl AstVisitor for Java8Visitor {
             None => String::from("<?>"),
         };
         let var_name = &variable_decl_node.name;
-        let var_init_expr = &variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
+        let var_init_expr = &variable_decl_node.value;
         self.newline();
         let mut code = String::new();
         self.current_var_type = var_type.clone(); // used for casting
@@ -3693,7 +3693,7 @@ impl AstVisitor for Java8Visitor {
         output.push_str("");
         self.expr_context = ExprContext::Rvalue;
         assignment_expr_node
-            .r_value_box
+            .r_value_rc
             .accept_to_string(self, output);
         output.push_str(");");
         self.expr_context = ExprContext::None;
