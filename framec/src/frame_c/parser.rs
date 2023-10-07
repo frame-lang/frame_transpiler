@@ -3705,8 +3705,18 @@ impl<'a> Parser<'a> {
                         return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
                     }
                     ExprListT { expr_list_node } => {
-                        // path for transitions w/ an exit params group
+                        // path for transitions with an exit params group
                         if self.match_token(&[TokenType::Transition]) {
+                            if !self.is_building_symbol_table{
+                                let state_name = self.state_name_opt.as_ref().unwrap().clone();
+                                match self.validate_transition_exit_params(&state_name,expr_list_node.exprs_t.len()) {
+                                    Ok(()) => {}
+                                    Err(parse_err) => {
+                                        self.error_at_current(parse_err.error.as_str());
+                                    }
+                                }
+                            }
+
                             match self.transition(Some(expr_list_node)) {
                                 Ok(Some(stmt_t)) => return Ok(Some(stmt_t)),
                                 Ok(None) => return Err(ParseError::new("TODO")),
@@ -3816,6 +3826,16 @@ impl<'a> Parser<'a> {
             None => {
                 // This path is for transitions w/o an exit params group
                 if self.match_token(&[TokenType::Transition]) {
+                    if !self.is_building_symbol_table{
+                        let state_name = self.state_name_opt.as_ref().unwrap().clone();
+                        match self.validate_transition_exit_params(&state_name,0) {
+                            Ok(()) => {}
+                            Err(parse_err) => {
+                                self.error_at_current(parse_err.error.as_str());
+                            }
+                        }
+                    }
+
                     return match self.transition(None) {
                         Ok(Some(transition)) => Ok(Some(transition)),
                         Ok(_) => Err(ParseError::new("TODO")),
@@ -4722,7 +4742,11 @@ impl<'a> Parser<'a> {
                 }
                 Ok(Some(_)) => return Err(ParseError::new("TODO")), // TODO
                 Err(parse_error) => return Err(parse_error),
-                Ok(None) => {} // continue
+                Ok(None) => {
+                    self.error_at_current(
+                        "Empty expression list '()' not allowed ",
+                    )
+                } // continue
             }
         }
 
@@ -5394,10 +5418,15 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let expr_list = ExprListT {
-            expr_list_node: ExprListNode::new(expressions),
-        };
-        Ok(Some(expr_list))
+        if expressions.is_empty() {
+            Ok(None)
+        } else {
+            let expr_list = ExprListT {
+                expr_list_node: ExprListNode::new(expressions),
+            };
+            Ok(Some(expr_list))
+        }
+
     }
 
     /* --------------------------------------------------------------------- */
@@ -5758,7 +5787,7 @@ impl<'a> Parser<'a> {
                             }
                         }
                         None => {
-                            return Err(ParseError::new("TODO"));
+                            CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
                         }
                     };
 
@@ -5887,7 +5916,7 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    // method_call ->
+
 
     fn finish_call(&mut self, identifer_node: IdentifierNode) -> Result<CallExprNode, ParseError> {
         let call_expr_list_node;
@@ -5898,8 +5927,11 @@ impl<'a> Parser<'a> {
                 call_expr_list_node = CallExprListNode::new(expr_list_node.exprs_t);
                 //    call_expr_list_node = CallExprListT {call_expr_list_node};
             }
-            Ok(Some(_)) | Ok(None) => return Err(ParseError::new("TODO")), // TODO: must return an ExprList
+            Ok(Some(_))  => return Err(ParseError::new("Invalid call expression list.")),
             Err(parse_error) => return Err(parse_error),
+            Ok(None) => {
+                call_expr_list_node = CallExprListNode::new(Vec::new())
+            },
         }
 
         let method_call_expr_node = CallExprNode::new(identifer_node, call_expr_list_node, None);
@@ -5994,29 +6026,36 @@ impl<'a> Parser<'a> {
             if let Some(expr_list_node) = &enter_args_opt {
                 args_cnt = expr_list_node.exprs_t.len();
             }
-            // validate transition enter args equal target state enter params
-            let mut params_cnt: usize = 0;
+            // For transitions, validate transition enter args equal target state enter params.
+            // For state changes, validate that the target state doesn't have an enter event handler.
             if !self.is_building_symbol_table {
-                if !is_transition {
-                    match self.get_state_enter_eventhandler(name.as_str()) {
-                        Some(enter_event_handler_rcref) => {
+                match self.get_state_enter_eventhandler(name.as_str()) {
+                    Some(enter_event_handler_rcref) => {
+                        if is_transition {
+                            let event_handler_node = enter_event_handler_rcref.borrow();
+                            let event_symbol = event_handler_node.event_symbol_rcref.borrow();
+                            // This error is only valid for transitions.
+                            if args_cnt != event_symbol.get_param_count() {
+                                let err_msg = &format!("Number of transition enter arguments not equal to number of event handler parameters.");
+                                self.error_at_current(err_msg.as_str());
+                            }
+                        } else { // is state change
                             let err_msg = &format!("State change disallowed to states with enter eventhandler.");
                             self.error_at_current(err_msg.as_str());
                         }
-                        None => {}
+
                     }
+                    None => {}
                 }
 
-                // This error is only valid for transitions.
-                if args_cnt != params_cnt && is_transition {
-                    let err_msg = &format!("Number of transition enter arguments not equal to number of event handler parameters.");
-                    self.error_at_current(err_msg.as_str());
-                }
+
+
             }
 
 
             // parse optional state argument list
             // '(' ')' | '(' expr ')'
+            //
             let mut state_ref_args_opt = None;
             if self.match_token(&[TokenType::LParen]) {
                 match self.expr_list() {
@@ -6029,7 +6068,7 @@ impl<'a> Parser<'a> {
                         }
                         state_ref_args_opt = Some(expr_list_node)
                     }
-                    Ok(Some(_)) => return Err(ParseError::new("TODO")), // TODO
+                    Ok(Some(_)) => return Err(ParseError::new("Invalid expression list for state parmeters.")), // TODO
                     Err(parse_error) => return Err(parse_error),
                     Ok(None) => {
                         // Error - number of state params does not match number of expression arguments
@@ -6143,7 +6182,11 @@ impl<'a> Parser<'a> {
                 Ok(Some(ExprListT { expr_list_node })) => enter_args_opt = Some(expr_list_node),
                 Ok(Some(_)) => return Err(ParseError::new("TODO")), // TODO
                 Err(parse_error) => return Err(parse_error),
-                Ok(None) => {} // continue
+                Ok(None) => {
+                    self.error_at_current(
+                        "Transition enter args expression cannot be an empty list.",
+                    )
+                } // continue
             }
         }
 
@@ -6850,4 +6893,34 @@ impl<'a> Parser<'a> {
             }
         }
     }
-}
+
+
+    /* --------------------------------------------------------------------- */
+
+    // This method abstractly handles "l_value = r_value" for all expression types.
+
+    fn validate_transition_exit_params(&mut self,state_name:&str,current_state_exit_arg_cnt:usize) -> Result<(), ParseError> {
+        let state_symbol_rcref_opt = self.arcanum.get_state(&state_name);
+        let state_symbol_rcref = match state_symbol_rcref_opt {
+            Some(state_symbol) => {
+                state_symbol.clone()
+            },
+            None => return Err(ParseError::new(&format!("State {} not found.",state_name))),
+        };
+
+        let state_symbol = state_symbol_rcref.borrow();
+        let state_node_rcref = state_symbol.state_node_opt.as_ref().unwrap();
+        let state_node = state_node_rcref.borrow();
+        let param_cnt = state_node.get_exit_param_count();
+        if param_cnt != current_state_exit_arg_cnt {
+            let err_msg = &format!("Transition exit args length not equal to exit handler parameter length for state ${}", state_name);
+            Err(ParseError::new(err_msg))
+        } else {
+            Ok(())
+        }
+
+
+    }
+
+
+    }

@@ -1830,6 +1830,15 @@ impl EventSymbol {
 
         (msg_name, is_enter_msg, is_exit_msg)
     }
+
+    pub fn get_param_count(&self) -> usize {
+        if let Some(param_symbol_vec) = &self.event_symbol_params_opt {
+            param_symbol_vec.len()
+        } else {
+            0
+        }
+    }
+
 }
 
 //-----------------------------------------------------//

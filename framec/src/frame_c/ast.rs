@@ -803,6 +803,28 @@ impl StateNode {
     }
 }
 
+impl StateNode {
+    pub fn get_enter_param_count(&self) -> usize {
+        match &self.enter_event_handler_opt {
+            Some(event_handler_node_rcref) => {
+                let event_handler_node = event_handler_node_rcref.borrow();
+                let size = event_handler_node.event_symbol_rcref.borrow().get_param_count();
+                size
+            }
+            None => 0,
+        }
+    }
+    pub fn get_exit_param_count(&self) -> usize {
+        match &self.exit_event_handler_opt {
+            Some(event_handler_node_rcref) => {
+                let event_handler_node = event_handler_node_rcref.borrow();
+                let size = event_handler_node.event_symbol_rcref.borrow().get_param_count();
+                size
+            }
+            None => 0,
+        }
+    }
+}
 impl NodeElement for StateNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         ast_visitor.visit_state_node(self);
