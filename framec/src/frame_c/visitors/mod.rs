@@ -116,12 +116,12 @@ pub trait AstVisitor {
     fn visit_call_expr_list_node(&mut self, _node: &CallExprListNode) {}
     fn visit_call_expr_list_node_to_string(&mut self, _node: &CallExprListNode, _output: &mut String) {}
 
-    fn visit_call_chain_literal_expr_node(&mut self, _node: &CallChainLiteralExprNode) {}
+    fn visit_call_chain_expr_node(&mut self, _node: &CallChainExprNode) {}
    // fn auto_inc_dec_call_chain_literal_expr_node(&mut self, _node: &CallChainLiteralExprNode) {}
    // fn auto_post_inc_dec_call_chain_literal_expr_node(&mut self, _node: &CallChainLiteralExprNode) {}
-    fn visit_call_chain_literal_expr_node_to_string(&mut self, _node: &CallChainLiteralExprNode, _output: &mut String) {}
+    fn visit_call_chain_expr_node_to_string(&mut self, _node: &CallChainExprNode, _output: &mut String) {}
 
-    fn visit_call_chain_literal_statement_node(&mut self, _node: &CallChainLiteralStmtNode) {}
+    fn visit_call_chain_statement_node(&mut self, _node: &CallChainStmtNode) {}
     fn visit_transition_statement_node(&mut self, _node: &TransitionStatementNode) {}
     fn visit_state_ref_node(&mut self, _node: &StateRefNode) {}
     fn visit_parameter_node(&mut self, _node: &ParameterNode) {}

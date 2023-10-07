@@ -7,13 +7,14 @@ use super::symbol_table::{ActionScopeSymbol, EventSymbol, SymbolType};
 use crate::frame_c::ast::OperatorType::{
     Divide, Greater, GreaterEqual, LessEqual, Minus, Multiply, Plus,
 };
-use crate::frame_c::symbol_table::{InterfaceMethodSymbol, ParameterSymbol};
+use crate::frame_c::symbol_table::{InterfaceMethodSymbol, ParameterSymbol, Arcanum};
 use crate::frame_c::visitors::*;
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::fmt;
 use std::rc::Rc;
 use wasm_bindgen::__rt::std::collections::HashMap;
+use crate::frame_c::parser::ParseError;
 
 
 pub trait NodeElement {
@@ -91,34 +92,37 @@ pub trait CallableExpr {
     }
 }
 
-
 // TODO: note - exploring if this enum can replace the Callable : Downcast approach
-pub enum CallChainLiteralNodeType {
-    // TODO: should be differentiated parameter or variable? no funcitonal difference at this point though
+pub enum CallChainNodeType {
+    // Declared identifier types
     VariableNodeT {
         var_node: VariableNode,
     },
-    IdentifierNodeT {
-        id_node: IdentifierNode,
-    }, // TODO: change IdentifierNode to VariableNode
-    CallT {
-        call: CallExprNode,
-    },
+    // FunctionCallNodeT {
+    //     var_node: VariableNode,
+    // },
     InterfaceMethodCallT {
         interface_method_call_expr_node: InterfaceMethodCallExprNode,
     },
     ActionCallT {
         action_call_expr_node: ActionCallExprNode,
     },
+    // Undeclared identifier types
+    UndeclaredIdentifierNodeT {
+        id_node: IdentifierNode,
+    },
+    UndeclaredCallT {
+        call: CallExprNode,
+    }
 }
 
-impl CallChainLiteralNodeType {
+impl CallChainNodeType {
     pub fn setIsReference(&mut self, is_reference: bool) {
         match self {
-            CallChainLiteralNodeType::VariableNodeT { var_node } => {
+            CallChainNodeType::VariableNodeT { var_node } => {
                 var_node.id_node.is_reference = is_reference;
             }
-            CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
+            CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                 id_node.is_reference = is_reference;
             }
             _ => {}
@@ -511,7 +515,8 @@ pub struct VariableDeclNode {
     pub name: String,
     pub type_opt: Option<TypeNode>,
     pub is_constant: bool,
-    pub value: Rc<ExprType>,
+    pub initializer_value_rc: Rc<ExprType>,
+    pub value_rc: Rc<ExprType>,
     pub identifier_decl_scope: IdentifierDeclScope,
 }
 
@@ -520,14 +525,16 @@ impl VariableDeclNode {
         name: String,
         type_opt: Option<TypeNode>,
         is_constant: bool,
-        value: Rc<ExprType>,
+        initializer_value_rc: Rc<ExprType>,
+        value_rc: Rc<ExprType>,
         identifier_decl_scope: IdentifierDeclScope,
     ) -> VariableDeclNode {
         VariableDeclNode {
             name,
             type_opt,
             is_constant,
-            value,
+            initializer_value_rc,
+            value_rc,
             identifier_decl_scope,
         }
     }
@@ -760,7 +767,7 @@ pub struct StateNode {
     pub name: String,
     pub params_opt: Option<Vec<ParameterNode>>,
     pub vars_opt: Option<Vec<Rc<RefCell<VariableDeclNode>>>>,
-    pub calls_opt: Option<Vec<CallChainLiteralExprNode>>,
+    pub calls_opt: Option<Vec<CallChainExprNode>>,
     pub evt_handlers_rcref: Vec<Rc<RefCell<EventHandlerNode>>>,
     pub enter_event_handler_opt: Option<Rc<RefCell<EventHandlerNode>>>,
     pub exit_event_handler_opt: Option<Rc<RefCell<EventHandlerNode>>>,
@@ -774,7 +781,7 @@ impl StateNode {
         name: String,
         params: Option<Vec<ParameterNode>>,
         vars: Option<Vec<Rc<RefCell<VariableDeclNode>>>>,
-        calls: Option<Vec<CallChainLiteralExprNode>>,
+        calls: Option<Vec<CallChainExprNode>>,
         evt_handlers_rcref: Vec<Rc<RefCell<EventHandlerNode>>>,
         enter_event_handler_opt: Option<Rc<RefCell<EventHandlerNode>>>,
         exit_event_handler_opt: Option<Rc<RefCell<EventHandlerNode>>>,
@@ -1062,8 +1069,8 @@ pub enum ExprType {
     ActionCallExprT {
         action_call_expr_node: ActionCallExprNode,
     },
-    CallChainLiteralExprT {
-        call_chain_expr_node: CallChainLiteralExprNode,
+    CallChainExprT {
+        call_chain_expr_node: CallChainExprNode,
     },
     #[allow(dead_code)] // is used, don't know why I need this
     CallExprT {
@@ -1104,11 +1111,46 @@ pub enum ExprType {
     },
 }
 
+// impl ExprType {
+//     fn assign(&self,value_rc:Rc<ExprType>,&mut arcanum:Arcanum) -> Result<(),str> {
+//
+//         let name_opt = self.get_name();
+//         if name_opt.is_none() {
+//             let err_msg = format!("Assignment to invalid l_value");
+//             self.error_at_current(&err_msg);
+//         }
+//         let l_value_name = name_opt.unwrap();
+//         let symbol_t_opt = arcanum.lookup(l_value_name.as_str(), &IdentifierDeclScope::None);
+//         match symbol_t_opt {
+//             Some(symbol_t_rcref) => {
+//                 let mut symbol_t = symbol_t_rcref.borrow_mut();
+//                 //   let x = symbol_t.assign(r_value_rc.clone());
+//                 match symbol_t.assign(r_value_rc.clone()) {
+//                     Ok(()) => {
+//                         Ok(())
+//                     }
+//                     Err(err_msg) => {
+//                         Err(err_msg)
+//                     }
+//                 }
+//             }
+//             None => {
+//
+//             }
+//         }
+//         // match self {
+//         //     ExprType::CallChainLiteralExprT{call_chain_expr_node} => {
+//         //
+//         //     }
+//         // }
+//     }
+// }
+
 impl fmt::Display for ExprType {
     // This trait requires `fmt` with this exact signature.
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ExprType::CallChainLiteralExprT {
+            ExprType::CallChainExprT {
                 call_chain_expr_node,
             } => {
                 write!(f, "{}", call_chain_expr_node.to_string())
@@ -1126,8 +1168,18 @@ impl ExprType {
             ExprType::VariableExprT {var_node} => {
                 let name = var_node.id_node.name.lexeme.clone();
                 Some(name)
-            } ,
-            _ => None,
+            }
+            ExprType::CallChainExprT {call_chain_expr_node} => {
+                let call_chain_node_type = call_chain_expr_node.call_chain.get(0).unwrap();
+                match call_chain_node_type {
+                    CallChainNodeType::VariableNodeT {var_node} => {
+                        let name = var_node.id_node.name.lexeme.clone();
+                        Some(name)
+                    }
+                    _ => None
+                }
+            }
+            _ => None
         }
     }
 
@@ -1136,7 +1188,7 @@ impl ExprType {
         match self {
             ExprType::AssignmentExprT { .. } => "AssignmentExprT",
             ExprType::ActionCallExprT { .. } => "ActionCallExprT",
-            ExprType::CallChainLiteralExprT { .. } => "CallChainLiteralExprT",
+            ExprType::CallChainExprT { .. } => "CallChainExprT",
             ExprType::CallExprT { .. } => "CallExprT",
             ExprType::CallExprListT { .. } => "CallExprListT",
             ExprType::ExprListT { .. } => "ExprListT",
@@ -1223,10 +1275,10 @@ impl NodeElement for ExprType {
             } => {
                 ast_visitor.visit_assignment_expr_node(assignment_expr_node);
             }
-            ExprType::CallChainLiteralExprT {
+            ExprType::CallChainExprT {
                 call_chain_expr_node,
             } => {
-                ast_visitor.visit_call_chain_literal_expr_node(call_chain_expr_node);
+                ast_visitor.visit_call_chain_expr_node(call_chain_expr_node);
             }
             ExprType::SystemInstanceExprT {
                 system_instance_expr_node,
@@ -1286,11 +1338,11 @@ impl NodeElement for ExprType {
             } => {
                 ast_visitor.visit_assignment_expr_node_to_string(assignment_expr_node, output);
             }
-            ExprType::CallChainLiteralExprT {
+            ExprType::CallChainExprT {
                 call_chain_expr_node,
             } => {
                 ast_visitor
-                    .visit_call_chain_literal_expr_node_to_string(call_chain_expr_node, output);
+                    .visit_call_chain_expr_node_to_string(call_chain_expr_node, output);
             }
             ExprType::SystemInstanceExprT {
                 system_instance_expr_node,
@@ -1404,7 +1456,7 @@ impl NodeElement for ExprType {
 
 pub enum FunctionArgExprType {
     CallChainLiteralExprT {
-        call_chain_expr_node: CallChainLiteralExprNode,
+        call_chain_expr_node: CallChainExprNode,
     },
     #[allow(dead_code)] // is used, don't know why I need this
     CallExprT {
@@ -1432,7 +1484,7 @@ pub enum RefExprType<'a> {
     //     action_call_expr_node: ActionCallExprNode,
     // },
     CallChainLiteralExprT {
-        call_chain_expr_node: &'a CallChainLiteralExprNode,
+        call_chain_expr_node: &'a CallChainExprNode,
     },
     // #[allow(dead_code)] // is used, don't know why I need this
     CallExprT {
@@ -1482,7 +1534,7 @@ pub enum ExprStmtType {
         action_call_stmt_node: ActionCallStmtNode,
     },
     CallChainLiteralStmtT {
-        call_chain_literal_stmt_node: CallChainLiteralStmtNode,
+        call_chain_literal_stmt_node: CallChainStmtNode,
     },
     AssignmentStmtT {
         assignment_stmt_node: AssignmentStmtNode,
@@ -1634,21 +1686,21 @@ impl NodeElement for EnumeratorStmtNode {
 
 //-----------------------------------------------------//
 
-pub struct CallChainLiteralStmtNode {
-    pub call_chain_literal_expr_node: CallChainLiteralExprNode,
+pub struct CallChainStmtNode {
+    pub call_chain_literal_expr_node: CallChainExprNode,
 }
 
-impl CallChainLiteralStmtNode {
-    pub fn new(call_chain_literal_expr_node: CallChainLiteralExprNode) -> CallChainLiteralStmtNode {
-        CallChainLiteralStmtNode {
+impl CallChainStmtNode {
+    pub fn new(call_chain_literal_expr_node: CallChainExprNode) -> CallChainStmtNode {
+        CallChainStmtNode {
             call_chain_literal_expr_node,
         }
     }
 }
 
-impl NodeElement for CallChainLiteralStmtNode {
+impl NodeElement for CallChainStmtNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
-        ast_visitor.visit_call_chain_literal_statement_node(self);
+        ast_visitor.visit_call_chain_statement_node(self);
     }
 }
 
@@ -2043,7 +2095,7 @@ pub enum LoopFirstStmt {
     },
     // x
     CallChain {
-        call_chain_expr_node: CallChainLiteralExprNode,
+        call_chain_expr_node: CallChainExprNode,
     },
     // x = 0
     VarAssign {
@@ -2072,7 +2124,7 @@ impl NodeElement for LoopFirstStmt {
             LoopFirstStmt::CallChain {
                 call_chain_expr_node,
             } => {
-                ast_visitor.visit_call_chain_literal_expr_node(call_chain_expr_node);
+                ast_visitor.visit_call_chain_expr_node(call_chain_expr_node);
             }
             LoopFirstStmt::VarAssign { assign_expr_node } => {
                 ast_visitor.visit_assignment_expr_node(assign_expr_node);
@@ -2218,15 +2270,15 @@ pub enum IncDecExpr {
 // TODO - I think this should be renmed to CallChainExprNode.
 // No idea why I thought this was a literal.
 
-pub struct CallChainLiteralExprNode {
-    pub call_chain: VecDeque<CallChainLiteralNodeType>,
+pub struct CallChainExprNode {
+    pub call_chain: VecDeque<CallChainNodeType>,
     pub is_new_expr: bool,
     pub inc_dec: IncDecExpr,
 }
 
-impl CallChainLiteralExprNode {
-    pub fn new(call_chain: VecDeque<CallChainLiteralNodeType>) -> CallChainLiteralExprNode {
-        CallChainLiteralExprNode {
+impl CallChainExprNode {
+    pub fn new(call_chain: VecDeque<CallChainNodeType>) -> CallChainExprNode {
+        CallChainExprNode {
             call_chain,
             is_new_expr: false,
             inc_dec: IncDecExpr::None,
@@ -2234,7 +2286,15 @@ impl CallChainLiteralExprNode {
     }
 }
 
-impl NodeElement for CallChainLiteralExprNode {
+// impl CallChainExprNode {
+//     fn get_name(&self) {
+//         match self {
+//
+//         }
+//     }
+// }
+
+impl NodeElement for CallChainExprNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         // let ref ref_expr_type = RefExprType::CallChainLiteralExprT {
         //     call_chain_expr_node: &self,
@@ -2265,7 +2325,7 @@ impl NodeElement for CallChainLiteralExprNode {
         //     }
         // }
 
-        ast_visitor.visit_call_chain_literal_expr_node(self);
+        ast_visitor.visit_call_chain_expr_node(self);
 
    //     ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
 
@@ -2294,11 +2354,11 @@ impl NodeElement for CallChainLiteralExprNode {
     }
 
     fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
-        ast_visitor.visit_call_chain_literal_expr_node_to_string(self, output);
+        ast_visitor.visit_call_chain_expr_node_to_string(self, output);
     }
 }
 
-impl fmt::Display for CallChainLiteralExprNode {
+impl fmt::Display for CallChainExprNode {
     // This trait requires `fmt` with this exact signature.
 
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -2307,23 +2367,23 @@ impl fmt::Display for CallChainLiteralExprNode {
         for node in &self.call_chain {
             output.push_str(separator);
             match &node {
-                CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
+                CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                     output.push_str(&*id_node.to_string());
                 }
-                CallChainLiteralNodeType::CallT { call } => {
+                CallChainNodeType::UndeclaredCallT { call } => {
                     output.push_str(&*call.to_string());
                 }
-                CallChainLiteralNodeType::InterfaceMethodCallT {
+                CallChainNodeType::InterfaceMethodCallT {
                     interface_method_call_expr_node,
                 } => {
                     output.push_str(&*interface_method_call_expr_node.to_string());
                 }
-                CallChainLiteralNodeType::ActionCallT {
+                CallChainNodeType::ActionCallT {
                     action_call_expr_node,
                 } => {
                     output.push_str(&*action_call_expr_node.to_string());
                 }
-                CallChainLiteralNodeType::VariableNodeT { var_node } => {
+                CallChainNodeType::VariableNodeT { var_node } => {
                     output.push_str(&*var_node.to_string());
                 }
             }

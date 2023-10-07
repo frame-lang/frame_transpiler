@@ -2450,8 +2450,8 @@ impl<'a> Parser<'a> {
                 => value = Rc::new(ActionCallExprT { action_call_expr_node }),
                 Ok(Some(ExprListT { expr_list_node }))
                 => value = Rc::new(ExprListT { expr_list_node }),
-                Ok(Some(CallChainLiteralExprT { call_chain_expr_node }))
-                => value = Rc::new(CallChainLiteralExprT { call_chain_expr_node }),
+                Ok(Some(CallChainExprT { call_chain_expr_node }))
+                => value = Rc::new(CallChainExprT { call_chain_expr_node }),
                 Ok(Some(UnaryExprT { unary_expr_node }))
                 => value = Rc::new(UnaryExprT { unary_expr_node }),
                 Ok(Some(BinaryExprT { binary_expr_node }))
@@ -2486,6 +2486,7 @@ impl<'a> Parser<'a> {
             type_node_opt.clone(),
             is_constant,
             value.clone(),
+            value.clone(),
             identifier_decl_scope.clone(),
         );
 
@@ -2496,7 +2497,7 @@ impl<'a> Parser<'a> {
             // add variable to current symbol table
             let scope = self.arcanum.get_current_identifier_scope();
             // Create variable symbol and set value to the intializer expression.
-            let variable_symbol = VariableSymbol::new(name, type_node_opt, scope, value.clone());
+            let variable_symbol = VariableSymbol::new(name, type_node_opt, scope, variable_decl_node_rcref.clone());
             let variable_symbol_rcref = Rc::new(RefCell::new(variable_symbol));
             let variable_symbol_t = match identifier_decl_scope {
                 IdentifierDeclScope::DomainBlock => SymbolType::DomainVariable {
@@ -2543,48 +2544,49 @@ impl<'a> Parser<'a> {
             // TODO
             self.arcanum
                 .debug_print_current_symbols(self.arcanum.get_current_symtab());
-            let x = self.arcanum.lookup(&name, &IdentifierDeclScope::None);
-            let y = x.unwrap();
-            let z = y.borrow();
-            match &*z {
-                SymbolType::DomainVariable {
-                    domain_variable_symbol_rcref,
-                } => {
-                    domain_variable_symbol_rcref.borrow_mut().ast_node_opt =
-                        Some(variable_decl_node_rcref.clone());
-                }
-                SymbolType::StateVariable {
-                    state_variable_symbol_rcref,
-                } => {
-                    //                    let a = state_variable_symbol_rcref.borrow();
-                    state_variable_symbol_rcref.borrow_mut().ast_node_opt =
-                        Some(variable_decl_node_rcref.clone());
-                }
-                SymbolType::EventHandlerVariable {
-                    event_handler_variable_symbol_rcref,
-                } => {
-                    event_handler_variable_symbol_rcref
-                        .borrow_mut()
-                        .ast_node_opt = Some(variable_decl_node_rcref.clone());
-                }
-                SymbolType::LoopVar {
-                    loop_variable_symbol_rcref,
-                } => {
-                    loop_variable_symbol_rcref.borrow_mut().ast_node_opt =
-                        Some(variable_decl_node_rcref.clone());
-                }
-                SymbolType::BlockVar {
-                    block_variable_symbol_rcref,
-                } => {
-                    block_variable_symbol_rcref.borrow_mut().ast_node_opt =
-                        Some(variable_decl_node_rcref.clone());
-                }
-                _ => {
-                    let err_msg = "Unrecognized variable scope.";
-                    self.error_at_current(err_msg);
-                    return Err(ParseError::new(err_msg));
-                }
-            }
+            let symbol_t_opt = self.arcanum.lookup(&name, &IdentifierDeclScope::None);
+            let symbol_t_rcref = symbol_t_opt.unwrap();
+            let mut symbol_t = symbol_t_rcref.borrow_mut();
+            symbol_t.set_ast_node(variable_decl_node_rcref.clone());
+            // match &*z {
+            //     SymbolType::DomainVariable {
+            //         domain_variable_symbol_rcref,
+            //     } => {
+            //         domain_variable_symbol_rcref.borrow_mut().set_ast_node(
+            //             Some(variable_decl_node_rcref.clone()));
+            //     }
+            //     SymbolType::StateVariable {
+            //         state_variable_symbol_rcref,
+            //     } => {
+            //         //                    let a = state_variable_symbol_rcref.borrow();
+            //         state_variable_symbol_rcref.borrow_mut().ast_node_opt =
+            //             Some(variable_decl_node_rcref.clone());
+            //     }
+            //     SymbolType::EventHandlerVariable {
+            //         event_handler_variable_symbol_rcref,
+            //     } => {
+            //         event_handler_variable_symbol_rcref
+            //             .borrow_mut()
+            //             .ast_node_opt = Some(variable_decl_node_rcref.clone());
+            //     }
+            //     SymbolType::LoopVar {
+            //         loop_variable_symbol_rcref,
+            //     } => {
+            //         loop_variable_symbol_rcref.borrow_mut().ast_node_opt =
+            //             Some(variable_decl_node_rcref.clone());
+            //     }
+            //     SymbolType::BlockVar {
+            //         block_variable_symbol_rcref,
+            //     } => {
+            //         block_variable_symbol_rcref.borrow_mut().ast_node_opt =
+            //             Some(variable_decl_node_rcref.clone());
+            //     }
+            //     _ => {
+            //         let err_msg = "Unrecognized variable scope.";
+            //         self.error_at_current(err_msg);
+            //         return Err(ParseError::new(err_msg));
+            //     }
+            // }
             // now need to keep current_symtab when in semantic parse phase and link to
             // ast nodes as necessary.
         }
@@ -2803,8 +2805,8 @@ impl<'a> Parser<'a> {
 
         // @TODO - add reference syntax
         while self.match_token(&[TokenType::Identifier]) {
-            match self.variable_or_call_expr(IdentifierDeclScope::None) {
-                Ok(Some(CallChainLiteralExprT {
+            match self.call(IdentifierDeclScope::None) {
+                Ok(Some(CallChainExprT {
                             call_chain_expr_node,
                         })) => calls.push(call_chain_expr_node),
                 Ok(Some(_)) => return Err(ParseError::new("TODO")),
@@ -3454,7 +3456,7 @@ impl<'a> Parser<'a> {
                                         } = expr_stmt_t
                                         {
                                             match call_chain_literal_stmt_node.call_chain_literal_expr_node.call_chain.get(0) {
-                                                Some(CallChainLiteralNodeType::InterfaceMethodCallT { .. }) => {
+                                                Some(CallChainNodeType::InterfaceMethodCallT { .. }) => {
                                                     // interface method call must be last statement.
                                                     // TODO!!! - add this back when scope issue is fixed with parse errors
                                                     // self.interface_method_called = true;
@@ -3743,11 +3745,11 @@ impl<'a> Parser<'a> {
                         };
                         return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
                     }
-                    CallChainLiteralExprT {
+                    CallChainExprT {
                         call_chain_expr_node,
                     } => {
                         let call_chain_literal_stmt_node =
-                            CallChainLiteralStmtNode::new(call_chain_expr_node);
+                            CallChainStmtNode::new(call_chain_expr_node);
                         let expr_stmt_t: ExprStmtType = ExprStmtType::CallChainLiteralStmtT {
                             call_chain_literal_stmt_node,
                         };
@@ -4312,7 +4314,7 @@ impl<'a> Parser<'a> {
     // expression -> TODO
 
     fn assignment(&mut self) -> Result<Option<ExprType>, ParseError> {
-        let l_value = match self.equality() {
+        let mut l_value = match self.equality() {
             Ok(Some(expr_type)) => expr_type,
             Ok(None) => return Ok(None),
             Err(parse_error) => return Err(parse_error),
@@ -4341,32 +4343,8 @@ impl<'a> Parser<'a> {
 
             let r_value_rc = Rc::new(r_value);
 
-            // Now get the variable and assign new value
-            let name_opt = l_value.get_name();
-            if name_opt.is_none() {
-                let err_msg = format!("Assignment to invalid l_value");
-                self.error_at_current(&err_msg);
-            }
-            let l_value_name = name_opt.unwrap();
-            let symbol_t_opt = self.arcanum.lookup(l_value_name.as_str(), &IdentifierDeclScope::None);
-            match symbol_t_opt {
-                Some(symbol_t_rcref) => {
-                    let mut symbol_t = symbol_t_rcref.borrow_mut();
-                 //   let x = symbol_t.assign(r_value_rc.clone());
-                    match symbol_t.assign(r_value_rc.clone()) {
-                        Ok(()) => {
+            self.assign(&mut l_value, r_value_rc.clone());
 
-                        }
-                        Err(err_msg) => {
-                            let err_msg = format!("Assignment to invalid l_value");
-                            self.error_at_current(&err_msg);
-                        }
-                    }
-                }
-                None => {
-
-                }
-            }
             let assignment_expr_node = AssignmentExprNode::new(l_value, r_value_rc.clone(), line);
             return Ok(Some(AssignmentExprT {
                 assignment_expr_node,
@@ -4589,7 +4567,7 @@ impl<'a> Parser<'a> {
             match self.unary_expression2() {
                 Ok(Some(mut expr_t)) => {
                     match expr_t {
-                        ExprType::CallChainLiteralExprT {
+                        ExprType::CallChainExprT {
                             ref mut call_chain_expr_node,
                         } => {
                             call_chain_expr_node.inc_dec = IncDecExpr::PreInc;
@@ -4608,7 +4586,7 @@ impl<'a> Parser<'a> {
                             //       expr_list_node.inc_dec = IncDecExpr::PreDec;
                             for expr_t in &mut expr_list_node.exprs_t {
                                 match expr_t {
-                                    ExprType::CallChainLiteralExprT {
+                                    ExprType::CallChainExprT {
                                         ref mut call_chain_expr_node,
                                     } => {
                                         call_chain_expr_node.inc_dec = IncDecExpr::PreDec;
@@ -4637,7 +4615,7 @@ impl<'a> Parser<'a> {
             match self.unary_expression2() {
                 Ok(Some(mut expr_t)) => {
                     match expr_t {
-                        ExprType::CallChainLiteralExprT {
+                        ExprType::CallChainExprT {
                             ref mut call_chain_expr_node,
                         } => {
                             call_chain_expr_node.inc_dec = IncDecExpr::PreDec;
@@ -4653,7 +4631,7 @@ impl<'a> Parser<'a> {
                             //                          expr_list_node.inc_dec = IncDecExpr::PreDec;
                             for expr_t in &mut expr_list_node.exprs_t {
                                 match expr_t {
-                                    ExprType::CallChainLiteralExprT {
+                                    ExprType::CallChainExprT {
                                         ref mut call_chain_expr_node,
                                     } => {
                                         call_chain_expr_node.inc_dec = IncDecExpr::PreDec;
@@ -4687,10 +4665,10 @@ impl<'a> Parser<'a> {
 
     fn postfix_unary_expression(&mut self) -> Result<Option<ExprType>, ParseError> {
         match self.unary_expression2() {
-            Ok(Some(CallChainLiteralExprT {
+            Ok(Some(CallChainExprT {
                         call_chain_expr_node,
                     })) => {
-                let mut x = CallChainLiteralExprT {
+                let mut x = CallChainExprT {
                     call_chain_expr_node,
                 };
                 match self.post_inc_dec_expression(&mut x) {
@@ -4897,12 +4875,12 @@ impl<'a> Parser<'a> {
             return Ok(Some(VariableExprT { var_node }));
         } else if self.match_token(&[TokenType::New]) {
             if self.match_token(&[TokenType::Identifier]) {
-                match self.variable_or_call_expr(IdentifierDeclScope::None) {
-                    Ok(Some(CallChainLiteralExprT {
+                match self.call(IdentifierDeclScope::None) {
+                    Ok(Some(CallChainExprT {
                                 mut call_chain_expr_node,
                             })) => {
                         call_chain_expr_node.is_new_expr = true;
-                        return Ok(Some(CallChainLiteralExprT {
+                        return Ok(Some(CallChainExprT {
                             call_chain_expr_node,
                         }));
                     }
@@ -4934,7 +4912,7 @@ impl<'a> Parser<'a> {
             // let debug_is_building_symbol_table = self.is_building_symbol_table;
             // let debug_current_token = self.current_token.clone();
             // let debug_processed_tokens = self.processed_tokens.clone();
-            match self.variable_or_call_expr(scope) {
+            match self.call(scope) {
                 Ok(Some(VariableExprT { mut var_node })) => {
                     var_node.id_node.is_reference = is_reference;
                     return Ok(Some(VariableExprT { var_node }));
@@ -4953,7 +4931,7 @@ impl<'a> Parser<'a> {
                         action_call_expr_node,
                     }))
                 }
-                Ok(Some(CallChainLiteralExprT {
+                Ok(Some(CallChainExprT {
                             mut call_chain_expr_node,
                         })) => {
                     // set the is_reference on first variable in the call chain
@@ -4962,7 +4940,7 @@ impl<'a> Parser<'a> {
                         call_chain_first_node.setIsReference(is_reference);
                     }
 
-                    let x = CallChainLiteralExprT {
+                    let x = CallChainExprT {
                         call_chain_expr_node,
                     };
                     // self.post_inc_dec_expression(&mut x);
@@ -5103,7 +5081,7 @@ impl<'a> Parser<'a> {
                         } => LoopFirstStmt::VarAssign {
                             assign_expr_node: assignment_expr_node,
                         },
-                        CallChainLiteralExprT {
+                        CallChainExprT {
                             call_chain_expr_node,
                         } => LoopFirstStmt::CallChain {
                             call_chain_expr_node,
@@ -5463,7 +5441,7 @@ impl<'a> Parser<'a> {
         }
 
         match expr_t {
-            ExprType::CallChainLiteralExprT {
+            ExprType::CallChainExprT {
                 ref mut call_chain_expr_node,
             } => {
                 call_chain_expr_node.inc_dec = inc_dec;
@@ -5482,13 +5460,23 @@ impl<'a> Parser<'a> {
 
     // TODO: create a new return type that is narrowed to just the types this method returns.
     // TODO: change the return type to be CallChainLiteralExprT as it doesn't return anything else.
-    fn variable_or_call_expr(
+
+    // Immediately before this method is called, the parser matched an identifier. Calls have
+    // precedence over variables or properties so try to parse a call or call chain and discover
+    // variables or properties as a byproduct.
+    // See https://craftinginterpreters.com/classes.html#properties-on-instances
+
+    // This returns either a CallChainExprT or EnumeratorExprT or None.
+    // TODO: create new enum to narrow the ExprTypes possible to return.
+
+    fn call(
         &mut self,
         explicit_scope: IdentifierDeclScope,
     ) -> Result<Option<ExprType>, ParseError> {
         let mut scope: IdentifierDeclScope;
 
         // let debug_id_token = self.previous().lexeme.clone();
+
         let mut id_node = IdentifierNode::new(
             self.previous().clone(),
             None,
@@ -5496,7 +5484,8 @@ impl<'a> Parser<'a> {
             false,
             self.previous().line,
         );
-        let mut call_chain: std::collections::VecDeque<CallChainLiteralNodeType> =
+
+        let mut call_chain: std::collections::VecDeque<CallChainNodeType> =
             std::collections::VecDeque::new();
 
         // Loop over the tokens looking for "callable" tokens (methods and identifiers)
@@ -5504,16 +5493,17 @@ impl<'a> Parser<'a> {
 
         let mut is_first_node = true;
         loop {
-            // test for method call
+            // test for a call. "id(..."
+
             if self.match_token(&[TokenType::LParen]) {
-                let r = self.method_call(id_node);
+                let r = self.finish_call(id_node);
                 match r {
                     Ok(method_call_expr_node) => {
                         if !self.is_building_symbol_table {
                             if !is_first_node {
-                                // if not first node in the chain then the node is just an method
+                                // if not first node in the chain then the node is just a method
                                 // call on another object
-                                let call_t = CallChainLiteralNodeType::CallT {
+                                let call_t = CallChainNodeType::UndeclaredCallT {
                                     call: method_call_expr_node,
                                 };
                                 call_chain.push_back(call_t);
@@ -5582,14 +5572,14 @@ impl<'a> Parser<'a> {
                                                 action_call_expr_node
                                                     .set_action_symbol(&Rc::clone(&ads));
                                                 call_chain.push_back(
-                                                    CallChainLiteralNodeType::ActionCallT {
+                                                    CallChainNodeType::ActionCallT {
                                                         action_call_expr_node,
                                                     },
                                                 );
                                             }
                                             None => {
                                                 // first node is not an action or interface call.
-                                                let call_t = CallChainLiteralNodeType::CallT {
+                                                let call_t = CallChainNodeType::UndeclaredCallT {
                                                     call: method_call_expr_node,
                                                 };
                                                 call_chain.push_back(call_t);
@@ -5665,14 +5655,14 @@ impl<'a> Parser<'a> {
                                                         &interface_method_symbol,
                                                     ));
                                                 call_chain.push_back(
-                                                    CallChainLiteralNodeType::InterfaceMethodCallT {
+                                                    CallChainNodeType::InterfaceMethodCallT {
                                                         interface_method_call_expr_node,
                                                     },
                                                 );
                                             }
                                             None => {
                                                 // first node is not an action or interface call.
-                                                let call_t = CallChainLiteralNodeType::CallT {
+                                                let call_t = CallChainNodeType::UndeclaredCallT {
                                                     call: method_call_expr_node,
                                                 };
                                                 call_chain.push_back(call_t);
@@ -5685,13 +5675,17 @@ impl<'a> Parser<'a> {
                     }
                     _ => return Err(ParseError::new("TODO")),
                 }
-            } else {
+            } else { // Not a call so just an identifier which may be a variable
                 match self.get_identifier_scope(&id_node, &explicit_scope) {
                     Ok(id_decl_scope) => scope = id_decl_scope,
                     Err(err) => return Err(err),
                 }
-                let node = if scope == IdentifierDeclScope::None || !is_first_node {
-                    CallChainLiteralNodeType::IdentifierNodeT { id_node }
+
+                // Variables must be the first "node" in a get expression. See https://craftinginterpreters.com/classes.html#properties-on-instances.
+                // So if
+                // let node = if !is_first_node && scope == IdentifierDeclScope::None {
+                let node = if !is_first_node  {
+                    CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
                 } else {
                     // variables (or parameters) must be
                     // the first (or only) node in the call chain
@@ -5700,7 +5694,7 @@ impl<'a> Parser<'a> {
                         .arcanum
                         .lookup(&id_node.name.lexeme, &explicit_scope)
                         .clone();
-                    match &symbol_type_rcref_opt {
+                    let call_chain_node_t = match &symbol_type_rcref_opt {
                         Some(symbol_t) => {
                             match &*symbol_t.borrow() {
                                 SymbolType::EnumDeclSymbolT { enum_symbol_rcref } => {
@@ -5753,16 +5747,23 @@ impl<'a> Parser<'a> {
                                         return Err(ParseError::new("TODO"));
                                     }
                                 }
-                                _ => {}
+                                SymbolType::BlockVar {..} => {
+                                    let var_node =
+                                        VariableNode::new(id_node, scope, (&symbol_type_rcref_opt).clone());
+                                    CallChainNodeType::VariableNodeT { var_node }
+                                }
+                                _ => {
+                                    CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
+                                }
                             }
                         }
                         None => {
-                            // todo
+                            return Err(ParseError::new("TODO"));
                         }
-                    }
-                    let var_node =
-                        VariableNode::new(id_node, scope, (&symbol_type_rcref_opt).clone());
-                    CallChainLiteralNodeType::VariableNodeT { var_node }
+                    };
+
+                    call_chain_node_t
+
                 };
                 call_chain.push_back(node);
             }
@@ -5786,9 +5787,9 @@ impl<'a> Parser<'a> {
             is_first_node = false;
         }
 
-        let call_chain_literal_expr_node = CallChainLiteralExprNode::new(call_chain);
-        Ok(Some(CallChainLiteralExprT {
-            call_chain_expr_node: call_chain_literal_expr_node,
+        let call_chain_expr_node = CallChainExprNode::new(call_chain);
+        Ok(Some(CallChainExprT {
+            call_chain_expr_node,
         }))
     }
 
@@ -5888,7 +5889,7 @@ impl<'a> Parser<'a> {
 
     // method_call ->
 
-    fn method_call(&mut self, identifer_node: IdentifierNode) -> Result<CallExprNode, ParseError> {
+    fn finish_call(&mut self, identifer_node: IdentifierNode) -> Result<CallExprNode, ParseError> {
         let call_expr_list_node;
         match self.expr_list() {
             Ok(Some(ExprListT { expr_list_node })) => {
@@ -6213,7 +6214,6 @@ impl<'a> Parser<'a> {
             Some(exit_eventhandler_node_rcref) => {
                 let err_msg = &format!("State change disallowed out of states with exit eventhandler.");
                 self.error_at_current(err_msg.as_str());
-
             }
             None => {}
             // Some(exit_eventhandler_node_rcref) = exit_eventhandler_node_rcref_opt {
@@ -6791,7 +6791,6 @@ impl<'a> Parser<'a> {
             }
             None => None
         }
-
     }
 
     /* --------------------------------------------------------------------- */
@@ -6813,6 +6812,42 @@ impl<'a> Parser<'a> {
                 }
             }
             None => None
+        }
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    // This method abstractly handles "l_value = r_value" for all expression types.
+
+    fn assign(&mut self,l_value:&mut  ExprType, r_value_rc: Rc<ExprType>) -> Result<(), ParseError> {
+        // Now get the variable and assign new value
+        // let debug_expr_name = l_value.expr_type_name();
+        let name_opt = l_value.get_name();
+        if name_opt.is_none() {
+            let err_msg = &format!("Assignment to invalid l_value");
+            self.error_at_current(&err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        let l_value_name = name_opt.unwrap();
+        let symbol_t_opt = self.arcanum.lookup(l_value_name.as_str(), &IdentifierDeclScope::None);
+        match symbol_t_opt {
+            Some(symbol_t_rcref) => {
+                let mut symbol_t = symbol_t_rcref.borrow_mut();
+                match symbol_t.assign(r_value_rc.clone()) {
+                    Ok(()) => {
+                        Ok(())
+                    }
+                    Err(err_msg) => {
+                        self.error_at_current(&err_msg);
+                        Err(ParseError::new(err_msg))
+                    }
+                }
+            }
+            None => {
+                let err_msg = &format!("Invalid l_value name {}", l_value_name);
+                self.error_at_current(&err_msg);
+                Err(ParseError::new(err_msg))
+            }
         }
     }
 }

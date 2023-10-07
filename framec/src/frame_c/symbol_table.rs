@@ -145,8 +145,6 @@ pub enum SymbolType {
     EventHandlerLocalScope {
         event_handler_local_scope_rcref: Rc<RefCell<EventHandlerLocalScopeSymbol>>,
     },
-
-    // Variable Symbol types
     DomainVariable {
         domain_variable_symbol_rcref: Rc<RefCell<VariableSymbol>>,
     },
@@ -190,11 +188,55 @@ impl SymbolType {
         match self {
             SymbolType::BlockVar {block_variable_symbol_rcref} => {
                 let mut variable_symbol = block_variable_symbol_rcref.borrow_mut();
-                variable_symbol.value = r_value.clone();
+                let mut var_decl_node = variable_symbol.ast_node_rcref.borrow_mut();
+                var_decl_node.value_rc = r_value;
                 Ok(())
             }
             _ => Err("Invalid l_value."),
         }
+    }
+
+    pub fn set_ast_node(&mut self, variable_decl_node_rcref: Rc<RefCell<VariableDeclNode>>) -> Result<(),&'static str> {
+        match self {
+            SymbolType::DomainVariable {
+                domain_variable_symbol_rcref,
+            } => {
+                domain_variable_symbol_rcref.borrow_mut().set_ast_node(
+                    variable_decl_node_rcref.clone());
+            }
+            SymbolType::StateVariable {
+                state_variable_symbol_rcref,
+            } => {
+                //                    let a = state_variable_symbol_rcref.borrow();
+                state_variable_symbol_rcref.borrow_mut().set_ast_node(
+                    variable_decl_node_rcref.clone());
+            }
+            SymbolType::EventHandlerVariable {
+                event_handler_variable_symbol_rcref,
+            } => {
+                event_handler_variable_symbol_rcref
+                    .borrow_mut()
+                    .set_ast_node(variable_decl_node_rcref.clone());
+            }
+            SymbolType::LoopVar {
+                loop_variable_symbol_rcref,
+            } => {
+                loop_variable_symbol_rcref.borrow_mut().set_ast_node(
+                    variable_decl_node_rcref.clone());
+            }
+            SymbolType::BlockVar {
+                block_variable_symbol_rcref,
+            } => {
+                block_variable_symbol_rcref.borrow_mut().set_ast_node(
+                    variable_decl_node_rcref.clone());
+            }
+            _ => {
+                let err_msg = "Unrecognized variable type.";
+                return Err(err_msg);
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -2795,8 +2837,7 @@ pub struct VariableSymbol {
     pub name: String,
     pub var_type: Option<TypeNode>,
     pub scope: IdentifierDeclScope,
-    pub ast_node_opt: Option<Rc<RefCell<VariableDeclNode>>>,
-    pub value: Rc<ExprType>, // The latest assigned expression
+    ast_node_rcref: Rc<RefCell<VariableDeclNode>>,
 }
 
 impl VariableSymbol {
@@ -2804,21 +2845,25 @@ impl VariableSymbol {
         name: String,
         var_type: Option<TypeNode>,
         scope: IdentifierDeclScope,
-        value_opt: Rc<ExprType>,
+        ast_node_rcref: Rc<RefCell<VariableDeclNode>>,
     ) -> VariableSymbol {
         VariableSymbol {
             name,
             var_type,
             scope,
-            value: value_opt,
-            ast_node_opt: None, // TODO: I think this is dead code
+            ast_node_rcref,
         }
     }
 
-    // pub fn set_ast_node(&mut self, ast_node: VariableDeclNode) {
-    //     self.ast_node = Some(Rc::new(RefCell::new(ast_node)));
-    // }
+    pub fn set_ast_node(&mut self, ast_node_rcref: Rc<RefCell<VariableDeclNode>>) {
+        self.ast_node_rcref = ast_node_rcref;
+    }
+
+    pub fn get_ast_node(&mut self) -> Rc<RefCell<VariableDeclNode>> {
+        self.ast_node_rcref.clone()
+    }
 }
+
 
 // impl VariableSymbol {
 //     fn get_decl_initializer_expr() ->

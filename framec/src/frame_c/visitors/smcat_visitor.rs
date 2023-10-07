@@ -370,9 +370,9 @@ impl AstVisitor for SmcatVisitor {
         }
     }
 
-    fn visit_call_chain_literal_expr_node_to_string(
+    fn visit_call_chain_expr_node_to_string(
         &mut self,
-        _method_call_chain_expression_node: &CallChainLiteralExprNode,
+        _method_call_chain_expression_node: &CallChainExprNode,
         _output: &mut String,
     ) {
         panic!("TODO");
@@ -403,7 +403,7 @@ impl AstVisitor for SmcatVisitor {
                 ExprType::ActionCallExprT {
                     action_call_expr_node,
                 } => action_call_expr_node.accept(self),
-                ExprType::CallChainLiteralExprT {
+                ExprType::CallChainExprT {
                     call_chain_expr_node,
                 } => call_chain_expr_node.accept(self),
                 ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
@@ -453,7 +453,7 @@ impl AstVisitor for SmcatVisitor {
                 ExprType::ActionCallExprT {
                     action_call_expr_node,
                 } => action_call_expr_node.accept(self),
-                ExprType::CallChainLiteralExprT {
+                ExprType::CallChainExprT {
                     call_chain_expr_node,
                 } => call_chain_expr_node.accept(self),
                 ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
@@ -472,7 +472,7 @@ impl AstVisitor for SmcatVisitor {
                         ExprType::ActionCallExprT {
                             action_call_expr_node,
                         } => action_call_expr_node.accept(self),
-                        ExprType::CallChainLiteralExprT {
+                        ExprType::CallChainExprT {
                             call_chain_expr_node,
                         } => call_chain_expr_node.accept(self),
                         ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),

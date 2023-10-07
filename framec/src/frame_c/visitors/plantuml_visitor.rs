@@ -1479,9 +1479,9 @@ impl AstVisitor for PlantUmlVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_chain_literal_statement_node(
+    fn visit_call_chain_statement_node(
         &mut self,
-        method_call_chain_literal_stmt_node: &CallChainLiteralStmtNode,
+        method_call_chain_literal_stmt_node: &CallChainStmtNode,
     ) {
         self.newline();
         method_call_chain_literal_stmt_node
@@ -1492,9 +1492,9 @@ impl AstVisitor for PlantUmlVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_chain_literal_expr_node(
+    fn visit_call_chain_expr_node(
         &mut self,
-        _method_call_chain_expression_node: &CallChainLiteralExprNode,
+        _method_call_chain_expression_node: &CallChainExprNode,
     ) {
         // TODO: maybe put this in an AST node
 
@@ -1516,9 +1516,9 @@ impl AstVisitor for PlantUmlVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_chain_literal_expr_node_to_string(
+    fn visit_call_chain_expr_node_to_string(
         &mut self,
-        _method_call_chain_expression_node: &CallChainLiteralExprNode,
+        _method_call_chain_expression_node: &CallChainExprNode,
         _output: &mut String,
     ) {
         panic!("TODO");
@@ -1617,7 +1617,7 @@ impl AstVisitor for PlantUmlVisitor {
                 ExprType::ActionCallExprT {
                     action_call_expr_node,
                 } => action_call_expr_node.accept(self),
-                ExprType::CallChainLiteralExprT {
+                ExprType::CallChainExprT {
                     call_chain_expr_node,
                 } => call_chain_expr_node.accept(self),
                 ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
@@ -1774,7 +1774,7 @@ impl AstVisitor for PlantUmlVisitor {
                 ExprType::ActionCallExprT {
                     action_call_expr_node,
                 } => action_call_expr_node.accept(self),
-                ExprType::CallChainLiteralExprT {
+                ExprType::CallChainExprT {
                     call_chain_expr_node,
                 } => call_chain_expr_node.accept(self),
                 ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
@@ -1795,7 +1795,7 @@ impl AstVisitor for PlantUmlVisitor {
                         ExprType::ActionCallExprT {
                             action_call_expr_node,
                         } => action_call_expr_node.accept(self),
-                        ExprType::CallChainLiteralExprT {
+                        ExprType::CallChainExprT {
                             call_chain_expr_node,
                         } => call_chain_expr_node.accept(self),
                         ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
@@ -2145,7 +2145,7 @@ impl AstVisitor for PlantUmlVisitor {
             None => String::from("<?>"),
         };
         let var_name = &variable_decl_node.name;
-        let var_init_expr = &variable_decl_node.value;
+        let var_init_expr = &variable_decl_node.value_rc;
         self.newline();
         let mut code = String::new();
         var_init_expr.accept_to_string(self, &mut code);

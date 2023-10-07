@@ -2167,7 +2167,7 @@ impl RustVisitor {
             for variable_decl_node_rcref in &domain_block_node.member_variables {
                 let variable_decl_node = variable_decl_node_rcref.borrow();
                 let variable_name = self.format_value_name(&variable_decl_node.name);
-                let var_init_expr = &variable_decl_node.value;
+                let var_init_expr = &variable_decl_node.value_rc;
                 let mut code = String::new();
                 var_init_expr.accept_to_string(self, &mut code);
                 self.newline();
@@ -2998,7 +2998,7 @@ impl RustVisitor {
                 self.indent();
                 for var_rcref in state_node.vars_opt.as_ref().unwrap() {
                     let var = var_rcref.borrow();
-                    let expr_t = &var.value;
+                    let expr_t = &var.value_rc;
                     let mut expr_code = String::new();
                     expr_t.accept_to_string(self, &mut expr_code);
                     self.newline_to_string(var_code);
@@ -4704,9 +4704,9 @@ impl AstVisitor for RustVisitor {
     // precisely, but this would require embedding some logic in the generated code and would make
     // handlers harder to reason about. The conservative approach has the advantage of both
     // simplifying the implementation and reasoning about Frame programs.
-    fn visit_call_chain_literal_statement_node(
+    fn visit_call_chain_statement_node(
         &mut self,
-        method_call_chain_literal_stmt_node: &CallChainLiteralStmtNode,
+        method_call_chain_literal_stmt_node: &CallChainStmtNode,
     ) {
         self.newline();
 
@@ -4715,7 +4715,7 @@ impl AstVisitor for RustVisitor {
             .call_chain_literal_expr_node
             .call_chain;
         if call_chain.len() == 1 {
-            if let CallChainLiteralNodeType::InterfaceMethodCallT {
+            if let CallChainNodeType::InterfaceMethodCallT {
                 interface_method_call_expr_node,
             } = &call_chain[0]
             {
@@ -4737,9 +4737,9 @@ impl AstVisitor for RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_chain_literal_expr_node(
+    fn visit_call_chain_expr_node(
         &mut self,
-        method_call_chain_expression_node: &CallChainLiteralExprNode,
+        method_call_chain_expression_node: &CallChainExprNode,
     ) {
         // TODO: maybe put this in an AST node
         let mut separator = "";
@@ -4747,23 +4747,23 @@ impl AstVisitor for RustVisitor {
         for node in &method_call_chain_expression_node.call_chain {
             self.add_code(separator);
             match &node {
-                CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
+                CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                     id_node.accept(self);
                 }
-                CallChainLiteralNodeType::CallT { call } => {
+                CallChainNodeType::UndeclaredCallT { call } => {
                     call.accept(self);
                 }
-                CallChainLiteralNodeType::InterfaceMethodCallT { .. } => {
+                CallChainNodeType::InterfaceMethodCallT { .. } => {
                     self.errors.push(String::from(
                         "Error: Interface method calls may not appear in call chains.",
                     ));
                 }
-                CallChainLiteralNodeType::ActionCallT {
+                CallChainNodeType::ActionCallT {
                     action_call_expr_node,
                 } => {
                     action_call_expr_node.accept(self);
                 }
-                CallChainLiteralNodeType::VariableNodeT { var_node } => {
+                CallChainNodeType::VariableNodeT { var_node } => {
                     self.visiting_call_chain_literal_variable = true;
                     var_node.accept(self);
                     self.visiting_call_chain_literal_variable = false;
@@ -4775,9 +4775,9 @@ impl AstVisitor for RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_chain_literal_expr_node_to_string(
+    fn visit_call_chain_expr_node_to_string(
         &mut self,
-        method_call_chain_expression_node: &CallChainLiteralExprNode,
+        method_call_chain_expression_node: &CallChainExprNode,
         output: &mut String,
     ) {
         let mut separator = "";
@@ -4785,23 +4785,23 @@ impl AstVisitor for RustVisitor {
         for node in &method_call_chain_expression_node.call_chain {
             output.push_str(separator);
             match &node {
-                CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
+                CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                     id_node.accept_to_string(self, output);
                 }
-                CallChainLiteralNodeType::CallT { call } => {
+                CallChainNodeType::UndeclaredCallT { call } => {
                     call.accept_to_string(self, output);
                 }
-                CallChainLiteralNodeType::InterfaceMethodCallT { .. } => {
+                CallChainNodeType::InterfaceMethodCallT { .. } => {
                     self.errors.push(String::from(
                         "Error: Interface method calls may not appear in call chains.",
                     ));
                 }
-                CallChainLiteralNodeType::ActionCallT {
+                CallChainNodeType::ActionCallT {
                     action_call_expr_node,
                 } => {
                     action_call_expr_node.accept_to_string(self, output);
                 }
-                CallChainLiteralNodeType::VariableNodeT { var_node } => {
+                CallChainNodeType::VariableNodeT { var_node } => {
                     var_node.accept_to_string(self, output);
                 }
             }
@@ -4901,7 +4901,7 @@ impl AstVisitor for RustVisitor {
                 ExprType::ActionCallExprT {
                     action_call_expr_node,
                 } => action_call_expr_node.accept(self),
-                ExprType::CallChainLiteralExprT {
+                ExprType::CallChainExprT {
                     call_chain_expr_node,
                 } => call_chain_expr_node.accept(self),
                 ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
@@ -4941,7 +4941,7 @@ impl AstVisitor for RustVisitor {
                         ExprType::ActionCallExprT {
                             action_call_expr_node,
                         } => action_call_expr_node.accept(self),
-                        ExprType::CallChainLiteralExprT {
+                        ExprType::CallChainExprT {
                             call_chain_expr_node,
                         } => call_chain_expr_node.accept(self),
                         ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
@@ -5071,7 +5071,7 @@ impl AstVisitor for RustVisitor {
                 ExprType::ActionCallExprT {
                     action_call_expr_node,
                 } => action_call_expr_node.accept(self),
-                ExprType::CallChainLiteralExprT {
+                ExprType::CallChainExprT {
                     call_chain_expr_node,
                 } => call_chain_expr_node.accept(self),
                 ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
@@ -5102,7 +5102,7 @@ impl AstVisitor for RustVisitor {
                         ExprType::ActionCallExprT {
                             action_call_expr_node,
                         } => action_call_expr_node.accept(self),
-                        ExprType::CallChainLiteralExprT {
+                        ExprType::CallChainExprT {
                             call_chain_expr_node,
                         } => call_chain_expr_node.accept(self),
                         ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
@@ -5592,7 +5592,7 @@ impl AstVisitor for RustVisitor {
             None => String::new(),
         };
         let var_name = self.format_value_name(&variable_decl_node.name);
-        let var_init_expr = &variable_decl_node.value;
+        let var_init_expr = &variable_decl_node.value_rc;
         self.newline();
         let mut code = String::new();
         var_init_expr.accept_to_string(self, &mut code);

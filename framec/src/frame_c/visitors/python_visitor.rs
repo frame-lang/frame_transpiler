@@ -796,7 +796,7 @@ impl PythonVisitor {
                                 Some(var_type) => var_type.get_type_str(),
                                 None => String::from(""),
                             };
-                            let expr_t = &var.value;
+                            let expr_t = &var.value_rc;
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
                             self.add_code(&format!(
@@ -1056,7 +1056,7 @@ impl PythonVisitor {
                                 // TODO: check this
                                 None => String::from(""),
                             };
-                            let expr_t = &var.value;
+                            let expr_t = &var.value_rc;
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
                             self.newline();
@@ -1268,7 +1268,7 @@ impl PythonVisitor {
                     Some(vars) => {
                         for var_rcref in vars {
                             let var_decl_node = var_rcref.borrow();
-                            let expr_t = &var_decl_node.value;
+                            let expr_t = &var_decl_node.value_rc;
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
 
@@ -1483,7 +1483,7 @@ impl AstVisitor for PythonVisitor {
             for var_rcref in &domain_block_node.member_variables {
                 let var_name = var_rcref.borrow().name.clone();
                 let var = var_rcref.borrow();
-                let var_init_expr = &var.value;
+                let var_init_expr = &var.value_rc;
                 let mut init_expression = String::new();
                 var_init_expr.accept_to_string(self, &mut init_expression);
                 // push for later initialization
@@ -2581,17 +2581,17 @@ impl AstVisitor for PythonVisitor {
     // handlers harder to reason about. The conservative approach has the advantage of both
     // simplifying the implementation and reasoning about Frame programs.
 
-    fn visit_call_chain_literal_statement_node(
+    fn visit_call_chain_statement_node(
         &mut self,
-        method_call_chain_literal_stmt_node: &CallChainLiteralStmtNode,
+        method_call_chain_stmt_node: &CallChainStmtNode,
     ) {
         self.skip_next_newline();
         // special case for interface method calls
-        let call_chain = &method_call_chain_literal_stmt_node
+        let call_chain = &method_call_chain_stmt_node
             .call_chain_literal_expr_node
             .call_chain;
         if call_chain.len() == 1 {
-            if let CallChainLiteralNodeType::InterfaceMethodCallT {
+            if let CallChainNodeType::InterfaceMethodCallT {
                 interface_method_call_expr_node,
             } = &call_chain[0]
             {
@@ -2608,7 +2608,7 @@ impl AstVisitor for PythonVisitor {
 
         // standard case
 
-        method_call_chain_literal_stmt_node
+        method_call_chain_stmt_node
             .call_chain_literal_expr_node
             .accept(self);
 
@@ -2618,9 +2618,9 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_chain_literal_expr_node(
+    fn visit_call_chain_expr_node(
         &mut self,
-        calll_chain_expression_node: &CallChainLiteralExprNode,
+        calll_chain_expression_node: &CallChainExprNode,
     ) {
         // TODO: maybe put this in an AST node
 
@@ -2634,23 +2634,23 @@ impl AstVisitor for PythonVisitor {
         for node in &calll_chain_expression_node.call_chain {
             self.add_code(separator);
             match &node {
-                CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
+                CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                     id_node.accept(self);
                 }
-                CallChainLiteralNodeType::CallT { call } => {
+                CallChainNodeType::UndeclaredCallT { call } => {
                     call.accept(self);
                 }
-                CallChainLiteralNodeType::InterfaceMethodCallT {
+                CallChainNodeType::InterfaceMethodCallT {
                     interface_method_call_expr_node,
                 } => {
                     interface_method_call_expr_node.accept(self);
                 }
-                CallChainLiteralNodeType::ActionCallT {
+                CallChainNodeType::ActionCallT {
                     action_call_expr_node,
                 } => {
                     action_call_expr_node.accept(self);
                 }
-                CallChainLiteralNodeType::VariableNodeT { var_node } => {
+                CallChainNodeType::VariableNodeT { var_node } => {
                     self.visiting_call_chain_literal_variable = true;
                     var_node.accept(self);
                     self.visiting_call_chain_literal_variable = false;
@@ -2884,9 +2884,9 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_chain_literal_expr_node_to_string(
+    fn visit_call_chain_expr_node_to_string(
         &mut self,
-        method_call_chain_expression_node: &CallChainLiteralExprNode,
+        method_call_chain_expression_node: &CallChainExprNode,
         output: &mut String,
     ) {
         let mut separator = "";
@@ -2894,23 +2894,23 @@ impl AstVisitor for PythonVisitor {
         for node in &method_call_chain_expression_node.call_chain {
             output.push_str(separator);
             match &node {
-                CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
+                CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                     id_node.accept_to_string(self, output);
                 }
-                CallChainLiteralNodeType::CallT { call } => {
+                CallChainNodeType::UndeclaredCallT { call } => {
                     call.accept_to_string(self, output);
                 }
-                CallChainLiteralNodeType::InterfaceMethodCallT {
+                CallChainNodeType::InterfaceMethodCallT {
                     interface_method_call_expr_node,
                 } => {
                     interface_method_call_expr_node.accept_to_string(self, output);
                 }
-                CallChainLiteralNodeType::ActionCallT {
+                CallChainNodeType::ActionCallT {
                     action_call_expr_node,
                 } => {
                     action_call_expr_node.accept_to_string(self, output);
                 }
-                CallChainLiteralNodeType::VariableNodeT { var_node } => {
+                CallChainNodeType::VariableNodeT { var_node } => {
                     var_node.accept_to_string(self, output);
                 }
             }
@@ -2983,7 +2983,7 @@ impl AstVisitor for PythonVisitor {
             let expr_t = expr_type_rcref.borrow();
             // expr_t.auto_pre_inc_dec(self);
             match *expr_t {
-                ExprType::CallChainLiteralExprT { .. } => {
+                ExprType::CallChainExprT { .. } => {
                     // don't emit just a simple expression.
                 }
                 _ => expr_t.accept(self),
@@ -3265,7 +3265,7 @@ impl AstVisitor for PythonVisitor {
                 ExprType::ActionCallExprT {
                     action_call_expr_node,
                 } => action_call_expr_node.accept(self),
-                ExprType::CallChainLiteralExprT {
+                ExprType::CallChainExprT {
                     call_chain_expr_node,
                 } => call_chain_expr_node.accept(self),
                 ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
@@ -3305,7 +3305,7 @@ impl AstVisitor for PythonVisitor {
                         ExprType::ActionCallExprT {
                             action_call_expr_node,
                         } => action_call_expr_node.accept(self),
-                        ExprType::CallChainLiteralExprT {
+                        ExprType::CallChainExprT {
                             call_chain_expr_node,
                         } => call_chain_expr_node.accept(self),
                         ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
@@ -3482,7 +3482,7 @@ impl AstVisitor for PythonVisitor {
                 ExprType::ActionCallExprT {
                     action_call_expr_node,
                 } => action_call_expr_node.accept(self),
-                ExprType::CallChainLiteralExprT {
+                ExprType::CallChainExprT {
                     call_chain_expr_node,
                 } => {
                     call_chain_expr_node.accept(self)
@@ -3515,7 +3515,7 @@ impl AstVisitor for PythonVisitor {
                         ExprType::ActionCallExprT {
                             action_call_expr_node,
                         } => action_call_expr_node.accept(self),
-                        ExprType::CallChainLiteralExprT {
+                        ExprType::CallChainExprT {
                             call_chain_expr_node,
                         } => call_chain_expr_node.accept(self),
                         ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
@@ -3637,7 +3637,7 @@ impl AstVisitor for PythonVisitor {
                 ExprType::ActionCallExprT {
                     action_call_expr_node,
                 } => action_call_expr_node.accept(self),
-                ExprType::CallChainLiteralExprT {
+                ExprType::CallChainExprT {
                     call_chain_expr_node,
                 } => call_chain_expr_node.accept(self),
                 ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
@@ -3672,7 +3672,7 @@ impl AstVisitor for PythonVisitor {
                         ExprType::ActionCallExprT {
                             action_call_expr_node,
                         } => action_call_expr_node.accept(self),
-                        ExprType::CallChainLiteralExprT {
+                        ExprType::CallChainExprT {
                             call_chain_expr_node,
                         } => call_chain_expr_node.accept(self),
                         ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
@@ -4210,7 +4210,7 @@ impl AstVisitor for PythonVisitor {
             None => String::from(""),
         };
         let var_name = &variable_decl_node.name;
-        let var_init_expr = &variable_decl_node.value;
+        let var_init_expr = &variable_decl_node.initializer_value_rc;
         self.newline();
         let mut code = String::new();
         var_init_expr.accept_to_string(self, &mut code);
@@ -4243,7 +4243,7 @@ impl AstVisitor for PythonVisitor {
                 self.add_code(&format!(" = {}", code));
             }
             IdentifierDeclScope::BlockVar => {
-                self.add_code(&format!("{} ", var_name));
+                self.add_code(&format!("{}", var_name));
                 if !var_type.is_empty() {
                     self.add_code(&format!(": {}", var_type));
                 }
@@ -4325,7 +4325,9 @@ impl AstVisitor for PythonVisitor {
         assignment_expr_node.l_value_box.accept(self);
         self.add_code(" = ");
         //       assignment_expr_node.r_value_box.auto_pre_inc_dec(self);
-        assignment_expr_node.r_value_rc.accept(self);
+        let mut output = String::new();
+        assignment_expr_node.r_value_rc.accept_to_string(self, &mut output);
+        self.add_code(&*output);
         // assignment_expr_node.r_value_box.auto_post_inc_dec(self);
     }
 
