@@ -680,6 +680,9 @@ impl RustVisitor {
                 DeclOrStmtType::StmtT { stmt_t } => {
                     match stmt_t {
                         StatementType::ExpressionStmt { expr_stmt_t } => match expr_stmt_t {
+                            ExprStmtType::TransitionStmtT {
+                                transition_statement_node: _transition_statement_node
+                            } => panic!("TODO"),
                             ExprStmtType::SystemInstanceStmtT {
                                 system_instance_stmt_node,
                             } => system_instance_stmt_node.accept(self),
@@ -709,7 +712,7 @@ impl RustVisitor {
                             }
                         },
                         StatementType::TransitionStmt {
-                            transition_statement,
+                            transition_statement_node: transition_statement,
                         } => {
                             transition_statement.accept(self);
                         }
@@ -721,7 +724,7 @@ impl RustVisitor {
                         } => {
                             state_stack_operation_statement_node.accept(self);
                         }
-                        StatementType::ChangeStateStmt { change_state_stmt } => {
+                        StatementType::ChangeStateStmt { change_state_stmt_node: change_state_stmt } => {
                             change_state_stmt.accept(self);
                         }
                         StatementType::LoopStmt { loop_stmt_node } => {
@@ -2887,7 +2890,7 @@ impl RustVisitor {
     fn generate_enter_arguments(
         &mut self,
         target_state_name: &str,
-        state_context_node: &StateContextNode,
+        state_context_node: &TargetStateContextNode,
         arg_code: &mut String,
     ) -> bool {
         let mut has_args = false;
@@ -3088,7 +3091,7 @@ impl RustVisitor {
 
         // get the name of the next state
         let target_state_name = match &change_state_stmt.state_context_t {
-            StateContextType::StateRef { state_context_node } => {
+            TargetStateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_node.name
             }
             _ => {
@@ -3113,7 +3116,7 @@ impl RustVisitor {
         let mut has_state_args = false;
         let mut state_args_code = String::new();
         match &change_state_stmt.state_context_t {
-            StateContextType::StateRef { state_context_node } => {
+            TargetStateContextType::StateRef { state_context_node } => {
                 if let Some(state_args) = &state_context_node.state_ref_args_opt {
                     has_state_args = self.generate_state_arguments(
                         target_state_name,
@@ -3122,7 +3125,7 @@ impl RustVisitor {
                     );
                 }
             }
-            StateContextType::StateStackPop {} => {}
+            TargetStateContextType::StateStackPop {} => {}
         };
 
         // generate state variables
@@ -3186,8 +3189,8 @@ impl RustVisitor {
         self.add_code("// Start transition");
 
         // get the name of the next state
-        let target_state_name = match &transition_stmt.target_state_context_t {
-            StateContextType::StateRef { state_context_node } => {
+        let target_state_name = match &transition_stmt.transition_expr_node.target_state_context_t {
+            TargetStateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_node.name
             }
             _ => {
@@ -3198,7 +3201,7 @@ impl RustVisitor {
 
         // get the transition label, and print it if provided
         let mut label = String::new();
-        if let Some(s) = &transition_stmt.label_opt {
+        if let Some(s) = &transition_stmt.transition_expr_node.label_opt {
             label.push_str(s);
             self.newline();
             self.add_code(&format!("// {}", s));
@@ -3219,15 +3222,15 @@ impl RustVisitor {
         if self.generate_enter_args {
             let mut has_enter_args = false;
             let mut enter_args_code = String::new();
-            match &transition_stmt.target_state_context_t {
-                StateContextType::StateRef { state_context_node } => {
+            match &transition_stmt.transition_expr_node.target_state_context_t {
+                TargetStateContextType::StateRef { state_context_node } => {
                     has_enter_args = self.generate_enter_arguments(
                         target_state_name,
                         state_context_node,
                         &mut enter_args_code,
                     );
                 }
-                StateContextType::StateStackPop {} => {}
+                TargetStateContextType::StateStackPop {} => {}
             }
             if !has_enter_args {
                 enter_args_code = format!("{}::None", self.config.code.frame_event_args_type_name);
@@ -3245,8 +3248,8 @@ impl RustVisitor {
         // generate state arguments
         let mut has_state_args = false;
         let mut state_args_code = String::new();
-        match &transition_stmt.target_state_context_t {
-            StateContextType::StateRef { state_context_node } => {
+        match &transition_stmt.transition_expr_node.target_state_context_t {
+            TargetStateContextType::StateRef { state_context_node } => {
                 if let Some(state_args) = &state_context_node.state_ref_args_opt {
                     has_state_args = self.generate_state_arguments(
                         target_state_name,
@@ -3255,7 +3258,7 @@ impl RustVisitor {
                     );
                 }
             }
-            StateContextType::StateStackPop {} => {}
+            TargetStateContextType::StateStackPop {} => {}
         };
 
         // generate state variables
@@ -3401,7 +3404,7 @@ impl RustVisitor {
 
         // get the transition label, and print it if provided
         let mut label = String::new();
-        if let Some(s) = &transition_stmt.label_opt {
+        if let Some(s) = &transition_stmt.transition_expr_node.label_opt {
             label.push_str(s);
             self.newline();
             self.add_code(&format!("// {}", s));
@@ -4574,11 +4577,11 @@ impl AstVisitor for RustVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_transition_statement_node(&mut self, transition_statement: &TransitionStatementNode) {
-        match &transition_statement.target_state_context_t {
-            StateContextType::StateRef { .. } => {
+        match &transition_statement.transition_expr_node.target_state_context_t {
+            TargetStateContextType::StateRef { .. } => {
                 self.generate_state_ref_transition(transition_statement)
             }
-            StateContextType::StateStackPop {} => {
+            TargetStateContextType::StateStackPop {} => {
                 self.generate_state_stack_pop_transition(transition_statement)
             }
         };
@@ -4598,10 +4601,10 @@ impl AstVisitor for RustVisitor {
         change_state_stmt_node: &ChangeStateStatementNode,
     ) {
         match &change_state_stmt_node.state_context_t {
-            StateContextType::StateRef { .. } => {
+            TargetStateContextType::StateRef { .. } => {
                 self.generate_state_ref_change_state(change_state_stmt_node)
             }
-            StateContextType::StateStackPop {} => {
+            TargetStateContextType::StateStackPop {} => {
                 self.generate_state_stack_pop_change_state(change_state_stmt_node)
             }
         };
@@ -5396,7 +5399,7 @@ impl AstVisitor for RustVisitor {
     }
     //* --------------------------------------------------------------------- *//
 
-    fn visit_state_context_node(&mut self, _state_context_node: &StateContextNode) {
+    fn visit_state_context_node(&mut self, _state_context_node: &TargetStateContextNode) {
         // TODO
         //        self.add_code(&format!("{}",identifier_node.name.lexeme));
     }

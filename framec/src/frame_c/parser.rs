@@ -2460,8 +2460,8 @@ impl<'a> Parser<'a> {
                 => value = Rc::new(FrameEventExprT { frame_event_part }),
                 Ok(Some(EnumeratorExprT { enum_expr_node }))
                 => value = Rc::new(EnumeratorExprT { enum_expr_node }),
-                Ok(Some(EnumeratorExprT { enum_expr_node }))
-                => value = Rc::new(EnumeratorExprT { enum_expr_node }),
+                Ok(Some(TransitionExprT { transition_expr_node }))
+                => value = Rc::new(TransitionExprT { transition_expr_node }),
                 Ok(Some(SystemInstanceExprT { system_instance_expr_node }))
                 => value = Rc::new(SystemInstanceExprT { system_instance_expr_node }),
 
@@ -3705,24 +3705,19 @@ impl<'a> Parser<'a> {
                         return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
                     }
                     ExprListT { expr_list_node } => {
-                        // path for transitions with an exit params group
-                        if self.match_token(&[TokenType::Transition]) {
-                            if !self.is_building_symbol_table{
-                                let state_name = self.state_name_opt.as_ref().unwrap().clone();
-                                match self.validate_transition_exit_params(&state_name,expr_list_node.exprs_t.len()) {
-                                    Ok(()) => {}
-                                    Err(parse_err) => {
-                                        self.error_at_current(parse_err.error.as_str());
-                                    }
-                                }
-                            }
 
+                        // path for transitions with an exit params group
+
+                        if self.match_token(&[TokenType::Transition]) {
                             match self.transition(Some(expr_list_node)) {
-                                Ok(Some(stmt_t)) => return Ok(Some(stmt_t)),
-                                Ok(None) => return Err(ParseError::new("TODO")),
+                                Ok(transition_statement_node) => {
+                                    let statement_type = StatementType::TransitionStmt { transition_statement_node};
+                                    return Ok(Some(statement_type));
+                                }
                                 Err(parse_err) => return Err(parse_err),
                             }
                         } else {
+                            // Just a group not associated with a transition.
                             let expr_list_stmt_node = ExprListStmtNode::new(expr_list_node);
                             let expr_stmt_t = ExprListStmtT {
                                 expr_list_stmt_node,
@@ -3810,6 +3805,10 @@ impl<'a> Parser<'a> {
                         self.error_at_previous("Literal statements not allowed.");
                         return Err(ParseError::new("TODO"));
                     }
+                    TransitionExprT { transition_expr_node } => {
+                        let transition_statement_node = TransitionStatementNode::new(transition_expr_node,None);
+                        return Ok(Some(StatementType::TransitionStmt { transition_statement_node }));
+                    }
                     FrameEventExprT { .. } => {
                         self.error_at_previous("Frame Event statements not allowed.");
                         return Err(ParseError::new("TODO"));
@@ -3826,21 +3825,13 @@ impl<'a> Parser<'a> {
             None => {
                 // This path is for transitions w/o an exit params group
                 if self.match_token(&[TokenType::Transition]) {
-                    if !self.is_building_symbol_table{
-                        let state_name = self.state_name_opt.as_ref().unwrap().clone();
-                        match self.validate_transition_exit_params(&state_name,0) {
-                            Ok(()) => {}
-                            Err(parse_err) => {
-                                self.error_at_current(parse_err.error.as_str());
-                            }
+                    match self.transition(None) {
+                        Ok(transition_statement_node) => {
+                            let statement_type = StatementType::TransitionStmt { transition_statement_node };
+                            return Ok(Some(statement_type));
                         }
+                        Err(parse_err) => return Err(parse_err),
                     }
-
-                    return match self.transition(None) {
-                        Ok(Some(transition)) => Ok(Some(transition)),
-                        Ok(_) => Err(ParseError::new("TODO")),
-                        Err(parse_error) => Err(parse_error),
-                    };
                 }
             }
         }
@@ -4730,6 +4721,7 @@ impl<'a> Parser<'a> {
             }
         }
 
+        // Check for nested groups
         // '(' ')' | '(' expr+ ')'
         if self.match_token(&[TokenType::LParen]) {
             match self.expr_list() {
@@ -4752,8 +4744,16 @@ impl<'a> Parser<'a> {
 
         let mut scope = IdentifierDeclScope::None;
 
-        // Parsing syntax related to a system.
-        if self.match_token(&[TokenType::System]) {
+        if self.match_token(&[TokenType::Transition]) {
+            match self.transition_expr() {
+                Ok(transition_expr_node) => {
+                   return Ok(Some(TransitionExprT {transition_expr_node}));
+                }
+                Err(parse_err) => return Err(parse_err),
+            }
+
+        } else if self.match_token(&[TokenType::System]) {
+            // Parsing syntax related to a system.
             if self.match_token(&[TokenType::Dot]) {
                 // #.foo expression
                 scope = IdentifierDeclScope::DomainBlock;
@@ -5186,6 +5186,7 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
+    // TODO - restrict allowed expressions. Currently all can be used in any clause.
     fn loop_for_statement(
         &mut self,
         init_stmt: Option<LoopFirstStmt>,
@@ -5705,14 +5706,20 @@ impl<'a> Parser<'a> {
                     _ => return Err(ParseError::new("TODO")),
                 }
             } else { // Not a call so just an identifier which may be a variable
+
+                // This is a very subtle but important part of the logic here.
+                // We do a lookup for the id to find what scope it is in, if any.
+                // If there is a scope, it is a variable and the scope will be
+                // added to the Variable node so all the rest of the parser and
+                // generators know what kind of variable it is.
                 match self.get_identifier_scope(&id_node, &explicit_scope) {
                     Ok(id_decl_scope) => scope = id_decl_scope,
                     Err(err) => return Err(err),
                 }
 
                 // Variables must be the first "node" in a get expression. See https://craftinginterpreters.com/classes.html#properties-on-instances.
-                // So if
-                // let node = if !is_first_node && scope == IdentifierDeclScope::None {
+
+                // let debug_name = id_node.name.lexeme.clone();
                 let node = if !is_first_node  {
                     CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
                 } else {
@@ -5776,7 +5783,15 @@ impl<'a> Parser<'a> {
                                         return Err(ParseError::new("TODO"));
                                     }
                                 }
-                                SymbolType::BlockVar {..} => {
+                                SymbolType::BlockVar {..} |
+                                SymbolType::EventHandlerParam {..} |
+                                SymbolType::DomainVariable {..} |
+                                SymbolType::StateVariable {..} |
+                                SymbolType::EventHandlerVariable {..} |
+                                SymbolType::ParamSymbol {..} |
+                                SymbolType::StateParam {..} |
+                                SymbolType::EventHandlerParam {..}
+                                => {
                                     let var_node =
                                         VariableNode::new(id_node, scope, (&symbol_type_rcref_opt).clone());
                                     CallChainNodeType::VariableNodeT { var_node }
@@ -5976,7 +5991,7 @@ impl<'a> Parser<'a> {
         enter_args_opt: Option<ExprListNode>,
         context_change_type: &str,
         is_transition: bool,
-    ) -> Result<Option<StateContextType>, ParseError> {
+    ) -> Result<Option<TargetStateContextType>, ParseError> {
         if self.match_token(&[TokenType::StateStackOperationPop]) {
             if !is_transition {
                 let err_msg =
@@ -5987,7 +6002,7 @@ impl<'a> Parser<'a> {
                     "Transition enter arguments disallowed when transitioning to a popped state.";
                 self.error_at_previous(&err_msg);
             }
-            Ok(Some(StateContextType::StateStackPop {}))
+            Ok(Some(TargetStateContextType::StateStackPop {}))
         } else if self.match_token(&[TokenType::StateStackOperationPush]) {
             let err_msg =
                 "Error - $$[+] is an invalid transition target. Try replacing with $$[-]. ";
@@ -5997,7 +6012,7 @@ impl<'a> Parser<'a> {
 
             // parse state ref e.g. '$S1'
             if !self.match_token(&[TokenType::State]) {
-                let err_msg = "Missing $.";
+                let err_msg = &format!("Expected target state, found {}.",self.current_token);
                 self.error_at_current(&&err_msg);
                 return Err(ParseError::new(err_msg));
             }
@@ -6133,9 +6148,49 @@ impl<'a> Parser<'a> {
             }
 
             let state_context_node =
-                StateContextNode::new(StateRefNode::new(name), state_ref_args_opt, enter_args_opt);
+                TargetStateContextNode::new(StateRefNode::new(name), state_ref_args_opt, enter_args_opt);
 
-            Ok(Some(StateContextType::StateRef { state_context_node }))
+            Ok(Some(TargetStateContextType::StateRef { state_context_node }))
+        }
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn transition(
+        &mut self,
+        exit_args_opt: Option<ExprListNode>,
+    ) -> Result<TransitionStatementNode, ParseError> {
+
+        if exit_args_opt.is_some() {
+            // need exit args generated
+            self.generate_exit_args = true;
+        }
+
+        if !self.is_building_symbol_table {
+            let state_name = self.state_name_opt.as_ref().unwrap().clone();
+
+            let exit_args_cnt = match &exit_args_opt {
+                Some(expr_list_node) => expr_list_node.exprs_t.len(),
+                None => 0,
+            };
+
+            match self.validate_transition_exit_params(&state_name, exit_args_cnt) {
+                Ok(()) => {}
+                Err(parse_err) => {
+                    self.error_at_current(parse_err.error.as_str());
+                }
+            }
+        }
+        match self.transition_expr() {
+            Ok(transition_expr_node) => {
+
+                let transition_stmt_node = TransitionStatementNode::new(
+                    transition_expr_node,
+                    exit_args_opt,
+                );
+                Ok(transition_stmt_node)
+            }
+            Err(parse_err) => Err(parse_err),
         }
     }
 
@@ -6143,10 +6198,9 @@ impl<'a> Parser<'a> {
 
     // transition : exitArgs '->' enterArgs transitionLabel stateRef stateArgs
 
-    fn transition(
+    fn transition_expr(
         &mut self,
-        exit_args_opt: Option<ExprListNode>,
-    ) -> Result<Option<StatementType>, ParseError> {
+    ) -> Result<TransitionExprNode, ParseError> {
         self.generate_transition_state = true;
 
         if self.is_action_scope {
@@ -6162,14 +6216,9 @@ impl<'a> Parser<'a> {
             self.error_at_current("Transition disallowed in exit event handler.")
         }
 
-        if exit_args_opt.is_some() {
-            // need exit args generated
-            self.generate_exit_args = true;
-        }
-
         let mut enter_msg_with_enter_args: bool = false;
         let mut enter_args_opt: Option<ExprListNode> = None;
-        let mut transition_label: Option<String> = None;
+        let mut label_opt: Option<String> = None;
 
         // enterArgs: '(' ')' | '(' expr ')'
         if self.match_token(&[TokenType::LParen]) {
@@ -6192,7 +6241,7 @@ impl<'a> Parser<'a> {
 
         // transition label string
         if self.match_token(&[TokenType::String]) {
-            transition_label = Some(self.previous().lexeme.clone());
+            label_opt = Some(self.previous().lexeme.clone());
         }
 
         // Transition dispatch
@@ -6204,7 +6253,7 @@ impl<'a> Parser<'a> {
                 // TODO - revisit this rule and document, update or remove.
                 // Disallowed:
                 // $S0
-                //     |>| -> ("hi") => $S1 ^ --- I think this is ok
+                //     |>| -> ("hi") => $S1 ^ --- This is ok
                 //     |>| -> ("hi") => $$[-] ^ --- I think this should be illegal
                 //                              --- as the enter args are on the compartment
 
@@ -6214,9 +6263,11 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let state_context_t;
+        // -> $S0
+        // -> $$[-]
+        let target_state_context_t;
         match self.target_state(enter_args_opt, "Transition", true) {
-            Ok(Some(scn)) => state_context_t = scn,
+            Ok(Some(scn)) => target_state_context_t = scn,
             Ok(None) => return Err(ParseError::new("TODO")),
             Err(parse_error) => return Err(parse_error),
         }
@@ -6225,14 +6276,13 @@ impl<'a> Parser<'a> {
         // top of the event handler.
         self.event_handler_has_transition = true;
 
-        Ok(Some(StatementType::TransitionStmt {
-            transition_statement: TransitionStatementNode {
-                target_state_context_t: state_context_t,
-                exit_args_opt,
-                label_opt: transition_label,
-                forward_event,
-            },
-        }))
+        let transition_expr_node = TransitionExprNode::new(
+            target_state_context_t,
+            label_opt,
+            forward_event,
+        );
+
+        Ok(transition_expr_node)
     }
 
     /* --------------------------------------------------------------------- */
@@ -6259,18 +6309,6 @@ impl<'a> Parser<'a> {
                 self.error_at_current(err_msg.as_str());
             }
             None => {}
-            // Some(exit_eventhandler_node_rcref) = exit_eventhandler_node_rcref_opt {
-            //     let event_handler_node = exit_eventhandler_node_rcref.borrow();
-            //     let event_symbol = event_handler_node.event_symbol_rcref.borrow();
-            //     match event_symbol.event_symbol_params_opt {
-            //         Some(params) => {
-            //         if params.len() > 0 {
-            //             let err_msg = & format ! ("State change disallowed out of states with exit parameters.");
-            //             self.error_at_current(err_msg.as_str());
-            //         }
-            //     }
-            //     None => {}
-            // }
         }
         let state_context_t;
         match self.target_state(None, "State change", false) {
@@ -6280,7 +6318,7 @@ impl<'a> Parser<'a> {
         }
 
         Ok(Some(StatementType::ChangeStateStmt {
-            change_state_stmt: ChangeStateStatementNode {
+            change_state_stmt_node: ChangeStateStatementNode {
                 state_context_t,
                 label_opt,
             },
@@ -6866,34 +6904,34 @@ impl<'a> Parser<'a> {
         // Now get the variable and assign new value
         // let debug_expr_name = l_value.expr_type_name();
         let name_opt = l_value.get_name();
-        if name_opt.is_none() {
-            let err_msg = &format!("Assignment to invalid l_value");
-            self.error_at_current(&err_msg);
-            return Err(ParseError::new(err_msg));
-        }
-        let l_value_name = name_opt.unwrap();
-        let symbol_t_opt = self.arcanum.lookup(l_value_name.as_str(), &IdentifierDeclScope::None);
-        match symbol_t_opt {
-            Some(symbol_t_rcref) => {
-                let mut symbol_t = symbol_t_rcref.borrow_mut();
-                match symbol_t.assign(r_value_rc.clone()) {
-                    Ok(()) => {
-                        Ok(())
-                    }
-                    Err(err_msg) => {
-                        self.error_at_current(&err_msg);
-                        Err(ParseError::new(err_msg))
+        if name_opt.is_some() {
+            // this is a variable so update value
+            let l_value_name = name_opt.unwrap();
+            let symbol_t_opt = self.arcanum.lookup(l_value_name.as_str(), &IdentifierDeclScope::None);
+            match symbol_t_opt {
+                Some(symbol_t_rcref) => {
+                    let mut symbol_t = symbol_t_rcref.borrow_mut();
+                    match symbol_t.assign(r_value_rc.clone()) {
+                        Ok(()) => {
+                            Ok(())
+                        }
+                        Err(err_msg) => {
+                            self.error_at_current(&err_msg);
+                            Err(ParseError::new(err_msg))
+                        }
                     }
                 }
+                None => {
+                    let err_msg = &format!("Invalid l_value name {}", l_value_name);
+                    self.error_at_current(&err_msg);
+                    Err(ParseError::new(err_msg))
+                }
             }
-            None => {
-                let err_msg = &format!("Invalid l_value name {}", l_value_name);
-                self.error_at_current(&err_msg);
-                Err(ParseError::new(err_msg))
-            }
+        } else {
+            // Undeclared Identifier so nothing to validate
+            Ok(())
         }
     }
-
 
     /* --------------------------------------------------------------------- */
 

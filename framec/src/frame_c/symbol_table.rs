@@ -145,41 +145,42 @@ pub enum SymbolType {
     EventHandlerLocalScope {
         event_handler_local_scope_rcref: Rc<RefCell<EventHandlerLocalScopeSymbol>>,
     },
-    DomainVariable {
-        domain_variable_symbol_rcref: Rc<RefCell<VariableSymbol>>,
-    },
-    StateParam {
-        state_param_symbol_rcref: Rc<RefCell<ParameterSymbol>>,
-    },
-    StateVariable {
-        state_variable_symbol_rcref: Rc<RefCell<VariableSymbol>>,
-    },
-    EventHandlerParam {
-        event_handler_param_symbol_rcref: Rc<RefCell<ParameterSymbol>>,
-    },
-    EventHandlerVariable {
-        event_handler_variable_symbol_rcref: Rc<RefCell<VariableSymbol>>,
-    },
+
     EnumDeclSymbolT {
         enum_symbol_rcref: Rc<RefCell<EnumSymbol>>,
     },
     LoopStmtSymbol {
         loop_scope_symbol_rcref: Rc<RefCell<LoopStmtScopeSymbol>>,
     },
-    LoopVar {
-        loop_variable_symbol_rcref: Rc<RefCell<VariableSymbol>>,
-    },
     BlockScope {
         block_scope_rcref: Rc<RefCell<BlockScope>>,
-    },
-    BlockVar {
-        block_variable_symbol_rcref: Rc<RefCell<VariableSymbol>>,
     },
     ParamsScope {
         params_scope_symbol_rcref: Rc<RefCell<ParamsScopeSymbol>>,
     },
+    LoopVar {
+        loop_variable_symbol_rcref: Rc<RefCell<VariableSymbol>>,
+    },
+    BlockVar {
+        block_variable_symbol_rcref: Rc<RefCell<VariableSymbol>>,
+    },
+    DomainVariable {
+        domain_variable_symbol_rcref: Rc<RefCell<VariableSymbol>>,
+    },
+    StateVariable {
+        state_variable_symbol_rcref: Rc<RefCell<VariableSymbol>>,
+    },
+    EventHandlerVariable {
+        event_handler_variable_symbol_rcref: Rc<RefCell<VariableSymbol>>,
+    },
     ParamSymbol {
         param_symbol_rcref: Rc<RefCell<ParameterSymbol>>,
+    },
+    StateParam {
+        state_param_symbol_rcref: Rc<RefCell<ParameterSymbol>>,
+    },
+    EventHandlerParam {
+        event_handler_param_symbol_rcref: Rc<RefCell<ParameterSymbol>>,
     },
 }
 
@@ -187,7 +188,7 @@ impl SymbolType {
     pub fn assign(&mut self, r_value:Rc<ExprType>) -> Result<(),&str> {
         match self {
             SymbolType::BlockVar {block_variable_symbol_rcref} => {
-                let mut variable_symbol = block_variable_symbol_rcref.borrow_mut();
+                let variable_symbol = block_variable_symbol_rcref.borrow_mut();
                 let mut var_decl_node = variable_symbol.ast_node_rcref.borrow_mut();
                 var_decl_node.value_rc = r_value;
                 Ok(())

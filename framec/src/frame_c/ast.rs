@@ -7,14 +7,13 @@ use super::symbol_table::{ActionScopeSymbol, EventSymbol, SymbolType};
 use crate::frame_c::ast::OperatorType::{
     Divide, Greater, GreaterEqual, LessEqual, Minus, Multiply, Plus,
 };
-use crate::frame_c::symbol_table::{InterfaceMethodSymbol, ParameterSymbol, Arcanum};
+use crate::frame_c::symbol_table::{InterfaceMethodSymbol, ParameterSymbol};
 use crate::frame_c::visitors::*;
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::fmt;
 use std::rc::Rc;
 use wasm_bindgen::__rt::std::collections::HashMap;
-use crate::frame_c::parser::ParseError;
 
 
 pub trait NodeElement {
@@ -833,44 +832,6 @@ impl NodeElement for StateNode {
 
 //-----------------------------------------------------//
 
-// TODO: Dead code?
-
-pub enum StateContextType {
-    StateRef {
-        state_context_node: StateContextNode,
-    },
-    StateStackPop {},
-    // MethodCall { state_context_node:StateContextNode }, // TODO
-}
-
-pub struct StateContextNode {
-    pub state_ref_node: StateRefNode,
-    pub state_ref_args_opt: Option<ExprListNode>,
-    pub enter_args_opt: Option<ExprListNode>,
-}
-
-impl StateContextNode {
-    pub fn new(
-        state_ref_node: StateRefNode,
-        state_ref_args_opt: Option<ExprListNode>,
-        enter_args_opt: Option<ExprListNode>,
-    ) -> StateContextNode {
-        StateContextNode {
-            state_ref_node,
-            state_ref_args_opt,
-            enter_args_opt,
-        }
-    }
-}
-
-impl NodeElement for StateContextNode {
-    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
-        ast_visitor.visit_state_context_node(self);
-    }
-}
-
-//-----------------------------------------------------//
-
 pub struct StateRefNode {
     pub name: String,
 }
@@ -1128,6 +1089,9 @@ pub enum ExprType {
     EnumeratorExprT {
         enum_expr_node: EnumeratorExprNode,
     },
+    TransitionExprT {
+        transition_expr_node: TransitionExprNode,
+    },
     SystemInstanceExprT {
         system_instance_expr_node: SystemInstanceExprNode,
     },
@@ -1223,6 +1187,7 @@ impl ExprType {
             ExprType::EnumeratorExprT { .. } => "EnumExprT",
             ExprType::SystemInstanceExprT { .. } => "SystemInstanceExprT",
             ExprType::DefaultLiteralValueForTypeExprT { .. } => "DefaultLiteralValueForTypeExprT",
+            ExprType::TransitionExprT { .. } => "TransitionExprT",
         }
     }
 
@@ -1346,6 +1311,9 @@ impl NodeElement for ExprType {
             ExprType::EnumeratorExprT { enum_expr_node } => {
                 ast_visitor.visit_enumerator_expr_node(enum_expr_node);
             }
+            ExprType::TransitionExprT { transition_expr_node } => {
+                ast_visitor.visit_transition_expr_node(transition_expr_node);
+            }
             ExprType::DefaultLiteralValueForTypeExprT => {
                 panic!("TODO");
             }
@@ -1411,6 +1379,9 @@ impl NodeElement for ExprType {
             }
             ExprType::EnumeratorExprT { enum_expr_node } => {
                 ast_visitor.visit_enumerator_expr_node_to_string(enum_expr_node, output);
+            }
+            ExprType::TransitionExprT { transition_expr_node } => {
+                ast_visitor.visit_transition_expr_node_to_string(transition_expr_node, output);
             }
             ExprType::DefaultLiteralValueForTypeExprT => {
                 panic!("TODO");
@@ -1573,6 +1544,9 @@ pub enum ExprStmtType {
     BinaryStmtT {
         binary_stmt_node: BinaryStmtNode,
     },
+    TransitionStmtT {
+        transition_statement_node: TransitionStatementNode,
+    },
     // SuperStringStmtT {
     //     super_string_stmt_node: SuperStringStmtNode,
     // }
@@ -1584,10 +1558,10 @@ pub enum StatementType {
         expr_stmt_t: ExprStmtType,
     },
     TransitionStmt {
-        transition_statement: TransitionStatementNode,
+        transition_statement_node: TransitionStatementNode,
     },
     ChangeStateStmt {
-        change_state_stmt: ChangeStateStatementNode,
+        change_state_stmt_node: ChangeStateStatementNode,
     },
     TestStmt {
         test_stmt_node: TestStatementNode,
@@ -1890,17 +1864,91 @@ impl NodeElement for LoopStmtNode {
     }
 }
 
+
 //-----------------------------------------------------//
 
-pub struct TransitionStatementNode {
-    pub target_state_context_t: StateContextType,
-    pub exit_args_opt: Option<ExprListNode>,
+pub enum TargetStateContextType {
+    StateRef {
+        state_context_node: TargetStateContextNode,
+    },
+    StateStackPop {},
+    // MethodCall { state_context_node:StateContextNode }, // TODO
+}
+
+pub struct TargetStateContextNode {
+    pub state_ref_node: StateRefNode,
+    pub state_ref_args_opt: Option<ExprListNode>,
+    pub enter_args_opt: Option<ExprListNode>,
+}
+
+impl TargetStateContextNode {
+    pub fn new(
+        state_ref_node: StateRefNode,
+        state_ref_args_opt: Option<ExprListNode>,
+        enter_args_opt: Option<ExprListNode>,
+    ) -> TargetStateContextNode {
+        TargetStateContextNode {
+            state_ref_node,
+            state_ref_args_opt,
+            enter_args_opt,
+        }
+    }
+}
+
+impl NodeElement for TargetStateContextNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_state_context_node(self);
+    }
+}
+
+//-----------------------------------------------------//
+
+pub struct TransitionExprNode {
+    pub target_state_context_t: TargetStateContextType,
     pub label_opt: Option<String>,
     pub forward_event: bool,
 }
 
+impl TransitionExprNode {
+    pub fn new(
+        target_state_context_t: TargetStateContextType,
+        label_opt: Option<String>,
+        forward_event: bool,
+    ) -> TransitionExprNode {
+        TransitionExprNode {
+            target_state_context_t,
+            label_opt,
+            forward_event,
+        }
+    }
+}
+
+
+impl NodeElement for TransitionExprNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_transition_expr_node(self);
+    }
+}
+
+//-----------------------------------------------------//
+
+pub struct TransitionStatementNode {
+    pub transition_expr_node:TransitionExprNode,
+    pub exit_args_opt: Option<ExprListNode>,
+}
+
 // TODO - why is new() commented out?
-impl TransitionStatementNode {}
+impl TransitionStatementNode {
+    pub fn new(
+        transition_expr_node:TransitionExprNode,
+        exit_args_opt: Option<ExprListNode>,
+    ) -> TransitionStatementNode {
+        TransitionStatementNode {
+            transition_expr_node,
+            exit_args_opt,
+        }
+    }
+}
 
 impl NodeElement for TransitionStatementNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
@@ -1911,7 +1959,7 @@ impl NodeElement for TransitionStatementNode {
 //-----------------------------------------------------//
 
 pub struct ChangeStateStatementNode {
-    pub state_context_t: StateContextType,
+    pub state_context_t: TargetStateContextType,
     pub label_opt: Option<String>,
 }
 

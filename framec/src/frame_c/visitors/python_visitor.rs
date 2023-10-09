@@ -425,6 +425,9 @@ impl PythonVisitor {
                     match stmt_t {
                         StatementType::ExpressionStmt { expr_stmt_t } => {
                             match expr_stmt_t {
+                                ExprStmtType::TransitionStmtT {
+                                    transition_statement_node: _transition_statement_node
+                                } => panic!("TODO"),
                                 ExprStmtType::SystemInstanceStmtT {
                                     system_instance_stmt_node,
                                 } => system_instance_stmt_node.accept(self),
@@ -455,7 +458,7 @@ impl PythonVisitor {
                             }
                         }
                         StatementType::TransitionStmt {
-                            transition_statement,
+                            transition_statement_node: transition_statement,
                         } => {
                             transition_statement.accept(self);
                         }
@@ -467,7 +470,7 @@ impl PythonVisitor {
                         } => {
                             state_stack_operation_statement_node.accept(self);
                         }
-                        StatementType::ChangeStateStmt { change_state_stmt } => {
+                        StatementType::ChangeStateStmt { change_state_stmt_node: change_state_stmt } => {
                             change_state_stmt.accept(self);
                         }
                         StatementType::LoopStmt { loop_stmt_node } => {
@@ -653,7 +656,7 @@ impl PythonVisitor {
         change_state_stmt_node: &ChangeStateStatementNode,
     ) {
         let target_state_name = match &change_state_stmt_node.state_context_t {
-            StateContextType::StateRef { state_context_node } => {
+            TargetStateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_node.name
             }
             _ => {
@@ -682,8 +685,8 @@ impl PythonVisitor {
         // -- Enter Arguments --
 
         let enter_args_opt = match &change_state_stmt_node.state_context_t {
-            StateContextType::StateRef { state_context_node } => &state_context_node.enter_args_opt,
-            StateContextType::StateStackPop {} => &None,
+            TargetStateContextType::StateRef { state_context_node } => &state_context_node.enter_args_opt,
+            TargetStateContextType::StateStackPop {} => &None,
         };
 
         if let Some(enter_args) = enter_args_opt {
@@ -732,10 +735,10 @@ impl PythonVisitor {
 
         /*  -- State Arguments -- */
         let target_state_args_opt = match &change_state_stmt_node.state_context_t {
-            StateContextType::StateRef { state_context_node } => {
+            TargetStateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_args_opt
             }
-            StateContextType::StateStackPop {} => &Option::None,
+            TargetStateContextType::StateStackPop {} => &Option::None,
         };
 
         if let Some(state_args) = target_state_args_opt {
@@ -845,9 +848,11 @@ impl PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn generate_state_ref_transition(&mut self, transition_statement: &TransitionStatementNode) {
-        let target_state_name = match &transition_statement.target_state_context_t {
-            StateContextType::StateRef { state_context_node } => {
+    fn generate_state_ref_transition(&mut self,
+                                     transition_expr_node: &TransitionExprNode,
+                                     expr_list_node_opt:&Option<ExprListNode>) {
+        let target_state_name = match &transition_expr_node.target_state_context_t {
+            TargetStateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_node.name
             }
             _ => {
@@ -859,7 +864,7 @@ impl PythonVisitor {
         let state_ref_code = self.generate_state_ref_code(target_state_name);
 
         // self.newline();
-        match &transition_statement.label_opt {
+        match &transition_expr_node.label_opt {
             Some(label) => {
                 self.newline();
                 self.add_code(&format!("# {}", label));
@@ -869,7 +874,7 @@ impl PythonVisitor {
 
         // -- Exit Arguments --
 
-        if let Some(exit_args) = &transition_statement.exit_args_opt {
+        if let Some(exit_args) = expr_list_node_opt {
             if !exit_args.exprs_t.is_empty() {
                 // Note - searching for event keyed with "State:<"
                 // e.g. "S1:<"
@@ -930,16 +935,16 @@ impl PythonVisitor {
         ));
         // self.newline();
 
-        if transition_statement.forward_event {
+        if transition_expr_node.forward_event {
             self.newline();
             self.add_code("compartment.forward_event = e");
         }
 
         // self.newline();
 
-        let enter_args_opt = match &transition_statement.target_state_context_t {
-            StateContextType::StateRef { state_context_node } => &state_context_node.enter_args_opt,
-            StateContextType::StateStackPop {} => &None,
+        let enter_args_opt = match &transition_expr_node.target_state_context_t {
+            TargetStateContextType::StateRef { state_context_node } => &state_context_node.enter_args_opt,
+            TargetStateContextType::StateStackPop {} => &None,
         };
 
         if let Some(enter_args) = enter_args_opt {
@@ -989,11 +994,11 @@ impl PythonVisitor {
 
         // -- State Arguments --
 
-        let target_state_args_opt = match &transition_statement.target_state_context_t {
-            StateContextType::StateRef { state_context_node } => {
+        let target_state_args_opt = match &transition_expr_node.target_state_context_t {
+            TargetStateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_args_opt
             }
-            StateContextType::StateStackPop {} => &Option::None,
+            TargetStateContextType::StateStackPop {} => &Option::None,
         };
         //
         if let Some(state_args) = target_state_args_opt {
@@ -1090,10 +1095,11 @@ impl PythonVisitor {
 
     fn generate_state_stack_pop_transition(
         &mut self,
-        transition_statement: &TransitionStatementNode,
+        transition_expr_node: &TransitionExprNode,
+        expr_list_node_opt:&Option<ExprListNode>
     ) {
         self.newline();
-        match &transition_statement.label_opt {
+        match &transition_expr_node.label_opt {
             Some(label) => {
                 self.add_code(&format!("# {}", label));
                 self.newline();
@@ -1103,7 +1109,7 @@ impl PythonVisitor {
 
         // -- Exit Arguments --
 
-        if let Some(exit_args) = &transition_statement.exit_args_opt {
+        if let Some(exit_args) = &expr_list_node_opt {
             if !exit_args.exprs_t.is_empty() {
                 // Note - searching for event keyed with "State:<"
                 // e.g. "S1:<"
@@ -1160,7 +1166,7 @@ impl PythonVisitor {
         self.add_code("compartment = self.__state_stack_pop()");
         self.newline();
 
-        if transition_statement.forward_event {
+        if transition_expr_node.forward_event {
             self.add_code("compartment.forward_event = e");
             self.newline();
         }
@@ -2434,14 +2440,30 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_transition_statement_node(&mut self, transition_statement: &TransitionStatementNode) {
-        match &transition_statement.target_state_context_t {
-            StateContextType::StateRef { .. } => {
-                self.generate_state_ref_transition(transition_statement)
+        match &transition_statement.transition_expr_node.target_state_context_t {
+            TargetStateContextType::StateRef { .. } => {
+                self.generate_state_ref_transition(&transition_statement.transition_expr_node,&(transition_statement.exit_args_opt))
             }
-            StateContextType::StateStackPop {} => {
-                self.generate_state_stack_pop_transition(transition_statement)
+            TargetStateContextType::StateStackPop {} => {
+                self.generate_state_stack_pop_transition(&transition_statement.transition_expr_node,&(transition_statement.exit_args_opt))
             }
         };
+        // &transition_statement.transition_expr_node.accept(self);
+
+        self.this_branch_transitioned = true;
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_transition_expr_node(&mut self, transition_expr_node: &TransitionExprNode) {
+        match &transition_expr_node.target_state_context_t {
+            TargetStateContextType::StateRef { .. } => {
+                self.generate_state_ref_transition(&transition_expr_node,&None)
+            }
+            TargetStateContextType::StateStackPop {} => {
+                self.generate_state_stack_pop_transition(transition_expr_node, &None)
+            }
+        }
 
         self.this_branch_transitioned = true;
     }
@@ -2459,10 +2481,10 @@ impl AstVisitor for PythonVisitor {
         change_state_stmt_node: &ChangeStateStatementNode,
     ) {
         match &change_state_stmt_node.state_context_t {
-            StateContextType::StateRef { .. } => {
+            TargetStateContextType::StateRef { .. } => {
                 self.generate_state_ref_change_state(change_state_stmt_node)
             }
-            StateContextType::StateStackPop { .. } => {
+            TargetStateContextType::StateStackPop { .. } => {
                 self.generate_state_stack_pop_change_state(change_state_stmt_node)
             }
         };
@@ -2612,6 +2634,7 @@ impl AstVisitor for PythonVisitor {
             .call_chain_literal_expr_node
             .accept(self);
 
+        // TODO - review autoinc logic
         // resets flag used in autoinc code
         self.skip_next_newline = false;
     }
@@ -2633,6 +2656,7 @@ impl AstVisitor for PythonVisitor {
         }
         for node in &calll_chain_expression_node.call_chain {
             self.add_code(separator);
+            separator = ".";
             match &node {
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                     id_node.accept(self);
@@ -2656,7 +2680,6 @@ impl AstVisitor for PythonVisitor {
                     self.visiting_call_chain_literal_variable = false;
                 }
             }
-            separator = ".";
         }
     }
 
@@ -3838,14 +3861,28 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_expression_list_node(&mut self, expr_list: &ExprListNode) {
+      //  self.in_expr_list = true;
+        let mut generate_parens = true;
+        if expr_list.exprs_t.len() == 1 {
+            if let Some(ExprType::TransitionExprT{..}) = expr_list.exprs_t.get(0) {
+                generate_parens = false;
+            }
+        }
         let mut separator = "";
-        self.add_code("(");
+        if generate_parens {
+            self.add_code("(");
+        }
+
         for expr in &expr_list.exprs_t {
             self.add_code(separator);
             expr.accept(self);
             separator = ",";
         }
-        self.add_code(")");
+
+        if generate_parens {
+            self.add_code(")");
+        }
+      //  self.in_expr_list = false;
     }
 
     //* --------------------------------------------------------------------- *//
@@ -3982,7 +4019,7 @@ impl AstVisitor for PythonVisitor {
     }
     //* --------------------------------------------------------------------- *//
 
-    fn visit_state_context_node(&mut self, _state_context_node: &StateContextNode) {
+    fn visit_state_context_node(&mut self, _state_context_node: &TargetStateContextNode) {
         // TODO
         //        self.add_code(&format!("{}",identifier_node.name.lexeme));
     }
@@ -4355,6 +4392,7 @@ impl AstVisitor for PythonVisitor {
     fn visit_assignment_statement_node(&mut self, assignment_stmt_node: &AssignmentStmtNode) {
         self.generate_comment(assignment_stmt_node.get_line());
         assignment_stmt_node.assignment_expr_node.accept(self);
+        self.newline();
     }
 
     //* --------------------------------------------------------------------- *//

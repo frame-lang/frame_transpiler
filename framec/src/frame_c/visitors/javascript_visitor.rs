@@ -381,6 +381,10 @@ impl JavaScriptVisitor {
                     match stmt_t {
                         StatementType::ExpressionStmt { expr_stmt_t } => {
                             match expr_stmt_t {
+                                ExprStmtType::TransitionStmtT {
+                                    transition_statement_node,
+                                } => panic!("TODO"),
+
                                 ExprStmtType::SystemInstanceStmtT {
                                     system_instance_stmt_node,
                                 } => system_instance_stmt_node.accept(self),
@@ -411,7 +415,7 @@ impl JavaScriptVisitor {
                             }
                         }
                         StatementType::TransitionStmt {
-                            transition_statement,
+                            transition_statement_node: transition_statement,
                         } => {
                             transition_statement.accept(self);
                         }
@@ -423,7 +427,7 @@ impl JavaScriptVisitor {
                         } => {
                             state_stack_operation_statement_node.accept(self);
                         }
-                        StatementType::ChangeStateStmt { change_state_stmt } => {
+                        StatementType::ChangeStateStmt { change_state_stmt_node: change_state_stmt } => {
                             change_state_stmt.accept(self);
                         }
                         StatementType::LoopStmt { loop_stmt_node } => {
@@ -620,7 +624,7 @@ impl JavaScriptVisitor {
         change_state_stmt_node: &ChangeStateStatementNode,
     ) {
         let target_state_name = match &change_state_stmt_node.state_context_t {
-            StateContextType::StateRef { state_context_node } => {
+            TargetStateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_node.name
             }
             _ => {
@@ -649,8 +653,8 @@ impl JavaScriptVisitor {
         // -- Enter Arguments --
 
         let enter_args_opt = match &change_state_stmt_node.state_context_t {
-            StateContextType::StateRef { state_context_node } => &state_context_node.enter_args_opt,
-            StateContextType::StateStackPop {} => &None,
+            TargetStateContextType::StateRef { state_context_node } => &state_context_node.enter_args_opt,
+            TargetStateContextType::StateStackPop {} => &None,
         };
 
         if let Some(enter_args) = enter_args_opt {
@@ -699,10 +703,10 @@ impl JavaScriptVisitor {
 
         /*  -- State Arguments -- */
         let target_state_args_opt = match &change_state_stmt_node.state_context_t {
-            StateContextType::StateRef { state_context_node } => {
+            TargetStateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_args_opt
             }
-            StateContextType::StateStackPop {} => &Option::None,
+            TargetStateContextType::StateStackPop {} => &Option::None,
         };
 
         if let Some(state_args) = target_state_args_opt {
@@ -787,8 +791,8 @@ impl JavaScriptVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn generate_state_ref_transition(&mut self, transition_statement: &TransitionStatementNode) {
-        let target_state_name = match &transition_statement.target_state_context_t {
-            StateContextType::StateRef { state_context_node } => {
+        let target_state_name = match &transition_statement.transition_expr_node.target_state_context_t {
+            TargetStateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_node.name
             }
             _ => {
@@ -800,7 +804,7 @@ impl JavaScriptVisitor {
         let state_ref_code = self.format_target_state_name(target_state_name);
 
         self.newline();
-        match &transition_statement.label_opt {
+        match &transition_statement.transition_expr_node.label_opt {
             Some(label) => {
                 self.add_code(&format!("// {}", label));
                 self.newline();
@@ -877,16 +881,16 @@ impl JavaScriptVisitor {
         self.newline();
         // }
 
-        if transition_statement.forward_event {
+        if transition_statement.transition_expr_node.forward_event {
             self.newline();
             self.add_code("compartment._forwardEvent = e;");
         }
 
         self.newline();
 
-        let enter_args_opt = match &transition_statement.target_state_context_t {
-            StateContextType::StateRef { state_context_node } => &state_context_node.enter_args_opt,
-            StateContextType::StateStackPop {} => &None,
+        let enter_args_opt = match &transition_statement.transition_expr_node.target_state_context_t {
+            TargetStateContextType::StateRef { state_context_node } => &state_context_node.enter_args_opt,
+            TargetStateContextType::StateStackPop {} => &None,
         };
 
         if let Some(enter_args) = enter_args_opt {
@@ -935,11 +939,11 @@ impl JavaScriptVisitor {
 
         // -- State Arguments --
 
-        let target_state_args_opt = match &transition_statement.target_state_context_t {
-            StateContextType::StateRef { state_context_node } => {
+        let target_state_args_opt = match &transition_statement.transition_expr_node.target_state_context_t {
+            TargetStateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_args_opt
             }
-            StateContextType::StateStackPop {} => &Option::None,
+            TargetStateContextType::StateStackPop {} => &Option::None,
         };
         //
         if let Some(state_args) = target_state_args_opt {
@@ -1037,7 +1041,7 @@ impl JavaScriptVisitor {
         transition_statement: &TransitionStatementNode,
     ) {
         self.newline();
-        match &transition_statement.label_opt {
+        match &transition_statement.transition_expr_node.label_opt {
             Some(label) => {
                 self.add_code(&format!("// {}", label));
                 self.newline();
@@ -2277,11 +2281,11 @@ impl AstVisitor for JavaScriptVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_transition_statement_node(&mut self, transition_statement: &TransitionStatementNode) {
-        match &transition_statement.target_state_context_t {
-            StateContextType::StateRef { .. } => {
+        match &transition_statement.transition_expr_node.target_state_context_t {
+            TargetStateContextType::StateRef { .. } => {
                 self.generate_state_ref_transition(transition_statement)
             }
-            StateContextType::StateStackPop {} => {
+            TargetStateContextType::StateStackPop {} => {
                 self.generate_state_stack_pop_transition(transition_statement)
             }
         };
@@ -2301,10 +2305,10 @@ impl AstVisitor for JavaScriptVisitor {
         change_state_stmt_node: &ChangeStateStatementNode,
     ) {
         match &change_state_stmt_node.state_context_t {
-            StateContextType::StateRef { .. } => {
+            TargetStateContextType::StateRef { .. } => {
                 self.generate_state_ref_change_state(change_state_stmt_node)
             }
-            StateContextType::StateStackPop {} => {
+            TargetStateContextType::StateStackPop {} => {
                 self.generate_state_stack_pop_change_state(change_state_stmt_node)
             }
         };
@@ -3050,7 +3054,7 @@ impl AstVisitor for JavaScriptVisitor {
     }
     //* --------------------------------------------------------------------- *//
 
-    fn visit_state_context_node(&mut self, _state_context_node: &StateContextNode) {
+    fn visit_state_context_node(&mut self, _state_context_node: &TargetStateContextNode) {
         // TODO
         //        self.add_code(&format!("{}",identifier_node.name.lexeme));
     }
