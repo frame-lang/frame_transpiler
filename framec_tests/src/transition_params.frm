@@ -2,14 +2,11 @@
 #TransitParams
     -interface-
     Next
-    Change
 
     -machine-
     $Init
         |Next|
             -> ("hi A") $A ^
-        |Change|
-            ->> $A ^
 
     $A
         |>| [msg:String]
@@ -20,9 +17,6 @@
 
         |Next|
             -> ("hi B", 42) $B ^
-
-        |Change|
-            ->> $B ^
 
     $B
         |>| [msg:String, val:i16]
@@ -36,8 +30,6 @@
         |Next|
             (true, "bye B") -> ("hi again A") $A ^
 
-        |Change|
-            ->> $A ^
 
     -actions-
     log [msg:String]

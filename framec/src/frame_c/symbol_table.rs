@@ -4,6 +4,7 @@ use core::fmt;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
+use crate::frame_c::ast::ExprType::NilExprT;
 
 // NOTES
 // - Structures labeled "*ScopeSymbol" indicate support for a scope inside the symbol.
@@ -105,7 +106,7 @@ pub enum SymbolType {
         function_symbol_ref: Rc<RefCell<FunctionScopeSymbol>>,
     },
     System {
-        system_symbol_ref: Rc<RefCell<SystemSymbol>>,
+        system_symbol_rcref: Rc<RefCell<SystemSymbol>>,
     },
     #[allow(dead_code)] // not dead. weird
     InterfaceBlock {
@@ -173,9 +174,12 @@ pub enum SymbolType {
     EventHandlerVariable {
         event_handler_variable_symbol_rcref: Rc<RefCell<VariableSymbol>>,
     },
+
     ParamSymbol {
         param_symbol_rcref: Rc<RefCell<ParameterSymbol>>,
     },
+    // TODO: figure out if thse are really used anymore. I think the
+    // IdentifierDeclScope::StateParam replaced this.
     StateParam {
         state_param_symbol_rcref: Rc<RefCell<ParameterSymbol>>,
     },
@@ -186,11 +190,50 @@ pub enum SymbolType {
 
 impl SymbolType {
     pub fn assign(&mut self, r_value:Rc<ExprType>) -> Result<(),&str> {
+        let debug_type = self.debug_symbol_type_name();
         match self {
             SymbolType::BlockVar {block_variable_symbol_rcref} => {
                 let variable_symbol = block_variable_symbol_rcref.borrow_mut();
                 let mut var_decl_node = variable_symbol.ast_node_rcref.borrow_mut();
                 var_decl_node.value_rc = r_value;
+                Ok(())
+            }
+            SymbolType::StateVariable {state_variable_symbol_rcref} => {
+                let variable_symbol = state_variable_symbol_rcref.borrow_mut();
+                let mut var_decl_node = variable_symbol.ast_node_rcref.borrow_mut();
+                var_decl_node.value_rc = r_value;
+                Ok(())
+            }
+            SymbolType::LoopVar {loop_variable_symbol_rcref} => {
+                let variable_symbol = loop_variable_symbol_rcref.borrow_mut();
+                let mut var_decl_node = variable_symbol.ast_node_rcref.borrow_mut();
+                var_decl_node.value_rc = r_value;
+                Ok(())
+            }
+            SymbolType::DomainVariable {domain_variable_symbol_rcref} => {
+                let variable_symbol = domain_variable_symbol_rcref.borrow_mut();
+                let mut var_decl_node = variable_symbol.ast_node_rcref.borrow_mut();
+                var_decl_node.value_rc = r_value;
+                Ok(())
+            }
+            SymbolType::StateVariable {state_variable_symbol_rcref} => {
+                let variable_symbol = state_variable_symbol_rcref.borrow_mut();
+                let mut var_decl_node = variable_symbol.ast_node_rcref.borrow_mut();
+                var_decl_node.value_rc = r_value;
+                Ok(())
+            }
+            SymbolType::EventHandlerVariable {event_handler_variable_symbol_rcref} => {
+                let variable_symbol = event_handler_variable_symbol_rcref.borrow_mut();
+                let mut var_decl_node = variable_symbol.ast_node_rcref.borrow_mut();
+                var_decl_node.value_rc = r_value;
+                Ok(())
+            }
+            // TODO - this as part of param/var alignment
+            // See https://github.com/frame-lang/frame_transpiler/issues/151
+            SymbolType::EventHandlerParam {..} |
+            SymbolType::StateParam {..} |
+            SymbolType::ParamSymbol {..}
+            => {
                 Ok(())
             }
             _ => Err("Invalid l_value."),
@@ -239,6 +282,92 @@ impl SymbolType {
 
         Ok(())
     }
+
+
+    pub fn get_ast_node(&mut self) -> Result<Option<Rc<RefCell<VariableDeclNode>>>,&'static str> {
+        match self {
+            SymbolType::DomainVariable {
+                domain_variable_symbol_rcref,
+            } => {
+                Ok(Some(domain_variable_symbol_rcref.borrow_mut().get_ast_node().clone()))
+            }
+            SymbolType::StateVariable {
+                state_variable_symbol_rcref,
+            } => {
+                //                    let a = state_variable_symbol_rcref.borrow();
+                Ok(Some(state_variable_symbol_rcref.borrow_mut().get_ast_node().clone()))
+            }
+            SymbolType::EventHandlerVariable {
+                event_handler_variable_symbol_rcref,
+            } => {
+                Ok(Some(event_handler_variable_symbol_rcref
+                    .borrow_mut()
+                    .get_ast_node().clone()))
+            }
+            SymbolType::LoopVar {
+                loop_variable_symbol_rcref,
+            } => {
+                Ok(Some(loop_variable_symbol_rcref.borrow_mut().get_ast_node().clone()))
+            }
+            SymbolType::BlockVar {
+                block_variable_symbol_rcref,
+            } => {
+                Ok(Some(block_variable_symbol_rcref.borrow_mut().get_ast_node().clone()))
+            }
+            SymbolType::ParamSymbol {
+                param_symbol_rcref,
+            } => {
+                Ok(None)
+            }
+            SymbolType::StateParam {
+                state_param_symbol_rcref,
+            } => {
+                Ok(None)
+            }
+            SymbolType::EventHandlerParam {
+                event_handler_param_symbol_rcref,
+            } => {
+                Ok(None)
+            }
+            _ => {
+                let err_msg = "Unrecognized variable type.";
+                Err(err_msg)
+            }
+        }
+    }
+
+    /// Get the name of expression type we're looking at. Useful for debugging.
+    pub fn debug_symbol_type_name(&self) -> &'static str {
+        match self {
+            SymbolType::FunctionScope {..} => "FunctionScope",
+            SymbolType::System {..} => "System",
+            SymbolType::InterfaceBlock {..} => "InterfaceBlock",
+            SymbolType::InterfaceMethod {..} => "InterfaceMethod",
+            SymbolType::MachineBlockScope {..} => "MachineBlockScope",
+            SymbolType::ActionsBlockScope {..} => "ActionsBlockScope",
+            SymbolType::ActionScope {..} => "ActionScope",
+            SymbolType::DomainBlockScope {..} => "DomainBlockScope",
+            SymbolType::State {..} => "State",
+            SymbolType::StateParamsScope {..} => "StateParamsScope",
+            SymbolType::StateLocalScope {..} => "StateLocalScope",
+            SymbolType::EventHandlerScope {..} => "EventHandlerScope",
+            SymbolType::EventHandlerParamsScope {..} => "EventHandlerParamsScope",
+            SymbolType::EventHandlerLocalScope {..} => "EventHandlerLocalScope",
+            SymbolType::EnumDeclSymbolT {..} => "EnumDeclSymbolT",
+            SymbolType::LoopStmtSymbol {..} => "LoopStmtSymbol",
+            SymbolType::BlockScope {..} => "BlockScope",
+            SymbolType::ParamsScope {..} => "ParamsScope",
+            SymbolType::LoopVar {..} => "LoopVar",
+            SymbolType::BlockVar {..} => "BlockVar",
+            SymbolType::DomainVariable {..} => "DomainVariable",
+            SymbolType::EventHandlerVariable {..} => "EventHandlerVariable",
+            SymbolType::ParamSymbol {..} => "ParamSymbol",
+            SymbolType::StateParam {..} => "StateParam",
+            SymbolType::EventHandlerParam {..} => "EventHandlerParam",
+            SymbolType::StateVariable {..} => "StateVariable",
+
+        }
+    }
 }
 
 impl Symbol for SymbolType {
@@ -247,7 +376,7 @@ impl Symbol for SymbolType {
             SymbolType::FunctionScope {
                 function_symbol_ref,
             } => function_symbol_ref.borrow().get_name(),
-            SymbolType::System { system_symbol_ref } => system_symbol_ref.borrow().get_name(),
+            SymbolType::System { system_symbol_rcref: system_symbol_ref } => system_symbol_ref.borrow().get_name(),
             SymbolType::InterfaceBlock {
                 interface_block_symbol_rcref,
             } => interface_block_symbol_rcref.borrow().get_name(),
@@ -326,7 +455,7 @@ impl ScopeSymbol for SymbolType {
             SymbolType::FunctionScope {
                 function_symbol_ref,
             } => function_symbol_ref.borrow().get_symbol_table(),
-            SymbolType::System { system_symbol_ref } => {
+            SymbolType::System { system_symbol_rcref: system_symbol_ref } => {
                 system_symbol_ref.borrow().get_symbol_table()
             }
             SymbolType::InterfaceBlock {
@@ -392,7 +521,7 @@ impl ScopeSymbol for SymbolType {
 
     fn get_symbol_table_for_symbol(&self, symbol_name: &str) -> Rc<RefCell<SymbolTable>> {
         match self {
-            SymbolType::System { system_symbol_ref } => system_symbol_ref
+            SymbolType::System { system_symbol_rcref: system_symbol_ref } => system_symbol_ref
                 .borrow()
                 .get_symbol_table_for_symbol(symbol_name),
             SymbolType::MachineBlockScope {
@@ -471,7 +600,7 @@ impl SymbolTable {
             ParseScopeType::System { system_symbol } => {
                 let name = system_symbol.borrow().name.clone();
                 let st_ref = Rc::new(RefCell::new(SymbolType::System {
-                    system_symbol_ref: system_symbol,
+                    system_symbol_rcref: system_symbol,
                 }));
                 self.symbols.insert(name, st_ref);
             }
@@ -1629,6 +1758,30 @@ impl SystemSymbol {
         self.symtab_rcref.borrow_mut().parent_symtab_rcref_opt = Some(Rc::clone(parent_symtab));
     }
 
+    pub fn get_interface_method(
+        &self,
+        name: &str,
+    ) -> Option<Rc<RefCell<InterfaceMethodSymbol>>> {
+        match &self.interface_block_symbol_opt {
+            Some(interface_block_symbol_rcref) => {
+                let interface_block_symbol = interface_block_symbol_rcref.borrow();
+                let symbol_table = &interface_block_symbol.symtab_rcref.borrow();
+                match symbol_table.lookup(name, &IdentifierDeclScope::InterfaceBlock) {
+                    Some(c) => {
+                        let symbol_t = c.borrow();
+                        match &*symbol_t {
+                            SymbolType::InterfaceMethod {
+                                interface_method_symbol_rcref,
+                            } => Some(Rc::clone(interface_method_symbol_rcref)),
+                            _ => None,
+                        }
+                    }
+                    None => None,
+                }
+            }
+            None => None,
+        }
+    }
     // pub fn set_ast_node(&mut self, ast_node: Rc<RefCell<SystemNode>>) {
     //     self.ast_node_opt = Some(Rc::clone(&ast_node));
     // }
@@ -2010,6 +2163,7 @@ impl StateSymbol {
     }
 }
 
+// TODO - reconcile Parameters and Variable Node/Symbol differences.
 #[derive(PartialEq)]
 pub struct ParameterSymbol {
     pub name: String,
@@ -2029,6 +2183,15 @@ impl ParameterSymbol {
             scope,
         }
     }
+
+    // pub fn set_ast_node(&mut self, ast_node_rcref: Rc<RefCell<ParameterNode>>) {
+    //     self.ast_node_rcref = ast_node_rcref;
+    // }
+    //
+    // pub fn get_ast_node(&mut self) -> Rc<RefCell<ParameterNode>> {
+    //     self.ast_node_rcref.clone()
+    // }
+
 
     pub fn is_eq(&self, other: &ParameterNode) -> bool {
         if self.name != other.param_name {

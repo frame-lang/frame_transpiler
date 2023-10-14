@@ -121,17 +121,17 @@ impl Scanner {
         false
     }
 
-    fn match_first_header_token(&mut self) -> bool {
-        for _i in 0..3 {
-            if !self.match_char('`') {
-                self.error(self.line, "Malformed header token.");
-                return false;
-            }
-        }
-        self.add_string_token_literal(TokenType::ThreeTicks, TokenLiteral::None);
-
-        true
-    }
+    // fn match_first_header_token(&mut self) -> bool {
+    //     for _i in 0..3 {
+    //         if !self.match_char('`') {
+    //             self.error(self.line, "Malformed header token.");
+    //             return false;
+    //         }
+    //     }
+    //     self.add_string_token_literal(TokenType::ThreeTicks, TokenLiteral::None);
+    //
+    //     true
+    // }
 
     fn match_last_header_token(&mut self) -> bool {
         for _i in 0..3 {

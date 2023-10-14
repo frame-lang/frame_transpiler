@@ -1983,13 +1983,15 @@ impl AstVisitor for PythonVisitor {
         &mut self,
         interface_method_call_expr_node: &InterfaceMethodCallExprNode,
     ) {
+        if interface_method_call_expr_node.interface_method_call_t == InterfaceMethodCallType::Internal {
+            self.add_code("self.");
+        }
+
         self.add_code(&format!(
-            "self.{}",
+            "{}",
             interface_method_call_expr_node.identifier.name.lexeme
         ));
         interface_method_call_expr_node.call_expr_list.accept(self);
-
-        // TODO: review this return as I think it is a nop.
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1999,10 +2001,14 @@ impl AstVisitor for PythonVisitor {
         interface_method_call_expr_node: &InterfaceMethodCallExprNode,
         output: &mut String,
     ) {
+        if interface_method_call_expr_node.interface_method_call_t == InterfaceMethodCallType::Internal {
+            output.push_str(&format!("self."));
+        }
         output.push_str(&format!(
-            "self.{}",
+            "{}",
             interface_method_call_expr_node.identifier.name.lexeme
         ));
+
         interface_method_call_expr_node
             .call_expr_list
             .accept_to_string(self, output);
@@ -2538,23 +2544,14 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_bool_test_node(&mut self, bool_test_node: &BoolTestNode) {
-        let mut is_first_loop = true;
-        let mut outdent_cnt = 0;
-        let bool_var_name = "___b___";
+        let mut if_or_else_if = "if ";
 
         self.newline();
         for branch_node in &bool_test_node.conditional_branch_nodes {
-            if !is_first_loop {
-                self.add_code("else:");
-                self.indent();
-                self.newline();
-                outdent_cnt += 1;
-            }
-
-            // branch_node.expr_t.auto_pre_inc_dec(self);
-            self.add_code(&format!("{} = ", bool_var_name));
             if branch_node.is_negated {
-                self.add_code(&format!("not (",));
+                self.add_code(&format!("{} not (", if_or_else_if));
+            } else {
+                self.add_code(&format!("{} ", if_or_else_if));
             }
 
             branch_node.expr_t.accept(self);
@@ -2562,10 +2559,7 @@ impl AstVisitor for PythonVisitor {
             if branch_node.is_negated {
                 self.add_code(")");
             }
-            // branch_node.expr_t.auto_post_inc_dec(self);
-
-            self.newline();
-            self.add_code(&format!("if {}:", bool_var_name));
+            self.add_code(":");
             self.indent();
 
             branch_node.accept(self);
@@ -2574,17 +2568,12 @@ impl AstVisitor for PythonVisitor {
             self.outdent();
             self.newline();
 
-            is_first_loop = false;
+            if_or_else_if = "elif ";
         }
 
         // (':' bool_test_else_branch)?
         if let Some(bool_test_else_branch_node) = &bool_test_node.else_branch_node_opt {
             bool_test_else_branch_node.accept(self);
-        }
-
-        // unwind the accumulated indents
-        for _ in 0..outdent_cnt {
-            self.outdent();
         }
     }
 
@@ -2643,18 +2632,18 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_call_chain_expr_node(
         &mut self,
-        calll_chain_expression_node: &CallChainExprNode,
+        call_l_chain_expression_node: &CallChainExprNode,
     ) {
         // TODO: maybe put this in an AST node
 
         let mut separator = "";
 
-        if calll_chain_expression_node.inc_dec != IncDecExpr::None {
+        if call_l_chain_expression_node.inc_dec != IncDecExpr::None {
             self.errors
                 .push("Error - auto increment/decrement operator (++/--) not allowed in Python.".to_string());
             return;
         }
-        for node in &calll_chain_expression_node.call_chain {
+        for node in &call_l_chain_expression_node.call_chain {
             self.add_code(separator);
             separator = ".";
             match &node {
@@ -4039,7 +4028,7 @@ impl AstVisitor for PythonVisitor {
                 param_symbol_rcref,
                 is_reference: _is_reference,
             } => self.add_code(&format!(
-                "e._params[\"{}\"]",
+                "e._parameters[\"{}\"]",
                 param_symbol_rcref.borrow().name
             )),
             FrameEventPart::Return {
@@ -4068,7 +4057,7 @@ impl AstVisitor for PythonVisitor {
                 param_symbol_rcref,
                 is_reference: _is_reference,
             } => output.push_str(&format!(
-                "e._params[\"{}\"]",
+                "e._parameters[\"{}\"]",
                 param_symbol_rcref.borrow().name
             )),
             FrameEventPart::Return {

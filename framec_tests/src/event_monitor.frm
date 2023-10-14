@@ -38,8 +38,6 @@
             var out = a * b
             ^(out)
 
-        |reset|
-            ->> $A ^
 
     $C
         |>| [c_in:u32]
@@ -57,8 +55,8 @@
             var out = a * b
             ^(out)
 
-        |reset|
-            ->> $A ^
+        --- |reset|
+        ---    ->> $A ^
 
     $D
         |>| [d_in:u32]
@@ -76,8 +74,8 @@
             var out = a * b
             ^(out)
 
-        |reset|
-            ->> $A ^
+        --- |reset|
+        ---    ->> $A ^
 
     -actions-
     -domain-

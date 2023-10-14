@@ -16,6 +16,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
 use crate::frame_c::ast::ModuleElement::*;
+use super::ast::CallChainNodeType;
 
 pub struct ParseError {
     // TODO:
@@ -3817,8 +3818,11 @@ impl<'a> Parser<'a> {
                         self.error_at_previous("Unary expression statements not allowed.");
                         return Err(ParseError::new("TODO"));
                     }
+                    ExprType::NilExprT => {
+                        panic!("Unexpect use of ExprType::NilExprT");
+                    }
                     ExprType::DefaultLiteralValueForTypeExprT => {
-                        panic!("TODO");
+                        panic!("Unexpect use of ExprType::DefaultLiteralValueForTypeExprT");
                     }
                 }
             }
@@ -5515,6 +5519,7 @@ impl<'a> Parser<'a> {
             self.previous().line,
         );
 
+
         let mut call_chain: std::collections::VecDeque<CallChainNodeType> =
             std::collections::VecDeque::new();
 
@@ -5524,24 +5529,145 @@ impl<'a> Parser<'a> {
         let mut is_first_node = true;
         loop {
             // test for a call. "id(..."
+            let debug_name = format!("id = {}" , id_node.name.lexeme.clone());
 
             if self.match_token(&[TokenType::LParen]) {
-                let r = self.finish_call(id_node);
-                match r {
-                    Ok(method_call_expr_node) => {
+                let call_expr_node_result = self.finish_call(id_node);
+                match call_expr_node_result {
+                    Ok(call_expr_node) => {
                         if !self.is_building_symbol_table {
                             if !is_first_node {
-                                // if not first node in the chain then the node is just a method
-                                // call on another object
-                                let call_t = CallChainNodeType::UndeclaredCallT {
-                                    call: method_call_expr_node,
+
+                                // TODO - review if this can be factored out or simplified.
+                                // This code determines if the call is a call to a system interface.
+                                // If so it sets interface_method_symbol_rcref_opt to Some() which
+                                // will add an InterfaceMethodCallT rather than a UndeclaredCallT
+                                // to the call chain.
+                                //
+                                // interface_method_symbol_rcref_opt is used to indicate this.
+
+                                let mut interface_method_symbol_rcref_opt = None;
+                                // get the previous node to see what kind it was
+                                let mut call_chain_node_type_opt = call_chain.get(call_chain.len() - 1);
+                                if let Some(call_chain_node_type) = call_chain_node_type_opt {
+                                    match call_chain_node_type {
+                                        CallChainNodeType::VariableNodeT {
+                                            var_node
+                                        } => {
+                                            let value = var_node.get_value();
+
+                                            match &*value {
+                                                // Test if var_node value references a system.
+                                                ExprType::SystemInstanceExprT {system_instance_expr_node} => {
+                                                    // Determine if call is to an interface method.
+                                                    match self.arcanum.lookup_interface_method(call_expr_node.get_name()) {
+                                                        Some(interface_method_symbol_rcref) => {
+                                                            interface_method_symbol_rcref_opt = Some(interface_method_symbol_rcref.clone());
+
+                                                            // TODO - factor out arg/param validation into a utility function.
+                                                            // validate args/params
+
+                                                            let interface_method_symbol = interface_method_symbol_rcref.borrow();
+                                                            let interface_method_node_rcref = interface_method_symbol.ast_node_opt.as_ref().unwrap();
+                                                            let parameter_node_vec_opt = &interface_method_node_rcref.borrow().params;
+
+                                                            // check if difference in the existence of parameters
+                                                            if (!parameter_node_vec_opt.is_none()
+                                                                && call_expr_node
+                                                                .call_expr_list
+                                                                .exprs_t
+                                                                .is_empty())
+                                                                || (parameter_node_vec_opt.is_none()
+                                                                && !call_expr_node
+                                                                .call_expr_list
+                                                                .exprs_t
+                                                                .is_empty())
+                                                            {
+                                                                let err_msg = format!("Incorrect number of arguments for interface method '{}'.", call_expr_node.get_name());
+                                                                self.error_at_previous(&err_msg);
+                                                                // let parse_error =
+                                                                //     ParseError::new(err_msg.as_str());
+                                                                // return Err(parse_error);
+                                                            } else {
+                                                                // check parameter count equals argument count
+                                                                match parameter_node_vec_opt {
+                                                                    Some(symbol_params) => {
+                                                                        if symbol_params.len()
+                                                                            != call_expr_node
+                                                                            .call_expr_list
+                                                                            .exprs_t
+                                                                            .len()
+                                                                        {
+                                                                            let err_msg = format!("Number of arguments does not match parameters for interface method '{}'.", call_expr_node.get_name());
+                                                                            self.error_at_previous(&err_msg);
+                                                                        }
+                                                                    }
+                                                                    None => {}
+                                                                }
+                                                            }
+                                                        }
+                                                        None => {
+                                                            let err_msg = format!("Interface method '{}' not found on '{}' system.", call_expr_node.get_name(), var_node.get_name());
+                                                            self.error_at_previous(&err_msg);
+                                                        }
+                                                    }
+                                                }
+                                                _ => {}
+                                            }
+                                            match &var_node.symbol_type_rcref_opt {
+                                                Some(symbol_t_rcref) => {
+                                                    let symbol_t = symbol_t_rcref.borrow();
+                                                    match &*symbol_t {
+                                                        SymbolType::System { system_symbol_rcref } => {
+                                                            interface_method_symbol_rcref_opt = system_symbol_rcref.borrow().get_interface_method(call_expr_node.get_name());
+                                                            if interface_method_symbol_rcref_opt.is_none() {
+                                                                // this call is to an interface method but it doesn't
+                                                                // exist on the system
+                                                                let err_msg = &format!("Interface method {} not found on {}.", call_expr_node.get_name(), var_node.get_name());
+                                                                self.error_at_current(err_msg);
+                                                            }
+                                                        }
+                                                        _ => {
+                                                        }
+                                                    }
+                                                }
+                                                None => {}
+                                            }
+
+                                        }
+                                        _ => {}
+                                    }
+                                }
+
+                                let call_t = match interface_method_symbol_rcref_opt {
+                                    None => {
+                                        CallChainNodeType::UndeclaredCallT {
+                                            call: call_expr_node,
+                                        }
+                                    }
+                                    Some(interface_method_symbol_rcref) => {
+                                        let mut interface_method_call_expr_node =
+                                            InterfaceMethodCallExprNode::new(
+                                                call_expr_node,
+                                                InterfaceMethodCallType::External,
+                                            );
+                                        interface_method_call_expr_node
+                                            .set_interface_symbol(
+                                                &interface_method_symbol_rcref.clone(),
+                                            );
+                                        CallChainNodeType::InterfaceMethodCallT {
+                                            interface_method_call_expr_node,
+                                        }
+                                    }
                                 };
+
                                 call_chain.push_back(call_t);
+
                             } else {
                                 // is first or only node in a call chain. Determine if an action,
                                 // interface or external call.
                                 let method_name =
-                                    method_call_expr_node.identifier.name.lexeme.clone();
+                                    call_expr_node.identifier.name.lexeme.clone();
                                 let action_decl_symbol_opt =
                                     self.arcanum.lookup_action(&method_name);
 
@@ -5553,52 +5679,51 @@ impl<'a> Parser<'a> {
                                             self.arcanum.lookup_action(&method_name);
 
                                         match action_symbol_opt {
-                                            Some(action_scope_symbol) => {
-                                                // validate signature
+                                            Some(action_scope_symbol_rcref) => {
 
-                                                let a = action_scope_symbol.borrow();
-                                                let b = a.ast_node_opt.as_ref().unwrap();
-                                                let c = &b.borrow().params;
+                                                // TODO - factor out arg/param validation into a utility function.
+                                                // validate args/params
+
+                                                let action_scope_symbol = action_scope_symbol_rcref.borrow();
+                                                let action_node_rcref = action_scope_symbol.ast_node_opt.as_ref().unwrap();
+                                                let parameter_node_vec_opt = &action_node_rcref.borrow().params;
                                                 // check if difference in the existance of parameters
-                                                if (!c.is_none()
-                                                    && method_call_expr_node
+                                                if (!parameter_node_vec_opt.is_none()
+                                                    && call_expr_node
                                                     .call_expr_list
                                                     .exprs_t
                                                     .is_empty())
-                                                    || (c.is_none()
-                                                    && !method_call_expr_node
+                                                    || (parameter_node_vec_opt.is_none()
+                                                    && !call_expr_node
                                                     .call_expr_list
                                                     .exprs_t
                                                     .is_empty())
                                                 {
                                                     let err_msg = format!("Incorrect number of arguments for action '{}'.", method_name);
                                                     self.error_at_previous(&err_msg);
-                                                    let parse_error =
-                                                        ParseError::new(err_msg.as_str());
-                                                    return Err(parse_error);
-                                                }
-
-                                                // check parameter count equals argument count
-                                                match &b.borrow().params {
-                                                    Some(symbol_params) => {
-                                                        if symbol_params.len()
-                                                            != method_call_expr_node
-                                                            .call_expr_list
-                                                            .exprs_t
-                                                            .len()
-                                                        {
-                                                            let err_msg = format!("Number of arguments does not match parameters for action '{}'.", method_name);
-                                                            self.error_at_previous(&err_msg);
-                                                            // let parse_error =
-                                                            //     ParseError::new(err_msg.as_str());
-                                                            // return Err(parse_error);
+                                                    // let parse_error =
+                                                    //     ParseError::new(err_msg.as_str());
+                                                    // return Err(parse_error);
+                                                } else {
+                                                    // check parameter count equals argument count
+                                                    match &parameter_node_vec_opt {
+                                                        Some(symbol_params) => {
+                                                            if symbol_params.len()
+                                                                != call_expr_node
+                                                                .call_expr_list
+                                                                .exprs_t
+                                                                .len()
+                                                            {
+                                                                let err_msg = format!("Number of arguments does not match parameters for action '{}'.", method_name);
+                                                                self.error_at_previous(&err_msg);
+                                                            }
                                                         }
+                                                        None => {}
                                                     }
-                                                    None => {}
                                                 }
 
                                                 let mut action_call_expr_node =
-                                                    ActionCallExprNode::new(method_call_expr_node);
+                                                    ActionCallExprNode::new(call_expr_node);
                                                 action_call_expr_node
                                                     .set_action_symbol(&Rc::clone(&ads));
                                                 call_chain.push_back(
@@ -5610,7 +5735,7 @@ impl<'a> Parser<'a> {
                                             None => {
                                                 // first node is not an action or interface call.
                                                 let call_t = CallChainNodeType::UndeclaredCallT {
-                                                    call: method_call_expr_node,
+                                                    call: call_expr_node,
                                                 };
                                                 call_chain.push_back(call_t);
                                             }
@@ -5640,12 +5765,12 @@ impl<'a> Parser<'a> {
                                                 let c = &b.borrow().params;
                                                 // check if difference in the existance of parameters
                                                 if (!c.is_none()
-                                                    && method_call_expr_node
+                                                    && call_expr_node
                                                     .call_expr_list
                                                     .exprs_t
                                                     .is_empty())
                                                     || (c.is_none()
-                                                    && !method_call_expr_node
+                                                    && !call_expr_node
                                                     .call_expr_list
                                                     .exprs_t
                                                     .is_empty())
@@ -5661,7 +5786,7 @@ impl<'a> Parser<'a> {
                                                 match &b.borrow().params {
                                                     Some(symbol_params) => {
                                                         if symbol_params.len()
-                                                            != method_call_expr_node
+                                                            != call_expr_node
                                                             .call_expr_list
                                                             .exprs_t
                                                             .len()
@@ -5678,7 +5803,8 @@ impl<'a> Parser<'a> {
 
                                                 let mut interface_method_call_expr_node =
                                                     InterfaceMethodCallExprNode::new(
-                                                        method_call_expr_node,
+                                                        call_expr_node,
+                                                        InterfaceMethodCallType::Internal
                                                     );
                                                 interface_method_call_expr_node
                                                     .set_interface_symbol(&Rc::clone(
@@ -5693,7 +5819,7 @@ impl<'a> Parser<'a> {
                                             None => {
                                                 // first node is not an action or interface call.
                                                 let call_t = CallChainNodeType::UndeclaredCallT {
-                                                    call: method_call_expr_node,
+                                                    call: call_expr_node,
                                                 };
                                                 call_chain.push_back(call_t);
                                             }
@@ -5710,8 +5836,8 @@ impl<'a> Parser<'a> {
                 // This is a very subtle but important part of the logic here.
                 // We do a lookup for the id to find what scope it is in, if any.
                 // If there is a scope, it is a variable and the scope will be
-                // added to the Variable node so all the rest of the parser and
-                // generators know what kind of variable it is.
+                // added to the Variable node so the parser and
+                // visitors will know what kind of variable it is.
                 match self.get_identifier_scope(&id_node, &explicit_scope) {
                     Ok(id_decl_scope) => scope = id_decl_scope,
                     Err(err) => return Err(err),
@@ -5719,16 +5845,17 @@ impl<'a> Parser<'a> {
 
                 // Variables must be the first "node" in a get expression. See https://craftinginterpreters.com/classes.html#properties-on-instances.
 
-                // let debug_name = id_node.name.lexeme.clone();
+                let debug_name = &id_node.name.lexeme.clone();
                 let node = if !is_first_node  {
                     CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
                 } else {
                     // variables (or parameters) must be
                     // the first (or only) node in the call chain
 
+                    let symbol_name = format!( "{}", &id_node.name.lexeme);
                     let symbol_type_rcref_opt: Option<Rc<RefCell<SymbolType>>> = self
                         .arcanum
-                        .lookup(&id_node.name.lexeme, &explicit_scope)
+                        .lookup(&symbol_name, &explicit_scope)
                         .clone();
                     let call_chain_node_t = match &symbol_type_rcref_opt {
                         Some(symbol_t) => {
@@ -5784,7 +5911,6 @@ impl<'a> Parser<'a> {
                                     }
                                 }
                                 SymbolType::BlockVar {..} |
-                                SymbolType::EventHandlerParam {..} |
                                 SymbolType::DomainVariable {..} |
                                 SymbolType::StateVariable {..} |
                                 SymbolType::EventHandlerVariable {..} |
@@ -5796,6 +5922,13 @@ impl<'a> Parser<'a> {
                                         VariableNode::new(id_node, scope, (&symbol_type_rcref_opt).clone());
                                     CallChainNodeType::VariableNodeT { var_node }
                                 }
+                                // SymbolType::ParamSymbol {..} |
+                                // SymbolType::StateParam {..} |
+                                // SymbolType::EventHandlerParam {..} => {
+                                //     // TODO - need to support passing Frame types.
+                                //     // See https://github.com/frame-lang/frame_transpiler/issues/151
+                                //     CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
+                                // }
                                 _ => {
                                     CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
                                 }
@@ -5949,9 +6082,9 @@ impl<'a> Parser<'a> {
             },
         }
 
-        let method_call_expr_node = CallExprNode::new(identifer_node, call_expr_list_node, None);
+        let call_expr_node = CallExprNode::new(identifer_node, call_expr_list_node, None);
         //        let method_call_expression_type = ExpressionType::MethodCallExprType {method_call_expr_node};
-        Ok(method_call_expr_node)
+        Ok(call_expr_node)
     }
 
     /* --------------------------------------------------------------------- */
@@ -6052,11 +6185,11 @@ impl<'a> Parser<'a> {
                             // This error is only valid for transitions.
                             if args_cnt != event_symbol.get_param_count() {
                                 let err_msg = &format!("Number of transition enter arguments not equal to number of event handler parameters.");
-                                self.error_at_current(err_msg.as_str());
+                                self.error_at_previous(err_msg.as_str());
                             }
                         } else { // is state change
                             let err_msg = &format!("State change disallowed to states with enter eventhandler.");
-                            self.error_at_current(err_msg.as_str());
+                            self.error_at_previous(err_msg.as_str());
                         }
 
                     }
@@ -6923,7 +7056,7 @@ impl<'a> Parser<'a> {
                 }
                 None => {
                     let err_msg = &format!("Invalid l_value name {}", l_value_name);
-                    self.error_at_current(&err_msg);
+                    self.error_at_previous(&err_msg);
                     Err(ParseError::new(err_msg))
                 }
             }

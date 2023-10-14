@@ -97,6 +97,9 @@ pub enum CallChainNodeType {
     VariableNodeT {
         var_node: VariableNode,
     },
+    // ParameterNodeT {
+    //     param_node: ParameterNode,
+    // },
     // FunctionCallNodeT {
     //     var_node: VariableNode,
     // },
@@ -605,6 +608,29 @@ impl VariableNode {
     pub fn get_name(&self) -> &str {
         self.id_node.name.lexeme.as_str()
     }
+
+    pub fn get_value(&self) -> Rc<ExprType> {
+        let m = &self.symbol_type_rcref_opt.as_ref().unwrap();
+        let x = m.clone();
+        let mut y = x.borrow_mut();
+        match y.get_ast_node() {
+            Ok(Some(variable_decl_node_rcref)) => {
+                variable_decl_node_rcref.borrow().value_rc.clone()
+            }
+            Ok(None) => {
+
+                // NilExprT is a new ExprType used atm to hack around
+                // differences between variables and parameters. Parmenters
+                // can't be assigned values atm so this patches that
+                // gap until they can be.
+                Rc::new(ExprType::NilExprT)
+            }
+            Err(str) => {
+                // TODO review this
+                panic!("get_value() found invalid SymbolType::{}", str);
+            }
+        }
+    }
 }
 
 impl NodeElement for VariableNode {
@@ -1095,42 +1121,13 @@ pub enum ExprType {
     SystemInstanceExprT {
         system_instance_expr_node: SystemInstanceExprNode,
     },
+    // NilExprT is a new ExprType used atm to hack around
+    // differences between variables and parameters. Parmenters
+    // can't be assigned values atm so this patches that
+    // gap until they can be.
+    NilExprT,
 }
 
-// impl ExprType {
-//     fn assign(&self,value_rc:Rc<ExprType>,&mut arcanum:Arcanum) -> Result<(),str> {
-//
-//         let name_opt = self.get_name();
-//         if name_opt.is_none() {
-//             let err_msg = format!("Assignment to invalid l_value");
-//             self.error_at_current(&err_msg);
-//         }
-//         let l_value_name = name_opt.unwrap();
-//         let symbol_t_opt = arcanum.lookup(l_value_name.as_str(), &IdentifierDeclScope::None);
-//         match symbol_t_opt {
-//             Some(symbol_t_rcref) => {
-//                 let mut symbol_t = symbol_t_rcref.borrow_mut();
-//                 //   let x = symbol_t.assign(r_value_rc.clone());
-//                 match symbol_t.assign(r_value_rc.clone()) {
-//                     Ok(()) => {
-//                         Ok(())
-//                     }
-//                     Err(err_msg) => {
-//                         Err(err_msg)
-//                     }
-//                 }
-//             }
-//             None => {
-//
-//             }
-//         }
-//         // match self {
-//         //     ExprType::CallChainLiteralExprT{call_chain_expr_node} => {
-//         //
-//         //     }
-//         // }
-//     }
-// }
 
 impl fmt::Display for ExprType {
     // This trait requires `fmt` with this exact signature.
@@ -1188,6 +1185,7 @@ impl ExprType {
             ExprType::SystemInstanceExprT { .. } => "SystemInstanceExprT",
             ExprType::DefaultLiteralValueForTypeExprT { .. } => "DefaultLiteralValueForTypeExprT",
             ExprType::TransitionExprT { .. } => "TransitionExprT",
+            ExprType::NilExprT { .. } => "NilExprT",
         }
     }
 
@@ -1314,8 +1312,11 @@ impl NodeElement for ExprType {
             ExprType::TransitionExprT { transition_expr_node } => {
                 ast_visitor.visit_transition_expr_node(transition_expr_node);
             }
+            ExprType::NilExprT => {
+                panic!("Unexpect use of ExprType::NilExprT");
+            }
             ExprType::DefaultLiteralValueForTypeExprT => {
-                panic!("TODO");
+                panic!("Unexpect use of ExprType::DefaultLiteralValueForTypeExprT");
             }
         }
     }
@@ -1383,8 +1384,11 @@ impl NodeElement for ExprType {
             ExprType::TransitionExprT { transition_expr_node } => {
                 ast_visitor.visit_transition_expr_node_to_string(transition_expr_node, output);
             }
+            ExprType::NilExprT => {
+                panic!("Unexpect use of ExprType::NilExprT");
+            }
             ExprType::DefaultLiteralValueForTypeExprT => {
-                panic!("TODO");
+                panic!("Unexpect use of ExprType::DefaultLiteralValueForTypeExprT");
             }
         }
     }
@@ -2013,9 +2017,16 @@ impl NodeElement for StateStackOperationStatementNode {
 
 //-----------------------------------------------------//
 
+#[derive(PartialEq)]
+pub enum InterfaceMethodCallType {
+    External,
+    Internal,
+}
+
 pub struct InterfaceMethodCallExprNode {
     pub identifier: IdentifierNode,
     pub call_expr_list: CallExprListNode,
+    pub interface_method_call_t: InterfaceMethodCallType,
     pub interface_symbol_rcref_opt: Option<Rc<RefCell<InterfaceMethodSymbol>>>,
 }
 
@@ -2023,11 +2034,14 @@ impl InterfaceMethodCallExprNode {
     // Harvest the id and arguments from the CallExpressionNode.
     // It will be discarded.
 
-    pub fn new(call_expr_node: CallExprNode) -> InterfaceMethodCallExprNode {
+    pub fn new(call_expr_node: CallExprNode,
+               interface_method_call_t: InterfaceMethodCallType
+    ) -> InterfaceMethodCallExprNode {
         InterfaceMethodCallExprNode {
             identifier: call_expr_node.identifier,
             call_expr_list: call_expr_node.call_expr_list,
             interface_symbol_rcref_opt: None,
+            interface_method_call_t,
         }
     }
 
@@ -2589,6 +2603,14 @@ impl CallExprNode {
             call_chain,
         }
     }
+}
+
+impl CallExprNode {
+
+    pub fn get_name(&self) -> &str {
+        self.identifier.name.lexeme.as_str()
+    }
+
 }
 
 impl NodeElement for CallExprNode {
