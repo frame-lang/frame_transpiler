@@ -92,7 +92,7 @@ class StateVars {
                 {
                 let compartment =  new StateVarsCompartment(this.#sA_);
                 
-                compartment.StateVars["x"] = 0;
+                compartment.StateVars["x"] = this.#compartment.StateVars["x"] + 1;
                 
                 this.#transition(compartment);
                 
@@ -115,8 +115,8 @@ class StateVars {
                 {
                 let compartment =  new StateVarsCompartment(this.#sB_);
                 
-                compartment.StateVars["y"] = 10;
-                compartment.StateVars["z"] = 100;
+                compartment.StateVars["y"] = this.#compartment.StateVars["y"] + 1;
+                compartment.StateVars["z"] = this.#compartment.StateVars["z"] + 1;
                 
                 this.#transition(compartment);
                 
@@ -127,8 +127,8 @@ class StateVars {
                 {
                 let compartment =  new StateVarsCompartment(this.#sB_);
                 
-                compartment.StateVars["y"] = 10;
-                compartment.StateVars["z"] = 100;
+                compartment.StateVars["y"] = this.#compartment.StateVars["y"] + 1;
+                compartment.StateVars["z"] = this.#compartment.StateVars["z"] + 1;
                 
                 this.#transition(compartment);
                 
@@ -144,7 +144,7 @@ class StateVars {
                 {
                 let compartment =  new StateVarsCompartment(this.#sA_);
                 
-                compartment.StateVars["x"] = 0;
+                compartment.StateVars["x"] = this.#compartment.StateVars["x"] + 1;
                 
                 this.#transition(compartment);
                 

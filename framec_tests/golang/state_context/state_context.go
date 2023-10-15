@@ -11,7 +11,7 @@ func NewStateContextSm() StateContextSm {
     
     // Create and intialize start state compartment.
     m._compartment_ = NewStateContextSmCompartment(StateContextSmState_Init)
-    m._compartment_.StateVars["w"] = 0
+    m._compartment_.StateVars["w"] = m._compartment_.StateVars["w"].(int) + 1
     
     // Override domain variables.
     m.tape = []string{}
@@ -135,7 +135,7 @@ func (m *stateContextSmStruct) _StateContextSmState_Init_(e *framelang.FrameEven
         compartment := NewStateContextSmCompartment(StateContextSmState_Foo)
         compartment.EnterArgs["a"] = 3
         compartment.EnterArgs["b"] = m._compartment_.StateVars["w"].(int)
-        compartment.StateVars["x"] = 0
+        compartment.StateVars["x"] = m._compartment_.StateVars["x"].(int) + 1
         
         m._transition_(compartment)
         
@@ -175,7 +175,7 @@ func (m *stateContextSmStruct) _StateContextSmState_Foo_(e *framelang.FrameEvent
         compartment.EnterArgs["a"] = tmp
         compartment.StateArgs["y"] = m._compartment_.StateVars["x"].(int)
         
-        compartment.StateVars["z"] = 0
+        compartment.StateVars["z"] = m._compartment_.StateVars["z"].(int) + 1
         
         m._transition_(compartment)
         
@@ -183,15 +183,11 @@ func (m *stateContextSmStruct) _StateContextSmState_Foo_(e *framelang.FrameEvent
       //  FIXME: Swapping this to 10 * arg causes a parse error!
     case "Change":
         var tmp  = m._compartment_.StateVars["x"].(int) + e.Params["arg"].(int)
-        compartment := NewStateContextSmCompartment(StateContextSmState_Bar)
-        compartment.StateArgs["y"] = tmp;
-        compartment.StateVars["z"] = 0;
-        
-        m._changeState_(compartment)
         
         return
     }
-}
+}  //  ->> $Bar(tmp)
+
 
 func (m *stateContextSmStruct) _StateContextSmState_Bar_(e *framelang.FrameEvent) {
     switch e.Msg {
@@ -216,10 +212,6 @@ func (m *stateContextSmStruct) _StateContextSmState_Bar_(e *framelang.FrameEvent
     case "Change":
         var tmp  = m._compartment_.StateArgs["y"].(int) + m._compartment_.StateVars["z"].(int) + e.Params["arg"].(int)
         m.log("tmp",tmp)
-        compartment := NewStateContextSmCompartment(StateContextSmState_Init)
-        compartment.StateVars["w"] = 0;
-        
-        m._changeState_(compartment)
         
         return
     }
@@ -235,10 +227,6 @@ func (m *stateContextSmStruct) _do_transition_(nextCompartment *StateContextSmCo
     m._mux_(&framelang.FrameEvent{Msg: "<", Params: m._compartment_.ExitArgs, Ret: nil})
     m._compartment_ = nextCompartment
     m._mux_(&framelang.FrameEvent{Msg: ">", Params: m._compartment_.EnterArgs, Ret: nil})
-}
-
-func (m *stateContextSmStruct) _changeState_(compartment *StateContextSmCompartment) {
-    m._compartment_ = compartment
 }
 
 //===================== Actions Block ===================//

@@ -12,7 +12,8 @@
         |Next|
             -> ("hi A") $A ^
         |Change|
-            ->> $A ^
+            --- ->> $A
+            ^
 
     $A
         |>| [msg:str]
@@ -25,7 +26,8 @@
             -> ("hi B", 42) $B ^
 
         |Change|
-            ->> $B ^
+            --- ->> $B
+            ^
 
     $B
         |>| [msg:str, val:int]
@@ -40,7 +42,8 @@
             (true, "bye B") -> ("hi again A") $A ^
 
         |Change|
-            ->> $A ^
+            --- ->> $A
+            ^
 
     -actions-
     log [msg:str]

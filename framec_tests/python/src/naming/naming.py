@@ -97,7 +97,7 @@ class Naming:
         if e._message == "snake_event":
             compartment = NamingCompartment(self.__naming_state_snake_state)
             compartment.state_args["snake_state_param"] = e._parameters["snake_param"]
-            compartment.state_vars["snake_state_var"] = self.snake_domain_var + self.CamelDomainVar + self.domainVar123 + 100
+            compartment.state_vars["snake_state_var"] = snake_domain_var + CamelDomainVar + domainVar123 + 100
             self.__transition(compartment)
             
             return
@@ -105,7 +105,7 @@ class Naming:
         elif e._message == "CamelEvent":
             compartment = NamingCompartment(self.__naming_state_CamelState)
             compartment.state_args["CamelStateParam"] = e._parameters["CamelParam"]
-            compartment.state_vars["CamelStateVar"] = self.snake_domain_var + self.CamelDomainVar + self.domainVar123 + 200
+            compartment.state_vars["CamelStateVar"] = snake_domain_var + CamelDomainVar + domainVar123 + 200
             self.__transition(compartment)
             
             return
@@ -113,7 +113,7 @@ class Naming:
         elif e._message == "event123":
             compartment = NamingCompartment(self.__naming_state_state123)
             compartment.state_args["stateParam123"] = e._parameters["param123"]
-            compartment.state_vars["stateVar123"] = self.snake_domain_var + self.CamelDomainVar + self.domainVar123 + 300
+            compartment.state_vars["stateVar123"] = snake_domain_var + CamelDomainVar + domainVar123 + 300
             self.__transition(compartment)
             
             return

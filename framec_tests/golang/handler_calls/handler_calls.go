@@ -131,21 +131,21 @@ func (m *handlerCallsStruct) _HandlerCallsState_Init_(e *framelang.FrameEvent) {
     switch e.Msg {
     case "NonRec":
         compartment := NewHandlerCallsCompartment(HandlerCallsState_NonRecursive)
-        compartment.StateVars["counter"] = 0
+        compartment.StateVars["counter"] = m._compartment_.StateVars["counter"].(int) + e.Params["arg"].(int)
         
         m._transition_(compartment)
         
         return
     case "SelfRec":
         compartment := NewHandlerCallsCompartment(HandlerCallsState_SelfRecursive)
-        compartment.StateVars["counter"] = 0
+        compartment.StateVars["counter"] = m._compartment_.StateVars["counter"].(int) + e.Params["arg"].(int)
         
         m._transition_(compartment)
         
         return
     case "MutRec":
         compartment := NewHandlerCallsCompartment(HandlerCallsState_MutuallyRecursive)
-        compartment.StateVars["counter"] = 0
+        compartment.StateVars["counter"] = m._compartment_.StateVars["counter"].(int) + e.Params["arg"].(int)
         
         m._transition_(compartment)
         

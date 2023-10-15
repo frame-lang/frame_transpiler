@@ -14,7 +14,7 @@ func NewStateContextStack() StateContextStack {
     
     // Create and intialize start state compartment.
     m._compartment_ = NewStateContextStackCompartment(StateContextStackState_A)
-    m._compartment_.StateVars["x"] = 0
+    m._compartment_.StateVars["x"] = m._compartment_.StateVars["x"].(int) + 1
     
     // Override domain variables.
     m.tape = []string{}
@@ -171,21 +171,21 @@ func (m *stateContextStackStruct) _StateContextStackState_A_(e *framelang.FrameE
         
     case "to_a":
         compartment := NewStateContextStackCompartment(StateContextStackState_A)
-        compartment.StateVars["x"] = 0
+        compartment.StateVars["x"] = m._compartment_.StateVars["x"].(int) + 1
         
         m._transition_(compartment)
         
         return
     case "to_b":
         compartment := NewStateContextStackCompartment(StateContextStackState_B)
-        compartment.StateVars["y"] = 0
+        compartment.StateVars["y"] = m._compartment_.StateVars["y"].(int) + 5
         
         m._transition_(compartment)
         
         return
     case "to_c":
         compartment := NewStateContextStackCompartment(StateContextStackState_C)
-        compartment.StateVars["z"] = 0
+        compartment.StateVars["z"] = m._compartment_.StateVars["z"].(int) + 10
         
         m._transition_(compartment)
         
@@ -200,12 +200,11 @@ func (m *stateContextStackStruct) _StateContextStackState_A_(e *framelang.FrameE
         
         return
     case "pop_change":
-        compartment := m._stateStack_pop_()
-        m._changeState_(compartment)
         
         return
     }
-}
+}  //  ->> $$[-]
+
 
 func (m *stateContextStackStruct) _StateContextStackState_B_(e *framelang.FrameEvent) {
     switch e.Msg {
@@ -227,21 +226,21 @@ func (m *stateContextStackStruct) _StateContextStackState_B_(e *framelang.FrameE
         
     case "to_a":
         compartment := NewStateContextStackCompartment(StateContextStackState_A)
-        compartment.StateVars["x"] = 0
+        compartment.StateVars["x"] = m._compartment_.StateVars["x"].(int) + 1
         
         m._transition_(compartment)
         
         return
     case "to_b":
         compartment := NewStateContextStackCompartment(StateContextStackState_B)
-        compartment.StateVars["y"] = 0
+        compartment.StateVars["y"] = m._compartment_.StateVars["y"].(int) + 5
         
         m._transition_(compartment)
         
         return
     case "to_c":
         compartment := NewStateContextStackCompartment(StateContextStackState_C)
-        compartment.StateVars["z"] = 0
+        compartment.StateVars["z"] = m._compartment_.StateVars["z"].(int) + 10
         
         m._transition_(compartment)
         
@@ -256,12 +255,11 @@ func (m *stateContextStackStruct) _StateContextStackState_B_(e *framelang.FrameE
         
         return
     case "pop_change":
-        compartment := m._stateStack_pop_()
-        m._changeState_(compartment)
         
         return
     }
-}
+}  //  ->> $$[-]
+
 
 func (m *stateContextStackStruct) _StateContextStackState_C_(e *framelang.FrameEvent) {
     switch e.Msg {
@@ -283,21 +281,21 @@ func (m *stateContextStackStruct) _StateContextStackState_C_(e *framelang.FrameE
         
     case "to_a":
         compartment := NewStateContextStackCompartment(StateContextStackState_A)
-        compartment.StateVars["x"] = 0
+        compartment.StateVars["x"] = m._compartment_.StateVars["x"].(int) + 1
         
         m._transition_(compartment)
         
         return
     case "to_b":
         compartment := NewStateContextStackCompartment(StateContextStackState_B)
-        compartment.StateVars["y"] = 0
+        compartment.StateVars["y"] = m._compartment_.StateVars["y"].(int) + 5
         
         m._transition_(compartment)
         
         return
     case "to_c":
         compartment := NewStateContextStackCompartment(StateContextStackState_C)
-        compartment.StateVars["z"] = 0
+        compartment.StateVars["z"] = m._compartment_.StateVars["z"].(int) + 10
         
         m._transition_(compartment)
         
@@ -312,8 +310,6 @@ func (m *stateContextStackStruct) _StateContextStackState_C_(e *framelang.FrameE
         
         return
     case "pop_change":
-        compartment := m._stateStack_pop_()
-        m._changeState_(compartment)
         
         return
     }
@@ -338,10 +334,6 @@ func (m *stateContextStackStruct) _stateStack_push_(compartment *StateContextSta
 func (m *stateContextStackStruct) _stateStack_pop_() *StateContextStackCompartment {
     compartment := m._stateStack_.Pop()
     return compartment
-}
-
-func (m *stateContextStackStruct) _changeState_(compartment *StateContextStackCompartment) {
-    m._compartment_ = compartment
 }
 
 //===================== Actions Block ===================//

@@ -115,13 +115,11 @@ func (m *transitionSmStruct) _TransitionSmState_S0_(e *framelang.FrameEvent) {
         
         return
     case "change":
-        compartment := NewTransitionSmCompartment(TransitionSmState_S1)
-        
-        m._changeState_(compartment)
         
         return
     }
-}
+}  //  ->> $S1
+
 
 func (m *transitionSmStruct) _TransitionSmState_S1_(e *framelang.FrameEvent) {
     switch e.Msg {
@@ -139,13 +137,11 @@ func (m *transitionSmStruct) _TransitionSmState_S1_(e *framelang.FrameEvent) {
         
         return
     case "change":
-        compartment := NewTransitionSmCompartment(TransitionSmState_S2)
-        
-        m._changeState_(compartment)
         
         return
     }
-}
+}  //  ->> $S2
+
 
 func (m *transitionSmStruct) _TransitionSmState_S2_(e *framelang.FrameEvent) {
     switch e.Msg {
@@ -165,13 +161,11 @@ func (m *transitionSmStruct) _TransitionSmState_S2_(e *framelang.FrameEvent) {
         
         return
     case "change":
-        compartment := NewTransitionSmCompartment(TransitionSmState_S3)
-        
-        m._changeState_(compartment)
         
         return
     }
-}
+}  //  ->> $S3
+
 
 func (m *transitionSmStruct) _TransitionSmState_S3_(e *framelang.FrameEvent) {
     switch e.Msg {
@@ -189,23 +183,19 @@ func (m *transitionSmStruct) _TransitionSmState_S3_(e *framelang.FrameEvent) {
         
         return
     case "change":
-        compartment := NewTransitionSmCompartment(TransitionSmState_S4)
-        
-        m._changeState_(compartment)
         
         return
     }
-}
+}  //  ->> $S4
+
 
 func (m *transitionSmStruct) _TransitionSmState_S4_(e *framelang.FrameEvent) {
     switch e.Msg {
     case ">":
         m.enter("S4")
-        compartment := NewTransitionSmCompartment(TransitionSmState_S0)
-        
-        m._changeState_(compartment)
         
         return
+      //  ->> $S0
     case "<":
         m.exit("S4")
         
@@ -223,10 +213,6 @@ func (m *transitionSmStruct) _do_transition_(nextCompartment *TransitionSmCompar
     m._mux_(&framelang.FrameEvent{Msg: "<", Params: m._compartment_.ExitArgs, Ret: nil})
     m._compartment_ = nextCompartment
     m._mux_(&framelang.FrameEvent{Msg: ">", Params: m._compartment_.EnterArgs, Ret: nil})
-}
-
-func (m *transitionSmStruct) _changeState_(compartment *TransitionSmCompartment) {
-    m._compartment_ = compartment
 }
 
 //===================== Actions Block ===================//

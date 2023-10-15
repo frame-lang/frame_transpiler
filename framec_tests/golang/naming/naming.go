@@ -138,7 +138,7 @@ func (m *namingStruct) _NamingState_Init_(e *framelang.FrameEvent) {
         compartment := NewNamingCompartment(NamingState_snake_state)
         compartment.StateArgs["snake_state_param"] = e.Params["snake_param"].(int)
         
-        compartment.StateVars["snake_state_var"] = m.snake_domain_var + m.CamelDomainVar + m.domainVar123 + 100
+        compartment.StateVars["snake_state_var"] = snake_domain_var + CamelDomainVar + domainVar123 + 100
         
         m._transition_(compartment)
         
@@ -147,7 +147,7 @@ func (m *namingStruct) _NamingState_Init_(e *framelang.FrameEvent) {
         compartment := NewNamingCompartment(NamingState_CamelState)
         compartment.StateArgs["CamelStateParam"] = e.Params["CamelParam"].(int)
         
-        compartment.StateVars["CamelStateVar"] = m.snake_domain_var + m.CamelDomainVar + m.domainVar123 + 200
+        compartment.StateVars["CamelStateVar"] = snake_domain_var + CamelDomainVar + domainVar123 + 200
         
         m._transition_(compartment)
         
@@ -156,7 +156,7 @@ func (m *namingStruct) _NamingState_Init_(e *framelang.FrameEvent) {
         compartment := NewNamingCompartment(NamingState_state123)
         compartment.StateArgs["stateParam123"] = e.Params["param123"].(int)
         
-        compartment.StateVars["stateVar123"] = m.snake_domain_var + m.CamelDomainVar + m.domainVar123 + 300
+        compartment.StateVars["stateVar123"] = snake_domain_var + CamelDomainVar + domainVar123 + 300
         
         m._transition_(compartment)
         

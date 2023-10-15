@@ -114,7 +114,7 @@ class HandlerCalls {
                 {
                 let compartment =  new HandlerCallsCompartment(this.#sNonRecursive_);
                 
-                compartment.StateVars["counter"] = 0;
+                compartment.StateVars["counter"] = this.#compartment.StateVars["counter"] + e._parameters["arg"];
                 
                 this.#transition(compartment);
                 
@@ -125,7 +125,7 @@ class HandlerCalls {
                 {
                 let compartment =  new HandlerCallsCompartment(this.#sSelfRecursive_);
                 
-                compartment.StateVars["counter"] = 0;
+                compartment.StateVars["counter"] = this.#compartment.StateVars["counter"] + e._parameters["arg"];
                 
                 this.#transition(compartment);
                 
@@ -136,7 +136,7 @@ class HandlerCalls {
                 {
                 let compartment =  new HandlerCallsCompartment(this.#sMutuallyRecursive_);
                 
-                compartment.StateVars["counter"] = 0;
+                compartment.StateVars["counter"] = this.#compartment.StateVars["counter"] + e._parameters["arg"];
                 
                 this.#transition(compartment);
                 

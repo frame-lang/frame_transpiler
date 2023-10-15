@@ -99,13 +99,11 @@ func (m *transitParamsStruct) _TransitParamsState_Init_(e *framelang.FrameEvent)
         
         return
     case "Change":
-        compartment := NewTransitParamsCompartment(TransitParamsState_A)
-        
-        m._changeState_(compartment)
         
         return
     }
-}
+}  //  ->> $A
+
 
 func (m *transitParamsStruct) _TransitParamsState_A_(e *framelang.FrameEvent) {
     switch e.Msg {
@@ -125,13 +123,11 @@ func (m *transitParamsStruct) _TransitParamsState_A_(e *framelang.FrameEvent) {
         
         return
     case "Change":
-        compartment := NewTransitParamsCompartment(TransitParamsState_B)
-        
-        m._changeState_(compartment)
         
         return
     }
-}
+}  //  ->> $B
+
 
 func (m *transitParamsStruct) _TransitParamsState_B_(e *framelang.FrameEvent) {
     switch e.Msg {
@@ -154,9 +150,6 @@ func (m *transitParamsStruct) _TransitParamsState_B_(e *framelang.FrameEvent) {
         
         return
     case "Change":
-        compartment := NewTransitParamsCompartment(TransitParamsState_A)
-        
-        m._changeState_(compartment)
         
         return
     }
@@ -172,10 +165,6 @@ func (m *transitParamsStruct) _do_transition_(nextCompartment *TransitParamsComp
     m._mux_(&framelang.FrameEvent{Msg: "<", Params: m._compartment_.ExitArgs, Ret: nil})
     m._compartment_ = nextCompartment
     m._mux_(&framelang.FrameEvent{Msg: ">", Params: m._compartment_.EnterArgs, Ret: nil})
-}
-
-func (m *transitParamsStruct) _changeState_(compartment *TransitParamsCompartment) {
-    m._compartment_ = compartment
 }
 
 //===================== Actions Block ===================//

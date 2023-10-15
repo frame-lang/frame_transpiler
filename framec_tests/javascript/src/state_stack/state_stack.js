@@ -170,14 +170,13 @@ class StateStack {
                 
             case "pop_change":
                 {
-                let compartment = this.#stateStack_pop()
-                this.#changeState(compartment)
                 
                 return;
                 }
                 
         }
-    }
+    }  //  ->> $$[-]
+	
     
     #sB_(e) {
         switch (e._message) {
@@ -242,14 +241,13 @@ class StateStack {
                 
             case "pop_change":
                 {
-                let compartment = this.#stateStack_pop()
-                this.#changeState(compartment)
                 
                 return;
                 }
                 
         }
-    }
+    }  //  ->> $$[-]
+	
     
     #sC_(e) {
         switch (e._message) {
@@ -314,8 +312,6 @@ class StateStack {
                 
             case "pop_change":
                 {
-                let compartment = this.#stateStack_pop()
-                this.#changeState(compartment)
                 
                 return;
                 }
@@ -383,14 +379,12 @@ class StateStack {
         }
     }
     
-    #changeState(compartment) {
-        this.#compartment = compartment;
-    }
-    
     state_info() {
         return this.#compartment.state.name;
     }
     
+      //  ->> $$[-]
+	
     
 };
 

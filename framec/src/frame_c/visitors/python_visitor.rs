@@ -799,7 +799,7 @@ impl PythonVisitor {
                                 Some(var_type) => var_type.get_type_str(),
                                 None => String::from(""),
                             };
-                            let expr_t = &var.value_rc;
+                            let expr_t = &var.initializer_value_rc;
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
                             self.add_code(&format!(
@@ -1061,7 +1061,7 @@ impl PythonVisitor {
                                 // TODO: check this
                                 None => String::from(""),
                             };
-                            let expr_t = &var.value_rc;
+                            let expr_t = &var.initializer_value_rc;
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
                             self.newline();
@@ -1274,7 +1274,7 @@ impl PythonVisitor {
                     Some(vars) => {
                         for var_rcref in vars {
                             let var_decl_node = var_rcref.borrow();
-                            let expr_t = &var_decl_node.value_rc;
+                            let expr_t = &var_decl_node.initializer_value_rc;
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
 
@@ -1489,7 +1489,7 @@ impl AstVisitor for PythonVisitor {
             for var_rcref in &domain_block_node.member_variables {
                 let var_name = var_rcref.borrow().name.clone();
                 let var = var_rcref.borrow();
-                let var_init_expr = &var.value_rc;
+                let var_init_expr = &var.initializer_value_rc;
                 let mut init_expression = String::new();
                 var_init_expr.accept_to_string(self, &mut init_expression);
                 // push for later initialization

@@ -66,7 +66,7 @@ import "golang/framelang"
 
         |Change| [arg:int]
             var tmp = x + arg
-            ->> $Bar(tmp)
+            --- ->> $Bar(tmp)
             ^
 
     $Bar [y:int]
@@ -93,7 +93,7 @@ import "golang/framelang"
         |Change| [arg:int]
             var tmp = y + z + arg
             log("tmp", tmp)
-            ->> $Init
+            --- ->> $Init
             ^
 
     -actions-

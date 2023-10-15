@@ -172,12 +172,11 @@ func (m *stateStackStruct) _StateStackState_A_(e *framelang.FrameEvent) {
         
         return
     case "pop_change":
-        compartment := m._stateStack_pop_()
-        m._changeState_(compartment)
         
         return
     }
-}
+}  //  ->> $$[-]
+
 
 func (m *stateStackStruct) _StateStackState_B_(e *framelang.FrameEvent) {
     switch e.Msg {
@@ -214,12 +213,11 @@ func (m *stateStackStruct) _StateStackState_B_(e *framelang.FrameEvent) {
         
         return
     case "pop_change":
-        compartment := m._stateStack_pop_()
-        m._changeState_(compartment)
         
         return
     }
-}
+}  //  ->> $$[-]
+
 
 func (m *stateStackStruct) _StateStackState_C_(e *framelang.FrameEvent) {
     switch e.Msg {
@@ -256,8 +254,6 @@ func (m *stateStackStruct) _StateStackState_C_(e *framelang.FrameEvent) {
         
         return
     case "pop_change":
-        compartment := m._stateStack_pop_()
-        m._changeState_(compartment)
         
         return
     }
@@ -282,10 +278,6 @@ func (m *stateStackStruct) _stateStack_push_(compartment *StateStackCompartment)
 func (m *stateStackStruct) _stateStack_pop_() *StateStackCompartment {
     compartment := m._stateStack_.Pop()
     return compartment
-}
-
-func (m *stateStackStruct) _changeState_(compartment *StateStackCompartment) {
-    m._compartment_ = compartment
 }
 
 //===================== Actions Block ===================//

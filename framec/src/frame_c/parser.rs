@@ -4358,7 +4358,12 @@ impl<'a> Parser<'a> {
 
             let r_value_rc = Rc::new(r_value);
 
-            self.assign(&mut l_value, r_value_rc.clone());
+            match self.assign(&mut l_value, r_value_rc.clone()) {
+                Ok(()) => {}
+                Err(..) => {
+                    // grammar is correct and error already logged. Continue
+                }
+            }
 
             let assignment_expr_node = AssignmentExprNode::new(l_value, r_value_rc.clone(), line);
             return Ok(Some(AssignmentExprT {
@@ -5572,22 +5577,16 @@ impl<'a> Parser<'a> {
                                                             let parameter_node_vec_opt = &interface_method_node_rcref.borrow().params;
 
                                                             // check if difference in the existence of parameters
-                                                            if (!parameter_node_vec_opt.is_none()
-                                                                && call_expr_node
+                                                            let params_is_none = parameter_node_vec_opt.is_none();
+                                                            let args_is_empty = call_expr_node
                                                                 .call_expr_list
                                                                 .exprs_t
-                                                                .is_empty())
-                                                                || (parameter_node_vec_opt.is_none()
-                                                                && !call_expr_node
-                                                                .call_expr_list
-                                                                .exprs_t
-                                                                .is_empty())
+                                                                .is_empty();
+                                                            if  (!params_is_none && args_is_empty) ||
+                                                                (params_is_none && !args_is_empty)
                                                             {
                                                                 let err_msg = format!("Incorrect number of arguments for interface method '{}'.", call_expr_node.get_name());
                                                                 self.error_at_previous(&err_msg);
-                                                                // let parse_error =
-                                                                //     ParseError::new(err_msg.as_str());
-                                                                // return Err(parse_error);
                                                             } else {
                                                                 // check parameter count equals argument count
                                                                 match parameter_node_vec_opt {

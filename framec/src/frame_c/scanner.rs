@@ -133,16 +133,16 @@ impl Scanner {
     //     true
     // }
 
-    fn match_last_header_token(&mut self) -> bool {
-        for _i in 0..3 {
-            if !self.match_char('`') {
-                return false;
-            }
-        }
-        self.add_string_token_literal(TokenType::ThreeTicks, TokenLiteral::None);
-
-        true
-    }
+    // fn match_last_header_token(&mut self) -> bool {
+    //     for _i in 0..3 {
+    //         if !self.match_char('`') {
+    //             return false;
+    //         }
+    //     }
+    //     self.add_string_token_literal(TokenType::ThreeTicks, TokenLiteral::None);
+    //
+    //     true
+    // }
 
     fn sync_start(&mut self) {
         self.start = self.current;

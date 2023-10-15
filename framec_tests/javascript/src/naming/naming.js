@@ -111,7 +111,7 @@ class Naming {
                 let compartment =  new NamingCompartment(this.#ssnake_state_);
                 
                 compartment.StateArgs["snake_state_param"] = e._parameters["snake_param"];
-                compartment.StateVars["snake_state_var"] = this.snake_domain_var + this.CamelDomainVar + this.domainVar123 + 100;
+                compartment.StateVars["snake_state_var"] = snake_domain_var + CamelDomainVar + domainVar123 + 100;
                 
                 this.#transition(compartment);
                 
@@ -123,7 +123,7 @@ class Naming {
                 let compartment =  new NamingCompartment(this.#sCamelState_);
                 
                 compartment.StateArgs["CamelStateParam"] = e._parameters["CamelParam"];
-                compartment.StateVars["CamelStateVar"] = this.snake_domain_var + this.CamelDomainVar + this.domainVar123 + 200;
+                compartment.StateVars["CamelStateVar"] = snake_domain_var + CamelDomainVar + domainVar123 + 200;
                 
                 this.#transition(compartment);
                 
@@ -135,7 +135,7 @@ class Naming {
                 let compartment =  new NamingCompartment(this.#sstate123_);
                 
                 compartment.StateArgs["stateParam123"] = e._parameters["param123"];
-                compartment.StateVars["stateVar123"] = this.snake_domain_var + this.CamelDomainVar + this.domainVar123 + 300;
+                compartment.StateVars["stateVar123"] = snake_domain_var + CamelDomainVar + domainVar123 + 300;
                 
                 this.#transition(compartment);
                 

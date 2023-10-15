@@ -15,7 +15,8 @@ from framelang.framelang import FrameEvent
         |transit|
             -> $S1 ^
         |change|
-            ->> $S1 ^
+            --- ->> $S1
+            ^
 
     $S1
         |>| enter("S1") ^
@@ -23,7 +24,8 @@ from framelang.framelang import FrameEvent
         |transit|
             -> $S2 ^
         |change|
-            ->> $S2 ^
+            --- ->> $S2
+            ^
 
     $S2
         |>| enter("S2")
@@ -32,7 +34,8 @@ from framelang.framelang import FrameEvent
         |transit|
             -> $S3 ^
         |change|
-            ->> $S3 ^
+            --- ->> $S3
+            ^
 
     $S3
         |>| enter("S3") ^
@@ -40,11 +43,13 @@ from framelang.framelang import FrameEvent
         |transit|
             -> $S4 ^
         |change|
-            ->> $S4 ^
+            --- ->> $S4
+            ^
 
     $S4
         |>| enter("S4")
-            ->> $S0 ^
+            --- ->> $S0
+            ^
         |<| exit("S4") ^
 
     -actions-

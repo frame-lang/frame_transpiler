@@ -144,26 +144,22 @@ class Branch:
         
     def __branch_state_SimpleIf(self, e):
         if e._message == "OnBool":
-            ___b___ = e._parameters["b"]
-            if ___b___:
+            if  e._parameters["b"]:
                 self.log_do("then 1")
             else:
                 pass
             
-            ___b___ = e._parameters["b"]
-            if ___b___:
+            if  e._parameters["b"]:
                 pass
             else:
                 self.log_do("else 1")
             
-            ___b___ = e._parameters["b"]
-            if ___b___:
+            if  e._parameters["b"]:
                 self.log_do("then 2")
             else:
                 self.log_do("else 2")
             
-            ___b___ = e._parameters["b"]
-            if ___b___:
+            if  e._parameters["b"]:
                 compartment = BranchCompartment(self.__branch_state_F1)
                 self.__transition(compartment)
                 return
@@ -176,20 +172,17 @@ class Branch:
             return
         
         elif e._message == "OnInt":
-            ___b___ = e._parameters["i"] > 5
-            if ___b___:
+            if  e._parameters["i"] > 5:
                 self.log_do("> 5")
             else:
                 self.log_do("<= 5")
             
-            ___b___ = e._parameters["i"] < 10
-            if ___b___:
+            if  e._parameters["i"] < 10:
                 self.log_do("< 10")
             else:
                 self.log_do(">= 10")
             
-            ___b___ = e._parameters["i"] == 7
-            if ___b___:
+            if  e._parameters["i"] == 7:
                 self.log_do("== 7")
                 compartment = BranchCompartment(self.__branch_state_F1)
                 self.__transition(compartment)
@@ -205,26 +198,22 @@ class Branch:
         
     def __branch_state_NegatedIf(self, e):
         if e._message == "OnBool":
-            ___b___ = not (e._parameters["b"])
-            if ___b___:
+            if  not (e._parameters["b"]):
                 self.log_do("then 1")
             else:
                 pass
             
-            ___b___ = not (e._parameters["b"])
-            if ___b___:
+            if  not (e._parameters["b"]):
                 pass
             else:
                 self.log_do("else 1")
             
-            ___b___ = not (e._parameters["b"])
-            if ___b___:
+            if  not (e._parameters["b"]):
                 self.log_do("then 2")
             else:
                 self.log_do("else 2")
             
-            ___b___ = not (e._parameters["b"])
-            if ___b___:
+            if  not (e._parameters["b"]):
                 compartment = BranchCompartment(self.__branch_state_F1)
                 self.__transition(compartment)
                 return
@@ -237,20 +226,17 @@ class Branch:
             return
         
         elif e._message == "OnInt":
-            ___b___ = not (e._parameters["i"] >= 5)
-            if ___b___:
+            if  not (e._parameters["i"] >= 5):
                 self.log_do("< 5")
             else:
                 self.log_do(">= 5")
             
-            ___b___ = not (e._parameters["i"] <= 10)
-            if ___b___:
+            if  not (e._parameters["i"] <= 10):
                 self.log_do("> 10")
             else:
                 self.log_do("<= 10")
             
-            ___b___ = not (e._parameters["i"] != 7)
-            if ___b___:
+            if  not (e._parameters["i"] != 7):
                 self.log_do("== 7")
                 compartment = BranchCompartment(self.__branch_state_F1)
                 self.__transition(compartment)
@@ -266,26 +252,22 @@ class Branch:
         
     def __branch_state_Precedence(self, e):
         if e._message == "OnInt":
-            ___b___ = -e._parameters["i"] >= 0 and -e._parameters["i"] <= 5
-            if ___b___:
+            if  -e._parameters["i"] >= 0 and -e._parameters["i"] <= 5:
                 self.log_do("then 1")
             else:
                 self.log_do("else 1")
             
-            ___b___ =  not (e._parameters["i"] >= -5 and e._parameters["i"] <= 5) and (e._parameters["i"] >= -10 and e._parameters["i"] <= 10)
-            if ___b___:
+            if   not (e._parameters["i"] >= -5 and e._parameters["i"] <= 5) and (e._parameters["i"] >= -10 and e._parameters["i"] <= 10):
                 self.log_do("then 2")
             else:
                 self.log_do("else 2")
             
-            ___b___ = e._parameters["i"] >= 0 and e._parameters["i"] <= 5 or e._parameters["i"] >= 10 and e._parameters["i"] <= 20
-            if ___b___:
+            if  e._parameters["i"] >= 0 and e._parameters["i"] <= 5 or e._parameters["i"] >= 10 and e._parameters["i"] <= 20:
                 self.log_do("then 3")
             else:
                 self.log_do("else 3")
             
-            ___b___ = not ((e._parameters["i"] < 0 or e._parameters["i"] > 10) and e._parameters["i"] + 5 < 20)
-            if ___b___:
+            if  not ((e._parameters["i"] < 0 or e._parameters["i"] > 10) and e._parameters["i"] + 5 < 20):
                 self.log_do("then 4")
             else:
                 self.log_do("else 4")
@@ -295,11 +277,9 @@ class Branch:
         
     def __branch_state_NestedIf(self, e):
         if e._message == "OnInt":
-            ___b___ = e._parameters["i"] > 0
-            if ___b___:
+            if  e._parameters["i"] > 0:
                 self.log_do("> 0")
-                ___b___ = e._parameters["i"] < 100
-                if ___b___:
+                if  e._parameters["i"] < 100:
                     self.log_do("< 100")
                     compartment = BranchCompartment(self.__branch_state_F1)
                     self.__transition(compartment)
@@ -309,8 +289,7 @@ class Branch:
                 
             else:
                 self.log_do("<= 0")
-                ___b___ = e._parameters["i"] > -10
-                if ___b___:
+                if  e._parameters["i"] > -10:
                     self.log_do("> -10")
                 else:
                     self.log_do("<= -10")
@@ -324,8 +303,7 @@ class Branch:
         
     def __branch_state_GuardedTransition(self, e):
         if e._message == "OnInt":
-            ___b___ = e._parameters["i"] > 100
-            if ___b___:
+            if  e._parameters["i"] > 100:
                 self.log_do("-> $F1")
                 compartment = BranchCompartment(self.__branch_state_F1)
                 self.__transition(compartment)
@@ -333,8 +311,7 @@ class Branch:
             else:
                 pass
             
-            ___b___ = not (e._parameters["i"] > 10)
-            if ___b___:
+            if  not (e._parameters["i"] > 10):
                 pass
             else:
                 self.log_do("-> $F2")
@@ -350,10 +327,8 @@ class Branch:
         
     def __branch_state_NestedGuardedTransition(self, e):
         if e._message == "OnInt":
-            ___b___ = e._parameters["i"] > 10
-            if ___b___:
-                ___b___ = e._parameters["i"] > 100
-                if ___b___:
+            if  e._parameters["i"] > 10:
+                if  e._parameters["i"] > 100:
                     self.log_do("-> $F1")
                     compartment = BranchCompartment(self.__branch_state_F1)
                     self.__transition(compartment)
@@ -361,8 +336,7 @@ class Branch:
                 else:
                     pass
                 
-                ___b___ = e._parameters["i"] > 50
-                if ___b___:
+                if  e._parameters["i"] > 50:
                     pass
                 else:
                     self.log_do("-> $F2")

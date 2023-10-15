@@ -16,7 +16,8 @@ import (
         |Next|
             -> ("hi A") $A ^
         |Change|
-            ->> $A ^
+            --- ->> $A
+            ^
 
     $A
         |>| [msg:string]
@@ -29,7 +30,8 @@ import (
             -> ("hi B", 42) $B ^
 
         |Change|
-            ->> $B ^
+            --- ->> $B
+            ^
 
     $B
         |>| [msg:string, val:int]
@@ -44,7 +46,8 @@ import (
             (true, "bye B") -> ("hi again A") $A ^
 
         |Change|
-            ->> $A ^
+            --- ->> $A
+            ^
 
     -actions-
     log [msg:string]

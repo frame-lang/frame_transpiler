@@ -196,8 +196,7 @@ class Match:
         
     def __match_state_NestedMatch(self, e):
         if e._message == "OnInt":
-            ___b___ = e._parameters["i"] > 0
-            if ___b___:
+            if  e._parameters["i"] > 0:
                 if (e._parameters["i"] == 1) or (e._parameters["i"] == 2) or (e._parameters["i"] == 3):
                     self.log_do("1-3")
                     if (e._parameters["i"] == 1):
@@ -209,8 +208,7 @@ class Match:
                     
                 elif (e._parameters["i"] == 4) or (e._parameters["i"] == 5):
                     self.log_do("4-5")
-                    ___b___ = e._parameters["i"] == 4
-                    if ___b___:
+                    if  e._parameters["i"] == 4:
                         self.log_do("4")
                     else:
                         self.log_do("5")

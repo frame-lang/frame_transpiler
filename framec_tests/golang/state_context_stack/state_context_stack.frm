@@ -38,7 +38,8 @@ import (
         |pop|
             -> $$[-] ^
         |pop_change|
-            ->> $$[-] ^
+            --- ->> $$[-]
+            ^
 
     $B
         var y:int = 0
@@ -61,7 +62,8 @@ import (
         |pop|
             -> $$[-] ^
         |pop_change|
-            ->> $$[-] ^
+            --- ->> $$[-]
+            ^
 
     $C
         var z:int = 0
@@ -84,7 +86,8 @@ import (
         |pop|
             -> $$[-] ^
         |pop_change|
-            ->> $$[-] ^
+            --- ->> $$[-]
+            ^
 
     -actions-
     log [msg:string]

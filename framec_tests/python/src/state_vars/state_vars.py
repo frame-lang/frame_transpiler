@@ -74,7 +74,8 @@ class StateVars:
         
     def __statevars_state_A(self, e):
         if e._message == "X":
-            (self.__compartment.state_vars["x"]) = (self.__compartment.state_vars["x"]) + 1
+            (self.__compartment.state_vars["x"]) = self.__compartment.state_vars["x"] + 1
+            
             
             return
         
@@ -103,12 +104,14 @@ class StateVars:
             return
         
         elif e._message == "Y":
-            (self.__compartment.state_vars["y"]) = (self.__compartment.state_vars["y"]) + 1
+            (self.__compartment.state_vars["y"]) = self.__compartment.state_vars["y"] + 1
+            
             
             return
         
         elif e._message == "Z":
-            (self.__compartment.state_vars["z"]) = (self.__compartment.state_vars["z"]) + 1
+            (self.__compartment.state_vars["z"]) = self.__compartment.state_vars["z"] + 1
+            
             
             return
         

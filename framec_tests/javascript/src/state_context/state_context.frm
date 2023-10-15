@@ -63,7 +63,7 @@
 
         |Change| [arg:i32]
             var tmp = x + arg
-            ->> $Bar(tmp)
+            --- ->> $Bar(tmp)
             ^
 
     $Bar [y:i32]
@@ -90,7 +90,7 @@
         |Change| [arg:i32]
             var tmp = y + z + arg
             log("tmp", tmp)
-            ->> $Init
+            --- ->> $Init
             ^
 
     -actions-

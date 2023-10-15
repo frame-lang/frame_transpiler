@@ -31,10 +31,6 @@ class TransitParams:
         e = FrameEvent("Next",None)
         self.__mux(e)
     
-    def Change(self,):
-        e = FrameEvent("Change",None)
-        self.__mux(e)
-    
     # ====================== Multiplexer ==================== #
     
     def __mux(self, e):
@@ -69,13 +65,6 @@ class TransitParams:
             
             return
         
-        elif e._message == "Change":
-            compartment = TransitParamsCompartment(self.__transitparams_state_A)
-            
-            self.__change_state(compartment)
-            
-            return
-        
     def __transitparams_state_A(self, e):
         if e._message == ">":
             self.log_do(e._parameters["msg"])
@@ -92,13 +81,6 @@ class TransitParams:
             compartment.enter_args["msg"] = "hi B"
             compartment.enter_args["val"] = 42
             self.__transition(compartment)
-            
-            return
-        
-        elif e._message == "Change":
-            compartment = TransitParamsCompartment(self.__transitparams_state_B)
-            
-            self.__change_state(compartment)
             
             return
         
@@ -124,13 +106,6 @@ class TransitParams:
             
             return
         
-        elif e._message == "Change":
-            compartment = TransitParamsCompartment(self.__transitparams_state_A)
-            
-            self.__change_state(compartment)
-            
-            return
-        
     
     # ===================== Actions Block =================== #
     
@@ -149,10 +124,6 @@ class TransitParams:
         self.__mux(FrameEvent("<", self.__compartment.exit_args))
         self.__compartment = next_compartment
         self.__mux(FrameEvent(">", self.__compartment.enter_args))
-    
-    def __change_state(self, new_compartment: 'TransitParamsCompartment'):
-        self.__compartment = new_compartment
-    
     
     def state_info(self):
         return self.__compartment.state.__name__

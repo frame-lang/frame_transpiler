@@ -29,7 +29,8 @@ import ("golang/framelang")
         |pop|
             -> $$[-] ^
         |pop_change|
-            ->> $$[-] ^
+            --- ->> $$[-]
+            ^
 
     $B
         |>|
@@ -47,7 +48,8 @@ import ("golang/framelang")
         |pop|
             -> $$[-] ^
         |pop_change|
-            ->> $$[-] ^
+            --- ->> $$[-]
+            ^
 
     $C
         |>|
@@ -65,7 +67,8 @@ import ("golang/framelang")
         |pop|
             -> $$[-] ^
         |pop_change|
-            ->> $$[-] ^
+            --- ->> $$[-]
+            ^
 
     -actions-
     log [msg:string]

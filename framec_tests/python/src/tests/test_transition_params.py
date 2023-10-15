@@ -1,23 +1,24 @@
 from transition_params.transition_params import TransitParams
 
+
 class TransitParamsController(TransitParams):
 
     def log_do(self, msg: str):
         return self.tape.append(msg)
 
-def return_state_name(state):
 
+def return_state_name(state):
     return f'__transitparams_state_{state}'
+
 
 class TestTransitParams:
 
-    def enter(self):
-        
+    def test_enter(self):
         sm = TransitParamsController()
         sm.Next()
         assert sm.tape == ["hi A"]
-    
-    def enter_and_exit(self):
+
+    def test_enter_and_exit(self):
         sm = TransitParamsController()
         sm.Next()
         sm.tape.clear()
@@ -38,7 +39,7 @@ class TestTransitParams:
         assert sm.state_info() == return_state_name("A")
         assert len(sm.tape) == 0
 
-    def test_change_and_transition(self):
+    def change_and_transition(self):
         sm = TransitParamsController()
         sm.Change()
         assert sm.state_info() == return_state_name("A")

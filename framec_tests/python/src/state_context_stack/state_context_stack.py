@@ -103,7 +103,8 @@ class StateContextStack:
             return
         
         elif e._message == "inc":
-            (self.__compartment.state_vars["x"]) = (self.__compartment.state_vars["x"]) + 1
+            (self.__compartment.state_vars["x"]) = self.__compartment.state_vars["x"] + 1
+            
             
             return
         
@@ -145,11 +146,11 @@ class StateContextStack:
             return
         
         elif e._message == "pop_change":
-            compartment = self.__state_stack_pop()
-            self.__change_state(compartment)
             
             return
         
+      #  ->> $$[-]
+    
     def __statecontextstack_state_B(self, e):
         if e._message == ">":
             self.log_do("B:>")
@@ -162,7 +163,8 @@ class StateContextStack:
             return
         
         elif e._message == "inc":
-            (self.__compartment.state_vars["y"]) = (self.__compartment.state_vars["y"]) + 5
+            (self.__compartment.state_vars["y"]) = self.__compartment.state_vars["y"] + 5
+            
             
             return
         
@@ -204,11 +206,11 @@ class StateContextStack:
             return
         
         elif e._message == "pop_change":
-            compartment = self.__state_stack_pop()
-            self.__change_state(compartment)
             
             return
         
+      #  ->> $$[-]
+    
     def __statecontextstack_state_C(self, e):
         if e._message == ">":
             self.log_do("C:>")
@@ -221,7 +223,8 @@ class StateContextStack:
             return
         
         elif e._message == "inc":
-            (self.__compartment.state_vars["z"]) = (self.__compartment.state_vars["z"]) + 10
+            (self.__compartment.state_vars["z"]) = self.__compartment.state_vars["z"] + 10
+            
             
             return
         
@@ -263,8 +266,6 @@ class StateContextStack:
             return
         
         elif e._message == "pop_change":
-            compartment = self.__state_stack_pop()
-            self.__change_state(compartment)
             
             return
         
@@ -292,10 +293,6 @@ class StateContextStack:
     
     def __state_stack_pop(self):
         return self.__state_stack.pop()
-    
-    
-    def __change_state(self, new_compartment: 'StateContextStackCompartment'):
-        self.__compartment = new_compartment
     
     
     def state_info(self):

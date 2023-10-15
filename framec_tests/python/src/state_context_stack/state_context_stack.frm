@@ -36,7 +36,8 @@ from framelang.framelang import FrameEvent
         |pop|
             -> $$[-] ^
         |pop_change|
-            ->> $$[-] ^
+            --- ->> $$[-]
+            ^
 
     $B
         var y:int = 0
@@ -59,7 +60,8 @@ from framelang.framelang import FrameEvent
         |pop|
             -> $$[-] ^
         |pop_change|
-            ->> $$[-] ^
+            --- ->> $$[-]
+            ^
 
     $C
         var z:int = 0
@@ -82,7 +84,8 @@ from framelang.framelang import FrameEvent
         |pop|
             -> $$[-] ^
         |pop_change|
-            ->> $$[-] ^
+            --- ->> $$[-]
+            ^
 
     -actions-
     log [msg:str]

@@ -65,7 +65,7 @@ from framelang.framelang import FrameEvent
 
         |Change| [arg:int]
             var tmp = x + arg
-            ->> $Bar(tmp)
+            --- ->> $Bar(tmp)
             ^
 
     $Bar [y:int]
@@ -92,7 +92,7 @@ from framelang.framelang import FrameEvent
         |Change| [arg:int]
             var tmp = y + z + arg
             log("tmp", tmp)
-            ->> $Init
+            --- ->> $Init
             ^
 
     -actions-
