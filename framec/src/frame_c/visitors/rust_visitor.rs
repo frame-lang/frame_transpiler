@@ -692,7 +692,7 @@ impl RustVisitor {
                             ExprStmtType::CallStmtT { call_stmt_node } => {
                                 call_stmt_node.accept(self)
                             }
-                            ExprStmtType::CallChainLiteralStmtT {
+                            ExprStmtType::CallChainStmtT {
                                 call_chain_literal_stmt_node,
                             } => call_chain_literal_stmt_node.accept(self),
                             ExprStmtType::AssignmentStmtT {

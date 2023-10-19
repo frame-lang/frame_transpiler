@@ -517,7 +517,7 @@ pub struct VariableDeclNode {
     pub name: String,
     pub type_opt: Option<TypeNode>,
     pub is_constant: bool,
-    pub initializer_value_rc: Rc<ExprType>,
+    initializer_value_rc: Rc<ExprType>,
     pub value_rc: Rc<ExprType>,
     pub identifier_decl_scope: IdentifierDeclScope,
 }
@@ -539,6 +539,13 @@ impl VariableDeclNode {
             value_rc,
             identifier_decl_scope,
         }
+    }
+}
+
+impl VariableDeclNode {
+
+    pub fn get_initializer_value_rc(&self) ->  Rc<ExprType> {
+        self.initializer_value_rc.clone()
     }
 }
 
@@ -1166,6 +1173,7 @@ impl ExprType {
         }
     }
 
+
     /// Get the name of expression type we're looking at. Useful for debugging.
     pub fn expr_type_name(&self) -> &'static str {
         match self {
@@ -1189,6 +1197,34 @@ impl ExprType {
         }
     }
 
+    pub fn debug_print(&self)  {
+        match self {
+            ExprType::VariableExprT {var_node} => {
+                let name = var_node.id_node.name.lexeme.clone();
+                println!("VariableNode: {}", name);
+            }
+            ExprType::CallChainExprT {call_chain_expr_node} => {
+                let mut separator = "";
+                for call_chain_node_type in &call_chain_expr_node.call_chain {
+                    match call_chain_node_type {
+                        CallChainNodeType::VariableNodeT {var_node} => {
+                            let name = var_node.id_node.name.lexeme.clone();
+                            print!("{}{}", name,separator);
+                        }
+                        CallChainNodeType::UndeclaredIdentifierNodeT {id_node} => {
+                            let name = id_node.name.lexeme.clone();
+                            print!("{}{}", name,separator);
+                        }
+                        _ => {
+                            print!("Unknown ExprType");
+                        }
+                    }
+                    separator = ".";
+                }
+            }
+            _ => { }
+        }
+    }
     // pub fn auto_pre_inc_dec(&self, ast_visitor: &mut dyn AstVisitor) {
     //     match self {
     //         ExprType::CallChainLiteralExprT {
@@ -1530,7 +1566,7 @@ pub enum ExprStmtType {
     ActionCallStmtT {
         action_call_stmt_node: ActionCallStmtNode,
     },
-    CallChainLiteralStmtT {
+    CallChainStmtT {
         call_chain_literal_stmt_node: CallChainStmtNode,
     },
     AssignmentStmtT {

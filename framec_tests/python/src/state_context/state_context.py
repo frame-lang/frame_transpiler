@@ -48,13 +48,6 @@ class StateContextSm:
         e = FrameEvent("Next",parameters)
         self.__mux(e)
     
-    def Change(self,arg: int):
-        parameters = {}
-        parameters["arg"] = arg
-
-        e = FrameEvent("Change",parameters)
-        self.__mux(e)
-    
     # ====================== Multiplexer ==================== #
     
     def __mux(self, e):
@@ -80,6 +73,8 @@ class StateContextSm:
             next_compartment.forward_event = None
     
     # ===================== Machine Block =================== #
+    
+      #  Change [arg:int]
     
     def __statecontextsm_state_Init(self, e):
         if e._message == ">":
@@ -153,13 +148,11 @@ class StateContextSm:
             
             return
         
-          #  FIXME: Swapping this to 10 * arg causes a parse error!
-        elif e._message == "Change":
-            tmp  = self.__compartment.state_vars["x"] + e._parameters["arg"]
-            
-            return
-        
-      #  ->> $Bar(tmp)
+      #  FIXME: Swapping this to 10 * arg causes a parse error!
+      #  |Change| [arg:int]
+      #      var tmp = x + arg
+      #      -> $Bar(tmp)
+      #      ^
     
     def __statecontextsm_state_Bar(self, e):
         if e._message == ">":
@@ -184,12 +177,6 @@ class StateContextSm:
             e._return = (self.__compartment.state_vars["z"])
             return
             
-        
-        elif e._message == "Change":
-            tmp  = self.__compartment.state_args["y"] + self.__compartment.state_vars["z"] + e._parameters["arg"]
-            self.log_do("tmp",tmp)
-            
-            return
         
     
     # ===================== Actions Block =================== #

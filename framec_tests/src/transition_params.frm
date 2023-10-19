@@ -2,6 +2,7 @@
 #TransitParams
     -interface-
     Next
+    Change
 
     -machine-
     $Init

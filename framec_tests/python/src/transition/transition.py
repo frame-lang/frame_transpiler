@@ -67,12 +67,7 @@ class TransitionSm:
     # ===================== Machine Block =================== #
     
     def __transitionsm_state_S0(self, e):
-        if e._message == ">":
-            self.enter_do("S0")
-            
-            return
-        
-        elif e._message == "<":
+        if e._message == "<":
             self.exit_do("S0")
             
             return
@@ -83,44 +78,21 @@ class TransitionSm:
             
             return
         
-        elif e._message == "change":
-            
-            return
-        
-      #  ->> $S1
-    
     def __transitionsm_state_S1(self, e):
         if e._message == ">":
             self.enter_do("S1")
             
             return
         
-        elif e._message == "<":
-            self.exit_do("S1")
-            
-            return
-        
-        elif e._message == "transit":
-            compartment = TransitionSmCompartment(self.__transitionsm_state_S2)
-            self.__transition(compartment)
-            
-            return
-        
         elif e._message == "change":
+            compartment = TransitionSmCompartment(self.__transitionsm_state_S2)
+            
+            self.__change_state(compartment)
             
             return
         
-      #  ->> $S2
-    
     def __transitionsm_state_S2(self, e):
-        if e._message == ">":
-            self.enter_do("S2")
-            compartment = TransitionSmCompartment(self.__transitionsm_state_S3)
-            self.__transition(compartment)
-            
-            return
-        
-        elif e._message == "<":
+        if e._message == "<":
             self.exit_do("S2")
             
             return
@@ -131,12 +103,6 @@ class TransitionSm:
             
             return
         
-        elif e._message == "change":
-            
-            return
-        
-      #  ->> $S3
-    
     def __transitionsm_state_S3(self, e):
         if e._message == ">":
             self.enter_do("S3")
@@ -154,21 +120,12 @@ class TransitionSm:
             
             return
         
-        elif e._message == "change":
-            
-            return
-        
-      #  ->> $S4
-    
     def __transitionsm_state_S4(self, e):
         if e._message == ">":
             self.enter_do("S4")
+            compartment = TransitionSmCompartment(self.__transitionsm_state_S0)
             
-            return
-        
-          #  ->> $S0
-        elif e._message == "<":
-            self.exit_do("S4")
+            self.__change_state(compartment)
             
             return
         
@@ -193,6 +150,10 @@ class TransitionSm:
         self.__mux(FrameEvent("<", self.__compartment.exit_args))
         self.__compartment = next_compartment
         self.__mux(FrameEvent(">", self.__compartment.enter_args))
+    
+    def __change_state(self, new_compartment: 'TransitionSmCompartment'):
+        self.__compartment = new_compartment
+    
     
     def state_info(self):
         return self.__compartment.state.__name__

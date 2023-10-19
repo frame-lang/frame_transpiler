@@ -2482,6 +2482,10 @@ impl<'a> Parser<'a> {
             return Err(ParseError::new(err_msg));
         }
 
+        // if !self.is_building_symbol_table {
+        //     let _debug = 0;
+        //     value.debug_print();
+        // }
         let variable_decl_node = VariableDeclNode::new(
             name.clone(),
             type_node_opt.clone(),
@@ -2542,12 +2546,14 @@ impl<'a> Parser<'a> {
         } else {
             // semantic pass
 
+
             // TODO
             self.arcanum
                 .debug_print_current_symbols(self.arcanum.get_current_symtab());
             let symbol_t_opt = self.arcanum.lookup(&name, &IdentifierDeclScope::None);
             let symbol_t_rcref = symbol_t_opt.unwrap();
             let mut symbol_t = symbol_t_rcref.borrow_mut();
+            // TODO - NOTE! setting the ast node
             symbol_t.set_ast_node(variable_decl_node_rcref.clone());
             // match &*z {
             //     SymbolType::DomainVariable {
@@ -2956,12 +2962,27 @@ impl<'a> Parser<'a> {
         );
         let state_node_rcref = Rc::new(RefCell::new(state_node));
 
-        // If this is the 2nd pass, set the reference to the AST state node.
+        // NOTE!! There was a very challenging bug introduced when
+        // the parser started supporting variables being assigned
+        // values properly. Search python visitor for #STATE_NODE_UPDATE_BUG
+        // to see where this happened.
+        // I'm leaving in the redundant identical code here in both paths to highlight
+        // setting the state IS ABSOLUTELY NECESSARY in both syntactic and semantic passes.
+        // The first pass sets a state with variables that their
+        // type identified as CallChainNodeType::UndeclaredIdentifierNodeT because
+        // we don't know what they are. In the semantic pass we can look them up
+        // the variable declarations are typed properly as CallChainNodeType::VariableNodeT.
+        // So we MUST update the state (this is all very tricky) which contains the
+        // variable declarations in both passes.
         if self.is_building_symbol_table {
-            // let state_validator = StateSemanticValidator::new();
-            // if !state_validator.has_valid_exit_semantics(&state_node_rcref.borrow()) {
-            //     return Err(ParseError::new("TODO"));
-            // }
+            // Set state with dummy variable values (CallChainNodeType::UndeclaredIdentifierNodeT)
+            // in syntactic pass.
+            state_symbol_rcref
+                .borrow_mut()
+                .set_state_node(Rc::clone(&state_node_rcref));
+        } else {
+            // Set state with variable decl values for the type (CallChainNodeType::VariableNodeT)
+            // in syntactic pass.
             state_symbol_rcref
                 .borrow_mut()
                 .set_state_node(Rc::clone(&state_node_rcref));
@@ -3452,7 +3473,7 @@ impl<'a> Parser<'a> {
                                         return statements;
                                     }
                                     StatementType::ExpressionStmt { expr_stmt_t } => {
-                                        if let ExprStmtType::CallChainLiteralStmtT {
+                                        if let ExprStmtType::CallChainStmtT {
                                             call_chain_literal_stmt_node,
                                         } = expr_stmt_t
                                         {
@@ -3756,7 +3777,7 @@ impl<'a> Parser<'a> {
                     } => {
                         let call_chain_literal_stmt_node =
                             CallChainStmtNode::new(call_chain_expr_node);
-                        let expr_stmt_t: ExprStmtType = ExprStmtType::CallChainLiteralStmtT {
+                        let expr_stmt_t: ExprStmtType = ExprStmtType::CallChainStmtT {
                             call_chain_literal_stmt_node,
                         };
                         return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
@@ -5845,10 +5866,8 @@ impl<'a> Parser<'a> {
                 // Variables must be the first "node" in a get expression. See https://craftinginterpreters.com/classes.html#properties-on-instances.
 
                 let debug_name = &id_node.name.lexeme.clone();
-                let node = if !is_first_node  {
-                    CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
-                } else {
-                    // variables (or parameters) must be
+                let node = if is_first_node {
+                    // Variables, parameters and enums must be
                     // the first (or only) node in the call chain
 
                     let symbol_name = format!( "{}", &id_node.name.lexeme);
@@ -5859,6 +5878,7 @@ impl<'a> Parser<'a> {
                     let call_chain_node_t = match &symbol_type_rcref_opt {
                         Some(symbol_t) => {
                             match &*symbol_t.borrow() {
+                                // node is Enumeration decl
                                 SymbolType::EnumDeclSymbolT { enum_symbol_rcref } => {
                                     let enum_symbol = enum_symbol_rcref.borrow();
 
@@ -5909,6 +5929,23 @@ impl<'a> Parser<'a> {
                                         return Err(ParseError::new("TODO"));
                                     }
                                 }
+                                // TODO!!! Need to figure out how parameters should work wrt
+                                // setting their values in assignments. Parameters are different
+                                // than variables as THEY ARE NOT INITIALIZED in a variable
+                                // declaration. So lumping them in with variables is likely a
+                                // problem.
+
+                                // #STATE_NODE_UPDATE_BUG - Not updating the symbol table in the semantic pass
+                                // with resolved AST value for variables caused a very subtle bug
+                                // that resulted in the node always being UndeclaredIdentifierNodeT
+                                // rather than being updadted to VariableNodeT in the semantic pass.
+                                // Search on #STATE_NODE_UPDATE_BUG  to see other areas that are
+                                // related to his particular problem.
+
+                                // TODO!! It is a general point of failure
+                                // and source of fragility for the compiler that the sympol table references
+                                // AST nodes from the semantic pass to resolve parameter and types.
+
                                 SymbolType::BlockVar {..} |
                                 SymbolType::DomainVariable {..} |
                                 SymbolType::StateVariable {..} |
@@ -5940,7 +5977,26 @@ impl<'a> Parser<'a> {
 
                     call_chain_node_t
 
+                } else {
+                    CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
                 };
+
+                if !self.is_building_symbol_table {
+                    match &node {
+                        CallChainNodeType::UndeclaredIdentifierNodeT {id_node} => {
+                            let debug_id_nod_namee = id_node.name.lexeme.as_str().clone();
+                            let debug = 1;
+                        }
+                        CallChainNodeType::VariableNodeT {var_node} => {
+                            let debug_var_nod_namee = var_node.get_name();
+                            let debug = 1;
+                        }
+                        _ => {
+                            let debug_wtf_node = 1;
+                        }
+                    }
+
+                }
                 call_chain.push_back(node);
             }
 
@@ -5963,6 +6019,23 @@ impl<'a> Parser<'a> {
             is_first_node = false;
         }
 
+        if !self.is_building_symbol_table {
+            let first_node = call_chain.get(0).unwrap();
+            match first_node {
+                CallChainNodeType::UndeclaredIdentifierNodeT {id_node} => {
+                    let id_node_name = id_node.name.lexeme.as_str().clone();
+                    let _debug = 0;
+                }
+                CallChainNodeType::VariableNodeT {var_node} => {
+                    let id_node_name = var_node.id_node.name.lexeme.as_str().clone();
+                    let _debug = 0;
+                }
+                _ => {
+                    let _debug = 0;
+                }
+            }
+            let _debug = 0;
+        }
         let call_chain_expr_node = CallChainExprNode::new(call_chain);
         Ok(Some(CallChainExprT {
             call_chain_expr_node,

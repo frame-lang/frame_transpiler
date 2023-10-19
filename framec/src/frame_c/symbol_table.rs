@@ -3010,7 +3010,7 @@ pub struct VariableSymbol {
     pub name: String,
     pub var_type: Option<TypeNode>,
     pub scope: IdentifierDeclScope,
-    ast_node_rcref: Rc<RefCell<VariableDeclNode>>,
+    pub ast_node_rcref: Rc<RefCell<VariableDeclNode>>,
 }
 
 impl VariableSymbol {

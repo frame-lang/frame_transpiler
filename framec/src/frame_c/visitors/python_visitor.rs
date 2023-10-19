@@ -437,9 +437,9 @@ impl PythonVisitor {
                                 ExprStmtType::CallStmtT { call_stmt_node } => {
                                     call_stmt_node.accept(self)
                                 }
-                                ExprStmtType::CallChainLiteralStmtT {
-                                    call_chain_literal_stmt_node,
-                                } => call_chain_literal_stmt_node.accept(self),
+                                ExprStmtType::CallChainStmtT {
+                                    call_chain_literal_stmt_node: call_chain_stmt_node,
+                                } => call_chain_stmt_node.accept(self),
                                 ExprStmtType::AssignmentStmtT {
                                     assignment_stmt_node,
                                 } => assignment_stmt_node.accept(self),
@@ -799,7 +799,7 @@ impl PythonVisitor {
                                 Some(var_type) => var_type.get_type_str(),
                                 None => String::from(""),
                             };
-                            let expr_t = &var.initializer_value_rc;
+                            let expr_t = &var.get_initializer_value_rc();
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
                             self.add_code(&format!(
@@ -1049,25 +1049,27 @@ impl PythonVisitor {
             Some(q) => {
                 //                target_state_vars = "stateVars".to_string();
                 if let Some(state_symbol_rcref) = self.arcanium.get_state(&q.borrow().name) {
+                    // #STATE_NODE_UPDATE_BUG - search comments in parser for why this is here
                     let state_symbol = state_symbol_rcref.borrow();
                     let state_node = &state_symbol.state_node_opt.as_ref().unwrap().borrow();
                     // generate local state variables
                     if state_node.vars_opt.is_some() {
-                        //                        let mut separator = "";
-                        for var_rcref in state_node.vars_opt.as_ref().unwrap() {
-                            let var = var_rcref.borrow();
-                            let _var_type = match &var.type_opt {
-                                Some(var_type) => var_type.get_type_str(),
-                                // TODO: check this
-                                None => String::from(""),
-                            };
-                            let expr_t = &var.initializer_value_rc;
+                        for variable_decl_node_rcref in state_node.vars_opt.as_ref().unwrap() {
+                            let var_decl_node = variable_decl_node_rcref.borrow();
+                            let initalizer_value_expr_t = &var_decl_node.get_initializer_value_rc();
+                            initalizer_value_expr_t.debug_print();
                             let mut expr_code = String::new();
-                            expr_t.accept_to_string(self, &mut expr_code);
+                            // #STATE_NODE_UPDATE_BUG - the AST state node wasn't being updated
+                            // in the semantic pass and contained var decls from the syntactic
+                            // pass. The types of the nodes therefore were CallChainNodeType::UndeclaredIdentifierNodeT
+                            // and not CallChainNodeType::VariableNodeT. Therefore the generation
+                            // code that relies on knowing what kind of variable this is
+                            // broke. That happened in this next line.
+                            initalizer_value_expr_t.accept_to_string(self, &mut expr_code);
                             self.newline();
                             self.add_code(&format!(
                                 "compartment.state_vars[\"{}\"] = {}",
-                                var.name, expr_code
+                                var_decl_node.name, expr_code
                             ));
                         }
                     }
@@ -1269,20 +1271,24 @@ impl PythonVisitor {
 
         match system_node.get_first_state() {
             Some(state_rcref) => {
+                // TODO. This code is related to #STATE_NODE_UPDATE_BUG
+                // and should be refactored with the other related code
+                // that generates state vars.
                 let state_node = state_rcref.borrow();
                 match &state_node.vars_opt {
                     Some(vars) => {
-                        for var_rcref in vars {
-                            let var_decl_node = var_rcref.borrow();
-                            let expr_t = &var_decl_node.initializer_value_rc;
+                        for variable_decl_node_rcref in vars {
+                            let var_decl_node = variable_decl_node_rcref.borrow();
+                            let initalizer_value_expr_t = &var_decl_node.get_initializer_value_rc();
+                            initalizer_value_expr_t.debug_print();
                             let mut expr_code = String::new();
-                            expr_t.accept_to_string(self, &mut expr_code);
-
+                            initalizer_value_expr_t.accept_to_string(self, &mut expr_code);
                             self.newline();
-                            self.add_code(&format!(
+                            let code = &format!(
                                 "self.__compartment.state_vars[\"{}\"] = {}",
                                 var_decl_node.name, expr_code,
-                            ));
+                            );
+                            self.add_code(code);
                         }
                     }
                     None => {}
@@ -1489,7 +1495,7 @@ impl AstVisitor for PythonVisitor {
             for var_rcref in &domain_block_node.member_variables {
                 let var_name = var_rcref.borrow().name.clone();
                 let var = var_rcref.borrow();
-                let var_init_expr = &var.initializer_value_rc;
+                let var_init_expr = &var.get_initializer_value_rc();
                 let mut init_expression = String::new();
                 var_init_expr.accept_to_string(self, &mut init_expression);
                 // push for later initialization
@@ -2898,12 +2904,12 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_call_chain_expr_node_to_string(
         &mut self,
-        method_call_chain_expression_node: &CallChainExprNode,
+        call_chain_expression_node: &CallChainExprNode,
         output: &mut String,
     ) {
         let mut separator = "";
 
-        for node in &method_call_chain_expression_node.call_chain {
+        for node in &call_chain_expression_node.call_chain {
             output.push_str(separator);
             match &node {
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
@@ -4236,7 +4242,7 @@ impl AstVisitor for PythonVisitor {
             None => String::from(""),
         };
         let var_name = &variable_decl_node.name;
-        let var_init_expr = &variable_decl_node.initializer_value_rc;
+        let var_init_expr = &variable_decl_node.get_initializer_value_rc();
         self.newline();
         let mut code = String::new();
         var_init_expr.accept_to_string(self, &mut code);

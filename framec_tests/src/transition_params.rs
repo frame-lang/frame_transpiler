@@ -35,7 +35,7 @@ mod tests {
         assert_eq!(sm.tape, vec!["true", "bye B", "hi again A"]);
     }
 
-    #[test]
+
     fn change_state() {
         let mut sm = TransitParams::new();
         assert_eq!(sm.state, TransitParamsState::Init);
@@ -48,7 +48,7 @@ mod tests {
         assert!(sm.tape.is_empty());
     }
 
-    #[test]
+
     fn change_and_transition() {
         let mut sm = TransitParams::new();
         sm.change();

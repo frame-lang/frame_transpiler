@@ -61,10 +61,6 @@ class StateContextStack:
         e = FrameEvent("pop",None)
         self.__mux(e)
     
-    def pop_change(self,):
-        e = FrameEvent("pop_change",None)
-        self.__mux(e)
-    
     # ====================== Multiplexer ==================== #
     
     def __mux(self, e):
@@ -145,12 +141,6 @@ class StateContextStack:
             
             return
         
-        elif e._message == "pop_change":
-            
-            return
-        
-      #  ->> $$[-]
-    
     def __statecontextstack_state_B(self, e):
         if e._message == ">":
             self.log_do("B:>")
@@ -205,12 +195,6 @@ class StateContextStack:
             
             return
         
-        elif e._message == "pop_change":
-            
-            return
-        
-      #  ->> $$[-]
-    
     def __statecontextstack_state_C(self, e):
         if e._message == ">":
             self.log_do("C:>")
@@ -262,10 +246,6 @@ class StateContextStack:
         elif e._message == "pop":
             compartment = self.__state_stack_pop()
             self.__transition(compartment)
-            
-            return
-        
-        elif e._message == "pop_change":
             
             return
         

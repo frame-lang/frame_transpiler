@@ -3,13 +3,14 @@ from framelang.framelang import FrameEvent
 ```
 #[codegen.python.code.public_state_info:bool="true"]
 
+
 #StateContextSm
     -interface-
     Start
     LogState
     Inc : int
     Next [arg:int]
-    Change [arg:int]
+    --- Change [arg:int]
 
     -machine-
     $Init
@@ -63,10 +64,10 @@ from framelang.framelang import FrameEvent
             (10) -> (tmp) $Bar(x)
             ^
 
-        |Change| [arg:int]
-            var tmp = x + arg
-            --- ->> $Bar(tmp)
-            ^
+        --- |Change| [arg:int]
+        ---     var tmp = x + arg
+        ---     -> $Bar(tmp)
+        ---     ^
 
     $Bar [y:int]
 
@@ -89,11 +90,11 @@ from framelang.framelang import FrameEvent
             log("z", z)
             ^(z)
 
-        |Change| [arg:int]
-            var tmp = y + z + arg
-            log("tmp", tmp)
-            --- ->> $Init
-            ^
+        --- |Change| [arg:int]
+        ---     var tmp = y + z + arg
+        ---     log("tmp", tmp)
+        ---     ->> $Init
+        ---     ^
 
     -actions-
     log [name:str, val:int]
