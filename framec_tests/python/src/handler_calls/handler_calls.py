@@ -137,10 +137,10 @@ class HandlerCalls:
             return
         
         elif e._message == "Call":
-            if (e._parameters["event"] == "Foo"):
+            if ((e._parameters["event"] == "Foo")):
                 self.Foo(e._parameters["arg"])
                 return
-            elif (e._parameters["event"] == "Bar"):
+            elif ((e._parameters["event"] == "Bar")):
                 self.Bar(e._parameters["arg"])
                 return
             else:
@@ -178,10 +178,10 @@ class HandlerCalls:
             return
         
         elif e._message == "Call":
-            if (e._parameters["event"] == "Foo"):
+            if ((e._parameters["event"] == "Foo")):
                 self.Foo(e._parameters["arg"])
                 return
-            elif (e._parameters["event"] == "Bar"):
+            elif ((e._parameters["event"] == "Bar")):
                 self.Bar(e._parameters["arg"])
                 return
             else:
@@ -225,10 +225,10 @@ class HandlerCalls:
             return
         
         elif e._message == "Call":
-            if (e._parameters["event"] == "Foo"):
+            if ((e._parameters["event"] == "Foo")):
                 self.Foo(e._parameters["arg"])
                 return
-            elif (e._parameters["event"] == "Bar"):
+            elif ((e._parameters["event"] == "Bar")):
                 self.Bar(e._parameters["arg"])
                 return
             else:

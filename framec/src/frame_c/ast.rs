@@ -3036,19 +3036,19 @@ impl NodeElement for StringMatchTestNode {
 //-----------------------------------------------------//
 
 pub struct StringMatchTestMatchBranchNode {
-    pub string_match_pattern_node: StringMatchTestPatternNode,
+    pub string_match_type: StringMatchType,
     pub statements: Vec<DeclOrStmtType>,
     pub branch_terminator_expr_opt: Option<TerminatorExpr>,
 }
 
 impl StringMatchTestMatchBranchNode {
     pub fn new(
-        string_match_pattern_node: StringMatchTestPatternNode,
+        string_match_type: StringMatchType,
         statements: Vec<DeclOrStmtType>,
         branch_terminator_t_opt: Option<TerminatorExpr>,
     ) -> StringMatchTestMatchBranchNode {
         StringMatchTestMatchBranchNode {
-            string_match_pattern_node,
+            string_match_type,
             statements,
             branch_terminator_expr_opt: branch_terminator_t_opt,
         }
@@ -3084,6 +3084,16 @@ impl NodeElement for StringMatchTestElseBranchNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         ast_visitor.visit_string_match_test_else_branch_node(self);
     }
+}
+
+//-----------------------------------------------------//
+
+pub enum StringMatchType {
+    MatchString {
+        string_match_test_pattern_node: StringMatchTestPatternNode
+    },
+    MatchEmptyString,
+    MatchNullString,
 }
 
 //-----------------------------------------------------//

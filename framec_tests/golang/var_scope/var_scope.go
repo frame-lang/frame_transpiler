@@ -252,9 +252,9 @@ func (m *varScopeStruct) _VarScopeState_NN_(e *framelang.FrameEvent) {
         
         return
     }
-}  //  var x:string = "|sigils|.x"
-  //  log(||[x])
-  //  log(||.x)
+}  // var x:string = "|sigils|.x"
+  // log(||[x])
+  // log(||.x)
 
 
 func (m *varScopeStruct) _VarScopeState_NY_(e *framelang.FrameEvent) {
@@ -306,10 +306,10 @@ func (m *varScopeStruct) _VarScopeState_NY_(e *framelang.FrameEvent) {
         
         return
     }
-}  //  var x:string = "|sigils|.x"
-  //  log($.x)
-  //  log(||[x])
-  //  log(||.x)
+}  // var x:string = "|sigils|.x"
+  // log($.x)
+  // log(||[x])
+  // log(||.x)
 
 
 func (m *varScopeStruct) _VarScopeState_YN_(e *framelang.FrameEvent) {
@@ -361,10 +361,10 @@ func (m *varScopeStruct) _VarScopeState_YN_(e *framelang.FrameEvent) {
         
         return
     }
-}  //  var x:string = "|sigils|.x"
-  //  log($[x])
-  //  log(||[x])
-  //  log(||.x)
+}  // var x:string = "|sigils|.x"
+  // log($[x])
+  // log(||[x])
+  // log(||.x)
 
 
 func (m *varScopeStruct) _VarScopeState_YY_(e *framelang.FrameEvent) {

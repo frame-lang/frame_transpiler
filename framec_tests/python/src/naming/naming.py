@@ -119,13 +119,13 @@ class Naming:
             return
         
         elif e._message == "call":
-            if (e._parameters["event"] == "snake_event"):
+            if ((e._parameters["event"] == "snake_event")):
                 self.snake_event(e._parameters["param"])
                 return
-            elif (e._parameters["event"] == "CamelEvent"):
+            elif ((e._parameters["event"] == "CamelEvent")):
                 self.CamelEvent(e._parameters["param"])
                 return
-            elif (e._parameters["event"] == "event123"):
+            elif ((e._parameters["event"] == "event123")):
                 self.event123(e._parameters["param"])
                 return
             else:
@@ -164,13 +164,13 @@ class Naming:
             return
         
         elif e._message == "call":
-            if (e._parameters["event"] == "snake_event"):
+            if ((e._parameters["event"] == "snake_event")):
                 self.snake_event(e._parameters["param"])
                 return
-            elif (e._parameters["event"] == "CamelEvent"):
+            elif ((e._parameters["event"] == "CamelEvent")):
                 self.CamelEvent(e._parameters["param"])
                 return
-            elif (e._parameters["event"] == "event123"):
+            elif ((e._parameters["event"] == "event123")):
                 self.event123(e._parameters["param"])
                 return
             else:
@@ -209,13 +209,13 @@ class Naming:
             return
         
         elif e._message == "call":
-            if (e._parameters["event"] == "snake_event"):
+            if ((e._parameters["event"] == "snake_event")):
                 self.snake_event(e._parameters["param"])
                 return
-            elif (e._parameters["event"] == "CamelEvent"):
+            elif ((e._parameters["event"] == "CamelEvent")):
                 self.CamelEvent(e._parameters["param"])
                 return
-            elif (e._parameters["event"] == "event123"):
+            elif ((e._parameters["event"] == "event123")):
                 self.event123(e._parameters["param"])
                 return
             else:
@@ -254,13 +254,13 @@ class Naming:
             return
         
         elif e._message == "call":
-            if (e._parameters["event"] == "snake_event"):
+            if ((e._parameters["event"] == "snake_event")):
                 self.snake_event(e._parameters["param"])
                 return
-            elif (e._parameters["event"] == "CamelEvent"):
+            elif ((e._parameters["event"] == "CamelEvent")):
                 self.CamelEvent(e._parameters["param"])
                 return
-            elif (e._parameters["event"] == "event123"):
+            elif ((e._parameters["event"] == "event123")):
                 self.event123(e._parameters["param"])
                 return
             else:

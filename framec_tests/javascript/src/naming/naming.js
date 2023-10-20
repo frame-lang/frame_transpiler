@@ -144,13 +144,13 @@ class Naming {
                 
             case "call":
                 {
-                if (((e._parameters["event"]) == "snake_event")) {
+                if (((e._parameters["event"])) {
                     this.snake_event((e._parameters["param"]));
                     return;
-                } else if (((e._parameters["event"]) == "CamelEvent")) {
+                } else if (((e._parameters["event"])) {
                     this.CamelEvent((e._parameters["param"]));
                     return;
-                } else if (((e._parameters["event"]) == "event123")) {
+                } else if (((e._parameters["event"])) {
                     this.event123((e._parameters["param"]));
                     return;
                 } else {
@@ -164,7 +164,7 @@ class Naming {
     
     #ssnake_state_(e) {
         switch (e._message) {
-              //  1100
+              // 1100
 			case "snake_event":
                 {
                 let snake_local_var = this.#compartment.StateVars["snake_state_var"] + this.#compartment.StateArgs["snake_state_param"] + e._parameters["snake_param"];
@@ -206,13 +206,13 @@ class Naming {
                 
             case "call":
                 {
-                if (((e._parameters["event"]) == "snake_event")) {
+                if (((e._parameters["event"])) {
                     this.snake_event((e._parameters["param"]));
                     return;
-                } else if (((e._parameters["event"]) == "CamelEvent")) {
+                } else if (((e._parameters["event"])) {
                     this.CamelEvent((e._parameters["param"]));
                     return;
-                } else if (((e._parameters["event"]) == "event123")) {
+                } else if (((e._parameters["event"])) {
                     this.event123((e._parameters["param"]));
                     return;
                 } else {
@@ -226,7 +226,7 @@ class Naming {
     
     #sCamelState_(e) {
         switch (e._message) {
-              //  1200
+              // 1200
 			case "snake_event":
                 {
                 let snake_local_var = this.#compartment.StateVars["CamelStateVar"] + this.#compartment.StateArgs["CamelStateParam"] + e._parameters["snake_param"];
@@ -268,13 +268,13 @@ class Naming {
                 
             case "call":
                 {
-                if (((e._parameters["event"]) == "snake_event")) {
+                if (((e._parameters["event"])) {
                     this.snake_event((e._parameters["param"]));
                     return;
-                } else if (((e._parameters["event"]) == "CamelEvent")) {
+                } else if (((e._parameters["event"])) {
                     this.CamelEvent((e._parameters["param"]));
                     return;
-                } else if (((e._parameters["event"]) == "event123")) {
+                } else if (((e._parameters["event"])) {
                     this.event123((e._parameters["param"]));
                     return;
                 } else {
@@ -288,7 +288,7 @@ class Naming {
     
     #sstate123_(e) {
         switch (e._message) {
-              //  1300
+              // 1300
 			case "snake_event":
                 {
                 let snake_local_var = this.#compartment.StateVars["stateVar123"] + this.#compartment.StateArgs["stateParam123"] + e._parameters["snake_param"];
@@ -330,13 +330,13 @@ class Naming {
                 
             case "call":
                 {
-                if (((e._parameters["event"]) == "snake_event")) {
+                if (((e._parameters["event"])) {
                     this.snake_event((e._parameters["param"]));
                     return;
-                } else if (((e._parameters["event"]) == "CamelEvent")) {
+                } else if (((e._parameters["event"])) {
                     this.CamelEvent((e._parameters["param"]));
                     return;
-                } else if (((e._parameters["event"]) == "event123")) {
+                } else if (((e._parameters["event"])) {
                     this.event123((e._parameters["param"]));
                     return;
                 } else {

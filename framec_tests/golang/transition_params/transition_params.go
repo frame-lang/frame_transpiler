@@ -102,7 +102,7 @@ func (m *transitParamsStruct) _TransitParamsState_Init_(e *framelang.FrameEvent)
         
         return
     }
-}  //  ->> $A
+}  // ->> $A
 
 
 func (m *transitParamsStruct) _TransitParamsState_A_(e *framelang.FrameEvent) {
@@ -126,7 +126,7 @@ func (m *transitParamsStruct) _TransitParamsState_A_(e *framelang.FrameEvent) {
         
         return
     }
-}  //  ->> $B
+}  // ->> $B
 
 
 func (m *transitParamsStruct) _TransitParamsState_B_(e *framelang.FrameEvent) {

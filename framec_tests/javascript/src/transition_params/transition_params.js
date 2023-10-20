@@ -102,7 +102,7 @@ class TransitParams {
                 }
                 
         }
-    }  //  ->> $A
+    }  // ->> $A
 	
     
     #sA_(e) {
@@ -140,7 +140,7 @@ class TransitParams {
                 }
                 
         }
-    }  //  ->> $B
+    }  // ->> $B
 	
     
     #sB_(e) {
@@ -205,7 +205,7 @@ class TransitParams {
         return this.#compartment.state.name;
     }
     
-      //  ->> $A
+      // ->> $A
 	
     
 };

@@ -25,7 +25,7 @@ from framelang.framelang import FrameEvent
             log("Foo", arg)
             counter = counter + arg
             Bar(arg*2)
-            --- the front-end should report the next line as a static error
+            // the front-end should report the next line as a static error
             log("Unreachable", 0)
             ^
 

@@ -191,7 +191,7 @@ class StateContextSm {
                 return;
                 }
                 
-              //  FIXME: Swapping this to 10 * arg causes a parse error!
+              // FIXME: Swapping this to 10 * arg causes a parse error!
 			case "Change":
                 {
                 let tmp = this.#compartment.StateVars["x"] + e._parameters["arg"];
@@ -200,7 +200,7 @@ class StateContextSm {
                 }
                 
         }
-    }  //  ->> $Bar(tmp)
+    }  // ->> $Bar(tmp)
 	
     
     #sBar_(e) {
@@ -264,7 +264,7 @@ class StateContextSm {
         return this.#compartment.state.name;
     }
     
-      //  ->> $Init
+      // ->> $Init
 	
     
 };

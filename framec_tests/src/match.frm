@@ -19,7 +19,7 @@
     $EmptyMatch
         |OnString| [s:String]
             s ?~
-                /|foo/  --- TODO: matching only the empty string is broken
+                /|foo/  // TODO: matching only the empty string is broken
                     log("empty")
                 :   log("?")
             :: ^

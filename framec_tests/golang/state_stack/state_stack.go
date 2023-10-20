@@ -175,7 +175,7 @@ func (m *stateStackStruct) _StateStackState_A_(e *framelang.FrameEvent) {
         
         return
     }
-}  //  ->> $$[-]
+}  // ->> $$[-]
 
 
 func (m *stateStackStruct) _StateStackState_B_(e *framelang.FrameEvent) {
@@ -216,7 +216,7 @@ func (m *stateStackStruct) _StateStackState_B_(e *framelang.FrameEvent) {
         
         return
     }
-}  //  ->> $$[-]
+}  // ->> $$[-]
 
 
 func (m *stateStackStruct) _StateStackState_C_(e *framelang.FrameEvent) {

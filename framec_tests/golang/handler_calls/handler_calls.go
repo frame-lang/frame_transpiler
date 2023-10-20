@@ -158,12 +158,18 @@ func (m *handlerCallsStruct) _HandlerCallsState_NonRecursive_(e *framelang.Frame
     case "Foo":
         m.log("Foo",e.Params["arg"].(int))
         m._compartment_.StateVars["counter"] = m._compartment_.StateVars["counter"].(int) + e.Params["arg"].(int)
-        m.Bar(e.Params["arg"].(int) * 2)
-        return
+        should
+        report
+        the
+        next
+        line
+        as
+        a
+        static
+        error
         m.log("Unreachable",0)
         
         return
-      //  the front-end should report the next line as a static error
     case "Bar":
         m.log("Bar",e.Params["arg"].(int))
         m._compartment_.StateVars["counter"] = m._compartment_.StateVars["counter"].(int) + e.Params["arg"].(int)
@@ -174,10 +180,10 @@ func (m *handlerCallsStruct) _HandlerCallsState_NonRecursive_(e *framelang.Frame
         
         return
     case "Call":
-        if e.Params["event"].(string) == "Foo" {
+        if e.Params["event"].(string) {
             m.Foo(e.Params["arg"].(int))
             return
-        } else if e.Params["event"].(string) == "Bar" {
+        } else if e.Params["event"].(string) {
             m.Bar(e.Params["arg"].(int))
             return
         } else {
@@ -216,10 +222,10 @@ func (m *handlerCallsStruct) _HandlerCallsState_SelfRecursive_(e *framelang.Fram
         
         return
     case "Call":
-        if e.Params["event"].(string) == "Foo" {
+        if e.Params["event"].(string) {
             m.Foo(e.Params["arg"].(int))
             return
-        } else if e.Params["event"].(string) == "Bar" {
+        } else if e.Params["event"].(string) {
             m.Bar(e.Params["arg"].(int))
             return
         } else {
@@ -262,10 +268,10 @@ func (m *handlerCallsStruct) _HandlerCallsState_MutuallyRecursive_(e *framelang.
         
         return
     case "Call":
-        if e.Params["event"].(string) == "Foo" {
+        if e.Params["event"].(string) {
             m.Foo(e.Params["arg"].(int))
             return
-        } else if e.Params["event"].(string) == "Bar" {
+        } else if e.Params["event"].(string) {
             m.Bar(e.Params["arg"].(int))
             return
         } else {

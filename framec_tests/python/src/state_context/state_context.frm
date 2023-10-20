@@ -10,7 +10,7 @@ from framelang.framelang import FrameEvent
     LogState
     Inc : int
     Next [arg:int]
-    --- Change [arg:int]
+    // Change [arg:int]
 
     -machine-
     $Init
@@ -60,14 +60,14 @@ from framelang.framelang import FrameEvent
             ^(x)
 
         |Next| [arg:int]
-            var tmp = arg * 10  --- FIXME: Swapping this to 10 * arg causes a parse error!
+            var tmp = arg * 10  // FIXME: Swapping this to 10 * arg causes a parse error!
             (10) -> (tmp) $Bar(x)
             ^
 
-        --- |Change| [arg:int]
-        ---     var tmp = x + arg
-        ---     -> $Bar(tmp)
-        ---     ^
+        // |Change| [arg:int]
+        //     var tmp = x + arg
+        //     -> $Bar(tmp)
+        //     ^
 
     $Bar [y:int]
 
@@ -90,11 +90,11 @@ from framelang.framelang import FrameEvent
             log("z", z)
             ^(z)
 
-        --- |Change| [arg:int]
-        ---     var tmp = y + z + arg
-        ---     log("tmp", tmp)
-        ---     ->> $Init
-        ---     ^
+        // |Change| [arg:int]
+        //     var tmp = y + z + arg
+        //     log("tmp", tmp)
+        //     ->> $Init
+        //     ^
 
     -actions-
     log [name:str, val:int]

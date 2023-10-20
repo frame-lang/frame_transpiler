@@ -27,7 +27,7 @@
 
     $snake_state [snake_state_param:i32]
 
-        --- 1100
+        // 1100
         var snake_state_var:i32 = snake_domain_var + CamelDomainVar + domainVar123 + 100
 
         |snake_event| [snake_param:i32]
@@ -54,7 +54,7 @@
 
     $CamelState [CamelStateParam:i32]
 
-        --- 1200
+        // 1200
         var CamelStateVar:i32 = snake_domain_var + CamelDomainVar + domainVar123 + 200
 
         |snake_event| [snake_param:i32]
@@ -81,7 +81,7 @@
 
     $state123 [stateParam123:i32]
 
-        --- 1300
+        // 1300
         var stateVar123:i32 = snake_domain_var + CamelDomainVar + domainVar123 + 300
 
         |snake_event| [snake_param:i32]

@@ -4270,48 +4270,62 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
+    // Match a string
     // string_match_test ->  ('/' match_string ('|' match_string)* '/' (statement* branch_terminator?) ':>')+  '::'
+    // Match an empty string
+    // string_match_test ->  ('//-' (statement* branch_terminator?) ':>')+  '::'
+    // Match null
+    // string_match_test ->  ('//!' (statement* branch_terminator?) ':>')+  '::'
 
     fn string_match_test_match_branch(
         &mut self,
     ) -> Result<StringMatchTestMatchBranchNode, ParseError> {
-        if let Err(parse_error) = self.consume(TokenType::ForwardSlash, "Expected '/'.") {
-            return Err(parse_error);
-        }
 
         let mut match_strings: Vec<String> = Vec::new();
+        let mut string_match_t = StringMatchType::MatchNullString;
 
-        if !self.match_token(&[TokenType::MatchString]) {
-            return Err(ParseError::new("TODO"));
-        }
+        if  self.match_token(&[TokenType::ForwardSlash]) {
 
-        //        let token = self.previous();
-        let match_string_tok = self.previous();
-        let match_pattern_string = match_string_tok.lexeme.clone();
-        match_strings.push(match_pattern_string);
-
-        while self.match_token(&[TokenType::Pipe]) {
             if !self.match_token(&[TokenType::MatchString]) {
                 return Err(ParseError::new("TODO"));
             }
 
-            //           let token = self.previous();
+
             let match_string_tok = self.previous();
             let match_pattern_string = match_string_tok.lexeme.clone();
             match_strings.push(match_pattern_string);
-        }
 
-        let string_match_pattern_node = StringMatchTestPatternNode::new(match_strings);
+            while self.match_token(&[TokenType::Pipe]) {
+                if !self.match_token(&[TokenType::MatchString]) {
+                    return Err(ParseError::new("TODO"));
+                }
 
-        if let Err(parse_error) = self.consume(TokenType::ForwardSlash, "Expected '/'.") {
-            return Err(parse_error);
+                //           let token = self.previous();
+                let match_string_tok = self.previous();
+                let match_pattern_string = match_string_tok.lexeme.clone();
+                match_strings.push(match_pattern_string);
+            }
+
+            let string_match_test_pattern_node = StringMatchTestPatternNode::new(match_strings);
+            string_match_t = StringMatchType::MatchString {string_match_test_pattern_node};
+
+            if let Err(parse_error) = self.consume(TokenType::ForwardSlash, "Expected '/'.") {
+                return Err(parse_error);
+            }
+        } else if self.match_token(&[TokenType::MatchEmptyString]) {
+            string_match_t = StringMatchType::MatchEmptyString;
+        } else if self.match_token(&[TokenType::MatchNull]) {
+            string_match_t = StringMatchType::MatchNullString;
+        } else {
+            return Err(ParseError::new("TODO"));
         }
 
         let statements = self.statements(IdentifierDeclScope::BlockVar);
         let result = self.branch_terminator();
+
         match result {
             Ok(branch_terminator_t_opt) => Ok(StringMatchTestMatchBranchNode::new(
-                string_match_pattern_node,
+                string_match_t,
                 statements,
                 branch_terminator_t_opt,
             )),

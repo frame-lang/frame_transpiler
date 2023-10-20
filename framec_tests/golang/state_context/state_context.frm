@@ -60,13 +60,13 @@ import "golang/framelang"
             ^(x)
 
         |Next| [arg:int]
-            var tmp = arg * 10  --- FIXME: Swapping this to 10 * arg causes a parse error!
+            var tmp = arg * 10  // FIXME: Swapping this to 10 * arg causes a parse error!
             (10) -> (tmp) $Bar(x)
             ^
 
         |Change| [arg:int]
             var tmp = x + arg
-            --- ->> $Bar(tmp)
+            // ->> $Bar(tmp)
             ^
 
     $Bar [y:int]
@@ -93,7 +93,7 @@ import "golang/framelang"
         |Change| [arg:int]
             var tmp = y + z + arg
             log("tmp", tmp)
-            --- ->> $Init
+            // ->> $Init
             ^
 
     -actions-

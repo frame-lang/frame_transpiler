@@ -3041,31 +3041,32 @@ impl AstVisitor for CppVisitor {
             // self.add_code(&format!("\") {{"));
 
             let mut first_match = true;
-            for match_string in &match_branch_node
-                .string_match_pattern_node
-                .match_pattern_strings
-            {
-                if first_match {
-                    self.add_code(&format!(" == \"{}\")", match_string));
-                    first_match = false;
-                } else {
-                    self.add_code(" || (");
-                    match &string_match_test_node.expr_t {
-                        ExprType::CallExprT {
-                            call_expr_node: method_call_expr_node,
-                        } => method_call_expr_node.accept(self),
-                        ExprType::ActionCallExprT {
-                            action_call_expr_node,
-                        } => action_call_expr_node.accept(self),
-                        ExprType::CallChainExprT {
-                            call_chain_expr_node,
-                        } => call_chain_expr_node.accept(self),
-                        ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
-                        _ => panic!("TODO"),
-                    }
-                    self.add_code(&format!(" == \"{}\")", match_string));
-                }
-            }
+            // TODO: Fix this section to deal with empty strings and null strings
+            // for match_string in &match_branch_node
+            //     .string_match_pattern_node
+            //     .match_pattern_strings
+            // {
+            //     if first_match {
+            //         self.add_code(&format!(" == \"{}\")", match_string));
+            //         first_match = false;
+            //     } else {
+            //         self.add_code(" || (");
+            //         match &string_match_test_node.expr_t {
+            //             ExprType::CallExprT {
+            //                 call_expr_node: method_call_expr_node,
+            //             } => method_call_expr_node.accept(self),
+            //             ExprType::ActionCallExprT {
+            //                 action_call_expr_node,
+            //             } => action_call_expr_node.accept(self),
+            //             ExprType::CallChainExprT {
+            //                 call_chain_expr_node,
+            //             } => call_chain_expr_node.accept(self),
+            //             ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
+            //             _ => panic!("TODO"),
+            //         }
+            //         self.add_code(&format!(" == \"{}\")", match_string));
+            //     }
+            // }
             self.add_code(" {");
             self.indent();
 

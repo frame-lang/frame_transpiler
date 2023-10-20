@@ -203,7 +203,7 @@ func (m *stateContextStackStruct) _StateContextStackState_A_(e *framelang.FrameE
         
         return
     }
-}  //  ->> $$[-]
+}  // ->> $$[-]
 
 
 func (m *stateContextStackStruct) _StateContextStackState_B_(e *framelang.FrameEvent) {
@@ -258,7 +258,7 @@ func (m *stateContextStackStruct) _StateContextStackState_B_(e *framelang.FrameE
         
         return
     }
-}  //  ->> $$[-]
+}  // ->> $$[-]
 
 
 func (m *stateContextStackStruct) _StateContextStackState_C_(e *framelang.FrameEvent) {

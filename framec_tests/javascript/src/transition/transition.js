@@ -122,7 +122,7 @@ class TransitionSm {
                 }
                 
         }
-    }  //  ->> $S1
+    }  // ->> $S1
 	
     
     #sS1_(e) {
@@ -158,7 +158,7 @@ class TransitionSm {
                 }
                 
         }
-    }  //  ->> $S2
+    }  // ->> $S2
 	
     
     #sS2_(e) {
@@ -198,7 +198,7 @@ class TransitionSm {
                 }
                 
         }
-    }  //  ->> $S3
+    }  // ->> $S3
 	
     
     #sS3_(e) {
@@ -234,7 +234,7 @@ class TransitionSm {
                 }
                 
         }
-    }  //  ->> $S4
+    }  // ->> $S4
 	
     
     #sS4_(e) {
@@ -246,7 +246,7 @@ class TransitionSm {
                 return;
                 }
                 
-              //  ->> $S0
+              // ->> $S0
 			case "<":
                 {
                 this.exit_do("S4");

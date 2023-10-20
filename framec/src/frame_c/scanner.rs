@@ -302,13 +302,14 @@ impl Scanner {
                             // ->
                             self.add_token(TokenType::Transition);
                         }
-                    } else if self.match_char('-') {
-                        // --- comment text
-                        if self.match_char('-') {
-                            self.single_line_comment();
-                        } else {
-                            self.add_token(TokenType::DashDash);
-                        }
+                    // } else if self.match_char('-') {
+                        // // --- comment text
+                        // if self.match_char('-') {
+                        //     self.single_line_comment();
+                        // } else {
+                        //     self.add_token(TokenType::DashDash);
+                        // }
+                        // self.add_token(TokenType::DashDash);
                     } else if self.is_digit(self.peek()) {
                         self.number();
                     } else {
@@ -373,9 +374,11 @@ impl Scanner {
             '/' => {
                 if self.match_char('/') {
                     if self.match_char('!') {
-                        self.add_token(TokenType::MatchNullString);
+                        self.add_token(TokenType::MatchNull);
+                    } else if self.match_char('-') {
+                        self.add_token(TokenType::MatchEmptyString)
                     } else {
-                        self.add_token(TokenType::MatchEmptyString);
+                        self.single_line_comment();
                     }
                 } else {
                     self.add_token_sync_start(TokenType::ForwardSlash);
@@ -748,7 +751,7 @@ pub enum TokenType {
     In,                // 'in' keyword
     Enum,              // 'enum' keyword
     Function,          // 'fn' keyword
-    SingleLineComment, // --- comment
+    // SingleLineComment, // --- comment
     MultiLineComment,  // {-- comments --}
     OpenBrace,         // {
     CloseBrace,        // }
@@ -771,8 +774,9 @@ pub enum TokenType {
     ColonColon,              // ::
     ForwardSlash,            // /
     MatchString,             // /<string>/ - contains <string>
-    MatchNullString,         // //!
-    MatchEmptyString,        // //
+    MatchEmptyString,        // '//-'
+    MatchNull,               // '//!'
+    SingleLineComment,       // '///
     StateStackOperationPush, // $$[+]
     StateStackOperationPop,  // $$[-]
     Dot,                     // .

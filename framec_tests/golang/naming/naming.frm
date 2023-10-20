@@ -31,7 +31,7 @@ import "golang/framelang"
 
     $snake_state [snake_state_param:int]
 
-        --- 1100
+        // 1100
         var snake_state_var:int = snake_domain_var + CamelDomainVar + domainVar123 + 100
 
         |snake_event| [snake_param:int]
@@ -58,7 +58,7 @@ import "golang/framelang"
 
     $CamelState [CamelStateParam:int]
 
-        --- 1200
+        // 1200
         var CamelStateVar:int = snake_domain_var + CamelDomainVar + domainVar123 + 200
 
         |snake_event| [snake_param:int]
@@ -85,7 +85,7 @@ import "golang/framelang"
 
     $state123 [stateParam123:int]
 
-        --- 1300
+        // 1300
         var stateVar123:int = snake_domain_var + CamelDomainVar + domainVar123 + 300
 
         |snake_event| [snake_param:int]

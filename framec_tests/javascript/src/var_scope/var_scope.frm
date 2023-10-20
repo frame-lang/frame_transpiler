@@ -66,10 +66,10 @@
             ^
 
         |sigils| [x:string]
-            --- var x:string = "|sigils|.x"
+            // var x:string = "|sigils|.x"
             log(#.x)
-            --- log(||[x])
-            --- log(||.x)
+            // log(||[x])
+            // log(||.x)
             ^
 
     $NY [b:string]
@@ -119,11 +119,11 @@
             ^
 
         |sigils| [x:string]
-            --- var x:string = "|sigils|.x"
+            // var x:string = "|sigils|.x"
             log(#.x)
-            --- log($.x)
-            --- log(||[x])
-            --- log(||.x)
+            // log($.x)
+            // log(||[x])
+            // log(||.x)
             ^
 
     $YN [b:string, x:string]
@@ -172,11 +172,11 @@
             ^
 
         |sigils| [x:string]
-            --- var x:string = "|sigils|.x"
+            // var x:string = "|sigils|.x"
             log(#.x)
-            --- log($[x])
-            --- log(||[x])
-            --- log(||.x)
+            // log($[x])
+            // log(||[x])
+            // log(||.x)
             ^
 
     $YY [b:string, x:string]
@@ -226,12 +226,12 @@
             ^
 
         |sigils| [x:string]
-            --- var x:string = "|sigils|.x"
+            // var x:string = "|sigils|.x"
             log(#.x)
-            --- log($[x])
-            --- log($.x)
-            --- log(||[x])
-            --- log(||.x)
+            // log($[x])
+            // log($.x)
+            // log(||[x])
+            // log(||.x)
             ^
 
     -actions-

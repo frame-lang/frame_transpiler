@@ -57,13 +57,13 @@
             ^(x)
 
         |Next| [arg:i32]
-            var tmp = arg * 10  --- FIXME: Swapping this to 10 * arg causes a parse error!
+            var tmp = arg * 10  // FIXME: Swapping this to 10 * arg causes a parse error!
             (10) -> (tmp) $Bar(x)
             ^
 
         |Change| [arg:i32]
             var tmp = x + arg
-            --- ->> $Bar(tmp)
+            // ->> $Bar(tmp)
             ^
 
     $Bar [y:i32]
@@ -90,7 +90,7 @@
         |Change| [arg:i32]
             var tmp = y + z + arg
             log("tmp", tmp)
-            --- ->> $Init
+            // ->> $Init
             ^
 
     -actions-

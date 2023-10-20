@@ -128,7 +128,7 @@ class Match:
         
     def __match_state_EmptyMatch(self, e):
         if e._message == "Onstring":
-            if (e._parameters["s"] == "") or (e._parameters["s"] == "foo"):
+            if ((e._parameters["s"] == "") or (e._parameters["s"]== "foo")):
                 self.log_do("empty")
             else:
                 self.log_do("?")
@@ -155,15 +155,15 @@ class Match:
             return
         
         elif e._message == "Onstring":
-            if (e._parameters["s"] == "hello"):
+            if ((e._parameters["s"] == "hello")):
                 self.log_do("hello")
-            elif (e._parameters["s"] == "hello"):
+            elif ((e._parameters["s"] == "hello")):
                 self.log_do("!!!")
-            elif (e._parameters["s"] == "goodbye"):
+            elif ((e._parameters["s"] == "goodbye")):
                 self.log_do("goodbye")
-            elif (e._parameters["s"] == "Testing 1, 2, 3..."):
+            elif ((e._parameters["s"] == "Testing 1, 2, 3...")):
                 self.log_do("testing")
-            elif (e._parameters["s"] == "$10!"):
+            elif ((e._parameters["s"] == "$10!")):
                 self.log_do("money")
             else:
                 self.log_do("?")
@@ -184,9 +184,9 @@ class Match:
             return
         
         elif e._message == "Onstring":
-            if (e._parameters["s"] == "$10") or (e._parameters["s"] == "12.5%") or (e._parameters["s"] == "@#*!"):
+            if ((e._parameters["s"] == "$10") or (e._parameters["s"]== "12.5%") or (e._parameters["s"]== "@#*!")):
                 self.log_do("symbols")
-            elif (e._parameters["s"] == " ") or (e._parameters["s"] == "  ") or (e._parameters["s"] == "\t") or (e._parameters["s"] == "\n"):
+            elif ((e._parameters["s"] == " ") or (e._parameters["s"]== "  ") or (e._parameters["s"]== "\t") or (e._parameters["s"]== "\n")):
                 self.log_do("whitespace")
             else:
                 self.log_do("?")
@@ -223,20 +223,20 @@ class Match:
             return
         
         elif e._message == "Onstring":
-            if (e._parameters["s"] == "hello") or (e._parameters["s"] == "hola") or (e._parameters["s"] == "bonjour"):
+            if ((e._parameters["s"] == "hello") or (e._parameters["s"]== "hola") or (e._parameters["s"]== "bonjour")):
                 self.log_do("greeting")
-                if (e._parameters["s"] == "hello"):
+                if ((e._parameters["s"] == "hello")):
                     self.log_do("English")
-                elif (e._parameters["s"] == "hola"):
+                elif ((e._parameters["s"] == "hola")):
                     self.log_do("Spanish")
                 else:
                     self.log_do("French")
                 
-            elif (e._parameters["s"] == "goodbye") or (e._parameters["s"] == "adios") or (e._parameters["s"] == "au revoir"):
+            elif ((e._parameters["s"] == "goodbye") or (e._parameters["s"]== "adios") or (e._parameters["s"]== "au revoir")):
                 self.log_do("farewell")
-                if (e._parameters["s"] == "goodbye"):
+                if ((e._parameters["s"] == "goodbye")):
                     self.log_do("English")
-                elif (e._parameters["s"] == "adios"):
+                elif ((e._parameters["s"] == "adios")):
                     self.log_do("Spanish")
                 else:
                     self.log_do("French")
@@ -272,13 +272,13 @@ class Match:
             
         
         elif e._message == "Onstring":
-            if (e._parameters["s"] == "hello"):
+            if ((e._parameters["s"] == "hello")):
                 self.log_do("hello in child")
-            elif (e._parameters["s"] == "goodbye"):
+            elif ((e._parameters["s"] == "goodbye")):
                 compartment = MatchCompartment(self.__match_state_Final)
                 self.__transition(compartment)
                 return
-            elif (e._parameters["s"] == "Testing 1, 2, 3..."):
+            elif ((e._parameters["s"] == "Testing 1, 2, 3...")):
                 self.log_do("testing in child")
                 
                 return

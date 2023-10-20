@@ -180,13 +180,13 @@ func (m *stateContextSmStruct) _StateContextSmState_Foo_(e *framelang.FrameEvent
         m._transition_(compartment)
         
         return
-      //  FIXME: Swapping this to 10 * arg causes a parse error!
+      // FIXME: Swapping this to 10 * arg causes a parse error!
     case "Change":
         var tmp  = m._compartment_.StateVars["x"].(int) + e.Params["arg"].(int)
         
         return
     }
-}  //  ->> $Bar(tmp)
+}  // ->> $Bar(tmp)
 
 
 func (m *stateContextSmStruct) _StateContextSmState_Bar_(e *framelang.FrameEvent) {

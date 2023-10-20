@@ -246,9 +246,9 @@ class VarScope {
                 }
                 
         }
-    }  //  var x:string = "|sigils|.x"
-	  //  log(||[x])
-	  //  log(||.x)
+    }  // var x:string = "|sigils|.x"
+	  // log(||[x])
+	  // log(||.x)
 	
     
     #sNY_(e) {
@@ -315,10 +315,10 @@ class VarScope {
                 }
                 
         }
-    }  //  var x:string = "|sigils|.x"
-	  //  log($.x)
-	  //  log(||[x])
-	  //  log(||.x)
+    }  // var x:string = "|sigils|.x"
+	  // log($.x)
+	  // log(||[x])
+	  // log(||.x)
 	
     
     #sYN_(e) {
@@ -385,10 +385,10 @@ class VarScope {
                 }
                 
         }
-    }  //  var x:string = "|sigils|.x"
-	  //  log($[x])
-	  //  log(||[x])
-	  //  log(||.x)
+    }  // var x:string = "|sigils|.x"
+	  // log($[x])
+	  // log(||[x])
+	  // log(||.x)
 	
     
     #sYY_(e) {
@@ -479,11 +479,11 @@ class VarScope {
         return this.#compartment.state.name;
     }
     
-      //  var x:string = "|sigils|.x"
-	  //  log($[x])
-	  //  log($.x)
-	  //  log(||[x])
-	  //  log(||.x)
+      // var x:string = "|sigils|.x"
+	  // log($[x])
+	  // log($.x)
+	  // log(||[x])
+	  // log(||.x)
 	
     
 };

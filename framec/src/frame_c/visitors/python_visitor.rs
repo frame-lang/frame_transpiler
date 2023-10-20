@@ -629,7 +629,7 @@ impl PythonVisitor {
             let comment = &self.comments[self.current_comment_idx];
             if comment.token_type == TokenType::SingleLineComment {
                 self.code
-                    .push_str(&*format!("  # {}", &comment.lexeme[3..]));
+                    .push_str(&*format!("  # {}", &comment.lexeme[2..]));
                 self.code.push_str(&*format!(
                     "\n{}",
                     (0..self.dent).map(|_| "    ").collect::<String>()
@@ -3275,18 +3275,21 @@ impl AstVisitor for PythonVisitor {
         self.newline();
         for match_branch_node in &string_match_test_node.match_branch_nodes {
             self.add_code(&format!("{} (", if_or_else_if));
-            // TODO: use string_match_test_node.expr_t.accept(self) ?
+
+            let mut expr_code = String::new();
             match &string_match_test_node.expr_t {
                 ExprType::CallExprT {
                     call_expr_node: method_call_expr_node,
-                } => method_call_expr_node.accept(self),
+                } => method_call_expr_node.accept_to_string(self, &mut expr_code),
                 ExprType::ActionCallExprT {
                     action_call_expr_node,
-                } => action_call_expr_node.accept(self),
+                } => action_call_expr_node.accept_to_string(self, &mut expr_code),
                 ExprType::CallChainExprT {
                     call_chain_expr_node,
-                } => call_chain_expr_node.accept(self),
-                ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
+                } => call_chain_expr_node.accept_to_string(self, &mut expr_code),
+                ExprType::VariableExprT {
+                    var_node: id_node
+                } => id_node.accept_to_string(self, &mut expr_code),
                 ExprType::ExprListT { expr_list_node } => {
                     // must be only 1 expression in the list
                     if expr_list_node.exprs_t.len() != 1 {
@@ -3307,31 +3310,29 @@ impl AstVisitor for PythonVisitor {
             // self.add_code(&format!("\") {{"));
 
             let mut first_match = true;
-            for match_string in &match_branch_node
-                .string_match_pattern_node
-                .match_pattern_strings
-            {
-                if first_match {
-                    self.add_code(&format!(" == \"{}\")", match_string));
-                    first_match = false;
-                } else {
-                    self.add_code(" or (");
-                    match &string_match_test_node.expr_t {
-                        ExprType::CallExprT {
-                            call_expr_node: method_call_expr_node,
-                        } => method_call_expr_node.accept(self),
-                        ExprType::ActionCallExprT {
-                            action_call_expr_node,
-                        } => action_call_expr_node.accept(self),
-                        ExprType::CallChainExprT {
-                            call_chain_expr_node,
-                        } => call_chain_expr_node.accept(self),
-                        ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
-                        _ => self.errors.push("TODO".to_string()),
+            let x = &match_branch_node.string_match_type;
+            match &match_branch_node.string_match_type {
+                StringMatchType::MatchString {string_match_test_pattern_node} => {
+                    for match_string in &string_match_test_pattern_node
+                                                    .match_pattern_strings
+                    {
+                        if first_match {
+                            first_match = false;
+                            self.add_code(&format!("({} == \"{}\")", expr_code, match_string));
+                        } else {
+                            self.add_code(&format!(" or ({}== \"{}\")",expr_code,match_string));
+                         }
                     }
-                    self.add_code(&format!(" == \"{}\")", match_string));
+                    self.add_code(")");
+                }
+                StringMatchType::MatchNullString  => {
+                    self.add_code(&format!("{} is None)",expr_code));
+                }
+                StringMatchType::MatchEmptyString  => {
+                    self.add_code(&format!("len({}) == 0)",expr_code));
                 }
             }
+
             self.add_code(":");
             self.indent();
 

@@ -68,10 +68,10 @@ from framelang.framelang import FrameEvent
             ^
 
         |sigils| [x:str]
-            --- var x:str = "|sigils|.x"
+            // var x:str = "|sigils|.x"
             log(#.x)
-            --- log(||[x])
-            --- log(||.x)
+            // log(||[x])
+            // log(||.x)
             ^
 
     $NY [b:str]
@@ -121,11 +121,11 @@ from framelang.framelang import FrameEvent
             ^
 
         |sigils| [x:str]
-            --- var x:str = "|sigils|.x"
+            // var x:str = "|sigils|.x"
             log(#.x)
-            --- log($.x)
-            --- log(||[x])
-            --- log(||.x)
+            // log($.x)
+            // log(||[x])
+            // log(||.x)
             ^
 
     $YN [b:str, x:str]
@@ -174,11 +174,11 @@ from framelang.framelang import FrameEvent
             ^
 
         |sigils| [x:str]
-            --- var x:str = "|sigils|.x"
+            // var x:str = "|sigils|.x"
             log(#.x)
-            --- log($[x])
-            --- log(||[x])
-            --- log(||.x)
+            // log($[x])
+            // log(||[x])
+            // log(||.x)
             ^
 
     $YY [b:str, x:str]
@@ -228,12 +228,12 @@ from framelang.framelang import FrameEvent
             ^
 
         |sigils| [x:str]
-            --- var x:str = "|sigils|.x"
+            // var x:str = "|sigils|.x"
             log(#.x)
-            --- log($[x])
-            --- log($.x)
-            --- log(||[x])
-            --- log(||.x)
+            // log($[x])
+            // log($.x)
+            // log(||[x])
+            // log(||.x)
             ^
 
     -actions-

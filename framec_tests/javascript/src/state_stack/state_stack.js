@@ -175,7 +175,7 @@ class StateStack {
                 }
                 
         }
-    }  //  ->> $$[-]
+    }  // ->> $$[-]
 	
     
     #sB_(e) {
@@ -246,7 +246,7 @@ class StateStack {
                 }
                 
         }
-    }  //  ->> $$[-]
+    }  // ->> $$[-]
 	
     
     #sC_(e) {
@@ -383,7 +383,7 @@ class StateStack {
         return this.#compartment.state.name;
     }
     
-      //  ->> $$[-]
+      // ->> $$[-]
 	
     
 };

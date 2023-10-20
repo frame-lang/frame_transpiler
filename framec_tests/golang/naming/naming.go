@@ -162,13 +162,13 @@ func (m *namingStruct) _NamingState_Init_(e *framelang.FrameEvent) {
         
         return
     case "call":
-        if e.Params["event"].(string) == "snake_event" {
+        if e.Params["event"].(string) {
             m.Snake_event(e.Params["param"].(int))
             return
-        } else if e.Params["event"].(string) == "CamelEvent" {
+        } else if e.Params["event"].(string) {
             m.CamelEvent(e.Params["param"].(int))
             return
-        } else if e.Params["event"].(string) == "event123" {
+        } else if e.Params["event"].(string) {
             m.Event123(e.Params["param"].(int))
             return
         } else {
@@ -180,7 +180,7 @@ func (m *namingStruct) _NamingState_Init_(e *framelang.FrameEvent) {
 
 func (m *namingStruct) _NamingState_snake_state_(e *framelang.FrameEvent) {
     switch e.Msg {
-      //  1100
+      // 1100
     case "snake_event":
         var snake_local_var int = m._compartment_.StateVars["snake_state_var"].(int) + m._compartment_.StateArgs["snake_state_param"].(int) + e.Params["snake_param"].(int)
         m.snake_action(snake_local_var)
@@ -209,13 +209,13 @@ func (m *namingStruct) _NamingState_snake_state_(e *framelang.FrameEvent) {
         
         return
     case "call":
-        if e.Params["event"].(string) == "snake_event" {
+        if e.Params["event"].(string) {
             m.Snake_event(e.Params["param"].(int))
             return
-        } else if e.Params["event"].(string) == "CamelEvent" {
+        } else if e.Params["event"].(string) {
             m.CamelEvent(e.Params["param"].(int))
             return
-        } else if e.Params["event"].(string) == "event123" {
+        } else if e.Params["event"].(string) {
             m.Event123(e.Params["param"].(int))
             return
         } else {
@@ -227,7 +227,7 @@ func (m *namingStruct) _NamingState_snake_state_(e *framelang.FrameEvent) {
 
 func (m *namingStruct) _NamingState_CamelState_(e *framelang.FrameEvent) {
     switch e.Msg {
-      //  1200
+      // 1200
     case "snake_event":
         var snake_local_var int = m._compartment_.StateVars["CamelStateVar"].(int) + m._compartment_.StateArgs["CamelStateParam"].(int) + e.Params["snake_param"].(int)
         m.snake_action(snake_local_var)
@@ -256,13 +256,13 @@ func (m *namingStruct) _NamingState_CamelState_(e *framelang.FrameEvent) {
         
         return
     case "call":
-        if e.Params["event"].(string) == "snake_event" {
+        if e.Params["event"].(string) {
             m.Snake_event(e.Params["param"].(int))
             return
-        } else if e.Params["event"].(string) == "CamelEvent" {
+        } else if e.Params["event"].(string) {
             m.CamelEvent(e.Params["param"].(int))
             return
-        } else if e.Params["event"].(string) == "event123" {
+        } else if e.Params["event"].(string) {
             m.Event123(e.Params["param"].(int))
             return
         } else {
@@ -274,7 +274,7 @@ func (m *namingStruct) _NamingState_CamelState_(e *framelang.FrameEvent) {
 
 func (m *namingStruct) _NamingState_state123_(e *framelang.FrameEvent) {
     switch e.Msg {
-      //  1300
+      // 1300
     case "snake_event":
         var snake_local_var int = m._compartment_.StateVars["stateVar123"].(int) + m._compartment_.StateArgs["stateParam123"].(int) + e.Params["snake_param"].(int)
         m.snake_action(snake_local_var)
@@ -303,13 +303,13 @@ func (m *namingStruct) _NamingState_state123_(e *framelang.FrameEvent) {
         
         return
     case "call":
-        if e.Params["event"].(string) == "snake_event" {
+        if e.Params["event"].(string) {
             m.Snake_event(e.Params["param"].(int))
             return
-        } else if e.Params["event"].(string) == "CamelEvent" {
+        } else if e.Params["event"].(string) {
             m.CamelEvent(e.Params["param"].(int))
             return
-        } else if e.Params["event"].(string) == "event123" {
+        } else if e.Params["event"].(string) {
             m.Event123(e.Params["param"].(int))
             return
         } else {

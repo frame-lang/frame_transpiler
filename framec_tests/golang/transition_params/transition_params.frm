@@ -16,7 +16,7 @@ import (
         |Next|
             -> ("hi A") $A ^
         |Change|
-            --- ->> $A
+            // ->> $A
             ^
 
     $A
@@ -30,7 +30,7 @@ import (
             -> ("hi B", 42) $B ^
 
         |Change|
-            --- ->> $B
+            // ->> $B
             ^
 
     $B
@@ -46,7 +46,7 @@ import (
             (true, "bye B") -> ("hi again A") $A ^
 
         |Change|
-            --- ->> $A
+            // ->> $A
             ^
 
     -actions-

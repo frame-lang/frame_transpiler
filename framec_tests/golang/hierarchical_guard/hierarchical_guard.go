@@ -158,7 +158,7 @@ func (m *hierarchicalGuardStruct) _HierarchicalGuardState_S0_(e *framelang.Frame
         } else {
         }
         
-      //  fall through else branch
+      // fall through else branch
     case "B":
         m.log("S0.B")
         if e.Params["i"].(int) > 0 {
@@ -171,7 +171,7 @@ func (m *hierarchicalGuardStruct) _HierarchicalGuardState_S0_(e *framelang.Frame
     }
     m._HierarchicalGuardState_S_(e)
     
-}  //  fall through then branch
+}  // fall through then branch
 
 
 func (m *hierarchicalGuardStruct) _HierarchicalGuardState_S1_(e *framelang.FrameEvent) {
@@ -188,7 +188,7 @@ func (m *hierarchicalGuardStruct) _HierarchicalGuardState_S1_(e *framelang.Frame
     }
     m._HierarchicalGuardState_S0_(e)
     
-}  //  fall through else branch
+}  // fall through else branch
 
 
 func (m *hierarchicalGuardStruct) _HierarchicalGuardState_S2_(e *framelang.FrameEvent) {
@@ -202,7 +202,7 @@ func (m *hierarchicalGuardStruct) _HierarchicalGuardState_S2_(e *framelang.Frame
         } else {
         }
         
-      //  fall through then branch
+      // fall through then branch
     case "B":
         m.log("S2.B")
         if !(e.Params["i"].(int) > 10) {
@@ -215,7 +215,7 @@ func (m *hierarchicalGuardStruct) _HierarchicalGuardState_S2_(e *framelang.Frame
     }
     m._HierarchicalGuardState_S1_(e)
     
-}  //  fall through then branch
+}  // fall through then branch
 
 
 func (m *hierarchicalGuardStruct) _HierarchicalGuardState_S3_(e *framelang.FrameEvent) {

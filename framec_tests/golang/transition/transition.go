@@ -118,7 +118,7 @@ func (m *transitionSmStruct) _TransitionSmState_S0_(e *framelang.FrameEvent) {
         
         return
     }
-}  //  ->> $S1
+}  // ->> $S1
 
 
 func (m *transitionSmStruct) _TransitionSmState_S1_(e *framelang.FrameEvent) {
@@ -140,7 +140,7 @@ func (m *transitionSmStruct) _TransitionSmState_S1_(e *framelang.FrameEvent) {
         
         return
     }
-}  //  ->> $S2
+}  // ->> $S2
 
 
 func (m *transitionSmStruct) _TransitionSmState_S2_(e *framelang.FrameEvent) {
@@ -164,7 +164,7 @@ func (m *transitionSmStruct) _TransitionSmState_S2_(e *framelang.FrameEvent) {
         
         return
     }
-}  //  ->> $S3
+}  // ->> $S3
 
 
 func (m *transitionSmStruct) _TransitionSmState_S3_(e *framelang.FrameEvent) {
@@ -186,7 +186,7 @@ func (m *transitionSmStruct) _TransitionSmState_S3_(e *framelang.FrameEvent) {
         
         return
     }
-}  //  ->> $S4
+}  // ->> $S4
 
 
 func (m *transitionSmStruct) _TransitionSmState_S4_(e *framelang.FrameEvent) {
@@ -195,7 +195,7 @@ func (m *transitionSmStruct) _TransitionSmState_S4_(e *framelang.FrameEvent) {
         m.enter("S4")
         
         return
-      //  ->> $S0
+      // ->> $S0
     case "<":
         m.exit("S4")
         

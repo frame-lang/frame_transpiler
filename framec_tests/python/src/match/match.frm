@@ -24,7 +24,7 @@ from framelang.framelang import FrameEvent
     $EmptyMatch
         |Onstring| [s:str]
             s ?~
-                /|foo/  --- TODO: matching only the empty string is broken
+                /|foo/  // TODO: matching only the empty string is broken
                     log("empty")
                 :   log("?")
             :: ^

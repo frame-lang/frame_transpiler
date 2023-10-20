@@ -65,8 +65,8 @@
         |sigils| [x:String]
             var x:String = "|sigils|.x"
             log(#.x.clone())
-            --- log(||[x].clone())
-            --- log(||.x.clone())
+            // log(||[x].clone())
+            // log(||.x.clone())
             ^
 
     $NY [b:String]
@@ -118,9 +118,9 @@
         |sigils| [x:String]
             var x:String = "|sigils|.x"
             log(#.x.clone())
-            --- log($.x.clone())
-            --- log(||[x].clone())
-            --- log(||.x.clone())
+            // log($.x.clone())
+            // log(||[x].clone())
+            // log(||.x.clone())
             ^
 
     $YN [b:String, x:String]
@@ -171,9 +171,9 @@
         |sigils| [x:String]
             var x:String = "|sigils|.x"
             log(#.x.clone())
-            --- log($[x].clone())
-            --- log(||[x].clone())
-            --- log(||.x.clone())
+            // log($[x].clone())
+            // log(||[x].clone())
+            // log(||.x.clone())
             ^
 
     $YY [b:String, x:String]
@@ -225,10 +225,10 @@
         |sigils| [x:String]
             var x:String = "|sigils|.x"
             log(#.x.clone())
-            --- log($[x].clone())
-            --- log($.x.clone())
-            --- log(||[x].clone())
-            --- log(||.x.clone())
+            // log($[x].clone())
+            // log($.x.clone())
+            // log(||[x].clone())
+            // log(||.x.clone())
             ^
 
     -actions-

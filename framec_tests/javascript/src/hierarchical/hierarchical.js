@@ -173,7 +173,7 @@ class Hierarchical {
                 break;
                 }
                 
-              //  override parent handler
+              // override parent handler
 			case "A":
                 {
                 this.log_do("S0.A");
@@ -185,7 +185,7 @@ class Hierarchical {
                 return;
                 }
                 
-              //  do this, then parent handler
+              // do this, then parent handler
 			case "B":
                 {
                 this.log_do("S0.B");
@@ -193,7 +193,7 @@ class Hierarchical {
                 break;
                 }
                 
-              //  extend parent handler
+              // extend parent handler
 			case "C":
                 {
                 this.log_do("S0.C");
@@ -226,8 +226,8 @@ class Hierarchical {
                 return;
                 }
                 
-              //  defer to parent for A
-			  //  do this, then parent, which transitions here
+              // defer to parent for A
+			  // do this, then parent, which transitions here
 			case "B":
                 {
                 this.log_do("S1.B");
@@ -235,7 +235,7 @@ class Hierarchical {
                 break;
                 }
                 
-              //  propagate message not handled by parent
+              // propagate message not handled by parent
 			case "C":
                 {
                 this.log_do("S1.C");
@@ -264,7 +264,7 @@ class Hierarchical {
                 break;
                 }
                 
-              //  will propagate to S0 and S
+              // will propagate to S0 and S
 			case "B":
                 {
                 this.log_do("S2.B");
@@ -287,7 +287,7 @@ class Hierarchical {
         }
         this.#sS0_(e);
         
-    }  //  continue after transition (should be ignored)
+    }  // continue after transition (should be ignored)
 	
     
     #sS3_(e) {
@@ -306,8 +306,8 @@ class Hierarchical {
                 break;
                 }
                 
-              //  defer to grandparent for A
-			  //  override and move to sibling
+              // defer to grandparent for A
+			  // override and move to sibling
 			case "B":
                 {
                 this.log_do("S3.B");
