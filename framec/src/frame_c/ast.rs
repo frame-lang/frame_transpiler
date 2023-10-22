@@ -173,9 +173,9 @@ impl AttributeMetaWord {
         AttributeMetaWord { name, affinity }
     }
 
-    fn get_affinity(&self) -> AttributeAffinity {
-        self.affinity.clone()
-    }
+    // fn get_affinity(&self) -> AttributeAffinity {
+    //     self.affinity.clone()
+    // }
 }
 
 // e.g. name="foo"
@@ -190,9 +190,9 @@ impl AttributeMetaNameValueStr {
         AttributeMetaNameValueStr { name, value, affinity }
     }
 
-    fn get_affinity(&self) -> AttributeAffinity {
-        self.affinity.clone()
-    }
+    // fn get_affinity(&self) -> AttributeAffinity {
+    //     self.affinity.clone()
+    // }
 }
 
 // e.g. macro_use(foo, bar)
@@ -207,9 +207,9 @@ impl AttributeMetaListIdents {
         AttributeMetaListIdents { name, idents, affinity }
     }
 
-    fn get_affinity(&self) -> AttributeAffinity {
-        self.affinity.clone()
-    }
+    // fn get_affinity(&self) -> AttributeAffinity {
+    //     self.affinity.clone()
+    // }
 }
 
 //-----------------------------------------------------//
@@ -1487,25 +1487,27 @@ impl NodeElement for ExprType {
 //-----------------------------------------------------//
 //                  -Function Arg Expressions-
 
-pub enum FunctionArgExprType {
-    CallChainLiteralExprT {
-        call_chain_expr_node: CallChainExprNode,
-    },
-    #[allow(dead_code)] // is used, don't know why I need this
-    CallExprT {
-        call_expr_node: CallExprNode,
-    },
-    VariableExprT {
-        var_node: VariableNode,
-    },
-    LiteralExprT {
-        literal_expr_node: LiteralExprNode,
-    },
-
-    // TODO
-    // - FunctionBinaryExprNode
-    // - FunctionAssignment
-}
+// TODO v0.12 - use this for restricting the expressions allowed in functions.
+//
+// pub enum FunctionArgExprType {
+//     CallChainLiteralExprT {
+//         call_chain_expr_node: CallChainExprNode,
+//     },
+//     #[allow(dead_code)] // is used, don't know why I need this
+//     CallExprT {
+//         call_expr_node: CallExprNode,
+//     },
+//     VariableExprT {
+//         var_node: VariableNode,
+//     },
+//     LiteralExprT {
+//         literal_expr_node: LiteralExprNode,
+//     },
+//
+//     // TODO
+//     // - FunctionBinaryExprNode
+//     // - FunctionAssignment
+// }
 
 
 pub enum RefExprType<'a> {

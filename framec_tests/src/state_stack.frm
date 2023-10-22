@@ -1,4 +1,8 @@
-#[codegen.rust.features.runtime_support:bool="true"]
+```
+from framelang.framelang import FrameEvent
+```
+#[codegen.python.code.public_state_info:bool="true"]
+
 #StateStack
     -interface-
     to_a
@@ -6,7 +10,7 @@
     to_c
     push
     pop
-    pop_change
+
 
     -machine-
     $A
@@ -24,9 +28,6 @@
             $$[+] ^
         |pop|
             -> $$[-] ^
-        |pop_change|
-            // ->> $$[-]
-            ^
 
     $B
         |>|
@@ -43,9 +44,6 @@
             $$[+] ^
         |pop|
             -> $$[-] ^
-        |pop_change|
-            // ->> $$[-]
-            ^
 
     $C
         |>|
@@ -62,13 +60,10 @@
             $$[+] ^
         |pop|
             -> $$[-] ^
-        |pop_change|
-            // ->> $$[-]
-            ^
 
     -actions-
-    log [msg:String]
+    log [msg:str]
 
     -domain-
-    var tape:Log = `vec![]`
+    var tape = `[]`
 ##

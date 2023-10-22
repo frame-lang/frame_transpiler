@@ -4,7 +4,6 @@ use core::fmt;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
-use crate::frame_c::ast::ExprType::NilExprT;
 
 // NOTES
 // - Structures labeled "*ScopeSymbol" indicate support for a scope inside the symbol.
@@ -190,7 +189,7 @@ pub enum SymbolType {
 
 impl SymbolType {
     pub fn assign(&mut self, r_value:Rc<ExprType>) -> Result<(),&str> {
-        let debug_type = self.debug_symbol_type_name();
+        // let debug_type = self.debug_symbol_type_name();
         match self {
             SymbolType::BlockVar {block_variable_symbol_rcref} => {
                 let variable_symbol = block_variable_symbol_rcref.borrow_mut();
@@ -212,12 +211,6 @@ impl SymbolType {
             }
             SymbolType::DomainVariable {domain_variable_symbol_rcref} => {
                 let variable_symbol = domain_variable_symbol_rcref.borrow_mut();
-                let mut var_decl_node = variable_symbol.ast_node_rcref.borrow_mut();
-                var_decl_node.value_rc = r_value;
-                Ok(())
-            }
-            SymbolType::StateVariable {state_variable_symbol_rcref} => {
-                let variable_symbol = state_variable_symbol_rcref.borrow_mut();
                 let mut var_decl_node = variable_symbol.ast_node_rcref.borrow_mut();
                 var_decl_node.value_rc = r_value;
                 Ok(())
@@ -315,17 +308,17 @@ impl SymbolType {
                 Ok(Some(block_variable_symbol_rcref.borrow_mut().get_ast_node().clone()))
             }
             SymbolType::ParamSymbol {
-                param_symbol_rcref,
+                ..
             } => {
                 Ok(None)
             }
             SymbolType::StateParam {
-                state_param_symbol_rcref,
+                ..
             } => {
                 Ok(None)
             }
             SymbolType::EventHandlerParam {
-                event_handler_param_symbol_rcref,
+                ..
             } => {
                 Ok(None)
             }

@@ -2863,7 +2863,7 @@ impl AstVisitor for GolangVisitor {
             // match_branch_node.string_match_pattern_node.accept(self);
             // self.add_code(&format!("\") {{"));
 
-            let mut first_match = true;
+            // let mut first_match = true;
             // TODO: Fix this section to deal with empty strings and null strings
             // for match_string in &match_branch_node
             //     .string_match_pattern_node

@@ -289,9 +289,9 @@ impl<'a> Parser<'a> {
         self.system_hierarchy_opt = Some(SystemHierarchy::new(system_name.clone()));
 
 
-        let mut system_start_state_state_params_opt: Option<Vec<ParameterNode>> = Option::None;
-        let mut system_enter_params_opt: Option<Vec<ParameterNode>> = Option::None;
-        let mut domain_params_opt: Option<Vec<ParameterNode>> = Option::None;
+        let system_start_state_state_params_opt;
+        let system_enter_params_opt;
+        let domain_params_opt;
 
         if self.is_building_symbol_table {
             //           let st = self.get_current_symtab();
@@ -948,7 +948,7 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     fn system_enter_or_domain_params(&mut self) -> (Option<Vec<ParameterNode>>, Option<Vec<ParameterNode>>) {
-        let mut system_enter_params_opt: Option<Vec<ParameterNode>> = Option::None;
+        let system_enter_params_opt; //: Option<Vec<ParameterNode>> = Option::None;
         let mut domain_params_opt: Option<Vec<ParameterNode>> = Option::None;
 
         system_enter_params_opt = self.system_enter_params();
@@ -1204,7 +1204,6 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let code_opt: Option<String> = None;
         let mut statements = Vec::new();
         let mut terminator_node_opt = None;
         let mut is_implemented = false;
@@ -1289,41 +1288,41 @@ impl<'a> Parser<'a> {
 
     // These are attributes that relate to the a program module.
     // See this about attribute affinity:  https://doc.rust-lang.org/reference/attributes.html
-    fn module_attributes(&mut self) -> Result<Option<Vec<AttributeNode>>, ParseError> {
-        let mut attributes = Vec::new();
-
-        loop {
-            if self.peek().token_type == TokenType::OuterAttributeOrDomainParams {
-                return Ok(None);
-                // if self.peek(TokenType::OuterAttributeOrDomainParams) {
-                //     let err_msg = "Found '#[' token - outer attribute syntax not currently supported for modules.";
-                //     self.error_at_current(err_msg);
-                //     let parse_error = ParseError::new(
-                //         err_msg
-                //     );
-                //     return Err(parse_error);
-            } else if self.match_token(&[TokenType::InnerAttribute]) {
-                let attribute_node = match self.attribute(AttributeAffinity::Inner) {
-                    Ok(attribute_node) => attribute_node,
-                    Err(err) => {
-                        return Err(err);
-                    }
-                };
-                attributes.push(attribute_node);
-                if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
-                    return Err(parse_error);
-                }
-            } else {
-                break;
-            }
-        }
-
-        if attributes.is_empty() {
-            Ok(None)
-        } else {
-            Ok(Some(attributes))
-        }
-    }
+    // fn module_attributes(&mut self) -> Result<Option<Vec<AttributeNode>>, ParseError> {
+    //     let mut attributes = Vec::new();
+    //
+    //     loop {
+    //         if self.peek().token_type == TokenType::OuterAttributeOrDomainParams {
+    //             return Ok(None);
+    //             // if self.peek(TokenType::OuterAttributeOrDomainParams) {
+    //             //     let err_msg = "Found '#[' token - outer attribute syntax not currently supported for modules.";
+    //             //     self.error_at_current(err_msg);
+    //             //     let parse_error = ParseError::new(
+    //             //         err_msg
+    //             //     );
+    //             //     return Err(parse_error);
+    //         } else if self.match_token(&[TokenType::InnerAttribute]) {
+    //             let attribute_node = match self.attribute(AttributeAffinity::Inner) {
+    //                 Ok(attribute_node) => attribute_node,
+    //                 Err(err) => {
+    //                     return Err(err);
+    //                 }
+    //             };
+    //             attributes.push(attribute_node);
+    //             if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
+    //                 return Err(parse_error);
+    //             }
+    //         } else {
+    //             break;
+    //         }
+    //     }
+    //
+    //     if attributes.is_empty() {
+    //         Ok(None)
+    //     } else {
+    //         Ok(Some(attributes))
+    //     }
+    // }
 
     /* --------------------------------------------------------------------- */
 
@@ -2554,7 +2553,12 @@ impl<'a> Parser<'a> {
             let symbol_t_rcref = symbol_t_opt.unwrap();
             let mut symbol_t = symbol_t_rcref.borrow_mut();
             // TODO - NOTE! setting the ast node
-            symbol_t.set_ast_node(variable_decl_node_rcref.clone());
+            match symbol_t.set_ast_node(variable_decl_node_rcref.clone()) {
+                Ok(()) => {}
+                Err(str) => {
+                    panic!("{}", str);
+                }
+            }
             // match &*z {
             //     SymbolType::DomainVariable {
             //         domain_variable_symbol_rcref,
@@ -4282,9 +4286,9 @@ impl<'a> Parser<'a> {
     ) -> Result<StringMatchTestMatchBranchNode, ParseError> {
 
         let mut match_strings: Vec<String> = Vec::new();
-        let mut string_match_t = StringMatchType::MatchNullString;
+        let string_match_t;
 
-        if  self.match_token(&[TokenType::ForwardSlash]) {
+        if self.match_token(&[TokenType::ForwardSlash]) {
 
             if !self.match_token(&[TokenType::MatchString]) {
                 return Err(ParseError::new("TODO"));
@@ -4804,7 +4808,7 @@ impl<'a> Parser<'a> {
             } else if self.match_token(&[TokenType::Identifier]) {
 
                 // #Foo(...) expression
-                let system_name = self.previous().clone();
+                // let system_name = self.previous().clone();
                 let id_node = IdentifierNode::new(
                     self.previous().clone(),
                     None,
@@ -5235,7 +5239,6 @@ impl<'a> Parser<'a> {
         &mut self,
         init_stmt: Option<LoopFirstStmt>,
     ) -> Result<Option<StatementType>, ParseError> {
-        let mut statements = Vec::new();
         let mut test_expr_opt = Option::None;
         let mut inc_dec_expr_opt = Option::None;
 
@@ -5263,7 +5266,7 @@ impl<'a> Parser<'a> {
 
         // statements block
         if self.match_token(&[TokenType::OpenBrace]) {
-            statements = self.statements(IdentifierDeclScope::BlockVar);
+            let statements = self.statements(IdentifierDeclScope::BlockVar);
 
             if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
                 return Err(parse_error);
@@ -5287,7 +5290,6 @@ impl<'a> Parser<'a> {
         &mut self,
         loop_first_stmt: LoopFirstStmt,
     ) -> Result<Option<StatementType>, ParseError> {
-        let mut statements = Vec::new();
         let iterable_expr;
         let second_expr_result = self.expression();
         match second_expr_result {
@@ -5305,7 +5307,7 @@ impl<'a> Parser<'a> {
 
         // statements block
         if self.match_token(&[TokenType::OpenBrace]) {
-            statements = self.statements(IdentifierDeclScope::BlockVar);
+            let statements = self.statements(IdentifierDeclScope::BlockVar);
 
             if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
                 return Err(parse_error);
@@ -5569,7 +5571,7 @@ impl<'a> Parser<'a> {
         let mut is_first_node = true;
         loop {
             // test for a call. "id(..."
-            let debug_name = format!("id = {}" , id_node.name.lexeme.clone());
+            // let debug_name = format!("id = {}" , id_node.name.lexeme.clone());
 
             if self.match_token(&[TokenType::LParen]) {
                 let call_expr_node_result = self.finish_call(id_node);
@@ -5588,7 +5590,7 @@ impl<'a> Parser<'a> {
 
                                 let mut interface_method_symbol_rcref_opt = None;
                                 // get the previous node to see what kind it was
-                                let mut call_chain_node_type_opt = call_chain.get(call_chain.len() - 1);
+                                let call_chain_node_type_opt = call_chain.get(call_chain.len() - 1);
                                 if let Some(call_chain_node_type) = call_chain_node_type_opt {
                                     match call_chain_node_type {
                                         CallChainNodeType::VariableNodeT {
@@ -5598,7 +5600,7 @@ impl<'a> Parser<'a> {
 
                                             match &*value {
                                                 // Test if var_node value references a system.
-                                                ExprType::SystemInstanceExprT {system_instance_expr_node} => {
+                                                ExprType::SystemInstanceExprT {..} => {
                                                     // Determine if call is to an interface method.
                                                     match self.arcanum.lookup_interface_method(call_expr_node.get_name()) {
                                                         Some(interface_method_symbol_rcref) => {
@@ -5879,7 +5881,7 @@ impl<'a> Parser<'a> {
 
                 // Variables must be the first "node" in a get expression. See https://craftinginterpreters.com/classes.html#properties-on-instances.
 
-                let debug_name = &id_node.name.lexeme.clone();
+                // let debug_name = &id_node.name.lexeme.clone();
                 let node = if is_first_node {
                     // Variables, parameters and enums must be
                     // the first (or only) node in the call chain
@@ -5995,22 +5997,22 @@ impl<'a> Parser<'a> {
                     CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
                 };
 
-                if !self.is_building_symbol_table {
-                    match &node {
-                        CallChainNodeType::UndeclaredIdentifierNodeT {id_node} => {
-                            let debug_id_nod_namee = id_node.name.lexeme.as_str().clone();
-                            let debug = 1;
-                        }
-                        CallChainNodeType::VariableNodeT {var_node} => {
-                            let debug_var_nod_namee = var_node.get_name();
-                            let debug = 1;
-                        }
-                        _ => {
-                            let debug_wtf_node = 1;
-                        }
-                    }
-
-                }
+                // if !self.is_building_symbol_table {
+                //     match &node {
+                //         CallChainNodeType::UndeclaredIdentifierNodeT {id_node} => {
+                //             let debug_id_nod_namee = id_node.name.lexeme.as_str().clone();
+                //             let debug = 1;
+                //         }
+                //         CallChainNodeType::VariableNodeT {var_node} => {
+                //             let debug_var_nod_namee = var_node.get_name();
+                //             let debug = 1;
+                //         }
+                //         _ => {
+                //             // let debug_wtf_node = 1;
+                //         }
+                //     }
+                //
+                // }
                 call_chain.push_back(node);
             }
 
@@ -6034,21 +6036,21 @@ impl<'a> Parser<'a> {
         }
 
         if !self.is_building_symbol_table {
-            let first_node = call_chain.get(0).unwrap();
-            match first_node {
-                CallChainNodeType::UndeclaredIdentifierNodeT {id_node} => {
-                    let id_node_name = id_node.name.lexeme.as_str().clone();
-                    let _debug = 0;
-                }
-                CallChainNodeType::VariableNodeT {var_node} => {
-                    let id_node_name = var_node.id_node.name.lexeme.as_str().clone();
-                    let _debug = 0;
-                }
-                _ => {
-                    let _debug = 0;
-                }
-            }
-            let _debug = 0;
+            // let first_node = call_chain.get(0).unwrap();
+            // match first_node {
+            //     CallChainNodeType::UndeclaredIdentifierNodeT {id_node} => {
+            //         let id_node_name = id_node.name.lexeme.as_str().clone();
+            //         let _debug = 0;
+            //     }
+            //     CallChainNodeType::VariableNodeT {var_node} => {
+            //         let id_node_name = var_node.id_node.name.lexeme.as_str().clone();
+            //         let _debug = 0;
+            //     }
+            //     _ => {
+            //         let _debug = 0;
+            //     }
+            // }
+            // let _debug = 0;
         }
         let call_chain_expr_node = CallChainExprNode::new(call_chain);
         Ok(Some(CallChainExprT {
@@ -6216,7 +6218,7 @@ impl<'a> Parser<'a> {
                 let err_msg =
                     "State change disallowed to a popped state.";
                 self.error_at_previous(&err_msg);
-            } else if let Some(enter_args_opt) = enter_args_opt {
+            } else if let Some(..) = enter_args_opt {
                 let err_msg =
                     "Transition enter arguments disallowed when transitioning to a popped state.";
                 self.error_at_previous(&err_msg);
@@ -6523,7 +6525,7 @@ impl<'a> Parser<'a> {
 
         let state_name = &self.state_name_opt.as_ref().unwrap().clone();
         match &self.get_state_exit_eventhandler(state_name) {
-            Some(exit_eventhandler_node_rcref) => {
+            Some(..) => {
                 let err_msg = &format!("State change disallowed out of states with exit eventhandler.");
                 self.error_at_current(err_msg.as_str());
             }

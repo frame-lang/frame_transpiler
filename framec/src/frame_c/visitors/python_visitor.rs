@@ -3310,7 +3310,6 @@ impl AstVisitor for PythonVisitor {
             // self.add_code(&format!("\") {{"));
 
             let mut first_match = true;
-            let x = &match_branch_node.string_match_type;
             match &match_branch_node.string_match_type {
                 StringMatchType::MatchString {string_match_test_pattern_node} => {
                     for match_string in &string_match_test_pattern_node
@@ -4255,7 +4254,8 @@ impl AstVisitor for PythonVisitor {
                 }
                 if let Some(variable_init_override) = &self.variable_init_override_opt {
                     // TODO - move "domain_param_" prefix into config variables.
-                    self.add_code(&format!(" = domain_param_{}", variable_init_override));
+                    let copy_to_suppress_warning = variable_init_override.clone();
+                    self.add_code(&format!(" = domain_param_{}", copy_to_suppress_warning));
                 } else {
                     self.add_code(&format!(" = {}", code));
                 }

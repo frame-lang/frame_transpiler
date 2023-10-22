@@ -382,7 +382,7 @@ impl JavaScriptVisitor {
                         StatementType::ExpressionStmt { expr_stmt_t } => {
                             match expr_stmt_t {
                                 ExprStmtType::TransitionStmtT {
-                                    transition_statement_node,
+                                    ..
                                 } => panic!("TODO"),
 
                                 ExprStmtType::SystemInstanceStmtT {
@@ -2624,7 +2624,7 @@ impl AstVisitor for JavaScriptVisitor {
             // match_branch_node.string_match_pattern_node.accept(self);
             // self.add_code(&format!("\") {{"));
 
-            let mut first_match = true;
+            // let mut first_match = true;
             // TODO: Fix this section to deal with empty strings and null strings
             // for match_string in &match_branch_node
             //     .string_match_pattern_node
