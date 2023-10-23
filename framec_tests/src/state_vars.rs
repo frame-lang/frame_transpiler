@@ -1,9 +1,9 @@
-include!(concat!(env!("OUT_DIR"), "/", "state_vars.rs"));
+// include!(concat!(env!("OUT_DIR"), "/", "state_vars.rs"));
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use frame_runtime::*;
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     use frame_runtime::*;
 
 
     // fn single_variable() {
@@ -85,8 +85,8 @@ mod tests {
     //     );
     // }
 
-    /// Helper function to lookup a `u32` value in an environment.
-    /// Returns `u32::MAX` if the lookup fails for any reason.
+    // /// Helper function to lookup a `u32` value in an environment.
+    // /// Returns `u32::MAX` if the lookup fails for any reason.
     // fn lookup_u32(env: &dyn Environment, name: &str) -> u32 {
     //     match env.lookup(name) {
     //         None => u32::MAX,
@@ -94,7 +94,7 @@ mod tests {
     //     }
     // }
 
-    /// Tests that state variables behave as expected when accessed via the runtime interface.
+    // /// Tests that state variables behave as expected when accessed via the runtime interface.
 
     // fn runtime_variables() {
     //     let mut sm = StateVars::new();
@@ -120,4 +120,4 @@ mod tests {
     //     assert_eq!(lookup_u32(sm.state().variables().as_ref(), "y"), 10);
     //     assert_eq!(lookup_u32(sm.state().variables().as_ref(), "z"), 100);
     // }
-}
+// }

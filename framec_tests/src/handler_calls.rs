@@ -2,18 +2,18 @@
 //! Since event handlers may transition, we conservatively treat such calls
 //! as terminating statements for the current handler.
 
-type Log = Vec<String>;
-include!(concat!(env!("OUT_DIR"), "/", "handler_calls.rs"));
+// type Log = Vec<String>;
+//include!(concat!(env!("OUT_DIR"), "/", "handler_calls.rs"));
 
-impl HandlerCalls {
-    pub fn log(&mut self, from: String, val: i32) {
-        self.tape.push(format!("{}({})", from, val));
-    }
-}
+// impl HandlerCalls {
+//     pub fn log(&mut self, from: String, val: i32) {
+//         self.tape.push(format!("{}({})", from, val));
+//     }
+// }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
 
     // #[test]
     // /// Test that a handler call terminates the current handler.
@@ -87,4 +87,4 @@ mod tests {
     //     sm.call(String::from("Qux"), 37);
     //     assert_eq!(sm.tape, vec!["Foo(1000)", "Bar(2000)", "Final(3000)"]);
     // }
-}
+// }

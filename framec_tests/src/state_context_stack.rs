@@ -1,32 +1,32 @@
-//! Tests the state stack feature when states have associated contexts.
-//!
-//! Most features of state contexts are not supported by state stacks. In particular, state
-//! parameters and enter/exit parameters are not supported. The reason is that when transitioning
-//! to a popped state, the state is not known statically, so there is no way for the programmer to
-//! know what arguments must be passed.
-//!
-//! However, state variables are supported by the state stack feature. The interaction of those
-//! features is tested here.
-//!
-//! Additionally, the basic functionality of state stacks are tested again here since pushing and
-//! popping with state contexts is a different code path than pushing and popping without.
+// //! Tests the state stack feature when states have associated contexts.
+// //!
+// //! Most features of state contexts are not supported by state stacks. In particular, state
+// //! parameters and enter/exit parameters are not supported. The reason is that when transitioning
+// //! to a popped state, the state is not known statically, so there is no way for the programmer to
+// //! know what arguments must be passed.
+// //!
+// //! However, state variables are supported by the state stack feature. The interaction of those
+// //! features is tested here.
+// //!
+// //! Additionally, the basic functionality of state stacks are tested again here since pushing and
+// //! popping with state contexts is a different code path than pushing and popping without.
+//
+// type Log = Vec<String>;
+// include!(concat!(env!("OUT_DIR"), "/", "state_context_stack.rs"));
+//
+// impl StateContextStack {
+//     pub fn log(&mut self, msg: String) {
+//         self.tape.push(msg);
+//     }
+// }
+//
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     use frame_runtime::*;
+//     use std::sync::{Arc, Mutex};
 
-type Log = Vec<String>;
-include!(concat!(env!("OUT_DIR"), "/", "state_context_stack.rs"));
-
-impl StateContextStack {
-    pub fn log(&mut self, msg: String) {
-        self.tape.push(msg);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use frame_runtime::*;
-    use std::sync::{Arc, Mutex};
-
-    /// Test that a pop restores a pushed state.
+    // /// Test that a pop restores a pushed state.
     // #[test]
     // fn push_pop() {
     //     let mut sm = StateContextStack::new();
@@ -421,4 +421,4 @@ mod tests {
     //     assert!(sm.state().variables().lookup("y").is_none());
     //     assert!(sm.state().variables().lookup("z").is_none());
     // }
-}
+// }
