@@ -3328,7 +3328,7 @@ impl AstVisitor for PythonVisitor {
                     self.add_code(&format!("{} is None)",expr_code));
                 }
                 StringMatchType::MatchEmptyString  => {
-                    self.add_code(&format!("len({}) == 0)",expr_code));
+                    self.add_code(&format!("isinstance({}, str) and len({}) == 0)",expr_code, expr_code));
                 }
             }
 

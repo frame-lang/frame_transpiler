@@ -462,15 +462,35 @@ impl Scanner {
             self.advance();
         }
 
-        let num_type = if is_integer {
-            let number: i32 = self.source[self.start..self.current].parse().unwrap();
-            TokenLiteral::Integer(number)
-        } else {
-            let number: f32 = self.source[self.start..self.current].parse().unwrap();
-            TokenLiteral::Float(number)
-        };
+        if is_integer {
+            let s = &self.source[self.start..self.current];
+            let result = s.parse::<i32>();
+            match result {
+                Ok(number) => {
+                    self.add_token_literal(TokenType::Number, TokenLiteral::Integer(number));
+                }
+                Err(err) => {
+                    self.error(self.line, &format!("Malformed integer number {}", err));
+                    self.add_token(TokenType::Error);
+                }
+            }
+        }
+        else { // is float
+            let s = &self.source[self.start..self.current];
+            let result = s.parse::<f32>();
+            match result {
+                Ok(number) => {
+                    self.add_token_literal(TokenType::Number, TokenLiteral::Float(number));
+                }
+                Err(err) => {
+                    self.error(self.line, &format!("Malformed float number: {}", err));
+                    self.add_token(TokenType::Error);
+                }
+            }
+        }
 
-        self.add_token_literal(TokenType::Number, num_type);
+
+
     }
 
     fn identifier(&mut self) {
@@ -552,13 +572,11 @@ impl Scanner {
     fn scan_number_match(&mut self) {
         while self.peek() != '/' {
             if self.peek() == '|' {
-                self.number();
                 self.advance();
                 self.add_token_sync_start(TokenType::Pipe);
             }
-            self.advance();
+            self.number();
         }
-        self.number();
 
         self.sync_start();
         if !self.match_char('/') {
