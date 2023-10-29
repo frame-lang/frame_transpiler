@@ -3309,13 +3309,13 @@ impl NodeElement for EnumMatchTestElseBranchNode {
 //-----------------------------------------------------//
 
 pub struct EnumMatchTestPatternNode {
-    pub match_pattern_strings: String,
+    pub match_pattern: String,
 }
 
 impl EnumMatchTestPatternNode {
     pub fn new(match_pattern_strings: String) -> EnumMatchTestPatternNode {
         EnumMatchTestPatternNode {
-            match_pattern_strings,
+            match_pattern: match_pattern_strings,
         }
     }
 }

@@ -1496,14 +1496,14 @@ impl Arcanum {
         scope_name: &str,
         symtab_rcref: &Rc<RefCell<SymbolTable>>,
     ) -> Rc<RefCell<SymbolTable>> {
-        let b = symtab_rcref.borrow();
-        let c = &b.symbols;
-        let d = c.get(scope_name);
-        match d {
-            Some(e) => {
-                let f = e.borrow();
-                let g = f.get_symbol_table();
-                Rc::clone(&g)
+        let symbol_table = symtab_rcref.borrow();
+        let symbols_map = &symbol_table.symbols;
+        let symbol_t_rcref_opt = symbols_map.get(scope_name);
+        match symbol_t_rcref_opt {
+            Some(symbol_t_rcref) => {
+                let symbol_t = symbol_t_rcref.borrow();
+                let symbol_table_rcref = symbol_t.get_symbol_table();
+                Rc::clone(&symbol_table_rcref)
             }
             None => {
                 panic!("Fatal error - could not get next symbol table.")

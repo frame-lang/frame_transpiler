@@ -3678,7 +3678,7 @@ impl AstVisitor for PythonVisitor {
                     self.add_code(&format!(
                         " == {}.{})",
                         enum_match_test_node.enum_type_name,
-                        match_test_pattern_node.match_pattern_strings
+                        match_test_pattern_node.match_pattern
                     ));
                     first_match = false;
                 } else {
@@ -3699,7 +3699,7 @@ impl AstVisitor for PythonVisitor {
                     self.add_code(&format!(
                         " == {}.{})",
                         enum_match_test_node.enum_type_name,
-                        match_test_pattern_node.match_pattern_strings
+                        match_test_pattern_node.match_pattern
                     ));
                 }
             }

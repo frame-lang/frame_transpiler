@@ -185,6 +185,10 @@ impl Scanner {
             '!' => {
                 if self.match_char('=') {
                     self.add_token(TokenType::BangEqual);
+                } else if self.peek() == '/' && self.peek_next() == '/' {
+                    self.match_char('/');
+                    self.match_char('/');
+                    self.add_token(TokenType::MatchNull);
                 } else {
                     self.add_token(TokenType::Bang);
                 }
@@ -203,11 +207,11 @@ impl Scanner {
                         } else if self.match_char('-') {
                             st = StackType::Pop;
                         } else {
-                            self.error(self.line, "Unexpected character.");
+                            self.error(self.line, &format!("Unexpected character {}.", c));
                             return;
                         }
                         if !self.match_char(']') {
-                            self.error(self.line, "Unexpected character.");
+                            self.error(self.line, &format!("Unexpected character {}.", c));
                             return;
                         }
                         match st {
@@ -284,6 +288,19 @@ impl Scanner {
                     self.test_t_stack.push(MatchType::Bool);
                 }
             }
+            '~' => {
+                if self.match_char('/') {
+                    if self.match_char('/') {
+                        self.add_token(TokenType::MatchEmptyString);
+                    } else {
+                        self.add_token_sync_start(TokenType::StringMatchStart);
+                        self.scan_string_match();
+                    }
+                } else {
+                    self.error(self.line, &format!("Found unexpected character '{}'.", c));
+                    //self.add_token(TokenType::Error);
+                }
+            }
             '@' => self.add_token(TokenType::At),
             ' ' => {}
             '\r' => {}
@@ -302,14 +319,6 @@ impl Scanner {
                             // ->
                             self.add_token(TokenType::Transition);
                         }
-                    // } else if self.match_char('-') {
-                        // // --- comment text
-                        // if self.match_char('-') {
-                        //     self.single_line_comment();
-                        // } else {
-                        //     self.add_token(TokenType::DashDash);
-                        // }
-                        // self.add_token(TokenType::DashDash);
                     } else if self.is_digit(self.peek()) {
                         self.number();
                     } else {
@@ -337,8 +346,8 @@ impl Scanner {
                     self.test_t_stack.pop();
                 } else if self.match_char('>') {
                     self.add_token(TokenType::ElseContinue);
-                // } else if self.match_char('=') {
-                //     self.add_token(TokenType::DeclAssignment);
+                } else if self.match_char('/') {
+                    self.add_token(TokenType::EnumMatchStart);
                 } else {
                     self.add_token(TokenType::Colon);
                 }
@@ -356,8 +365,10 @@ impl Scanner {
                         // #![
                         self.add_token(TokenType::InnerAttribute);
                     } else {
-                        self.add_token(TokenType::Error); // #!
+                        self.error(self.line,&format!("Unexpected character {}.",c));
                     }
+                } else if self.match_char('/') {
+                    self.add_token(TokenType::NumberMatchStart);
                 } else {
                     self.add_token(TokenType::System);
                 }
@@ -373,16 +384,9 @@ impl Scanner {
             }
             '/' => {
                 if self.match_char('/') {
-                    if self.match_char('!') {
-                        self.add_token(TokenType::MatchNull);
-                    } else if self.match_char('-') {
-                        self.add_token(TokenType::MatchEmptyString)
-                    } else {
-                        self.single_line_comment();
-                    }
+                    self.single_line_comment();
                 } else {
-                    self.add_token_sync_start(TokenType::ForwardSlash);
-                    self.scan_match();
+                    self.add_token(TokenType::ForwardSlash);
                 }
             }
             '.' => {
@@ -396,7 +400,6 @@ impl Scanner {
                     self.identifier();
                 } else {
                     self.error(self.line, &format!("Found unexpected character '{}'.", c));
-                    self.add_token(TokenType::Error);
                 }
             }
         }
@@ -471,7 +474,6 @@ impl Scanner {
                 }
                 Err(err) => {
                     self.error(self.line, &format!("Malformed integer number {}", err));
-                    self.add_token(TokenType::Error);
                 }
             }
         }
@@ -484,7 +486,6 @@ impl Scanner {
                 }
                 Err(err) => {
                     self.error(self.line, &format!("Malformed float number: {}", err));
-                    self.add_token(TokenType::Error);
                 }
             }
         }
@@ -520,6 +521,7 @@ impl Scanner {
     }
 
     // TODO: handle EOF w/ error
+    // TODO: Update/remove multiline comments.
     fn multi_line_comment(&mut self) {
         while !self.is_at_end() {
             while self.peek() != '-' {
@@ -540,15 +542,6 @@ impl Scanner {
         }
     }
 
-    fn scan_match(&mut self) {
-        match self.test_t_stack.last() {
-            Some(MatchType::String) => self.scan_string_match(),
-            Some(MatchType::Number) => self.scan_number_match(),
-            Some(_) => {}
-            None => {}
-        }
-    }
-
     // Scan the string looking for the end of the match test ('/')
     // or the end of the current match string ('|').
     // match_string_test -> '/' match_string_pattern ('|' match_string_pattern)* '/'
@@ -564,25 +557,6 @@ impl Scanner {
         }
         self.add_token_sync_start(TokenType::MatchString);
         self.advance();
-        self.add_token_sync_start(TokenType::ForwardSlash);
-    }
-
-    // match_number_test -> '/' match_number_pattern ('|' match_number_pattern)* '/'
-
-    fn scan_number_match(&mut self) {
-        while self.peek() != '/' {
-            if self.peek() == '|' {
-                self.advance();
-                self.add_token_sync_start(TokenType::Pipe);
-            }
-            self.number();
-        }
-
-        self.sync_start();
-        if !self.match_char('/') {
-            // TODO
-            panic!("todo");
-        }
         self.add_token_sync_start(TokenType::ForwardSlash);
     }
 
@@ -660,6 +634,7 @@ impl Scanner {
         let error = &format!("Line {} : Error: {}\n", line, error_msg);
         self.has_errors = true;
         self.errors.push_str(error);
+        self.add_token(TokenType::Error);
     }
 
     fn string(&mut self) {
@@ -782,19 +757,22 @@ pub enum TokenType {
     Comma,             // ,
     Dispatch,          // =>
     Equals,            // =
-    //    DeclAssignment,          // :=
-    BoolTestTrue,            // ?
-    BoolTestFalse,           // ?!
-    StringTest,              // ?~
-    NumberTest,              // ?#
-    EnumTest,                // ?:
+    //    DeclAssignment,          // ':='
+    BoolTestTrue,               // '?'
+    BoolTestFalse,              // '?!'
+    StringTest,                 // '?~'
+    StringMatchStart,           // '~/'
+    NumberTest,                 // '?#'
+    NumberMatchStart,           // '#/'
+    EnumTest,                   // '?:'
+    EnumMatchStart,             // ':/'
     ElseContinue,            // :>
     ColonColon,              // ::
     ForwardSlash,            // /
-    MatchString,             // /<string>/ - contains <string>
-    MatchEmptyString,        // '//-'
-    MatchNull,               // '//!'
-    SingleLineComment,       // '///
+    MatchString,                // '/<any characters>/' - contains <string>
+    MatchEmptyString,        // '~//'
+    MatchNull,               // '!//'
+    SingleLineComment,       // '//'
     StateStackOperationPush, // $$[+]
     StateStackOperationPop,  // $$[-]
     Dot,                     // .

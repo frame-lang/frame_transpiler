@@ -4275,11 +4275,11 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     // Match a string
-    // string_match_test ->  ('/' match_string ('|' match_string)* '/' (statement* branch_terminator?) ':>')+  '::'
+    // string_match_test ->  ('~/' match_string ('|' match_string)* '/' (statement* branch_terminator?) ':>')+  '::'
     // Match an empty string
-    // string_match_test ->  ('//-' (statement* branch_terminator?) ':>')+  '::'
+    // string_match_test ->  ('~//' (statement* branch_terminator?) ':>')+  '::'
     // Match null
-    // string_match_test ->  ('//!' (statement* branch_terminator?) ':>')+  '::'
+    // string_match_test ->  ('!/!' (statement* branch_terminator?) ':>')+  '::'
 
     fn string_match_test_match_branch(
         &mut self,
@@ -4288,26 +4288,27 @@ impl<'a> Parser<'a> {
         let mut match_strings: Vec<String> = Vec::new();
         let string_match_t;
 
-        if self.match_token(&[TokenType::ForwardSlash]) {
+        if self.match_token(&[TokenType::StringMatchStart]) {
 
-            if !self.match_token(&[TokenType::MatchString]) {
-                return Err(ParseError::new("TODO"));
-            }
-
-
-            let match_string_tok = self.previous();
-            let match_pattern_string = match_string_tok.lexeme.clone();
-            match_strings.push(match_pattern_string);
-
-            while self.match_token(&[TokenType::Pipe]) {
-                if !self.match_token(&[TokenType::MatchString]) {
-                    return Err(ParseError::new("TODO"));
-                }
-
-                //           let token = self.previous();
+            // MatchString token contains any and all characters
+            // scraped from the input stream until one of the match string
+            // terminators '|' or '/' is found.
+            if self.match_token(&[TokenType::MatchString]) {
                 let match_string_tok = self.previous();
                 let match_pattern_string = match_string_tok.lexeme.clone();
                 match_strings.push(match_pattern_string);
+            } else {
+                return Err(ParseError::new("TODO"));
+            }
+
+            while self.match_token(&[TokenType::Pipe]) {
+                if self.match_token(&[TokenType::MatchString]) {
+                    let match_string_tok = self.previous();
+                    let match_pattern_string = match_string_tok.lexeme.clone();
+                    match_strings.push(match_pattern_string);
+                } else {
+                    return Err(ParseError::new("TODO"));
+                }
             }
 
             let string_match_test_pattern_node = StringMatchTestPatternNode::new(match_strings);
@@ -4321,6 +4322,8 @@ impl<'a> Parser<'a> {
         } else if self.match_token(&[TokenType::MatchNull]) {
             string_match_t = StringMatchType::MatchNullString;
         } else {
+            let err_msg = &format!("Expected string match '~/'  or null match '!/' token. Found '{}'.", self.current_token);
+            self.error_at_current(err_msg.as_str());
             return Err(ParseError::new("TODO"));
         }
 
@@ -6601,7 +6604,7 @@ impl<'a> Parser<'a> {
     fn number_match_test_match_branch(
         &mut self,
     ) -> Result<NumberMatchTestMatchBranchNode, ParseError> {
-        if let Err(parse_error) = self.consume(TokenType::ForwardSlash, "Expected '/'.") {
+        if let Err(parse_error) = self.consume(TokenType::NumberMatchStart, "Expected '#/'.") {
             return Err(parse_error);
         }
 
@@ -6774,71 +6777,77 @@ impl<'a> Parser<'a> {
         &mut self,
         enum_symbol_rcref_opt: &Option<Rc<RefCell<EnumSymbol>>>,
     ) -> Result<EnumMatchTestMatchBranchNode, ParseError> {
-        if let Err(parse_error) = self.consume(TokenType::ForwardSlash, "Expected '/'.") {
+        if let Err(parse_error) = self.consume(TokenType::EnumMatchStart, "Expected ':/'.") {
             return Err(parse_error);
         }
 
-        let mut match_enums = Vec::new();
+        let mut enum_match_pattern_nodes = Vec::new();
 
         if !self.match_token(&[TokenType::Identifier]) {
             return Err(ParseError::new("TODO"));
         }
 
+        // Add first enum identifier to the vec.
         let match_enum_tok = self.previous();
         let match_pattern_enum = match_enum_tok.lexeme.clone();
+        let enum_match_pattern_node = EnumMatchTestPatternNode::new(match_pattern_enum.clone());
+        enum_match_pattern_nodes.push(enum_match_pattern_node);
+
+
         let mut enum_type_name = String::new();
 
-        if !self.is_building_symbol_table {
-            let mut found_match = false;
-            let a = enum_symbol_rcref_opt.as_ref().unwrap();
-            let c = Rc::clone(a);
-            let b = c.borrow();
-            let c = b.ast_node_opt.as_ref().unwrap();
-            let d = c.borrow();
-            for e in &d.enums {
-                if match_pattern_enum == e.name {
-                    found_match = true;
-                    break;
-                }
-            }
-            if !found_match {
-                let err_msg = format!(
-                    "'{}' is not an enumeration in enum type {}",
-                    match_pattern_enum, d.name
-                );
-                self.error_at_current(&err_msg);
-                return Err(ParseError::new(&err_msg));
-            }
-
-            enum_type_name = c.borrow().name.clone();
-        }
-
-        let match_enum_tok = self.previous();
-        let match_pattern_enum = match_enum_tok.lexeme.clone();
-        let enum_match_pattern_node = EnumMatchTestPatternNode::new(match_pattern_enum);
-        match_enums.push(enum_match_pattern_node);
-
         while self.match_token(&[TokenType::Pipe]) {
-            if !self.match_token(&[TokenType::Enum]) {
+
+            if !self.match_token(&[TokenType::Identifier]) {
                 return Err(ParseError::new("TODO"));
             }
 
-            //            let token = self.previous();
             let match_enum_tok = self.previous();
             let match_pattern_enum = match_enum_tok.lexeme.clone();
             let enum_match_pattern_node = EnumMatchTestPatternNode::new(match_pattern_enum);
-            match_enums.push(enum_match_pattern_node);
+            enum_match_pattern_nodes.push(enum_match_pattern_node);
         }
 
         if let Err(parse_error) = self.consume(TokenType::ForwardSlash, "Expected '/'.") {
             return Err(parse_error);
         }
+
+        if !self.is_building_symbol_table {
+            let enum_symbol_rcref = enum_symbol_rcref_opt.as_ref().unwrap();
+            let clone_enum_symbol_rcref = Rc::clone(enum_symbol_rcref);
+            let enum_symbol = clone_enum_symbol_rcref.borrow();
+            let enum_decl_node_rcref = enum_symbol.ast_node_opt.as_ref().unwrap();
+            enum_type_name = enum_decl_node_rcref.borrow().name.clone();
+
+            let enum_decl_node = enum_decl_node_rcref.borrow();
+
+            for enum_match_pattern_node in &enum_match_pattern_nodes {
+                let mut found_match = false;
+                for enumerator_decl_node_rc in &enum_decl_node.enums {
+                    let enum_value = &enumerator_decl_node_rc.name;
+                    let match_pattern = &enum_match_pattern_node.match_pattern;
+                    if *match_pattern == *enum_value {
+                        found_match = true;
+                        break;
+                    }
+                }
+                if !found_match {
+                    let err_msg = format!(
+                        "'{}' is not an enumeration in enum type {}",
+                        match_pattern_enum, enum_decl_node.name
+                    );
+                    self.error_at_current(&err_msg);
+                    // return Err(ParseError::new(&err_msg));
+                }
+            }
+        }
+
         let statements = self.statements(IdentifierDeclScope::BlockVar);
         let result = self.branch_terminator();
         match result {
             Ok(branch_terminator_t_opt) => Ok(EnumMatchTestMatchBranchNode::new(
                 enum_type_name,
-                match_enums,
+                enum_match_pattern_nodes,
                 statements,
                 branch_terminator_t_opt,
             )),

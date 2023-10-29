@@ -24,7 +24,7 @@ from framelang.framelang import FrameEvent
     $EmptyMatch
         |Onstring| [s:str]
             s ?~
-                /|foo/  // TODO: matching only the empty string is broken
+                ~/|foo/  // TODO: matching only the empty string is broken
                     log("empty")
                 :   log("?")
             :: ^
@@ -32,28 +32,28 @@ from framelang.framelang import FrameEvent
     $SimpleMatch
         |OnInt| [i:int]
             i ?#
-                /0/
+                #/0/
                     log("0") :>
-                /42/
+                #/42/
                     log("42") :>
-                /42/
+                #/42/
                     log("!!!") :>
-                /-200/
+                #/-200/
                     log("-200")
                 :   log("?")
             :: ^
 
         |Onstring| [s:str]
             s ?~
-                /hello/
+                ~/hello/
                     log("hello") :>
-                /hello/
+                ~/hello/
                     log("!!!") :>
-                /goodbye/
+                ~/goodbye/
                     log("goodbye") :>
-                /Testing 1, 2, 3.../
+                ~/Testing 1, 2, 3.../
                     log("testing") :>
-                /$10!/
+                ~/$10!/
                     log("money")
                 :   log("?")
             :: ^
@@ -61,18 +61,18 @@ from framelang.framelang import FrameEvent
     $MultiMatch
         |OnInt| [i:int]
             i ?#
-                /3|-7/
+                #/3|-7/
                     log("3|-7") :>
-                /-4|5|6/
+                #/-4|5|6/
                     log("-4|5|6")
                 :   log("?")
             :: ^
 
         |Onstring| [s:str]
             s ?~
-                /$10|12.5%|@#*!/
+                ~/$10|12.5%|@#*!/
                     log("symbols") :>
-                / |  |\t|\n/
+                ~/ |  |\t|\n/
                     log("whitespace")
                 :   log("?")
             :: ^
@@ -81,14 +81,14 @@ from framelang.framelang import FrameEvent
         |OnInt| [i:int]
             i > 0 ?
                 i ?#
-                    /1|2|3/
+                    #/1|2|3/
                         log("1-3")
                         i ?#
-                            /1/ log("1") :>
-                            /2/ log("2")
+                            #/1/ log("1") :>
+                            #/2/ log("2")
                             :   log("3")
                         :: :>
-                    /4|5/
+                    #/4|5/
                         log("4-5")
                         i == 4 ?
                             log("4")
@@ -102,18 +102,18 @@ from framelang.framelang import FrameEvent
 
         |Onstring| [s:str]
             s ?~
-                /hello|hola|bonjour/
+                ~/hello|hola|bonjour/
                     log("greeting")
                     s ?~
-                        /hello/ log("English") :>
-                        /hola/  log("Spanish")
+                        ~/hello/ log("English") :>
+                        ~/hola/  log("Spanish")
                         :       log("French")
                         :: :>
-                /goodbye|adios|au revoir/
+                ~/goodbye|adios|au revoir/
                     log("farewell")
                     s ?~
-                        /goodbye/ log("English") :>
-                        /adios/   log("Spanish")
+                        ~/goodbye/ log("English") :>
+                        ~/adios/   log("Spanish")
                         :         log("French")
                         ::
                 : log("?")
@@ -122,21 +122,21 @@ from framelang.framelang import FrameEvent
     $ChildMatch => $SimpleMatch
         |OnInt| [i:int]
             i ?#
-                /0/  -> $Final :>
-                /3/  log("3") :>
-                /4/  log("4") ^ :>
-                /42/ log("42 in child") :>
-                /5/  log("5") -> $Final
+                #/0/  -> $Final :>
+                #/3/  log("3") :>
+                #/4/  log("4") ^ :>
+                #/42/ log("42 in child") :>
+                #/5/  log("5") -> $Final
                 :    log("no match in child")
                 :: :>
 
         |Onstring| [s:str]
             s ?~
-                /hello/
+                ~/hello/
                     log("hello in child") :>
-                /goodbye/
+                ~/goodbye/
                     -> $Final :>
-                /Testing 1, 2, 3.../
+                ~/Testing 1, 2, 3.../
                     log("testing in child") ^
                 :   log("no match in child")
                 :: :>

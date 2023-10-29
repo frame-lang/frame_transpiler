@@ -36,8 +36,8 @@ from framelang.framelang import FrameEvent
 
         |Call| [event:str, arg:int]
             event ?~
-                /Foo/ Foo(arg) :>
-                /Bar/ Bar(arg)
+                ~/Foo/ Foo(arg) :>
+                ~/Bar/ Bar(arg)
                 : Call("Foo", 1000)
                 :: ^
 
@@ -60,8 +60,8 @@ from framelang.framelang import FrameEvent
 
         |Call| [event:str, arg:int]
             event ?~
-                /Foo/ Foo(arg) :>
-                /Bar/ Bar(arg)
+                ~/Foo/ Foo(arg) :>
+                ~/Bar/ Bar(arg)
                 : :: ^
 
     $MutuallyRecursive
@@ -80,15 +80,15 @@ from framelang.framelang import FrameEvent
             log("Bar", arg)
             counter = counter + arg
             arg ?#
-                /4/ Foo(arg) :>
-                /8/ Foo(arg*2)
+                #/4/ Foo(arg) :>
+                #/8/ Foo(arg*2)
                 :   Foo(arg*3)
             :: ^
 
         |Call| [event:str, arg:int]
             event ?~
-                /Foo/ Foo(arg) :>
-                /Bar/ Bar(arg)
+                ~/Foo/ Foo(arg) :>
+                ~/Bar/ Bar(arg)
                 : :: ^
 
     $Final [counter:int]
