@@ -62,34 +62,6 @@ class HandlerCalls:
         e = FrameEvent("Bar",parameters)
         self.__mux(e)
     
-    # ====================== Multiplexer ==================== #
-    
-    def __mux(self, e):
-        if self.__compartment.state.__name__ == '__handlercalls_state_Init':
-            self.__handlercalls_state_Init(e)
-        elif self.__compartment.state.__name__ == '__handlercalls_state_NonRecursive':
-            self.__handlercalls_state_NonRecursive(e)
-        elif self.__compartment.state.__name__ == '__handlercalls_state_SelfRecursive':
-            self.__handlercalls_state_SelfRecursive(e)
-        elif self.__compartment.state.__name__ == '__handlercalls_state_MutuallyRecursive':
-            self.__handlercalls_state_MutuallyRecursive(e)
-        elif self.__compartment.state.__name__ == '__handlercalls_state_Final':
-            self.__handlercalls_state_Final(e)
-        
-        if self.__next_compartment != None:
-            next_compartment = self.__next_compartment
-            self.__next_compartment = None
-            if(next_compartment.forward_event is not None and 
-               next_compartment.forward_event._message == ">"):
-                self.__mux(FrameEvent( "<", self.__compartment.exit_args))
-                self.__compartment = next_compartment
-                self.__mux(next_compartment.forward_event)
-            else:
-                self.__do_transition(next_compartment)
-                if next_compartment.forward_event is not None:
-                    self.__mux(next_compartment.forward_event)
-            next_compartment.forward_event = None
-    
     # ===================== Machine Block =================== #
     
     def __handlercalls_state_Init(self, e):
@@ -252,6 +224,36 @@ class HandlerCalls:
     
     def log_do(self,through: str,val: int):
         raise NotImplementedError
+    
+    
+    
+    # ====================== Multiplexer ==================== #
+    
+    def __mux(self, e):
+        if self.__compartment.state.__name__ == '__handlercalls_state_Init':
+            self.__handlercalls_state_Init(e)
+        elif self.__compartment.state.__name__ == '__handlercalls_state_NonRecursive':
+            self.__handlercalls_state_NonRecursive(e)
+        elif self.__compartment.state.__name__ == '__handlercalls_state_SelfRecursive':
+            self.__handlercalls_state_SelfRecursive(e)
+        elif self.__compartment.state.__name__ == '__handlercalls_state_MutuallyRecursive':
+            self.__handlercalls_state_MutuallyRecursive(e)
+        elif self.__compartment.state.__name__ == '__handlercalls_state_Final':
+            self.__handlercalls_state_Final(e)
+        
+        if self.__next_compartment != None:
+            next_compartment = self.__next_compartment
+            self.__next_compartment = None
+            if(next_compartment.forward_event is not None and 
+               next_compartment.forward_event._message == ">"):
+                self.__mux(FrameEvent( "<", self.__compartment.exit_args))
+                self.__compartment = next_compartment
+                self.__mux(next_compartment.forward_event)
+            else:
+                self.__do_transition(next_compartment)
+                if next_compartment.forward_event is not None:
+                    self.__mux(next_compartment.forward_event)
+            next_compartment.forward_event = None
     
     
     # =============== Machinery and Mechanisms ============== #

@@ -48,30 +48,6 @@ class StateContextSm:
         e = FrameEvent("Next",parameters)
         self.__mux(e)
     
-    # ====================== Multiplexer ==================== #
-    
-    def __mux(self, e):
-        if self.__compartment.state.__name__ == '__statecontextsm_state_Init':
-            self.__statecontextsm_state_Init(e)
-        elif self.__compartment.state.__name__ == '__statecontextsm_state_Foo':
-            self.__statecontextsm_state_Foo(e)
-        elif self.__compartment.state.__name__ == '__statecontextsm_state_Bar':
-            self.__statecontextsm_state_Bar(e)
-        
-        if self.__next_compartment != None:
-            next_compartment = self.__next_compartment
-            self.__next_compartment = None
-            if(next_compartment.forward_event is not None and 
-               next_compartment.forward_event._message == ">"):
-                self.__mux(FrameEvent( "<", self.__compartment.exit_args))
-                self.__compartment = next_compartment
-                self.__mux(next_compartment.forward_event)
-            else:
-                self.__do_transition(next_compartment)
-                if next_compartment.forward_event is not None:
-                    self.__mux(next_compartment.forward_event)
-            next_compartment.forward_event = None
-    
     # ===================== Machine Block =================== #
     
       #  Change [arg:int]
@@ -185,6 +161,32 @@ class StateContextSm:
     
     def log_do(self,name: str,val: int):
         raise NotImplementedError
+    
+    
+    
+    # ====================== Multiplexer ==================== #
+    
+    def __mux(self, e):
+        if self.__compartment.state.__name__ == '__statecontextsm_state_Init':
+            self.__statecontextsm_state_Init(e)
+        elif self.__compartment.state.__name__ == '__statecontextsm_state_Foo':
+            self.__statecontextsm_state_Foo(e)
+        elif self.__compartment.state.__name__ == '__statecontextsm_state_Bar':
+            self.__statecontextsm_state_Bar(e)
+        
+        if self.__next_compartment != None:
+            next_compartment = self.__next_compartment
+            self.__next_compartment = None
+            if(next_compartment.forward_event is not None and 
+               next_compartment.forward_event._message == ">"):
+                self.__mux(FrameEvent( "<", self.__compartment.exit_args))
+                self.__compartment = next_compartment
+                self.__mux(next_compartment.forward_event)
+            else:
+                self.__do_transition(next_compartment)
+                if next_compartment.forward_event is not None:
+                    self.__mux(next_compartment.forward_event)
+            next_compartment.forward_event = None
     
     
     # =============== Machinery and Mechanisms ============== #

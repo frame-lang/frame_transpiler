@@ -61,38 +61,6 @@ class Match:
         e = FrameEvent("Onstring",parameters)
         self.__mux(e)
     
-    # ====================== Multiplexer ==================== #
-    
-    def __mux(self, e):
-        if self.__compartment.state.__name__ == '__match_state_Init':
-            self.__match_state_Init(e)
-        elif self.__compartment.state.__name__ == '__match_state_EmptyMatch':
-            self.__match_state_EmptyMatch(e)
-        elif self.__compartment.state.__name__ == '__match_state_SimpleMatch':
-            self.__match_state_SimpleMatch(e)
-        elif self.__compartment.state.__name__ == '__match_state_MultiMatch':
-            self.__match_state_MultiMatch(e)
-        elif self.__compartment.state.__name__ == '__match_state_NestedMatch':
-            self.__match_state_NestedMatch(e)
-        elif self.__compartment.state.__name__ == '__match_state_ChildMatch':
-            self.__match_state_ChildMatch(e)
-        elif self.__compartment.state.__name__ == '__match_state_Final':
-            self.__match_state_Final(e)
-        
-        if self.__next_compartment != None:
-            next_compartment = self.__next_compartment
-            self.__next_compartment = None
-            if(next_compartment.forward_event is not None and 
-               next_compartment.forward_event._message == ">"):
-                self.__mux(FrameEvent( "<", self.__compartment.exit_args))
-                self.__compartment = next_compartment
-                self.__mux(next_compartment.forward_event)
-            else:
-                self.__do_transition(next_compartment)
-                if next_compartment.forward_event is not None:
-                    self.__mux(next_compartment.forward_event)
-            next_compartment.forward_event = None
-    
     # ===================== Machine Block =================== #
     
     def __match_state_Init(self, e):
@@ -128,7 +96,7 @@ class Match:
         
     def __match_state_EmptyMatch(self, e):
         if e._message == "Onstring":
-            if ((e._parameters["s"] == "") or (e._parameters["s"]== "foo")):
+            if ((e._parameters["s"] == "") or (e._parameters["s"] == "foo")):
                 self.log_do("empty")
             else:
                 self.log_do("?")
@@ -184,9 +152,9 @@ class Match:
             return
         
         elif e._message == "Onstring":
-            if ((e._parameters["s"] == "$10") or (e._parameters["s"]== "12.5%") or (e._parameters["s"]== "@#*!")):
+            if ((e._parameters["s"] == "$10") or (e._parameters["s"] == "12.5%") or (e._parameters["s"] == "@#*!")):
                 self.log_do("symbols")
-            elif ((e._parameters["s"] == " ") or (e._parameters["s"]== "  ") or (e._parameters["s"]== "\t") or (e._parameters["s"]== "\n")):
+            elif ((e._parameters["s"] == " ") or (e._parameters["s"] == "  ") or (e._parameters["s"] == "\t") or (e._parameters["s"] == "\n")):
                 self.log_do("whitespace")
             else:
                 self.log_do("?")
@@ -223,7 +191,7 @@ class Match:
             return
         
         elif e._message == "Onstring":
-            if ((e._parameters["s"] == "hello") or (e._parameters["s"]== "hola") or (e._parameters["s"]== "bonjour")):
+            if ((e._parameters["s"] == "hello") or (e._parameters["s"] == "hola") or (e._parameters["s"] == "bonjour")):
                 self.log_do("greeting")
                 if ((e._parameters["s"] == "hello")):
                     self.log_do("English")
@@ -232,7 +200,7 @@ class Match:
                 else:
                     self.log_do("French")
                 
-            elif ((e._parameters["s"] == "goodbye") or (e._parameters["s"]== "adios") or (e._parameters["s"]== "au revoir")):
+            elif ((e._parameters["s"] == "goodbye") or (e._parameters["s"] == "adios") or (e._parameters["s"] == "au revoir")):
                 self.log_do("farewell")
                 if ((e._parameters["s"] == "goodbye")):
                     self.log_do("English")
@@ -299,6 +267,40 @@ class Match:
     
     def log_do(self,msg: str):
         raise NotImplementedError
+    
+    
+    
+    # ====================== Multiplexer ==================== #
+    
+    def __mux(self, e):
+        if self.__compartment.state.__name__ == '__match_state_Init':
+            self.__match_state_Init(e)
+        elif self.__compartment.state.__name__ == '__match_state_EmptyMatch':
+            self.__match_state_EmptyMatch(e)
+        elif self.__compartment.state.__name__ == '__match_state_SimpleMatch':
+            self.__match_state_SimpleMatch(e)
+        elif self.__compartment.state.__name__ == '__match_state_MultiMatch':
+            self.__match_state_MultiMatch(e)
+        elif self.__compartment.state.__name__ == '__match_state_NestedMatch':
+            self.__match_state_NestedMatch(e)
+        elif self.__compartment.state.__name__ == '__match_state_ChildMatch':
+            self.__match_state_ChildMatch(e)
+        elif self.__compartment.state.__name__ == '__match_state_Final':
+            self.__match_state_Final(e)
+        
+        if self.__next_compartment != None:
+            next_compartment = self.__next_compartment
+            self.__next_compartment = None
+            if(next_compartment.forward_event is not None and 
+               next_compartment.forward_event._message == ">"):
+                self.__mux(FrameEvent( "<", self.__compartment.exit_args))
+                self.__compartment = next_compartment
+                self.__mux(next_compartment.forward_event)
+            else:
+                self.__do_transition(next_compartment)
+                if next_compartment.forward_event is not None:
+                    self.__mux(next_compartment.forward_event)
+            next_compartment.forward_event = None
     
     
     # =============== Machinery and Mechanisms ============== #

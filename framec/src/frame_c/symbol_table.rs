@@ -1529,13 +1529,13 @@ impl Arcanum {
                     None => return None,
                 }
 
-                let x = states_symtab_rcref.borrow();
-                let state_symbol_t = x.lookup(state_name, &IdentifierDeclScope::None);
+                let symbol_table = states_symtab_rcref.borrow();
+                let state_symbol_t = symbol_table.lookup(state_name, &IdentifierDeclScope::None);
                 match state_symbol_t {
                     Some(symbol_t_ref) => {
-                        let x = symbol_t_ref.borrow();
+                        let symbol_type = symbol_t_ref.borrow();
 
-                        match &*x {
+                        match &*symbol_type {
                             SymbolType::State { state_symbol_ref } => {
                                 Some(Rc::clone(state_symbol_ref))
                             }

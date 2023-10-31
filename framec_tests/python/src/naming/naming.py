@@ -63,34 +63,6 @@ class Naming:
         e = FrameEvent("call",parameters)
         self.__mux(e)
     
-    # ====================== Multiplexer ==================== #
-    
-    def __mux(self, e):
-        if self.__compartment.state.__name__ == '__naming_state_Init':
-            self.__naming_state_Init(e)
-        elif self.__compartment.state.__name__ == '__naming_state_snake_state':
-            self.__naming_state_snake_state(e)
-        elif self.__compartment.state.__name__ == '__naming_state_CamelState':
-            self.__naming_state_CamelState(e)
-        elif self.__compartment.state.__name__ == '__naming_state_state123':
-            self.__naming_state_state123(e)
-        elif self.__compartment.state.__name__ == '__naming_state_Final':
-            self.__naming_state_Final(e)
-        
-        if self.__next_compartment != None:
-            next_compartment = self.__next_compartment
-            self.__next_compartment = None
-            if(next_compartment.forward_event is not None and 
-               next_compartment.forward_event._message == ">"):
-                self.__mux(FrameEvent( "<", self.__compartment.exit_args))
-                self.__compartment = next_compartment
-                self.__mux(next_compartment.forward_event)
-            else:
-                self.__do_transition(next_compartment)
-                if next_compartment.forward_event is not None:
-                    self.__mux(next_compartment.forward_event)
-            next_compartment.forward_event = None
-    
     # ===================== Machine Block =================== #
     
     def __naming_state_Init(self, e):
@@ -293,6 +265,36 @@ class Naming:
     
     def logFinal_do(self,r: int):
         raise NotImplementedError
+    
+    
+    
+    # ====================== Multiplexer ==================== #
+    
+    def __mux(self, e):
+        if self.__compartment.state.__name__ == '__naming_state_Init':
+            self.__naming_state_Init(e)
+        elif self.__compartment.state.__name__ == '__naming_state_snake_state':
+            self.__naming_state_snake_state(e)
+        elif self.__compartment.state.__name__ == '__naming_state_CamelState':
+            self.__naming_state_CamelState(e)
+        elif self.__compartment.state.__name__ == '__naming_state_state123':
+            self.__naming_state_state123(e)
+        elif self.__compartment.state.__name__ == '__naming_state_Final':
+            self.__naming_state_Final(e)
+        
+        if self.__next_compartment != None:
+            next_compartment = self.__next_compartment
+            self.__next_compartment = None
+            if(next_compartment.forward_event is not None and 
+               next_compartment.forward_event._message == ">"):
+                self.__mux(FrameEvent( "<", self.__compartment.exit_args))
+                self.__compartment = next_compartment
+                self.__mux(next_compartment.forward_event)
+            else:
+                self.__do_transition(next_compartment)
+                if next_compartment.forward_event is not None:
+                    self.__mux(next_compartment.forward_event)
+            next_compartment.forward_event = None
     
     
     # =============== Machinery and Mechanisms ============== #

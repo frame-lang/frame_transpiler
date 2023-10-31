@@ -45,30 +45,6 @@ class SimpleHandlerCalls:
         e = FrameEvent("E",None)
         self.__mux(e)
     
-    # ====================== Multiplexer ==================== #
-    
-    def __mux(self, e):
-        if self.__compartment.state.__name__ == '__simplehandlercalls_state_Init':
-            self.__simplehandlercalls_state_Init(e)
-        elif self.__compartment.state.__name__ == '__simplehandlercalls_state_A':
-            self.__simplehandlercalls_state_A(e)
-        elif self.__compartment.state.__name__ == '__simplehandlercalls_state_B':
-            self.__simplehandlercalls_state_B(e)
-        
-        if self.__next_compartment != None:
-            next_compartment = self.__next_compartment
-            self.__next_compartment = None
-            if(next_compartment.forward_event is not None and 
-               next_compartment.forward_event._message == ">"):
-                self.__mux(FrameEvent( "<", self.__compartment.exit_args))
-                self.__compartment = next_compartment
-                self.__mux(next_compartment.forward_event)
-            else:
-                self.__do_transition(next_compartment)
-                if next_compartment.forward_event is not None:
-                    self.__mux(next_compartment.forward_event)
-            next_compartment.forward_event = None
-    
     # ===================== Machine Block =================== #
     
     def __simplehandlercalls_state_Init(self, e):
@@ -112,6 +88,32 @@ class SimpleHandlerCalls:
     def __simplehandlercalls_state_B(self, e):
         pass
         
+    
+    
+    
+    # ====================== Multiplexer ==================== #
+    
+    def __mux(self, e):
+        if self.__compartment.state.__name__ == '__simplehandlercalls_state_Init':
+            self.__simplehandlercalls_state_Init(e)
+        elif self.__compartment.state.__name__ == '__simplehandlercalls_state_A':
+            self.__simplehandlercalls_state_A(e)
+        elif self.__compartment.state.__name__ == '__simplehandlercalls_state_B':
+            self.__simplehandlercalls_state_B(e)
+        
+        if self.__next_compartment != None:
+            next_compartment = self.__next_compartment
+            self.__next_compartment = None
+            if(next_compartment.forward_event is not None and 
+               next_compartment.forward_event._message == ">"):
+                self.__mux(FrameEvent( "<", self.__compartment.exit_args))
+                self.__compartment = next_compartment
+                self.__mux(next_compartment.forward_event)
+            else:
+                self.__do_transition(next_compartment)
+                if next_compartment.forward_event is not None:
+                    self.__mux(next_compartment.forward_event)
+            next_compartment.forward_event = None
     
     
     # =============== Machinery and Mechanisms ============== #

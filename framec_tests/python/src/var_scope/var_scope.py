@@ -84,34 +84,6 @@ class VarScope:
         e = FrameEvent("sigils",parameters)
         self.__mux(e)
     
-    # ====================== Multiplexer ==================== #
-    
-    def __mux(self, e):
-        if self.__compartment.state.__name__ == '__varscope_state_Init':
-            self.__varscope_state_Init(e)
-        elif self.__compartment.state.__name__ == '__varscope_state_NN':
-            self.__varscope_state_NN(e)
-        elif self.__compartment.state.__name__ == '__varscope_state_NY':
-            self.__varscope_state_NY(e)
-        elif self.__compartment.state.__name__ == '__varscope_state_YN':
-            self.__varscope_state_YN(e)
-        elif self.__compartment.state.__name__ == '__varscope_state_YY':
-            self.__varscope_state_YY(e)
-        
-        if self.__next_compartment != None:
-            next_compartment = self.__next_compartment
-            self.__next_compartment = None
-            if(next_compartment.forward_event is not None and 
-               next_compartment.forward_event._message == ">"):
-                self.__mux(FrameEvent( "<", self.__compartment.exit_args))
-                self.__compartment = next_compartment
-                self.__mux(next_compartment.forward_event)
-            else:
-                self.__do_transition(next_compartment)
-                if next_compartment.forward_event is not None:
-                    self.__mux(next_compartment.forward_event)
-            next_compartment.forward_event = None
-    
     # ===================== Machine Block =================== #
     
     def __varscope_state_Init(self, e):
@@ -380,6 +352,36 @@ class VarScope:
     
     def log_do(self,s: str):
         raise NotImplementedError
+    
+    
+    
+    # ====================== Multiplexer ==================== #
+    
+    def __mux(self, e):
+        if self.__compartment.state.__name__ == '__varscope_state_Init':
+            self.__varscope_state_Init(e)
+        elif self.__compartment.state.__name__ == '__varscope_state_NN':
+            self.__varscope_state_NN(e)
+        elif self.__compartment.state.__name__ == '__varscope_state_NY':
+            self.__varscope_state_NY(e)
+        elif self.__compartment.state.__name__ == '__varscope_state_YN':
+            self.__varscope_state_YN(e)
+        elif self.__compartment.state.__name__ == '__varscope_state_YY':
+            self.__varscope_state_YY(e)
+        
+        if self.__next_compartment != None:
+            next_compartment = self.__next_compartment
+            self.__next_compartment = None
+            if(next_compartment.forward_event is not None and 
+               next_compartment.forward_event._message == ">"):
+                self.__mux(FrameEvent( "<", self.__compartment.exit_args))
+                self.__compartment = next_compartment
+                self.__mux(next_compartment.forward_event)
+            else:
+                self.__do_transition(next_compartment)
+                if next_compartment.forward_event is not None:
+                    self.__mux(next_compartment.forward_event)
+            next_compartment.forward_event = None
     
     
     # =============== Machinery and Mechanisms ============== #

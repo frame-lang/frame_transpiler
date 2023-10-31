@@ -36,34 +36,6 @@ class TransitionSm:
         e = FrameEvent("change",None)
         self.__mux(e)
     
-    # ====================== Multiplexer ==================== #
-    
-    def __mux(self, e):
-        if self.__compartment.state.__name__ == '__transitionsm_state_S0':
-            self.__transitionsm_state_S0(e)
-        elif self.__compartment.state.__name__ == '__transitionsm_state_S1':
-            self.__transitionsm_state_S1(e)
-        elif self.__compartment.state.__name__ == '__transitionsm_state_S2':
-            self.__transitionsm_state_S2(e)
-        elif self.__compartment.state.__name__ == '__transitionsm_state_S3':
-            self.__transitionsm_state_S3(e)
-        elif self.__compartment.state.__name__ == '__transitionsm_state_S4':
-            self.__transitionsm_state_S4(e)
-        
-        if self.__next_compartment != None:
-            next_compartment = self.__next_compartment
-            self.__next_compartment = None
-            if(next_compartment.forward_event is not None and 
-               next_compartment.forward_event._message == ">"):
-                self.__mux(FrameEvent( "<", self.__compartment.exit_args))
-                self.__compartment = next_compartment
-                self.__mux(next_compartment.forward_event)
-            else:
-                self.__do_transition(next_compartment)
-                if next_compartment.forward_event is not None:
-                    self.__mux(next_compartment.forward_event)
-            next_compartment.forward_event = None
-    
     # ===================== Machine Block =================== #
     
     def __transitionsm_state_S0(self, e):
@@ -139,6 +111,36 @@ class TransitionSm:
     
     def exit_do(self,state: str):
         raise NotImplementedError
+    
+    
+    
+    # ====================== Multiplexer ==================== #
+    
+    def __mux(self, e):
+        if self.__compartment.state.__name__ == '__transitionsm_state_S0':
+            self.__transitionsm_state_S0(e)
+        elif self.__compartment.state.__name__ == '__transitionsm_state_S1':
+            self.__transitionsm_state_S1(e)
+        elif self.__compartment.state.__name__ == '__transitionsm_state_S2':
+            self.__transitionsm_state_S2(e)
+        elif self.__compartment.state.__name__ == '__transitionsm_state_S3':
+            self.__transitionsm_state_S3(e)
+        elif self.__compartment.state.__name__ == '__transitionsm_state_S4':
+            self.__transitionsm_state_S4(e)
+        
+        if self.__next_compartment != None:
+            next_compartment = self.__next_compartment
+            self.__next_compartment = None
+            if(next_compartment.forward_event is not None and 
+               next_compartment.forward_event._message == ">"):
+                self.__mux(FrameEvent( "<", self.__compartment.exit_args))
+                self.__compartment = next_compartment
+                self.__mux(next_compartment.forward_event)
+            else:
+                self.__do_transition(next_compartment)
+                if next_compartment.forward_event is not None:
+                    self.__mux(next_compartment.forward_event)
+            next_compartment.forward_event = None
     
     
     # =============== Machinery and Mechanisms ============== #

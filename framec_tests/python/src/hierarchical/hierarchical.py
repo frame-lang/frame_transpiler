@@ -41,38 +41,6 @@ class Hierarchical:
         e = FrameEvent("C",None)
         self.__mux(e)
     
-    # ====================== Multiplexer ==================== #
-    
-    def __mux(self, e):
-        if self.__compartment.state.__name__ == '__hierarchical_state_I':
-            self.__hierarchical_state_I(e)
-        elif self.__compartment.state.__name__ == '__hierarchical_state_S':
-            self.__hierarchical_state_S(e)
-        elif self.__compartment.state.__name__ == '__hierarchical_state_S0':
-            self.__hierarchical_state_S0(e)
-        elif self.__compartment.state.__name__ == '__hierarchical_state_S1':
-            self.__hierarchical_state_S1(e)
-        elif self.__compartment.state.__name__ == '__hierarchical_state_S2':
-            self.__hierarchical_state_S2(e)
-        elif self.__compartment.state.__name__ == '__hierarchical_state_S3':
-            self.__hierarchical_state_S3(e)
-        elif self.__compartment.state.__name__ == '__hierarchical_state_T':
-            self.__hierarchical_state_T(e)
-        
-        if self.__next_compartment != None:
-            next_compartment = self.__next_compartment
-            self.__next_compartment = None
-            if(next_compartment.forward_event is not None and 
-               next_compartment.forward_event._message == ">"):
-                self.__mux(FrameEvent( "<", self.__compartment.exit_args))
-                self.__compartment = next_compartment
-                self.__mux(next_compartment.forward_event)
-            else:
-                self.__do_transition(next_compartment)
-                if next_compartment.forward_event is not None:
-                    self.__mux(next_compartment.forward_event)
-            next_compartment.forward_event = None
-    
     # ===================== Machine Block =================== #
     
     def __hierarchical_state_I(self, e):
@@ -253,6 +221,40 @@ class Hierarchical:
     
     def log_do(self,msg: str):
         raise NotImplementedError
+    
+    
+    
+    # ====================== Multiplexer ==================== #
+    
+    def __mux(self, e):
+        if self.__compartment.state.__name__ == '__hierarchical_state_I':
+            self.__hierarchical_state_I(e)
+        elif self.__compartment.state.__name__ == '__hierarchical_state_S':
+            self.__hierarchical_state_S(e)
+        elif self.__compartment.state.__name__ == '__hierarchical_state_S0':
+            self.__hierarchical_state_S0(e)
+        elif self.__compartment.state.__name__ == '__hierarchical_state_S1':
+            self.__hierarchical_state_S1(e)
+        elif self.__compartment.state.__name__ == '__hierarchical_state_S2':
+            self.__hierarchical_state_S2(e)
+        elif self.__compartment.state.__name__ == '__hierarchical_state_S3':
+            self.__hierarchical_state_S3(e)
+        elif self.__compartment.state.__name__ == '__hierarchical_state_T':
+            self.__hierarchical_state_T(e)
+        
+        if self.__next_compartment != None:
+            next_compartment = self.__next_compartment
+            self.__next_compartment = None
+            if(next_compartment.forward_event is not None and 
+               next_compartment.forward_event._message == ">"):
+                self.__mux(FrameEvent( "<", self.__compartment.exit_args))
+                self.__compartment = next_compartment
+                self.__mux(next_compartment.forward_event)
+            else:
+                self.__do_transition(next_compartment)
+                if next_compartment.forward_event is not None:
+                    self.__mux(next_compartment.forward_event)
+            next_compartment.forward_event = None
     
     
     # =============== Machinery and Mechanisms ============== #

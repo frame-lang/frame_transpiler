@@ -2294,6 +2294,7 @@ impl AstVisitor for GolangVisitor {
             false,
             false,
             false,
+            false,
             Some(FrameEventPart::Event {
                 is_reference: false,
             }),

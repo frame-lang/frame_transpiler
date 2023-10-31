@@ -146,6 +146,8 @@ impl PythonVisitor {
     pub fn format_type(&self, type_node: &TypeNode) -> String {
         if type_node.is_system {
             String::new()
+        } else if type_node.is_enum {
+            format!("{}_{}",self.system_name,type_node.type_str)
         } else {
             let mut s = String::new();
             s.push_str(&type_node.type_str.clone());
@@ -284,8 +286,14 @@ impl PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn format_action_name(&mut self, action_name: &String) -> String {
-        return format!("{}_do", action_name);
+    fn format_action_name(&self, action_name: &String) -> String {
+        format!("{}_do", action_name)
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn format_enum_name(&self, enum_type_name: &String) -> String {
+        format!("{}_{}", self.system_name,enum_type_name)
     }
 
     //* --------------------------------------------------------------------- *//
@@ -503,6 +511,104 @@ impl PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn generate_machinery(&mut self, system_node: &SystemNode) {
+        self.newline();
+        self.newline();
+
+        // generate __mux
+
+        self.newline();
+        self.add_code("# ====================== Multiplexer ==================== #");
+        self.newline();
+        self.newline();
+
+        self.add_code("def __mux(self, e):");
+        self.indent();
+
+        match &system_node.machine_block_node_opt {
+            Some(machine_block_node) => {
+                self.newline();
+                //
+                let _current_index = 0;
+                let len = machine_block_node.states.len();
+                for (current_index, state_node_rcref) in
+                machine_block_node.states.iter().enumerate()
+                {
+                    let state_name = &self
+                        .format_target_state_name(&state_node_rcref.borrow().name)
+                        .to_string();
+                    if current_index == 0 {
+                        self.add_code(&format!(
+                            "if self.__compartment.state.__name__ == '{}':",
+                            state_name
+                        ));
+                    } else {
+                        self.add_code(&format!(
+                            "elif self.__compartment.state.__name__ == '{}':",
+                            state_name
+                        ));
+                    }
+                    self.indent();
+                    self.newline();
+                    self.add_code(&format!("self.{}(e)", state_name));
+                    self.outdent();
+                    if current_index != len {
+                        self.newline();
+                    }
+
+                    // current_index += 1
+                }
+
+                self.newline();
+                self.add_code("if self.__next_compartment != None:");
+                self.indent();
+                self.newline();
+                self.add_code("next_compartment = self.__next_compartment");
+                self.newline();
+                self.add_code("self.__next_compartment = None");
+                self.newline();
+                self.add_code("if(next_compartment.forward_event is not None and ");
+                self.newline();
+                self.add_code("   next_compartment.forward_event._message == \">\"):");
+                self.indent();
+                self.newline();
+                self.add_code("self.__mux(FrameEvent( \"<\", self.__compartment.exit_args))");
+                self.newline();
+                self.add_code("self.__compartment = next_compartment");
+                self.newline();
+                self.add_code("self.__mux(next_compartment.forward_event)");
+                self.outdent();
+                self.newline();
+                self.add_code("else:");
+                self.indent();
+                self.newline();
+                self.add_code("self.__do_transition(next_compartment)");
+                self.newline();
+                self.add_code("if next_compartment.forward_event is not None:");
+                self.indent();
+                self.newline();
+                self.add_code("self.__mux(next_compartment.forward_event)");
+                self.outdent();
+                // self.newline();
+                // self.add_code("}");
+                self.outdent();
+                // self.newline();
+                // self.add_code("}");
+                self.newline();
+                self.add_code("next_compartment.forward_event = None");
+                self.outdent();
+                // self.newline();
+                // self.add_code("}");
+                self.outdent();
+                // self.newline();
+                // self.add_code("}");
+                self.newline();
+            }
+            _ => {
+                self.add_code("pass");
+                self.outdent();
+                self.newline();
+            }
+        }
         self.newline();
         self.newline();
         self.add_code("# =============== Machinery and Mechanisms ============== #");
@@ -1457,6 +1563,7 @@ impl AstVisitor for PythonVisitor {
                 }
                 ModuleElement::ModuleAttribute {attribute_node} => {
                     if attribute_node.get_name() == "generate_frame_event" {
+                        self.newline();
                         self.add_code("class FrameEvent:");
                         self.indent();
                         self.newline();
@@ -1653,102 +1760,6 @@ impl AstVisitor for PythonVisitor {
             // generate Load() factory
             self.format_load_fn(system_node);
             self.generate_json_fn();
-        }
-
-        // generate __mux
-
-        self.newline();
-        self.add_code("# ====================== Multiplexer ==================== #");
-        self.newline();
-        self.newline();
-
-        self.add_code("def __mux(self, e):");
-        self.indent();
-
-        match &system_node.machine_block_node_opt {
-            Some(machine_block_node) => {
-                self.newline();
-                //
-                let _current_index = 0;
-                let len = machine_block_node.states.len();
-                for (current_index, state_node_rcref) in
-                    machine_block_node.states.iter().enumerate()
-                {
-                    let state_name = &self
-                        .format_target_state_name(&state_node_rcref.borrow().name)
-                        .to_string();
-                    if current_index == 0 {
-                        self.add_code(&format!(
-                            "if self.__compartment.state.__name__ == '{}':",
-                            state_name
-                        ));
-                    } else {
-                        self.add_code(&format!(
-                            "elif self.__compartment.state.__name__ == '{}':",
-                            state_name
-                        ));
-                    }
-                    self.indent();
-                    self.newline();
-                    self.add_code(&format!("self.{}(e)", state_name));
-                    self.outdent();
-                    if current_index != len {
-                        self.newline();
-                    }
-
-                    // current_index += 1
-                }
-
-                self.newline();
-                self.add_code("if self.__next_compartment != None:");
-                self.indent();
-                self.newline();
-                self.add_code("next_compartment = self.__next_compartment");
-                self.newline();
-                self.add_code("self.__next_compartment = None");
-                self.newline();
-                self.add_code("if(next_compartment.forward_event is not None and ");
-                self.newline();
-                self.add_code("   next_compartment.forward_event._message == \">\"):");
-                self.indent();
-                self.newline();
-                self.add_code("self.__mux(FrameEvent( \"<\", self.__compartment.exit_args))");
-                self.newline();
-                self.add_code("self.__compartment = next_compartment");
-                self.newline();
-                self.add_code("self.__mux(next_compartment.forward_event)");
-                self.outdent();
-                self.newline();
-                self.add_code("else:");
-                self.indent();
-                self.newline();
-                self.add_code("self.__do_transition(next_compartment)");
-                self.newline();
-                self.add_code("if next_compartment.forward_event is not None:");
-                self.indent();
-                self.newline();
-                self.add_code("self.__mux(next_compartment.forward_event)");
-                self.outdent();
-                // self.newline();
-                // self.add_code("}");
-                self.outdent();
-                // self.newline();
-                // self.add_code("}");
-                self.newline();
-                self.add_code("next_compartment.forward_event = None");
-                self.outdent();
-                // self.newline();
-                // self.add_code("}");
-                self.outdent();
-                // self.newline();
-                // self.add_code("}");
-                self.newline();
-            }
-            _ => {
-                self.add_code("pass");
-                self.outdent();
-                self.newline();
-            }
         }
 
         if let Some(machine_block_node) = &system_node.machine_block_node_opt {
@@ -3297,17 +3308,12 @@ impl AstVisitor for PythonVisitor {
                         self.errors
                             .push("Error - expression list is not testable.".to_string());
                     }
-                    let x = expr_list_node.exprs_t.first().unwrap();
-                    x.accept(self);
+                    let expr_t = expr_list_node.exprs_t.first().unwrap();
+                    expr_t.accept(self);
                 }
 
                 _ => self.errors.push("TODO".to_string()),
             }
-
-            // TODO: use accept
-            // self.add_code(&format!(" == \""));
-            // match_branch_node.string_match_pattern_node.accept(self);
-            // self.add_code(&format!("\") {{"));
 
             let mut first_match = true;
             match &match_branch_node.string_match_type {
@@ -3319,7 +3325,7 @@ impl AstVisitor for PythonVisitor {
                             first_match = false;
                             self.add_code(&format!("({} == \"{}\")", expr_code, match_string));
                         } else {
-                            self.add_code(&format!(" or ({}== \"{}\")",expr_code,match_string));
+                            self.add_code(&format!(" or ({} == \"{}\")",expr_code,match_string));
                          }
                     }
                     self.add_code(")");
@@ -3677,7 +3683,7 @@ impl AstVisitor for PythonVisitor {
                 if first_match {
                     self.add_code(&format!(
                         " == {}.{})",
-                        enum_match_test_node.enum_type_name,
+                        self.format_enum_name(&enum_match_test_node.enum_type_name),
                         match_test_pattern_node.match_pattern
                     ));
                     first_match = false;
@@ -3728,11 +3734,6 @@ impl AstVisitor for PythonVisitor {
         &mut self,
         enum_match_test_match_branch_node: &EnumMatchTestMatchBranchNode,
     ) {
-        // let mut generate_pass = false;
-        // if string_match_test_match_branch_node.statements.is_empty() && string_match_test_match_branch_node.branch_terminator_expr_opt.is_none() {
-        //     generate_pass = true;
-        // }
-
         // generate 'pass' unless there is a statement that will generate code
         let mut generate_pass = true;
         if enum_match_test_match_branch_node
@@ -4186,7 +4187,7 @@ impl AstVisitor for PythonVisitor {
         }
 
         self.outdent();
-        // self.newline()
+        self.newline()
     }
 
     //* --------------------------------------------------------------------- *//
@@ -4203,7 +4204,7 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_enumerator_expr_node(&mut self, enum_expr_node: &EnumeratorExprNode) {
         self.add_code(&format!(
-            "{}_{}.{}.value",
+            "{}_{}.{}",
             self.system_name, enum_expr_node.enum_type, enum_expr_node.enumerator
         ));
     }
@@ -4216,7 +4217,7 @@ impl AstVisitor for PythonVisitor {
         output: &mut String,
     ) {
         output.push_str(&format!(
-            "{}_{}.{}.value",
+            "{}_{}.{}",
             self.system_name, enum_expr_node.enum_type, enum_expr_node.enumerator
         ));
     }

@@ -2862,6 +2862,7 @@ pub struct TypeNode {
     #[allow(dead_code)]
     pub is_superstring: bool,
     pub is_system: bool,
+    pub is_enum:bool,
     pub(crate) is_reference: bool,
     pub(crate) frame_event_part_opt: Option<FrameEventPart>,
     pub(crate) type_str: String,
@@ -2876,12 +2877,14 @@ impl TypeNode {
         is_superstring: bool,
         is_system: bool,
         is_reference: bool,
+        is_enum:bool,
         frame_event_part_opt: Option<FrameEventPart>,
         type_str: String,
     ) -> TypeNode {
         TypeNode {
             is_superstring,
             is_system,
+            is_enum,
             is_reference,
             frame_event_part_opt,
             type_str,

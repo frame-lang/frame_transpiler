@@ -1639,6 +1639,8 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
+    // TODO: Type resolution for Frame native types is very ad hoc.
+
     fn type_decl(&mut self) -> Result<TypeNode, ParseError> {
         let mut is_reference = false;
         let mut is_system = false;
@@ -1646,7 +1648,7 @@ impl<'a> Parser<'a> {
         if self.match_token(&[TokenType::SuperString]) {
             let id = self.previous();
             let type_str = id.lexeme.clone();
-            Ok(TypeNode::new(true, false, false, None, type_str))
+            Ok(TypeNode::new(true, false, false, false, None, type_str))
         } else {
             if self.match_token(&[TokenType::And]) {
                 is_reference = true
@@ -1665,11 +1667,24 @@ impl<'a> Parser<'a> {
 
             let id = self.previous();
             let type_str = id.lexeme.clone();
+            let mut is_enum = false;
+
+            if !self.is_building_symbol_table {
+                let symbol_t_refcell_opt = self.arcanum.lookup(&type_str, &IdentifierDeclScope::DomainBlock);
+                if let Some(symbol_t_rcref) = symbol_t_refcell_opt {
+                    let symbol_t = symbol_t_rcref.borrow();
+                    if let SymbolType::EnumDeclSymbolT{ .. } = *symbol_t {
+                        is_enum = true;
+                    }
+
+                }
+            }
 
             Ok(TypeNode::new(
                 false,
                 is_system,
                 is_reference,
+                is_enum,
                 frame_event_part_opt,
                 type_str,
             ))
