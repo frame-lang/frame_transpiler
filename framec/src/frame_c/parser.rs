@@ -6458,6 +6458,11 @@ impl<'a> Parser<'a> {
             self.error_at_current(&err_msg);
             let parse_error = ParseError::new(err_msg.as_str());
             return Err(parse_error);
+        } else if self.is_function_scope {
+            let err_msg = format!("Transitions disallowed inside of functions.");
+            self.error_at_current(&err_msg);
+            let parse_error = ParseError::new(err_msg.as_str());
+            return Err(parse_error);
         }
         let eh_rc_refcell = self.current_event_symbol_opt.as_ref().unwrap().clone();
         let evt_symbol = eh_rc_refcell.borrow();

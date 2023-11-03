@@ -50,15 +50,10 @@
 
     matchString [s] {
         // validate comment token // doesn't interfere with match patterns
-
-        // validate comment token // doesn't interfere with match patterns
         s ?~
-            ~/%|^|!@#$%^&*()/ log("matched " + s) // comment test
-                :>
-            ~/a|b/ log("matched a|b") // comment test
-                :>
-            ~// log("matched empty string")  // comment test
-                :>
+            ~/%|^|!@#$%^&*()/ log("matched " + s) :> // comment test
+            ~/a|b/ log("matched a|b") :> // comment test
+            ~// log("matched empty string") :>  // comment test
             !// log("matched null") // comment test
             : log("no string match") // comment test
         ::
@@ -73,6 +68,35 @@
             #/0.111/ log("Matched .111") :>
             : log("no number match")
         ::
+        ^
+    }
+
+    // syntax tests validate correct syntax and should fully explore
+    // the grammar. These are not run to test behavior (but could be promoted
+    // to do so).
+
+    syntaxTests {
+
+        // dangling else-continue. Both versions are permitted.
+        x ?~  ~/a/ : ::
+        x ?~  ~/a/ :> :  ::
+
+        // other valid grammar
+        x ?~  ~/a/ ::
+        x ?~  ~/a/ foo() ::
+
+        // explict scope in branches
+        x ?~  ~/a/ foo() : bar()  ::
+        x ?~  ~/a/ foo() :> : bar()  ::
+        x ?~  ~/a/ {} :> : {}  ::
+        x ?~  ~/a/ {foo()} : {bar()}  ::
+        x ?~  ~/a/ {foo()} :> : {bar()}  ::
+
+        // Negative tests - these should be manually used to test
+        // error reporting.
+        // x ?~  ~/a/ -> $B :: // transitions not permitted
+
+
         ^
     }
 
