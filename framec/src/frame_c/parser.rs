@@ -1419,12 +1419,17 @@ impl<'a> Parser<'a> {
     fn meta_list_idents(&mut self) -> Result<Vec<String>, ParseError> {
         let mut idents: Vec<String> = Vec::new();
         loop {
-            if !self.match_token(&[TokenType::Identifier]) {
+            // TODO: need to identify all possible valid tokens
+            if !(self.match_token(&[TokenType::Identifier]) ||
+                 self.match_token(&[TokenType::True]) ||
+                self.match_token(&[TokenType::False]) ||
+                self.match_token(&[TokenType::Number])
+            ) {
                 break;
             }
             let ident = self.previous().lexeme.clone();
             idents.push(ident);
-            if !self.match_token(&[TokenType::Colon]) {
+            if !self.match_token(&[TokenType::Comma]) {
                 break;
             }
         }
@@ -4258,6 +4263,12 @@ impl<'a> Parser<'a> {
         conditional_branches.push(first_branch_node);
 
         while self.match_token(&[TokenType::ElseContinue]) {
+            // This enables a "dangling" ElseContinue.
+            // :> :
+            // :> ::
+            if self.peek().token_type == TokenType::Colon || self.peek().token_type == TokenType::ColonColon {
+                break;
+            }
             match self.string_match_test_match_branch() {
                 Ok(branch_node) => {
                     conditional_branches.push(branch_node);
@@ -6583,6 +6594,12 @@ impl<'a> Parser<'a> {
         conditional_branches.push(first_branch_node);
 
         while self.match_token(&[TokenType::ElseContinue]) {
+            // This enables a "dangling" ElseContinue.
+            // :> :
+            // :> ::
+            if self.peek().token_type == TokenType::Colon || self.peek().token_type == TokenType::ColonColon {
+                break;
+            }
             match self.number_match_test_match_branch() {
                 Ok(branch_node) => {
                     conditional_branches.push(branch_node);
@@ -6754,6 +6771,12 @@ impl<'a> Parser<'a> {
         conditional_branches.push(first_branch_node);
 
         while self.match_token(&[TokenType::ElseContinue]) {
+            // This enables a "dangling" ElseContinue.
+            // :> :
+            // :> ::
+            if self.peek().token_type == TokenType::Colon || self.peek().token_type == TokenType::ColonColon {
+                break;
+            }
             match self.enum_match_test_match_branch(&enum_symbol_rcref_opt) {
                 Ok(branch_node) => {
                     conditional_branches.push(branch_node);

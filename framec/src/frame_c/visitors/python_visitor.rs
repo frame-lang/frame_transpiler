@@ -1555,6 +1555,8 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_module(&mut self, module: &Module) {
 
+        let mut generate_frame_event = true;
+
         for module_element in &module.module_elements {
             match module_element {
                 ModuleElement::CodeBlock {code_block} => {
@@ -1562,32 +1564,38 @@ impl AstVisitor for PythonVisitor {
                     self.newline();
                 }
                 ModuleElement::ModuleAttribute {attribute_node} => {
+                    // By default framec will generate the FrameEvent.
+                    // See if generate_frame_event is false to disable generation.
                     if attribute_node.get_name() == "generate_frame_event" {
-                        self.newline();
-                        self.add_code("class FrameEvent:");
-                        self.indent();
-                        self.newline();
-                        self.add_code("def __init__(self, message, parameters):");
-                        self.indent();
-                        self.newline();
-                        self.add_code("self._message = message");
-                        self.newline();
-                        self.add_code("self._parameters = parameters");
-                        self.newline();
-                        self.add_code("self._return = None");
-                        self.outdent();
-                        self.outdent();
-                        self.newline();
+                        if let AttributeNode::MetaListIdents {attr} = attribute_node {
+                            let attr_opt = attr.idents.get(0);
+                            if let Some(attr) = attr_opt {
+                                if attr == "false" {
+                                    generate_frame_event = false;
+                                }
+                            }
+                        }
                     }
-
-
-
-
-
-
-
-                }
+               }
             }
+        }
+
+        if generate_frame_event {
+            self.newline();
+            self.add_code("class FrameEvent:");
+            self.indent();
+            self.newline();
+            self.add_code("def __init__(self, message, parameters):");
+            self.indent();
+            self.newline();
+            self.add_code("self._message = message");
+            self.newline();
+            self.add_code("self._parameters = parameters");
+            self.newline();
+            self.add_code("self._return = None");
+            self.outdent();
+            self.outdent();
+            self.newline();
         }
 
     }
@@ -3704,7 +3712,7 @@ impl AstVisitor for PythonVisitor {
                     }
                     self.add_code(&format!(
                         " == {}.{})",
-                        enum_match_test_node.enum_type_name,
+                        self.format_enum_name(&enum_match_test_node.enum_type_name),
                         match_test_pattern_node.match_pattern
                     ));
                 }

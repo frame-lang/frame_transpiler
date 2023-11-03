@@ -1,12 +1,16 @@
 from enum_case.enum_case import EnumTest, EnumTest_Days
 
 class EnumTestController(EnumTest):
+    #
+    # def entered_do(self, msg: str, val:int):
+    #     self.days.append(f'{msg}={val}')
 
-    def entered_do(self, msg: str, val:int):
-        self.days.append(f'{msg}={val}')
 
-    def left_do(self, msg: str, val:int):
-        self.days.append(f'{msg}={val}')
+    def entered_do(self, msg: str, day):
+        self.days.append(f'{msg}={day.value}')
+
+    def left_do(self, msg: str, day):
+        self.days.append(f'{msg}={day.value}')
 
 
 def test_initial_state():
