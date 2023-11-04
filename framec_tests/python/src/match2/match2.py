@@ -56,13 +56,9 @@ class MatchTests:
             self.matchNumber_do(0.111)
             self.matchNumber_do(1001)
             print(self.tape)
-            
             return
-        
     
     # ===================== Actions Block =================== #
-    
-    
     
     def matchFruit_do(self,x: MatchTests_Fruit):
         if (x == MatchTests_Fruit.Banana) or (x == MatchTests_Fruit.Watermelon):
@@ -76,7 +72,6 @@ class MatchTests:
         else:
             self.log_do("no enum match")
         
-    
     def matchString_do(self,s):
         if ((s == "%") or (s == "^") or (s == "!@#$%^&*()")):
             self.log_do("matched " + s)
@@ -91,7 +86,6 @@ class MatchTests:
         
         return
         
-    
     def matchNumber_do(self,n):
         if (n == 1001.5) or (n == 0.12):
             self.log_do("Matched 1001.5 or 0.12")
@@ -104,7 +98,6 @@ class MatchTests:
         
         return
         
-    
     def syntaxTests_do(self):
         if ((x == "a")):
             pass
@@ -149,13 +142,9 @@ class MatchTests:
         
         return
         
-    
     def log_do(self,msg):
         self.tape.append(msg)
-    
-    
-    
-    # ====================== Multiplexer ==================== #
+    # =============== Machinery and Mechanisms ============== #
     
     def __mux(self, e):
         
@@ -179,9 +168,6 @@ class MatchTests:
         if self.__compartment.state.__name__ == '__matchtests_state_A':
             self.__matchtests_state_A(e)
         
-    
-    # =============== Machinery and Mechanisms ============== #
-    
     def __transition(self, compartment: 'MatchTestsCompartment'):
         self.__next_compartment = compartment
     

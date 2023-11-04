@@ -37,45 +37,37 @@ class ChangeStateSm:
             compartment = ChangeStateSmCompartment(self.__changestatesm_state_S1)
             
             self.__change_state(compartment)
-            
             return
-        
+    
     def __changestatesm_state_S1(self, e):
         if e._message == "change":
             compartment = ChangeStateSmCompartment(self.__changestatesm_state_S2)
             
             self.__change_state(compartment)
-            
             return
-        
+    
     def __changestatesm_state_S2(self, e):
         if e._message == "change":
             compartment = ChangeStateSmCompartment(self.__changestatesm_state_S3)
             
             self.__change_state(compartment)
-            
             return
-        
+    
     def __changestatesm_state_S3(self, e):
         if e._message == "change":
             compartment = ChangeStateSmCompartment(self.__changestatesm_state_S4)
             
             self.__change_state(compartment)
-            
             return
-        
+    
     def __changestatesm_state_S4(self, e):
         if e._message == "change":
             compartment = ChangeStateSmCompartment(self.__changestatesm_state_S0)
             
             self.__change_state(compartment)
-            
             return
-        
     
-    
-    
-    # ====================== Multiplexer ==================== #
+    # =============== Machinery and Mechanisms ============== #
     
     def __mux(self, e):
         
@@ -107,9 +99,6 @@ class ChangeStateSm:
         elif self.__compartment.state.__name__ == '__changestatesm_state_S4':
             self.__changestatesm_state_S4(e)
         
-    
-    # =============== Machinery and Mechanisms ============== #
-    
     def __transition(self, compartment: 'ChangeStateSmCompartment'):
         self.__next_compartment = compartment
     

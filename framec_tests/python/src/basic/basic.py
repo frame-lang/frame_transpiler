@@ -47,53 +47,36 @@ class Basic:
     def __basic_state_S0(self, e):
         if e._message == ">":
             self.entered_do("S0")
-            
             return
-        
         elif e._message == "<":
             self.left_do("S0")
-            
             return
-        
         elif e._message == "A":
             # ooh
             compartment = BasicCompartment(self.__basic_state_S1)
             self.__transition(compartment)
-            
             return
-        
+    
     def __basic_state_S1(self, e):
         if e._message == ">":
             self.entered_do("S1")
-            
             return
-        
         elif e._message == "<":
             self.left_do("S1")
-            
             return
-        
         elif e._message == "B":
             # aah
             compartment = BasicCompartment(self.__basic_state_S0)
             self.__transition(compartment)
-            
             return
-        
     
     # ===================== Actions Block =================== #
     
-    
-    
     def entered_do(self,msg: str):
         raise NotImplementedError
-    
     def left_do(self,msg: str):
         raise NotImplementedError
-    
-    
-    
-    # ====================== Multiplexer ==================== #
+    # =============== Machinery and Mechanisms ============== #
     
     def __mux(self, e):
         
@@ -119,9 +102,6 @@ class Basic:
         elif self.__compartment.state.__name__ == '__basic_state_S1':
             self.__basic_state_S1(e)
         
-    
-    # =============== Machinery and Mechanisms ============== #
-    
     def __transition(self, compartment: 'BasicCompartment'):
         self.__next_compartment = compartment
     

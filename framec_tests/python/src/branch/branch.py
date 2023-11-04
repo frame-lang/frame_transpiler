@@ -77,39 +77,28 @@ class Branch:
         if e._message == "A":
             compartment = BranchCompartment(self.__branch_state_SimpleIf)
             self.__transition(compartment)
-            
             return
-        
         elif e._message == "B":
             compartment = BranchCompartment(self.__branch_state_NegatedIf)
             self.__transition(compartment)
-            
             return
-        
         elif e._message == "C":
             compartment = BranchCompartment(self.__branch_state_Precedence)
             self.__transition(compartment)
-            
             return
-        
         elif e._message == "D":
             compartment = BranchCompartment(self.__branch_state_NestedIf)
             self.__transition(compartment)
-            
             return
-        
         elif e._message == "E":
             compartment = BranchCompartment(self.__branch_state_GuardedTransition)
             self.__transition(compartment)
-            
             return
-        
         elif e._message == "F":
             compartment = BranchCompartment(self.__branch_state_NestedGuardedTransition)
             self.__transition(compartment)
-            
             return
-        
+    
     def __branch_state_SimpleIf(self, e):
         if e._message == "OnBool":
             if  e._parameters["b"]:
@@ -136,9 +125,7 @@ class Branch:
                 self.__transition(compartment)
                 return
             
-            
             return
-        
         elif e._message == "OnInt":
             if  e._parameters["i"] > 5:
                 self.log_do("> 5")
@@ -161,9 +148,8 @@ class Branch:
                 self.__transition(compartment)
                 return
             
-            
             return
-        
+    
     def __branch_state_NegatedIf(self, e):
         if e._message == "OnBool":
             if  not (e._parameters["b"]):
@@ -190,9 +176,7 @@ class Branch:
                 self.__transition(compartment)
                 return
             
-            
             return
-        
         elif e._message == "OnInt":
             if  not (e._parameters["i"] >= 5):
                 self.log_do("< 5")
@@ -215,9 +199,8 @@ class Branch:
                 self.__transition(compartment)
                 return
             
-            
             return
-        
+    
     def __branch_state_Precedence(self, e):
         if e._message == "OnInt":
             if  -e._parameters["i"] >= 0 and -e._parameters["i"] <= 5:
@@ -240,9 +223,8 @@ class Branch:
             else:
                 self.log_do("else 4")
             
-            
             return
-        
+    
     def __branch_state_NestedIf(self, e):
         if e._message == "OnInt":
             if  e._parameters["i"] > 0:
@@ -266,9 +248,8 @@ class Branch:
                     return
                 
             
-            
             return
-        
+    
     def __branch_state_GuardedTransition(self, e):
         if e._message == "OnInt":
             if  e._parameters["i"] > 100:
@@ -290,9 +271,8 @@ class Branch:
             self.log_do("-> $F3")
             compartment = BranchCompartment(self.__branch_state_F3)
             self.__transition(compartment)
-            
             return
-        
+    
     def __branch_state_NestedGuardedTransition(self, e):
         if e._message == "OnInt":
             if  e._parameters["i"] > 10:
@@ -318,29 +298,25 @@ class Branch:
             self.log_do("-> $F3")
             compartment = BranchCompartment(self.__branch_state_F3)
             self.__transition(compartment)
-            
             return
-        
+    
     def __branch_state_F1(self, e):
         pass
         
+    
     def __branch_state_F2(self, e):
         pass
         
+    
     def __branch_state_F3(self, e):
         pass
         
     
     # ===================== Actions Block =================== #
     
-    
-    
     def log_do(self,msg: str):
         raise NotImplementedError
-    
-    
-    
-    # ====================== Multiplexer ==================== #
+    # =============== Machinery and Mechanisms ============== #
     
     def __mux(self, e):
         
@@ -382,9 +358,6 @@ class Branch:
         elif self.__compartment.state.__name__ == '__branch_state_F3':
             self.__branch_state_F3(e)
         
-    
-    # =============== Machinery and Mechanisms ============== #
-    
     def __transition(self, compartment: 'BranchCompartment'):
         self.__next_compartment = compartment
     

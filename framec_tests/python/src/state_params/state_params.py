@@ -52,63 +52,46 @@ class StateParams:
             compartment = StateParamsCompartment(self.__stateparams_state_Split)
             compartment.state_args["val"] = 1
             self.__transition(compartment)
-            
             return
-        
+    
     def __stateparams_state_Split(self, e):
         if e._message == "Next":
             compartment = StateParamsCompartment(self.__stateparams_state_Merge)
             compartment.state_args["left"] = self.__compartment.state_args["val"]
             compartment.state_args["right"] = self.__compartment.state_args["val"] + 1
             self.__transition(compartment)
-            
             return
-        
         elif e._message == "Prev":
             compartment = StateParamsCompartment(self.__stateparams_state_Merge)
             compartment.state_args["left"] = self.__compartment.state_args["val"] + 1
             compartment.state_args["right"] = self.__compartment.state_args["val"]
             self.__transition(compartment)
-            
             return
-        
         elif e._message == "Log":
             self.got_param_do("val",(self.__compartment.state_args["val"]))
-            
             return
-        
+    
     def __stateparams_state_Merge(self, e):
         if e._message == "Next":
             compartment = StateParamsCompartment(self.__stateparams_state_Split)
             compartment.state_args["val"] = self.__compartment.state_args["left"] + self.__compartment.state_args["right"]
             self.__transition(compartment)
-            
             return
-        
         elif e._message == "Prev":
             compartment = StateParamsCompartment(self.__stateparams_state_Split)
             compartment.state_args["val"] = self.__compartment.state_args["left"] * self.__compartment.state_args["right"]
             self.__transition(compartment)
-            
             return
-        
         elif e._message == "Log":
             self.got_param_do("left",(self.__compartment.state_args["left"]))
             self.got_param_do("right",(self.__compartment.state_args["right"]))
-            
             return
-        
     
     # ===================== Actions Block =================== #
     
-    
-    
     def got_param_do(self,name: str,val: int):
         raise NotImplementedError
-    
-    
-    
-    # ====================== Multiplexer ==================== #
+    # =============== Machinery and Mechanisms ============== #
     
     def __mux(self, e):
         
@@ -136,9 +119,6 @@ class StateParams:
         elif self.__compartment.state.__name__ == '__stateparams_state_Merge':
             self.__stateparams_state_Merge(e)
         
-    
-    # =============== Machinery and Mechanisms ============== #
-    
     def __transition(self, compartment: 'StateParamsCompartment'):
         self.__next_compartment = compartment
     

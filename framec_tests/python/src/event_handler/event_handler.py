@@ -83,59 +83,43 @@ class EventHandler:
     def __eventhandler_state_S1(self, e):
         if e._message == "LogIt":
             self.log_do("x",e._parameters["x"])
-            
             return
-        
         elif e._message == "LogAdd":
             self.log_do("a",e._parameters["a"])
             self.log_do("b",e._parameters["b"])
             self.log_do("a+b",e._parameters["a"] + e._parameters["b"])
-            
             return
-        
         elif e._message == "LogReturn":
             self.log_do("a",e._parameters["a"])
             self.log_do("b",e._parameters["b"])
             r  = e._parameters["a"] + e._parameters["b"]
-            self.log_do("r",r)
-            e._return = r
+            self.log_do("r",r)e._return = r
             return
             
-        
         elif e._message == "PassAdd":
             compartment = EventHandlerCompartment(self.__eventhandler_state_S2)
             compartment.state_args["p"] = e._parameters["a"] + e._parameters["b"]
             self.__transition(compartment)
-            
             return
-        
         elif e._message == "PassReturn":
             r  = e._parameters["a"] + e._parameters["b"]
             self.log_do("r",r)
             compartment = EventHandlerCompartment(self.__eventhandler_state_S2)
             compartment.state_args["p"] = r
-            self.__transition(compartment)
-            e._return = r
+            self.__transition(compartment)e._return = r
             return
             
-        
+    
     def __eventhandler_state_S2(self, e):
         if e._message == ">":
             self.log_do("p",(self.__compartment.state_args["p"]))
-            
             return
-        
     
     # ===================== Actions Block =================== #
     
-    
-    
     def log_do(self,msg: str,val: int):
         raise NotImplementedError
-    
-    
-    
-    # ====================== Multiplexer ==================== #
+    # =============== Machinery and Mechanisms ============== #
     
     def __mux(self, e):
         
@@ -161,9 +145,6 @@ class EventHandler:
         elif self.__compartment.state.__name__ == '__eventhandler_state_S2':
             self.__eventhandler_state_S2(e)
         
-    
-    # =============== Machinery and Mechanisms ============== #
-    
     def __transition(self, compartment: 'EventHandlerCompartment'):
         self.__next_compartment = compartment
     

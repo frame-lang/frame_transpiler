@@ -51,57 +51,41 @@ class StateVars:
             compartment = StateVarsCompartment(self.__statevars_state_A)
             compartment.state_vars["x"] = 0
             self.__transition(compartment)
-            
             return
-        
+    
     def __statevars_state_A(self, e):
         if e._message == "X":
             (self.__compartment.state_vars["x"]) = self.__compartment.state_vars["x"] + 1
-            
             return
-        
         elif e._message == "Y":
             compartment = StateVarsCompartment(self.__statevars_state_B)
             compartment.state_vars["y"] = 10
             compartment.state_vars["z"] = 100
             self.__transition(compartment)
-            
             return
-        
         elif e._message == "Z":
             compartment = StateVarsCompartment(self.__statevars_state_B)
             compartment.state_vars["y"] = 10
             compartment.state_vars["z"] = 100
             self.__transition(compartment)
-            
             return
-        
+    
     def __statevars_state_B(self, e):
         if e._message == "X":
             compartment = StateVarsCompartment(self.__statevars_state_A)
             compartment.state_vars["x"] = 0
             self.__transition(compartment)
-            
             return
-        
         elif e._message == "Y":
             (self.__compartment.state_vars["y"]) = self.__compartment.state_vars["y"] + 1
-            
             return
-        
         elif e._message == "Z":
             (self.__compartment.state_vars["z"]) = self.__compartment.state_vars["z"] + 1
-            
             return
-        
     
     # ===================== Actions Block =================== #
     
-    
-    
-    
-    
-    # ====================== Multiplexer ==================== #
+    # =============== Machinery and Mechanisms ============== #
     
     def __mux(self, e):
         
@@ -129,9 +113,6 @@ class StateVars:
         elif self.__compartment.state.__name__ == '__statevars_state_B':
             self.__statevars_state_B(e)
         
-    
-    # =============== Machinery and Mechanisms ============== #
-    
     def __transition(self, compartment: 'StateVarsCompartment'):
         self.__next_compartment = compartment
     

@@ -57,47 +57,37 @@ class SimpleHandlerCalls:
         if e._message == "A":
             compartment = SimpleHandlerCallsCompartment(self.__simplehandlercalls_state_A)
             self.__transition(compartment)
-            
             return
-        
         elif e._message == "B":
             compartment = SimpleHandlerCallsCompartment(self.__simplehandlercalls_state_B)
             self.__transition(compartment)
-            
             return
-        
         elif e._message == "C":
             self.A()
             return
-            
             return
-        
         elif e._message == "D":
             self.B()
             return
             compartment = SimpleHandlerCallsCompartment(self.__simplehandlercalls_state_A)
             self.__transition(compartment)
-            
             return
-        
         elif e._message == "E":
             self.D()
             return
             self.C()
             return
-            
             return
-        
+    
     def __simplehandlercalls_state_A(self, e):
         pass
         
+    
     def __simplehandlercalls_state_B(self, e):
         pass
         
     
-    
-    
-    # ====================== Multiplexer ==================== #
+    # =============== Machinery and Mechanisms ============== #
     
     def __mux(self, e):
         
@@ -125,9 +115,6 @@ class SimpleHandlerCalls:
         elif self.__compartment.state.__name__ == '__simplehandlercalls_state_B':
             self.__simplehandlercalls_state_B(e)
         
-    
-    # =============== Machinery and Mechanisms ============== #
-    
     def __transition(self, compartment: 'SimpleHandlerCallsCompartment'):
         self.__next_compartment = compartment
     

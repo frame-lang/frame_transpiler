@@ -47,80 +47,58 @@ class TransitionSm:
     def __transitionsm_state_S0(self, e):
         if e._message == "<":
             self.exit_do("S0")
-            
             return
-        
         elif e._message == "transit":
             compartment = TransitionSmCompartment(self.__transitionsm_state_S1)
             self.__transition(compartment)
-            
             return
-        
+    
     def __transitionsm_state_S1(self, e):
         if e._message == ">":
             self.enter_do("S1")
-            
             return
-        
         elif e._message == "change":
             compartment = TransitionSmCompartment(self.__transitionsm_state_S2)
             
             self.__change_state(compartment)
-            
             return
-        
+    
     def __transitionsm_state_S2(self, e):
         if e._message == "<":
             self.exit_do("S2")
-            
             return
-        
         elif e._message == "transit":
             compartment = TransitionSmCompartment(self.__transitionsm_state_S3)
             self.__transition(compartment)
-            
             return
-        
+    
     def __transitionsm_state_S3(self, e):
         if e._message == ">":
             self.enter_do("S3")
-            
             return
-        
         elif e._message == "<":
             self.exit_do("S3")
-            
             return
-        
         elif e._message == "transit":
             compartment = TransitionSmCompartment(self.__transitionsm_state_S4)
             self.__transition(compartment)
-            
             return
-        
+    
     def __transitionsm_state_S4(self, e):
         if e._message == ">":
             self.enter_do("S4")
             compartment = TransitionSmCompartment(self.__transitionsm_state_S0)
             
             self.__change_state(compartment)
-            
             return
-        
     
     # ===================== Actions Block =================== #
     
-    
-    
     def enter_do(self,state: str):
         raise NotImplementedError
-    
     def exit_do(self,state: str):
         raise NotImplementedError
-    
-    
-    
-    # ====================== Multiplexer ==================== #
+    # =============== Machinery and Mechanisms ============== #
     
     def __mux(self, e):
         
@@ -152,9 +130,6 @@ class TransitionSm:
         elif self.__compartment.state.__name__ == '__transitionsm_state_S4':
             self.__transitionsm_state_S4(e)
         
-    
-    # =============== Machinery and Mechanisms ============== #
-    
     def __transition(self, compartment: 'TransitionSmCompartment'):
         self.__next_compartment = compartment
     

@@ -53,9 +53,8 @@ class HierarchicalGuard:
         if e._message == ">":
             compartment = HierarchicalGuardCompartment(self.__hierarchicalguard_state_S)
             self.__transition(compartment)
-            
             return
-        
+    
     def __hierarchicalguard_state_S(self, e):
         if e._message == "A":
             self.log_do("S.A")
@@ -68,9 +67,7 @@ class HierarchicalGuard:
                 self.__transition(compartment)
                 return
             
-            
             return
-        
         elif e._message == "B":
             self.log_do("S.B")
             if  e._parameters["i"] < 10:
@@ -82,9 +79,8 @@ class HierarchicalGuard:
                 self.__transition(compartment)
                 return
             
-            
             return
-        
+    
     def __hierarchicalguard_state_S0(self, e):
         if e._message == "A":
             self.log_do("S0.A")
@@ -95,8 +91,6 @@ class HierarchicalGuard:
             else:
                 pass
             
-            
-        
           #  fall through else branch
         elif e._message == "B":
             self.log_do("S0.B")
@@ -107,11 +101,10 @@ class HierarchicalGuard:
                 self.__transition(compartment)
                 return
             
-            
-        
         self.__hierarchicalguard_state_S(e)
         
       #  fall through then branch
+    
     
     def __hierarchicalguard_state_S1(self, e):
         if e._message == "A":
@@ -123,11 +116,10 @@ class HierarchicalGuard:
             else:
                 pass
             
-            
-        
         self.__hierarchicalguard_state_S0(e)
         
       #  fall through else branch
+    
     
     def __hierarchicalguard_state_S2(self, e):
         if e._message == "A":
@@ -139,8 +131,6 @@ class HierarchicalGuard:
             else:
                 pass
             
-            
-        
           #  fall through then branch
         elif e._message == "B":
             self.log_do("S2.B")
@@ -151,11 +141,10 @@ class HierarchicalGuard:
                 self.__transition(compartment)
                 return
             
-            
-        
         self.__hierarchicalguard_state_S1(e)
         
       #  fall through then branch
+    
     
     def __hierarchicalguard_state_S3(self, e):
         if e._message == "A":
@@ -167,8 +156,6 @@ class HierarchicalGuard:
             else:
                 self.log_do("continue")
             
-            
-        
         elif e._message == "B":
             self.log_do("S3.B")
             if  e._parameters["i"] > 0:
@@ -178,24 +165,18 @@ class HierarchicalGuard:
                 
                 return
             
-            
-        
         self.__hierarchicalguard_state_S(e)
         
+    
     def __hierarchicalguard_state_S4(self, e):
         pass
         
     
     # ===================== Actions Block =================== #
     
-    
-    
     def log_do(self,msg: str):
         raise NotImplementedError
-    
-    
-    
-    # ====================== Multiplexer ==================== #
+    # =============== Machinery and Mechanisms ============== #
     
     def __mux(self, e):
         
@@ -231,9 +212,6 @@ class HierarchicalGuard:
         elif self.__compartment.state.__name__ == '__hierarchicalguard_state_S4':
             self.__hierarchicalguard_state_S4(e)
         
-    
-    # =============== Machinery and Mechanisms ============== #
-    
     def __transition(self, compartment: 'HierarchicalGuardCompartment'):
         self.__next_compartment = compartment
     

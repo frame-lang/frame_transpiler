@@ -73,33 +73,24 @@ class Match:
         if e._message == "Empty":
             compartment = MatchCompartment(self.__match_state_EmptyMatch)
             self.__transition(compartment)
-            
             return
-        
         elif e._message == "Simple":
             compartment = MatchCompartment(self.__match_state_SimpleMatch)
             self.__transition(compartment)
-            
             return
-        
         elif e._message == "Multi":
             compartment = MatchCompartment(self.__match_state_MultiMatch)
             self.__transition(compartment)
-            
             return
-        
         elif e._message == "Nested":
             compartment = MatchCompartment(self.__match_state_NestedMatch)
             self.__transition(compartment)
-            
             return
-        
         elif e._message == "Child":
             compartment = MatchCompartment(self.__match_state_ChildMatch)
             self.__transition(compartment)
-            
             return
-        
+    
     def __match_state_EmptyMatch(self, e):
         if e._message == "Onstring":
             if ((e._parameters["s"] == "") or (e._parameters["s"] == "foo")):
@@ -107,10 +98,9 @@ class Match:
             else:
                 self.log_do("?")
             
-            
             return
-        
       #  TODO: matching only the empty string is broken
+    
     
     def __match_state_SimpleMatch(self, e):
         if e._message == "OnInt":
@@ -125,9 +115,7 @@ class Match:
             else:
                 self.log_do("?")
             
-            
             return
-        
         elif e._message == "Onstring":
             if ((e._parameters["s"] == "hello")):
                 self.log_do("hello")
@@ -142,9 +130,8 @@ class Match:
             else:
                 self.log_do("?")
             
-            
             return
-        
+    
     def __match_state_MultiMatch(self, e):
         if e._message == "OnInt":
             if (e._parameters["i"] == 3) or (e._parameters["i"] == -7):
@@ -154,9 +141,7 @@ class Match:
             else:
                 self.log_do("?")
             
-            
             return
-        
         elif e._message == "Onstring":
             if ((e._parameters["s"] == "$10") or (e._parameters["s"] == "12.5%") or (e._parameters["s"] == "@#*!")):
                 self.log_do("symbols")
@@ -165,9 +150,8 @@ class Match:
             else:
                 self.log_do("?")
             
-            
             return
-        
+    
     def __match_state_NestedMatch(self, e):
         if e._message == "OnInt":
             if  e._parameters["i"] > 0:
@@ -193,9 +177,7 @@ class Match:
             else:
                 self.log_do("too small")
             
-            
             return
-        
         elif e._message == "Onstring":
             if ((e._parameters["s"] == "hello") or (e._parameters["s"] == "hola") or (e._parameters["s"] == "bonjour")):
                 self.log_do("greeting")
@@ -218,9 +200,8 @@ class Match:
             else:
                 self.log_do("?")
             
-            
             return
-        
+    
     def __match_state_ChildMatch(self, e):
         if e._message == "OnInt":
             if (e._parameters["i"] == 0):
@@ -243,8 +224,6 @@ class Match:
             else:
                 self.log_do("no match in child")
             
-            
-        
         elif e._message == "Onstring":
             if ((e._parameters["s"] == "hello")):
                 self.log_do("hello in child")
@@ -259,24 +238,18 @@ class Match:
             else:
                 self.log_do("no match in child")
             
-            
-        
         self.__match_state_SimpleMatch(e)
         
+    
     def __match_state_Final(self, e):
         pass
         
     
     # ===================== Actions Block =================== #
     
-    
-    
     def log_do(self,msg: str):
         raise NotImplementedError
-    
-    
-    
-    # ====================== Multiplexer ==================== #
+    # =============== Machinery and Mechanisms ============== #
     
     def __mux(self, e):
         
@@ -312,9 +285,6 @@ class Match:
         elif self.__compartment.state.__name__ == '__match_state_Final':
             self.__match_state_Final(e)
         
-    
-    # =============== Machinery and Mechanisms ============== #
-    
     def __transition(self, compartment: 'MatchCompartment'):
         self.__next_compartment = compartment
     

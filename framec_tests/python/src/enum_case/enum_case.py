@@ -56,95 +56,70 @@ class EnumTest:
     def __enumtest_state_SUN(self, e):
         if e._message == "A":
             self.entered_do("SUNDAY",EnumTest_Days.SUNDAY)
-            
             return
-        
         elif e._message == "B":
             self.left_do("MONDAY",EnumTest_Days.MONDAY)
             compartment = EnumTestCompartment(self.__enumtest_state_MON)
             self.__transition(compartment)
-            
             return
-        
+    
     def __enumtest_state_MON(self, e):
         if e._message == "A":
             self.entered_do("MONDAY",EnumTest_Days.MONDAY)
-            
             return
-        
         elif e._message == "B":
             self.left_do("TUESDAY",EnumTest_Days.TUESDAY)
             compartment = EnumTestCompartment(self.__enumtest_state_TUE)
             self.__transition(compartment)
-            
             return
-        
+    
     def __enumtest_state_TUE(self, e):
         if e._message == "A":
             self.entered_do("TUESDAY",EnumTest_Days.TUESDAY)
-            
             return
-        
         elif e._message == "B":
             self.left_do("WEDNESDAY",EnumTest_Days.WEDNESDAY)
             compartment = EnumTestCompartment(self.__enumtest_state_WED)
             self.__transition(compartment)
-            
             return
-        
+    
     def __enumtest_state_WED(self, e):
         if e._message == "A":
             self.entered_do("WEDNESDAY",EnumTest_Days.WEDNESDAY)
-            
             return
-        
         elif e._message == "B":
             self.left_do("THURSDAY",EnumTest_Days.THURSDAY)
             compartment = EnumTestCompartment(self.__enumtest_state_THR)
             self.__transition(compartment)
-            
             return
-        
+    
     def __enumtest_state_THR(self, e):
         if e._message == "A":
             self.entered_do("THURSDAY",EnumTest_Days.THURSDAY)
-            
             return
-        
         elif e._message == "B":
             self.left_do("FRIDAY",EnumTest_Days.FRIDAY)
             compartment = EnumTestCompartment(self.__enumtest_state_FRI)
             self.__transition(compartment)
-            
             return
-        
+    
     def __enumtest_state_FRI(self, e):
         if e._message == "A":
             self.entered_do("FRIDAY",EnumTest_Days.FRIDAY)
-            
             return
-        
         elif e._message == "B":
             self.left_do("SUNDAY",EnumTest_Days.SUNDAY)
             compartment = EnumTestCompartment(self.__enumtest_state_SUN)
             self.__transition(compartment)
-            
             return
-        
     
     # ===================== Actions Block =================== #
     
-    
-    
     def entered_do(self,msg: str,val: int):
         raise NotImplementedError
-    
     def left_do(self,msg: str,val: int):
         raise NotImplementedError
-    
-    
-    
-    # ====================== Multiplexer ==================== #
+    # =============== Machinery and Mechanisms ============== #
     
     def __mux(self, e):
         
@@ -178,9 +153,6 @@ class EnumTest:
         elif self.__compartment.state.__name__ == '__enumtest_state_FRI':
             self.__enumtest_state_FRI(e)
         
-    
-    # =============== Machinery and Mechanisms ============== #
-    
     def __transition(self, compartment: 'EnumTestCompartment'):
         self.__next_compartment = compartment
     

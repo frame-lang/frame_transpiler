@@ -44,61 +44,44 @@ class TransitParams:
             compartment = TransitParamsCompartment(self.__transitparams_state_A)
             compartment.enter_args["msg"] = "hi A"
             self.__transition(compartment)
-            
             return
-        
+    
     def __transitparams_state_A(self, e):
         if e._message == ">":
             self.log_do(e._parameters["msg"])
-            
             return
-        
         elif e._message == "<":
             self.log_do("bye A")
-            
             return
-        
         elif e._message == "Next":
             compartment = TransitParamsCompartment(self.__transitparams_state_B)
             compartment.enter_args["msg"] = "hi B"
             compartment.enter_args["val"] = 42
             self.__transition(compartment)
-            
             return
-        
+    
     def __transitparams_state_B(self, e):
         if e._message == ">":
             self.log_do(e._parameters["msg"])
             self.log_do(str(e._parameters["val"]))
-            
             return
-        
         elif e._message == "<":
             self.log_do(str(e._parameters["val"]))
             self.log_do(e._parameters["msg"])
-            
             return
-        
         elif e._message == "Next":
             self.__compartment.exit_args["val"] = True
             self.__compartment.exit_args["msg"] = "bye B"
             compartment = TransitParamsCompartment(self.__transitparams_state_A)
             compartment.enter_args["msg"] = "hi again A"
             self.__transition(compartment)
-            
             return
-        
     
     # ===================== Actions Block =================== #
     
-    
-    
     def log_do(self,msg: str):
         raise NotImplementedError
-    
-    
-    
-    # ====================== Multiplexer ==================== #
+    # =============== Machinery and Mechanisms ============== #
     
     def __mux(self, e):
         
@@ -126,9 +109,6 @@ class TransitParams:
         elif self.__compartment.state.__name__ == '__transitparams_state_B':
             self.__transitparams_state_B(e)
         
-    
-    # =============== Machinery and Mechanisms ============== #
-    
     def __transition(self, compartment: 'TransitParamsCompartment'):
         self.__next_compartment = compartment
     

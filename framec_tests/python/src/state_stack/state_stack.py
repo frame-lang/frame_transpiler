@@ -62,134 +62,89 @@ class StateStack:
     def __statestack_state_A(self, e):
         if e._message == ">":
             self.log_do("A:>")
-            
             return
-        
         elif e._message == "<":
             self.log_do("A:<")
-            
             return
-        
         elif e._message == "to_a":
             compartment = StateStackCompartment(self.__statestack_state_A)
             self.__transition(compartment)
-            
             return
-        
         elif e._message == "to_b":
             compartment = StateStackCompartment(self.__statestack_state_B)
             self.__transition(compartment)
-            
             return
-        
         elif e._message == "to_c":
             compartment = StateStackCompartment(self.__statestack_state_C)
             self.__transition(compartment)
-            
             return
-        
         elif e._message == "push":
             self.__state_stack_push(self.__compartment)
-            
             return
-        
         elif e._message == "pop":
             compartment = self.__state_stack_pop()
             self.__transition(compartment)
-            
             return
-        
+    
     def __statestack_state_B(self, e):
         if e._message == ">":
             self.log_do("B:>")
-            
             return
-        
         elif e._message == "<":
             self.log_do("B:<")
-            
             return
-        
         elif e._message == "to_a":
             compartment = StateStackCompartment(self.__statestack_state_A)
             self.__transition(compartment)
-            
             return
-        
         elif e._message == "to_b":
             compartment = StateStackCompartment(self.__statestack_state_B)
             self.__transition(compartment)
-            
             return
-        
         elif e._message == "to_c":
             compartment = StateStackCompartment(self.__statestack_state_C)
             self.__transition(compartment)
-            
             return
-        
         elif e._message == "push":
             self.__state_stack_push(self.__compartment)
-            
             return
-        
         elif e._message == "pop":
             compartment = self.__state_stack_pop()
             self.__transition(compartment)
-            
             return
-        
+    
     def __statestack_state_C(self, e):
         if e._message == ">":
             self.log_do("C:>")
-            
             return
-        
         elif e._message == "<":
             self.log_do("C:<")
-            
             return
-        
         elif e._message == "to_a":
             compartment = StateStackCompartment(self.__statestack_state_A)
             self.__transition(compartment)
-            
             return
-        
         elif e._message == "to_b":
             compartment = StateStackCompartment(self.__statestack_state_B)
             self.__transition(compartment)
-            
             return
-        
         elif e._message == "to_c":
             compartment = StateStackCompartment(self.__statestack_state_C)
             self.__transition(compartment)
-            
             return
-        
         elif e._message == "push":
             self.__state_stack_push(self.__compartment)
-            
             return
-        
         elif e._message == "pop":
             compartment = self.__state_stack_pop()
             self.__transition(compartment)
-            
             return
-        
     
     # ===================== Actions Block =================== #
     
-    
-    
     def log_do(self,msg: str):
         raise NotImplementedError
-    
-    
-    
-    # ====================== Multiplexer ==================== #
+    # =============== Machinery and Mechanisms ============== #
     
     def __mux(self, e):
         
@@ -217,9 +172,6 @@ class StateStack:
         elif self.__compartment.state.__name__ == '__statestack_state_C':
             self.__statestack_state_C(e)
         
-    
-    # =============== Machinery and Mechanisms ============== #
-    
     def __transition(self, compartment: 'StateStackCompartment'):
         self.__next_compartment = compartment
     
@@ -233,7 +185,6 @@ class StateStack:
     
     def __state_stack_pop(self):
         return self.__state_stack.pop()
-    
     
     def state_info(self):
         return self.__compartment.state.__name__

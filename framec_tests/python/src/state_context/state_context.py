@@ -55,65 +55,50 @@ class StateContextSm:
         self.__mux(e)
     
     # ===================== Machine Block =================== #
-    
       #  Change [arg:int]
+    
     
     def __statecontextsm_state_Init(self, e):
         if e._message == ">":
             (self.__compartment.state_vars["w"]) = 3
             self.log_do("w",(self.__compartment.state_vars["w"]))
-            
             return
-        
         elif e._message == "Inc":
             (self.__compartment.state_vars["w"]) = self.__compartment.state_vars["w"] + 1
-            self.log_do("w",(self.__compartment.state_vars["w"]))
-            e._return = (self.__compartment.state_vars["w"])
+            self.log_do("w",(self.__compartment.state_vars["w"]))e._return = (self.__compartment.state_vars["w"])
             return
             
-        
         elif e._message == "LogState":
             self.log_do("w",(self.__compartment.state_vars["w"]))
-            
             return
-        
         elif e._message == "Start":
             compartment = StateContextSmCompartment(self.__statecontextsm_state_Foo)
             compartment.enter_args["a"] = 3
             compartment.enter_args["b"] = self.__compartment.state_vars["w"]
             compartment.state_vars["x"] = 0
             self.__transition(compartment)
-            
             return
-        
+    
     def __statecontextsm_state_Foo(self, e):
         if e._message == ">":
             self.log_do("a",e._parameters["a"])
             self.log_do("b",e._parameters["b"])
             (self.__compartment.state_vars["x"]) = e._parameters["a"] * e._parameters["b"]
             self.log_do("x",(self.__compartment.state_vars["x"]))
-            
             return
-        
         elif e._message == "<":
             self.log_do("c",e._parameters["c"])
             (self.__compartment.state_vars["x"]) = self.__compartment.state_vars["x"] + e._parameters["c"]
             self.log_do("x",(self.__compartment.state_vars["x"]))
-            
             return
-        
         elif e._message == "LogState":
             self.log_do("x",(self.__compartment.state_vars["x"]))
-            
             return
-        
         elif e._message == "Inc":
             (self.__compartment.state_vars["x"]) = self.__compartment.state_vars["x"] + 1
-            self.log_do("x",(self.__compartment.state_vars["x"]))
-            e._return = (self.__compartment.state_vars["x"])
+            self.log_do("x",(self.__compartment.state_vars["x"]))e._return = (self.__compartment.state_vars["x"])
             return
             
-        
         elif e._message == "Next":
             tmp  = e._parameters["arg"] * 10
             self.__compartment.exit_args["c"] = 10
@@ -122,14 +107,13 @@ class StateContextSm:
             compartment.state_args["y"] = self.__compartment.state_vars["x"]
             compartment.state_vars["z"] = 0
             self.__transition(compartment)
-            
             return
-        
       #  FIXME: Swapping this to 10 * arg causes a parse error!
       #  |Change| [arg:int]
       #      var tmp = x + arg
       #      -> $Bar(tmp)
       #      ^
+    
     
     def __statecontextsm_state_Bar(self, e):
         if e._message == ">":
@@ -137,33 +121,22 @@ class StateContextSm:
             self.log_do("y",(self.__compartment.state_args["y"]))
             (self.__compartment.state_vars["z"]) = e._parameters["a"] + self.__compartment.state_args["y"]
             self.log_do("z",(self.__compartment.state_vars["z"]))
-            
             return
-        
         elif e._message == "LogState":
             self.log_do("y",(self.__compartment.state_args["y"]))
             self.log_do("z",(self.__compartment.state_vars["z"]))
-            
             return
-        
         elif e._message == "Inc":
             (self.__compartment.state_vars["z"]) = self.__compartment.state_vars["z"] + 1
-            self.log_do("z",(self.__compartment.state_vars["z"]))
-            e._return = (self.__compartment.state_vars["z"])
+            self.log_do("z",(self.__compartment.state_vars["z"]))e._return = (self.__compartment.state_vars["z"])
             return
             
-        
     
     # ===================== Actions Block =================== #
     
-    
-    
     def log_do(self,name: str,val: int):
         raise NotImplementedError
-    
-    
-    
-    # ====================== Multiplexer ==================== #
+    # =============== Machinery and Mechanisms ============== #
     
     def __mux(self, e):
         
@@ -191,9 +164,6 @@ class StateContextSm:
         elif self.__compartment.state.__name__ == '__statecontextsm_state_Bar':
             self.__statecontextsm_state_Bar(e)
         
-    
-    # =============== Machinery and Mechanisms ============== #
-    
     def __transition(self, compartment: 'StateContextSmCompartment'):
         self.__next_compartment = compartment
     

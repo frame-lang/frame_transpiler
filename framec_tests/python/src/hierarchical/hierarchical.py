@@ -53,184 +53,131 @@ class Hierarchical:
         if e._message == ">":
             compartment = HierarchicalCompartment(self.__hierarchical_state_S)
             self.__transition(compartment)
-            
             return
-        
+    
     def __hierarchical_state_S(self, e):
         if e._message == ">":
             self.enter_do("S")
-            
             return
-        
         elif e._message == "<":
             self.exit_do("S")
-            
             return
-        
         elif e._message == "A":
             self.log_do("S.A")
             compartment = HierarchicalCompartment(self.__hierarchical_state_S0)
             self.__transition(compartment)
-            
             return
-        
         elif e._message == "B":
             self.log_do("S.B")
             compartment = HierarchicalCompartment(self.__hierarchical_state_S1)
             self.__transition(compartment)
-            
             return
-        
+    
     def __hierarchical_state_S0(self, e):
         if e._message == ">":
             self.enter_do("S0")
-            
-        
         elif e._message == "<":
             self.exit_do("S0")
-            
-        
           #  override parent handler
         elif e._message == "A":
             self.log_do("S0.A")
             compartment = HierarchicalCompartment(self.__hierarchical_state_T)
             self.__transition(compartment)
-            
             return
-        
           #  do this, then parent handler
         elif e._message == "B":
             self.log_do("S0.B")
-            
-        
           #  extend parent handler
         elif e._message == "C":
             self.log_do("S0.C")
             compartment = HierarchicalCompartment(self.__hierarchical_state_S2)
             self.__transition(compartment)
-            
             return
-        
         self.__hierarchical_state_S(e)
         
+    
     def __hierarchical_state_S1(self, e):
         if e._message == ">":
             self.enter_do("S1")
-            
             return
-        
         elif e._message == "<":
             self.exit_do("S1")
-            
             return
-        
           #  defer to parent for A
           #  do this, then parent, which transitions here
         elif e._message == "B":
             self.log_do("S1.B")
-            
-        
           #  propagate message not handled by parent
         elif e._message == "C":
             self.log_do("S1.C")
-            
-        
         self.__hierarchical_state_S(e)
         
+    
     def __hierarchical_state_S2(self, e):
         if e._message == ">":
             self.enter_do("S2")
-            
-        
         elif e._message == "<":
             self.exit_do("S2")
-            
-        
           #  will propagate to S0 and S
         elif e._message == "B":
             self.log_do("S2.B")
-            
-        
         elif e._message == "C":
             self.log_do("S2.C")
             compartment = HierarchicalCompartment(self.__hierarchical_state_T)
             self.__transition(compartment)
-            
             return
-        
         self.__hierarchical_state_S0(e)
         
       #  continue after transition (should be ignored)
     
+    
     def __hierarchical_state_S3(self, e):
         if e._message == ">":
             self.enter_do("S3")
-            
-        
         elif e._message == "<":
             self.exit_do("S3")
-            
-        
           #  defer to grandparent for A
           #  override and move to sibling
         elif e._message == "B":
             self.log_do("S3.B")
             compartment = HierarchicalCompartment(self.__hierarchical_state_S2)
             self.__transition(compartment)
-            
             return
-        
         self.__hierarchical_state_S1(e)
         
+    
     def __hierarchical_state_T(self, e):
         if e._message == ">":
             self.enter_do("T")
-            
             return
-        
         elif e._message == "<":
             self.exit_do("T")
-            
             return
-        
         elif e._message == "A":
             self.log_do("T.A")
             compartment = HierarchicalCompartment(self.__hierarchical_state_S)
             self.__transition(compartment)
-            
             return
-        
         elif e._message == "B":
             self.log_do("T.B")
             compartment = HierarchicalCompartment(self.__hierarchical_state_S2)
             self.__transition(compartment)
-            
             return
-        
         elif e._message == "C":
             self.log_do("T.C")
             compartment = HierarchicalCompartment(self.__hierarchical_state_S3)
             self.__transition(compartment)
-            
             return
-        
     
     # ===================== Actions Block =================== #
     
-    
-    
     def enter_do(self,msg: str):
         raise NotImplementedError
-    
     def exit_do(self,msg: str):
         raise NotImplementedError
-    
     def log_do(self,msg: str):
         raise NotImplementedError
-    
-    
-    
-    # ====================== Multiplexer ==================== #
+    # =============== Machinery and Mechanisms ============== #
     
     def __mux(self, e):
         
@@ -266,9 +213,6 @@ class Hierarchical:
         elif self.__compartment.state.__name__ == '__hierarchical_state_T':
             self.__hierarchical_state_T(e)
         
-    
-    # =============== Machinery and Mechanisms ============== #
-    
     def __transition(self, compartment: 'HierarchicalCompartment'):
         self.__next_compartment = compartment
     

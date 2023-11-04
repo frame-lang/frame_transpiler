@@ -542,12 +542,7 @@ impl PythonVisitor {
 
     fn generate_machinery(&mut self, system_node: &SystemNode) {
         self.newline();
-        self.newline();
-
-        // generate __mux
-
-        self.newline();
-        self.add_code("# ====================== Multiplexer ==================== #");
+        self.add_code("# =============== Machinery and Mechanisms ============== #");
         self.newline();
         self.newline();
 
@@ -642,13 +637,7 @@ impl PythonVisitor {
                 self.newline();
             }
         }
-        self.newline();
-        self.newline();
 
-
-
-        self.add_code("# =============== Machinery and Mechanisms ============== #");
-        self.newline();
         if system_node.get_first_state().is_some() {
             self.newline();
             self.add_code(&format!(
@@ -694,7 +683,6 @@ impl PythonVisitor {
                 self.newline();
                 self.add_code("return self.__state_stack.pop()");
                 self.outdent();
-                self.newline();
             }
             if self.generate_change_state {
                 self.newline();
@@ -1680,7 +1668,6 @@ impl AstVisitor for PythonVisitor {
             return;
         }
 
-
         self.newline();
         self.add_code(&format!("class {}:", system_node.name));
         self.indent();
@@ -2138,7 +2125,6 @@ impl AstVisitor for PythonVisitor {
         self.newline();
         self.add_code("# ===================== Machine Block =================== #");
         self.newline();
-        self.newline();
 
         self.serialize.push("".to_string());
         self.serialize.push("\tvar stateName = null".to_string());
@@ -2181,8 +2167,8 @@ impl AstVisitor for PythonVisitor {
             }
         }
 
-        self.newline();
-        self.newline();
+        // self.newline();
+        // self.newline();
 
         for action_rcref in &actions_block_node.actions {
             let action_node = action_rcref.borrow();
@@ -2228,6 +2214,7 @@ impl AstVisitor for PythonVisitor {
         }
         self.current_state_name_opt = Some(state_node.name.clone());
 
+        self.newline();
         self.add_code(&format!(
             "def {}(self, e):",
             self.format_target_state_name(&state_node.name)
@@ -2335,7 +2322,7 @@ impl AstVisitor for PythonVisitor {
         let terminator_node = &evt_handler_node.terminator_node;
         terminator_node.accept(self);
         self.outdent();
-        self.newline();
+        // self.newline();
 
         // this controls formatting here
         self.first_event_handler = false;
@@ -2348,7 +2335,7 @@ impl AstVisitor for PythonVisitor {
         &mut self,
         evt_handler_terminator_node: &TerminatorExpr,
     ) {
-        self.newline();
+       // self.newline();
         match &evt_handler_terminator_node.terminator_type {
             TerminatorType::Return => match &evt_handler_terminator_node.return_expr_t_opt {
                 Some(expr_t) => {
@@ -4158,7 +4145,7 @@ impl AstVisitor for PythonVisitor {
         }
 
         self.outdent();
-        self.newline();
+        // self.newline();
         self.subclass_code.push(subclass_code);
     }
 

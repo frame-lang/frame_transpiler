@@ -58,87 +58,60 @@ class ForwardEvents:
     def __forwardevents_state_S0(self, e):
         if e._message == ">":
             self.log_do("Enter $S0")
-            
             return
-        
         elif e._message == "<":
             self.log_do("Exit $S0")
-            
             return
-        
         elif e._message == "GotoS1":
             self.log_do("Recieved |GotoS1|")
             compartment = ForwardEventsCompartment(self.__forwardevents_state_S1)
             self.__transition(compartment)
-            
             return
-        
         elif e._message == "GotoS2":
             self.log_do("Recieved |GotoS2|")
             self.__state_stack_push(self.__compartment)
             compartment = ForwardEventsCompartment(self.__forwardevents_state_S2)
             self.__transition(compartment)
-            
             return
-        
         elif e._message == "ReturnFromS1":
             self.log_do("|ReturnFromS1| Forwarded")
-            
             return
-        
         elif e._message == "ReturnFromS2":
             self.log_do("|ReturnFromS2| Forwarded")
-            
             return
-        
+    
     def __forwardevents_state_S1(self, e):
         if e._message == ">":
             self.log_do("Enter $S1")
-            
             return
-        
         elif e._message == "<":
             self.log_do("Exit $S1")
-            
             return
-        
         elif e._message == "ReturnFromS1":
             compartment = ForwardEventsCompartment(self.__forwardevents_state_S0)
             compartment.forward_event = e
             self.__transition(compartment)
-            
             return
-        
+    
     def __forwardevents_state_S2(self, e):
         if e._message == ">":
             self.log_do("Enter $S2")
-            
             return
-        
         elif e._message == "<":
             self.log_do("Exit $S2")
-            
             return
-        
         elif e._message == "ReturnFromS2":
             compartment = self.__state_stack_pop()
             compartment.forward_event = e
             self.__transition(compartment)
-            
             return
-        
     
     # ===================== Actions Block =================== #
-    
-    
     
     def log_do(self,msg: str):
         self.tape.append(f'{msg}')
         
-    
-    
-    
-    # ====================== Multiplexer ==================== #
+    # =============== Machinery and Mechanisms ============== #
     
     def __mux(self, e):
         
@@ -166,9 +139,6 @@ class ForwardEvents:
         elif self.__compartment.state.__name__ == '__forwardevents_state_S2':
             self.__forwardevents_state_S2(e)
         
-    
-    # =============== Machinery and Mechanisms ============== #
-    
     def __transition(self, compartment: 'ForwardEventsCompartment'):
         self.__next_compartment = compartment
     
@@ -182,7 +152,6 @@ class ForwardEvents:
     
     def __state_stack_pop(self):
         return self.__state_stack.pop()
-    
     
     def state_info(self):
         return self.__compartment.state.__name__
