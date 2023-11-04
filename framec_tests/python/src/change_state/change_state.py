@@ -78,6 +78,24 @@ class ChangeStateSm:
     # ====================== Multiplexer ==================== #
     
     def __mux(self, e):
+        
+        self.__router(e)
+        
+        while self.__next_compartment != None:
+            next_compartment = self.__next_compartment
+            self.__next_compartment = None
+            if(next_compartment.forward_event is not None and 
+               next_compartment.forward_event._message == ">"):
+                self.__router(FrameEvent( "<", self.__compartment.exit_args))
+                self.__compartment = next_compartment
+                self.__router(next_compartment.forward_event)
+            else:
+                self.__do_transition(next_compartment)
+                if next_compartment.forward_event is not None:
+                    self.__router(next_compartment.forward_event)
+            next_compartment.forward_event = None
+    
+    def __router(self, e):
         if self.__compartment.state.__name__ == '__changestatesm_state_S0':
             self.__changestatesm_state_S0(e)
         elif self.__compartment.state.__name__ == '__changestatesm_state_S1':
@@ -89,20 +107,6 @@ class ChangeStateSm:
         elif self.__compartment.state.__name__ == '__changestatesm_state_S4':
             self.__changestatesm_state_S4(e)
         
-        if self.__next_compartment != None:
-            next_compartment = self.__next_compartment
-            self.__next_compartment = None
-            if(next_compartment.forward_event is not None and 
-               next_compartment.forward_event._message == ">"):
-                self.__mux(FrameEvent( "<", self.__compartment.exit_args))
-                self.__compartment = next_compartment
-                self.__mux(next_compartment.forward_event)
-            else:
-                self.__do_transition(next_compartment)
-                if next_compartment.forward_event is not None:
-                    self.__mux(next_compartment.forward_event)
-            next_compartment.forward_event = None
-    
     
     # =============== Machinery and Mechanisms ============== #
     
@@ -110,9 +114,9 @@ class ChangeStateSm:
         self.__next_compartment = compartment
     
     def  __do_transition(self, next_compartment: 'ChangeStateSmCompartment'):
-        self.__mux(FrameEvent("<", self.__compartment.exit_args))
+        self.__router(FrameEvent("<", self.__compartment.exit_args))
         self.__compartment = next_compartment
-        self.__mux(FrameEvent(">", self.__compartment.enter_args))
+        self.__router(FrameEvent(">", self.__compartment.enter_args))
     
     def __change_state(self, new_compartment: 'ChangeStateSmCompartment'):
         self.__compartment = new_compartment
@@ -132,7 +136,7 @@ class ChangeStateSmCompartment:
         self.state_vars = {}
         self.enter_args = {}
         self.exit_args = {}
-        self.forward_event = FrameEvent(None, None)
+        self.forward_event = None
     
 
 
