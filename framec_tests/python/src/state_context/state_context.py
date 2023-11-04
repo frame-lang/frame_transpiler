@@ -1,5 +1,5 @@
 # emitted from framec_v0.11.0
-# get include files at https://github.com/frame-lang/frame-ancillary-files
+
 
 
 from framelang.framelang import FrameEvent
@@ -61,14 +61,12 @@ class StateContextSm:
     def __statecontextsm_state_Init(self, e):
         if e._message == ">":
             (self.__compartment.state_vars["w"]) = 3
-            
             self.log_do("w",(self.__compartment.state_vars["w"]))
             
             return
         
         elif e._message == "Inc":
             (self.__compartment.state_vars["w"]) = self.__compartment.state_vars["w"] + 1
-            
             self.log_do("w",(self.__compartment.state_vars["w"]))
             e._return = (self.__compartment.state_vars["w"])
             return
@@ -93,7 +91,6 @@ class StateContextSm:
             self.log_do("a",e._parameters["a"])
             self.log_do("b",e._parameters["b"])
             (self.__compartment.state_vars["x"]) = e._parameters["a"] * e._parameters["b"]
-            
             self.log_do("x",(self.__compartment.state_vars["x"]))
             
             return
@@ -101,7 +98,6 @@ class StateContextSm:
         elif e._message == "<":
             self.log_do("c",e._parameters["c"])
             (self.__compartment.state_vars["x"]) = self.__compartment.state_vars["x"] + e._parameters["c"]
-            
             self.log_do("x",(self.__compartment.state_vars["x"]))
             
             return
@@ -113,7 +109,6 @@ class StateContextSm:
         
         elif e._message == "Inc":
             (self.__compartment.state_vars["x"]) = self.__compartment.state_vars["x"] + 1
-            
             self.log_do("x",(self.__compartment.state_vars["x"]))
             e._return = (self.__compartment.state_vars["x"])
             return
@@ -141,7 +136,6 @@ class StateContextSm:
             self.log_do("a",e._parameters["a"])
             self.log_do("y",(self.__compartment.state_args["y"]))
             (self.__compartment.state_vars["z"]) = e._parameters["a"] + self.__compartment.state_args["y"]
-            
             self.log_do("z",(self.__compartment.state_vars["z"]))
             
             return
@@ -154,7 +148,6 @@ class StateContextSm:
         
         elif e._message == "Inc":
             (self.__compartment.state_vars["z"]) = self.__compartment.state_vars["z"] + 1
-            
             self.log_do("z",(self.__compartment.state_vars["z"]))
             e._return = (self.__compartment.state_vars["z"])
             return

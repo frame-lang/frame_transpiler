@@ -1047,26 +1047,31 @@ impl Arcanum {
         &self,
         name: &str,
     ) -> Option<Rc<RefCell<InterfaceMethodSymbol>>> {
-        let system_symbol_rcref = &self.system_symbol_opt.as_ref().unwrap();
-        match &system_symbol_rcref.borrow().interface_block_symbol_opt {
-            Some(interface_block_symbol_rcref) => {
-                let interface_block_symbol = interface_block_symbol_rcref.borrow();
-                let symbol_table = &interface_block_symbol.symtab_rcref.borrow();
-                self.debug_print_current_symbols(interface_block_symbol.symtab_rcref.clone());
-                match symbol_table.lookup(name, &IdentifierDeclScope::InterfaceBlock) {
-                    Some(c) => {
-                        let d = c.borrow();
-                        match &*d {
-                            SymbolType::InterfaceMethod {
-                                interface_method_symbol_rcref,
-                            } => Some(Rc::clone(interface_method_symbol_rcref)),
-                            _ => None,
+        let system_symbol_rcref_opt = &self.system_symbol_opt.as_ref();
+        match system_symbol_rcref_opt {
+            Some(system_symbol_rcref) => {
+                match &system_symbol_rcref.borrow().interface_block_symbol_opt {
+                    Some(interface_block_symbol_rcref) => {
+                        let interface_block_symbol = interface_block_symbol_rcref.borrow();
+                        let symbol_table = &interface_block_symbol.symtab_rcref.borrow();
+                        self.debug_print_current_symbols(interface_block_symbol.symtab_rcref.clone());
+                        match symbol_table.lookup(name, &IdentifierDeclScope::InterfaceBlock) {
+                            Some(symbol_t_rcref) => {
+                                let symbol_t = symbol_t_rcref.borrow();
+                                match &*symbol_t {
+                                    SymbolType::InterfaceMethod {
+                                        interface_method_symbol_rcref,
+                                    } => Some(Rc::clone(interface_method_symbol_rcref)),
+                                    _ => None,
+                                }
+                            }
+                            None => None,
                         }
                     }
                     None => None,
                 }
             }
-            None => None,
+            None => None
         }
     }
 
@@ -1074,19 +1079,24 @@ impl Arcanum {
     // Get -actions-block- symtab from the system symbol and lookup.
     #[allow(clippy::many_single_char_names)] // TODO
     pub fn lookup_action(&self, name: &str) -> Option<Rc<RefCell<ActionScopeSymbol>>> {
-        let system_symbol = &self.system_symbol_opt.as_ref().unwrap();
-        match &system_symbol.borrow().actions_block_symbol_opt {
-            Some(actions_block_scope_symbol) => {
-                let b = actions_block_scope_symbol.borrow();
-                let x = &b.symtab_rcref.borrow();
-                match x.lookup(name, &IdentifierDeclScope::ActionsBlock) {
-                    Some(c) => {
-                        let d = c.borrow();
-                        match &*d {
-                            SymbolType::ActionScope {
-                                action_scope_symbol_rcref: action_symbol_rcref,
-                            } => Some(Rc::clone(action_symbol_rcref)),
-                            _ => None,
+        let system_symbol_opt = &self.system_symbol_opt.as_ref();
+        match system_symbol_opt {
+            Some(system_symbol) => {
+                match &system_symbol.borrow().actions_block_symbol_opt {
+                    Some(actions_block_scope_symbol) => {
+                        let actions_block_scope_symbol = actions_block_scope_symbol.borrow();
+                        let symbol_table = &actions_block_scope_symbol.symtab_rcref.borrow();
+                        match symbol_table.lookup(name, &IdentifierDeclScope::ActionsBlock) {
+                            Some(symbol_table_rcref) => {
+                                let symbol_t = symbol_table_rcref.borrow();
+                                match &*symbol_t {
+                                    SymbolType::ActionScope {
+                                        action_scope_symbol_rcref: action_symbol_rcref,
+                                    } => Some(Rc::clone(action_symbol_rcref)),
+                                    _ => None,
+                                }
+                            }
+                            None => None,
                         }
                     }
                     None => None,
@@ -1169,8 +1179,8 @@ impl Arcanum {
                 // Attach MachineSymbol to SystemSymbol
                 // TODO - figure out why borrow can't go in the Some()
                 {
-                    let x = self.system_symbol_opt.as_ref().unwrap().as_ref();
-                    let mut system_symbol = x.borrow_mut();
+                    let system_symbol_ref = self.system_symbol_opt.as_ref().unwrap().as_ref();
+                    let mut system_symbol = system_symbol_ref.borrow_mut();
                     system_symbol.interface_block_symbol_opt =
                         Some(Rc::clone(interface_block_scope_symbol_rcref));
                 }
@@ -1196,8 +1206,8 @@ impl Arcanum {
                 // Attach MachineSymbol to SystemSymbol
                 // TODO - figure out why borrow can't go in the Some()
                 {
-                    let x = self.system_symbol_opt.as_ref().unwrap().as_ref();
-                    let mut system_symbol = x.borrow_mut();
+                    let system_symbol_ref = self.system_symbol_opt.as_ref().unwrap().as_ref();
+                    let mut system_symbol = system_symbol_ref.borrow_mut();
                     system_symbol.machine_block_symbol_opt = Some(Rc::clone(machine_symbol_rcref));
                 }
                 // current symtab should be the SystemSymbol
@@ -1337,8 +1347,8 @@ impl Arcanum {
                 actions_block_scope_symbol_rcref: actions_block_scope_symbol,
             } => {
                 {
-                    let x = self.system_symbol_opt.as_ref().unwrap().as_ref();
-                    let mut system_symbol = x.borrow_mut();
+                    let system_symbol_ref = self.system_symbol_opt.as_ref().unwrap().as_ref();
+                    let mut system_symbol = system_symbol_ref.borrow_mut();
                     system_symbol.actions_block_symbol_opt =
                         Some(Rc::clone(actions_block_scope_symbol));
                 }
@@ -1565,9 +1575,9 @@ impl Arcanum {
         {
             self.serializable = true;
         }
-        let a = self.system_symbol_opt.as_ref().unwrap();
-        let mut b = a.borrow_mut();
-        b.events.insert(msg, Rc::clone(&event_symbol_rcref));
+        let system_symbol_rcref = self.system_symbol_opt.as_ref().unwrap();
+        let mut system_symbol_rcref_mut = system_symbol_rcref.borrow_mut();
+        system_symbol_rcref_mut.events.insert(msg, Rc::clone(&event_symbol_rcref));
     }
 
     /* --------------------------------------------------------------------- */

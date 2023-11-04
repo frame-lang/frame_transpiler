@@ -1,5 +1,5 @@
 # emitted from framec_v0.11.0
-# get include files at https://github.com/frame-lang/frame-ancillary-files
+
 
 
 from framelang.framelang import FrameEvent
@@ -58,7 +58,6 @@ class StateVars:
         if e._message == "X":
             (self.__compartment.state_vars["x"]) = self.__compartment.state_vars["x"] + 1
             
-            
             return
         
         elif e._message == "Y":
@@ -88,12 +87,10 @@ class StateVars:
         elif e._message == "Y":
             (self.__compartment.state_vars["y"]) = self.__compartment.state_vars["y"] + 1
             
-            
             return
         
         elif e._message == "Z":
             (self.__compartment.state_vars["z"]) = self.__compartment.state_vars["z"] + 1
-            
             
             return
         

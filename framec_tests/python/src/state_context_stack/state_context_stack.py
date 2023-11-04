@@ -1,5 +1,5 @@
 # emitted from framec_v0.11.0
-# get include files at https://github.com/frame-lang/frame-ancillary-files
+
 
 
 from framelang.framelang import FrameEvent
@@ -83,7 +83,6 @@ class StateContextStack:
         elif e._message == "inc":
             (self.__compartment.state_vars["x"]) = self.__compartment.state_vars["x"] + 1
             
-            
             return
         
         elif e._message == "value":
@@ -137,7 +136,6 @@ class StateContextStack:
         elif e._message == "inc":
             (self.__compartment.state_vars["y"]) = self.__compartment.state_vars["y"] + 5
             
-            
             return
         
         elif e._message == "value":
@@ -190,7 +188,6 @@ class StateContextStack:
         
         elif e._message == "inc":
             (self.__compartment.state_vars["z"]) = self.__compartment.state_vars["z"] + 10
-            
             
             return
         

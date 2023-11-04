@@ -1160,13 +1160,18 @@ impl ExprType {
                 Some(name)
             }
             ExprType::CallChainExprT {call_chain_expr_node} => {
-                let call_chain_node_type = call_chain_expr_node.call_chain.get(0).unwrap();
-                match call_chain_node_type {
-                    CallChainNodeType::VariableNodeT {var_node} => {
-                        let name = var_node.id_node.name.lexeme.clone();
-                        Some(name)
+                let call_chain_node_type_opt =  call_chain_expr_node.call_chain.get(0);
+                match call_chain_node_type_opt {
+                    Some(call_chain_node_type) => {
+                        match call_chain_node_type {
+                            CallChainNodeType::VariableNodeT {var_node} => {
+                                let name = var_node.id_node.name.lexeme.clone();
+                                Some(name)
+                            }
+                            _ => None
+                        }
                     }
-                    _ => None
+                    None => None
                 }
             }
             _ => None

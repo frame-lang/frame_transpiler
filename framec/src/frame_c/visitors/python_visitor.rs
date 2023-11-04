@@ -364,6 +364,36 @@ impl PythonVisitor {
         }
 
         system_node.accept(self);
+
+        if self.generate_main {
+            self.newline();
+            self.add_code("if __name__ == '__main__':");
+            self.indent();
+            self.newline();
+            let mut arg_cnt:usize = 0;
+            if let Some(functions) = &system_node.functions_opt {
+                for function_rcref in functions {
+                    let function_node = function_rcref.borrow();
+                    if function_node.name == "main" {
+                        if let Some(params) = &function_node.params {
+                            arg_cnt = params.len();
+                        } else {
+                            arg_cnt = 0;
+                        }
+                        break;
+                    }
+                }
+            };
+            self.add_code("main(");
+            let mut separator = "";
+            for i in 1..arg_cnt+1 {
+                self.add_code(&format!("{}sys.argv[{}]",separator,i));
+                separator = ",";
+            }
+            self.add_code(")");
+            self.outdent();
+            self.newline();
+        }
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1621,7 +1651,6 @@ impl AstVisitor for PythonVisitor {
         self.system_name = system_node.name.clone();
         self.add_code(&format!("# {}", self.compiler_version));
         self.newline();
-        self.add_code("# get include files at https://github.com/frame-lang/frame-ancillary-files");
 
         self.newline();
         let _ = &system_node.module.accept(self);
@@ -1639,6 +1668,13 @@ impl AstVisitor for PythonVisitor {
             }
         }
         self.newline();
+        // TODO!!: This is a hack until we rework modules to detect if there
+        // was no system parsed
+        if system_node.name == "" {
+            return;
+        }
+
+
         self.newline();
         self.add_code(&format!("class {}:", system_node.name));
         self.indent();
@@ -1812,37 +1848,6 @@ impl AstVisitor for PythonVisitor {
         self.generate_compartment(&system_node.name);
 
         self.generate_subclass();
-
-
-        if self.generate_main {
-            self.newline();
-            self.add_code("if __name__ == '__main__':");
-            self.indent();
-            self.newline();
-            let mut arg_cnt:usize = 0;
-            if let Some(functions) = &system_node.functions_opt {
-                for function_rcref in functions {
-                    let function_node = function_rcref.borrow();
-                    if function_node.name == "main" {
-                        if let Some(params) = &function_node.params {
-                            arg_cnt = params.len();
-                        } else {
-                            arg_cnt = 0;
-                        }
-                        break;
-                    }
-                }
-            };
-            self.add_code("main(");
-            let mut separator = "";
-            for i in 1..arg_cnt+1 {
-                self.add_code(&format!("{}sys.argv[{}]",separator,i));
-                separator = ",";
-            }
-            self.add_code(")");
-            self.outdent();
-            self.newline();
-        }
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1956,7 +1961,6 @@ impl AstVisitor for PythonVisitor {
             } else {
                 if !function_node.statements.is_empty() {
                     self.indent();
-                    self.newline();
                     self.visit_decl_stmts(&function_node.statements);
                     self.outdent();
                     self.newline();
@@ -4358,8 +4362,8 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_assignment_expr_node(&mut self, assignment_expr_node: &AssignmentExprNode) {
-        self.generate_comment(assignment_expr_node.line);
-        self.newline();
+        // self.generate_comment(assignment_expr_node.line);
+        // self.newline();
         // inc/dec all *rvalue* expressions before generating the
         // assignement statement
         // assignment_expr_node.r_value_box.auto_pre_inc_dec(self);
@@ -4396,8 +4400,8 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_assignment_statement_node(&mut self, assignment_stmt_node: &AssignmentStmtNode) {
         self.generate_comment(assignment_stmt_node.get_line());
-        assignment_stmt_node.assignment_expr_node.accept(self);
         self.newline();
+        assignment_stmt_node.assignment_expr_node.accept(self);
     }
 
     //* --------------------------------------------------------------------- *//

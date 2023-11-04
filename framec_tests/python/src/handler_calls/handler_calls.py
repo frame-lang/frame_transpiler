@@ -1,5 +1,5 @@
 # emitted from framec_v0.11.0
-# get include files at https://github.com/frame-lang/frame-ancillary-files
+
 
 
 from framelang.framelang import FrameEvent
@@ -96,7 +96,6 @@ class HandlerCalls:
         if e._message == "Foo":
             self.log_do("Foo",e._parameters["arg"])
             (self.__compartment.state_vars["counter"]) = self.__compartment.state_vars["counter"] + e._parameters["arg"]
-            
             self.Bar(e._parameters["arg"] * 2)
             return
             self.log_do("Unreachable",0)
@@ -107,7 +106,6 @@ class HandlerCalls:
         elif e._message == "Bar":
             self.log_do("Bar",e._parameters["arg"])
             (self.__compartment.state_vars["counter"]) = self.__compartment.state_vars["counter"] + e._parameters["arg"]
-            
             compartment = HandlerCallsCompartment(self.__handlercalls_state_Final)
             compartment.state_args["counter"] = self.__compartment.state_vars["counter"]
             self.__transition(compartment)
@@ -132,7 +130,6 @@ class HandlerCalls:
         if e._message == "Foo":
             self.log_do("Foo",e._parameters["arg"])
             (self.__compartment.state_vars["counter"]) = self.__compartment.state_vars["counter"] + e._parameters["arg"]
-            
             if  (self.__compartment.state_vars["counter"]) < 100:
                 self.Foo(e._parameters["arg"] * 2)
                 return
@@ -148,7 +145,6 @@ class HandlerCalls:
         elif e._message == "Bar":
             self.log_do("Bar",e._parameters["arg"])
             (self.__compartment.state_vars["counter"]) = self.__compartment.state_vars["counter"] + e._parameters["arg"]
-            
             compartment = HandlerCallsCompartment(self.__handlercalls_state_Final)
             compartment.state_args["counter"] = self.__compartment.state_vars["counter"]
             self.__transition(compartment)
@@ -172,7 +168,6 @@ class HandlerCalls:
         if e._message == "Foo":
             self.log_do("Foo",e._parameters["arg"])
             (self.__compartment.state_vars["counter"]) = self.__compartment.state_vars["counter"] + e._parameters["arg"]
-            
             if  (self.__compartment.state_vars["counter"]) > 100:
                 compartment = HandlerCallsCompartment(self.__handlercalls_state_Final)
                 compartment.state_args["counter"] = self.__compartment.state_vars["counter"]
@@ -188,7 +183,6 @@ class HandlerCalls:
         elif e._message == "Bar":
             self.log_do("Bar",e._parameters["arg"])
             (self.__compartment.state_vars["counter"]) = self.__compartment.state_vars["counter"] + e._parameters["arg"]
-            
             if (e._parameters["arg"] == 4):
                 self.Foo(e._parameters["arg"])
                 return

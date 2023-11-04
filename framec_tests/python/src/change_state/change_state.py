@@ -1,5 +1,5 @@
 # emitted from framec_v0.11.0
-# get include files at https://github.com/frame-lang/frame-ancillary-files
+
 
 class FrameEvent:
     def __init__(self, message, parameters):

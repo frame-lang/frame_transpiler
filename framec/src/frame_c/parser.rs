@@ -195,7 +195,38 @@ impl<'a> Parser<'a> {
             Err(_parse_error) => None,
         };
 
-        self.system(module_elements_opt, functions_opt)
+        // #[system_attribute]
+        let system_attributes_opt = match self.system_attributes() {
+            Ok(attributes_opt) => attributes_opt,
+            Err(_parse_error) => None,
+        };
+
+        if self.match_token(&[TokenType::System]) {
+            self.system(module_elements_opt, system_attributes_opt, functions_opt)
+        } else {
+            // TODO: For now we always need to have one (and only one) system.
+            let module = match module_elements_opt {
+                Some(module_elements) => Module { module_elements },
+                None => Module { module_elements: vec![] },
+            };
+
+            let line = self.previous().line;
+
+            SystemNode::new(
+                String::new(),
+                module,
+                system_attributes_opt,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                line,
+                functions_opt,
+            )
+        }
     }
 
     /* --------------------------------------------------------------------- */
@@ -252,25 +283,14 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    fn system(&mut self, module_elements_opt: Option<Vec<ModuleElement>>
-              , functions_opt: Option<Vec<Rc<RefCell<FunctionNode>>>>) -> SystemNode {
+    fn system(&mut self, module_elements_opt: Option<Vec<ModuleElement>>,
+                system_attributes_opt: Option<HashMap<String, AttributeNode>>,
+                functions_opt: Option<Vec<Rc<RefCell<FunctionNode>>>>) -> SystemNode {
         let mut interface_block_node_opt = Option::None;
         let mut machine_block_node_opt = Option::None;
         let mut actions_block_node_opt = Option::None;
         let mut domain_block_node_opt = Option::None;
 
-        // #[system_attribute]
-        let system_attributes_opt = match self.system_attributes() {
-            Ok(attributes_opt) => attributes_opt,
-            Err(_parse_error) => None,
-        };
-
-        // TODO: Error handling
-        if !self.match_token(&[TokenType::System]) {
-            self.error_at_current("Expected #.");
-            let sync_tokens = vec![TokenType::Identifier];
-            self.synchronize(&sync_tokens);
-        }
         if !self.match_token(&[TokenType::Identifier]) {
             self.error_at_current("Expected system identifer.");
             let sync_tokens = vec![
@@ -287,7 +307,6 @@ impl<'a> Parser<'a> {
         let system_name = id.lexeme.clone();
 
         self.system_hierarchy_opt = Some(SystemHierarchy::new(system_name.clone()));
-
 
         let system_start_state_state_params_opt;
         let system_enter_params_opt;
@@ -1179,6 +1198,7 @@ impl<'a> Parser<'a> {
         }
 
         self.arcanum.exit_scope();
+        self.is_function_scope = false;
         ret
     }
 
