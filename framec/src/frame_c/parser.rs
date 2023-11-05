@@ -2481,35 +2481,75 @@ impl<'a> Parser<'a> {
 
         if self.match_token(&[TokenType::Equals]) {
             match self.equality() {
-                Ok(Some(LiteralExprT { literal_expr_node }))
-                => value = Rc::new(LiteralExprT { literal_expr_node }),
-                Ok(Some(VariableExprT { var_node: id_node }))
-                => value = Rc::new(VariableExprT { var_node: id_node }),
-                Ok(Some(ActionCallExprT { action_call_expr_node }))
-                // TODO this may be dead code. CallChainLiteralExprT may do it all
-                => value = Rc::new(ActionCallExprT { action_call_expr_node }),
-                Ok(Some(ExprListT { expr_list_node }))
-                => value = Rc::new(ExprListT { expr_list_node }),
-                Ok(Some(CallChainExprT { call_chain_expr_node }))
-                => value = Rc::new(CallChainExprT { call_chain_expr_node }),
-                Ok(Some(UnaryExprT { unary_expr_node }))
-                => value = Rc::new(UnaryExprT { unary_expr_node }),
-                Ok(Some(BinaryExprT { binary_expr_node }))
-                => value = Rc::new(BinaryExprT { binary_expr_node }),
-                Ok(Some(FrameEventExprT { frame_event_part }))
-                => value = Rc::new(FrameEventExprT { frame_event_part }),
-                Ok(Some(EnumeratorExprT { enum_expr_node }))
-                => value = Rc::new(EnumeratorExprT { enum_expr_node }),
-                Ok(Some(TransitionExprT { transition_expr_node }))
-                => value = Rc::new(TransitionExprT { transition_expr_node }),
-                Ok(Some(SystemInstanceExprT { system_instance_expr_node }))
-                => value = Rc::new(SystemInstanceExprT { system_instance_expr_node }),
-
-                _ => {
+                Ok(Some(LiteralExprT { literal_expr_node })) => {
+                    value = Rc::new(LiteralExprT { literal_expr_node })
+                },
+                Ok(Some(VariableExprT { var_node: id_node })) => {
+                    value = Rc::new(VariableExprT { var_node: id_node })
+                },
+                Ok(Some(ActionCallExprT { action_call_expr_node })) => {
+                    // TODO this may be dead code. CallChainLiteralExprT may do it all
+                    value = Rc::new(ActionCallExprT { action_call_expr_node })
+                },
+                Ok(Some(CallChainExprT { call_chain_expr_node })) => {
+                    value = Rc::new(CallChainExprT { call_chain_expr_node })
+                },
+                Ok(Some(UnaryExprT { unary_expr_node })) => {
+                    value = Rc::new(UnaryExprT { unary_expr_node })
+                },
+                Ok(Some(BinaryExprT { binary_expr_node })) => {
+                    value = Rc::new(BinaryExprT { binary_expr_node })
+                },
+                Ok(Some(FrameEventExprT { frame_event_part })) => {
+                    value = Rc::new(FrameEventExprT { frame_event_part })
+                },
+                Ok(Some(EnumeratorExprT { enum_expr_node })) => {
+                    value = Rc::new(EnumeratorExprT { enum_expr_node })
+                },
+                Ok(Some(SystemInstanceExprT { system_instance_expr_node })) => {
+                    value = Rc::new(SystemInstanceExprT { system_instance_expr_node })
+                },
+                Ok(Some(CallExprT { call_expr_node })) => {
+                    value = Rc::new(CallExprT { call_expr_node }) },
+                Ok(Some(DefaultLiteralValueForTypeExprT)) => {
+                    value = Rc::new(DefaultLiteralValueForTypeExprT)
+                },
+                Ok(Some(NilExprT)) => {
+                    value = Rc::new(NilExprT)
+                },
+                Ok(Some(ExprListT { expr_list_node })) => {
+                    let err_msg = &format!("Expr type 'ExprList' is not a valid rvalue assignment type.");
+                    self.error_at_current(err_msg);
+                    value = Rc::new(ExprListT { expr_list_node })
+                },
+                Ok(Some(TransitionExprT { transition_expr_node })) => {
+                    let err_msg = &format!("Expr type 'TransitionExpr' is not a valid rvalue assignment type.");
+                    self.error_at_current(err_msg);
+                    value = Rc::new(TransitionExprT { transition_expr_node })
+                },
+                Ok(Some(AssignmentExprT { assignment_expr_node })) => {
+                    let err_msg = &format!("Expr type 'AssignmentExpr' is not a valid rvalue assignment type.");
+                    self.error_at_current(err_msg);
+                    value = Rc::new(AssignmentExprT { assignment_expr_node })
+                },
+                Ok(Some(StateStackOperationExprT { state_stack_op_node })) => {
+                    let err_msg = &format!("Expr type 'StateStackOperationExpr' is not a valid rvalue assignment type.");
+                    self.error_at_current(err_msg);
+                    value = Rc::new(StateStackOperationExprT { state_stack_op_node })
+                },
+                Ok(Some(CallExprListT { call_expr_list_node })) => {
+                    let err_msg = &format!("Expr type 'CallExprList' is not a valid rvalue assignment type.");
+                    self.error_at_current(err_msg);
+                    value = Rc::new(CallExprListT { call_expr_list_node })
+                },
+                Ok(None) => {
                     let err_msg = "Unexpected assignment expression value.";
                     self.error_at_current(err_msg);
                     return Err(ParseError::new(err_msg))
-                },
+                }
+                Err(parse_err) => {
+                    return Err(parse_err);
+                }
             }
         } else if matches!(self.peek().token_type, TokenType::In) {
             // TODO!! - develop for-in statement
@@ -4453,6 +4493,11 @@ impl<'a> Parser<'a> {
                 }
             }
 
+            if !r_value_rc.as_ref().is_valid_assignment_rvalue_expr_type() {
+                let err_msg = &format!("rvalue expr type '{}' is not a valid assignment expression type.", r_value_rc.as_ref().expr_type_name());
+                self.error_at_current(err_msg);
+            }
+
             let assignment_expr_node = AssignmentExprNode::new(l_value, r_value_rc.clone(), line);
             return Ok(Some(AssignmentExprT {
                 assignment_expr_node,
@@ -4480,6 +4525,15 @@ impl<'a> Parser<'a> {
                 Ok(None) => return Ok(None),
                 Err(parse_error) => return Err(parse_error),
             };
+
+            if !l_value.is_valid_binary_expr_type() {
+                let err_msg = "lvalue expr is not a valid binary expression type.";
+                self.error_at_current(err_msg);
+            }
+            if !r_value.is_valid_binary_expr_type() {
+                let err_msg = "rvalue expr is not a valid binary expression type.";
+                self.error_at_current(err_msg);
+            }
 
             let binary_expr_node = BinaryExprNode::new(l_value, op_type, r_value);
             l_value = BinaryExprT { binary_expr_node };
@@ -4510,6 +4564,15 @@ impl<'a> Parser<'a> {
                 Ok(None) => return Ok(None),
                 Err(parse_error) => return Err(parse_error),
             };
+
+            if !l_value.is_valid_binary_expr_type() {
+                let err_msg = "lvalue expr is not a valid binary expression type.";
+                self.error_at_current(err_msg);
+            }
+            if !r_value.is_valid_binary_expr_type() {
+                let err_msg = "rvalue expr is not a valid binary expression type.";
+                self.error_at_current(err_msg);
+            }
 
             let binary_expr_node = BinaryExprNode::new(l_value, op_type, r_value);
             l_value = BinaryExprT { binary_expr_node };
@@ -4544,6 +4607,15 @@ impl<'a> Parser<'a> {
                 }
                 Err(parse_error) => return Err(parse_error),
             };
+
+            if !l_value.is_valid_binary_expr_type() {
+                let err_msg = "lvalue expr is not a valid binary expression type.";
+                self.error_at_current(err_msg);
+            }
+            if !r_value.is_valid_binary_expr_type() {
+                let err_msg = "rvalue expr is not a valid binary expression type.";
+                self.error_at_current(err_msg);
+            }
 
             let binary_expr_node = BinaryExprNode::new(l_value, op_type, r_value);
             l_value = BinaryExprT { binary_expr_node };
@@ -4595,6 +4667,15 @@ impl<'a> Parser<'a> {
                 Err(parse_error) => return Err(parse_error),
             };
 
+            if !l_value.is_valid_binary_expr_type() {
+                let err_msg = "lvalue expr is not a valid binary expression type.";
+                self.error_at_current(err_msg);
+            }
+            if !r_value.is_valid_binary_expr_type() {
+                let err_msg = "rvalue expr is not a valid binary expression type.";
+                self.error_at_current(err_msg);
+            }
+
             let binary_expr_node = BinaryExprNode::new(l_value, op_type, r_value);
             l_value = BinaryExprT { binary_expr_node };
         }
@@ -4620,6 +4701,15 @@ impl<'a> Parser<'a> {
                 Err(parse_error) => return Err(parse_error),
             };
 
+            if !l_value.is_valid_binary_expr_type() {
+                let err_msg = "lvalue expr is not a valid binary expression type.";
+                self.error_at_current(err_msg);
+            }
+            if !r_value.is_valid_binary_expr_type() {
+                let err_msg = "rvalue expr is not a valid binary expression type.";
+                self.error_at_current(err_msg);
+            }
+
             let binary_expr_node = BinaryExprNode::new(l_value, op_type, r_value);
             l_value = BinaryExprT { binary_expr_node };
         }
@@ -4644,6 +4734,15 @@ impl<'a> Parser<'a> {
                 Ok(None) => return Ok(None),
                 Err(parse_error) => return Err(parse_error),
             };
+
+            if !l_value.is_valid_binary_expr_type() {
+                let err_msg = "lvalue expr is not a valid binary expression type.";
+                self.error_at_current(err_msg);
+            }
+            if !r_value.is_valid_binary_expr_type() {
+                let err_msg = "rvalue expr is not a valid binary expression type.";
+                self.error_at_current(err_msg);
+            }
 
             let binary_expr_node = BinaryExprNode::new(l_value, op_type, r_value);
             l_value = BinaryExprT { binary_expr_node };
@@ -7072,9 +7171,13 @@ impl<'a> Parser<'a> {
 
     // TODO: put the message in the ParseError
     fn error_at(&mut self, token: &Token, message: &str) {
-        if self.panic_mode {
-            return;
-        }
+
+        // TODO I've commented these out as I'm not sure why we would
+        // want to return if already panicing. Howver, this has been
+        // here a long time so preserving in case there is strange behavior.
+        // if self.panic_mode {
+        //     return;
+        // }
 
         self.panic_mode = true;
         self.had_error = true;

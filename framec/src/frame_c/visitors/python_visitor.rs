@@ -1676,8 +1676,8 @@ impl AstVisitor for PythonVisitor {
         // First state name needed for machinery.
         // Don't generate if there isn't at least one state.
         match system_node.get_first_state() {
-            Some(x) => {
-                self.first_state_name = x.borrow().name.clone();
+            Some(state_node_rcref) => {
+                self.first_state_name = state_node_rcref.borrow().name.clone();
                 self.has_states = true;
             }
             None => {}
@@ -1736,7 +1736,10 @@ impl AstVisitor for PythonVisitor {
             }
             None => {}
         };
-
+        self.newline();
+        self.newline();
+        self.add_code("# ==================== System Factory =================== #");
+        self.newline();
         self.newline();
         if self.managed {
             if new_params.is_empty() {
@@ -4377,9 +4380,9 @@ impl AstVisitor for PythonVisitor {
         assignment_expr_node: &AssignmentExprNode,
         output: &mut String,
     ) {
-        self.generate_comment(assignment_expr_node.line);
-        self.newline();
-        self.newline_to_string(output);
+        // self.generate_comment(assignment_expr_node.line);
+        // self.newline();
+        // self.newline_to_string(output);
         assignment_expr_node
             .l_value_box
             .accept_to_string(self, output);

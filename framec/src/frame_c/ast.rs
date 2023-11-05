@@ -1129,7 +1129,7 @@ pub enum ExprType {
         system_instance_expr_node: SystemInstanceExprNode,
     },
     // NilExprT is a new ExprType used atm to hack around
-    // differences between variables and parameters. Parmenters
+    // differences between variables and parameters. Parameters
     // can't be assigned values atm so this patches that
     // gap until they can be.
     NilExprT,
@@ -1153,6 +1153,26 @@ impl fmt::Display for ExprType {
 }
 
 impl ExprType {
+
+    pub fn is_valid_binary_expr_type(&self) -> bool {
+        match self {
+            ExprType::AssignmentExprT {..} => false,
+            ExprType::TransitionExprT  {..} => false,
+            ExprType::StateStackOperationExprT {..} => false,
+            ExprType::CallExprListT {..} => false, // this shouldn't happen
+            _ => true,
+        }
+    }
+    pub fn is_valid_assignment_rvalue_expr_type(&self) -> bool {
+        match self {
+            ExprType::AssignmentExprT {..} => false,
+            ExprType::TransitionExprT {..} => false,
+            ExprType::StateStackOperationExprT {..} => false,
+            ExprType::CallExprListT {..} => false, // this shouldn't happen
+            _ => true,
+        }
+    }
+
     pub fn get_name(&self) -> Option<String> {
         match self {
             ExprType::VariableExprT {var_node} => {

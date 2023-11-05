@@ -25,6 +25,9 @@ class EnumTest_Days(Enum):
 
 class EnumTest:
     
+    
+    # ==================== System Factory =================== #
+    
     def __init__(self):
         
          # Create and intialize start state compartment.

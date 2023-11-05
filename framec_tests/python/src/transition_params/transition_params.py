@@ -15,6 +15,9 @@ class FrameEvent:
 
 class TransitParams:
     
+    
+    # ==================== System Factory =================== #
+    
     def __init__(self):
         
          # Create and intialize start state compartment.

@@ -15,6 +15,9 @@ class FrameEvent:
 
 class StateStack:
     
+    
+    # ==================== System Factory =================== #
+    
     def __init__(self):
         
         # Create state stack.
