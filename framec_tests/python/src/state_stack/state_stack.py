@@ -62,6 +62,7 @@ class StateStack:
     
     # ===================== Machine Block =================== #
     
+    # $A
     def __statestack_state_A(self, e):
         if e._message == ">":
             self.log_do("A:>")
@@ -89,6 +90,7 @@ class StateStack:
             self.__transition(compartment)
             return
     
+    # $B
     def __statestack_state_B(self, e):
         if e._message == ">":
             self.log_do("B:>")
@@ -116,6 +118,7 @@ class StateStack:
             self.__transition(compartment)
             return
     
+    # $C
     def __statestack_state_C(self, e):
         if e._message == ">":
             self.log_do("C:>")
@@ -147,6 +150,7 @@ class StateStack:
     
     def log_do(self,msg: str):
         raise NotImplementedError
+    
     # =============== Machinery and Mechanisms ============== #
     
     def __mux(self, e):
@@ -205,8 +209,6 @@ class StateStackCompartment:
         self.exit_args = {}
         self.forward_event = None
     
-
-
 # ********************
 
 #class StateStackController(StateStack):

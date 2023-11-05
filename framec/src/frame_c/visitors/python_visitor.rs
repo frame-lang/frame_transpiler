@@ -13,8 +13,6 @@ use crate::frame_c::scanner::{Token, TokenType};
 use crate::frame_c::symbol_table::*;
 use crate::frame_c::visitors::*;
 
-
-
 // use yaml_rust::{YamlLoader, Yaml};
 
 pub struct PythonVisitor {
@@ -147,13 +145,12 @@ impl PythonVisitor {
         if type_node.is_system {
             String::new()
         } else if type_node.is_enum {
-            format!("{}_{}",self.system_name,type_node.type_str)
+            format!("{}_{}", self.system_name, type_node.type_str)
         } else {
             let mut s = String::new();
             s.push_str(&type_node.type_str.clone());
             s
         }
-
     }
 
     //* --------------------------------------------------------------------- *//
@@ -293,7 +290,7 @@ impl PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn format_enum_name(&self, enum_type_name: &String) -> String {
-        format!("{}_{}", self.system_name,enum_type_name)
+        format!("{}_{}", self.system_name, enum_type_name)
     }
 
     //* --------------------------------------------------------------------- *//
@@ -305,7 +302,7 @@ impl PythonVisitor {
                     match value {
                         AttributeNode::MetaWord { attr } => {
                             // TODO
-                            let err_msg = format!("Unknown attribute {}.",attr.name);
+                            let err_msg = format!("Unknown attribute {}.", attr.name);
                             self.errors.push(err_msg);
                         }
                         AttributeNode::MetaNameValueStr { attr } => {
@@ -370,7 +367,7 @@ impl PythonVisitor {
             self.add_code("if __name__ == '__main__':");
             self.indent();
             self.newline();
-            let mut arg_cnt:usize = 0;
+            let mut arg_cnt: usize = 0;
             if let Some(functions) = &system_node.functions_opt {
                 for function_rcref in functions {
                     let function_node = function_rcref.borrow();
@@ -386,8 +383,8 @@ impl PythonVisitor {
             };
             self.add_code("main(");
             let mut separator = "";
-            for i in 1..arg_cnt+1 {
-                self.add_code(&format!("{}sys.argv[{}]",separator,i));
+            for i in 1..arg_cnt + 1 {
+                self.add_code(&format!("{}sys.argv[{}]", separator, i));
                 separator = ",";
             }
             self.add_code(")");
@@ -464,7 +461,7 @@ impl PythonVisitor {
                         StatementType::ExpressionStmt { expr_stmt_t } => {
                             match expr_stmt_t {
                                 ExprStmtType::TransitionStmtT {
-                                    transition_statement_node: _transition_statement_node
+                                    transition_statement_node: _transition_statement_node,
                                 } => panic!("TODO"),
                                 ExprStmtType::SystemInstanceStmtT {
                                     system_instance_stmt_node,
@@ -508,7 +505,9 @@ impl PythonVisitor {
                         } => {
                             state_stack_operation_statement_node.accept(self);
                         }
-                        StatementType::ChangeStateStmt { change_state_stmt_node: change_state_stmt } => {
+                        StatementType::ChangeStateStmt {
+                            change_state_stmt_node: change_state_stmt,
+                        } => {
                             change_state_stmt.accept(self);
                         }
                         StatementType::LoopStmt { loop_stmt_node } => {
@@ -541,6 +540,7 @@ impl PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn generate_machinery(&mut self, system_node: &SystemNode) {
+        self.newline();
         self.newline();
         self.add_code("# =============== Machinery and Mechanisms ============== #");
         self.newline();
@@ -629,7 +629,6 @@ impl PythonVisitor {
                     }
                 }
                 self.outdent();
-
             }
             _ => {
                 self.add_code("pass");
@@ -815,7 +814,9 @@ impl PythonVisitor {
         // -- Enter Arguments --
 
         let enter_args_opt = match &change_state_stmt_node.state_context_t {
-            TargetStateContextType::StateRef { state_context_node } => &state_context_node.enter_args_opt,
+            TargetStateContextType::StateRef { state_context_node } => {
+                &state_context_node.enter_args_opt
+            }
             TargetStateContextType::StateStackPop {} => &None,
         };
 
@@ -978,9 +979,11 @@ impl PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn generate_state_ref_transition(&mut self,
-                                     transition_expr_node: &TransitionExprNode,
-                                     expr_list_node_opt:&Option<ExprListNode>) {
+    fn generate_state_ref_transition(
+        &mut self,
+        transition_expr_node: &TransitionExprNode,
+        expr_list_node_opt: &Option<ExprListNode>,
+    ) {
         let target_state_name = match &transition_expr_node.target_state_context_t {
             TargetStateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_node.name
@@ -1073,7 +1076,9 @@ impl PythonVisitor {
         // self.newline();
 
         let enter_args_opt = match &transition_expr_node.target_state_context_t {
-            TargetStateContextType::StateRef { state_context_node } => &state_context_node.enter_args_opt,
+            TargetStateContextType::StateRef { state_context_node } => {
+                &state_context_node.enter_args_opt
+            }
             TargetStateContextType::StateStackPop {} => &None,
         };
 
@@ -1228,7 +1233,7 @@ impl PythonVisitor {
     fn generate_state_stack_pop_transition(
         &mut self,
         transition_expr_node: &TransitionExprNode,
-        expr_list_node_opt:&Option<ExprListNode>
+        expr_list_node_opt: &Option<ExprListNode>,
     ) {
         self.newline();
         match &transition_expr_node.label_opt {
@@ -1334,8 +1339,6 @@ impl PythonVisitor {
         self.outdent();
         self.newline();
         self.outdent();
-        self.newline();
-        self.newline();
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1447,7 +1450,7 @@ impl PythonVisitor {
 
             for variable_decl_node_rcref in &domain_block_node.member_variables {
                 let variable_decl_node = variable_decl_node_rcref.borrow_mut();
-       //         variable_decl_node.initializer_expr_t_opt = Option::None;
+                //         variable_decl_node.initializer_expr_t_opt = Option::None;
                 if let Some(domain_params_vec) = &system_node.domain_params_opt {
                     for domain_param in domain_params_vec {
                         if domain_param.param_name == variable_decl_node.name {
@@ -1574,24 +1577,22 @@ impl PythonVisitor {
 //* --------------------------------------------------------------------- *//
 
 impl AstVisitor for PythonVisitor {
-
     //* --------------------------------------------------------------------- *//
 
     fn visit_module(&mut self, module: &Module) {
-
         let mut generate_frame_event = true;
 
         for module_element in &module.module_elements {
             match module_element {
-                ModuleElement::CodeBlock {code_block} => {
+                ModuleElement::CodeBlock { code_block } => {
                     self.add_code(code_block);
                     self.newline();
                 }
-                ModuleElement::ModuleAttribute {attribute_node} => {
+                ModuleElement::ModuleAttribute { attribute_node } => {
                     // By default framec will generate the FrameEvent.
                     // See if generate_frame_event is false to disable generation.
                     if attribute_node.get_name() == "generate_frame_event" {
-                        if let AttributeNode::MetaListIdents {attr} = attribute_node {
+                        if let AttributeNode::MetaListIdents { attr } = attribute_node {
                             let attr_opt = attr.idents.get(0);
                             if let Some(attr) = attr_opt {
                                 if attr == "false" {
@@ -1600,7 +1601,7 @@ impl AstVisitor for PythonVisitor {
                             }
                         }
                     }
-               }
+                }
             }
         }
 
@@ -1621,7 +1622,6 @@ impl AstVisitor for PythonVisitor {
             self.outdent();
             self.newline();
         }
-
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1693,7 +1693,10 @@ impl AstVisitor for PythonVisitor {
                         Some(type_node) => self.format_type(type_node),
                         None => String::from(""),
                     };
-                    params.push_str(&format!("{}start_state_state_param_{}", separator, param_node.param_name));
+                    params.push_str(&format!(
+                        "{}start_state_state_param_{}",
+                        separator, param_node.param_name
+                    ));
                     if !param_type.is_empty() {
                         params.push_str(&format!(": {}", param_type));
                     }
@@ -1711,7 +1714,10 @@ impl AstVisitor for PythonVisitor {
                         Some(type_node) => self.format_type(type_node),
                         None => String::from(""),
                     };
-                    new_params.push_str(&format!("{}start_state_enter_param_{}", separator, param_node.param_name));
+                    new_params.push_str(&format!(
+                        "{}start_state_enter_param_{}",
+                        separator, param_node.param_name
+                    ));
                     if !param_type.is_empty() {
                         new_params.push_str(&format!(": {}", param_type));
                     }
@@ -1727,7 +1733,10 @@ impl AstVisitor for PythonVisitor {
                         Some(type_node) => self.format_type(type_node),
                         None => String::from(""),
                     };
-                    new_params.push_str(&format!("{}domain_param_{}", separator, param_node.param_name));
+                    new_params.push_str(&format!(
+                        "{}domain_param_{}",
+                        separator, param_node.param_name
+                    ));
                     if !param_type.is_empty() {
                         new_params.push_str(&format!(": {}", param_type));
                     }
@@ -1869,7 +1878,8 @@ impl AstVisitor for PythonVisitor {
         self.add_code(&format!("{}", system_name));
         self.add_code("(");
         let mut separator = "";
-        if let Some(start_state_state_args) = &system_instance_expr_node.start_state_state_args_opt {
+        if let Some(start_state_state_args) = &system_instance_expr_node.start_state_state_args_opt
+        {
             for expr_t in &start_state_state_args.exprs_t {
                 self.add_code(separator);
                 expr_t.accept(self);
@@ -1877,7 +1887,8 @@ impl AstVisitor for PythonVisitor {
             }
         }
 
-        if let Some(start_state_enter_args) = &system_instance_expr_node.start_state_enter_args_opt {
+        if let Some(start_state_enter_args) = &system_instance_expr_node.start_state_enter_args_opt
+        {
             for expr_t in &start_state_enter_args.exprs_t {
                 self.add_code(separator);
                 expr_t.accept(self);
@@ -1900,14 +1911,15 @@ impl AstVisitor for PythonVisitor {
     fn visit_system_instance_expr_node_to_string(
         &mut self,
         system_instance_expr_node: &SystemInstanceExprNode,
-        output: &mut String
+        output: &mut String,
     ) {
         let system_name = &system_instance_expr_node.identifier.name.lexeme;
 
         output.push_str(&format!("{}", system_name));
         output.push_str("(");
         let mut separator = "";
-        if let Some(start_state_state_args) = &system_instance_expr_node.start_state_state_args_opt {
+        if let Some(start_state_state_args) = &system_instance_expr_node.start_state_state_args_opt
+        {
             for expr_t in &start_state_state_args.exprs_t {
                 output.push_str(separator);
                 expr_t.accept_to_string(self, output);
@@ -1915,7 +1927,8 @@ impl AstVisitor for PythonVisitor {
             }
         }
 
-        if let Some(start_state_enter_args) = &system_instance_expr_node.start_state_enter_args_opt {
+        if let Some(start_state_enter_args) = &system_instance_expr_node.start_state_enter_args_opt
+        {
             for expr_t in &start_state_enter_args.exprs_t {
                 output.push_str(separator);
                 expr_t.accept_to_string(self, output);
@@ -2008,7 +2021,9 @@ impl AstVisitor for PythonVisitor {
         &mut self,
         interface_method_call_expr_node: &InterfaceMethodCallExprNode,
     ) {
-        if interface_method_call_expr_node.interface_method_call_t == InterfaceMethodCallType::Internal {
+        if interface_method_call_expr_node.interface_method_call_t
+            == InterfaceMethodCallType::Internal
+        {
             self.add_code("self.");
         }
 
@@ -2026,7 +2041,9 @@ impl AstVisitor for PythonVisitor {
         interface_method_call_expr_node: &InterfaceMethodCallExprNode,
         output: &mut String,
     ) {
-        if interface_method_call_expr_node.interface_method_call_t == InterfaceMethodCallType::Internal {
+        if interface_method_call_expr_node.interface_method_call_t
+            == InterfaceMethodCallType::Internal
+        {
             output.push_str(&format!("self."));
         }
         output.push_str(&format!(
@@ -2218,6 +2235,8 @@ impl AstVisitor for PythonVisitor {
         self.current_state_name_opt = Some(state_node.name.clone());
 
         self.newline();
+        self.add_code(&format!("# ${}",&state_node.name));
+        self.newline();
         self.add_code(&format!(
             "def {}(self, e):",
             self.format_target_state_name(&state_node.name)
@@ -2338,11 +2357,12 @@ impl AstVisitor for PythonVisitor {
         &mut self,
         evt_handler_terminator_node: &TerminatorExpr,
     ) {
-       // self.newline();
+        // self.newline();
         match &evt_handler_terminator_node.terminator_type {
             TerminatorType::Return => match &evt_handler_terminator_node.return_expr_t_opt {
                 Some(expr_t) => {
                     // expr_t.auto_pre_inc_dec(self);
+                    self.newline();
                     self.add_code("e._return = ");
                     expr_t.accept(self);
                     // expr_t.auto_post_inc_dec(self);
@@ -2471,13 +2491,18 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_transition_statement_node(&mut self, transition_statement: &TransitionStatementNode) {
-        match &transition_statement.transition_expr_node.target_state_context_t {
-            TargetStateContextType::StateRef { .. } => {
-                self.generate_state_ref_transition(&transition_statement.transition_expr_node,&(transition_statement.exit_args_opt))
-            }
-            TargetStateContextType::StateStackPop {} => {
-                self.generate_state_stack_pop_transition(&transition_statement.transition_expr_node,&(transition_statement.exit_args_opt))
-            }
+        match &transition_statement
+            .transition_expr_node
+            .target_state_context_t
+        {
+            TargetStateContextType::StateRef { .. } => self.generate_state_ref_transition(
+                &transition_statement.transition_expr_node,
+                &(transition_statement.exit_args_opt),
+            ),
+            TargetStateContextType::StateStackPop {} => self.generate_state_stack_pop_transition(
+                &transition_statement.transition_expr_node,
+                &(transition_statement.exit_args_opt),
+            ),
         };
         // &transition_statement.transition_expr_node.accept(self);
 
@@ -2489,7 +2514,7 @@ impl AstVisitor for PythonVisitor {
     fn visit_transition_expr_node(&mut self, transition_expr_node: &TransitionExprNode) {
         match &transition_expr_node.target_state_context_t {
             TargetStateContextType::StateRef { .. } => {
-                self.generate_state_ref_transition(&transition_expr_node,&None)
+                self.generate_state_ref_transition(&transition_expr_node, &None)
             }
             TargetStateContextType::StateStackPop {} => {
                 self.generate_state_stack_pop_transition(transition_expr_node, &None)
@@ -2617,10 +2642,7 @@ impl AstVisitor for PythonVisitor {
     // handlers harder to reason about. The conservative approach has the advantage of both
     // simplifying the implementation and reasoning about Frame programs.
 
-    fn visit_call_chain_statement_node(
-        &mut self,
-        method_call_chain_stmt_node: &CallChainStmtNode,
-    ) {
+    fn visit_call_chain_statement_node(&mut self, method_call_chain_stmt_node: &CallChainStmtNode) {
         self.skip_next_newline();
         // special case for interface method calls
         let call_chain = &method_call_chain_stmt_node
@@ -2655,17 +2677,16 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_chain_expr_node(
-        &mut self,
-        call_l_chain_expression_node: &CallChainExprNode,
-    ) {
+    fn visit_call_chain_expr_node(&mut self, call_l_chain_expression_node: &CallChainExprNode) {
         // TODO: maybe put this in an AST node
 
         let mut separator = "";
 
         if call_l_chain_expression_node.inc_dec != IncDecExpr::None {
-            self.errors
-                .push("Error - auto increment/decrement operator (++/--) not allowed in Python.".to_string());
+            self.errors.push(
+                "Error - auto increment/decrement operator (++/--) not allowed in Python."
+                    .to_string(),
+            );
             return;
         }
         for node in &call_l_chain_expression_node.call_chain {
@@ -2995,7 +3016,7 @@ impl AstVisitor for PythonVisitor {
             test_expr_rcref.borrow().accept_to_string(self, &mut output);
 
             // let test_expr = test_expr_rcref.borrow();
-           // test_expr.auto_pre_inc_dec(self);
+            // test_expr.auto_pre_inc_dec(self);
 
             //            self.newline();
             self.add_code(&format!("if not({}):", output));
@@ -3058,7 +3079,7 @@ impl AstVisitor for PythonVisitor {
         //      break
 
         // autoinc any arguments to the iterable expression
-       //  loop_in_stmt_node.iterable_expr.auto_pre_inc_dec(self);
+        //  loop_in_stmt_node.iterable_expr.auto_pre_inc_dec(self);
         let mut output = String::new();
         loop_in_stmt_node
             .iterable_expr
@@ -3306,9 +3327,9 @@ impl AstVisitor for PythonVisitor {
                 ExprType::CallChainExprT {
                     call_chain_expr_node,
                 } => call_chain_expr_node.accept_to_string(self, &mut expr_code),
-                ExprType::VariableExprT {
-                    var_node: id_node
-                } => id_node.accept_to_string(self, &mut expr_code),
+                ExprType::VariableExprT { var_node: id_node } => {
+                    id_node.accept_to_string(self, &mut expr_code)
+                }
                 ExprType::ExprListT { expr_list_node } => {
                     // must be only 1 expression in the list
                     if expr_list_node.exprs_t.len() != 1 {
@@ -3325,24 +3346,27 @@ impl AstVisitor for PythonVisitor {
 
             let mut first_match = true;
             match &match_branch_node.string_match_type {
-                StringMatchType::MatchString {string_match_test_pattern_node} => {
-                    for match_string in &string_match_test_pattern_node
-                                                    .match_pattern_strings
-                    {
+                StringMatchType::MatchString {
+                    string_match_test_pattern_node,
+                } => {
+                    for match_string in &string_match_test_pattern_node.match_pattern_strings {
                         if first_match {
                             first_match = false;
                             self.add_code(&format!("({} == \"{}\")", expr_code, match_string));
                         } else {
-                            self.add_code(&format!(" or ({} == \"{}\")",expr_code,match_string));
-                         }
+                            self.add_code(&format!(" or ({} == \"{}\")", expr_code, match_string));
+                        }
                     }
                     self.add_code(")");
                 }
-                StringMatchType::MatchNullString  => {
-                    self.add_code(&format!("{} is None)",expr_code));
+                StringMatchType::MatchNullString => {
+                    self.add_code(&format!("{} is None)", expr_code));
                 }
-                StringMatchType::MatchEmptyString  => {
-                    self.add_code(&format!("isinstance({}, str) and len({}) == 0)",expr_code, expr_code));
+                StringMatchType::MatchEmptyString => {
+                    self.add_code(&format!(
+                        "isinstance({}, str) and len({}) == 0)",
+                        expr_code, expr_code
+                    ));
                 }
             }
 
@@ -3516,9 +3540,7 @@ impl AstVisitor for PythonVisitor {
                 } => action_call_expr_node.accept(self),
                 ExprType::CallChainExprT {
                     call_chain_expr_node,
-                } => {
-                    call_chain_expr_node.accept(self)
-                },
+                } => call_chain_expr_node.accept(self),
                 ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
                 ExprType::ExprListT { expr_list_node } => {
                     // must be only 1 expression in the list
@@ -3865,10 +3887,10 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_expression_list_node(&mut self, expr_list: &ExprListNode) {
-      //  self.in_expr_list = true;
+        //  self.in_expr_list = true;
         let mut generate_parens = true;
         if expr_list.exprs_t.len() == 1 {
-            if let Some(ExprType::TransitionExprT{..}) = expr_list.exprs_t.get(0) {
+            if let Some(ExprType::TransitionExprT { .. }) = expr_list.exprs_t.get(0) {
                 generate_parens = false;
             }
         }
@@ -3886,7 +3908,7 @@ impl AstVisitor for PythonVisitor {
         if generate_parens {
             self.add_code(")");
         }
-      //  self.in_expr_list = false;
+        //  self.in_expr_list = false;
     }
 
     //* --------------------------------------------------------------------- *//
@@ -4268,7 +4290,6 @@ impl AstVisitor for PythonVisitor {
                 } else {
                     self.add_code(&format!(" = {}", code));
                 }
-
             }
             IdentifierDeclScope::EventHandlerVar => {
                 self.add_code(&format!("{} ", var_name));
@@ -4368,7 +4389,9 @@ impl AstVisitor for PythonVisitor {
         self.add_code(" = ");
         //       assignment_expr_node.r_value_box.auto_pre_inc_dec(self);
         let mut output = String::new();
-        assignment_expr_node.r_value_rc.accept_to_string(self, &mut output);
+        assignment_expr_node
+            .r_value_rc
+            .accept_to_string(self, &mut output);
         self.add_code(&*output);
         // assignment_expr_node.r_value_box.auto_post_inc_dec(self);
     }

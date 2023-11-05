@@ -49,6 +49,7 @@ class StateVars:
     
     # ===================== Machine Block =================== #
     
+    # $Init
     def __statevars_state_Init(self, e):
         if e._message == ">":
             compartment = StateVarsCompartment(self.__statevars_state_A)
@@ -56,6 +57,7 @@ class StateVars:
             self.__transition(compartment)
             return
     
+    # $A
     def __statevars_state_A(self, e):
         if e._message == "X":
             (self.__compartment.state_vars["x"]) = self.__compartment.state_vars["x"] + 1
@@ -73,6 +75,7 @@ class StateVars:
             self.__transition(compartment)
             return
     
+    # $B
     def __statevars_state_B(self, e):
         if e._message == "X":
             compartment = StateVarsCompartment(self.__statevars_state_A)
@@ -87,6 +90,7 @@ class StateVars:
             return
     
     # ===================== Actions Block =================== #
+    
     
     # =============== Machinery and Mechanisms ============== #
     
@@ -143,8 +147,6 @@ class StateVarsCompartment:
         self.exit_args = {}
         self.forward_event = None
     
-
-
 # ********************
 
 #class StateVarsController(StateVars):

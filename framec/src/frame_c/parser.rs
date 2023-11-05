@@ -1,6 +1,7 @@
 #![allow(clippy::unnecessary_wraps)]
 
 use super::ast::AssignmentExprNode;
+use super::ast::CallChainNodeType;
 use super::ast::DeclOrStmtType;
 use super::ast::ExprStmtType::*;
 use super::ast::ExprType;
@@ -10,13 +11,12 @@ use super::ast::TerminatorType::{Continue, Return};
 use super::ast::*;
 use super::scanner::*;
 use super::symbol_table::*;
+use crate::frame_c::ast::ModuleElement::*;
 use crate::frame_c::utils::SystemHierarchy;
-use std::cell::{RefCell};
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
-use crate::frame_c::ast::ModuleElement::*;
-use super::ast::CallChainNodeType;
 
 pub struct ParseError {
     // TODO:
@@ -169,7 +169,9 @@ impl<'a> Parser<'a> {
             self.error_at_current("Empty module.");
             return SystemNode::new(
                 String::from("error"),
-                Module { module_elements: vec![] },
+                Module {
+                    module_elements: vec![],
+                },
                 None,
                 None,
                 None,
@@ -207,7 +209,9 @@ impl<'a> Parser<'a> {
             // TODO: For now we always need to have one (and only one) system.
             let module = match module_elements_opt {
                 Some(module_elements) => Module { module_elements },
-                None => Module { module_elements: vec![] },
+                None => Module {
+                    module_elements: vec![],
+                },
             };
 
             let line = self.previous().line;
@@ -239,11 +243,12 @@ impl<'a> Parser<'a> {
             if self.match_token(&[TokenType::InnerAttribute]) {
                 match self.attribute(AttributeAffinity::Inner) {
                     Ok(attribute_node) => {
-                        if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
+                        if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.")
+                        {
                             return Err(parse_error);
                         }
                         module_elements.push(ModuleElement::ModuleAttribute { attribute_node });
-                    },
+                    }
                     Err(err) => {
                         return Err(err);
                     }
@@ -280,12 +285,14 @@ impl<'a> Parser<'a> {
         Ok(Some(module_elements))
     }
 
-
     /* --------------------------------------------------------------------- */
 
-    fn system(&mut self, module_elements_opt: Option<Vec<ModuleElement>>,
-                system_attributes_opt: Option<HashMap<String, AttributeNode>>,
-                functions_opt: Option<Vec<Rc<RefCell<FunctionNode>>>>) -> SystemNode {
+    fn system(
+        &mut self,
+        module_elements_opt: Option<Vec<ModuleElement>>,
+        system_attributes_opt: Option<HashMap<String, AttributeNode>>,
+        functions_opt: Option<Vec<Rc<RefCell<FunctionNode>>>>,
+    ) -> SystemNode {
         let mut interface_block_node_opt = Option::None;
         let mut machine_block_node_opt = Option::None;
         let mut actions_block_node_opt = Option::None;
@@ -474,7 +481,7 @@ impl<'a> Parser<'a> {
                                             } else if (parameter_symbol.param_type_opt.is_none()
                                                 && param.param_type_opt.is_some())
                                                 || (parameter_symbol.param_type_opt.is_some()
-                                                && param.param_type_opt.is_none())
+                                                    && param.param_type_opt.is_none())
                                             {
                                                 // error
                                                 self.error_at_current("Start state and system enter parameters are different.");
@@ -538,7 +545,9 @@ impl<'a> Parser<'a> {
 
         let module = match module_elements_opt {
             Some(module_elements) => Module { module_elements },
-            None => Module { module_elements: vec![] },
+            None => Module {
+                module_elements: vec![],
+            },
         };
         let system_node = SystemNode::new(
             system_name,
@@ -570,7 +579,16 @@ impl<'a> Parser<'a> {
     // Parse optional system args.
     // [ $(start_state_param), >(start_state_enter_param), #(domain_param) ]
 
-    fn system_arguments(&mut self) -> Result<(Option<ExprListNode>, Option<ExprListNode>, Option<ExprListNode>), ParseError> {
+    fn system_arguments(
+        &mut self,
+    ) -> Result<
+        (
+            Option<ExprListNode>,
+            Option<ExprListNode>,
+            Option<ExprListNode>,
+        ),
+        ParseError,
+    > {
         let mut start_state_args_opt = Option::None;
         let mut start_enter_args_opt = Option::None;
         let mut domain_args_opt = Option::None;
@@ -596,17 +614,15 @@ impl<'a> Parser<'a> {
                     }
                 }
             }
-            Ok(None) => {
-                match self.system_enter_or_domain_args() {
-                    Ok((start_enter_args, domain_args)) => {
-                        start_enter_args_opt = start_enter_args;
-                        domain_args_opt = domain_args;
-                    }
-                    Err(parse_err) => {
-                        return Err(parse_err);
-                    }
+            Ok(None) => match self.system_enter_or_domain_args() {
+                Ok((start_enter_args, domain_args)) => {
+                    start_enter_args_opt = start_enter_args;
+                    domain_args_opt = domain_args;
                 }
-            }
+                Err(parse_err) => {
+                    return Err(parse_err);
+                }
+            },
             Err(parse_err) => {
                 return Err(parse_err);
             }
@@ -654,11 +670,13 @@ impl<'a> Parser<'a> {
                 domain_params_cnt = system_symbol.domain_params_cnt;
             }
             if start_state_args_cnt != start_state_params_cnt {
-                let err_msg = "System start state arg count not equal to system start state param count.";
+                let err_msg =
+                    "System start state arg count not equal to system start state param count.";
                 self.error_at_previous(err_msg);
             }
             if start_enter_args_cnt != start_enter_params_cnt {
-                let err_msg = "System start enter arg count not equal to system start enter param count.";
+                let err_msg =
+                    "System start enter arg count not equal to system start enter param count.";
                 self.error_at_previous(err_msg);
             }
             if domain_args_cnt != domain_params_cnt {
@@ -669,7 +687,6 @@ impl<'a> Parser<'a> {
 
         Ok((start_state_args_opt, start_enter_args_opt, domain_args_opt))
     }
-
 
     /* --------------------------------------------------------------------- */
     // Parse optional system start state args.
@@ -699,10 +716,11 @@ impl<'a> Parser<'a> {
         Ok(None)
     }
 
-
     /* --------------------------------------------------------------------- */
 
-    fn system_enter_or_domain_args(&mut self) -> Result<(Option<ExprListNode>, Option<ExprListNode>), ParseError> {
+    fn system_enter_or_domain_args(
+        &mut self,
+    ) -> Result<(Option<ExprListNode>, Option<ExprListNode>), ParseError> {
         let mut system_enter_args_opt = Option::None;
         let mut domain_args_opt = Option::None;
 
@@ -720,16 +738,14 @@ impl<'a> Parser<'a> {
                     }
                 }
             }
-            Ok(None) => {
-                match self.system_domain_args() {
-                    Ok(expr_list_node_opt) => {
-                        domain_args_opt = expr_list_node_opt;
-                    }
-                    Err(parse_err) => {
-                        return Err(parse_err);
-                    }
+            Ok(None) => match self.system_domain_args() {
+                Ok(expr_list_node_opt) => {
+                    domain_args_opt = expr_list_node_opt;
                 }
-            }
+                Err(parse_err) => {
+                    return Err(parse_err);
+                }
+            },
             Err(parse_err) => {
                 return Err(parse_err);
             }
@@ -737,7 +753,6 @@ impl<'a> Parser<'a> {
 
         Ok((system_enter_args_opt, domain_args_opt))
     }
-
 
     /* --------------------------------------------------------------------- */
 
@@ -760,7 +775,6 @@ impl<'a> Parser<'a> {
 
         Ok(None)
     }
-
 
     /* --------------------------------------------------------------------- */
 
@@ -912,7 +926,6 @@ impl<'a> Parser<'a> {
         )
     }
 
-
     // /* --------------------------------------------------------------------- */
     //
     // fn system_enter_or_domain_params(
@@ -966,7 +979,9 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    fn system_enter_or_domain_params(&mut self) -> (Option<Vec<ParameterNode>>, Option<Vec<ParameterNode>>) {
+    fn system_enter_or_domain_params(
+        &mut self,
+    ) -> (Option<Vec<ParameterNode>>, Option<Vec<ParameterNode>>) {
         let system_enter_params_opt; //: Option<Vec<ParameterNode>> = Option::None;
         let mut domain_params_opt: Option<Vec<ParameterNode>> = Option::None;
 
@@ -1267,7 +1282,8 @@ impl<'a> Parser<'a> {
             if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
                 //   self.arcanum.exit_parse_scope();
                 return Err(parse_error);
-            } else {}
+            } else {
+            }
         }
 
         let function_node = FunctionNode::new(
@@ -1426,9 +1442,7 @@ impl<'a> Parser<'a> {
             })
         } else {
             let attr_word = AttributeMetaWord::new(name, affinity);
-            Ok(AttributeNode::MetaWord {
-                attr: attr_word,
-            })
+            Ok(AttributeNode::MetaWord { attr: attr_word })
         }
     }
 
@@ -1440,11 +1454,11 @@ impl<'a> Parser<'a> {
         let mut idents: Vec<String> = Vec::new();
         loop {
             // TODO: need to identify all possible valid tokens
-            if !(self.match_token(&[TokenType::Identifier]) ||
-                 self.match_token(&[TokenType::True]) ||
-                self.match_token(&[TokenType::False]) ||
-                self.match_token(&[TokenType::Number])
-            ) {
+            if !(self.match_token(&[TokenType::Identifier])
+                || self.match_token(&[TokenType::True])
+                || self.match_token(&[TokenType::False])
+                || self.match_token(&[TokenType::Number]))
+            {
                 break;
             }
             let ident = self.previous().lexeme.clone();
@@ -1695,13 +1709,14 @@ impl<'a> Parser<'a> {
             let mut is_enum = false;
 
             if !self.is_building_symbol_table {
-                let symbol_t_refcell_opt = self.arcanum.lookup(&type_str, &IdentifierDeclScope::DomainBlock);
+                let symbol_t_refcell_opt = self
+                    .arcanum
+                    .lookup(&type_str, &IdentifierDeclScope::DomainBlock);
                 if let Some(symbol_t_rcref) = symbol_t_refcell_opt {
                     let symbol_t = symbol_t_rcref.borrow();
-                    if let SymbolType::EnumDeclSymbolT{ .. } = *symbol_t {
+                    if let SymbolType::EnumDeclSymbolT { .. } = *symbol_t {
                         is_enum = true;
                     }
-
                 }
             }
 
@@ -1848,7 +1863,8 @@ impl<'a> Parser<'a> {
                                     return Err(ParseError::new(err_msg.as_str()));
                                 }
                             }
-                        } else {}
+                        } else {
+                        }
 
                         parameters.push(parameter_node);
                     }
@@ -2255,7 +2271,8 @@ impl<'a> Parser<'a> {
             if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
                 //   self.arcanum.exit_parse_scope();
                 return Err(parse_error);
-            } else {}
+            } else {
+            }
         }
 
         let action_node = ActionNode::new(
@@ -2483,69 +2500,102 @@ impl<'a> Parser<'a> {
             match self.equality() {
                 Ok(Some(LiteralExprT { literal_expr_node })) => {
                     value = Rc::new(LiteralExprT { literal_expr_node })
-                },
+                }
                 Ok(Some(VariableExprT { var_node: id_node })) => {
                     value = Rc::new(VariableExprT { var_node: id_node })
-                },
-                Ok(Some(ActionCallExprT { action_call_expr_node })) => {
+                }
+                Ok(Some(ActionCallExprT {
+                    action_call_expr_node,
+                })) => {
                     // TODO this may be dead code. CallChainLiteralExprT may do it all
-                    value = Rc::new(ActionCallExprT { action_call_expr_node })
-                },
-                Ok(Some(CallChainExprT { call_chain_expr_node })) => {
-                    value = Rc::new(CallChainExprT { call_chain_expr_node })
-                },
+                    value = Rc::new(ActionCallExprT {
+                        action_call_expr_node,
+                    })
+                }
+                Ok(Some(CallChainExprT {
+                    call_chain_expr_node,
+                })) => {
+                    value = Rc::new(CallChainExprT {
+                        call_chain_expr_node,
+                    })
+                }
                 Ok(Some(UnaryExprT { unary_expr_node })) => {
                     value = Rc::new(UnaryExprT { unary_expr_node })
-                },
+                }
                 Ok(Some(BinaryExprT { binary_expr_node })) => {
                     value = Rc::new(BinaryExprT { binary_expr_node })
-                },
+                }
                 Ok(Some(FrameEventExprT { frame_event_part })) => {
                     value = Rc::new(FrameEventExprT { frame_event_part })
-                },
+                }
                 Ok(Some(EnumeratorExprT { enum_expr_node })) => {
                     value = Rc::new(EnumeratorExprT { enum_expr_node })
-                },
-                Ok(Some(SystemInstanceExprT { system_instance_expr_node })) => {
-                    value = Rc::new(SystemInstanceExprT { system_instance_expr_node })
-                },
+                }
+                Ok(Some(SystemInstanceExprT {
+                    system_instance_expr_node,
+                })) => {
+                    value = Rc::new(SystemInstanceExprT {
+                        system_instance_expr_node,
+                    })
+                }
                 Ok(Some(CallExprT { call_expr_node })) => {
-                    value = Rc::new(CallExprT { call_expr_node }) },
+                    value = Rc::new(CallExprT { call_expr_node })
+                }
                 Ok(Some(DefaultLiteralValueForTypeExprT)) => {
                     value = Rc::new(DefaultLiteralValueForTypeExprT)
-                },
-                Ok(Some(NilExprT)) => {
-                    value = Rc::new(NilExprT)
-                },
+                }
+                Ok(Some(NilExprT)) => value = Rc::new(NilExprT),
                 Ok(Some(ExprListT { expr_list_node })) => {
-                    let err_msg = &format!("Expr type 'ExprList' is not a valid rvalue assignment type.");
+                    let err_msg =
+                        &format!("Expr type 'ExprList' is not a valid rvalue assignment type.");
                     self.error_at_current(err_msg);
                     value = Rc::new(ExprListT { expr_list_node })
-                },
-                Ok(Some(TransitionExprT { transition_expr_node })) => {
-                    let err_msg = &format!("Expr type 'TransitionExpr' is not a valid rvalue assignment type.");
+                }
+                Ok(Some(TransitionExprT {
+                    transition_expr_node,
+                })) => {
+                    let err_msg = &format!(
+                        "Expr type 'TransitionExpr' is not a valid rvalue assignment type."
+                    );
                     self.error_at_current(err_msg);
-                    value = Rc::new(TransitionExprT { transition_expr_node })
-                },
-                Ok(Some(AssignmentExprT { assignment_expr_node })) => {
-                    let err_msg = &format!("Expr type 'AssignmentExpr' is not a valid rvalue assignment type.");
+                    value = Rc::new(TransitionExprT {
+                        transition_expr_node,
+                    })
+                }
+                Ok(Some(AssignmentExprT {
+                    assignment_expr_node,
+                })) => {
+                    let err_msg = &format!(
+                        "Expr type 'AssignmentExpr' is not a valid rvalue assignment type."
+                    );
                     self.error_at_current(err_msg);
-                    value = Rc::new(AssignmentExprT { assignment_expr_node })
-                },
-                Ok(Some(StateStackOperationExprT { state_stack_op_node })) => {
+                    value = Rc::new(AssignmentExprT {
+                        assignment_expr_node,
+                    })
+                }
+                Ok(Some(StateStackOperationExprT {
+                    state_stack_op_node,
+                })) => {
                     let err_msg = &format!("Expr type 'StateStackOperationExpr' is not a valid rvalue assignment type.");
                     self.error_at_current(err_msg);
-                    value = Rc::new(StateStackOperationExprT { state_stack_op_node })
-                },
-                Ok(Some(CallExprListT { call_expr_list_node })) => {
-                    let err_msg = &format!("Expr type 'CallExprList' is not a valid rvalue assignment type.");
+                    value = Rc::new(StateStackOperationExprT {
+                        state_stack_op_node,
+                    })
+                }
+                Ok(Some(CallExprListT {
+                    call_expr_list_node,
+                })) => {
+                    let err_msg =
+                        &format!("Expr type 'CallExprList' is not a valid rvalue assignment type.");
                     self.error_at_current(err_msg);
-                    value = Rc::new(CallExprListT { call_expr_list_node })
-                },
+                    value = Rc::new(CallExprListT {
+                        call_expr_list_node,
+                    })
+                }
                 Ok(None) => {
                     let err_msg = "Unexpected assignment expression value.";
                     self.error_at_current(err_msg);
-                    return Err(ParseError::new(err_msg))
+                    return Err(ParseError::new(err_msg));
                 }
                 Err(parse_err) => {
                     return Err(parse_err);
@@ -2581,7 +2631,8 @@ impl<'a> Parser<'a> {
             // add variable to current symbol table
             let scope = self.arcanum.get_current_identifier_scope();
             // Create variable symbol and set value to the intializer expression.
-            let variable_symbol = VariableSymbol::new(name, type_node_opt, scope, variable_decl_node_rcref.clone());
+            let variable_symbol =
+                VariableSymbol::new(name, type_node_opt, scope, variable_decl_node_rcref.clone());
             let variable_symbol_rcref = Rc::new(RefCell::new(variable_symbol));
             let variable_symbol_t = match identifier_decl_scope {
                 IdentifierDeclScope::DomainBlock => SymbolType::DomainVariable {
@@ -2624,7 +2675,6 @@ impl<'a> Parser<'a> {
                 .debug_print_current_symbols(self.arcanum.get_current_symtab());
         } else {
             // semantic pass
-
 
             // TODO
             self.arcanum
@@ -2898,8 +2948,8 @@ impl<'a> Parser<'a> {
         while self.match_token(&[TokenType::Identifier]) {
             match self.call(IdentifierDeclScope::None) {
                 Ok(Some(CallChainExprT {
-                            call_chain_expr_node,
-                        })) => calls.push(call_chain_expr_node),
+                    call_chain_expr_node,
+                })) => calls.push(call_chain_expr_node),
                 Ok(Some(_)) => return Err(ParseError::new("TODO")),
                 Err(parse_error) => return Err(parse_error),
                 Ok(None) => {} // continue
@@ -3203,7 +3253,10 @@ impl<'a> Parser<'a> {
                             event_symbol_rcref.borrow_mut().event_symbol_params_opt = Some(vec);
                         } else {
                             // validate event handler's parameters match the event symbol's parameters
-                            if event_symbol_rcref.borrow().event_symbol_params_opt.is_none()
+                            if event_symbol_rcref
+                                .borrow()
+                                .event_symbol_params_opt
+                                .is_none()
                                 && !parameters.is_empty()
                             {
                                 self.error_at_current(&format!("Event handler {} parameters do not match a previous declaration."
@@ -3333,7 +3386,8 @@ impl<'a> Parser<'a> {
                             }
                         }
                         if let Some(parameter_symbols) = event_symbol_params_opt {
-                            event_symbol_rcref.borrow_mut().event_symbol_params_opt = Some(parameter_symbols)
+                            event_symbol_rcref.borrow_mut().event_symbol_params_opt =
+                                Some(parameter_symbols)
                         }
                     } else {
                         // leave these comments to show how to debug scope errors.
@@ -3349,7 +3403,11 @@ impl<'a> Parser<'a> {
         } else {
             // no parameter list
             let event_symbol_rcref = self.arcanum.get_event(&msg, &self.state_name_opt).unwrap();
-            if event_symbol_rcref.borrow().event_symbol_params_opt.is_some() {
+            if event_symbol_rcref
+                .borrow()
+                .event_symbol_params_opt
+                .is_some()
+            {
                 self.error_at_current(&format!(
                     "Event handler {} parameters do not match a previous declaration.",
                     msg
@@ -3561,8 +3619,14 @@ impl<'a> Parser<'a> {
                                             call_chain_literal_stmt_node,
                                         } = expr_stmt_t
                                         {
-                                            match call_chain_literal_stmt_node.call_chain_literal_expr_node.call_chain.get(0) {
-                                                Some(CallChainNodeType::InterfaceMethodCallT { .. }) => {
+                                            match call_chain_literal_stmt_node
+                                                .call_chain_literal_expr_node
+                                                .call_chain
+                                                .get(0)
+                                            {
+                                                Some(CallChainNodeType::InterfaceMethodCallT {
+                                                    ..
+                                                }) => {
                                                     // interface method call must be last statement.
                                                     // TODO!!! - add this back when scope issue is fixed with parse errors
                                                     // self.interface_method_called = true;
@@ -3811,13 +3875,14 @@ impl<'a> Parser<'a> {
                         return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
                     }
                     ExprListT { expr_list_node } => {
-
                         // path for transitions with an exit params group
 
                         if self.match_token(&[TokenType::Transition]) {
                             match self.transition(Some(expr_list_node)) {
                                 Ok(transition_statement_node) => {
-                                    let statement_type = StatementType::TransitionStmt { transition_statement_node};
+                                    let statement_type = StatementType::TransitionStmt {
+                                        transition_statement_node,
+                                    };
                                     return Ok(Some(statement_type));
                                 }
                                 Err(parse_err) => return Err(parse_err),
@@ -3911,9 +3976,14 @@ impl<'a> Parser<'a> {
                         self.error_at_previous("Literal statements not allowed.");
                         return Err(ParseError::new("TODO"));
                     }
-                    TransitionExprT { transition_expr_node } => {
-                        let transition_statement_node = TransitionStatementNode::new(transition_expr_node,None);
-                        return Ok(Some(StatementType::TransitionStmt { transition_statement_node }));
+                    TransitionExprT {
+                        transition_expr_node,
+                    } => {
+                        let transition_statement_node =
+                            TransitionStatementNode::new(transition_expr_node, None);
+                        return Ok(Some(StatementType::TransitionStmt {
+                            transition_statement_node,
+                        }));
                     }
                     FrameEventExprT { .. } => {
                         self.error_at_previous("Frame Event statements not allowed.");
@@ -3936,7 +4006,9 @@ impl<'a> Parser<'a> {
                 if self.match_token(&[TokenType::Transition]) {
                     match self.transition(None) {
                         Ok(transition_statement_node) => {
-                            let statement_type = StatementType::TransitionStmt { transition_statement_node };
+                            let statement_type = StatementType::TransitionStmt {
+                                transition_statement_node,
+                            };
                             return Ok(Some(statement_type));
                         }
                         Err(parse_err) => return Err(parse_err),
@@ -4084,7 +4156,7 @@ impl<'a> Parser<'a> {
     fn bool_test(&mut self, expr_t: ExprType) -> Result<BoolTestNode, ParseError> {
         let is_negated: bool;
 
-        self.sync_tokens_from_error_context = vec![TokenType::ColonColon];
+        self.sync_tokens_from_error_context = vec![TokenType::ColonBar];
 
         // '?'
         if self.match_token(&[TokenType::BoolTestTrue]) {
@@ -4126,7 +4198,7 @@ impl<'a> Parser<'a> {
         }
 
         // '::'
-        if let Err(parse_error) = self.consume(TokenType::ColonColon, "Expected TestTerminator.") {
+        if let Err(parse_error) = self.consume(TokenType::ColonBar, "Expected TestTerminator.") {
             return Err(parse_error);
         }
 
@@ -4326,7 +4398,9 @@ impl<'a> Parser<'a> {
             // This enables a "dangling" ElseContinue.
             // :> :
             // :> ::
-            if self.peek().token_type == TokenType::Colon || self.peek().token_type == TokenType::ColonColon {
+            if self.peek().token_type == TokenType::Colon
+                || self.peek().token_type == TokenType::ColonBar
+            {
                 break;
             }
             match self.string_match_test_match_branch() {
@@ -4347,7 +4421,7 @@ impl<'a> Parser<'a> {
         }
 
         // '::'
-        if let Err(parse_error) = self.consume(TokenType::ColonColon, "Expected TestTerminator.") {
+        if let Err(parse_error) = self.consume(TokenType::ColonBar, "Expected TestTerminator.") {
             return Err(parse_error);
         }
 
@@ -4370,12 +4444,10 @@ impl<'a> Parser<'a> {
     fn string_match_test_match_branch(
         &mut self,
     ) -> Result<StringMatchTestMatchBranchNode, ParseError> {
-
         let mut match_strings: Vec<String> = Vec::new();
         let string_match_t;
 
         if self.match_token(&[TokenType::StringMatchStart]) {
-
             // MatchString token contains any and all characters
             // scraped from the input stream until one of the match string
             // terminators '|' or '/' is found.
@@ -4398,7 +4470,9 @@ impl<'a> Parser<'a> {
             }
 
             let string_match_test_pattern_node = StringMatchTestPatternNode::new(match_strings);
-            string_match_t = StringMatchType::MatchString {string_match_test_pattern_node};
+            string_match_t = StringMatchType::MatchString {
+                string_match_test_pattern_node,
+            };
 
             if let Err(parse_error) = self.consume(TokenType::ForwardSlash, "Expected '/'.") {
                 return Err(parse_error);
@@ -4408,7 +4482,10 @@ impl<'a> Parser<'a> {
         } else if self.match_token(&[TokenType::MatchNull]) {
             string_match_t = StringMatchType::MatchNullString;
         } else {
-            let err_msg = &format!("Expected string match '~/'  or null match '!/' token. Found '{}'.", self.current_token);
+            let err_msg = &format!(
+                "Expected string match '~/'  or null match '!/' token. Found '{}'.",
+                self.current_token
+            );
             self.error_at_current(err_msg.as_str());
             return Err(ParseError::new("TODO"));
         }
@@ -4494,7 +4571,10 @@ impl<'a> Parser<'a> {
             }
 
             if !r_value_rc.as_ref().is_valid_assignment_rvalue_expr_type() {
-                let err_msg = &format!("rvalue expr type '{}' is not a valid assignment expression type.", r_value_rc.as_ref().expr_type_name());
+                let err_msg = &format!(
+                    "rvalue expr type '{}' is not a valid assignment expression type.",
+                    r_value_rc.as_ref().expr_type_name()
+                );
                 self.error_at_current(err_msg);
             }
 
@@ -4873,8 +4953,8 @@ impl<'a> Parser<'a> {
     fn postfix_unary_expression(&mut self) -> Result<Option<ExprType>, ParseError> {
         match self.unary_expression2() {
             Ok(Some(CallChainExprT {
-                        call_chain_expr_node,
-                    })) => {
+                call_chain_expr_node,
+            })) => {
                 let mut x = CallChainExprT {
                     call_chain_expr_node,
                 };
@@ -4922,19 +5002,15 @@ impl<'a> Parser<'a> {
         if self.match_token(&[TokenType::LParen]) {
             match self.expr_list() {
                 Ok(Some(ExprListT {
-                            expr_list_node: expr_node,
-                        })) => {
+                    expr_list_node: expr_node,
+                })) => {
                     return Ok(Some(ExprListT {
                         expr_list_node: expr_node,
                     }))
                 }
                 Ok(Some(_)) => return Err(ParseError::new("TODO")), // TODO
                 Err(parse_error) => return Err(parse_error),
-                Ok(None) => {
-                    self.error_at_current(
-                        "Empty expression list '()' not allowed ",
-                    )
-                } // continue
+                Ok(None) => self.error_at_current("Empty expression list '()' not allowed "), // continue
             }
         }
 
@@ -4943,18 +5019,18 @@ impl<'a> Parser<'a> {
         if self.match_token(&[TokenType::Transition]) {
             match self.transition_expr() {
                 Ok(transition_expr_node) => {
-                   return Ok(Some(TransitionExprT {transition_expr_node}));
+                    return Ok(Some(TransitionExprT {
+                        transition_expr_node,
+                    }));
                 }
                 Err(parse_err) => return Err(parse_err),
             }
-
         } else if self.match_token(&[TokenType::System]) {
             // Parsing syntax related to a system.
             if self.match_token(&[TokenType::Dot]) {
                 // #.foo expression
                 scope = IdentifierDeclScope::DomainBlock;
             } else if self.match_token(&[TokenType::Identifier]) {
-
                 // #Foo(...) expression
                 // let system_name = self.previous().clone();
                 let id_node = IdentifierNode::new(
@@ -4967,9 +5043,7 @@ impl<'a> Parser<'a> {
                 if let Err(parse_error) = self.consume(TokenType::LParen, "Expected '('.") {
                     return Err(parse_error);
                 }
-                let (system_start_state_args,
-                    start_enter_args,
-                    domain_args) =
+                let (system_start_state_args, start_enter_args, domain_args) =
                     match self.system_arguments() {
                         Ok((system_start_state_args, start_enter_args, domain_args)) => {
                             (system_start_state_args, start_enter_args, domain_args)
@@ -4979,11 +5053,12 @@ impl<'a> Parser<'a> {
                         }
                     };
 
-                let system_instance_expr_node
-                    = SystemInstanceExprNode::new(id_node
-                                                  , system_start_state_args
-                                                  , start_enter_args
-                                                  , domain_args);
+                let system_instance_expr_node = SystemInstanceExprNode::new(
+                    id_node,
+                    system_start_state_args,
+                    start_enter_args,
+                    domain_args,
+                );
 
                 return Ok(Some(SystemInstanceExprT {
                     system_instance_expr_node,
@@ -5097,8 +5172,8 @@ impl<'a> Parser<'a> {
             if self.match_token(&[TokenType::Identifier]) {
                 match self.call(IdentifierDeclScope::None) {
                     Ok(Some(CallChainExprT {
-                                mut call_chain_expr_node,
-                            })) => {
+                        mut call_chain_expr_node,
+                    })) => {
                         call_chain_expr_node.is_new_expr = true;
                         return Ok(Some(CallChainExprT {
                             call_chain_expr_node,
@@ -5138,22 +5213,22 @@ impl<'a> Parser<'a> {
                     return Ok(Some(VariableExprT { var_node }));
                 }
                 Ok(Some(CallExprT {
-                            call_expr_node: method_call_expr_node,
-                        })) => {
+                    call_expr_node: method_call_expr_node,
+                })) => {
                     return Ok(Some(CallExprT {
                         call_expr_node: method_call_expr_node,
                     }))
                 }
                 Ok(Some(ActionCallExprT {
-                            action_call_expr_node,
-                        })) => {
+                    action_call_expr_node,
+                })) => {
                     return Ok(Some(ActionCallExprT {
                         action_call_expr_node,
                     }))
                 }
                 Ok(Some(CallChainExprT {
-                            mut call_chain_expr_node,
-                        })) => {
+                    mut call_chain_expr_node,
+                })) => {
                     // set the is_reference on first variable in the call chain
                     let call_chain_first_node_opt = call_chain_expr_node.call_chain.get_mut(0);
                     if let Some(call_chain_first_node) = call_chain_first_node_opt {
@@ -5562,7 +5637,6 @@ impl<'a> Parser<'a> {
         Ok(Some(FrameEventPart::Event { is_reference }))
     }
 
-
     /* --------------------------------------------------------------------- */
     //
     // Wrapper to convert result from expr_list() from ExprType to ExprListNode.
@@ -5577,9 +5651,7 @@ impl<'a> Parser<'a> {
                 return Err(parse_err);
             }
             _ => {
-                let err_msg = &format!(
-                    "Invalid error type."
-                );
+                let err_msg = &format!("Invalid error type.");
                 self.error_at_current(err_msg);
                 return Err(ParseError::new(err_msg));
             }
@@ -5621,7 +5693,6 @@ impl<'a> Parser<'a> {
             };
             Ok(Some(expr_list))
         }
-
     }
 
     /* --------------------------------------------------------------------- */
@@ -5709,7 +5780,6 @@ impl<'a> Parser<'a> {
             self.previous().line,
         );
 
-
         let mut call_chain: std::collections::VecDeque<CallChainNodeType> =
             std::collections::VecDeque::new();
 
@@ -5727,7 +5797,6 @@ impl<'a> Parser<'a> {
                     Ok(call_expr_node) => {
                         if !self.is_building_symbol_table {
                             if !is_first_node {
-
                                 // TODO - review if this can be factored out or simplified.
                                 // This code determines if the call is a call to a system interface.
                                 // If so it sets interface_method_symbol_rcref_opt to Some() which
@@ -5741,34 +5810,49 @@ impl<'a> Parser<'a> {
                                 let call_chain_node_type_opt = call_chain.get(call_chain.len() - 1);
                                 if let Some(call_chain_node_type) = call_chain_node_type_opt {
                                     match call_chain_node_type {
-                                        CallChainNodeType::VariableNodeT {
-                                            var_node
-                                        } => {
+                                        CallChainNodeType::VariableNodeT { var_node } => {
                                             let value = var_node.get_value();
 
                                             match &*value {
                                                 // Test if var_node value references a system.
-                                                ExprType::SystemInstanceExprT {..} => {
+                                                ExprType::SystemInstanceExprT { .. } => {
                                                     // Determine if call is to an interface method.
-                                                    match self.arcanum.lookup_interface_method(call_expr_node.get_name()) {
+                                                    match self.arcanum.lookup_interface_method(
+                                                        call_expr_node.get_name(),
+                                                    ) {
                                                         Some(interface_method_symbol_rcref) => {
-                                                            interface_method_symbol_rcref_opt = Some(interface_method_symbol_rcref.clone());
+                                                            interface_method_symbol_rcref_opt =
+                                                                Some(
+                                                                    interface_method_symbol_rcref
+                                                                        .clone(),
+                                                                );
 
                                                             // TODO - factor out arg/param validation into a utility function.
                                                             // validate args/params
 
-                                                            let interface_method_symbol = interface_method_symbol_rcref.borrow();
-                                                            let interface_method_node_rcref = interface_method_symbol.ast_node_opt.as_ref().unwrap();
-                                                            let parameter_node_vec_opt = &interface_method_node_rcref.borrow().params;
+                                                            let interface_method_symbol =
+                                                                interface_method_symbol_rcref
+                                                                    .borrow();
+                                                            let interface_method_node_rcref =
+                                                                interface_method_symbol
+                                                                    .ast_node_opt
+                                                                    .as_ref()
+                                                                    .unwrap();
+                                                            let parameter_node_vec_opt =
+                                                                &interface_method_node_rcref
+                                                                    .borrow()
+                                                                    .params;
 
                                                             // check if difference in the existence of parameters
-                                                            let params_is_none = parameter_node_vec_opt.is_none();
+                                                            let params_is_none =
+                                                                parameter_node_vec_opt.is_none();
                                                             let args_is_empty = call_expr_node
                                                                 .call_expr_list
                                                                 .exprs_t
                                                                 .is_empty();
-                                                            if  (!params_is_none && args_is_empty) ||
-                                                                (params_is_none && !args_is_empty)
+                                                            if (!params_is_none && args_is_empty)
+                                                                || (params_is_none
+                                                                    && !args_is_empty)
                                                             {
                                                                 let err_msg = format!("Incorrect number of arguments for interface method '{}'.", call_expr_node.get_name());
                                                                 self.error_at_previous(&err_msg);
@@ -5778,12 +5862,14 @@ impl<'a> Parser<'a> {
                                                                     Some(symbol_params) => {
                                                                         if symbol_params.len()
                                                                             != call_expr_node
-                                                                            .call_expr_list
-                                                                            .exprs_t
-                                                                            .len()
+                                                                                .call_expr_list
+                                                                                .exprs_t
+                                                                                .len()
                                                                         {
                                                                             let err_msg = format!("Number of arguments does not match parameters for interface method '{}'.", call_expr_node.get_name());
-                                                                            self.error_at_previous(&err_msg);
+                                                                            self.error_at_previous(
+                                                                                &err_msg,
+                                                                            );
                                                                         }
                                                                     }
                                                                     None => {}
@@ -5802,43 +5888,47 @@ impl<'a> Parser<'a> {
                                                 Some(symbol_t_rcref) => {
                                                     let symbol_t = symbol_t_rcref.borrow();
                                                     match &*symbol_t {
-                                                        SymbolType::System { system_symbol_rcref } => {
-                                                            interface_method_symbol_rcref_opt = system_symbol_rcref.borrow().get_interface_method(call_expr_node.get_name());
-                                                            if interface_method_symbol_rcref_opt.is_none() {
+                                                        SymbolType::System {
+                                                            system_symbol_rcref,
+                                                        } => {
+                                                            interface_method_symbol_rcref_opt =
+                                                                system_symbol_rcref
+                                                                    .borrow()
+                                                                    .get_interface_method(
+                                                                        call_expr_node.get_name(),
+                                                                    );
+                                                            if interface_method_symbol_rcref_opt
+                                                                .is_none()
+                                                            {
                                                                 // this call is to an interface method but it doesn't
                                                                 // exist on the system
                                                                 let err_msg = &format!("Interface method {} not found on {}.", call_expr_node.get_name(), var_node.get_name());
                                                                 self.error_at_current(err_msg);
                                                             }
                                                         }
-                                                        _ => {
-                                                        }
+                                                        _ => {}
                                                     }
                                                 }
                                                 None => {}
                                             }
-
                                         }
                                         _ => {}
                                     }
                                 }
 
                                 let call_t = match interface_method_symbol_rcref_opt {
-                                    None => {
-                                        CallChainNodeType::UndeclaredCallT {
-                                            call: call_expr_node,
-                                        }
-                                    }
+                                    None => CallChainNodeType::UndeclaredCallT {
+                                        call: call_expr_node,
+                                    },
                                     Some(interface_method_symbol_rcref) => {
                                         let mut interface_method_call_expr_node =
                                             InterfaceMethodCallExprNode::new(
                                                 call_expr_node,
                                                 InterfaceMethodCallType::External,
                                             );
-                                        interface_method_call_expr_node
-                                            .set_interface_symbol(
-                                                &interface_method_symbol_rcref.clone(),
-                                            );
+                                        interface_method_call_expr_node.set_interface_symbol(
+                                            &interface_method_symbol_rcref.clone(),
+                                        );
                                         CallChainNodeType::InterfaceMethodCallT {
                                             interface_method_call_expr_node,
                                         }
@@ -5846,12 +5936,10 @@ impl<'a> Parser<'a> {
                                 };
 
                                 call_chain.push_back(call_t);
-
                             } else {
                                 // is first or only node in a call chain. Determine if an action,
                                 // interface or external call.
-                                let method_name =
-                                    call_expr_node.identifier.name.lexeme.clone();
+                                let method_name = call_expr_node.identifier.name.lexeme.clone();
                                 let action_decl_symbol_opt =
                                     self.arcanum.lookup_action(&method_name);
 
@@ -5864,24 +5952,28 @@ impl<'a> Parser<'a> {
 
                                         match action_symbol_opt {
                                             Some(action_scope_symbol_rcref) => {
-
                                                 // TODO - factor out arg/param validation into a utility function.
                                                 // validate args/params
 
-                                                let action_scope_symbol = action_scope_symbol_rcref.borrow();
-                                                let action_node_rcref = action_scope_symbol.ast_node_opt.as_ref().unwrap();
-                                                let parameter_node_vec_opt = &action_node_rcref.borrow().params;
+                                                let action_scope_symbol =
+                                                    action_scope_symbol_rcref.borrow();
+                                                let action_node_rcref = action_scope_symbol
+                                                    .ast_node_opt
+                                                    .as_ref()
+                                                    .unwrap();
+                                                let parameter_node_vec_opt =
+                                                    &action_node_rcref.borrow().params;
                                                 // check if difference in the existance of parameters
                                                 if (!parameter_node_vec_opt.is_none()
                                                     && call_expr_node
-                                                    .call_expr_list
-                                                    .exprs_t
-                                                    .is_empty())
+                                                        .call_expr_list
+                                                        .exprs_t
+                                                        .is_empty())
                                                     || (parameter_node_vec_opt.is_none()
-                                                    && !call_expr_node
-                                                    .call_expr_list
-                                                    .exprs_t
-                                                    .is_empty())
+                                                        && !call_expr_node
+                                                            .call_expr_list
+                                                            .exprs_t
+                                                            .is_empty())
                                                 {
                                                     let err_msg = format!("Incorrect number of arguments for action '{}'.", method_name);
                                                     self.error_at_previous(&err_msg);
@@ -5894,9 +5986,9 @@ impl<'a> Parser<'a> {
                                                         Some(symbol_params) => {
                                                             if symbol_params.len()
                                                                 != call_expr_node
-                                                                .call_expr_list
-                                                                .exprs_t
-                                                                .len()
+                                                                    .call_expr_list
+                                                                    .exprs_t
+                                                                    .len()
                                                             {
                                                                 let err_msg = format!("Number of arguments does not match parameters for action '{}'.", method_name);
                                                                 self.error_at_previous(&err_msg);
@@ -5950,14 +6042,14 @@ impl<'a> Parser<'a> {
                                                 // check if difference in the existance of parameters
                                                 if (!c.is_none()
                                                     && call_expr_node
-                                                    .call_expr_list
-                                                    .exprs_t
-                                                    .is_empty())
+                                                        .call_expr_list
+                                                        .exprs_t
+                                                        .is_empty())
                                                     || (c.is_none()
-                                                    && !call_expr_node
-                                                    .call_expr_list
-                                                    .exprs_t
-                                                    .is_empty())
+                                                        && !call_expr_node
+                                                            .call_expr_list
+                                                            .exprs_t
+                                                            .is_empty())
                                                 {
                                                     let err_msg = format!("Incorrect number of arguments for interface '{}'.", method_name);
                                                     self.error_at_previous(&err_msg);
@@ -5971,9 +6063,9 @@ impl<'a> Parser<'a> {
                                                     Some(symbol_params) => {
                                                         if symbol_params.len()
                                                             != call_expr_node
-                                                            .call_expr_list
-                                                            .exprs_t
-                                                            .len()
+                                                                .call_expr_list
+                                                                .exprs_t
+                                                                .len()
                                                         {
                                                             let err_msg = format!("Number of arguments does not match parameters for interface call '{}'.", method_name);
                                                             self.error_at_previous(&err_msg);
@@ -5988,7 +6080,7 @@ impl<'a> Parser<'a> {
                                                 let mut interface_method_call_expr_node =
                                                     InterfaceMethodCallExprNode::new(
                                                         call_expr_node,
-                                                        InterfaceMethodCallType::Internal
+                                                        InterfaceMethodCallType::Internal,
                                                     );
                                                 interface_method_call_expr_node
                                                     .set_interface_symbol(&Rc::clone(
@@ -6015,7 +6107,8 @@ impl<'a> Parser<'a> {
                     }
                     _ => return Err(ParseError::new("TODO")),
                 }
-            } else { // Not a call so just an identifier which may be a variable
+            } else {
+                // Not a call so just an identifier which may be a variable
 
                 // This is a very subtle but important part of the logic here.
                 // We do a lookup for the id to find what scope it is in, if any.
@@ -6034,11 +6127,9 @@ impl<'a> Parser<'a> {
                     // Variables, parameters and enums must be
                     // the first (or only) node in the call chain
 
-                    let symbol_name = format!( "{}", &id_node.name.lexeme);
-                    let symbol_type_rcref_opt: Option<Rc<RefCell<SymbolType>>> = self
-                        .arcanum
-                        .lookup(&symbol_name, &explicit_scope)
-                        .clone();
+                    let symbol_name = format!("{}", &id_node.name.lexeme);
+                    let symbol_type_rcref_opt: Option<Rc<RefCell<SymbolType>>> =
+                        self.arcanum.lookup(&symbol_name, &explicit_scope).clone();
                     let call_chain_node_t = match &symbol_type_rcref_opt {
                         Some(symbol_t) => {
                             match &*symbol_t.borrow() {
@@ -6109,17 +6200,18 @@ impl<'a> Parser<'a> {
                                 // TODO!! It is a general point of failure
                                 // and source of fragility for the compiler that the sympol table references
                                 // AST nodes from the semantic pass to resolve parameter and types.
-
-                                SymbolType::BlockVar {..} |
-                                SymbolType::DomainVariable {..} |
-                                SymbolType::StateVariable {..} |
-                                SymbolType::EventHandlerVariable {..} |
-                                SymbolType::ParamSymbol {..} |
-                                SymbolType::StateParam {..} |
-                                SymbolType::EventHandlerParam {..}
-                                => {
-                                    let var_node =
-                                        VariableNode::new(id_node, scope, (&symbol_type_rcref_opt).clone());
+                                SymbolType::BlockVar { .. }
+                                | SymbolType::DomainVariable { .. }
+                                | SymbolType::StateVariable { .. }
+                                | SymbolType::EventHandlerVariable { .. }
+                                | SymbolType::ParamSymbol { .. }
+                                | SymbolType::StateParam { .. }
+                                | SymbolType::EventHandlerParam { .. } => {
+                                    let var_node = VariableNode::new(
+                                        id_node,
+                                        scope,
+                                        (&symbol_type_rcref_opt).clone(),
+                                    );
                                     CallChainNodeType::VariableNodeT { var_node }
                                 }
                                 // SymbolType::ParamSymbol {..} |
@@ -6129,18 +6221,13 @@ impl<'a> Parser<'a> {
                                 //     // See https://github.com/frame-lang/frame_transpiler/issues/151
                                 //     CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
                                 // }
-                                _ => {
-                                    CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
-                                }
+                                _ => CallChainNodeType::UndeclaredIdentifierNodeT { id_node },
                             }
                         }
-                        None => {
-                            CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
-                        }
+                        None => CallChainNodeType::UndeclaredIdentifierNodeT { id_node },
                     };
 
                     call_chain_node_t
-
                 } else {
                     CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
                 };
@@ -6300,8 +6387,6 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-
-
     fn finish_call(&mut self, identifer_node: IdentifierNode) -> Result<CallExprNode, ParseError> {
         let call_expr_list_node;
         match self.expr_list() {
@@ -6311,11 +6396,9 @@ impl<'a> Parser<'a> {
                 call_expr_list_node = CallExprListNode::new(expr_list_node.exprs_t);
                 //    call_expr_list_node = CallExprListT {call_expr_list_node};
             }
-            Ok(Some(_))  => return Err(ParseError::new("Invalid call expression list.")),
+            Ok(Some(_)) => return Err(ParseError::new("Invalid call expression list.")),
             Err(parse_error) => return Err(parse_error),
-            Ok(None) => {
-                call_expr_list_node = CallExprListNode::new(Vec::new())
-            },
+            Ok(None) => call_expr_list_node = CallExprListNode::new(Vec::new()),
         }
 
         let call_expr_node = CallExprNode::new(identifer_node, call_expr_list_node, None);
@@ -6363,8 +6446,7 @@ impl<'a> Parser<'a> {
     ) -> Result<Option<TargetStateContextType>, ParseError> {
         if self.match_token(&[TokenType::StateStackOperationPop]) {
             if !is_transition {
-                let err_msg =
-                    "State change disallowed to a popped state.";
+                let err_msg = "State change disallowed to a popped state.";
                 self.error_at_previous(&err_msg);
             } else if let Some(..) = enter_args_opt {
                 let err_msg =
@@ -6378,10 +6460,9 @@ impl<'a> Parser<'a> {
             self.error_at_previous(&err_msg);
             return Err(ParseError::new(err_msg));
         } else {
-
             // parse state ref e.g. '$S1'
             if !self.match_token(&[TokenType::State]) {
-                let err_msg = &format!("Expected target state, found {}.",self.current_token);
+                let err_msg = &format!("Expected target state, found {}.", self.current_token);
                 self.error_at_current(&&err_msg);
                 return Err(ParseError::new(err_msg));
             }
@@ -6423,19 +6504,17 @@ impl<'a> Parser<'a> {
                                 let err_msg = &format!("Number of transition enter arguments not equal to number of event handler parameters.");
                                 self.error_at_previous(err_msg.as_str());
                             }
-                        } else { // is state change
-                            let err_msg = &format!("State change disallowed to states with enter eventhandler.");
+                        } else {
+                            // is state change
+                            let err_msg = &format!(
+                                "State change disallowed to states with enter eventhandler."
+                            );
                             self.error_at_previous(err_msg.as_str());
                         }
-
                     }
                     None => {}
                 }
-
-
-
             }
-
 
             // parse optional state argument list
             // '(' ')' | '(' expr ')'
@@ -6452,7 +6531,11 @@ impl<'a> Parser<'a> {
                         }
                         state_ref_args_opt = Some(expr_list_node)
                     }
-                    Ok(Some(_)) => return Err(ParseError::new("Invalid expression list for state parmeters.")), // TODO
+                    Ok(Some(_)) => {
+                        return Err(ParseError::new(
+                            "Invalid expression list for state parmeters.",
+                        ))
+                    } // TODO
                     Err(parse_error) => return Err(parse_error),
                     Ok(None) => {
                         // Error - number of state params does not match number of expression arguments
@@ -6516,10 +6599,15 @@ impl<'a> Parser<'a> {
                 }
             }
 
-            let state_context_node =
-                TargetStateContextNode::new(StateRefNode::new(name), state_ref_args_opt, enter_args_opt);
+            let state_context_node = TargetStateContextNode::new(
+                StateRefNode::new(name),
+                state_ref_args_opt,
+                enter_args_opt,
+            );
 
-            Ok(Some(TargetStateContextType::StateRef { state_context_node }))
+            Ok(Some(TargetStateContextType::StateRef {
+                state_context_node,
+            }))
         }
     }
 
@@ -6529,7 +6617,6 @@ impl<'a> Parser<'a> {
         &mut self,
         exit_args_opt: Option<ExprListNode>,
     ) -> Result<TransitionStatementNode, ParseError> {
-
         if exit_args_opt.is_some() {
             // need exit args generated
             self.generate_exit_args = true;
@@ -6552,11 +6639,8 @@ impl<'a> Parser<'a> {
         }
         match self.transition_expr() {
             Ok(transition_expr_node) => {
-
-                let transition_stmt_node = TransitionStatementNode::new(
-                    transition_expr_node,
-                    exit_args_opt,
-                );
+                let transition_stmt_node =
+                    TransitionStatementNode::new(transition_expr_node, exit_args_opt);
                 Ok(transition_stmt_node)
             }
             Err(parse_err) => Err(parse_err),
@@ -6567,9 +6651,7 @@ impl<'a> Parser<'a> {
 
     // transition : exitArgs '->' enterArgs transitionLabel stateRef stateArgs
 
-    fn transition_expr(
-        &mut self,
-    ) -> Result<TransitionExprNode, ParseError> {
+    fn transition_expr(&mut self) -> Result<TransitionExprNode, ParseError> {
         self.generate_transition_state = true;
 
         if self.is_action_scope {
@@ -6605,11 +6687,8 @@ impl<'a> Parser<'a> {
                 Ok(Some(ExprListT { expr_list_node })) => enter_args_opt = Some(expr_list_node),
                 Ok(Some(_)) => return Err(ParseError::new("TODO")), // TODO
                 Err(parse_error) => return Err(parse_error),
-                Ok(None) => {
-                    self.error_at_current(
-                        "Transition enter args expression cannot be an empty list.",
-                    )
-                } // continue
+                Ok(None) => self
+                    .error_at_current("Transition enter args expression cannot be an empty list."), // continue
             }
         }
 
@@ -6650,11 +6729,8 @@ impl<'a> Parser<'a> {
         // top of the event handler.
         self.event_handler_has_transition = true;
 
-        let transition_expr_node = TransitionExprNode::new(
-            target_state_context_t,
-            label_opt,
-            forward_event,
-        );
+        let transition_expr_node =
+            TransitionExprNode::new(target_state_context_t, label_opt, forward_event);
 
         Ok(transition_expr_node)
     }
@@ -6679,7 +6755,8 @@ impl<'a> Parser<'a> {
         let state_name = &self.state_name_opt.as_ref().unwrap().clone();
         match &self.get_state_exit_eventhandler(state_name) {
             Some(..) => {
-                let err_msg = &format!("State change disallowed out of states with exit eventhandler.");
+                let err_msg =
+                    &format!("State change disallowed out of states with exit eventhandler.");
                 self.error_at_current(err_msg.as_str());
             }
             None => {}
@@ -6721,7 +6798,9 @@ impl<'a> Parser<'a> {
             // This enables a "dangling" ElseContinue.
             // :> :
             // :> ::
-            if self.peek().token_type == TokenType::Colon || self.peek().token_type == TokenType::ColonColon {
+            if self.peek().token_type == TokenType::Colon
+                || self.peek().token_type == TokenType::ColonBar
+            {
                 break;
             }
             match self.number_match_test_match_branch() {
@@ -6742,7 +6821,7 @@ impl<'a> Parser<'a> {
         }
 
         // '::'
-        if let Err(parse_error) = self.consume(TokenType::ColonColon, "Expected TestTerminator.") {
+        if let Err(parse_error) = self.consume(TokenType::ColonBar, "Expected TestTerminator.") {
             return Err(parse_error);
         }
 
@@ -6898,7 +6977,9 @@ impl<'a> Parser<'a> {
             // This enables a "dangling" ElseContinue.
             // :> :
             // :> ::
-            if self.peek().token_type == TokenType::Colon || self.peek().token_type == TokenType::ColonColon {
+            if self.peek().token_type == TokenType::Colon
+                || self.peek().token_type == TokenType::ColonBar
+            {
                 break;
             }
             match self.enum_match_test_match_branch(&enum_symbol_rcref_opt) {
@@ -6919,7 +7000,7 @@ impl<'a> Parser<'a> {
         }
 
         // '::'
-        if let Err(parse_error) = self.consume(TokenType::ColonColon, "Expected TestTerminator.") {
+        if let Err(parse_error) = self.consume(TokenType::ColonBar, "Expected TestTerminator.") {
             return Err(parse_error);
         }
 
@@ -6955,11 +7036,9 @@ impl<'a> Parser<'a> {
         let enum_match_pattern_node = EnumMatchTestPatternNode::new(match_pattern_enum.clone());
         enum_match_pattern_nodes.push(enum_match_pattern_node);
 
-
         let mut enum_type_name = String::new();
 
         while self.match_token(&[TokenType::Pipe]) {
-
             if !self.match_token(&[TokenType::Identifier]) {
                 return Err(ParseError::new("TODO"));
             }
@@ -7033,11 +7112,9 @@ impl<'a> Parser<'a> {
         }
     }
 
-
     /* --------------------------------------------------------------------- */
     /* --------------------------------------------------------------------- */
     // helper functions
-
 
     /* --------------------------------------------------------------------- */
 
@@ -7171,7 +7248,6 @@ impl<'a> Parser<'a> {
 
     // TODO: put the message in the ParseError
     fn error_at(&mut self, token: &Token, message: &str) {
-
         // TODO I've commented these out as I'm not sure why we would
         // want to return if already panicing. Howver, this has been
         // here a long time so preserving in case there is strange behavior.
@@ -7247,48 +7323,49 @@ impl<'a> Parser<'a> {
         false
     }
 
-
     /* --------------------------------------------------------------------- */
 
-    fn get_state_enter_eventhandler(&mut self, state_name: &str) -> Option<Rc<RefCell<EventHandlerNode>>> {
+    fn get_state_enter_eventhandler(
+        &mut self,
+        state_name: &str,
+    ) -> Option<Rc<RefCell<EventHandlerNode>>> {
         let state_rcref_opt = self.arcanum.get_state(state_name);
         match state_rcref_opt {
-            Some(state_symbol) => {
-                match &state_symbol.borrow().state_node_opt {
-                    Some(state_node_rcref) => {
-                        let state_node = state_node_rcref.borrow();
-                        if let Some(enter_event_handler_rcref) = &state_node.enter_event_handler_opt {
-                            Some(enter_event_handler_rcref.clone())
-                        } else {
-                            None
-                        }
+            Some(state_symbol) => match &state_symbol.borrow().state_node_opt {
+                Some(state_node_rcref) => {
+                    let state_node = state_node_rcref.borrow();
+                    if let Some(enter_event_handler_rcref) = &state_node.enter_event_handler_opt {
+                        Some(enter_event_handler_rcref.clone())
+                    } else {
+                        None
                     }
-                    None => None
                 }
-            }
-            None => None
+                None => None,
+            },
+            None => None,
         }
     }
 
     /* --------------------------------------------------------------------- */
 
-    fn get_state_exit_eventhandler(&mut self, state_name: &str) -> Option<Rc<RefCell<EventHandlerNode>>> {
+    fn get_state_exit_eventhandler(
+        &mut self,
+        state_name: &str,
+    ) -> Option<Rc<RefCell<EventHandlerNode>>> {
         let state_rcref_opt = self.arcanum.get_state(state_name);
         match state_rcref_opt {
-            Some(state_symbol) => {
-                match &state_symbol.borrow().state_node_opt {
-                    Some(state_node_rcref) => {
-                        let state_node = state_node_rcref.borrow();
-                        if let Some(exit_event_handler_rcref) = &state_node.exit_event_handler_opt {
-                            Some(exit_event_handler_rcref.clone())
-                        } else {
-                            None
-                        }
+            Some(state_symbol) => match &state_symbol.borrow().state_node_opt {
+                Some(state_node_rcref) => {
+                    let state_node = state_node_rcref.borrow();
+                    if let Some(exit_event_handler_rcref) = &state_node.exit_event_handler_opt {
+                        Some(exit_event_handler_rcref.clone())
+                    } else {
+                        None
                     }
-                    None => None
                 }
-            }
-            None => None
+                None => None,
+            },
+            None => None,
         }
     }
 
@@ -7296,21 +7373,25 @@ impl<'a> Parser<'a> {
 
     // This method abstractly handles "l_value = r_value" for all expression types.
 
-    fn assign(&mut self,l_value:&mut  ExprType, r_value_rc: Rc<ExprType>) -> Result<(), ParseError> {
+    fn assign(
+        &mut self,
+        l_value: &mut ExprType,
+        r_value_rc: Rc<ExprType>,
+    ) -> Result<(), ParseError> {
         // Now get the variable and assign new value
         // let debug_expr_name = l_value.expr_type_name();
         let name_opt = l_value.get_name();
         if name_opt.is_some() {
             // this is a variable so update value
             let l_value_name = name_opt.unwrap();
-            let symbol_t_opt = self.arcanum.lookup(l_value_name.as_str(), &IdentifierDeclScope::None);
+            let symbol_t_opt = self
+                .arcanum
+                .lookup(l_value_name.as_str(), &IdentifierDeclScope::None);
             match symbol_t_opt {
                 Some(symbol_t_rcref) => {
                     let mut symbol_t = symbol_t_rcref.borrow_mut();
                     match symbol_t.assign(r_value_rc.clone()) {
-                        Ok(()) => {
-                            Ok(())
-                        }
+                        Ok(()) => Ok(()),
                         Err(err_msg) => {
                             self.error_at_current(&err_msg);
                             Err(ParseError::new(err_msg))
@@ -7333,13 +7414,15 @@ impl<'a> Parser<'a> {
 
     // This method abstractly handles "l_value = r_value" for all expression types.
 
-    fn validate_transition_exit_params(&mut self,state_name:&str,current_state_exit_arg_cnt:usize) -> Result<(), ParseError> {
+    fn validate_transition_exit_params(
+        &mut self,
+        state_name: &str,
+        current_state_exit_arg_cnt: usize,
+    ) -> Result<(), ParseError> {
         let state_symbol_rcref_opt = self.arcanum.get_state(&state_name);
         let state_symbol_rcref = match state_symbol_rcref_opt {
-            Some(state_symbol) => {
-                state_symbol.clone()
-            },
-            None => return Err(ParseError::new(&format!("State {} not found.",state_name))),
+            Some(state_symbol) => state_symbol.clone(),
+            None => return Err(ParseError::new(&format!("State {} not found.", state_name))),
         };
 
         let state_symbol = state_symbol_rcref.borrow();
@@ -7352,9 +7435,5 @@ impl<'a> Parser<'a> {
         } else {
             Ok(())
         }
-
-
     }
-
-
-    }
+}

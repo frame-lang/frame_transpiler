@@ -56,6 +56,7 @@ class EnumTest:
     
     # ===================== Machine Block =================== #
     
+    # $SUN
     def __enumtest_state_SUN(self, e):
         if e._message == "A":
             self.entered_do("SUNDAY",EnumTest_Days.SUNDAY)
@@ -66,6 +67,7 @@ class EnumTest:
             self.__transition(compartment)
             return
     
+    # $MON
     def __enumtest_state_MON(self, e):
         if e._message == "A":
             self.entered_do("MONDAY",EnumTest_Days.MONDAY)
@@ -76,6 +78,7 @@ class EnumTest:
             self.__transition(compartment)
             return
     
+    # $TUE
     def __enumtest_state_TUE(self, e):
         if e._message == "A":
             self.entered_do("TUESDAY",EnumTest_Days.TUESDAY)
@@ -86,6 +89,7 @@ class EnumTest:
             self.__transition(compartment)
             return
     
+    # $WED
     def __enumtest_state_WED(self, e):
         if e._message == "A":
             self.entered_do("WEDNESDAY",EnumTest_Days.WEDNESDAY)
@@ -96,6 +100,7 @@ class EnumTest:
             self.__transition(compartment)
             return
     
+    # $THR
     def __enumtest_state_THR(self, e):
         if e._message == "A":
             self.entered_do("THURSDAY",EnumTest_Days.THURSDAY)
@@ -106,6 +111,7 @@ class EnumTest:
             self.__transition(compartment)
             return
     
+    # $FRI
     def __enumtest_state_FRI(self, e):
         if e._message == "A":
             self.entered_do("FRIDAY",EnumTest_Days.FRIDAY)
@@ -122,6 +128,7 @@ class EnumTest:
         raise NotImplementedError
     def left_do(self,msg: str,val: int):
         raise NotImplementedError
+    
     # =============== Machinery and Mechanisms ============== #
     
     def __mux(self, e):
@@ -180,8 +187,6 @@ class EnumTestCompartment:
         self.exit_args = {}
         self.forward_event = None
     
-
-
 # ********************
 
 #class EnumTestController(EnumTest):

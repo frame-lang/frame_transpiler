@@ -61,6 +61,7 @@ class StateContextSm:
       #  Change [arg:int]
     
     
+    # $Init
     def __statecontextsm_state_Init(self, e):
         if e._message == ">":
             (self.__compartment.state_vars["w"]) = 3
@@ -68,7 +69,8 @@ class StateContextSm:
             return
         elif e._message == "Inc":
             (self.__compartment.state_vars["w"]) = self.__compartment.state_vars["w"] + 1
-            self.log_do("w",(self.__compartment.state_vars["w"]))e._return = (self.__compartment.state_vars["w"])
+            self.log_do("w",(self.__compartment.state_vars["w"]))
+            e._return = (self.__compartment.state_vars["w"])
             return
             
         elif e._message == "LogState":
@@ -82,6 +84,7 @@ class StateContextSm:
             self.__transition(compartment)
             return
     
+    # $Foo
     def __statecontextsm_state_Foo(self, e):
         if e._message == ">":
             self.log_do("a",e._parameters["a"])
@@ -99,7 +102,8 @@ class StateContextSm:
             return
         elif e._message == "Inc":
             (self.__compartment.state_vars["x"]) = self.__compartment.state_vars["x"] + 1
-            self.log_do("x",(self.__compartment.state_vars["x"]))e._return = (self.__compartment.state_vars["x"])
+            self.log_do("x",(self.__compartment.state_vars["x"]))
+            e._return = (self.__compartment.state_vars["x"])
             return
             
         elif e._message == "Next":
@@ -118,6 +122,7 @@ class StateContextSm:
       #      ^
     
     
+    # $Bar
     def __statecontextsm_state_Bar(self, e):
         if e._message == ">":
             self.log_do("a",e._parameters["a"])
@@ -131,7 +136,8 @@ class StateContextSm:
             return
         elif e._message == "Inc":
             (self.__compartment.state_vars["z"]) = self.__compartment.state_vars["z"] + 1
-            self.log_do("z",(self.__compartment.state_vars["z"]))e._return = (self.__compartment.state_vars["z"])
+            self.log_do("z",(self.__compartment.state_vars["z"]))
+            e._return = (self.__compartment.state_vars["z"])
             return
             
     
@@ -139,6 +145,7 @@ class StateContextSm:
     
     def log_do(self,name: str,val: int):
         raise NotImplementedError
+    
     # =============== Machinery and Mechanisms ============== #
     
     def __mux(self, e):
@@ -191,8 +198,6 @@ class StateContextSmCompartment:
         self.exit_args = {}
         self.forward_event = None
     
-
-
 # ********************
 
 #class StateContextSmController(StateContextSm):

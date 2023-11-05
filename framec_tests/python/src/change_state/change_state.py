@@ -35,6 +35,7 @@ class ChangeStateSm:
     
     # ===================== Machine Block =================== #
     
+    # $S0
     def __changestatesm_state_S0(self, e):
         if e._message == "change":
             compartment = ChangeStateSmCompartment(self.__changestatesm_state_S1)
@@ -42,6 +43,7 @@ class ChangeStateSm:
             self.__change_state(compartment)
             return
     
+    # $S1
     def __changestatesm_state_S1(self, e):
         if e._message == "change":
             compartment = ChangeStateSmCompartment(self.__changestatesm_state_S2)
@@ -49,6 +51,7 @@ class ChangeStateSm:
             self.__change_state(compartment)
             return
     
+    # $S2
     def __changestatesm_state_S2(self, e):
         if e._message == "change":
             compartment = ChangeStateSmCompartment(self.__changestatesm_state_S3)
@@ -56,6 +59,7 @@ class ChangeStateSm:
             self.__change_state(compartment)
             return
     
+    # $S3
     def __changestatesm_state_S3(self, e):
         if e._message == "change":
             compartment = ChangeStateSmCompartment(self.__changestatesm_state_S4)
@@ -63,12 +67,14 @@ class ChangeStateSm:
             self.__change_state(compartment)
             return
     
+    # $S4
     def __changestatesm_state_S4(self, e):
         if e._message == "change":
             compartment = ChangeStateSmCompartment(self.__changestatesm_state_S0)
             
             self.__change_state(compartment)
             return
+    
     
     # =============== Machinery and Mechanisms ============== #
     
@@ -130,8 +136,6 @@ class ChangeStateSmCompartment:
         self.exit_args = {}
         self.forward_event = None
     
-
-
 # ********************
 
 #class ChangeStateSmController(ChangeStateSm):

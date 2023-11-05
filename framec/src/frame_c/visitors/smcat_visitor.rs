@@ -107,7 +107,9 @@ impl SmcatVisitor {
                         } => {
                             state_stack_operation_statement_node.accept(self);
                         }
-                        StatementType::ChangeStateStmt { change_state_stmt_node: change_state_stmt } => {
+                        StatementType::ChangeStateStmt {
+                            change_state_stmt_node: change_state_stmt,
+                        } => {
                             change_state_stmt.accept(self);
                         }
                         StatementType::LoopStmt { .. } => {
@@ -306,7 +308,10 @@ impl AstVisitor for SmcatVisitor {
     fn visit_action_call_statement_node(&mut self, _action_call_stmt_node: &ActionCallStmtNode) {}
 
     fn visit_transition_statement_node(&mut self, transition_statement: &TransitionStatementNode) {
-        match &transition_statement.transition_expr_node.target_state_context_t {
+        match &transition_statement
+            .transition_expr_node
+            .target_state_context_t
+        {
             TargetStateContextType::StateRef { .. } => {
                 self.generate_state_ref_transition(transition_statement)
             }

@@ -42,6 +42,7 @@ class TransitParams:
     
     # ===================== Machine Block =================== #
     
+    # $Init
     def __transitparams_state_Init(self, e):
         if e._message == "Next":
             compartment = TransitParamsCompartment(self.__transitparams_state_A)
@@ -49,6 +50,7 @@ class TransitParams:
             self.__transition(compartment)
             return
     
+    # $A
     def __transitparams_state_A(self, e):
         if e._message == ">":
             self.log_do(e._parameters["msg"])
@@ -63,6 +65,7 @@ class TransitParams:
             self.__transition(compartment)
             return
     
+    # $B
     def __transitparams_state_B(self, e):
         if e._message == ">":
             self.log_do(e._parameters["msg"])
@@ -84,6 +87,7 @@ class TransitParams:
     
     def log_do(self,msg: str):
         raise NotImplementedError
+    
     # =============== Machinery and Mechanisms ============== #
     
     def __mux(self, e):
@@ -136,8 +140,6 @@ class TransitParamsCompartment:
         self.exit_args = {}
         self.forward_event = None
     
-
-
 # ********************
 
 #class TransitParamsController(TransitParams):

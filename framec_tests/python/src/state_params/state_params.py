@@ -50,6 +50,7 @@ class StateParams:
     
     # ===================== Machine Block =================== #
     
+    # $Init
     def __stateparams_state_Init(self, e):
         if e._message == "Next":
             compartment = StateParamsCompartment(self.__stateparams_state_Split)
@@ -57,6 +58,7 @@ class StateParams:
             self.__transition(compartment)
             return
     
+    # $Split
     def __stateparams_state_Split(self, e):
         if e._message == "Next":
             compartment = StateParamsCompartment(self.__stateparams_state_Merge)
@@ -74,6 +76,7 @@ class StateParams:
             self.got_param_do("val",(self.__compartment.state_args["val"]))
             return
     
+    # $Merge
     def __stateparams_state_Merge(self, e):
         if e._message == "Next":
             compartment = StateParamsCompartment(self.__stateparams_state_Split)
@@ -94,6 +97,7 @@ class StateParams:
     
     def got_param_do(self,name: str,val: int):
         raise NotImplementedError
+    
     # =============== Machinery and Mechanisms ============== #
     
     def __mux(self, e):
@@ -146,8 +150,6 @@ class StateParamsCompartment:
         self.exit_args = {}
         self.forward_event = None
     
-
-
 # ********************
 
 #class StateParamsController(StateParams):

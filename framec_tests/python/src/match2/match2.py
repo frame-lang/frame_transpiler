@@ -41,6 +41,7 @@ class MatchTests:
     
     # ===================== Machine Block =================== #
     
+    # $A
     def __matchtests_state_A(self, e):
         if e._message == ">":
             self.matchFruit_do(MatchTests_Fruit.PEACH)
@@ -147,6 +148,7 @@ class MatchTests:
         
     def log_do(self,msg):
         self.tape.append(msg)
+    
     # =============== Machinery and Mechanisms ============== #
     
     def __mux(self, e):
@@ -192,8 +194,6 @@ class MatchTestsCompartment:
         self.exit_args = {}
         self.forward_event = None
     
-
-
 # ********************
 
 #class MatchTestsController(MatchTests):

@@ -26,7 +26,7 @@ from framelang.framelang import FrameEvent
                 ~/snake_event/ snake_event(param) :>
                 ~/CamelEvent/ CamelEvent(param) :>
                 ~/event123/ event123(param)
-                : :: ^
+                : :| ^
 
     $snake_state [snake_state_param:int]
 
@@ -53,7 +53,7 @@ from framelang.framelang import FrameEvent
                 ~/snake_event/ snake_event(param) :>
                 ~/CamelEvent/ CamelEvent(param) :>
                 ~/event123/ event123(param)
-                : :: ^
+                : :| ^
 
     $CamelState [CamelStateParam:int]
 
@@ -80,7 +80,7 @@ from framelang.framelang import FrameEvent
                 ~/snake_event/ snake_event(param) :>
                 ~/CamelEvent/ CamelEvent(param) :>
                 ~/event123/ event123(param)
-                : :: ^
+                : :| ^
 
     $state123 [stateParam123:int]
 
@@ -107,7 +107,7 @@ from framelang.framelang import FrameEvent
                 ~/snake_event/ snake_event(param) :>
                 ~/CamelEvent/ CamelEvent(param) :>
                 ~/event123/ event123(param)
-                : :: ^
+                : :| ^
 
     $Final [result:int]
         |>|

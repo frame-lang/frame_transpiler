@@ -83,6 +83,7 @@ class EventHandler:
     
     # ===================== Machine Block =================== #
     
+    # $S1
     def __eventhandler_state_S1(self, e):
         if e._message == "LogIt":
             self.log_do("x",e._parameters["x"])
@@ -96,7 +97,8 @@ class EventHandler:
             self.log_do("a",e._parameters["a"])
             self.log_do("b",e._parameters["b"])
             r  = e._parameters["a"] + e._parameters["b"]
-            self.log_do("r",r)e._return = r
+            self.log_do("r",r)
+            e._return = r
             return
             
         elif e._message == "PassAdd":
@@ -109,10 +111,12 @@ class EventHandler:
             self.log_do("r",r)
             compartment = EventHandlerCompartment(self.__eventhandler_state_S2)
             compartment.state_args["p"] = r
-            self.__transition(compartment)e._return = r
+            self.__transition(compartment)
+            e._return = r
             return
             
     
+    # $S2
     def __eventhandler_state_S2(self, e):
         if e._message == ">":
             self.log_do("p",(self.__compartment.state_args["p"]))
@@ -122,6 +126,7 @@ class EventHandler:
     
     def log_do(self,msg: str,val: int):
         raise NotImplementedError
+    
     # =============== Machinery and Mechanisms ============== #
     
     def __mux(self, e):
@@ -172,8 +177,6 @@ class EventHandlerCompartment:
         self.exit_args = {}
         self.forward_event = None
     
-
-
 # ********************
 
 #class EventHandlerController(EventHandler):

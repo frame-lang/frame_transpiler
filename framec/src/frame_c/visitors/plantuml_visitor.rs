@@ -328,7 +328,9 @@ impl PlantUmlVisitor {
                         } => {
                             state_stack_operation_statement_node.accept(self);
                         }
-                        StatementType::ChangeStateStmt { change_state_stmt_node: change_state_stmt } => {
+                        StatementType::ChangeStateStmt {
+                            change_state_stmt_node: change_state_stmt,
+                        } => {
                             change_state_stmt.accept(self);
                         }
                         StatementType::LoopStmt { loop_stmt_node } => {
@@ -524,7 +526,10 @@ impl PlantUmlVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn generate_state_ref_transition(&mut self, transition_statement: &TransitionStatementNode) {
-        let target_state_name = match &transition_statement.transition_expr_node.target_state_context_t {
+        let target_state_name = match &transition_statement
+            .transition_expr_node
+            .target_state_context_t
+        {
             TargetStateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_node.name
             }
@@ -1373,7 +1378,10 @@ impl AstVisitor for PlantUmlVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_transition_statement_node(&mut self, transition_statement: &TransitionStatementNode) {
-        match &transition_statement.transition_expr_node.target_state_context_t {
+        match &transition_statement
+            .transition_expr_node
+            .target_state_context_t
+        {
             TargetStateContextType::StateRef { .. } => {
                 self.generate_state_ref_transition(transition_statement)
             }

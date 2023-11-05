@@ -52,12 +52,14 @@ class Hierarchical:
     
     # ===================== Machine Block =================== #
     
+    # $I
     def __hierarchical_state_I(self, e):
         if e._message == ">":
             compartment = HierarchicalCompartment(self.__hierarchical_state_S)
             self.__transition(compartment)
             return
     
+    # $S
     def __hierarchical_state_S(self, e):
         if e._message == ">":
             self.enter_do("S")
@@ -76,6 +78,7 @@ class Hierarchical:
             self.__transition(compartment)
             return
     
+    # $S0
     def __hierarchical_state_S0(self, e):
         if e._message == ">":
             self.enter_do("S0")
@@ -99,6 +102,7 @@ class Hierarchical:
         self.__hierarchical_state_S(e)
         
     
+    # $S1
     def __hierarchical_state_S1(self, e):
         if e._message == ">":
             self.enter_do("S1")
@@ -116,6 +120,7 @@ class Hierarchical:
         self.__hierarchical_state_S(e)
         
     
+    # $S2
     def __hierarchical_state_S2(self, e):
         if e._message == ">":
             self.enter_do("S2")
@@ -134,6 +139,7 @@ class Hierarchical:
       #  continue after transition (should be ignored)
     
     
+    # $S3
     def __hierarchical_state_S3(self, e):
         if e._message == ">":
             self.enter_do("S3")
@@ -149,6 +155,7 @@ class Hierarchical:
         self.__hierarchical_state_S1(e)
         
     
+    # $T
     def __hierarchical_state_T(self, e):
         if e._message == ">":
             self.enter_do("T")
@@ -180,6 +187,7 @@ class Hierarchical:
         raise NotImplementedError
     def log_do(self,msg: str):
         raise NotImplementedError
+    
     # =============== Machinery and Mechanisms ============== #
     
     def __mux(self, e):
@@ -240,8 +248,6 @@ class HierarchicalCompartment:
         self.exit_args = {}
         self.forward_event = None
     
-
-
 # ********************
 
 #class HierarchicalController(Hierarchical):

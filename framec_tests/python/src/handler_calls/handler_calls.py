@@ -73,6 +73,7 @@ class HandlerCalls:
     
     # ===================== Machine Block =================== #
     
+    # $Init
     def __handlercalls_state_Init(self, e):
         if e._message == "NonRec":
             compartment = HandlerCallsCompartment(self.__handlercalls_state_NonRecursive)
@@ -90,6 +91,7 @@ class HandlerCalls:
             self.__transition(compartment)
             return
     
+    # $NonRecursive
     def __handlercalls_state_NonRecursive(self, e):
         if e._message == "Foo":
             self.log_do("Foo",e._parameters["arg"])
@@ -119,6 +121,7 @@ class HandlerCalls:
             
             return
     
+    # $SelfRecursive
     def __handlercalls_state_SelfRecursive(self, e):
         if e._message == "Foo":
             self.log_do("Foo",e._parameters["arg"])
@@ -152,6 +155,7 @@ class HandlerCalls:
             
             return
     
+    # $MutuallyRecursive
     def __handlercalls_state_MutuallyRecursive(self, e):
         if e._message == "Foo":
             self.log_do("Foo",e._parameters["arg"])
@@ -192,6 +196,7 @@ class HandlerCalls:
             
             return
     
+    # $Final
     def __handlercalls_state_Final(self, e):
         if e._message == ">":
             self.log_do("Final",(self.__compartment.state_args["counter"]))
@@ -203,6 +208,7 @@ class HandlerCalls:
     
     def log_do(self,through: str,val: int):
         raise NotImplementedError
+    
     # =============== Machinery and Mechanisms ============== #
     
     def __mux(self, e):
@@ -259,8 +265,6 @@ class HandlerCallsCompartment:
         self.exit_args = {}
         self.forward_event = None
     
-
-
 # ********************
 
 #class HandlerCallsController(HandlerCalls):

@@ -15,7 +15,6 @@ use std::fmt;
 use std::rc::Rc;
 use wasm_bindgen::__rt::std::collections::HashMap;
 
-
 pub trait NodeElement {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor);
     // for Rust actions
@@ -52,20 +51,14 @@ pub trait NodeElement {
 }
 
 pub struct Module {
-    pub module_elements:Vec<ModuleElement>,
+    pub module_elements: Vec<ModuleElement>,
 }
 
 impl Module {
-    pub fn new(
-        module_elements: Vec<ModuleElement>,
-    ) -> Module {
-        Module {
-            module_elements
-        }
+    pub fn new(module_elements: Vec<ModuleElement>) -> Module {
+        Module { module_elements }
     }
 }
-
-
 
 impl NodeElement for Module {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
@@ -78,8 +71,8 @@ impl NodeElement for Module {
 }
 
 pub enum ModuleElement {
-    CodeBlock {code_block:String},
-    ModuleAttribute {attribute_node:AttributeNode},
+    CodeBlock { code_block: String },
+    ModuleAttribute { attribute_node: AttributeNode },
 }
 
 // TODO: is this a good name for Identifier and Call expressions?
@@ -115,7 +108,7 @@ pub enum CallChainNodeType {
     },
     UndeclaredCallT {
         call: CallExprNode,
-    }
+    },
 }
 
 impl CallChainNodeType {
@@ -186,8 +179,16 @@ pub struct AttributeMetaNameValueStr {
 }
 
 impl AttributeMetaNameValueStr {
-    pub fn new(name: String, value: String, affinity: AttributeAffinity) -> AttributeMetaNameValueStr {
-        AttributeMetaNameValueStr { name, value, affinity }
+    pub fn new(
+        name: String,
+        value: String,
+        affinity: AttributeAffinity,
+    ) -> AttributeMetaNameValueStr {
+        AttributeMetaNameValueStr {
+            name,
+            value,
+            affinity,
+        }
     }
 
     // fn get_affinity(&self) -> AttributeAffinity {
@@ -203,8 +204,16 @@ pub struct AttributeMetaListIdents {
 }
 
 impl AttributeMetaListIdents {
-    pub fn new(name: String, idents: Vec<String>, affinity: AttributeAffinity) -> AttributeMetaListIdents {
-        AttributeMetaListIdents { name, idents, affinity }
+    pub fn new(
+        name: String,
+        idents: Vec<String>,
+        affinity: AttributeAffinity,
+    ) -> AttributeMetaListIdents {
+        AttributeMetaListIdents {
+            name,
+            idents,
+            affinity,
+        }
     }
 
     // fn get_affinity(&self) -> AttributeAffinity {
@@ -218,7 +227,7 @@ pub struct SystemNode {
     pub name: String,
     pub module: Module,
     // TODO - module attributes need to move to a program "module"
-//    pub module_attributes_opt: Option<HashMap<String, AttributeNode>>,
+    //    pub module_attributes_opt: Option<HashMap<String, AttributeNode>>,
     pub system_attributes_opt: Option<HashMap<String, AttributeNode>>,
     pub start_state_state_params_opt: Option<Vec<ParameterNode>>,
     pub start_state_enter_params_opt: Option<Vec<ParameterNode>>,
@@ -230,14 +239,13 @@ pub struct SystemNode {
     pub line: usize,
     // TODO - move this int a module node
     pub functions_opt: Option<Vec<Rc<RefCell<FunctionNode>>>>,
-
 }
 
 impl SystemNode {
     pub fn new(
         name: String,
         module: Module,
-//        module_attributes_opt: Option<HashMap<String, AttributeNode>>,
+        //        module_attributes_opt: Option<HashMap<String, AttributeNode>>,
         system_attributes_opt: Option<HashMap<String, AttributeNode>>,
         start_state_state_params_opt: Option<Vec<ParameterNode>>,
         start_state_enter_params_opt: Option<Vec<ParameterNode>>,
@@ -289,7 +297,6 @@ pub struct SystemInstanceExprNode {
 }
 
 impl SystemInstanceExprNode {
-
     pub fn new(
         identifier: IdentifierNode,
         start_state_state_args_opt: Option<ExprListNode>,
@@ -302,7 +309,6 @@ impl SystemInstanceExprNode {
             start_state_enter_args_opt,
             domain_args_opt,
         }
-
     }
 }
 
@@ -543,8 +549,7 @@ impl VariableDeclNode {
 }
 
 impl VariableDeclNode {
-
-    pub fn get_initializer_value_rc(&self) ->  Rc<ExprType> {
+    pub fn get_initializer_value_rc(&self) -> Rc<ExprType> {
         self.initializer_value_rc.clone()
     }
 }
@@ -625,7 +630,6 @@ impl VariableNode {
                 variable_decl_node_rcref.borrow().value_rc.clone()
             }
             Ok(None) => {
-
                 // NilExprT is a new ExprType used atm to hack around
                 // differences between variables and parameters. Parmenters
                 // can't be assigned values atm so this patches that
@@ -840,7 +844,10 @@ impl StateNode {
         match &self.enter_event_handler_opt {
             Some(event_handler_node_rcref) => {
                 let event_handler_node = event_handler_node_rcref.borrow();
-                let size = event_handler_node.event_symbol_rcref.borrow().get_param_count();
+                let size = event_handler_node
+                    .event_symbol_rcref
+                    .borrow()
+                    .get_param_count();
                 size
             }
             None => 0,
@@ -850,7 +857,10 @@ impl StateNode {
         match &self.exit_event_handler_opt {
             Some(event_handler_node_rcref) => {
                 let event_handler_node = event_handler_node_rcref.borrow();
-                let size = event_handler_node.event_symbol_rcref.borrow().get_param_count();
+                let size = event_handler_node
+                    .event_symbol_rcref
+                    .borrow()
+                    .get_param_count();
                 size
             }
             None => 0,
@@ -1073,7 +1083,6 @@ impl NodeElement for FrameEventPart {
 //     }
 // }
 
-
 //-----------------------------------------------------//
 //                  -Expressions-
 
@@ -1135,7 +1144,6 @@ pub enum ExprType {
     NilExprT,
 }
 
-
 impl fmt::Display for ExprType {
     // This trait requires `fmt` with this exact signature.
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -1153,51 +1161,49 @@ impl fmt::Display for ExprType {
 }
 
 impl ExprType {
-
     pub fn is_valid_binary_expr_type(&self) -> bool {
         match self {
-            ExprType::AssignmentExprT {..} => false,
-            ExprType::TransitionExprT  {..} => false,
-            ExprType::StateStackOperationExprT {..} => false,
-            ExprType::CallExprListT {..} => false, // this shouldn't happen
+            ExprType::AssignmentExprT { .. } => false,
+            ExprType::TransitionExprT { .. } => false,
+            ExprType::StateStackOperationExprT { .. } => false,
+            ExprType::CallExprListT { .. } => false, // this shouldn't happen
             _ => true,
         }
     }
     pub fn is_valid_assignment_rvalue_expr_type(&self) -> bool {
         match self {
-            ExprType::AssignmentExprT {..} => false,
-            ExprType::TransitionExprT {..} => false,
-            ExprType::StateStackOperationExprT {..} => false,
-            ExprType::CallExprListT {..} => false, // this shouldn't happen
+            ExprType::AssignmentExprT { .. } => false,
+            ExprType::TransitionExprT { .. } => false,
+            ExprType::StateStackOperationExprT { .. } => false,
+            ExprType::CallExprListT { .. } => false, // this shouldn't happen
             _ => true,
         }
     }
 
     pub fn get_name(&self) -> Option<String> {
         match self {
-            ExprType::VariableExprT {var_node} => {
+            ExprType::VariableExprT { var_node } => {
                 let name = var_node.id_node.name.lexeme.clone();
                 Some(name)
             }
-            ExprType::CallChainExprT {call_chain_expr_node} => {
-                let call_chain_node_type_opt =  call_chain_expr_node.call_chain.get(0);
+            ExprType::CallChainExprT {
+                call_chain_expr_node,
+            } => {
+                let call_chain_node_type_opt = call_chain_expr_node.call_chain.get(0);
                 match call_chain_node_type_opt {
-                    Some(call_chain_node_type) => {
-                        match call_chain_node_type {
-                            CallChainNodeType::VariableNodeT {var_node} => {
-                                let name = var_node.id_node.name.lexeme.clone();
-                                Some(name)
-                            }
-                            _ => None
+                    Some(call_chain_node_type) => match call_chain_node_type {
+                        CallChainNodeType::VariableNodeT { var_node } => {
+                            let name = var_node.id_node.name.lexeme.clone();
+                            Some(name)
                         }
-                    }
-                    None => None
+                        _ => None,
+                    },
+                    None => None,
                 }
             }
-            _ => None
+            _ => None,
         }
     }
-
 
     /// Get the name of expression type we're looking at. Useful for debugging.
     pub fn expr_type_name(&self) -> &'static str {
@@ -1222,23 +1228,25 @@ impl ExprType {
         }
     }
 
-    pub fn debug_print(&self)  {
+    pub fn debug_print(&self) {
         match self {
-            ExprType::VariableExprT {var_node} => {
+            ExprType::VariableExprT { var_node } => {
                 let name = var_node.id_node.name.lexeme.clone();
                 println!("VariableNode: {}", name);
             }
-            ExprType::CallChainExprT {call_chain_expr_node} => {
+            ExprType::CallChainExprT {
+                call_chain_expr_node,
+            } => {
                 let mut separator = "";
                 for call_chain_node_type in &call_chain_expr_node.call_chain {
                     match call_chain_node_type {
-                        CallChainNodeType::VariableNodeT {var_node} => {
+                        CallChainNodeType::VariableNodeT { var_node } => {
                             let name = var_node.id_node.name.lexeme.clone();
-                            print!("{}{}", name,separator);
+                            print!("{}{}", name, separator);
                         }
-                        CallChainNodeType::UndeclaredIdentifierNodeT {id_node} => {
+                        CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                             let name = id_node.name.lexeme.clone();
-                            print!("{}{}", name,separator);
+                            print!("{}{}", name, separator);
                         }
                         _ => {
                             print!("Unknown ExprType");
@@ -1247,7 +1255,7 @@ impl ExprType {
                     separator = ".";
                 }
             }
-            _ => { }
+            _ => {}
         }
     }
     // pub fn auto_pre_inc_dec(&self, ast_visitor: &mut dyn AstVisitor) {
@@ -1370,7 +1378,9 @@ impl NodeElement for ExprType {
             ExprType::EnumeratorExprT { enum_expr_node } => {
                 ast_visitor.visit_enumerator_expr_node(enum_expr_node);
             }
-            ExprType::TransitionExprT { transition_expr_node } => {
+            ExprType::TransitionExprT {
+                transition_expr_node,
+            } => {
                 ast_visitor.visit_transition_expr_node(transition_expr_node);
             }
             ExprType::NilExprT => {
@@ -1393,8 +1403,7 @@ impl NodeElement for ExprType {
             ExprType::CallChainExprT {
                 call_chain_expr_node,
             } => {
-                ast_visitor
-                    .visit_call_chain_expr_node_to_string(call_chain_expr_node, output);
+                ast_visitor.visit_call_chain_expr_node_to_string(call_chain_expr_node, output);
             }
             ExprType::SystemInstanceExprT {
                 system_instance_expr_node,
@@ -1442,7 +1451,9 @@ impl NodeElement for ExprType {
             ExprType::EnumeratorExprT { enum_expr_node } => {
                 ast_visitor.visit_enumerator_expr_node_to_string(enum_expr_node, output);
             }
-            ExprType::TransitionExprT { transition_expr_node } => {
+            ExprType::TransitionExprT {
+                transition_expr_node,
+            } => {
                 ast_visitor.visit_transition_expr_node_to_string(transition_expr_node, output);
             }
             ExprType::NilExprT => {
@@ -1533,7 +1544,6 @@ impl NodeElement for ExprType {
 //     // - FunctionBinaryExprNode
 //     // - FunctionAssignment
 // }
-
 
 pub enum RefExprType<'a> {
     AssignmentExprT {
@@ -1869,9 +1879,9 @@ impl NodeElement for ExprListStmtNode {
         // let ref ref_expr_type = RefExprType::ExprListT {
         //     expr_list_node: &self.expr_list_node,
         // };
-       // ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
+        // ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
         ast_visitor.visit_expr_list_stmt_node(self);
-       // ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
+        // ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
     }
 
     // fn accept_mut(&mut self, ast_visitor: &mut dyn AstVisitor) {
@@ -1931,7 +1941,6 @@ impl NodeElement for LoopStmtNode {
     }
 }
 
-
 //-----------------------------------------------------//
 
 pub enum TargetStateContextType {
@@ -1990,7 +1999,6 @@ impl TransitionExprNode {
     }
 }
 
-
 impl NodeElement for TransitionExprNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         ast_visitor.visit_transition_expr_node(self);
@@ -2000,14 +2008,14 @@ impl NodeElement for TransitionExprNode {
 //-----------------------------------------------------//
 
 pub struct TransitionStatementNode {
-    pub transition_expr_node:TransitionExprNode,
+    pub transition_expr_node: TransitionExprNode,
     pub exit_args_opt: Option<ExprListNode>,
 }
 
 // TODO - why is new() commented out?
 impl TransitionStatementNode {
     pub fn new(
-        transition_expr_node:TransitionExprNode,
+        transition_expr_node: TransitionExprNode,
         exit_args_opt: Option<ExprListNode>,
     ) -> TransitionStatementNode {
         TransitionStatementNode {
@@ -2097,8 +2105,9 @@ impl InterfaceMethodCallExprNode {
     // Harvest the id and arguments from the CallExpressionNode.
     // It will be discarded.
 
-    pub fn new(call_expr_node: CallExprNode,
-               interface_method_call_t: InterfaceMethodCallType
+    pub fn new(
+        call_expr_node: CallExprNode,
+        interface_method_call_t: InterfaceMethodCallType,
     ) -> InterfaceMethodCallExprNode {
         InterfaceMethodCallExprNode {
             identifier: call_expr_node.identifier,
@@ -2402,8 +2411,7 @@ impl NodeElement for SuperStringStmtNode {
 
 //-----------------------------------------------------//
 
-#[derive(Clone)]
-#[derive(PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum IncDecExpr {
     None,
     PreInc,
@@ -2447,7 +2455,7 @@ impl NodeElement for CallChainExprNode {
         //     call_chain_expr_node: &self,
         // };
 
-    //    ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
+        //    ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
 
         // search for pre autoupdated  parameters
         // for a in &self.call_chain {
@@ -2474,7 +2482,7 @@ impl NodeElement for CallChainExprNode {
 
         ast_visitor.visit_call_chain_expr_node(self);
 
-   //     ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
+        //     ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
 
         // search for post autoupdated  parameters
         // for a in &self.call_chain {
@@ -2669,11 +2677,9 @@ impl CallExprNode {
 }
 
 impl CallExprNode {
-
     pub fn get_name(&self) -> &str {
         self.identifier.name.lexeme.as_str()
     }
-
 }
 
 impl NodeElement for CallExprNode {
@@ -2887,7 +2893,7 @@ pub struct TypeNode {
     #[allow(dead_code)]
     pub is_superstring: bool,
     pub is_system: bool,
-    pub is_enum:bool,
+    pub is_enum: bool,
     pub(crate) is_reference: bool,
     pub(crate) frame_event_part_opt: Option<FrameEventPart>,
     pub(crate) type_str: String,
@@ -2902,7 +2908,7 @@ impl TypeNode {
         is_superstring: bool,
         is_system: bool,
         is_reference: bool,
-        is_enum:bool,
+        is_enum: bool,
         frame_event_part_opt: Option<FrameEventPart>,
         type_str: String,
     ) -> TypeNode {
@@ -3120,7 +3126,7 @@ impl NodeElement for StringMatchTestElseBranchNode {
 
 pub enum StringMatchType {
     MatchString {
-        string_match_test_pattern_node: StringMatchTestPatternNode
+        string_match_test_pattern_node: StringMatchTestPatternNode,
     },
     MatchEmptyString,
     MatchNullString,

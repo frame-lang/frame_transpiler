@@ -56,6 +56,7 @@ class SimpleHandlerCalls:
     
     # ===================== Machine Block =================== #
     
+    # $Init
     def __simplehandlercalls_state_Init(self, e):
         if e._message == "A":
             compartment = SimpleHandlerCallsCompartment(self.__simplehandlercalls_state_A)
@@ -82,13 +83,16 @@ class SimpleHandlerCalls:
             return
             return
     
+    # $A
     def __simplehandlercalls_state_A(self, e):
         pass
         
     
+    # $B
     def __simplehandlercalls_state_B(self, e):
         pass
         
+    
     
     # =============== Machinery and Mechanisms ============== #
     
@@ -142,8 +146,6 @@ class SimpleHandlerCallsCompartment:
         self.exit_args = {}
         self.forward_event = None
     
-
-
 # ********************
 
 #class SimpleHandlerCallsController(SimpleHandlerCalls):

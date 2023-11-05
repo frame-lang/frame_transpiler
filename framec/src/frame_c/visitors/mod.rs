@@ -5,8 +5,8 @@ use std::convert::TryFrom;
 pub enum TargetLanguage {
     Cpp,
     CSharp,
- //   CSharpForBob,
- //   GdScript,
+    //   CSharpForBob,
+    //   GdScript,
     GoLang,
     Java8,
     JavaScript,
@@ -22,8 +22,8 @@ impl TargetLanguage {
         match self {
             TargetLanguage::Cpp => "cpp",
             TargetLanguage::CSharp => "cs",
-     //       TargetLanguage::CSharpForBob => "cs",
-     //       TargetLanguage::GdScript => "gd",
+            //       TargetLanguage::CSharpForBob => "cs",
+            //       TargetLanguage::GdScript => "gd",
             TargetLanguage::GoLang => "go",
             TargetLanguage::Java8 => "java",
             TargetLanguage::JavaScript => "js",

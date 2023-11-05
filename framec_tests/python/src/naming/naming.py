@@ -74,6 +74,7 @@ class Naming:
     
     # ===================== Machine Block =================== #
     
+    # $Init
     def __naming_state_Init(self, e):
         if e._message == "snake_event":
             compartment = NamingCompartment(self.__naming_state_snake_state)
@@ -108,6 +109,7 @@ class Naming:
             
             return
     
+    # $snake_state
     def __naming_state_snake_state(self, e):
           #  1100
         if e._message == "snake_event":
@@ -146,6 +148,7 @@ class Naming:
             
             return
     
+    # $CamelState
     def __naming_state_CamelState(self, e):
           #  1200
         if e._message == "snake_event":
@@ -184,6 +187,7 @@ class Naming:
             
             return
     
+    # $state123
     def __naming_state_state123(self, e):
           #  1300
         if e._message == "snake_event":
@@ -222,6 +226,7 @@ class Naming:
             
             return
     
+    # $Final
     def __naming_state_Final(self, e):
         if e._message == ">":
             self.logFinal_do((self.__compartment.state_args["result"]))
@@ -239,6 +244,7 @@ class Naming:
         raise NotImplementedError
     def logFinal_do(self,r: int):
         raise NotImplementedError
+    
     # =============== Machinery and Mechanisms ============== #
     
     def __mux(self, e):
@@ -295,8 +301,6 @@ class NamingCompartment:
         self.exit_args = {}
         self.forward_event = None
     
-
-
 # ********************
 
 #class NamingController(Naming):

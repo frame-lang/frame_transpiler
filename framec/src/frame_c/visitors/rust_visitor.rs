@@ -681,7 +681,7 @@ impl RustVisitor {
                     match stmt_t {
                         StatementType::ExpressionStmt { expr_stmt_t } => match expr_stmt_t {
                             ExprStmtType::TransitionStmtT {
-                                transition_statement_node: _transition_statement_node
+                                transition_statement_node: _transition_statement_node,
                             } => panic!("TODO"),
                             ExprStmtType::SystemInstanceStmtT {
                                 system_instance_stmt_node,
@@ -724,7 +724,9 @@ impl RustVisitor {
                         } => {
                             state_stack_operation_statement_node.accept(self);
                         }
-                        StatementType::ChangeStateStmt { change_state_stmt_node: change_state_stmt } => {
+                        StatementType::ChangeStateStmt {
+                            change_state_stmt_node: change_state_stmt,
+                        } => {
                             change_state_stmt.accept(self);
                         }
                         StatementType::LoopStmt { loop_stmt_node } => {
@@ -4577,7 +4579,10 @@ impl AstVisitor for RustVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_transition_statement_node(&mut self, transition_statement: &TransitionStatementNode) {
-        match &transition_statement.transition_expr_node.target_state_context_t {
+        match &transition_statement
+            .transition_expr_node
+            .target_state_context_t
+        {
             TargetStateContextType::StateRef { .. } => {
                 self.generate_state_ref_transition(transition_statement)
             }

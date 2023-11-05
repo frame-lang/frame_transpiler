@@ -58,6 +58,7 @@ class ForwardEvents:
     
     # ===================== Machine Block =================== #
     
+    # $S0
     def __forwardevents_state_S0(self, e):
         if e._message == ">":
             self.log_do("Enter $S0")
@@ -83,6 +84,7 @@ class ForwardEvents:
             self.log_do("|ReturnFromS2| Forwarded")
             return
     
+    # $S1
     def __forwardevents_state_S1(self, e):
         if e._message == ">":
             self.log_do("Enter $S1")
@@ -96,6 +98,7 @@ class ForwardEvents:
             self.__transition(compartment)
             return
     
+    # $S2
     def __forwardevents_state_S2(self, e):
         if e._message == ">":
             self.log_do("Enter $S2")
@@ -114,6 +117,7 @@ class ForwardEvents:
     def log_do(self,msg: str):
         self.tape.append(f'{msg}')
         
+    
     # =============== Machinery and Mechanisms ============== #
     
     def __mux(self, e):
@@ -172,8 +176,6 @@ class ForwardEventsCompartment:
         self.exit_args = {}
         self.forward_event = None
     
-
-
 # ********************
 
 #class ForwardEventsController(ForwardEvents):

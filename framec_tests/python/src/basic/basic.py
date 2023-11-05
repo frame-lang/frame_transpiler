@@ -47,6 +47,7 @@ class Basic:
     
     # ===================== Machine Block =================== #
     
+    # $S0
     def __basic_state_S0(self, e):
         if e._message == ">":
             self.entered_do("S0")
@@ -60,6 +61,7 @@ class Basic:
             self.__transition(compartment)
             return
     
+    # $S1
     def __basic_state_S1(self, e):
         if e._message == ">":
             self.entered_do("S1")
@@ -79,6 +81,7 @@ class Basic:
         raise NotImplementedError
     def left_do(self,msg: str):
         raise NotImplementedError
+    
     # =============== Machinery and Mechanisms ============== #
     
     def __mux(self, e):
@@ -129,8 +132,6 @@ class BasicCompartment:
         self.exit_args = {}
         self.forward_event = None
     
-
-
 # ********************
 
 #class BasicController(Basic):

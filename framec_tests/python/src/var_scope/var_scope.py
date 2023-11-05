@@ -95,6 +95,7 @@ class VarScope:
     
     # ===================== Machine Block =================== #
     
+    # $Init
     def __varscope_state_Init(self, e):
         if e._message == "to_nn":
             compartment = VarScopeCompartment(self.__varscope_state_NN)
@@ -125,6 +126,7 @@ class VarScope:
             self.__transition(compartment)
             return
     
+    # $NN
     def __varscope_state_NN(self, e):
         if e._message == "nn":
             et : str = "|nn|.e"
@@ -172,6 +174,7 @@ class VarScope:
       #  log(||.x)
     
     
+    # $NY
     def __varscope_state_NY(self, e):
         if e._message == "nn":
             et : str = "|nn|.e"
@@ -220,6 +223,7 @@ class VarScope:
       #  log(||.x)
     
     
+    # $YN
     def __varscope_state_YN(self, e):
         if e._message == "nn":
             et : str = "|nn|.e"
@@ -268,6 +272,7 @@ class VarScope:
       #  log(||.x)
     
     
+    # $YY
     def __varscope_state_YY(self, e):
         if e._message == "nn":
             et : str = "|nn|.e"
@@ -315,6 +320,7 @@ class VarScope:
     
     def log_do(self,s: str):
         raise NotImplementedError
+    
     # =============== Machinery and Mechanisms ============== #
     
     def __mux(self, e):
@@ -371,8 +377,6 @@ class VarScopeCompartment:
         self.exit_args = {}
         self.forward_event = None
     
-
-
 # ********************
 
 #class VarScopeController(VarScope):

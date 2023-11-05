@@ -47,6 +47,7 @@ class TransitionSm:
     
     # ===================== Machine Block =================== #
     
+    # $S0
     def __transitionsm_state_S0(self, e):
         if e._message == "<":
             self.exit_do("S0")
@@ -56,6 +57,7 @@ class TransitionSm:
             self.__transition(compartment)
             return
     
+    # $S1
     def __transitionsm_state_S1(self, e):
         if e._message == ">":
             self.enter_do("S1")
@@ -66,6 +68,7 @@ class TransitionSm:
             self.__change_state(compartment)
             return
     
+    # $S2
     def __transitionsm_state_S2(self, e):
         if e._message == "<":
             self.exit_do("S2")
@@ -75,6 +78,7 @@ class TransitionSm:
             self.__transition(compartment)
             return
     
+    # $S3
     def __transitionsm_state_S3(self, e):
         if e._message == ">":
             self.enter_do("S3")
@@ -87,6 +91,7 @@ class TransitionSm:
             self.__transition(compartment)
             return
     
+    # $S4
     def __transitionsm_state_S4(self, e):
         if e._message == ">":
             self.enter_do("S4")
@@ -101,6 +106,7 @@ class TransitionSm:
         raise NotImplementedError
     def exit_do(self,state: str):
         raise NotImplementedError
+    
     # =============== Machinery and Mechanisms ============== #
     
     def __mux(self, e):
@@ -161,8 +167,6 @@ class TransitionSmCompartment:
         self.exit_args = {}
         self.forward_event = None
     
-
-
 # ********************
 
 #class TransitionSmController(TransitionSm):

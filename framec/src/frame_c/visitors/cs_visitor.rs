@@ -596,9 +596,8 @@ impl CsVisitor {
                                     binary_stmt_node.accept(self)
                                 }
                                 ExprStmtType::TransitionStmtT {
-                                    transition_statement_node: _transition_statement_node
+                                    transition_statement_node: _transition_statement_node,
                                 } => panic!("TODO"),
-
                             }
                         }
                         StatementType::TransitionStmt {
@@ -614,7 +613,9 @@ impl CsVisitor {
                         } => {
                             state_stack_operation_statement_node.accept(self);
                         }
-                        StatementType::ChangeStateStmt { change_state_stmt_node: change_state_stmt } => {
+                        StatementType::ChangeStateStmt {
+                            change_state_stmt_node: change_state_stmt,
+                        } => {
                             change_state_stmt.accept(self);
                         }
                         StatementType::LoopStmt { loop_stmt_node } => {
@@ -945,7 +946,9 @@ impl CsVisitor {
         // -- Enter Arguments --
 
         let enter_args_opt = match &change_state_stmt_node.state_context_t {
-            TargetStateContextType::StateRef { state_context_node } => &state_context_node.enter_args_opt,
+            TargetStateContextType::StateRef { state_context_node } => {
+                &state_context_node.enter_args_opt
+            }
             TargetStateContextType::StateStackPop {} => &None,
         };
 
@@ -1092,7 +1095,10 @@ impl CsVisitor {
 
     fn generate_state_ref_transition(&mut self, transition_statement: &TransitionStatementNode) {
         self.newline();
-        let target_state_name = match &transition_statement.transition_expr_node.target_state_context_t {
+        let target_state_name = match &transition_statement
+            .transition_expr_node
+            .target_state_context_t
+        {
             TargetStateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_node.name
             }
@@ -1196,8 +1202,13 @@ impl CsVisitor {
 
         self.newline();
 
-        let enter_args_opt = match &transition_statement.transition_expr_node.target_state_context_t {
-            TargetStateContextType::StateRef { state_context_node } => &state_context_node.enter_args_opt,
+        let enter_args_opt = match &transition_statement
+            .transition_expr_node
+            .target_state_context_t
+        {
+            TargetStateContextType::StateRef { state_context_node } => {
+                &state_context_node.enter_args_opt
+            }
             TargetStateContextType::StateStackPop {} => &None,
         };
 
@@ -1248,7 +1259,10 @@ impl CsVisitor {
 
         // -- State Arguments --
 
-        let target_state_args_opt = match &transition_statement.transition_expr_node.target_state_context_t {
+        let target_state_args_opt = match &transition_statement
+            .transition_expr_node
+            .target_state_context_t
+        {
             TargetStateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_args_opt
             }
@@ -2528,7 +2542,10 @@ impl AstVisitor for CsVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_transition_statement_node(&mut self, transition_statement: &TransitionStatementNode) {
-        match &transition_statement.transition_expr_node.target_state_context_t {
+        match &transition_statement
+            .transition_expr_node
+            .target_state_context_t
+        {
             TargetStateContextType::StateRef { .. } => {
                 self.generate_state_ref_transition(transition_statement)
             }
@@ -2868,31 +2885,31 @@ impl AstVisitor for CsVisitor {
 
             // let mut first_match = true;
             // TODO: Fix this section to deal with empty strings and null strings
-        //     for match_string in &match_branch_node
-        //         .string_match_pattern_node
-        //         .match_pattern_strings
-        //     {
-        //         if first_match {
-        //             self.add_code(&format!(" == \"{}\")", match_string));
-        //             first_match = false;
-        //         } else {
-        //             self.add_code(" || (");
-        //             match &string_match_test_node.expr_t {
-        //                 ExprType::CallExprT {
-        //                     call_expr_node: method_call_expr_node,
-        //                 } => method_call_expr_node.accept(self),
-        //                 ExprType::ActionCallExprT {
-        //                     action_call_expr_node,
-        //                 } => action_call_expr_node.accept(self),
-        //                 ExprType::CallChainExprT {
-        //                     call_chain_expr_node,
-        //                 } => call_chain_expr_node.accept(self),
-        //                 ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
-        //                 _ => self.errors.push("TODO".to_string()),
-        //             }
-        //             self.add_code(&format!(" == \"{}\")", match_string));
-        //         }
-        //     }
+            //     for match_string in &match_branch_node
+            //         .string_match_pattern_node
+            //         .match_pattern_strings
+            //     {
+            //         if first_match {
+            //             self.add_code(&format!(" == \"{}\")", match_string));
+            //             first_match = false;
+            //         } else {
+            //             self.add_code(" || (");
+            //             match &string_match_test_node.expr_t {
+            //                 ExprType::CallExprT {
+            //                     call_expr_node: method_call_expr_node,
+            //                 } => method_call_expr_node.accept(self),
+            //                 ExprType::ActionCallExprT {
+            //                     action_call_expr_node,
+            //                 } => action_call_expr_node.accept(self),
+            //                 ExprType::CallChainExprT {
+            //                     call_chain_expr_node,
+            //                 } => call_chain_expr_node.accept(self),
+            //                 ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
+            //                 _ => self.errors.push("TODO".to_string()),
+            //             }
+            //             self.add_code(&format!(" == \"{}\")", match_string));
+            //         }
+            //     }
             self.add_code(") {");
             self.indent();
 

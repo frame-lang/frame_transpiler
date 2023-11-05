@@ -341,8 +341,8 @@ impl Scanner {
                 self.add_token(TokenType::CloseBrace);
             }
             ':' => {
-                if self.match_char(':') {
-                    self.add_token(TokenType::ColonColon);
+                if self.match_char('|') {
+                    self.add_token(TokenType::ColonBar);
                     self.test_t_stack.pop();
                 } else if self.match_char('>') {
                     self.add_token(TokenType::ElseContinue);
@@ -365,7 +365,7 @@ impl Scanner {
                         // #![
                         self.add_token(TokenType::InnerAttribute);
                     } else {
-                        self.error(self.line,&format!("Unexpected character {}.",c));
+                        self.error(self.line, &format!("Unexpected character {}.", c));
                     }
                 } else if self.match_char('/') {
                     self.add_token(TokenType::NumberMatchStart);
@@ -476,8 +476,8 @@ impl Scanner {
                     self.error(self.line, &format!("Malformed integer number {}", err));
                 }
             }
-        }
-        else { // is float
+        } else {
+            // is float
             let s = &self.source[self.start..self.current];
             let result = s.parse::<f32>();
             match result {
@@ -489,9 +489,6 @@ impl Scanner {
                 }
             }
         }
-
-
-
     }
 
     fn identifier(&mut self) {
@@ -696,80 +693,80 @@ pub enum TokenType {
     Eof,
     Identifier,
     State,
-    GT,                // >
-    GTx2,              // >>
-    GTx3,              // >>
-    Plus,              // +
-    PlusPlus,          // ++
-    Dash,              // -
-    DashDash,          // --
-    Star,              // *
-    EqualEqual,        // ==
-    Bang,              // !
-    BangEqual,         // !=
-    GreaterEqual,      // >=
-    LessEqual,         // <=
-    LT,                // <
-    LTx2,              // <<
-    LTx3,              // <<<
-    And,               // &
-    Pipe,              // |
-    Caret,             // ^
-    LogicalAnd,        // &&
-    LogicalXor,        // &|
-    System,            // #
-    SystemEnd,         // ##
-    OuterAttributeOrDomainParams,    // #[
-    InnerAttribute,    // #![
-    InterfaceBlock,    // -interface-
-    MachineBlock,      // -machine-
-    ActionsBlock,      // -actions-
-    DomainBlock,       // -domain-
-    LParen,            // (
-    RParen,            // )
-    LBracket,          // [
-    RBracket,          // ]
-    Transition,        // ->
-    ChangeState,       // ->>
-    String,            // "foo"
-    ThreeTicks,        // ```
-    SuperString,       // `stuff + "stuff"`
-    Number,            // 1, 1.01
-    Var,               // var keyword
-    Const,             // const keyword
-    New,               // new keyword
-    Loop,              // loop keyword
-    Continue,          // continue keyword
-    Break,             // break keyword
-    In,                // 'in' keyword
-    Enum,              // 'enum' keyword
-    Function,          // 'fn' keyword
+    GT,                           // >
+    GTx2,                         // >>
+    GTx3,                         // >>
+    Plus,                         // +
+    PlusPlus,                     // ++
+    Dash,                         // -
+    DashDash,                     // --
+    Star,                         // *
+    EqualEqual,                   // ==
+    Bang,                         // !
+    BangEqual,                    // !=
+    GreaterEqual,                 // >=
+    LessEqual,                    // <=
+    LT,                           // <
+    LTx2,                         // <<
+    LTx3,                         // <<<
+    And,                          // &
+    Pipe,                         // |
+    Caret,                        // ^
+    LogicalAnd,                   // &&
+    LogicalXor,                   // &|
+    System,                       // #
+    SystemEnd,                    // ##
+    OuterAttributeOrDomainParams, // #[
+    InnerAttribute,               // #![
+    InterfaceBlock,               // -interface-
+    MachineBlock,                 // -machine-
+    ActionsBlock,                 // -actions-
+    DomainBlock,                  // -domain-
+    LParen,                       // (
+    RParen,                       // )
+    LBracket,                     // [
+    RBracket,                     // ]
+    Transition,                   // ->
+    ChangeState,                  // ->>
+    String,                       // "foo"
+    ThreeTicks,                   // ```
+    SuperString,                  // `stuff + "stuff"`
+    Number,                       // 1, 1.01
+    Var,                          // var keyword
+    Const,                        // const keyword
+    New,                          // new keyword
+    Loop,                         // loop keyword
+    Continue,                     // continue keyword
+    Break,                        // break keyword
+    In,                           // 'in' keyword
+    Enum,                         // 'enum' keyword
+    Function,                     // 'fn' keyword
     // SingleLineComment, // --- comment
-    MultiLineComment,  // {-- comments --}
-    OpenBrace,         // {
-    CloseBrace,        // }
-    True,              // true
-    False,             // false
-    Null,              // null
-    Nil,               // nil
-    Colon,             // :
-    Semicolon,         // ;
-    Comma,             // ,
-    Dispatch,          // =>
-    Equals,            // =
+    MultiLineComment, // {-- comments --}
+    OpenBrace,        // {
+    CloseBrace,       // }
+    True,             // true
+    False,            // false
+    Null,             // null
+    Nil,              // nil
+    Colon,            // :
+    Semicolon,        // ;
+    Comma,            // ,
+    Dispatch,         // =>
+    Equals,           // =
     //    DeclAssignment,          // ':='
-    BoolTestTrue,               // '?'
-    BoolTestFalse,              // '?!'
-    StringTest,                 // '?~'
-    StringMatchStart,           // '~/'
-    NumberTest,                 // '?#'
-    NumberMatchStart,           // '#/'
-    EnumTest,                   // '?:'
-    EnumMatchStart,             // ':/'
+    BoolTestTrue,            // '?'
+    BoolTestFalse,           // '?!'
+    StringTest,              // '?~'
+    StringMatchStart,        // '~/'
+    NumberTest,              // '?#'
+    NumberMatchStart,        // '#/'
+    EnumTest,                // '?:'
+    EnumMatchStart,          // ':/'
     ElseContinue,            // :>
-    ColonColon,              // ::
+    ColonBar,              // ::
     ForwardSlash,            // /
-    MatchString,                // '/<any characters>/' - contains <string>
+    MatchString,             // '/<any characters>/' - contains <string>
     MatchEmptyString,        // '~//'
     MatchNull,               // '!//'
     SingleLineComment,       // '//'

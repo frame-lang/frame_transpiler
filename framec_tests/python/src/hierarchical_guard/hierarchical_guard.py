@@ -52,12 +52,14 @@ class HierarchicalGuard:
     
     # ===================== Machine Block =================== #
     
+    # $I
     def __hierarchicalguard_state_I(self, e):
         if e._message == ">":
             compartment = HierarchicalGuardCompartment(self.__hierarchicalguard_state_S)
             self.__transition(compartment)
             return
     
+    # $S
     def __hierarchicalguard_state_S(self, e):
         if e._message == "A":
             self.log_do("S.A")
@@ -84,6 +86,7 @@ class HierarchicalGuard:
             
             return
     
+    # $S0
     def __hierarchicalguard_state_S0(self, e):
         if e._message == "A":
             self.log_do("S0.A")
@@ -109,6 +112,7 @@ class HierarchicalGuard:
       #  fall through then branch
     
     
+    # $S1
     def __hierarchicalguard_state_S1(self, e):
         if e._message == "A":
             self.log_do("S1.A")
@@ -124,6 +128,7 @@ class HierarchicalGuard:
       #  fall through else branch
     
     
+    # $S2
     def __hierarchicalguard_state_S2(self, e):
         if e._message == "A":
             self.log_do("S2.A")
@@ -149,6 +154,7 @@ class HierarchicalGuard:
       #  fall through then branch
     
     
+    # $S3
     def __hierarchicalguard_state_S3(self, e):
         if e._message == "A":
             self.log_do("S3.A")
@@ -171,6 +177,7 @@ class HierarchicalGuard:
         self.__hierarchicalguard_state_S(e)
         
     
+    # $S4
     def __hierarchicalguard_state_S4(self, e):
         pass
         
@@ -179,6 +186,7 @@ class HierarchicalGuard:
     
     def log_do(self,msg: str):
         raise NotImplementedError
+    
     # =============== Machinery and Mechanisms ============== #
     
     def __mux(self, e):
@@ -239,8 +247,6 @@ class HierarchicalGuardCompartment:
         self.exit_args = {}
         self.forward_event = None
     
-
-
 # ********************
 
 #class HierarchicalGuardController(HierarchicalGuard):

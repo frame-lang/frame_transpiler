@@ -27,7 +27,7 @@ from framelang.framelang import FrameEvent
                 ~/|foo/  // TODO: matching only the empty string is broken
                     log("empty")
                 :   log("?")
-            :: ^
+            :| ^
 
     $SimpleMatch
         |OnInt| [i:int]
@@ -41,7 +41,7 @@ from framelang.framelang import FrameEvent
                 #/-200/
                     log("-200")
                 :   log("?")
-            :: ^
+            :| ^
 
         |Onstring| [s:str]
             s ?~
@@ -56,7 +56,7 @@ from framelang.framelang import FrameEvent
                 ~/$10!/
                     log("money")
                 :   log("?")
-            :: ^
+            :| ^
 
     $MultiMatch
         |OnInt| [i:int]
@@ -66,7 +66,7 @@ from framelang.framelang import FrameEvent
                 #/-4|5|6/
                     log("-4|5|6")
                 :   log("?")
-            :: ^
+            :| ^
 
         |Onstring| [s:str]
             s ?~
@@ -75,7 +75,7 @@ from framelang.framelang import FrameEvent
                 ~/ |  |\t|\n/
                     log("whitespace")
                 :   log("?")
-            :: ^
+            :| ^
 
     $NestedMatch
         |OnInt| [i:int]
@@ -87,18 +87,18 @@ from framelang.framelang import FrameEvent
                             #/1/ log("1") :>
                             #/2/ log("2")
                             :   log("3")
-                        :: :>
+                        :| :>
                     #/4|5/
                         log("4-5")
                         i == 4 ?
                             log("4")
                         :
                             log("5")
-                        ::
+                        :|
                     :   log("too big")
-                ::
+                :|
             : log("too small")
-            :: ^
+            :| ^
 
         |Onstring| [s:str]
             s ?~
@@ -108,16 +108,16 @@ from framelang.framelang import FrameEvent
                         ~/hello/ log("English") :>
                         ~/hola/  log("Spanish")
                         :       log("French")
-                        :: :>
+                        :| :>
                 ~/goodbye|adios|au revoir/
                     log("farewell")
                     s ?~
                         ~/goodbye/ log("English") :>
                         ~/adios/   log("Spanish")
                         :         log("French")
-                        ::
+                        :|
                 : log("?")
-            :: ^
+            :| ^
 
     $ChildMatch => $SimpleMatch
         |OnInt| [i:int]
@@ -128,7 +128,7 @@ from framelang.framelang import FrameEvent
                 #/42/ log("42 in child") :>
                 #/5/  log("5") -> $Final
                 :    log("no match in child")
-                :: :>
+                :| :>
 
         |Onstring| [s:str]
             s ?~
@@ -139,7 +139,7 @@ from framelang.framelang import FrameEvent
                 ~/Testing 1, 2, 3.../
                     log("testing in child") ^
                 :   log("no match in child")
-                :: :>
+                :| :>
 
     $Final
 

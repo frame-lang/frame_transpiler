@@ -18,7 +18,7 @@ from framelang.framelang import FrameEvent
                 -> $S0
             :
                 -> $S1
-            :: ^
+            :| ^
 
         |B| [i:int]
             log("S.B")
@@ -26,7 +26,7 @@ from framelang.framelang import FrameEvent
                 -> $S2
             :
                 -> $S3
-            :: ^
+            :| ^
 
     $S0 => $S
         |A| [i:int]
@@ -34,14 +34,14 @@ from framelang.framelang import FrameEvent
             i > 0 ?
                 -> $S2
             :            // fall through else branch
-            :: :>
+            :| :>
 
         |B| [i:int]
             log("S0.B")
             i > 0 ?
             :            // fall through then branch
                 -> $S1
-            :: :>
+            :| :>
 
     $S1 => $S0
         |A| [i:int]
@@ -49,7 +49,7 @@ from framelang.framelang import FrameEvent
             i > 5 ?
                 -> $S3
             :            // fall through else branch
-            :: :>
+            :| :>
 
     $S2 => $S1
         |A| [i:int]
@@ -57,14 +57,14 @@ from framelang.framelang import FrameEvent
             i > 10 ?
                 -> $S4
             :            // fall through then branch
-            :: :>
+            :| :>
 
         |B| [i:int]
             log("S2.B")
             i > 10 ?!
             :            // fall through then branch
                 -> $S4
-            :: :>
+            :| :>
 
     $S3 => $S
         |A| [i:int]
@@ -73,7 +73,7 @@ from framelang.framelang import FrameEvent
                 log("stop") ^
             :
                 log("continue")
-            :: :>
+            :| :>
 
         |B| [i:int]
             log("S3.B")
@@ -81,7 +81,7 @@ from framelang.framelang import FrameEvent
                 log("continue")
             :
                 log("stop") ^
-            :: :>
+            :| :>
 
     $S4
 

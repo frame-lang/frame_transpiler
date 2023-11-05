@@ -72,6 +72,7 @@ class StateContextStack:
     
     # ===================== Machine Block =================== #
     
+    # $A
     def __statecontextstack_state_A(self, e):
         if e._message == ">":
             self.log_do("A:>")
@@ -82,7 +83,8 @@ class StateContextStack:
         elif e._message == "inc":
             (self.__compartment.state_vars["x"]) = self.__compartment.state_vars["x"] + 1
             return
-        elif e._message == "value":e._return = (self.__compartment.state_vars["x"])
+        elif e._message == "value":
+            e._return = (self.__compartment.state_vars["x"])
             return
             
         elif e._message == "to_a":
@@ -108,6 +110,7 @@ class StateContextStack:
             self.__transition(compartment)
             return
     
+    # $B
     def __statecontextstack_state_B(self, e):
         if e._message == ">":
             self.log_do("B:>")
@@ -118,7 +121,8 @@ class StateContextStack:
         elif e._message == "inc":
             (self.__compartment.state_vars["y"]) = self.__compartment.state_vars["y"] + 5
             return
-        elif e._message == "value":e._return = (self.__compartment.state_vars["y"])
+        elif e._message == "value":
+            e._return = (self.__compartment.state_vars["y"])
             return
             
         elif e._message == "to_a":
@@ -144,6 +148,7 @@ class StateContextStack:
             self.__transition(compartment)
             return
     
+    # $C
     def __statecontextstack_state_C(self, e):
         if e._message == ">":
             self.log_do("C:>")
@@ -154,7 +159,8 @@ class StateContextStack:
         elif e._message == "inc":
             (self.__compartment.state_vars["z"]) = self.__compartment.state_vars["z"] + 10
             return
-        elif e._message == "value":e._return = (self.__compartment.state_vars["z"])
+        elif e._message == "value":
+            e._return = (self.__compartment.state_vars["z"])
             return
             
         elif e._message == "to_a":
@@ -184,6 +190,7 @@ class StateContextStack:
     
     def log_do(self,msg: str):
         raise NotImplementedError
+    
     # =============== Machinery and Mechanisms ============== #
     
     def __mux(self, e):
@@ -242,8 +249,6 @@ class StateContextStackCompartment:
         self.exit_args = {}
         self.forward_event = None
     
-
-
 # ********************
 
 #class StateContextStackController(StateContextStack):

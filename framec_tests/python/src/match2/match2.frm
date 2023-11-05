@@ -45,7 +45,7 @@
             :/pear/ log("Matched pear") :>
             :/Banana/  log("Matched Banana") :>
             : log("no enum match")
-        ::
+        :|
     }
 
     matchString [s] {
@@ -56,7 +56,7 @@
             ~// log("matched empty string") :>  // comment test
             !// log("matched null") // comment test
             : log("no string match") // comment test
-        ::
+        :|
         ^
     }
 
@@ -67,7 +67,7 @@
             #/0.5/ log("Matched .5") :>
             #/0.111/ log("Matched .111") :>
             : log("no number match")
-        ::
+        :|
         ^
     }
 
@@ -78,23 +78,23 @@
     syntaxTests {
 
         // dangling else-continue. Both versions are permitted.
-        x ?~  ~/a/ : ::
-        x ?~  ~/a/ :> :  ::
+        x ?~  ~/a/ : :|
+        x ?~  ~/a/ :> :  :|
 
         // other valid grammar
-        x ?~  ~/a/ ::
-        x ?~  ~/a/ foo() ::
+        x ?~  ~/a/ :|
+        x ?~  ~/a/ foo() :|
 
         // explict scope in branches
-        x ?~  ~/a/ foo() : bar()  ::
-        x ?~  ~/a/ foo() :> : bar()  ::
-        x ?~  ~/a/ {} :> : {}  ::
-        x ?~  ~/a/ {foo()} : {bar()}  ::
-        x ?~  ~/a/ {foo()} :> : {bar()}  ::
+        x ?~  ~/a/ foo() : bar()  :|
+        x ?~  ~/a/ foo() :> : bar()  :|
+        x ?~  ~/a/ {} :> : {}  :|
+        x ?~  ~/a/ {foo()} : {bar()}  :|
+        x ?~  ~/a/ {foo()} :> : {bar()}  :|
 
         // Negative tests - these should be manually used to test
         // error reporting.
-        // x ?~  ~/a/ -> $B :: // transitions not permitted
+        // x ?~  ~/a/ -> $B :| // transitions not permitted
 
 
         ^

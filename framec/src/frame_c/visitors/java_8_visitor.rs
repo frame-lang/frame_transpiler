@@ -542,7 +542,7 @@ impl Java8Visitor {
                         StatementType::ExpressionStmt { expr_stmt_t } => {
                             match expr_stmt_t {
                                 ExprStmtType::TransitionStmtT {
-                                    transition_statement_node: _transition_statement_node
+                                    transition_statement_node: _transition_statement_node,
                                 } => panic!("TODO"),
 
                                 ExprStmtType::SystemInstanceStmtT {
@@ -587,7 +587,9 @@ impl Java8Visitor {
                         } => {
                             state_stack_operation_statement_node.accept(self);
                         }
-                        StatementType::ChangeStateStmt { change_state_stmt_node: change_state_stmt } => {
+                        StatementType::ChangeStateStmt {
+                            change_state_stmt_node: change_state_stmt,
+                        } => {
                             change_state_stmt.accept(self);
                         }
                         StatementType::LoopStmt { loop_stmt_node } => {
@@ -827,7 +829,9 @@ impl Java8Visitor {
         // -- Enter Arguments --
 
         let enter_args_opt = match &change_state_stmt_node.state_context_t {
-            TargetStateContextType::StateRef { state_context_node } => &state_context_node.enter_args_opt,
+            TargetStateContextType::StateRef { state_context_node } => {
+                &state_context_node.enter_args_opt
+            }
             TargetStateContextType::StateStackPop {} => &None,
         };
 
@@ -1004,7 +1008,10 @@ impl Java8Visitor {
 
     fn generate_state_ref_transition(&mut self, transition_statement: &TransitionStatementNode) {
         self.newline();
-        let target_state_name = match &transition_statement.transition_expr_node.target_state_context_t {
+        let target_state_name = match &transition_statement
+            .transition_expr_node
+            .target_state_context_t
+        {
             TargetStateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_node.name
             }
@@ -1102,8 +1109,13 @@ impl Java8Visitor {
             self.newline();
         }
 
-        let enter_args_opt = match &transition_statement.transition_expr_node.target_state_context_t {
-            TargetStateContextType::StateRef { state_context_node } => &state_context_node.enter_args_opt,
+        let enter_args_opt = match &transition_statement
+            .transition_expr_node
+            .target_state_context_t
+        {
+            TargetStateContextType::StateRef { state_context_node } => {
+                &state_context_node.enter_args_opt
+            }
             TargetStateContextType::StateStackPop {} => &None,
         };
 
@@ -1158,7 +1170,10 @@ impl Java8Visitor {
 
         // -- State Arguments --
 
-        let target_state_args_opt = match &transition_statement.transition_expr_node.target_state_context_t {
+        let target_state_args_opt = match &transition_statement
+            .transition_expr_node
+            .target_state_context_t
+        {
             TargetStateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_args_opt
             }
@@ -2618,7 +2633,10 @@ impl AstVisitor for Java8Visitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_transition_statement_node(&mut self, transition_statement: &TransitionStatementNode) {
-        match &transition_statement.transition_expr_node.target_state_context_t {
+        match &transition_statement
+            .transition_expr_node
+            .target_state_context_t
+        {
             TargetStateContextType::StateRef { .. } => {
                 self.generate_state_ref_transition(transition_statement)
             }
