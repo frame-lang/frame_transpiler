@@ -32,17 +32,19 @@ class TransitParams:
         
         # Send system start event
         frame_event = FrameEvent(">", None)
-        self.__mux(frame_event)
+        self.__kernel(frame_event)
     
     # ===================== Interface Block =================== #
     
     def Next(self,):
         e = FrameEvent("Next",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     # ===================== Machine Block =================== #
     
+    # ----------------------------------------
     # $Init
+    
     def __transitparams_state_Init(self, e):
         if e._message == "Next":
             compartment = TransitParamsCompartment(self.__transitparams_state_A)
@@ -50,7 +52,9 @@ class TransitParams:
             self.__transition(compartment)
             return
     
+    # ----------------------------------------
     # $A
+    
     def __transitparams_state_A(self, e):
         if e._message == ">":
             self.log_do(e._parameters["msg"])
@@ -65,7 +69,9 @@ class TransitParams:
             self.__transition(compartment)
             return
     
+    # ----------------------------------------
     # $B
+    
     def __transitparams_state_B(self, e):
         if e._message == ">":
             self.log_do(e._parameters["msg"])
@@ -88,9 +94,9 @@ class TransitParams:
     def log_do(self,msg: str):
         raise NotImplementedError
     
-    # =============== Machinery and Mechanisms ============== #
+    # ==================== System Runtime =================== #
     
-    def __mux(self, e):
+    def __kernel(self, e):
         
         self.__router(e)
         

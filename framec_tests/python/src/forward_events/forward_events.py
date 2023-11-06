@@ -36,29 +36,31 @@ class ForwardEvents:
         
         # Send system start event
         frame_event = FrameEvent(">", None)
-        self.__mux(frame_event)
+        self.__kernel(frame_event)
     
     # ===================== Interface Block =================== #
     
     def GotoS1(self,):
         e = FrameEvent("GotoS1",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def GotoS2(self,):
         e = FrameEvent("GotoS2",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def ReturnFromS1(self,):
         e = FrameEvent("ReturnFromS1",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def ReturnFromS2(self,):
         e = FrameEvent("ReturnFromS2",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     # ===================== Machine Block =================== #
     
+    # ----------------------------------------
     # $S0
+    
     def __forwardevents_state_S0(self, e):
         if e._message == ">":
             self.log_do("Enter $S0")
@@ -84,7 +86,9 @@ class ForwardEvents:
             self.log_do("|ReturnFromS2| Forwarded")
             return
     
+    # ----------------------------------------
     # $S1
+    
     def __forwardevents_state_S1(self, e):
         if e._message == ">":
             self.log_do("Enter $S1")
@@ -98,7 +102,9 @@ class ForwardEvents:
             self.__transition(compartment)
             return
     
+    # ----------------------------------------
     # $S2
+    
     def __forwardevents_state_S2(self, e):
         if e._message == ">":
             self.log_do("Enter $S2")
@@ -118,9 +124,9 @@ class ForwardEvents:
         self.tape.append(f'{msg}')
         
     
-    # =============== Machinery and Mechanisms ============== #
+    # ==================== System Runtime =================== #
     
-    def __mux(self, e):
+    def __kernel(self, e):
         
         self.__router(e)
         

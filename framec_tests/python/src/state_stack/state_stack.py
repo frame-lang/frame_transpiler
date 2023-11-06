@@ -36,33 +36,35 @@ class StateStack:
         
         # Send system start event
         frame_event = FrameEvent(">", None)
-        self.__mux(frame_event)
+        self.__kernel(frame_event)
     
     # ===================== Interface Block =================== #
     
     def to_a(self,):
         e = FrameEvent("to_a",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def to_b(self,):
         e = FrameEvent("to_b",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def to_c(self,):
         e = FrameEvent("to_c",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def push(self,):
         e = FrameEvent("push",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def pop(self,):
         e = FrameEvent("pop",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     # ===================== Machine Block =================== #
     
+    # ----------------------------------------
     # $A
+    
     def __statestack_state_A(self, e):
         if e._message == ">":
             self.log_do("A:>")
@@ -90,7 +92,9 @@ class StateStack:
             self.__transition(compartment)
             return
     
+    # ----------------------------------------
     # $B
+    
     def __statestack_state_B(self, e):
         if e._message == ">":
             self.log_do("B:>")
@@ -118,7 +122,9 @@ class StateStack:
             self.__transition(compartment)
             return
     
+    # ----------------------------------------
     # $C
+    
     def __statestack_state_C(self, e):
         if e._message == ">":
             self.log_do("C:>")
@@ -151,9 +157,9 @@ class StateStack:
     def log_do(self,msg: str):
         raise NotImplementedError
     
-    # =============== Machinery and Mechanisms ============== #
+    # ==================== System Runtime =================== #
     
-    def __mux(self, e):
+    def __kernel(self, e):
         
         self.__router(e)
         

@@ -32,21 +32,21 @@ class HandlerCalls:
         
         # Send system start event
         frame_event = FrameEvent(">", None)
-        self.__mux(frame_event)
+        self.__kernel(frame_event)
     
     # ===================== Interface Block =================== #
     
     def NonRec(self,):
         e = FrameEvent("NonRec",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def SelfRec(self,):
         e = FrameEvent("SelfRec",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def MutRec(self,):
         e = FrameEvent("MutRec",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def Call(self,event: str,arg: int):
         parameters = {}
@@ -55,25 +55,27 @@ class HandlerCalls:
         parameters["arg"] = arg
 
         e = FrameEvent("Call",parameters)
-        self.__mux(e)
+        self.__kernel(e)
     
     def Foo(self,arg: int):
         parameters = {}
         parameters["arg"] = arg
 
         e = FrameEvent("Foo",parameters)
-        self.__mux(e)
+        self.__kernel(e)
     
     def Bar(self,arg: int):
         parameters = {}
         parameters["arg"] = arg
 
         e = FrameEvent("Bar",parameters)
-        self.__mux(e)
+        self.__kernel(e)
     
     # ===================== Machine Block =================== #
     
+    # ----------------------------------------
     # $Init
+    
     def __handlercalls_state_Init(self, e):
         if e._message == "NonRec":
             compartment = HandlerCallsCompartment(self.__handlercalls_state_NonRecursive)
@@ -91,7 +93,9 @@ class HandlerCalls:
             self.__transition(compartment)
             return
     
+    # ----------------------------------------
     # $NonRecursive
+    
     def __handlercalls_state_NonRecursive(self, e):
         if e._message == "Foo":
             self.log_do("Foo",e._parameters["arg"])
@@ -121,7 +125,9 @@ class HandlerCalls:
             
             return
     
+    # ----------------------------------------
     # $SelfRecursive
+    
     def __handlercalls_state_SelfRecursive(self, e):
         if e._message == "Foo":
             self.log_do("Foo",e._parameters["arg"])
@@ -155,7 +161,9 @@ class HandlerCalls:
             
             return
     
+    # ----------------------------------------
     # $MutuallyRecursive
+    
     def __handlercalls_state_MutuallyRecursive(self, e):
         if e._message == "Foo":
             self.log_do("Foo",e._parameters["arg"])
@@ -196,7 +204,9 @@ class HandlerCalls:
             
             return
     
+    # ----------------------------------------
     # $Final
+    
     def __handlercalls_state_Final(self, e):
         if e._message == ">":
             self.log_do("Final",(self.__compartment.state_args["counter"]))
@@ -209,9 +219,9 @@ class HandlerCalls:
     def log_do(self,through: str,val: int):
         raise NotImplementedError
     
-    # =============== Machinery and Mechanisms ============== #
+    # ==================== System Runtime =================== #
     
-    def __mux(self, e):
+    def __kernel(self, e):
         
         self.__router(e)
         

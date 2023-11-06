@@ -34,32 +34,36 @@ class Hierarchical:
         
         # Send system start event
         frame_event = FrameEvent(">", None)
-        self.__mux(frame_event)
+        self.__kernel(frame_event)
     
     # ===================== Interface Block =================== #
     
     def A(self,):
         e = FrameEvent("A",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def B(self,):
         e = FrameEvent("B",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def C(self,):
         e = FrameEvent("C",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     # ===================== Machine Block =================== #
     
+    # ----------------------------------------
     # $I
+    
     def __hierarchical_state_I(self, e):
         if e._message == ">":
             compartment = HierarchicalCompartment(self.__hierarchical_state_S)
             self.__transition(compartment)
             return
     
+    # ----------------------------------------
     # $S
+    
     def __hierarchical_state_S(self, e):
         if e._message == ">":
             self.enter_do("S")
@@ -78,7 +82,9 @@ class Hierarchical:
             self.__transition(compartment)
             return
     
+    # ----------------------------------------
     # $S0
+    
     def __hierarchical_state_S0(self, e):
         if e._message == ">":
             self.enter_do("S0")
@@ -102,7 +108,9 @@ class Hierarchical:
         self.__hierarchical_state_S(e)
         
     
+    # ----------------------------------------
     # $S1
+    
     def __hierarchical_state_S1(self, e):
         if e._message == ">":
             self.enter_do("S1")
@@ -120,7 +128,9 @@ class Hierarchical:
         self.__hierarchical_state_S(e)
         
     
+    # ----------------------------------------
     # $S2
+    
     def __hierarchical_state_S2(self, e):
         if e._message == ">":
             self.enter_do("S2")
@@ -139,7 +149,9 @@ class Hierarchical:
       #  continue after transition (should be ignored)
     
     
+    # ----------------------------------------
     # $S3
+    
     def __hierarchical_state_S3(self, e):
         if e._message == ">":
             self.enter_do("S3")
@@ -155,7 +167,9 @@ class Hierarchical:
         self.__hierarchical_state_S1(e)
         
     
+    # ----------------------------------------
     # $T
+    
     def __hierarchical_state_T(self, e):
         if e._message == ">":
             self.enter_do("T")
@@ -188,9 +202,9 @@ class Hierarchical:
     def log_do(self,msg: str):
         raise NotImplementedError
     
-    # =============== Machinery and Mechanisms ============== #
+    # ==================== System Runtime =================== #
     
-    def __mux(self, e):
+    def __kernel(self, e):
         
         self.__router(e)
         

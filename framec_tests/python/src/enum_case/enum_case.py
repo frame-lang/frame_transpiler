@@ -42,21 +42,23 @@ class EnumTest:
         
         # Send system start event
         frame_event = FrameEvent(">", None)
-        self.__mux(frame_event)
+        self.__kernel(frame_event)
     
     # ===================== Interface Block =================== #
     
     def A(self,):
         e = FrameEvent("A",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def B(self,):
         e = FrameEvent("B",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     # ===================== Machine Block =================== #
     
+    # ----------------------------------------
     # $SUN
+    
     def __enumtest_state_SUN(self, e):
         if e._message == "A":
             self.entered_do("SUNDAY",EnumTest_Days.SUNDAY)
@@ -67,7 +69,9 @@ class EnumTest:
             self.__transition(compartment)
             return
     
+    # ----------------------------------------
     # $MON
+    
     def __enumtest_state_MON(self, e):
         if e._message == "A":
             self.entered_do("MONDAY",EnumTest_Days.MONDAY)
@@ -78,7 +82,9 @@ class EnumTest:
             self.__transition(compartment)
             return
     
+    # ----------------------------------------
     # $TUE
+    
     def __enumtest_state_TUE(self, e):
         if e._message == "A":
             self.entered_do("TUESDAY",EnumTest_Days.TUESDAY)
@@ -89,7 +95,9 @@ class EnumTest:
             self.__transition(compartment)
             return
     
+    # ----------------------------------------
     # $WED
+    
     def __enumtest_state_WED(self, e):
         if e._message == "A":
             self.entered_do("WEDNESDAY",EnumTest_Days.WEDNESDAY)
@@ -100,7 +108,9 @@ class EnumTest:
             self.__transition(compartment)
             return
     
+    # ----------------------------------------
     # $THR
+    
     def __enumtest_state_THR(self, e):
         if e._message == "A":
             self.entered_do("THURSDAY",EnumTest_Days.THURSDAY)
@@ -111,7 +121,9 @@ class EnumTest:
             self.__transition(compartment)
             return
     
+    # ----------------------------------------
     # $FRI
+    
     def __enumtest_state_FRI(self, e):
         if e._message == "A":
             self.entered_do("FRIDAY",EnumTest_Days.FRIDAY)
@@ -129,9 +141,9 @@ class EnumTest:
     def left_do(self,msg: str,val: int):
         raise NotImplementedError
     
-    # =============== Machinery and Mechanisms ============== #
+    # ==================== System Runtime =================== #
     
-    def __mux(self, e):
+    def __kernel(self, e):
         
         self.__router(e)
         

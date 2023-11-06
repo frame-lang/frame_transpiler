@@ -32,25 +32,27 @@ class StateParams:
         
         # Send system start event
         frame_event = FrameEvent(">", None)
-        self.__mux(frame_event)
+        self.__kernel(frame_event)
     
     # ===================== Interface Block =================== #
     
     def Next(self,):
         e = FrameEvent("Next",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def Prev(self,):
         e = FrameEvent("Prev",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def Log(self,):
         e = FrameEvent("Log",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     # ===================== Machine Block =================== #
     
+    # ----------------------------------------
     # $Init
+    
     def __stateparams_state_Init(self, e):
         if e._message == "Next":
             compartment = StateParamsCompartment(self.__stateparams_state_Split)
@@ -58,7 +60,9 @@ class StateParams:
             self.__transition(compartment)
             return
     
+    # ----------------------------------------
     # $Split
+    
     def __stateparams_state_Split(self, e):
         if e._message == "Next":
             compartment = StateParamsCompartment(self.__stateparams_state_Merge)
@@ -76,7 +80,9 @@ class StateParams:
             self.got_param_do("val",(self.__compartment.state_args["val"]))
             return
     
+    # ----------------------------------------
     # $Merge
+    
     def __stateparams_state_Merge(self, e):
         if e._message == "Next":
             compartment = StateParamsCompartment(self.__stateparams_state_Split)
@@ -98,9 +104,9 @@ class StateParams:
     def got_param_do(self,name: str,val: int):
         raise NotImplementedError
     
-    # =============== Machinery and Mechanisms ============== #
+    # ==================== System Runtime =================== #
     
-    def __mux(self, e):
+    def __kernel(self, e):
         
         self.__router(e)
         

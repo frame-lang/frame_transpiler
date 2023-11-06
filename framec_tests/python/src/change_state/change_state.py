@@ -25,17 +25,19 @@ class ChangeStateSm:
         
         # Send system start event
         frame_event = FrameEvent(">", None)
-        self.__mux(frame_event)
+        self.__kernel(frame_event)
     
     # ===================== Interface Block =================== #
     
     def change(self,):
         e = FrameEvent("change",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     # ===================== Machine Block =================== #
     
+    # ----------------------------------------
     # $S0
+    
     def __changestatesm_state_S0(self, e):
         if e._message == "change":
             compartment = ChangeStateSmCompartment(self.__changestatesm_state_S1)
@@ -43,7 +45,9 @@ class ChangeStateSm:
             self.__change_state(compartment)
             return
     
+    # ----------------------------------------
     # $S1
+    
     def __changestatesm_state_S1(self, e):
         if e._message == "change":
             compartment = ChangeStateSmCompartment(self.__changestatesm_state_S2)
@@ -51,7 +55,9 @@ class ChangeStateSm:
             self.__change_state(compartment)
             return
     
+    # ----------------------------------------
     # $S2
+    
     def __changestatesm_state_S2(self, e):
         if e._message == "change":
             compartment = ChangeStateSmCompartment(self.__changestatesm_state_S3)
@@ -59,7 +65,9 @@ class ChangeStateSm:
             self.__change_state(compartment)
             return
     
+    # ----------------------------------------
     # $S3
+    
     def __changestatesm_state_S3(self, e):
         if e._message == "change":
             compartment = ChangeStateSmCompartment(self.__changestatesm_state_S4)
@@ -67,7 +75,9 @@ class ChangeStateSm:
             self.__change_state(compartment)
             return
     
+    # ----------------------------------------
     # $S4
+    
     def __changestatesm_state_S4(self, e):
         if e._message == "change":
             compartment = ChangeStateSmCompartment(self.__changestatesm_state_S0)
@@ -76,9 +86,9 @@ class ChangeStateSm:
             return
     
     
-    # =============== Machinery and Mechanisms ============== #
+    # ==================== System Runtime =================== #
     
-    def __mux(self, e):
+    def __kernel(self, e):
         
         self.__router(e)
         

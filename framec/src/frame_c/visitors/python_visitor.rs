@@ -542,11 +542,11 @@ impl PythonVisitor {
     fn generate_machinery(&mut self, system_node: &SystemNode) {
         self.newline();
         self.newline();
-        self.add_code("# =============== Machinery and Mechanisms ============== #");
+        self.add_code("# ==================== System Runtime =================== #");
         self.newline();
         self.newline();
 
-        self.add_code("def __mux(self, e):");
+        self.add_code("def __kernel(self, e):");
         self.indent();
 
         match &system_node.machine_block_node_opt {
@@ -1480,7 +1480,7 @@ impl PythonVisitor {
         }
 
         self.newline();
-        self.add_code("self.__mux(frame_event)");
+        self.add_code("self.__kernel(frame_event)");
 
         self.outdent();
         self.newline();
@@ -2125,7 +2125,7 @@ impl AstVisitor for PythonVisitor {
             method_name_or_alias, params_param_code
         ));
         self.newline();
-        self.add_code("self.__mux(e)");
+        self.add_code("self.__kernel(e)");
 
         match &interface_method_node.return_type_opt {
             Some(_) => {
@@ -2235,7 +2235,10 @@ impl AstVisitor for PythonVisitor {
         self.current_state_name_opt = Some(state_node.name.clone());
 
         self.newline();
+        self.add_code("# ----------------------------------------");
+        self.newline();
         self.add_code(&format!("# ${}",&state_node.name));
+        self.newline();
         self.newline();
         self.add_code(&format!(
             "def {}(self, e):",

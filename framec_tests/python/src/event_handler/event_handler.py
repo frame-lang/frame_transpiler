@@ -32,7 +32,7 @@ class EventHandler:
         
         # Send system start event
         frame_event = FrameEvent(">", None)
-        self.__mux(frame_event)
+        self.__kernel(frame_event)
     
     # ===================== Interface Block =================== #
     
@@ -41,7 +41,7 @@ class EventHandler:
         parameters["x"] = x
 
         e = FrameEvent("LogIt",parameters)
-        self.__mux(e)
+        self.__kernel(e)
     
     def LogAdd(self,a: int,b: int):
         parameters = {}
@@ -50,7 +50,7 @@ class EventHandler:
         parameters["b"] = b
 
         e = FrameEvent("LogAdd",parameters)
-        self.__mux(e)
+        self.__kernel(e)
     
     def LogReturn(self,a: int,b: int):
         parameters = {}
@@ -59,7 +59,7 @@ class EventHandler:
         parameters["b"] = b
 
         e = FrameEvent("LogReturn",parameters)
-        self.__mux(e)
+        self.__kernel(e)
         return e._return
     
     def PassAdd(self,a: int,b: int):
@@ -69,7 +69,7 @@ class EventHandler:
         parameters["b"] = b
 
         e = FrameEvent("PassAdd",parameters)
-        self.__mux(e)
+        self.__kernel(e)
     
     def PassReturn(self,a: int,b: int):
         parameters = {}
@@ -78,12 +78,14 @@ class EventHandler:
         parameters["b"] = b
 
         e = FrameEvent("PassReturn",parameters)
-        self.__mux(e)
+        self.__kernel(e)
         return e._return
     
     # ===================== Machine Block =================== #
     
+    # ----------------------------------------
     # $S1
+    
     def __eventhandler_state_S1(self, e):
         if e._message == "LogIt":
             self.log_do("x",e._parameters["x"])
@@ -116,7 +118,9 @@ class EventHandler:
             return
             
     
+    # ----------------------------------------
     # $S2
+    
     def __eventhandler_state_S2(self, e):
         if e._message == ">":
             self.log_do("p",(self.__compartment.state_args["p"]))
@@ -127,9 +131,9 @@ class EventHandler:
     def log_do(self,msg: str,val: int):
         raise NotImplementedError
     
-    # =============== Machinery and Mechanisms ============== #
+    # ==================== System Runtime =================== #
     
-    def __mux(self, e):
+    def __kernel(self, e):
         
         self.__router(e)
         

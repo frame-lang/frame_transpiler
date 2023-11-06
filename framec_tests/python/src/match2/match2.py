@@ -37,11 +37,13 @@ class MatchTests:
         
         # Send system start event
         frame_event = FrameEvent(">", None)
-        self.__mux(frame_event)
+        self.__kernel(frame_event)
     
     # ===================== Machine Block =================== #
     
+    # ----------------------------------------
     # $A
+    
     def __matchtests_state_A(self, e):
         if e._message == ">":
             self.matchFruit_do(MatchTests_Fruit.PEACH)
@@ -149,9 +151,9 @@ class MatchTests:
     def log_do(self,msg):
         self.tape.append(msg)
     
-    # =============== Machinery and Mechanisms ============== #
+    # ==================== System Runtime =================== #
     
-    def __mux(self, e):
+    def __kernel(self, e):
         
         self.__router(e)
         

@@ -30,33 +30,35 @@ class SimpleHandlerCalls:
         
         # Send system start event
         frame_event = FrameEvent(">", None)
-        self.__mux(frame_event)
+        self.__kernel(frame_event)
     
     # ===================== Interface Block =================== #
     
     def A(self,):
         e = FrameEvent("A",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def B(self,):
         e = FrameEvent("B",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def C(self,):
         e = FrameEvent("C",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def D(self,):
         e = FrameEvent("D",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def E(self,):
         e = FrameEvent("E",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     # ===================== Machine Block =================== #
     
+    # ----------------------------------------
     # $Init
+    
     def __simplehandlercalls_state_Init(self, e):
         if e._message == "A":
             compartment = SimpleHandlerCallsCompartment(self.__simplehandlercalls_state_A)
@@ -83,20 +85,24 @@ class SimpleHandlerCalls:
             return
             return
     
+    # ----------------------------------------
     # $A
+    
     def __simplehandlercalls_state_A(self, e):
         pass
         
     
+    # ----------------------------------------
     # $B
+    
     def __simplehandlercalls_state_B(self, e):
         pass
         
     
     
-    # =============== Machinery and Mechanisms ============== #
+    # ==================== System Runtime =================== #
     
-    def __mux(self, e):
+    def __kernel(self, e):
         
         self.__router(e)
         

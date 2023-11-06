@@ -32,47 +32,49 @@ class Match:
         
         # Send system start event
         frame_event = FrameEvent(">", None)
-        self.__mux(frame_event)
+        self.__kernel(frame_event)
     
     # ===================== Interface Block =================== #
     
     def Empty(self,):
         e = FrameEvent("Empty",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def Simple(self,):
         e = FrameEvent("Simple",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def Multi(self,):
         e = FrameEvent("Multi",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def Nested(self,):
         e = FrameEvent("Nested",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def Child(self,):
         e = FrameEvent("Child",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def OnInt(self,i: int):
         parameters = {}
         parameters["i"] = i
 
         e = FrameEvent("OnInt",parameters)
-        self.__mux(e)
+        self.__kernel(e)
     
     def Onstring(self,s: str):
         parameters = {}
         parameters["s"] = s
 
         e = FrameEvent("Onstring",parameters)
-        self.__mux(e)
+        self.__kernel(e)
     
     # ===================== Machine Block =================== #
     
+    # ----------------------------------------
     # $Init
+    
     def __match_state_Init(self, e):
         if e._message == "Empty":
             compartment = MatchCompartment(self.__match_state_EmptyMatch)
@@ -95,7 +97,9 @@ class Match:
             self.__transition(compartment)
             return
     
+    # ----------------------------------------
     # $EmptyMatch
+    
     def __match_state_EmptyMatch(self, e):
         if e._message == "Onstring":
             if ((e._parameters["s"] == "") or (e._parameters["s"] == "foo")):
@@ -107,7 +111,9 @@ class Match:
       #  TODO: matching only the empty string is broken
     
     
+    # ----------------------------------------
     # $SimpleMatch
+    
     def __match_state_SimpleMatch(self, e):
         if e._message == "OnInt":
             if (e._parameters["i"] == 0):
@@ -138,7 +144,9 @@ class Match:
             
             return
     
+    # ----------------------------------------
     # $MultiMatch
+    
     def __match_state_MultiMatch(self, e):
         if e._message == "OnInt":
             if (e._parameters["i"] == 3) or (e._parameters["i"] == -7):
@@ -159,7 +167,9 @@ class Match:
             
             return
     
+    # ----------------------------------------
     # $NestedMatch
+    
     def __match_state_NestedMatch(self, e):
         if e._message == "OnInt":
             if  e._parameters["i"] > 0:
@@ -210,7 +220,9 @@ class Match:
             
             return
     
+    # ----------------------------------------
     # $ChildMatch
+    
     def __match_state_ChildMatch(self, e):
         if e._message == "OnInt":
             if (e._parameters["i"] == 0):
@@ -250,7 +262,9 @@ class Match:
         self.__match_state_SimpleMatch(e)
         
     
+    # ----------------------------------------
     # $Final
+    
     def __match_state_Final(self, e):
         pass
         
@@ -260,9 +274,9 @@ class Match:
     def log_do(self,msg: str):
         raise NotImplementedError
     
-    # =============== Machinery and Mechanisms ============== #
+    # ==================== System Runtime =================== #
     
-    def __mux(self, e):
+    def __kernel(self, e):
         
         self.__router(e)
         

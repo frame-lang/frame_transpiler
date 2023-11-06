@@ -31,25 +31,27 @@ class StateVars:
         
         # Send system start event
         frame_event = FrameEvent(">", None)
-        self.__mux(frame_event)
+        self.__kernel(frame_event)
     
     # ===================== Interface Block =================== #
     
     def X(self,):
         e = FrameEvent("X",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def Y(self,):
         e = FrameEvent("Y",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def Z(self,):
         e = FrameEvent("Z",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     # ===================== Machine Block =================== #
     
+    # ----------------------------------------
     # $Init
+    
     def __statevars_state_Init(self, e):
         if e._message == ">":
             compartment = StateVarsCompartment(self.__statevars_state_A)
@@ -57,7 +59,9 @@ class StateVars:
             self.__transition(compartment)
             return
     
+    # ----------------------------------------
     # $A
+    
     def __statevars_state_A(self, e):
         if e._message == "X":
             (self.__compartment.state_vars["x"]) = self.__compartment.state_vars["x"] + 1
@@ -75,7 +79,9 @@ class StateVars:
             self.__transition(compartment)
             return
     
+    # ----------------------------------------
     # $B
+    
     def __statevars_state_B(self, e):
         if e._message == "X":
             compartment = StateVarsCompartment(self.__statevars_state_A)
@@ -92,9 +98,9 @@ class StateVars:
     # ===================== Actions Block =================== #
     
     
-    # =============== Machinery and Mechanisms ============== #
+    # ==================== System Runtime =================== #
     
-    def __mux(self, e):
+    def __kernel(self, e):
         
         self.__router(e)
         

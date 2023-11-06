@@ -33,21 +33,23 @@ class TransitionSm:
         
         # Send system start event
         frame_event = FrameEvent(">", None)
-        self.__mux(frame_event)
+        self.__kernel(frame_event)
     
     # ===================== Interface Block =================== #
     
     def transit(self,):
         e = FrameEvent("transit",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def change(self,):
         e = FrameEvent("change",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     # ===================== Machine Block =================== #
     
+    # ----------------------------------------
     # $S0
+    
     def __transitionsm_state_S0(self, e):
         if e._message == "<":
             self.exit_do("S0")
@@ -57,7 +59,9 @@ class TransitionSm:
             self.__transition(compartment)
             return
     
+    # ----------------------------------------
     # $S1
+    
     def __transitionsm_state_S1(self, e):
         if e._message == ">":
             self.enter_do("S1")
@@ -68,7 +72,9 @@ class TransitionSm:
             self.__change_state(compartment)
             return
     
+    # ----------------------------------------
     # $S2
+    
     def __transitionsm_state_S2(self, e):
         if e._message == "<":
             self.exit_do("S2")
@@ -78,7 +84,9 @@ class TransitionSm:
             self.__transition(compartment)
             return
     
+    # ----------------------------------------
     # $S3
+    
     def __transitionsm_state_S3(self, e):
         if e._message == ">":
             self.enter_do("S3")
@@ -91,7 +99,9 @@ class TransitionSm:
             self.__transition(compartment)
             return
     
+    # ----------------------------------------
     # $S4
+    
     def __transitionsm_state_S4(self, e):
         if e._message == ">":
             self.enter_do("S4")
@@ -107,9 +117,9 @@ class TransitionSm:
     def exit_do(self,state: str):
         raise NotImplementedError
     
-    # =============== Machinery and Mechanisms ============== #
+    # ==================== System Runtime =================== #
     
-    def __mux(self, e):
+    def __kernel(self, e):
         
         self.__router(e)
         

@@ -33,21 +33,23 @@ class Basic:
         
         # Send system start event
         frame_event = FrameEvent(">", None)
-        self.__mux(frame_event)
+        self.__kernel(frame_event)
     
     # ===================== Interface Block =================== #
     
     def A(self,):
         e = FrameEvent("A",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def B(self,):
         e = FrameEvent("B",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     # ===================== Machine Block =================== #
     
+    # ----------------------------------------
     # $S0
+    
     def __basic_state_S0(self, e):
         if e._message == ">":
             self.entered_do("S0")
@@ -61,7 +63,9 @@ class Basic:
             self.__transition(compartment)
             return
     
+    # ----------------------------------------
     # $S1
+    
     def __basic_state_S1(self, e):
         if e._message == ">":
             self.entered_do("S1")
@@ -82,9 +86,9 @@ class Basic:
     def left_do(self,msg: str):
         raise NotImplementedError
     
-    # =============== Machinery and Mechanisms ============== #
+    # ==================== System Runtime =================== #
     
-    def __mux(self, e):
+    def __kernel(self, e):
         
         self.__router(e)
         

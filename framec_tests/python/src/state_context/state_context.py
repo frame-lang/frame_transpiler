@@ -33,21 +33,21 @@ class StateContextSm:
         
         # Send system start event
         frame_event = FrameEvent(">", None)
-        self.__mux(frame_event)
+        self.__kernel(frame_event)
     
     # ===================== Interface Block =================== #
     
     def Start(self,):
         e = FrameEvent("Start",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def LogState(self,):
         e = FrameEvent("LogState",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def Inc(self,):
         e = FrameEvent("Inc",None)
-        self.__mux(e)
+        self.__kernel(e)
         return e._return
     
     def Next(self,arg: int):
@@ -55,13 +55,15 @@ class StateContextSm:
         parameters["arg"] = arg
 
         e = FrameEvent("Next",parameters)
-        self.__mux(e)
+        self.__kernel(e)
     
     # ===================== Machine Block =================== #
       #  Change [arg:int]
     
     
+    # ----------------------------------------
     # $Init
+    
     def __statecontextsm_state_Init(self, e):
         if e._message == ">":
             (self.__compartment.state_vars["w"]) = 3
@@ -84,7 +86,9 @@ class StateContextSm:
             self.__transition(compartment)
             return
     
+    # ----------------------------------------
     # $Foo
+    
     def __statecontextsm_state_Foo(self, e):
         if e._message == ">":
             self.log_do("a",e._parameters["a"])
@@ -122,7 +126,9 @@ class StateContextSm:
       #      ^
     
     
+    # ----------------------------------------
     # $Bar
+    
     def __statecontextsm_state_Bar(self, e):
         if e._message == ">":
             self.log_do("a",e._parameters["a"])
@@ -146,9 +152,9 @@ class StateContextSm:
     def log_do(self,name: str,val: int):
         raise NotImplementedError
     
-    # =============== Machinery and Mechanisms ============== #
+    # ==================== System Runtime =================== #
     
-    def __mux(self, e):
+    def __kernel(self, e):
         
         self.__router(e)
         

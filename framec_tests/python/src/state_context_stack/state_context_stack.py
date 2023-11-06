@@ -37,42 +37,44 @@ class StateContextStack:
         
         # Send system start event
         frame_event = FrameEvent(">", None)
-        self.__mux(frame_event)
+        self.__kernel(frame_event)
     
     # ===================== Interface Block =================== #
     
     def to_a(self,):
         e = FrameEvent("to_a",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def to_b(self,):
         e = FrameEvent("to_b",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def to_c(self,):
         e = FrameEvent("to_c",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def inc(self,):
         e = FrameEvent("inc",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def value(self,):
         e = FrameEvent("value",None)
-        self.__mux(e)
+        self.__kernel(e)
         return e._return
     
     def push(self,):
         e = FrameEvent("push",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def pop(self,):
         e = FrameEvent("pop",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     # ===================== Machine Block =================== #
     
+    # ----------------------------------------
     # $A
+    
     def __statecontextstack_state_A(self, e):
         if e._message == ">":
             self.log_do("A:>")
@@ -110,7 +112,9 @@ class StateContextStack:
             self.__transition(compartment)
             return
     
+    # ----------------------------------------
     # $B
+    
     def __statecontextstack_state_B(self, e):
         if e._message == ">":
             self.log_do("B:>")
@@ -148,7 +152,9 @@ class StateContextStack:
             self.__transition(compartment)
             return
     
+    # ----------------------------------------
     # $C
+    
     def __statecontextstack_state_C(self, e):
         if e._message == ">":
             self.log_do("C:>")
@@ -191,9 +197,9 @@ class StateContextStack:
     def log_do(self,msg: str):
         raise NotImplementedError
     
-    # =============== Machinery and Mechanisms ============== #
+    # ==================== System Runtime =================== #
     
-    def __mux(self, e):
+    def __kernel(self, e):
         
         self.__router(e)
         

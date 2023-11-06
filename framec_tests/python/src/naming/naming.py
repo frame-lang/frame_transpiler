@@ -38,7 +38,7 @@ class Naming:
         
         # Send system start event
         frame_event = FrameEvent(">", None)
-        self.__mux(frame_event)
+        self.__kernel(frame_event)
     
     # ===================== Interface Block =================== #
     
@@ -47,21 +47,21 @@ class Naming:
         parameters["snake_param"] = snake_param
 
         e = FrameEvent("snake_event",parameters)
-        self.__mux(e)
+        self.__kernel(e)
     
     def CamelEvent(self,CamelParam: int):
         parameters = {}
         parameters["CamelParam"] = CamelParam
 
         e = FrameEvent("CamelEvent",parameters)
-        self.__mux(e)
+        self.__kernel(e)
     
     def event123(self,param123: int):
         parameters = {}
         parameters["param123"] = param123
 
         e = FrameEvent("event123",parameters)
-        self.__mux(e)
+        self.__kernel(e)
     
     def call(self,event: str,param: int):
         parameters = {}
@@ -70,11 +70,13 @@ class Naming:
         parameters["param"] = param
 
         e = FrameEvent("call",parameters)
-        self.__mux(e)
+        self.__kernel(e)
     
     # ===================== Machine Block =================== #
     
+    # ----------------------------------------
     # $Init
+    
     def __naming_state_Init(self, e):
         if e._message == "snake_event":
             compartment = NamingCompartment(self.__naming_state_snake_state)
@@ -109,7 +111,9 @@ class Naming:
             
             return
     
+    # ----------------------------------------
     # $snake_state
+    
     def __naming_state_snake_state(self, e):
           #  1100
         if e._message == "snake_event":
@@ -148,7 +152,9 @@ class Naming:
             
             return
     
+    # ----------------------------------------
     # $CamelState
+    
     def __naming_state_CamelState(self, e):
           #  1200
         if e._message == "snake_event":
@@ -187,7 +193,9 @@ class Naming:
             
             return
     
+    # ----------------------------------------
     # $state123
+    
     def __naming_state_state123(self, e):
           #  1300
         if e._message == "snake_event":
@@ -226,7 +234,9 @@ class Naming:
             
             return
     
+    # ----------------------------------------
     # $Final
+    
     def __naming_state_Final(self, e):
         if e._message == ">":
             self.logFinal_do((self.__compartment.state_args["result"]))
@@ -245,9 +255,9 @@ class Naming:
     def logFinal_do(self,r: int):
         raise NotImplementedError
     
-    # =============== Machinery and Mechanisms ============== #
+    # ==================== System Runtime =================== #
     
-    def __mux(self, e):
+    def __kernel(self, e):
         
         self.__router(e)
         

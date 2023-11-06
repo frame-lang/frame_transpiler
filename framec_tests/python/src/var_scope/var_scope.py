@@ -34,39 +34,39 @@ class VarScope:
         
         # Send system start event
         frame_event = FrameEvent(">", None)
-        self.__mux(frame_event)
+        self.__kernel(frame_event)
     
     # ===================== Interface Block =================== #
     
     def to_nn(self,):
         e = FrameEvent("to_nn",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def to_ny(self,):
         e = FrameEvent("to_ny",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def to_yn(self,):
         e = FrameEvent("to_yn",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def to_yy(self,):
         e = FrameEvent("to_yy",None)
-        self.__mux(e)
+        self.__kernel(e)
     
     def nn(self,d: str):
         parameters = {}
         parameters["d"] = d
 
         e = FrameEvent("nn",parameters)
-        self.__mux(e)
+        self.__kernel(e)
     
     def ny(self,d: str):
         parameters = {}
         parameters["d"] = d
 
         e = FrameEvent("ny",parameters)
-        self.__mux(e)
+        self.__kernel(e)
     
     def yn(self,d: str,x: str):
         parameters = {}
@@ -75,7 +75,7 @@ class VarScope:
         parameters["x"] = x
 
         e = FrameEvent("yn",parameters)
-        self.__mux(e)
+        self.__kernel(e)
     
     def yy(self,d: str,x: str):
         parameters = {}
@@ -84,18 +84,20 @@ class VarScope:
         parameters["x"] = x
 
         e = FrameEvent("yy",parameters)
-        self.__mux(e)
+        self.__kernel(e)
     
     def sigils(self,x: str):
         parameters = {}
         parameters["x"] = x
 
         e = FrameEvent("sigils",parameters)
-        self.__mux(e)
+        self.__kernel(e)
     
     # ===================== Machine Block =================== #
     
+    # ----------------------------------------
     # $Init
+    
     def __varscope_state_Init(self, e):
         if e._message == "to_nn":
             compartment = VarScopeCompartment(self.__varscope_state_NN)
@@ -126,7 +128,9 @@ class VarScope:
             self.__transition(compartment)
             return
     
+    # ----------------------------------------
     # $NN
+    
     def __varscope_state_NN(self, e):
         if e._message == "nn":
             et : str = "|nn|.e"
@@ -174,7 +178,9 @@ class VarScope:
       #  log(||.x)
     
     
+    # ----------------------------------------
     # $NY
+    
     def __varscope_state_NY(self, e):
         if e._message == "nn":
             et : str = "|nn|.e"
@@ -223,7 +229,9 @@ class VarScope:
       #  log(||.x)
     
     
+    # ----------------------------------------
     # $YN
+    
     def __varscope_state_YN(self, e):
         if e._message == "nn":
             et : str = "|nn|.e"
@@ -272,7 +280,9 @@ class VarScope:
       #  log(||.x)
     
     
+    # ----------------------------------------
     # $YY
+    
     def __varscope_state_YY(self, e):
         if e._message == "nn":
             et : str = "|nn|.e"
@@ -321,9 +331,9 @@ class VarScope:
     def log_do(self,s: str):
         raise NotImplementedError
     
-    # =============== Machinery and Mechanisms ============== #
+    # ==================== System Runtime =================== #
     
-    def __mux(self, e):
+    def __kernel(self, e):
         
         self.__router(e)
         
