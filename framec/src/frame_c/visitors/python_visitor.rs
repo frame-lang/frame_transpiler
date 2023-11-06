@@ -552,8 +552,12 @@ impl PythonVisitor {
             Some(machine_block_node) => {
                 self.newline();
                 self.newline();
+                self.add_code("# send event to current state");
+                self.newline();
                 self.add_code("self.__router(e)");
                 self.newline();
+                self.newline();
+                self.add_code("# loop until no transitions occur");
                 self.newline();
                 self.add_code("while self.__next_compartment != None:");
                 self.indent();
@@ -663,21 +667,21 @@ impl PythonVisitor {
             self.add_code("self.__next_compartment = compartment");
             self.outdent();
 
-            self.newline();
-            self.newline();
-            self.add_code(&format!(
-                "def  __do_transition(self, next_compartment: '{}Compartment'):",
-                self.system_name
-            ));
-
-            self.indent();
-            self.newline();
-            self.add_code("self.__router(FrameEvent(\"<\", self.__compartment.exit_args))");
-            self.newline();
-            self.add_code("self.__compartment = next_compartment");
-            self.newline();
-            self.add_code("self.__router(FrameEvent(\">\", self.__compartment.enter_args))");
-            self.outdent();
+            // self.newline();
+            // self.newline();
+            // self.add_code(&format!(
+            //     "def  __do_transition(self, next_compartment: '{}Compartment'):",
+            //     self.system_name
+            // ));
+            //
+            // self.indent();
+            // self.newline();
+            // self.add_code("self.__router(FrameEvent(\"<\", self.__compartment.exit_args))");
+            // self.newline();
+            // self.add_code("self.__compartment = next_compartment");
+            // self.newline();
+            // self.add_code("self.__router(FrameEvent(\">\", self.__compartment.enter_args))");
+            // self.outdent();
 
             if self.generate_state_stack {
                 self.newline();

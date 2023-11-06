@@ -155,8 +155,10 @@ class MatchTests:
     
     def __kernel(self, e):
         
+        # send event to current state
         self.__router(e)
         
+        # loop until no transitions occur
         while self.__next_compartment != None:
             next_compartment = self.__next_compartment
             self.__next_compartment = None
@@ -188,11 +190,6 @@ class MatchTests:
         
     def __transition(self, compartment: 'MatchTestsCompartment'):
         self.__next_compartment = compartment
-    
-    def  __do_transition(self, next_compartment: 'MatchTestsCompartment'):
-        self.__router(FrameEvent("<", self.__compartment.exit_args))
-        self.__compartment = next_compartment
-        self.__router(FrameEvent(">", self.__compartment.enter_args))
     
 
 # ===================== Compartment =================== #
