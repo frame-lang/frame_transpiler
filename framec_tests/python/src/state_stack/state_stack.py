@@ -166,16 +166,27 @@ class StateStack:
         while self.__next_compartment != None:
             next_compartment = self.__next_compartment
             self.__next_compartment = None
-            if(next_compartment.forward_event is not None and 
-               next_compartment.forward_event._message == ">"):
-                self.__router(FrameEvent( "<", self.__compartment.exit_args))
-                self.__compartment = next_compartment
-                self.__router(next_compartment.forward_event)
-            else:
-                self.__do_transition(next_compartment)
-                if next_compartment.forward_event is not None:
+            
+            # exit current state
+            self.__router(FrameEvent( "<", self.__compartment.exit_args))
+            # change state
+            self.__compartment = next_compartment
+            
+            if next_compartment.forward_event is None:
+                # send normal enter event
+                self.__router(FrameEvent(">", self.__compartment.enter_args))
+            else: # there is a forwarded event
+                if next_compartment.forward_event._message == ">":
+                    # forwarded event is enter event
                     self.__router(next_compartment.forward_event)
-            next_compartment.forward_event = None
+                else:
+                    # forwarded event is not enter event
+                    # send normal enter event
+                    self.__router(FrameEvent(">", self.__compartment.enter_args))
+                    # and now forward event to new, intialized state
+                    self.__router(next_compartment.forward_event)
+                next_compartment.forward_event = None
+                
     
     def __router(self, e):
         if self.__compartment.state.__name__ == '__statestack_state_A':
