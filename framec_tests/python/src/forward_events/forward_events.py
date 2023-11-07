@@ -38,7 +38,7 @@ class ForwardEvents:
         frame_event = FrameEvent(">", None)
         self.__kernel(frame_event)
     
-    # ===================== Interface Block =================== #
+    # ==================== Interface Block ================== #
     
     def GotoS1(self,):
         e = FrameEvent("GotoS1",None)

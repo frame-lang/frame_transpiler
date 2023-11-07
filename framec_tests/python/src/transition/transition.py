@@ -35,7 +35,7 @@ class TransitionSm:
         frame_event = FrameEvent(">", None)
         self.__kernel(frame_event)
     
-    # ===================== Interface Block =================== #
+    # ==================== Interface Block ================== #
     
     def transit(self,):
         e = FrameEvent("transit",None)

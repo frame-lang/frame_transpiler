@@ -33,7 +33,7 @@ class StateVars:
         frame_event = FrameEvent(">", None)
         self.__kernel(frame_event)
     
-    # ===================== Interface Block =================== #
+    # ==================== Interface Block ================== #
     
     def X(self,):
         e = FrameEvent("X",None)

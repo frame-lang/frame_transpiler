@@ -1514,7 +1514,7 @@ impl PythonVisitor {
         if self.managed {
             manager_param = "manager";
         }
-        self.newline();
+
         self.add_code("@staticmethod");
         self.newline();
         self.add_code(&format!(
@@ -1524,48 +1524,27 @@ impl PythonVisitor {
 
         self.indent();
         self.newline();
-        self.newline();
         if self.managed {
             self.add_code("data._manager = manager");
         }
-        // self.newline();
-        // self.newline();
-        // self.add_code("// Initialize machine");
-        // self.newline();
-        // self.add_code("data.compartment =.compartment");
-        // self.newline();
-        // // for x in domain_vec {
-        // //     self.newline();
-        // //     self.add_code(&format!("this.{} = parseObj.{}", x.0, x.0))
-        // // }
-        self.newline();
         self.newline();
         self.add_code("return data");
-        self.newline();
-
         self.outdent();
         self.newline();
-        // self.add_code("}");
+
     }
 
     //* --------------------------------------------------------------------- *//
 
     fn generate_json_fn(&mut self) {
         self.newline();
-        self.newline();
         self.add_code("def marshal(self):");
         self.indent();
-        self.newline();
         self.newline();
         self.add_code("data = copy.deepcopy(self)");
         self.newline();
         self.add_code("return data");
-        self.newline();
-
         self.outdent();
-        // self.newline();
-        // self.add_code("}");
-        self.newline();
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1764,6 +1743,14 @@ impl AstVisitor for PythonVisitor {
             }
             None => {}
         };
+
+        if self.marshal {
+            self.newline();
+            self.add_code("# ================== System Marshalling ================= #");
+            // generate Load() factory
+            self.format_load_fn(system_node);
+            self.generate_json_fn();
+        }
         self.newline();
         self.newline();
         self.add_code("# ==================== System Factory =================== #");
@@ -1822,12 +1809,6 @@ impl AstVisitor for PythonVisitor {
 
         if let Some(interface_block_node) = &system_node.interface_block_node_opt {
             interface_block_node.accept(self);
-        }
-
-        if self.marshal {
-            // generate Load() factory
-            self.format_load_fn(system_node);
-            self.generate_json_fn();
         }
 
         if let Some(machine_block_node) = &system_node.machine_block_node_opt {
@@ -2081,7 +2062,7 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_interface_block_node(&mut self, interface_block_node: &InterfaceBlockNode) {
         self.newline();
-        self.add_code("# ===================== Interface Block =================== #");
+        self.add_code("# ==================== Interface Block ================== #");
         self.newline();
 
         for interface_method_node_rcref in &interface_block_node.interface_methods {

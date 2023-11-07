@@ -40,7 +40,7 @@ class Naming:
         frame_event = FrameEvent(">", None)
         self.__kernel(frame_event)
     
-    # ===================== Interface Block =================== #
+    # ==================== Interface Block ================== #
     
     def snake_event(self,snake_param: int):
         parameters = {}

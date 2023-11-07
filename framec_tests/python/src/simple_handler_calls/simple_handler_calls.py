@@ -32,7 +32,7 @@ class SimpleHandlerCalls:
         frame_event = FrameEvent(">", None)
         self.__kernel(frame_event)
     
-    # ===================== Interface Block =================== #
+    # ==================== Interface Block ================== #
     
     def A(self,):
         e = FrameEvent("A",None)

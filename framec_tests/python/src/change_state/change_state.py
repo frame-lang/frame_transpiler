@@ -27,7 +27,7 @@ class ChangeStateSm:
         frame_event = FrameEvent(">", None)
         self.__kernel(frame_event)
     
-    # ===================== Interface Block =================== #
+    # ==================== Interface Block ================== #
     
     def change(self,):
         e = FrameEvent("change",None)

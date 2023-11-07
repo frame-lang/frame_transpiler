@@ -36,7 +36,7 @@ class VarScope:
         frame_event = FrameEvent(">", None)
         self.__kernel(frame_event)
     
-    # ===================== Interface Block =================== #
+    # ==================== Interface Block ================== #
     
     def to_nn(self,):
         e = FrameEvent("to_nn",None)

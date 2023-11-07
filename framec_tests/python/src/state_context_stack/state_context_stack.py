@@ -39,7 +39,7 @@ class StateContextStack:
         frame_event = FrameEvent(">", None)
         self.__kernel(frame_event)
     
-    # ===================== Interface Block =================== #
+    # ==================== Interface Block ================== #
     
     def to_a(self,):
         e = FrameEvent("to_a",None)

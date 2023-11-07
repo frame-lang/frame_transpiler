@@ -35,7 +35,7 @@ class StateContextSm:
         frame_event = FrameEvent(">", None)
         self.__kernel(frame_event)
     
-    # ===================== Interface Block =================== #
+    # ==================== Interface Block ================== #
     
     def Start(self,):
         e = FrameEvent("Start",None)

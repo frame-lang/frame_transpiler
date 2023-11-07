@@ -34,7 +34,7 @@ class EventHandler:
         frame_event = FrameEvent(">", None)
         self.__kernel(frame_event)
     
-    # ===================== Interface Block =================== #
+    # ==================== Interface Block ================== #
     
     def LogIt(self,x: int):
         parameters = {}
