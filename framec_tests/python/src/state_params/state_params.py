@@ -22,7 +22,7 @@ class StateParams:
         
          # Create and intialize start state compartment.
         
-        self.__state = self.__stateparams_state_Init
+        self.__state = '__stateparams_state_Init'
         self.__compartment: 'StateParamsCompartment' = StateParamsCompartment(self.__state)
         self.__next_compartment: 'StateParamsCompartment' = None
         
@@ -55,7 +55,7 @@ class StateParams:
     
     def __stateparams_state_Init(self, e):
         if e._message == "Next":
-            compartment = StateParamsCompartment(self.__stateparams_state_Split)
+            compartment = StateParamsCompartment('__stateparams_state_Split')
             compartment.state_args["val"] = 1
             self.__transition(compartment)
             return
@@ -65,13 +65,13 @@ class StateParams:
     
     def __stateparams_state_Split(self, e):
         if e._message == "Next":
-            compartment = StateParamsCompartment(self.__stateparams_state_Merge)
+            compartment = StateParamsCompartment('__stateparams_state_Merge')
             compartment.state_args["left"] = self.__compartment.state_args["val"]
             compartment.state_args["right"] = self.__compartment.state_args["val"] + 1
             self.__transition(compartment)
             return
         elif e._message == "Prev":
-            compartment = StateParamsCompartment(self.__stateparams_state_Merge)
+            compartment = StateParamsCompartment('__stateparams_state_Merge')
             compartment.state_args["left"] = self.__compartment.state_args["val"] + 1
             compartment.state_args["right"] = self.__compartment.state_args["val"]
             self.__transition(compartment)
@@ -85,12 +85,12 @@ class StateParams:
     
     def __stateparams_state_Merge(self, e):
         if e._message == "Next":
-            compartment = StateParamsCompartment(self.__stateparams_state_Split)
+            compartment = StateParamsCompartment('__stateparams_state_Split')
             compartment.state_args["val"] = self.__compartment.state_args["left"] + self.__compartment.state_args["right"]
             self.__transition(compartment)
             return
         elif e._message == "Prev":
-            compartment = StateParamsCompartment(self.__stateparams_state_Split)
+            compartment = StateParamsCompartment('__stateparams_state_Split')
             compartment.state_args["val"] = self.__compartment.state_args["left"] * self.__compartment.state_args["right"]
             self.__transition(compartment)
             return
@@ -138,18 +138,18 @@ class StateParams:
                 
     
     def __router(self, e):
-        if self.__compartment.state.__name__ == '__stateparams_state_Init':
+        if self.__compartment.state == '__stateparams_state_Init':
             self.__stateparams_state_Init(e)
-        elif self.__compartment.state.__name__ == '__stateparams_state_Split':
+        elif self.__compartment.state == '__stateparams_state_Split':
             self.__stateparams_state_Split(e)
-        elif self.__compartment.state.__name__ == '__stateparams_state_Merge':
+        elif self.__compartment.state == '__stateparams_state_Merge':
             self.__stateparams_state_Merge(e)
         
     def __transition(self, compartment: 'StateParamsCompartment'):
         self.__next_compartment = compartment
     
     def state_info(self):
-        return self.__compartment.state.__name__
+        return self.__compartment.state
         
 
 # ===================== Compartment =================== #

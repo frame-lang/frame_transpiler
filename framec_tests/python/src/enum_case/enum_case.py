@@ -32,7 +32,7 @@ class EnumTest:
         
          # Create and intialize start state compartment.
         
-        self.__state = self.__enumtest_state_SUN
+        self.__state = '__enumtest_state_SUN'
         self.__compartment: 'EnumTestCompartment' = EnumTestCompartment(self.__state)
         self.__next_compartment: 'EnumTestCompartment' = None
         
@@ -65,7 +65,7 @@ class EnumTest:
             return
         elif e._message == "B":
             self.left_do("MONDAY",EnumTest_Days.MONDAY)
-            compartment = EnumTestCompartment(self.__enumtest_state_MON)
+            compartment = EnumTestCompartment('__enumtest_state_MON')
             self.__transition(compartment)
             return
     
@@ -78,7 +78,7 @@ class EnumTest:
             return
         elif e._message == "B":
             self.left_do("TUESDAY",EnumTest_Days.TUESDAY)
-            compartment = EnumTestCompartment(self.__enumtest_state_TUE)
+            compartment = EnumTestCompartment('__enumtest_state_TUE')
             self.__transition(compartment)
             return
     
@@ -91,7 +91,7 @@ class EnumTest:
             return
         elif e._message == "B":
             self.left_do("WEDNESDAY",EnumTest_Days.WEDNESDAY)
-            compartment = EnumTestCompartment(self.__enumtest_state_WED)
+            compartment = EnumTestCompartment('__enumtest_state_WED')
             self.__transition(compartment)
             return
     
@@ -104,7 +104,7 @@ class EnumTest:
             return
         elif e._message == "B":
             self.left_do("THURSDAY",EnumTest_Days.THURSDAY)
-            compartment = EnumTestCompartment(self.__enumtest_state_THR)
+            compartment = EnumTestCompartment('__enumtest_state_THR')
             self.__transition(compartment)
             return
     
@@ -117,7 +117,7 @@ class EnumTest:
             return
         elif e._message == "B":
             self.left_do("FRIDAY",EnumTest_Days.FRIDAY)
-            compartment = EnumTestCompartment(self.__enumtest_state_FRI)
+            compartment = EnumTestCompartment('__enumtest_state_FRI')
             self.__transition(compartment)
             return
     
@@ -130,7 +130,7 @@ class EnumTest:
             return
         elif e._message == "B":
             self.left_do("SUNDAY",EnumTest_Days.SUNDAY)
-            compartment = EnumTestCompartment(self.__enumtest_state_SUN)
+            compartment = EnumTestCompartment('__enumtest_state_SUN')
             self.__transition(compartment)
             return
     
@@ -175,24 +175,24 @@ class EnumTest:
                 
     
     def __router(self, e):
-        if self.__compartment.state.__name__ == '__enumtest_state_SUN':
+        if self.__compartment.state == '__enumtest_state_SUN':
             self.__enumtest_state_SUN(e)
-        elif self.__compartment.state.__name__ == '__enumtest_state_MON':
+        elif self.__compartment.state == '__enumtest_state_MON':
             self.__enumtest_state_MON(e)
-        elif self.__compartment.state.__name__ == '__enumtest_state_TUE':
+        elif self.__compartment.state == '__enumtest_state_TUE':
             self.__enumtest_state_TUE(e)
-        elif self.__compartment.state.__name__ == '__enumtest_state_WED':
+        elif self.__compartment.state == '__enumtest_state_WED':
             self.__enumtest_state_WED(e)
-        elif self.__compartment.state.__name__ == '__enumtest_state_THR':
+        elif self.__compartment.state == '__enumtest_state_THR':
             self.__enumtest_state_THR(e)
-        elif self.__compartment.state.__name__ == '__enumtest_state_FRI':
+        elif self.__compartment.state == '__enumtest_state_FRI':
             self.__enumtest_state_FRI(e)
         
     def __transition(self, compartment: 'EnumTestCompartment'):
         self.__next_compartment = compartment
     
     def state_info(self):
-        return self.__compartment.state.__name__
+        return self.__compartment.state
         
 
 # ===================== Compartment =================== #

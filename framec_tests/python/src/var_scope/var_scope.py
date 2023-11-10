@@ -22,7 +22,7 @@ class VarScope:
         
          # Create and intialize start state compartment.
         
-        self.__state = self.__varscope_state_Init
+        self.__state = '__varscope_state_Init'
         self.__compartment: 'VarScopeCompartment' = VarScopeCompartment(self.__state)
         self.__next_compartment: 'VarScopeCompartment' = None
         
@@ -100,27 +100,27 @@ class VarScope:
     
     def __varscope_state_Init(self, e):
         if e._message == "to_nn":
-            compartment = VarScopeCompartment(self.__varscope_state_NN)
+            compartment = VarScopeCompartment('__varscope_state_NN')
             compartment.state_args["b"] = "$NN[b]"
             compartment.state_vars["c"] = "$NN.c"
             self.__transition(compartment)
             return
         elif e._message == "to_ny":
-            compartment = VarScopeCompartment(self.__varscope_state_NY)
+            compartment = VarScopeCompartment('__varscope_state_NY')
             compartment.state_args["b"] = "$NY[b]"
             compartment.state_vars["c"] = "$NY.c"
             compartment.state_vars["x"] = "$NY.x"
             self.__transition(compartment)
             return
         elif e._message == "to_yn":
-            compartment = VarScopeCompartment(self.__varscope_state_YN)
+            compartment = VarScopeCompartment('__varscope_state_YN')
             compartment.state_args["b"] = "$YN[b]"
             compartment.state_args["x"] = "$YN[x]"
             compartment.state_vars["c"] = "$YN.c"
             self.__transition(compartment)
             return
         elif e._message == "to_yy":
-            compartment = VarScopeCompartment(self.__varscope_state_YY)
+            compartment = VarScopeCompartment('__varscope_state_YY')
             compartment.state_args["b"] = "$YY[b]"
             compartment.state_args["x"] = "$YY[x]"
             compartment.state_vars["c"] = "$YY.c"
@@ -365,22 +365,22 @@ class VarScope:
                 
     
     def __router(self, e):
-        if self.__compartment.state.__name__ == '__varscope_state_Init':
+        if self.__compartment.state == '__varscope_state_Init':
             self.__varscope_state_Init(e)
-        elif self.__compartment.state.__name__ == '__varscope_state_NN':
+        elif self.__compartment.state == '__varscope_state_NN':
             self.__varscope_state_NN(e)
-        elif self.__compartment.state.__name__ == '__varscope_state_NY':
+        elif self.__compartment.state == '__varscope_state_NY':
             self.__varscope_state_NY(e)
-        elif self.__compartment.state.__name__ == '__varscope_state_YN':
+        elif self.__compartment.state == '__varscope_state_YN':
             self.__varscope_state_YN(e)
-        elif self.__compartment.state.__name__ == '__varscope_state_YY':
+        elif self.__compartment.state == '__varscope_state_YY':
             self.__varscope_state_YY(e)
         
     def __transition(self, compartment: 'VarScopeCompartment'):
         self.__next_compartment = compartment
     
     def state_info(self):
-        return self.__compartment.state.__name__
+        return self.__compartment.state
         
 
 # ===================== Compartment =================== #

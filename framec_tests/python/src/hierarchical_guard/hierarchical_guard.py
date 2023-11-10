@@ -22,7 +22,7 @@ class HierarchicalGuard:
         
          # Create and intialize start state compartment.
         
-        self.__state = self.__hierarchicalguard_state_I
+        self.__state = '__hierarchicalguard_state_I'
         self.__compartment: 'HierarchicalGuardCompartment' = HierarchicalGuardCompartment(self.__state)
         self.__next_compartment: 'HierarchicalGuardCompartment' = None
         
@@ -57,7 +57,7 @@ class HierarchicalGuard:
     
     def __hierarchicalguard_state_I(self, e):
         if e._message == ">":
-            compartment = HierarchicalGuardCompartment(self.__hierarchicalguard_state_S)
+            compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S')
             self.__transition(compartment)
             return
     
@@ -68,11 +68,11 @@ class HierarchicalGuard:
         if e._message == "A":
             self.log_do("S.A")
             if  e._parameters["i"] < 10:
-                compartment = HierarchicalGuardCompartment(self.__hierarchicalguard_state_S0)
+                compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S0')
                 self.__transition(compartment)
                 return
             else:
-                compartment = HierarchicalGuardCompartment(self.__hierarchicalguard_state_S1)
+                compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S1')
                 self.__transition(compartment)
                 return
             
@@ -80,11 +80,11 @@ class HierarchicalGuard:
         elif e._message == "B":
             self.log_do("S.B")
             if  e._parameters["i"] < 10:
-                compartment = HierarchicalGuardCompartment(self.__hierarchicalguard_state_S2)
+                compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S2')
                 self.__transition(compartment)
                 return
             else:
-                compartment = HierarchicalGuardCompartment(self.__hierarchicalguard_state_S3)
+                compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S3')
                 self.__transition(compartment)
                 return
             
@@ -97,7 +97,7 @@ class HierarchicalGuard:
         if e._message == "A":
             self.log_do("S0.A")
             if  e._parameters["i"] > 0:
-                compartment = HierarchicalGuardCompartment(self.__hierarchicalguard_state_S2)
+                compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S2')
                 self.__transition(compartment)
                 return
             else:
@@ -109,7 +109,7 @@ class HierarchicalGuard:
             if  e._parameters["i"] > 0:
                 pass
             else:
-                compartment = HierarchicalGuardCompartment(self.__hierarchicalguard_state_S1)
+                compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S1')
                 self.__transition(compartment)
                 return
             
@@ -125,7 +125,7 @@ class HierarchicalGuard:
         if e._message == "A":
             self.log_do("S1.A")
             if  e._parameters["i"] > 5:
-                compartment = HierarchicalGuardCompartment(self.__hierarchicalguard_state_S3)
+                compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S3')
                 self.__transition(compartment)
                 return
             else:
@@ -143,7 +143,7 @@ class HierarchicalGuard:
         if e._message == "A":
             self.log_do("S2.A")
             if  e._parameters["i"] > 10:
-                compartment = HierarchicalGuardCompartment(self.__hierarchicalguard_state_S4)
+                compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S4')
                 self.__transition(compartment)
                 return
             else:
@@ -155,7 +155,7 @@ class HierarchicalGuard:
             if  not (e._parameters["i"] > 10):
                 pass
             else:
-                compartment = HierarchicalGuardCompartment(self.__hierarchicalguard_state_S4)
+                compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S4')
                 self.__transition(compartment)
                 return
             
@@ -235,26 +235,26 @@ class HierarchicalGuard:
                 
     
     def __router(self, e):
-        if self.__compartment.state.__name__ == '__hierarchicalguard_state_I':
+        if self.__compartment.state == '__hierarchicalguard_state_I':
             self.__hierarchicalguard_state_I(e)
-        elif self.__compartment.state.__name__ == '__hierarchicalguard_state_S':
+        elif self.__compartment.state == '__hierarchicalguard_state_S':
             self.__hierarchicalguard_state_S(e)
-        elif self.__compartment.state.__name__ == '__hierarchicalguard_state_S0':
+        elif self.__compartment.state == '__hierarchicalguard_state_S0':
             self.__hierarchicalguard_state_S0(e)
-        elif self.__compartment.state.__name__ == '__hierarchicalguard_state_S1':
+        elif self.__compartment.state == '__hierarchicalguard_state_S1':
             self.__hierarchicalguard_state_S1(e)
-        elif self.__compartment.state.__name__ == '__hierarchicalguard_state_S2':
+        elif self.__compartment.state == '__hierarchicalguard_state_S2':
             self.__hierarchicalguard_state_S2(e)
-        elif self.__compartment.state.__name__ == '__hierarchicalguard_state_S3':
+        elif self.__compartment.state == '__hierarchicalguard_state_S3':
             self.__hierarchicalguard_state_S3(e)
-        elif self.__compartment.state.__name__ == '__hierarchicalguard_state_S4':
+        elif self.__compartment.state == '__hierarchicalguard_state_S4':
             self.__hierarchicalguard_state_S4(e)
         
     def __transition(self, compartment: 'HierarchicalGuardCompartment'):
         self.__next_compartment = compartment
     
     def state_info(self):
-        return self.__compartment.state.__name__
+        return self.__compartment.state
         
 
 # ===================== Compartment =================== #

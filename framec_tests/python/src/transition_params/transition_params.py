@@ -22,7 +22,7 @@ class TransitParams:
         
          # Create and intialize start state compartment.
         
-        self.__state = self.__transitparams_state_Init
+        self.__state = '__transitparams_state_Init'
         self.__compartment: 'TransitParamsCompartment' = TransitParamsCompartment(self.__state)
         self.__next_compartment: 'TransitParamsCompartment' = None
         
@@ -47,7 +47,7 @@ class TransitParams:
     
     def __transitparams_state_Init(self, e):
         if e._message == "Next":
-            compartment = TransitParamsCompartment(self.__transitparams_state_A)
+            compartment = TransitParamsCompartment('__transitparams_state_A')
             compartment.enter_args["msg"] = "hi A"
             self.__transition(compartment)
             return
@@ -63,7 +63,7 @@ class TransitParams:
             self.log_do("bye A")
             return
         elif e._message == "Next":
-            compartment = TransitParamsCompartment(self.__transitparams_state_B)
+            compartment = TransitParamsCompartment('__transitparams_state_B')
             compartment.enter_args["msg"] = "hi B"
             compartment.enter_args["val"] = 42
             self.__transition(compartment)
@@ -84,7 +84,7 @@ class TransitParams:
         elif e._message == "Next":
             self.__compartment.exit_args["val"] = True
             self.__compartment.exit_args["msg"] = "bye B"
-            compartment = TransitParamsCompartment(self.__transitparams_state_A)
+            compartment = TransitParamsCompartment('__transitparams_state_A')
             compartment.enter_args["msg"] = "hi again A"
             self.__transition(compartment)
             return
@@ -128,18 +128,18 @@ class TransitParams:
                 
     
     def __router(self, e):
-        if self.__compartment.state.__name__ == '__transitparams_state_Init':
+        if self.__compartment.state == '__transitparams_state_Init':
             self.__transitparams_state_Init(e)
-        elif self.__compartment.state.__name__ == '__transitparams_state_A':
+        elif self.__compartment.state == '__transitparams_state_A':
             self.__transitparams_state_A(e)
-        elif self.__compartment.state.__name__ == '__transitparams_state_B':
+        elif self.__compartment.state == '__transitparams_state_B':
             self.__transitparams_state_B(e)
         
     def __transition(self, compartment: 'TransitParamsCompartment'):
         self.__next_compartment = compartment
     
     def state_info(self):
-        return self.__compartment.state.__name__
+        return self.__compartment.state
         
 
 # ===================== Compartment =================== #

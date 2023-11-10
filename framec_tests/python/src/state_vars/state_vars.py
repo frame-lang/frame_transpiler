@@ -22,7 +22,7 @@ class StateVars:
         
          # Create and intialize start state compartment.
         
-        self.__state = self.__statevars_state_Init
+        self.__state = '__statevars_state_Init'
         self.__compartment: 'StateVarsCompartment' = StateVarsCompartment(self.__state)
         self.__next_compartment: 'StateVarsCompartment' = None
         
@@ -54,7 +54,7 @@ class StateVars:
     
     def __statevars_state_Init(self, e):
         if e._message == ">":
-            compartment = StateVarsCompartment(self.__statevars_state_A)
+            compartment = StateVarsCompartment('__statevars_state_A')
             compartment.state_vars["x"] = 0
             self.__transition(compartment)
             return
@@ -67,13 +67,13 @@ class StateVars:
             (self.__compartment.state_vars["x"]) = self.__compartment.state_vars["x"] + 1
             return
         elif e._message == "Y":
-            compartment = StateVarsCompartment(self.__statevars_state_B)
+            compartment = StateVarsCompartment('__statevars_state_B')
             compartment.state_vars["y"] = 10
             compartment.state_vars["z"] = 100
             self.__transition(compartment)
             return
         elif e._message == "Z":
-            compartment = StateVarsCompartment(self.__statevars_state_B)
+            compartment = StateVarsCompartment('__statevars_state_B')
             compartment.state_vars["y"] = 10
             compartment.state_vars["z"] = 100
             self.__transition(compartment)
@@ -84,7 +84,7 @@ class StateVars:
     
     def __statevars_state_B(self, e):
         if e._message == "X":
-            compartment = StateVarsCompartment(self.__statevars_state_A)
+            compartment = StateVarsCompartment('__statevars_state_A')
             compartment.state_vars["x"] = 0
             self.__transition(compartment)
             return
@@ -132,18 +132,18 @@ class StateVars:
                 
     
     def __router(self, e):
-        if self.__compartment.state.__name__ == '__statevars_state_Init':
+        if self.__compartment.state == '__statevars_state_Init':
             self.__statevars_state_Init(e)
-        elif self.__compartment.state.__name__ == '__statevars_state_A':
+        elif self.__compartment.state == '__statevars_state_A':
             self.__statevars_state_A(e)
-        elif self.__compartment.state.__name__ == '__statevars_state_B':
+        elif self.__compartment.state == '__statevars_state_B':
             self.__statevars_state_B(e)
         
     def __transition(self, compartment: 'StateVarsCompartment'):
         self.__next_compartment = compartment
     
     def state_info(self):
-        return self.__compartment.state.__name__
+        return self.__compartment.state
         
     def compartment_info(self):
         return self.__compartment

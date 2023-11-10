@@ -26,7 +26,7 @@ class ForwardEvents:
         
          # Create and intialize start state compartment.
         
-        self.__state = self.__forwardevents_state_S0
+        self.__state = '__forwardevents_state_S0'
         self.__compartment: 'ForwardEventsCompartment' = ForwardEventsCompartment(self.__state)
         self.__next_compartment: 'ForwardEventsCompartment' = None
         
@@ -70,13 +70,13 @@ class ForwardEvents:
             return
         elif e._message == "GotoS1":
             self.log_do("Recieved |GotoS1|")
-            compartment = ForwardEventsCompartment(self.__forwardevents_state_S1)
+            compartment = ForwardEventsCompartment('__forwardevents_state_S1')
             self.__transition(compartment)
             return
         elif e._message == "GotoS2":
             self.log_do("Recieved |GotoS2|")
             self.__state_stack_push(self.__compartment)
-            compartment = ForwardEventsCompartment(self.__forwardevents_state_S2)
+            compartment = ForwardEventsCompartment('__forwardevents_state_S2')
             self.__transition(compartment)
             return
         elif e._message == "ReturnFromS1":
@@ -97,7 +97,7 @@ class ForwardEvents:
             self.log_do("Exit $S1")
             return
         elif e._message == "ReturnFromS1":
-            compartment = ForwardEventsCompartment(self.__forwardevents_state_S0)
+            compartment = ForwardEventsCompartment('__forwardevents_state_S0')
             compartment.forward_event = e
             self.__transition(compartment)
             return
@@ -158,11 +158,11 @@ class ForwardEvents:
                 
     
     def __router(self, e):
-        if self.__compartment.state.__name__ == '__forwardevents_state_S0':
+        if self.__compartment.state == '__forwardevents_state_S0':
             self.__forwardevents_state_S0(e)
-        elif self.__compartment.state.__name__ == '__forwardevents_state_S1':
+        elif self.__compartment.state == '__forwardevents_state_S1':
             self.__forwardevents_state_S1(e)
-        elif self.__compartment.state.__name__ == '__forwardevents_state_S2':
+        elif self.__compartment.state == '__forwardevents_state_S2':
             self.__forwardevents_state_S2(e)
         
     def __transition(self, compartment: 'ForwardEventsCompartment'):
@@ -175,7 +175,7 @@ class ForwardEvents:
         return self.__state_stack.pop()
     
     def state_info(self):
-        return self.__compartment.state.__name__
+        return self.__compartment.state
         
 
 # ===================== Compartment =================== #

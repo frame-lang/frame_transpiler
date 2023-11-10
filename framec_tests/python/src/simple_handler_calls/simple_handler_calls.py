@@ -22,7 +22,7 @@ class SimpleHandlerCalls:
         
          # Create and intialize start state compartment.
         
-        self.__state = self.__simplehandlercalls_state_Init
+        self.__state = '__simplehandlercalls_state_Init'
         self.__compartment: 'SimpleHandlerCallsCompartment' = SimpleHandlerCallsCompartment(self.__state)
         self.__next_compartment: 'SimpleHandlerCallsCompartment' = None
         
@@ -61,11 +61,11 @@ class SimpleHandlerCalls:
     
     def __simplehandlercalls_state_Init(self, e):
         if e._message == "A":
-            compartment = SimpleHandlerCallsCompartment(self.__simplehandlercalls_state_A)
+            compartment = SimpleHandlerCallsCompartment('__simplehandlercalls_state_A')
             self.__transition(compartment)
             return
         elif e._message == "B":
-            compartment = SimpleHandlerCallsCompartment(self.__simplehandlercalls_state_B)
+            compartment = SimpleHandlerCallsCompartment('__simplehandlercalls_state_B')
             self.__transition(compartment)
             return
         elif e._message == "C":
@@ -75,7 +75,7 @@ class SimpleHandlerCalls:
         elif e._message == "D":
             self.B()
             return
-            compartment = SimpleHandlerCallsCompartment(self.__simplehandlercalls_state_A)
+            compartment = SimpleHandlerCallsCompartment('__simplehandlercalls_state_A')
             self.__transition(compartment)
             return
         elif e._message == "E":
@@ -134,18 +134,18 @@ class SimpleHandlerCalls:
                 
     
     def __router(self, e):
-        if self.__compartment.state.__name__ == '__simplehandlercalls_state_Init':
+        if self.__compartment.state == '__simplehandlercalls_state_Init':
             self.__simplehandlercalls_state_Init(e)
-        elif self.__compartment.state.__name__ == '__simplehandlercalls_state_A':
+        elif self.__compartment.state == '__simplehandlercalls_state_A':
             self.__simplehandlercalls_state_A(e)
-        elif self.__compartment.state.__name__ == '__simplehandlercalls_state_B':
+        elif self.__compartment.state == '__simplehandlercalls_state_B':
             self.__simplehandlercalls_state_B(e)
         
     def __transition(self, compartment: 'SimpleHandlerCallsCompartment'):
         self.__next_compartment = compartment
     
     def state_info(self):
-        return self.__compartment.state.__name__
+        return self.__compartment.state
         
 
 # ===================== Compartment =================== #

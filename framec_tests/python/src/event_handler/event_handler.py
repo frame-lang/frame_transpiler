@@ -22,7 +22,7 @@ class EventHandler:
         
          # Create and intialize start state compartment.
         
-        self.__state = self.__eventhandler_state_S1
+        self.__state = '__eventhandler_state_S1'
         self.__compartment: 'EventHandlerCompartment' = EventHandlerCompartment(self.__state)
         self.__next_compartment: 'EventHandlerCompartment' = None
         
@@ -104,14 +104,14 @@ class EventHandler:
             return
             
         elif e._message == "PassAdd":
-            compartment = EventHandlerCompartment(self.__eventhandler_state_S2)
+            compartment = EventHandlerCompartment('__eventhandler_state_S2')
             compartment.state_args["p"] = e._parameters["a"] + e._parameters["b"]
             self.__transition(compartment)
             return
         elif e._message == "PassReturn":
             r  = e._parameters["a"] + e._parameters["b"]
             self.log_do("r",r)
-            compartment = EventHandlerCompartment(self.__eventhandler_state_S2)
+            compartment = EventHandlerCompartment('__eventhandler_state_S2')
             compartment.state_args["p"] = r
             self.__transition(compartment)
             e._return = r
@@ -165,16 +165,16 @@ class EventHandler:
                 
     
     def __router(self, e):
-        if self.__compartment.state.__name__ == '__eventhandler_state_S1':
+        if self.__compartment.state == '__eventhandler_state_S1':
             self.__eventhandler_state_S1(e)
-        elif self.__compartment.state.__name__ == '__eventhandler_state_S2':
+        elif self.__compartment.state == '__eventhandler_state_S2':
             self.__eventhandler_state_S2(e)
         
     def __transition(self, compartment: 'EventHandlerCompartment'):
         self.__next_compartment = compartment
     
     def state_info(self):
-        return self.__compartment.state.__name__
+        return self.__compartment.state
         
 
 # ===================== Compartment =================== #

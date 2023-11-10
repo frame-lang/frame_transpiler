@@ -323,7 +323,7 @@ impl PythonVisitor {
                                         match ident.as_str() {
                                             // TODO: constants and figure out mom vs managed
                                             //  "Managed" => self.managed = true,
-                                            "Marshal" => self.marshal = true,
+                                            "marshal" => self.marshal = true,
                                             _ => {}
                                         }
                                     }
@@ -358,6 +358,13 @@ impl PythonVisitor {
                 // self.config.code.marshal_system_state_var = format!("{}State", &system_node.name);
             }
             None => {}
+        }
+        self.add_code(&format!("# {}", self.compiler_version));
+        self.newline();
+
+        if self.marshal {
+            self.newline();
+            self.add_code("import jsonpickle");
         }
 
         system_node.accept(self);
@@ -630,12 +637,12 @@ impl PythonVisitor {
                         .to_string();
                     if current_index == 0 {
                         self.add_code(&format!(
-                            "if self.__compartment.state.__name__ == '{}':",
+                            "if self.__compartment.state == '{}':",
                             state_name
                         ));
                     } else {
                         self.add_code(&format!(
-                            "elif self.__compartment.state.__name__ == '{}':",
+                            "elif self.__compartment.state == '{}':",
                             state_name
                         ));
                     }
@@ -825,7 +832,7 @@ impl PythonVisitor {
         }
         self.newline();
         self.add_code(&format!(
-            "compartment = {}Compartment(self.{})",
+            "compartment = {}Compartment('{}')",
             self.system_name, state_ref_code
         ));
         self.newline();
@@ -1082,7 +1089,7 @@ impl PythonVisitor {
         // -- Enter Arguments --
         self.newline();
         self.add_code(&format!(
-            "compartment = {}Compartment(self.{})",
+            "compartment = {}Compartment('{}')",
             self.system_name, state_ref_code
         ));
         // self.newline();
@@ -1381,7 +1388,7 @@ impl PythonVisitor {
             self.newline();
             self.newline();
             self.add_code(&format!(
-                "self.__state = self.{}",
+                "self.__state = '{}'",
                 self.format_target_state_name(&self.first_state_name)
             ));
         } else {
@@ -1391,10 +1398,10 @@ impl PythonVisitor {
             self.add_code("self.__state = None");
         }
 
-        if self.managed {
-            self.newline();
-            self.add_code("self._manager = manager");
-        }
+        // if self.managed {
+        //     self.newline();
+        //     self.add_code("self._manager = manager");
+        // }
 
         self.newline();
         self.add_code(&format!(
@@ -1507,45 +1514,51 @@ impl PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn format_load_fn(&mut self, system_node: &SystemNode) {
-        self.newline();
-        self.newline();
-        let mut manager_param = "";
-        if self.managed {
-            manager_param = "manager";
-        }
-
-        self.add_code("@staticmethod");
-        self.newline();
-        self.add_code(&format!(
-            "def load{}({}, data):",
-            system_node.name, manager_param
-        ));
-
-        self.indent();
-        self.newline();
-        if self.managed {
-            self.add_code("data._manager = manager");
-        }
-        self.newline();
-        self.add_code("return data");
-        self.outdent();
-        self.newline();
-
-    }
+    // fn generate_marshal_machinery_fn(&mut self, system_node: &SystemNode) {
+    //     self.newline();
+    //     self.newline();
+    //     // @staticmethod
+    //     // def unmarshal(data):
+    //     // return jsonpickle.decode(data)
+    //     //
+    //     // def marshal(self):
+    //     // return jsonpickle.encode(self)
+    //
+    //     // let mut manager_param = "";
+    //     // if self.managed {
+    //     //     manager_param = "manager";
+    //     // }
+    //
+    //     self.add_code("@staticmethod");
+    //     self.newline();
+    //     self.indent();
+    //     self.add_code("def unmarshal(data):");
+    //     self.outdent()
+    //     self.newline();
+    //     self.add_code("return jsonpickle.decode(data)");
+    //     self.newline();
+    //     self.newline();
+    //     self.add_code("def marshal(self):");
+    //     self.indent();
+    //     self.newline();
+    //     self.add_code("return jsonpickle.encode(self)");
+    //     self.outdent();
+    //     self.newline();
+    //
+    // }
 
     //* --------------------------------------------------------------------- *//
 
-    fn generate_json_fn(&mut self) {
-        self.newline();
-        self.add_code("def marshal(self):");
-        self.indent();
-        self.newline();
-        self.add_code("data = copy.deepcopy(self)");
-        self.newline();
-        self.add_code("return data");
-        self.outdent();
-    }
+    // fn generate_json_fn(&mut self) {
+    //     self.newline();
+    //     self.add_code("def marshal(self):");
+    //     self.indent();
+    //     self.newline();
+    //     self.add_code("data = copy.deepcopy(self)");
+    //     self.newline();
+    //     self.add_code("return data");
+    //     self.outdent();
+    // }
 
     //* --------------------------------------------------------------------- *//
 
@@ -1554,7 +1567,7 @@ impl PythonVisitor {
         self.add_code("def state_info(self):");
         self.indent();
         self.newline();
-        self.add_code("return self.__compartment.state.__name__");
+        self.add_code("return self.__compartment.state");
         self.newline();
         self.outdent();
     }
@@ -1641,8 +1654,6 @@ impl AstVisitor for PythonVisitor {
         }
 
         self.system_name = system_node.name.clone();
-        self.add_code(&format!("# {}", self.compiler_version));
-        self.newline();
 
         self.newline();
         let _ = &system_node.module.accept(self);
@@ -1746,26 +1757,46 @@ impl AstVisitor for PythonVisitor {
 
         if self.marshal {
             self.newline();
-            self.add_code("# ================== System Marshalling ================= #");
-            // generate Load() factory
-            self.format_load_fn(system_node);
-            self.generate_json_fn();
+            self.add_code("# ================== System Marshaling ================== #");
+            self.newline();
+            self.newline();
+            self.add_code("@staticmethod");
+            self.newline();
+            self.add_code("def unmarshal(data):");
+            self.indent();
+            self.newline();
+            self.add_code("return jsonpickle.decode(data)");
+            self.outdent();
+            self.newline();
+            self.newline();
+            self.add_code("def marshal(self):");
+            self.indent();
+            self.newline();
+            self.add_code("return jsonpickle.encode(self)");
+            self.outdent();
+            self.newline();
         }
         self.newline();
         self.newline();
         self.add_code("# ==================== System Factory =================== #");
         self.newline();
         self.newline();
-        if self.managed {
-            if new_params.is_empty() {
-                self.add_code("def __init__(self,manager):");
-            } else {
-                self.add_code(&format!("def __init__(self,manager, {}):", new_params));
-            }
-        } else if !self.managed && !new_params.is_empty() {
-            self.add_code(&format!("def __init__(self,{}):", new_params));
-        } else {
+        // if self.managed {
+        //     if new_params.is_empty() {
+        //         self.add_code("def __init__(self,manager):");
+        //     } else {
+        //         self.add_code(&format!("def __init__(self,manager, {}):", new_params));
+        //     }
+        // } else if !self.managed && !new_params.is_empty() {
+        //     self.add_code(&format!("def __init__(self,{}):", new_params));
+        // } else {
+        //     self.add_code("def __init__(self):");
+        // }
+
+        if new_params.is_empty() {
             self.add_code("def __init__(self):");
+        } else {
+            self.add_code(&format!("def __init__(self,{}):", new_params));
         }
 
         self.generate_new_fn(system_node);

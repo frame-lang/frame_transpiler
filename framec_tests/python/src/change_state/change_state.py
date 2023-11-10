@@ -17,7 +17,7 @@ class ChangeStateSm:
         
          # Create and intialize start state compartment.
         
-        self.__state = self.__changestatesm_state_S0
+        self.__state = '__changestatesm_state_S0'
         self.__compartment: 'ChangeStateSmCompartment' = ChangeStateSmCompartment(self.__state)
         self.__next_compartment: 'ChangeStateSmCompartment' = None
         
@@ -40,7 +40,7 @@ class ChangeStateSm:
     
     def __changestatesm_state_S0(self, e):
         if e._message == "change":
-            compartment = ChangeStateSmCompartment(self.__changestatesm_state_S1)
+            compartment = ChangeStateSmCompartment('__changestatesm_state_S1')
             
             self.__change_state(compartment)
             return
@@ -50,7 +50,7 @@ class ChangeStateSm:
     
     def __changestatesm_state_S1(self, e):
         if e._message == "change":
-            compartment = ChangeStateSmCompartment(self.__changestatesm_state_S2)
+            compartment = ChangeStateSmCompartment('__changestatesm_state_S2')
             
             self.__change_state(compartment)
             return
@@ -60,7 +60,7 @@ class ChangeStateSm:
     
     def __changestatesm_state_S2(self, e):
         if e._message == "change":
-            compartment = ChangeStateSmCompartment(self.__changestatesm_state_S3)
+            compartment = ChangeStateSmCompartment('__changestatesm_state_S3')
             
             self.__change_state(compartment)
             return
@@ -70,7 +70,7 @@ class ChangeStateSm:
     
     def __changestatesm_state_S3(self, e):
         if e._message == "change":
-            compartment = ChangeStateSmCompartment(self.__changestatesm_state_S4)
+            compartment = ChangeStateSmCompartment('__changestatesm_state_S4')
             
             self.__change_state(compartment)
             return
@@ -80,7 +80,7 @@ class ChangeStateSm:
     
     def __changestatesm_state_S4(self, e):
         if e._message == "change":
-            compartment = ChangeStateSmCompartment(self.__changestatesm_state_S0)
+            compartment = ChangeStateSmCompartment('__changestatesm_state_S0')
             
             self.__change_state(compartment)
             return
@@ -120,15 +120,15 @@ class ChangeStateSm:
                 
     
     def __router(self, e):
-        if self.__compartment.state.__name__ == '__changestatesm_state_S0':
+        if self.__compartment.state == '__changestatesm_state_S0':
             self.__changestatesm_state_S0(e)
-        elif self.__compartment.state.__name__ == '__changestatesm_state_S1':
+        elif self.__compartment.state == '__changestatesm_state_S1':
             self.__changestatesm_state_S1(e)
-        elif self.__compartment.state.__name__ == '__changestatesm_state_S2':
+        elif self.__compartment.state == '__changestatesm_state_S2':
             self.__changestatesm_state_S2(e)
-        elif self.__compartment.state.__name__ == '__changestatesm_state_S3':
+        elif self.__compartment.state == '__changestatesm_state_S3':
             self.__changestatesm_state_S3(e)
-        elif self.__compartment.state.__name__ == '__changestatesm_state_S4':
+        elif self.__compartment.state == '__changestatesm_state_S4':
             self.__changestatesm_state_S4(e)
         
     def __transition(self, compartment: 'ChangeStateSmCompartment'):
@@ -139,7 +139,7 @@ class ChangeStateSm:
     
     
     def state_info(self):
-        return self.__compartment.state.__name__
+        return self.__compartment.state
         
 
 # ===================== Compartment =================== #

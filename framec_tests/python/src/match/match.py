@@ -22,7 +22,7 @@ class Match:
         
          # Create and intialize start state compartment.
         
-        self.__state = self.__match_state_Init
+        self.__state = '__match_state_Init'
         self.__compartment: 'MatchCompartment' = MatchCompartment(self.__state)
         self.__next_compartment: 'MatchCompartment' = None
         
@@ -77,23 +77,23 @@ class Match:
     
     def __match_state_Init(self, e):
         if e._message == "Empty":
-            compartment = MatchCompartment(self.__match_state_EmptyMatch)
+            compartment = MatchCompartment('__match_state_EmptyMatch')
             self.__transition(compartment)
             return
         elif e._message == "Simple":
-            compartment = MatchCompartment(self.__match_state_SimpleMatch)
+            compartment = MatchCompartment('__match_state_SimpleMatch')
             self.__transition(compartment)
             return
         elif e._message == "Multi":
-            compartment = MatchCompartment(self.__match_state_MultiMatch)
+            compartment = MatchCompartment('__match_state_MultiMatch')
             self.__transition(compartment)
             return
         elif e._message == "Nested":
-            compartment = MatchCompartment(self.__match_state_NestedMatch)
+            compartment = MatchCompartment('__match_state_NestedMatch')
             self.__transition(compartment)
             return
         elif e._message == "Child":
-            compartment = MatchCompartment(self.__match_state_ChildMatch)
+            compartment = MatchCompartment('__match_state_ChildMatch')
             self.__transition(compartment)
             return
     
@@ -226,7 +226,7 @@ class Match:
     def __match_state_ChildMatch(self, e):
         if e._message == "OnInt":
             if (e._parameters["i"] == 0):
-                compartment = MatchCompartment(self.__match_state_Final)
+                compartment = MatchCompartment('__match_state_Final')
                 self.__transition(compartment)
                 return
             elif (e._parameters["i"] == 3):
@@ -239,7 +239,7 @@ class Match:
                 self.log_do("42 in child")
             elif (e._parameters["i"] == 5):
                 self.log_do("5")
-                compartment = MatchCompartment(self.__match_state_Final)
+                compartment = MatchCompartment('__match_state_Final')
                 self.__transition(compartment)
                 return
             else:
@@ -249,7 +249,7 @@ class Match:
             if ((e._parameters["s"] == "hello")):
                 self.log_do("hello in child")
             elif ((e._parameters["s"] == "goodbye")):
-                compartment = MatchCompartment(self.__match_state_Final)
+                compartment = MatchCompartment('__match_state_Final')
                 self.__transition(compartment)
                 return
             elif ((e._parameters["s"] == "Testing 1, 2, 3...")):
@@ -308,26 +308,26 @@ class Match:
                 
     
     def __router(self, e):
-        if self.__compartment.state.__name__ == '__match_state_Init':
+        if self.__compartment.state == '__match_state_Init':
             self.__match_state_Init(e)
-        elif self.__compartment.state.__name__ == '__match_state_EmptyMatch':
+        elif self.__compartment.state == '__match_state_EmptyMatch':
             self.__match_state_EmptyMatch(e)
-        elif self.__compartment.state.__name__ == '__match_state_SimpleMatch':
+        elif self.__compartment.state == '__match_state_SimpleMatch':
             self.__match_state_SimpleMatch(e)
-        elif self.__compartment.state.__name__ == '__match_state_MultiMatch':
+        elif self.__compartment.state == '__match_state_MultiMatch':
             self.__match_state_MultiMatch(e)
-        elif self.__compartment.state.__name__ == '__match_state_NestedMatch':
+        elif self.__compartment.state == '__match_state_NestedMatch':
             self.__match_state_NestedMatch(e)
-        elif self.__compartment.state.__name__ == '__match_state_ChildMatch':
+        elif self.__compartment.state == '__match_state_ChildMatch':
             self.__match_state_ChildMatch(e)
-        elif self.__compartment.state.__name__ == '__match_state_Final':
+        elif self.__compartment.state == '__match_state_Final':
             self.__match_state_Final(e)
         
     def __transition(self, compartment: 'MatchCompartment'):
         self.__next_compartment = compartment
     
     def state_info(self):
-        return self.__compartment.state.__name__
+        return self.__compartment.state
         
 
 # ===================== Compartment =================== #

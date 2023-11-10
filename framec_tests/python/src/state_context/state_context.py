@@ -22,7 +22,7 @@ class StateContextSm:
         
          # Create and intialize start state compartment.
         
-        self.__state = self.__statecontextsm_state_Init
+        self.__state = '__statecontextsm_state_Init'
         self.__compartment: 'StateContextSmCompartment' = StateContextSmCompartment(self.__state)
         self.__next_compartment: 'StateContextSmCompartment' = None
         self.__compartment.state_vars["w"] = 0
@@ -79,7 +79,7 @@ class StateContextSm:
             self.log_do("w",(self.__compartment.state_vars["w"]))
             return
         elif e._message == "Start":
-            compartment = StateContextSmCompartment(self.__statecontextsm_state_Foo)
+            compartment = StateContextSmCompartment('__statecontextsm_state_Foo')
             compartment.enter_args["a"] = 3
             compartment.enter_args["b"] = self.__compartment.state_vars["w"]
             compartment.state_vars["x"] = 0
@@ -113,7 +113,7 @@ class StateContextSm:
         elif e._message == "Next":
             tmp  = e._parameters["arg"] * 10
             self.__compartment.exit_args["c"] = 10
-            compartment = StateContextSmCompartment(self.__statecontextsm_state_Bar)
+            compartment = StateContextSmCompartment('__statecontextsm_state_Bar')
             compartment.enter_args["a"] = tmp
             compartment.state_args["y"] = self.__compartment.state_vars["x"]
             compartment.state_vars["z"] = 0
@@ -186,18 +186,18 @@ class StateContextSm:
                 
     
     def __router(self, e):
-        if self.__compartment.state.__name__ == '__statecontextsm_state_Init':
+        if self.__compartment.state == '__statecontextsm_state_Init':
             self.__statecontextsm_state_Init(e)
-        elif self.__compartment.state.__name__ == '__statecontextsm_state_Foo':
+        elif self.__compartment.state == '__statecontextsm_state_Foo':
             self.__statecontextsm_state_Foo(e)
-        elif self.__compartment.state.__name__ == '__statecontextsm_state_Bar':
+        elif self.__compartment.state == '__statecontextsm_state_Bar':
             self.__statecontextsm_state_Bar(e)
         
     def __transition(self, compartment: 'StateContextSmCompartment'):
         self.__next_compartment = compartment
     
     def state_info(self):
-        return self.__compartment.state.__name__
+        return self.__compartment.state
         
 
 # ===================== Compartment =================== #

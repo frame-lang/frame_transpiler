@@ -27,7 +27,7 @@ class MatchTests:
         
          # Create and intialize start state compartment.
         
-        self.__state = self.__matchtests_state_A
+        self.__state = '__matchtests_state_A'
         self.__compartment: 'MatchTestsCompartment' = MatchTestsCompartment(self.__state)
         self.__next_compartment: 'MatchTestsCompartment' = None
         
@@ -185,7 +185,7 @@ class MatchTests:
                 
     
     def __router(self, e):
-        if self.__compartment.state.__name__ == '__matchtests_state_A':
+        if self.__compartment.state == '__matchtests_state_A':
             self.__matchtests_state_A(e)
         
     def __transition(self, compartment: 'MatchTestsCompartment'):

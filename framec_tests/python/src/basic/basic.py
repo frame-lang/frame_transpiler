@@ -22,7 +22,7 @@ class Basic:
         
          # Create and intialize start state compartment.
         
-        self.__state = self.__basic_state_S0
+        self.__state = '__basic_state_S0'
         self.__compartment: 'BasicCompartment' = BasicCompartment(self.__state)
         self.__next_compartment: 'BasicCompartment' = None
         
@@ -59,7 +59,7 @@ class Basic:
             return
         elif e._message == "A":
             # ooh
-            compartment = BasicCompartment(self.__basic_state_S1)
+            compartment = BasicCompartment('__basic_state_S1')
             self.__transition(compartment)
             return
     
@@ -75,7 +75,7 @@ class Basic:
             return
         elif e._message == "B":
             # aah
-            compartment = BasicCompartment(self.__basic_state_S0)
+            compartment = BasicCompartment('__basic_state_S0')
             self.__transition(compartment)
             return
     
@@ -120,16 +120,16 @@ class Basic:
                 
     
     def __router(self, e):
-        if self.__compartment.state.__name__ == '__basic_state_S0':
+        if self.__compartment.state == '__basic_state_S0':
             self.__basic_state_S0(e)
-        elif self.__compartment.state.__name__ == '__basic_state_S1':
+        elif self.__compartment.state == '__basic_state_S1':
             self.__basic_state_S1(e)
         
     def __transition(self, compartment: 'BasicCompartment'):
         self.__next_compartment = compartment
     
     def state_info(self):
-        return self.__compartment.state.__name__
+        return self.__compartment.state
         
 
 # ===================== Compartment =================== #

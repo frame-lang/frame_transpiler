@@ -26,7 +26,7 @@ class StateContextStack:
         
          # Create and intialize start state compartment.
         
-        self.__state = self.__statecontextstack_state_A
+        self.__state = '__statecontextstack_state_A'
         self.__compartment: 'StateContextStackCompartment' = StateContextStackCompartment(self.__state)
         self.__next_compartment: 'StateContextStackCompartment' = None
         self.__compartment.state_vars["x"] = 0
@@ -90,17 +90,17 @@ class StateContextStack:
             return
             
         elif e._message == "to_a":
-            compartment = StateContextStackCompartment(self.__statecontextstack_state_A)
+            compartment = StateContextStackCompartment('__statecontextstack_state_A')
             compartment.state_vars["x"] = 0
             self.__transition(compartment)
             return
         elif e._message == "to_b":
-            compartment = StateContextStackCompartment(self.__statecontextstack_state_B)
+            compartment = StateContextStackCompartment('__statecontextstack_state_B')
             compartment.state_vars["y"] = 0
             self.__transition(compartment)
             return
         elif e._message == "to_c":
-            compartment = StateContextStackCompartment(self.__statecontextstack_state_C)
+            compartment = StateContextStackCompartment('__statecontextstack_state_C')
             compartment.state_vars["z"] = 0
             self.__transition(compartment)
             return
@@ -130,17 +130,17 @@ class StateContextStack:
             return
             
         elif e._message == "to_a":
-            compartment = StateContextStackCompartment(self.__statecontextstack_state_A)
+            compartment = StateContextStackCompartment('__statecontextstack_state_A')
             compartment.state_vars["x"] = 0
             self.__transition(compartment)
             return
         elif e._message == "to_b":
-            compartment = StateContextStackCompartment(self.__statecontextstack_state_B)
+            compartment = StateContextStackCompartment('__statecontextstack_state_B')
             compartment.state_vars["y"] = 0
             self.__transition(compartment)
             return
         elif e._message == "to_c":
-            compartment = StateContextStackCompartment(self.__statecontextstack_state_C)
+            compartment = StateContextStackCompartment('__statecontextstack_state_C')
             compartment.state_vars["z"] = 0
             self.__transition(compartment)
             return
@@ -170,17 +170,17 @@ class StateContextStack:
             return
             
         elif e._message == "to_a":
-            compartment = StateContextStackCompartment(self.__statecontextstack_state_A)
+            compartment = StateContextStackCompartment('__statecontextstack_state_A')
             compartment.state_vars["x"] = 0
             self.__transition(compartment)
             return
         elif e._message == "to_b":
-            compartment = StateContextStackCompartment(self.__statecontextstack_state_B)
+            compartment = StateContextStackCompartment('__statecontextstack_state_B')
             compartment.state_vars["y"] = 0
             self.__transition(compartment)
             return
         elif e._message == "to_c":
-            compartment = StateContextStackCompartment(self.__statecontextstack_state_C)
+            compartment = StateContextStackCompartment('__statecontextstack_state_C')
             compartment.state_vars["z"] = 0
             self.__transition(compartment)
             return
@@ -231,11 +231,11 @@ class StateContextStack:
                 
     
     def __router(self, e):
-        if self.__compartment.state.__name__ == '__statecontextstack_state_A':
+        if self.__compartment.state == '__statecontextstack_state_A':
             self.__statecontextstack_state_A(e)
-        elif self.__compartment.state.__name__ == '__statecontextstack_state_B':
+        elif self.__compartment.state == '__statecontextstack_state_B':
             self.__statecontextstack_state_B(e)
-        elif self.__compartment.state.__name__ == '__statecontextstack_state_C':
+        elif self.__compartment.state == '__statecontextstack_state_C':
             self.__statecontextstack_state_C(e)
         
     def __transition(self, compartment: 'StateContextStackCompartment'):
@@ -248,7 +248,7 @@ class StateContextStack:
         return self.__state_stack.pop()
     
     def state_info(self):
-        return self.__compartment.state.__name__
+        return self.__compartment.state
         
 
 # ===================== Compartment =================== #
