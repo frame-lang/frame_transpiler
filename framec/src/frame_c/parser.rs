@@ -6356,6 +6356,9 @@ impl<'a> Parser<'a> {
                         // the name of an event. Disregard.
                         // scope = loop_variable_symbol_rcref.borrow().scope.clone();
                     }
+                    SymbolType::System { .. } => {
+                            scope = IdentifierDeclScope::None;
+                    }
                     _ => {
                         // scope = IdentifierDeclScope::None;
                         let msg =
