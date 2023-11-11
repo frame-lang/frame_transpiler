@@ -32,25 +32,15 @@ Frame notation promotes three concepts as first class aspects of the language th
 Systems
 ^^^^^^^
 
-A System in Frame is indicated by an identifier preceeded by the '#' token:
+A System in Frame is indicated by an identifier preceeded by the '#' token and terminated by the '##' token:
+
 
 .. code-block::
-
-    #Lamp 
-
-    foo
-
-    ##
-
-.. code-block::
-    :caption: Machine Block and States
+    :caption: Empty System
 
     #Lamp
-        -machine-
-
-        $Off
-
-        $On
+        // Frame comment follows C style
+        // Empty system
     ##
 
 
