@@ -50,7 +50,7 @@ States
 To improve our lamp, lets start by adding two states - **$Off** and **$On** - to our spec.
 
 .. code-block::
-    :caption: Frame States in Machine Block
+
     #Lamp
 
     -machine-
