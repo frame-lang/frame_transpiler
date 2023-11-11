@@ -42,6 +42,20 @@ A System in Frame is indicated by an identifier preceeded by the '#' token:
 
     ##
 
+.. code-block::
+    :caption: Machine Block and States
+
+    #Lamp
+
+        -machine-
+
+        $Off
+
+        $On
+
+    ##
+
+
 Above we see a Frame *specification* for a lamp "system". Currently this system does absolutely nothing. 
 
 States
@@ -50,6 +64,7 @@ States
 To improve our lamp, lets start by adding two states - **$Off** and **$On** - to our spec.
 
 .. code-block::
+    :caption: Machine Block and States
 
     #Lamp
 
@@ -59,7 +74,7 @@ To improve our lamp, lets start by adding two states - **$Off** and **$On** - to
 
     $On
 
-   ##
+    ##
 
 As with "#" for systems, Frame uses a special token "$"  to indicate that an identifier is a state. Frame systems
 have optional "blocks" that provide the structure for a system spec. States must live inside the "-machine-" block. 
@@ -73,7 +88,7 @@ Events drive activity in Frame systems. To do so, we must add **event handlers**
 behavior for our lamp.
 
 .. code-block::
-    :caption: Machine Block 
+    :caption: Event Handlers
 
     #Lamp
 
