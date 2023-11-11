@@ -46,9 +46,11 @@ A System in Frame is indicated by an identifier preceeded by the '#' token:
     :caption: Machine Block and States
 
     #Lamp
+        -machine-
 
-        foo
+        $Off
 
+        $On
     ##
 
 
