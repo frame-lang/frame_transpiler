@@ -82,19 +82,46 @@ behavior for our lamp.
 
         -machine-
 
-        $Off                     // $Off state
-            |turnOn|             // handle 'turnOn' event
+        $Off                    // $Off state
+            |turnOn|            // event selector for 'turnOff' event message
                 -> $On          // transition to $On state
                 ^               // return from event handler
 
-        $On                      // $On state
-            |turnOff|            // handle 'turnOff' event
+        $On                     // $On state
+            |turnOff|           // event selector for 'turnOff' event message
                 -> $Off         // transition to $Off state
                 ^               // return from event handler
 
     ##
 
+Let's explore each aspect of the event handler. 
+
+Event handlers always begin with an **event selector** for an event message **|msg|** and end with an event handler terminator 
+which in this case is a return token **^**. 
+
+.. code-block::
+    :caption: Event Selector
+
+    |msg|  ^ // Simplest event handler
+    
+
+|turnOn| --
+Event handlers contain the behavior of the system. Currently the only behavior the event handlers above have
+are to transiton between the states. Frame transitions use the transition operator '->' and reference the
+state to transition into.
+
+.. code-block::
+    :caption: Transitions
+
+    ...
+    -> $TargetState ^
+    ...
+
+
+We will talk about two 
 However, even though we have an event handler there is no way to send an event to the machine. 
+To enable that we add an "-interface-" block and two public interface methods to generate the 
+required events:
 
 .. code-block::
     :caption: Interface Block and Methods
@@ -117,6 +144,11 @@ However, even though we have an event handler there is no way to send an event t
                 -> $Off  ^           
 
     ##
+
+A Frame Program
+^^^^^^^^^^^^^^
+
+
 
 The true power of Frame, however, is realized by the ability to generate both documentation and code from Frame specification documents:
 
