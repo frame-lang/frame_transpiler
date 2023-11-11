@@ -94,29 +94,29 @@ behavior for our lamp.
 
     ##
 
+However, even though we have an event handler there is no way to send an event to the machine. 
 
-Systems
-^^^^^^^
+.. code-block::
+    :caption: Interface Block and Methods
 
+    #Lamp
 
-..  code-block::
+        -interface-
 
+        turnOn      // Interface method that sends 'turnOn' event to the machine
+        turnOff     // Interface method that sends 'turnOff' event to the machine
 
-   #Lamp
+        -machine-
 
-       -interface-
+        $Off                   
+            |turnOn|            
+                -> $On  ^              
 
-       turnOn
-       turnOff
+        $On                      
+            |turnOff|           
+                -> $Off  ^           
 
-       -machine-
-
-       $Off
-           |turnOn| -> $On ^
-
-       $On
-           |turnOff| -> $Off ^
-   ##
+    ##
 
 The true power of Frame, however, is realized by the ability to generate both documentation and code from Frame specification documents:
 
