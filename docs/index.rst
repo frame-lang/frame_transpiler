@@ -74,21 +74,22 @@ behavior for our lamp.
 
 .. code-block::
     :caption: Machine Block 
-       #Lamp
 
-       -machine-
+    #Lamp
 
-       $Off                     // $Off state
-           |turnOn|             // handle 'turnOn' event
-                -> $On          // transition to $On state
-                ^               // return from event handler
+    -machine-
 
-       $On                      // $On state
-           |turnOff|            // handle 'turnOff' event
-                -> $Off         // transition to $Off state
-                ^               // return from event handler
+    $Off                     // $Off state
+        |turnOn|             // handle 'turnOn' event
+            -> $On          // transition to $On state
+            ^               // return from event handler
 
-   ##
+    $On                      // $On state
+        |turnOff|            // handle 'turnOff' event
+            -> $Off         // transition to $Off state
+            ^               // return from event handler
+
+    ##
 
 
 Systems
