@@ -102,7 +102,7 @@ The true power of Frame, however, is realized by the ability to generate both do
     :caption: General
     :name: sec-about
 
-    about/introduction
+    source/about/introduction
 
 .. toctree::
     :caption: Getting Started
