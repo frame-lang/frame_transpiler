@@ -47,11 +47,7 @@ A System in Frame is indicated by an identifier preceeded by the '#' token:
 
     #Lamp
 
-        -machine-
-
-        $Off
-
-        $On
+        foo
 
     ##
 
@@ -68,11 +64,11 @@ To improve our lamp, lets start by adding two states - **$Off** and **$On** - to
 
     #Lamp
 
-    -machine-
+        -machine-
 
-    $Off
+        $Off
 
-    $On
+        $On
 
     ##
 
@@ -92,17 +88,17 @@ behavior for our lamp.
 
     #Lamp
 
-    -machine-
+        -machine-
 
-    $Off                     // $Off state
-        |turnOn|             // handle 'turnOn' event
-            -> $On          // transition to $On state
-            ^               // return from event handler
+        $Off                     // $Off state
+            |turnOn|             // handle 'turnOn' event
+                -> $On          // transition to $On state
+                ^               // return from event handler
 
-    $On                      // $On state
-        |turnOff|            // handle 'turnOff' event
-            -> $Off         // transition to $Off state
-            ^               // return from event handler
+        $On                      // $On state
+            |turnOff|            // handle 'turnOff' event
+                -> $Off         // transition to $Off state
+                ^               // return from event handler
 
     ##
 
