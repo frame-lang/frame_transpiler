@@ -1,22 +1,67 @@
-Frame v0.11.0 Documentation - test
+Frame v0.11.0 Documentation 
 =======================================================
-Welcome! Here you will find the official v0.11.0 documentation for the **Frame System Design Language**.
+Welcome! Here you will find the official v0.11.0 documentation for the **Frame Language**.
 
 What is Frame?
 --------------
-At the highest level, Frame is language for defining the behavior of systems in Frame specification docs, or specs. In practice, system designers and programmers can define Frame specifications that generate both UML documentation as well as code in (currently) 8 different programming languages, with many more to come.
+Frame is a "metaprogramming" language for both designing and programming state machines (technically Turning Machines). 
+Frame is a "metaprogramming" language in the sense that Frame programs are intended to be transpiled to other languages
+as well as into documentation. Currently Frame supports Python as its only target language and Statechart visual notation 
+for documentation. 
 
-The Frame transpiler is the open source CLI tool that turns Frame specs into UML or code. The transpiler, or Framepiler, is written in Rust and is straightforward to modify to add new target outputs for documentation and source code generation. You can experiment with Frame online `here <https://framepiler.frame-lang.org>`_.
+In the future Frame will expand its target language set beyond Python to include JavaScript, Java, C#, C++, Golang and Rust. Other languages 
+will follow as the project gains support and adoption. 
+
+The Framepiler
+--------------
+
+The Frame transpiler (Framepiler) is an open source CLI tool that turns Frame "specs" into UML or code. 
+It is written in Rust and is straightforward to modify to add new target outputs for documentation and source code generation. You can experiment with Frame online `here <https://framepiler.frame-lang.org>`_.
 
 
-A Markdown Language For System Designers
-----------------------------------------
+System Design with Frame
+------------------------
 
-UML and other modeling specifications promote a visual-first paradigm. However this approach to system design requires (sometimes expensive) diagramming and modeling tools. Additionally - let’s just say it - working with boxes and lines to code can be a pain when systems get complex.
+Frame notation promotes three concepts as first class aspects of the language that don't exist in mainstream programming languages:
 
-With Frame, anyone with a text editor can quickly sketch out a system design concept - notepad is just fine!
+#. Systems 
+#. States
+#. Events
 
 
+Systems
+^^^^^^^
+
+A System in Frame is indicated by an identifier preceeded by the '#' token:
+
+
+    #Lamp 
+    ##
+
+Above we see a Frame *specification* for a lamp "system". Currently this system does absolutely nothing. To 
+improve our lamp, lets start by adding two states - $Off and $On to our spec.
+
+.. code-block::
+       #Lamp
+
+       -machine-
+
+       $Off
+       $On
+
+   ##
+
+As with "#" for systems, Frame uses a special token "$"  to indicate that an identifier is a state. Frame systems
+have optional "blocks" that provide the structure for a system spec. States must live inside the "-machine-" block. 
+
+
+
+
+Systems
+^^^^^^^
+
+Systems
+^^^^^^^
 
 ``Frame``
 
