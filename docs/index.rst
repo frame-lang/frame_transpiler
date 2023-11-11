@@ -44,13 +44,13 @@ improve our lamp, lets start by adding two states - $Off and $On to our spec.
 
 .. code-block::
 
-       #Lamp
+    #Lamp
 
-       -machine-
+    -machine-
 
-       $Off
+    $Off
 
-       $On
+    $On
 
    ##
 
