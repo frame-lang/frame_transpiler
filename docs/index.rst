@@ -96,6 +96,9 @@ behavior for our lamp.
 
 Let's explore each aspect of the event handler. 
 
+Event Handlers
+~~~~~~~~~~~~~~
+
 Event handlers always begin with an **event selector** for an event message **|msg|** and end with an event handler terminator 
 which in this case is a return token **^**. 
 
@@ -105,10 +108,9 @@ which in this case is a return token **^**.
     |msg|  ^ // Simplest event handler
     
 
-|turnOn| --
 Event handlers contain the behavior of the system. Currently the only behavior the event handlers above have
 are to transiton between the states. Frame transitions use the transition operator '->' and reference the
-state to transition into.
+state the machine will transition to.
 
 .. code-block::
     :caption: Transitions
@@ -117,11 +119,15 @@ state to transition into.
     -> $TargetState ^
     ...
 
+With this level of capability, we have defined a simple Lamp system **state machine**. Frame's notation makes it easy to 
+understand the purpose and behavior of each state and how they respond to events. 
 
-We will talk about two 
-However, even though we have an event handler there is no way to send an event to the machine. 
-To enable that we add an "-interface-" block and two public interface methods to generate the 
-required events:
+Event Handlers
+~~~~~~~~~~~~~~
+
+Despite having a simple lamp state machine defined, there is currently no way to send an event to the machine
+to make it do anything. To enable that capability we add an "-interface-" block and two public interface methods 
+to generate the required events:
 
 .. code-block::
     :caption: Interface Block and Methods
@@ -144,6 +150,24 @@ required events:
                 -> $Off  ^           
 
     ##
+
+Identifiers in the `-interface` block generate public methods for the system. So now an external client of the 
+system can interact with it and drive activity. 
+
+When `turnOn` and `turnOff` methods are called, by default Frame generates an event with the same name and sends 
+it into the machine which, in turn, will respond if it is in a state that handles that event type. If the 
+current state does not handle the event it will simply be ignored. 
+
+Enter Events
+~~~~~~~~~~~~
+
+Even though our system now switches between states, those states don't really do anything. Let's add some useful 
+capability to our state machines now. 
+
+
+
+We will talk about two 
+
 
 A Frame Program
 ^^^^^^^^^^^^^^
