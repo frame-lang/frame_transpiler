@@ -37,10 +37,17 @@ A System in Frame is indicated by an identifier preceeded by the '#' token:
 .. code-block::
 
     #Lamp 
+
+    foo
+
     ##
 
-Above we see a Frame *specification* for a lamp "system". Currently this system does absolutely nothing. To 
-improve our lamp, lets start by adding two states - $Off and $On to our spec.
+Above we see a Frame *specification* for a lamp "system". Currently this system does absolutely nothing. 
+
+States
+^^^^^^^
+
+To improve our lamp, lets start by adding two states - **$Off** and **$On** to our spec.
 
 .. code-block::
 
@@ -80,10 +87,6 @@ However these states don't do anything. We will next add event handlers to provi
 
 Systems
 ^^^^^^^
-
-Systems
-^^^^^^^
-
 
 
 ..  code-block::
