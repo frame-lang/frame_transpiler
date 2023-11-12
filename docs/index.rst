@@ -223,7 +223,7 @@ better coding practices and often makes reasoning about complex behavior much ea
 So now we have specified a model for a lamp system, but how do we actually run it? Let's explore how to create
 a complete Python program to run our Lamp. 
 
-A Frame Program
+Frame Programs
 ^^^^^^^^^^^^^^
 
 Frame, like other languages, provides a special entry point for execution called the `main` function. In main we will instantiate 
@@ -249,15 +249,71 @@ created.
 
     var lamp:# = #Lamp()
 
-Frame also uses the `var` keyword to declare variables and `:#` as a special Frame type for a system controller instance. 
+Frame  uses the `var` keyword to declare variables and `:#` is a special Frame type for a system controller instance. 
 
-Next the lamp controller is told to turn itself on and then back off:
+After instantiation the lamp controller is told to turn itself on and then back off:
 
 .. code-block::
     :caption: Lamp Operations
 
     lamp.turnOn()
     lamp.turnOff()
+
+You may be wondering where the `print()` function comes from. As a metaprogramming language, Frame enables develoepers
+to inject arbitrary target language code in a Frame program using super string syntax (backticks). In this example we will use
+super strings to include the Python system library which contains the `print()` function we need:
+
+
+.. code-block::
+    :caption: Including Modules with Frame Superstring
+
+    `import sys`
+
+    fn main {
+        ...
+    }
+
+
+Executing Frame Programs
+^^^^^^^^^^^^^^
+
+
+.. code-block::
+    :caption: Complete Lamp Program
+
+
+    `import sys`
+
+    fn main {
+        var lamp:# = #Lamp()
+        lamp.turnOn()
+        lamp.turnOff()
+    }
+
+    #Lamp
+
+        -interface-
+
+        turnOn      
+        turnOff
+
+        -machine-
+
+        $Off   
+            |>| print("Entering $Off") ^ 
+            |<| print("Exiting $Off") ^
+
+            |turnOn|            
+                -> $On  ^              
+
+        $On  
+            |>| print("Entering $On") ^ 
+            |<| print("Exiting $On") ^
+            
+            |turnOff|           
+                -> $Off  ^               
+
+    ##
 
 
 The true power of Frame, however, is realized by the ability to generate both documentation and code from Frame specification documents:
