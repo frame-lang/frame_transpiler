@@ -158,11 +158,30 @@ When `turnOn` and `turnOff` methods are called, by default Frame generates an ev
 it into the machine which, in turn, will respond if it is in a state that handles that event type. If the 
 current state does not handle the event it will simply be ignored. 
 
-Enter Events
+Enter and Exit Events
 ~~~~~~~~~~~~
 
-Even though our system now switches between states, those states don't really do anything. Let's add some useful 
-capability to our state machines now. 
+Even though our system now switches between states, those states don't *really* do anything. For this simple demo we 
+will simply log that we have entered and exited our **$Off** and **$On** states. 
+
+To do so we will utilize special events that Frame generates when a system transitions from one state to another. 
+
+.. code-block::
+    :caption: State Enter and Exit events
+
+    $Off   
+        |>|
+            print("Entering $Off") ^ 
+        |<|
+            print("Exiting $Off") ^
+            
+        ...
+
+For this tutorial we will 
+simply output what state we are currently in. In the process we will discover an interesting property of how
+Frame instantiates and initializes systems. 
+
+Frame transitions have a very useful property of being
 
 
 
