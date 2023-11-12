@@ -238,7 +238,7 @@ our Lamp and turn it on and off.
         lamp.turnOff()
     }
 
-Frame's syntax for `main` does not have an expression list (e.g. `main(a,b)`) if no environment variables are passed 
+Frame's syntax for `main` does not have an argument list (e.g. `main(a,b)`) if no environment variables are passed 
 to the program. 
 
 We also see that a system controller is instantiated using `#Lamp()` which indicates this is a Frame system spec being
@@ -259,19 +259,33 @@ After instantiation the lamp controller is told to turn itself on and then back 
     lamp.turnOn()
     lamp.turnOff()
 
-You may be wondering where the `print()` function comes from. As a metaprogramming language, Frame enables develoepers
-to inject arbitrary target language code in a Frame program using super string syntax (backticks). In this example we will use
-super strings to include the Python system library which contains the `print()` function we need:
+However, although this program will successfully transpile, it still won't run. That is because `print()` is not actually 
+included in the runtime of the program. It will successfully transpile because Frame, as a metaprogamming language,
+ assumes that undeclared
+variables and function calls will be somehow be available at compile time or runtime depending on the nature of the 
+target language. However, that is not yet true for our Lamp program as `print()` isn't yet included.
 
+Let's see how to fix that. 
+
+Metaprogramming
+^^^^^^^^^^^^^^
+To solve a wide range of compatibility issues with target languages, Frame supports **superstrings**. 
+Superstrings are enclosed in backticks, the contents
+of which are pasted directly into the target language code. 
+
+Here we can see how to add a Python import using a superstring: 
 
 .. code-block::
-    :caption: Including Modules with Frame Superstring
+    :caption: Including Python Modules with Frame Superstring
 
-    `import sys`
+    `import sys` // Superstring inject Python code
 
     fn main {
         ...
     }
+
+This import will provide the needed Python library containing `print()`. With that final addition, we have a complete 
+and working Frame program for a Lamp system in Python. 
 
 
 Executing Frame Programs
@@ -315,6 +329,9 @@ Executing Frame Programs
 
     ##
 
+Here is the running program_.
+
+.. program: https://onlinegdb.com/VQ0x_ZRzs
 
 The true power of Frame, however, is realized by the ability to generate both documentation and code from Frame specification documents:
 
