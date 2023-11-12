@@ -188,8 +188,8 @@ and receives the `|turnOn|` event it will transition to `$On`. In doing so, the 
 to `$Off` which will print "Exiting $Off". Next the system will update the state to  ``$On`` and subsequently send 
 an enter event ``>`` to `$On` which will print "Entering $On".
 
-Enter and exit events provide "hooks" for states to initialize and clean up their state. This capability is a powerful tool for 
-better coding practices and often makes reasoning about complex behavior much easier. 
+Enter and exit events provide "hooks" that can be used to initialize and clean up states. This capability is a powerful tool for 
+better coding practices and often makes reasoning about complex system behavior much easier. 
 
 .. code-block::
     :caption: Lamp System
@@ -339,33 +339,3 @@ As a bonus, Frame also can generate system documentation as well:
 
 .. image:: https://www.plantuml.com/plantuml/png/SoWkIImgAStDuG8oIb8L_DFI5AgvQc6yF30dMYjMGLVN3YJ91SGWDaZAIa5DsT38nBgaj2ZFFm_2vWAAGvMYo0FvK0KEgNafGFi0
 
-
-.. toctree::
-    :caption: General
-    :name: sec-about
-
-    source/about/introduction
-
-.. toctree::
-    :caption: Getting Started
-    :name: sec-getting-started
-
-    source/getting_started/introduction/index
-
-.. toctree::
-    :caption: Intermediate Frame
-    :name: sec-intermediate-frame
-
-    source/intermediate_frame/index
-
-.. toctree::
-    :caption: Advanced Frame
-    :name: sec-advanced-frame
-
-    source/advanced_frame/index
-
-.. toctree::
-    :caption: Language
-    :name: sec-language
-
-    source/language/index
