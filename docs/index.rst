@@ -170,27 +170,94 @@ To do so we will utilize special events that Frame generates when a system trans
     :caption: State Enter and Exit events
 
     $Off   
-        |>|
-            print("Entering $Off") ^ 
-        |<|
-            print("Exiting $Off") ^
-            
         ...
 
-For this tutorial we will 
-simply output what state we are currently in. In the process we will discover an interesting property of how
-Frame instantiates and initializes systems. 
+        |<|  // Exit Event
+            print("Exiting $Off") ^
 
-Frame transitions have a very useful property of being
+        |turnOn|            
+            -> $On  ^              
 
+    $On  
+        |>|  // Enter Event 
+            print("Entering $On") ^ 
 
+        ...
 
-We will talk about two 
+When a transition occurs Frame sends two special events. In the example above, if the system is in the `$Off` state 
+and receives the `|turnOn|` event it will transition to `$On`. In doing so, the system will first send an exit event `<`
+to `$Off` which will print "Exiting $Off". Next the system will update the state to  `$On` and subsequently send 
+an enter event `>` to `$On` which will print "Entering $On".
 
+Enter and exit events provide "hooks" for states to initialize and clean up their state. This capability is a powerful tool for 
+better coding practices and often makes reasoning about complex behavior much easier. 
+
+.. code-block::
+    :caption: Lamp System
+
+    #Lamp
+
+        -interface-
+
+        turnOn      
+        turnOff
+
+        -machine-
+
+        $Off   
+            |>| print("Entering $Off") ^ 
+            |<| print("Exiting $Off") ^
+
+            |turnOn|            
+                -> $On  ^              
+
+        $On  
+            |>| print("Entering $On") ^ 
+            |<| print("Exiting $On") ^
+            
+            |turnOff|           
+                -> $Off  ^           
+
+    ##
+
+So now we have specified a model for a lamp system, but how do we actually run it? Let's explore how to create
+a complete Python program to run our Lamp. 
 
 A Frame Program
 ^^^^^^^^^^^^^^
 
+Frame, like other languages, provides a special entry point for execution called the `main` function. In main we will instantiate 
+our Lamp and turn it on and off. 
+
+.. code-block::
+    :caption: Lamp Program
+
+    fn main {
+        var lamp:# = #Lamp()
+        lamp.turnOn()
+        lamp.turnOff()
+    }
+
+Frame's syntax for `main` does not have an expression list (e.g. `main(a,b)`) if no environment variables are passed 
+to the program. 
+
+We also see that a system controller is instantiated using `#Lamp()` which indicates this is a Frame system spec being
+created.
+
+.. code-block::
+    :caption: Lamp Controller Instantiation
+
+    var lamp:# = #Lamp()
+
+Frame also uses the `var` keyword to declare variables and `:#` as a special Frame type for a system controller instance. 
+
+Next the lamp controller is told to turn itself on and then back off:
+
+.. code-block::
+    :caption: Lamp Operations
+
+    lamp.turnOn()
+    lamp.turnOff()
 
 
 The true power of Frame, however, is realized by the ability to generate both documentation and code from Frame specification documents:
