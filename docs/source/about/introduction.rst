@@ -333,6 +333,9 @@ Here you can try running the program_.
 
 .. _program: https://onlinegdb.com/fcVOr4FgpB
 
+You should see this output
+.. image:: https://github.com/frame-lang/frame_transpiler/blob/e3b43a7c2c25127ee2a3f5d3bc8fa085d15db537/docs/source/images/v0.11/lamp_demo_output.png
+
 As a bonus, Frame also can generate system documentation as well: 
 
 ``UML``
