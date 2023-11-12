@@ -331,7 +331,7 @@ Executing Frame Programs
 
 Here is the running program_.
 
-.. program: https://onlinegdb.com/VQ0x_ZRzs
+.. _program: https://onlinegdb.com/J2VmcKdBc
 
 The true power of Frame, however, is realized by the ability to generate both documentation and code from Frame specification documents:
 
