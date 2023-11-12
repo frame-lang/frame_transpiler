@@ -291,6 +291,7 @@ and working Frame program for a Lamp system in Python.
 Executing Frame Programs
 ^^^^^^^^^^^^^^
 
+Frame makes designing, developing and testing state machines easy and intuitive.  Here is our final Lamp program:
 
 .. code-block::
     :caption: Complete Lamp Program
@@ -329,75 +330,16 @@ Executing Frame Programs
 
     ##
 
-Here is the running program_.
+Here you can try running the program_.
 
-.. _program: https://onlinegdb.com/J2VmcKdBc
+.. _program: https://onlinegdb.com/fcVOr4FgpB
 
-.. raw:: html
-
-    <embed>
-        <script src="//onlinegdb.com/embed/js/71gAEuyOt?theme=dark"></script>
-    </embed>
-
-The true power of Frame, however, is realized by the ability to generate both documentation and code from Frame specification documents:
+As a bonus, Frame also can generate system documentation as well: 
 
 ``UML``
 
 .. image:: https://www.plantuml.com/plantuml/png/SoWkIImgAStDuG8oIb8L_DFI5AgvQc6yF30dMYjMGLVN3YJ91SGWDaZAIa5DsT38nBgaj2ZFFm_2vWAAGvMYo0FvK0KEgNafGFi0
 
-``C#``
-
-..  code-block:: C#
-
-    public partial class Lamp {
-        public Lamp() {
-
-            _state_ = _sOff_;
-        }
-
-        //===================== Interface Block ===================//
-
-        public void turnOn() {
-            FrameEvent e = new FrameEvent("turnOn",null);
-            _state_(e);
-        }
-
-        public void turnOff() {
-            FrameEvent e = new FrameEvent("turnOff",null);
-            _state_(e);
-        }
-
-
-        //===================== Machine Block ===================//
-
-        private void _sOff_(FrameEvent e) {
-            if (e.Msg.Equals("turnOn")) {
-                _transition_(_sOn_);
-                return;
-            }
-        }
-
-        private void _sOn_(FrameEvent e) {
-            if (e.Msg.Equals("turnOff")) {
-                _transition_(_sOff_);
-                return;
-            }
-        }
-
-        //=========== Machinery and Mechanisms ===========//
-
-        private delegate void FrameState(FrameEvent e);
-        private FrameState _state_;
-
-        private void _transition_(FrameState newState) {
-            FrameEvent exitEvent = new FrameEvent("<",null);
-            _state_(exitEvent);
-            _state_ = newState;
-            FrameEvent enterEvent = new FrameEvent(">",null);
-            _state_(enterEvent);
-        }
-
-    }
 
 .. toctree::
     :caption: General
