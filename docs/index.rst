@@ -333,6 +333,12 @@ Here is the running program_.
 
 .. _program: https://onlinegdb.com/J2VmcKdBc
 
+.. raw:: html
+
+    <embed>
+        <script src="//onlinegdb.com/embed/js/71gAEuyOt?theme=dark"></script>
+    </embed>
+
 The true power of Frame, however, is realized by the ability to generate both documentation and code from Frame specification documents:
 
 ``UML``
