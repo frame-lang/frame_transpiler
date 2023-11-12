@@ -94,13 +94,13 @@ behavior for our lamp.
 
     ##
 
-Let's explore each aspect of the event handler. 
+Let's explore each aspect of the event handlers. 
 
 Event Handlers
 ~~~~~~~~~~~~~~
 
 Event handlers always begin with an **event selector** for an event message **|msg|** and end with an event handler terminator 
-which in this case is a return token **^**. 
+which, in this case, is a return token **^**. 
 
 .. code-block::
     :caption: Event Selector
@@ -108,26 +108,25 @@ which in this case is a return token **^**.
     |msg|  ^ // Simplest event handler
     
 
-Event handlers contain the behavior of the system. Currently the only behavior the event handlers above have
-are to transiton between the states. Frame transitions use the transition operator '->' and reference the
-state the machine will transition to.
+Event handlers contain the behavior of the system. Currently the only behavior our event handlers have
+are to **transiton** between the states. Frame transitions use the transition operator '->' which references the
+target state the machine will transition to.
 
 .. code-block::
     :caption: Transitions
 
-    ...
     -> $TargetState ^
-    ...
 
-With this level of capability, we have defined a simple Lamp system **state machine**. Frame's notation makes it easy to 
+With this level of capability, we have defined a simple Lamp system **state machine** with two states. 
+Frame's notation makes it easy to 
 understand the purpose and behavior of each state and how they respond to events. 
 
-Event Handlers
+The Interface Block
 ~~~~~~~~~~~~~~
 
 Despite having a simple lamp state machine defined, there is currently no way to send an event to the machine
-to make it do anything. To enable that capability we add an "-interface-" block and two public interface methods 
-to generate the required events:
+to make it do anything. To enable that capability we add an **-interface-** block containing two public interface methods 
+which will generate the events we need to drive the machine activity:
 
 .. code-block::
     :caption: Interface Block and Methods
@@ -152,9 +151,9 @@ to generate the required events:
     ##
 
 Identifiers in the `-interface` block generate public methods for the system. So now an external client of the 
-system can interact with it and drive activity. 
+system can interact with it and make it do something. 
 
-When `turnOn` and `turnOff` methods are called, by default Frame generates an event with the same name and sends 
+When `turnOn` and `turnOff` methods are called, Frame generates an event with the same name as the method and sends 
 it into the machine which, in turn, will respond if it is in a state that handles that event type. If the 
 current state does not handle the event it will simply be ignored. 
 
@@ -185,9 +184,9 @@ To do so we will utilize special events that Frame generates when a system trans
         ...
 
 When a transition occurs Frame sends two special events. In the example above, if the system is in the `$Off` state 
-and receives the `|turnOn|` event it will transition to `$On`. In doing so, the system will first send an exit event `<`
-to `$Off` which will print "Exiting $Off". Next the system will update the state to  `$On` and subsequently send 
-an enter event `>` to `$On` which will print "Entering $On".
+and receives the `|turnOn|` event it will transition to `$On`. In doing so, the system will first send an exit event ``<``
+to `$Off` which will print "Exiting $Off". Next the system will update the state to  ``$On`` and subsequently send 
+an enter event ``>`` to `$On` which will print "Entering $On".
 
 Enter and exit events provide "hooks" for states to initialize and clean up their state. This capability is a powerful tool for 
 better coding practices and often makes reasoning about complex behavior much easier. 
@@ -278,7 +277,7 @@ Here we can see how to add a Python import using a superstring:
 .. code-block::
     :caption: Including Python Modules with Frame Superstring
 
-    `import sys` // Superstring inject Python code
+    `import sys` // Frame superstring to inject Python import code
 
     fn main {
         ...
