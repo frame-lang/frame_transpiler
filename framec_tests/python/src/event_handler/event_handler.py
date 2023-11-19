@@ -189,14 +189,3 @@ class EventHandlerCompartment:
         self.exit_args = {}
         self.forward_event = None
     
-# ********************
-
-#class EventHandlerController(EventHandler):
-	#def __init__(self,):
-	    #super().__init__()
-
-    #def log_do(self,msg: str,val: int):
-        #pass
-
-# ********************
-

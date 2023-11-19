@@ -263,14 +263,3 @@ class StateContextStackCompartment:
         self.exit_args = {}
         self.forward_event = None
     
-# ********************
-
-#class StateContextStackController(StateContextStack):
-	#def __init__(self,):
-	    #super().__init__()
-
-    #def log_do(self,msg: str):
-        #pass
-
-# ********************
-

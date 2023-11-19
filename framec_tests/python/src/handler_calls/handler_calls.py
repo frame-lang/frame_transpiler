@@ -283,14 +283,3 @@ class HandlerCallsCompartment:
         self.exit_args = {}
         self.forward_event = None
     
-# ********************
-
-#class HandlerCallsController(HandlerCalls):
-	#def __init__(self,):
-	    #super().__init__()
-
-    #def log_do(self,through: str,val: int):
-        #pass
-
-# ********************
-

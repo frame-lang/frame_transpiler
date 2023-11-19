@@ -83,6 +83,7 @@ class Basic:
     
     def entered_do(self,msg: str):
         raise NotImplementedError
+    
     def left_do(self,msg: str):
         raise NotImplementedError
     
@@ -144,17 +145,3 @@ class BasicCompartment:
         self.exit_args = {}
         self.forward_event = None
     
-# ********************
-
-#class BasicController(Basic):
-	#def __init__(self,):
-	    #super().__init__()
-
-    #def entered_do(self,msg: str):
-        #pass
-
-    #def left_do(self,msg: str):
-        #pass
-
-# ********************
-

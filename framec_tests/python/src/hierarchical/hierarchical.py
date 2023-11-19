@@ -197,8 +197,10 @@ class Hierarchical:
     
     def enter_do(self,msg: str):
         raise NotImplementedError
+    
     def exit_do(self,msg: str):
         raise NotImplementedError
+    
     def log_do(self,msg: str):
         raise NotImplementedError
     
@@ -270,20 +272,3 @@ class HierarchicalCompartment:
         self.exit_args = {}
         self.forward_event = None
     
-# ********************
-
-#class HierarchicalController(Hierarchical):
-	#def __init__(self,):
-	    #super().__init__()
-
-    #def enter_do(self,msg: str):
-        #pass
-
-    #def exit_do(self,msg: str):
-        #pass
-
-    #def log_do(self,msg: str):
-        #pass
-
-# ********************
-

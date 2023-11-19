@@ -164,14 +164,3 @@ class StateParamsCompartment:
         self.exit_args = {}
         self.forward_event = None
     
-# ********************
-
-#class StateParamsController(StateParams):
-	#def __init__(self,):
-	    #super().__init__()
-
-    #def got_param_do(self,name: str,val: int):
-        #pass
-
-# ********************
-

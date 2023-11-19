@@ -78,6 +78,7 @@ class MatchTests:
         else:
             self.log_do("no enum match")
         
+    
     def matchString_do(self,s):
         if ((s == "%") or (s == "^") or (s == "!@#$%^&*()")):
             self.log_do("matched " + s)
@@ -92,6 +93,7 @@ class MatchTests:
         
         return
         
+    
     def matchNumber_do(self,n):
         if (n == 1001.5) or (n == 0.12):
             self.log_do("Matched 1001.5 or 0.12")
@@ -104,6 +106,7 @@ class MatchTests:
         
         return
         
+    
     def syntaxTests_do(self):
         if ((x == "a")):
             pass
@@ -148,6 +151,7 @@ class MatchTests:
         
         return
         
+    
     def log_do(self,msg):
         self.tape.append(msg)
     
@@ -204,21 +208,3 @@ class MatchTestsCompartment:
         self.exit_args = {}
         self.forward_event = None
     
-# ********************
-
-#class MatchTestsController(MatchTests):
-	#def __init__(self,):
-	    #super().__init__()
-
-    #def matchFruit_do(self,x: MatchTests_Fruit):
-
-    #def matchString_do(self,s):
-
-    #def matchNumber_do(self,n):
-
-    #def syntaxTests_do(self):
-
-    #def log_do(self,msg):
-
-# ********************
-

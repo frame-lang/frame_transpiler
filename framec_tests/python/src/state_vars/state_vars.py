@@ -97,7 +97,6 @@ class StateVars:
     
     # ===================== Actions Block =================== #
     
-    
     # ==================== System Runtime =================== #
     
     def __kernel(self, e):
@@ -161,11 +160,3 @@ class StateVarsCompartment:
         self.exit_args = {}
         self.forward_event = None
     
-# ********************
-
-#class StateVarsController(StateVars):
-	#def __init__(self,):
-	    #super().__init__()
-
-# ********************
-

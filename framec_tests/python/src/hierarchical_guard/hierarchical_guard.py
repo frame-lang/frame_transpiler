@@ -269,14 +269,3 @@ class HierarchicalGuardCompartment:
         self.exit_args = {}
         self.forward_event = None
     
-# ********************
-
-#class HierarchicalGuardController(HierarchicalGuard):
-	#def __init__(self,):
-	    #super().__init__()
-
-    #def log_do(self,msg: str):
-        #pass
-
-# ********************
-

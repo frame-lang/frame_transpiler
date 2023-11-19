@@ -160,11 +160,3 @@ class SimpleHandlerCallsCompartment:
         self.exit_args = {}
         self.forward_event = None
     
-# ********************
-
-#class SimpleHandlerCallsController(SimpleHandlerCalls):
-	#def __init__(self,):
-	    #super().__init__()
-
-# ********************
-

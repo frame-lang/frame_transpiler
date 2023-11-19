@@ -248,10 +248,13 @@ class Naming:
     
     def snake_action_do(self,snake_param: int):
         raise NotImplementedError
+    
     def CamelAction_do(self,CamelParam: int):
         raise NotImplementedError
+    
     def action123_do(self,param123: int):
         raise NotImplementedError
+    
     def logFinal_do(self,r: int):
         raise NotImplementedError
     
@@ -319,23 +322,3 @@ class NamingCompartment:
         self.exit_args = {}
         self.forward_event = None
     
-# ********************
-
-#class NamingController(Naming):
-	#def __init__(self,):
-	    #super().__init__()
-
-    #def snake_action_do(self,snake_param: int):
-        #pass
-
-    #def CamelAction_do(self,CamelParam: int):
-        #pass
-
-    #def action123_do(self,param123: int):
-        #pass
-
-    #def logFinal_do(self,r: int):
-        #pass
-
-# ********************
-

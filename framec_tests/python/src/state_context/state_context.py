@@ -212,14 +212,3 @@ class StateContextSmCompartment:
         self.exit_args = {}
         self.forward_event = None
     
-# ********************
-
-#class StateContextSmController(StateContextSm):
-	#def __init__(self,):
-	    #super().__init__()
-
-    #def log_do(self,name: str,val: int):
-        #pass
-
-# ********************
-

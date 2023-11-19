@@ -138,6 +138,7 @@ class EnumTest:
     
     def entered_do(self,msg: str,val: int):
         raise NotImplementedError
+    
     def left_do(self,msg: str,val: int):
         raise NotImplementedError
     
@@ -207,17 +208,3 @@ class EnumTestCompartment:
         self.exit_args = {}
         self.forward_event = None
     
-# ********************
-
-#class EnumTestController(EnumTest):
-	#def __init__(self,):
-	    #super().__init__()
-
-    #def entered_do(self,msg: str,val: int):
-        #pass
-
-    #def left_do(self,msg: str,val: int):
-        #pass
-
-# ********************
-

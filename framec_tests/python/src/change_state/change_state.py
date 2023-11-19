@@ -154,11 +154,3 @@ class ChangeStateSmCompartment:
         self.exit_args = {}
         self.forward_event = None
     
-# ********************
-
-#class ChangeStateSmController(ChangeStateSm):
-	#def __init__(self,):
-	    #super().__init__()
-
-# ********************
-

@@ -114,6 +114,7 @@ class TransitionSm:
     
     def enter_do(self,state: str):
         raise NotImplementedError
+    
     def exit_do(self,state: str):
         raise NotImplementedError
     
@@ -185,17 +186,3 @@ class TransitionSmCompartment:
         self.exit_args = {}
         self.forward_event = None
     
-# ********************
-
-#class TransitionSmController(TransitionSm):
-	#def __init__(self,):
-	    #super().__init__()
-
-    #def enter_do(self,state: str):
-        #pass
-
-    #def exit_do(self,state: str):
-        #pass
-
-# ********************
-

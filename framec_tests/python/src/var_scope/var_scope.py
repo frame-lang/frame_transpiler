@@ -395,14 +395,3 @@ class VarScopeCompartment:
         self.exit_args = {}
         self.forward_event = None
     
-# ********************
-
-#class VarScopeController(VarScope):
-	#def __init__(self,):
-	    #super().__init__()
-
-    #def log_do(self,s: str):
-        #pass
-
-# ********************
-

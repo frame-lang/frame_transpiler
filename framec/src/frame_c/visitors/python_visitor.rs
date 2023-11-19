@@ -740,12 +740,12 @@ impl PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn generate_subclass(&mut self) {
-        for line in self.subclass_code.iter() {
-            self.code.push_str(&*line.to_string());
-            self.code.push_str(&*format!("\n{}", self.dent()));
-        }
-    }
+    // fn generate_subclass(&mut self) {
+    //     for line in self.subclass_code.iter() {
+    //         self.code.push_str(&*line.to_string());
+    //         self.code.push_str(&*format!("\n{}", self.dent()));
+    //     }
+    // }
 
     //* --------------------------------------------------------------------- *//
 
@@ -1883,7 +1883,8 @@ impl AstVisitor for PythonVisitor {
 
         self.generate_compartment(&system_node.name);
 
-        self.generate_subclass();
+        // TODO: Remove subclass code.
+        //  self.generate_subclass();
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2006,17 +2007,16 @@ impl AstVisitor for PythonVisitor {
                     self.newline();
                 }
                 if let Some(terminator_expr) = &function_node.terminator_node_opt {
+                    self.indent();
                     self.newline();
                     match &terminator_expr.terminator_type {
                         TerminatorType::Return => match &terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
                                 self.add_code("return ");
                                 expr_t.accept(self);
-                                self.newline();
                             }
                             None => {
                                 self.add_code("return");
-                                self.newline();
                             }
                         },
                         TerminatorType::Continue => {
@@ -2025,6 +2025,8 @@ impl AstVisitor for PythonVisitor {
                                 .push("Continue not allowed as action terminator.".to_string());
                         }
                     }
+                    self.outdent();
+                    self.newline();
                 }
             }
         }
@@ -2206,7 +2208,7 @@ impl AstVisitor for PythonVisitor {
     fn visit_actions_block_node(&mut self, actions_block_node: &ActionsBlockNode) {
         self.newline();
         self.add_code("# ===================== Actions Block =================== #");
-        self.newline();
+//        self.newline();
 
         // TODO - for some reason action_node.accept_action_impl() isn't being
         // called but action_node.accept_action_decl() is.
@@ -4143,7 +4145,7 @@ impl AstVisitor for PythonVisitor {
         let mut subclass_code = String::new();
 
         self.newline();
-
+        self.newline();
         let action_name = self.format_action_name(&action_node.name);
         self.add_code(&format!("def {}(self", action_name));
         self.newline_to_string(&mut subclass_code);
