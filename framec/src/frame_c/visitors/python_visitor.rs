@@ -1998,13 +1998,13 @@ impl AstVisitor for PythonVisitor {
                 self.newline();
                 self.add_code("pass");
                 self.outdent();
-                self.newline();
+                // self.newline();
             } else {
                 if !function_node.statements.is_empty() {
                     self.indent();
                     self.visit_decl_stmts(&function_node.statements);
                     self.outdent();
-                    self.newline();
+                    // self.newline();
                 }
                 if let Some(terminator_expr) = &function_node.terminator_node_opt {
                     self.indent();
@@ -2026,7 +2026,7 @@ impl AstVisitor for PythonVisitor {
                         }
                     }
                     self.outdent();
-                    self.newline();
+                   // self.newline();
                 }
             }
         }
