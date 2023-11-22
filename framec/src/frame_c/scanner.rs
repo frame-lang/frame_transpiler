@@ -231,26 +231,14 @@ impl Scanner {
             }
             '^' => self.add_token(TokenType::Caret),
             '>' => {
-                if self.match_char('>') {
-                    if self.match_char('>') {
-                        self.add_token(TokenType::GTx3);
-                    } else {
-                        self.add_token(TokenType::GTx2);
-                    }
-                } else if self.match_char('=') {
+                if self.match_char('=') {
                     self.add_token(TokenType::GreaterEqual);
                 } else {
                     self.add_token(TokenType::GT);
                 }
             }
             '<' => {
-                if self.match_char('<') {
-                    if self.match_char('<') {
-                        self.add_token(TokenType::LTx3);
-                    } else {
-                        self.add_token(TokenType::LTx2);
-                    }
-                } else if self.match_char('=') {
+                if self.match_char('=') {
                     self.add_token(TokenType::LessEqual);
                 } else {
                     self.add_token(TokenType::LT);
@@ -694,8 +682,8 @@ pub enum TokenType {
     Identifier,
     State,
     GT,                           // >
-    GTx2,                         // >>
-    GTx3,                         // >>
+    // GTx2,                         // >>
+    // GTx3,                         // >>>
     Plus,                         // +
     PlusPlus,                     // ++
     Dash,                         // -
@@ -707,8 +695,8 @@ pub enum TokenType {
     GreaterEqual,                 // >=
     LessEqual,                    // <=
     LT,                           // <
-    LTx2,                         // <<
-    LTx3,                         // <<<
+    // LTx2,                         // <<
+    // LTx3,                         // <<<
     And,                          // &
     Pipe,                         // |
     Caret,                        // ^

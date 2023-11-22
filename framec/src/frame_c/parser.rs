@@ -1558,7 +1558,7 @@ impl<'a> Parser<'a> {
                 self.synchronize(&sync_tokens);
             }
 
-            match self.message() {
+            match self.message_alias() {
                 Ok(MessageType::CustomMessage { message_node }) => alias_opt = Some(message_node),
                 Ok(AnyMessage { .. }) => {
                     self.error_at_previous("Expected message, found '||*");
@@ -1735,7 +1735,71 @@ impl<'a> Parser<'a> {
 
     // message => '|' ( identifier | string | '>' | '<' ) '|'
 
-    fn message(&mut self) -> Result<MessageType, ParseError> {
+    fn message_alias(&mut self) -> Result<MessageType, ParseError> {
+        let message_node;
+
+        if self.peek().token_type == TokenType::At {
+            if let Err(parse_error) = self.consume(TokenType::At, "Expected '@'.") {
+                return Err(parse_error);
+            }
+        }
+        // TODO - review removing AnyMessage
+        if self.match_token(&[TokenType::AnyMessage]) {
+            let tok = self.previous();
+
+            return Ok(MessageType::AnyMessage { line: tok.line });
+        }
+        // if !self.match_token(&[TokenType::Pipe]) {
+        //     let token_str = self.peek().lexeme.clone();
+        //     let err_msg = &format!(
+        //         "Expected closing '|' in message selector. Found {}. ",
+        //         token_str
+        //     );
+        //     self.error_at_previous(err_msg);
+        //     return Err(ParseError::new(err_msg));
+        // }
+
+        let tt = self.peek().token_type;
+        match tt {
+            TokenType::Identifier
+            | TokenType::String
+            | TokenType::GT
+            | TokenType::LT
+            | TokenType::SuperString
+            // | TokenType::GTx2
+            // | TokenType::GTx3
+            // | TokenType::LTx2
+            // | TokenType::LTx3
+
+            => {
+                message_node = self.create_message_node(tt)
+            },
+            _ => {
+                let token_str = self.peek().lexeme.clone();
+                let err_msg = &format!("Expected closing '|' in message selector. Found {}. ", token_str);
+                self.error_at_current(err_msg);
+                return Err(ParseError::new(err_msg));
+            }
+        }
+
+        // let token_str = self.peek().lexeme.clone();
+        // let err_msg = &format!(
+        //     "Expected closing '|' in message selector. Found {}. ",
+        //     token_str
+        // );
+        // if let Err(parse_error) = self.consume(TokenType::Pipe, err_msg) {
+        //     return Err(parse_error);
+        // }
+
+        Ok(MessageType::CustomMessage { message_node })
+    }
+
+
+    /* --------------------------------------------------------------------- */
+
+    // message => '|' ( identifier | string | '>' | '<' ) '|'
+
+    fn message_selector(&mut self) -> Result<MessageType, ParseError> {
         let message_node;
 
         if self.peek().token_type == TokenType::At {
@@ -1765,6 +1829,7 @@ impl<'a> Parser<'a> {
             | TokenType::String
             | TokenType::GT
             | TokenType::LT
+            | TokenType::SuperString
             // | TokenType::GTx2
             // | TokenType::GTx3
             // | TokenType::LTx2
@@ -1792,6 +1857,7 @@ impl<'a> Parser<'a> {
 
         Ok(MessageType::CustomMessage { message_node })
     }
+
 
     /* --------------------------------------------------------------------- */
 
@@ -3147,7 +3213,7 @@ impl<'a> Parser<'a> {
         self.event_handler_has_transition = false;
         //    let a = self.message();
 
-        match self.message() {
+        match self.message_selector() {
             Ok(MessageType::AnyMessage { line }) => {
                 line_number = line;
                 message_type = AnyMessage { line }
