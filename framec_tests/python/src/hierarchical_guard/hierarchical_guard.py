@@ -113,6 +113,7 @@ class HierarchicalGuard:
                 self.__transition(compartment)
                 return
             
+        
         self.__hierarchicalguard_state_S(e)
         
       #  fall through then branch
@@ -131,6 +132,7 @@ class HierarchicalGuard:
             else:
                 pass
             
+        
         self.__hierarchicalguard_state_S0(e)
         
       #  fall through else branch
@@ -159,6 +161,7 @@ class HierarchicalGuard:
                 self.__transition(compartment)
                 return
             
+        
         self.__hierarchicalguard_state_S1(e)
         
       #  fall through then branch
@@ -186,6 +189,7 @@ class HierarchicalGuard:
                 
                 return
             
+        
         self.__hierarchicalguard_state_S(e)
         
     

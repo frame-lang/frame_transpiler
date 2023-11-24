@@ -105,6 +105,7 @@ class Hierarchical:
             compartment = HierarchicalCompartment('__hierarchical_state_S2')
             self.__transition(compartment)
             return
+        
         self.__hierarchical_state_S(e)
         
     
@@ -125,6 +126,7 @@ class Hierarchical:
           #  propagate message not handled by parent
         elif e._message == "C":
             self.log_do("S1.C")
+        
         self.__hierarchical_state_S(e)
         
     
@@ -144,6 +146,7 @@ class Hierarchical:
             compartment = HierarchicalCompartment('__hierarchical_state_T')
             self.__transition(compartment)
             return
+        
         self.__hierarchical_state_S0(e)
         
       #  continue after transition (should be ignored)
@@ -164,6 +167,7 @@ class Hierarchical:
             compartment = HierarchicalCompartment('__hierarchical_state_S2')
             self.__transition(compartment)
             return
+        
         self.__hierarchical_state_S1(e)
         
     

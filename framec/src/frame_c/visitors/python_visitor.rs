@@ -2308,18 +2308,18 @@ impl AstVisitor for PythonVisitor {
             }
         }
 
-        match &state_node.dispatch_opt {
-            Some(dispatch) => {
-                generate_pass = false;
-                dispatch.accept(self);
-            }
-            None => {}
-        }
-
         if generate_pass {
             self.newline();
             self.add_code("pass");
             self.newline();
+        }
+
+        match &state_node.dispatch_opt {
+            Some(dispatch) => {
+                self.newline();
+                dispatch.accept(self);
+            }
+            None => {}
         }
 
         self.outdent();
@@ -2374,9 +2374,14 @@ impl AstVisitor for PythonVisitor {
         }
 
         // Generate statements
-        self.visit_decl_stmts(&evt_handler_node.statements);
-
         self.event_handler_has_code = !evt_handler_node.statements.is_empty();
+        if self.event_handler_has_code {
+            self.visit_decl_stmts(&evt_handler_node.statements);
+        } else {
+            self.newline();
+            self.add_code("pass");
+        }
+
         let terminator_node = &evt_handler_node.terminator_node;
         terminator_node.accept(self);
         self.outdent();

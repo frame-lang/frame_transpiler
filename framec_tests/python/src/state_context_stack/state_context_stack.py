@@ -86,6 +86,7 @@ class StateContextStack:
             (self.__compartment.state_vars["x"]) = self.__compartment.state_vars["x"] + 1
             return
         elif e._message == "value":
+            pass
             e._return = (self.__compartment.state_vars["x"])
             return
             
@@ -126,6 +127,7 @@ class StateContextStack:
             (self.__compartment.state_vars["y"]) = self.__compartment.state_vars["y"] + 5
             return
         elif e._message == "value":
+            pass
             e._return = (self.__compartment.state_vars["y"])
             return
             
@@ -166,6 +168,7 @@ class StateContextStack:
             (self.__compartment.state_vars["z"]) = self.__compartment.state_vars["z"] + 10
             return
         elif e._message == "value":
+            pass
             e._return = (self.__compartment.state_vars["z"])
             return
             
