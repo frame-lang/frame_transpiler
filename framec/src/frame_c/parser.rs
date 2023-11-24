@@ -3509,7 +3509,7 @@ impl<'a> Parser<'a> {
                     let symbol_return_type = symbol_rettype_node_opt.as_ref().unwrap();
                     let event_handler_return_type = return_type_opt.as_ref().unwrap();
                     if symbol_return_type != event_handler_return_type {
-                        self.error_at_current(&format!(
+                        self.error_at_previous(&format!(
                             "Event handler {} return type does not match a previous declaration.",
                             msg
                         ));
