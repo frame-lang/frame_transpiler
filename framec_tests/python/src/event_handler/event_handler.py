@@ -39,25 +39,20 @@ class EventHandler:
     def LogIt(self,x: int):
         parameters = {}
         parameters["x"] = x
-
         e = FrameEvent("LogIt",parameters)
         self.__kernel(e)
     
     def LogAdd(self,a: int,b: int):
         parameters = {}
         parameters["a"] = a
-
         parameters["b"] = b
-
         e = FrameEvent("LogAdd",parameters)
         self.__kernel(e)
     
     def LogReturn(self,a: int,b: int):
         parameters = {}
         parameters["a"] = a
-
         parameters["b"] = b
-
         e = FrameEvent("LogReturn",parameters)
         self.__kernel(e)
         return e._return
@@ -65,18 +60,14 @@ class EventHandler:
     def PassAdd(self,a: int,b: int):
         parameters = {}
         parameters["a"] = a
-
         parameters["b"] = b
-
         e = FrameEvent("PassAdd",parameters)
         self.__kernel(e)
     
     def PassReturn(self,a: int,b: int):
         parameters = {}
         parameters["a"] = a
-
         parameters["b"] = b
-
         e = FrameEvent("PassReturn",parameters)
         self.__kernel(e)
         return e._return

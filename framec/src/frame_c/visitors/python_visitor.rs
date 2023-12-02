@@ -2143,7 +2143,7 @@ impl AstVisitor for PythonVisitor {
                     for param in params {
                         let pname = &param.param_name;
                         self.newline();
-                        self.add_code(&format!("parameters[\"{}\"] = {}\n", pname, pname));
+                        self.add_code(&format!("parameters[\"{}\"] = {}", pname, pname));
                     }
                 }
                 None => {}

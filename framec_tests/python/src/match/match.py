@@ -59,14 +59,12 @@ class Match:
     def OnInt(self,i: int):
         parameters = {}
         parameters["i"] = i
-
         e = FrameEvent("OnInt",parameters)
         self.__kernel(e)
     
     def Onstring(self,s: str):
         parameters = {}
         parameters["s"] = s
-
         e = FrameEvent("Onstring",parameters)
         self.__kernel(e)
     

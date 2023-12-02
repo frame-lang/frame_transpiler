@@ -53,7 +53,6 @@ class StateContextSm:
     def Next(self,arg: int):
         parameters = {}
         parameters["arg"] = arg
-
         e = FrameEvent("Next",parameters)
         self.__kernel(e)
     

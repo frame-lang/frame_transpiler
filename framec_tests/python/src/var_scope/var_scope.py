@@ -57,39 +57,32 @@ class VarScope:
     def nn(self,d: str):
         parameters = {}
         parameters["d"] = d
-
         e = FrameEvent("nn",parameters)
         self.__kernel(e)
     
     def ny(self,d: str):
         parameters = {}
         parameters["d"] = d
-
         e = FrameEvent("ny",parameters)
         self.__kernel(e)
     
     def yn(self,d: str,x: str):
         parameters = {}
         parameters["d"] = d
-
         parameters["x"] = x
-
         e = FrameEvent("yn",parameters)
         self.__kernel(e)
     
     def yy(self,d: str,x: str):
         parameters = {}
         parameters["d"] = d
-
         parameters["x"] = x
-
         e = FrameEvent("yy",parameters)
         self.__kernel(e)
     
     def sigils(self,x: str):
         parameters = {}
         parameters["x"] = x
-
         e = FrameEvent("sigils",parameters)
         self.__kernel(e)
     

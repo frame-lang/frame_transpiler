@@ -51,23 +51,19 @@ class HandlerCalls:
     def Call(self,event: str,arg: int):
         parameters = {}
         parameters["event"] = event
-
         parameters["arg"] = arg
-
         e = FrameEvent("Call",parameters)
         self.__kernel(e)
     
     def Foo(self,arg: int):
         parameters = {}
         parameters["arg"] = arg
-
         e = FrameEvent("Foo",parameters)
         self.__kernel(e)
     
     def Bar(self,arg: int):
         parameters = {}
         parameters["arg"] = arg
-
         e = FrameEvent("Bar",parameters)
         self.__kernel(e)
     

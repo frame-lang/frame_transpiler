@@ -7089,8 +7089,11 @@ impl<'a> Parser<'a> {
         &mut self,
         enum_symbol_rcref_opt: &Option<Rc<RefCell<EnumSymbol>>>,
     ) -> Result<EnumMatchTestMatchBranchNode, ParseError> {
-        if let Err(parse_error) = self.consume(TokenType::EnumMatchStart, "Expected ':/'.") {
-            return Err(parse_error);
+
+        if !self.match_token(&[TokenType::EnumMatchStart]) {
+            let err_msg = "Expected enumeration match.";
+            self.error_at_current(&err_msg);
+            return Err(ParseError::new(err_msg));
         }
 
         let mut enum_match_pattern_nodes = Vec::new();

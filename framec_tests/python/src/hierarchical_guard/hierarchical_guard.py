@@ -39,14 +39,12 @@ class HierarchicalGuard:
     def A(self,i: int):
         parameters = {}
         parameters["i"] = i
-
         e = FrameEvent("A",parameters)
         self.__kernel(e)
     
     def B(self,i: int):
         parameters = {}
         parameters["i"] = i
-
         e = FrameEvent("B",parameters)
         self.__kernel(e)
     

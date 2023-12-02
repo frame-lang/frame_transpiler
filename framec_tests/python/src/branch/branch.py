@@ -63,14 +63,12 @@ class Branch:
     def OnBool(self,b: bool):
         parameters = {}
         parameters["b"] = b
-
         e = FrameEvent("OnBool",parameters)
         self.__kernel(e)
     
     def OnInt(self,i: int):
         parameters = {}
         parameters["i"] = i
-
         e = FrameEvent("OnInt",parameters)
         self.__kernel(e)
     

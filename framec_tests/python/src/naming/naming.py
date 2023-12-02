@@ -45,30 +45,25 @@ class Naming:
     def snake_event(self,snake_param: int):
         parameters = {}
         parameters["snake_param"] = snake_param
-
         e = FrameEvent("snake_event",parameters)
         self.__kernel(e)
     
     def CamelEvent(self,CamelParam: int):
         parameters = {}
         parameters["CamelParam"] = CamelParam
-
         e = FrameEvent("CamelEvent",parameters)
         self.__kernel(e)
     
     def event123(self,param123: int):
         parameters = {}
         parameters["param123"] = param123
-
         e = FrameEvent("event123",parameters)
         self.__kernel(e)
     
     def call(self,event: str,param: int):
         parameters = {}
         parameters["event"] = event
-
         parameters["param"] = param
-
         e = FrameEvent("call",parameters)
         self.__kernel(e)
     
