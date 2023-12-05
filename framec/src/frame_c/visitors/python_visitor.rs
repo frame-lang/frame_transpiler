@@ -56,6 +56,7 @@ pub struct PythonVisitor {
     skip_next_newline: bool,
     generate_main: bool,
     variable_init_override_opt: Option<String>,
+    continue_post_expr: String,
 }
 
 impl PythonVisitor {
@@ -111,6 +112,7 @@ impl PythonVisitor {
             skip_next_newline: false,
             generate_main: false,
             variable_init_override_opt: Option::None,
+            continue_post_expr: String::new(),
         }
     }
 
@@ -3049,6 +3051,28 @@ impl AstVisitor for PythonVisitor {
             self.newline();
         }
 
+        // all autoincdec code in loop control should be generated as the last statement
+        // in the loop
+        // for ..; ..; x++
+
+        let mut post_expr = String::new();
+
+        self.continue_post_expr = String::new();
+
+        if let Some(expr_type_rcref) = &loop_for_expr_node.post_expr_rcref_opt {
+            let expr_t = expr_type_rcref.borrow();
+            // expr_t.auto_pre_inc_dec(self);
+            match *expr_t {
+                ExprType::CallChainExprT { .. } => {
+                    // don't emit just a simple expression.
+                }
+                _ => expr_t.accept_to_string(self, &mut post_expr),
+            }
+            // expr_t.auto_post_inc_dec(self);
+        }
+
+        self.continue_post_expr = post_expr;
+
         self.add_code(&format!("while True:"));
         self.indent();
         self.newline();
@@ -3072,28 +3096,31 @@ impl AstVisitor for PythonVisitor {
         // only call if there are statements
         if loop_for_expr_node.statements.len() != 0 {
             self.visit_decl_stmts(&loop_for_expr_node.statements);
-            self.newline();
+           //  self.newline();
         }
+
 
         // all autoincdec code in loop control should be generated as the last statement
         // in the loop
         // for ..; ..; x++
-        if let Some(expr_type_rcref) = &loop_for_expr_node.post_expr_rcref_opt {
-            let expr_t = expr_type_rcref.borrow();
-            // expr_t.auto_pre_inc_dec(self);
-            match *expr_t {
-                ExprType::CallChainExprT { .. } => {
-                    // don't emit just a simple expression.
-                }
-                _ => expr_t.accept(self),
-            }
-            // expr_t.auto_post_inc_dec(self);
-        }
+        // if let Some(expr_type_rcref) = &loop_for_expr_node.post_expr_rcref_opt {
+        //     let expr_t = expr_type_rcref.borrow();
+        //     // expr_t.auto_pre_inc_dec(self);
+        //     match *expr_t {
+        //         ExprType::CallChainExprT { .. } => {
+        //             // don't emit just a simple expression.
+        //         }
+        //         _ => expr_t.accept(self),
+        //     }
+        //     // expr_t.auto_post_inc_dec(self);
+        // }
         // generate 'pass' after autoincdec if there are no statements
         if loop_for_expr_node.statements.len() == 0 {
             self.newline();
             self.add_code(&format!("pass"));
         }
+        self.newline();
+        self.add_code(self.continue_post_expr.clone().as_str());
         self.outdent();
         self.newline();
         // self.loop_for_inc_dec_expr_rcref_opt = None;
@@ -3206,6 +3233,8 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_continue_stmt_node(&mut self, _: &ContinueStmtNode) {
+        // THE FOLLOWING COMMENT IS NOT VALID. LEAVING UNTIL
+        // FINAL FIX IS DECIDED ON ABOUT AUTO INC/DEC.
         // In the context of a for loop, the auto inc/dec clause needs to
         // be executed prior to generating the 'continue' statement.
         // e.g.: loop var x = 0; x < 10; x++ { .. }
@@ -3215,6 +3244,8 @@ impl AstVisitor for PythonVisitor {
         //     expr_t.auto_pre_inc_dec(self);
         //     expr_t.auto_post_inc_dec(self);
         // }
+        self.newline();
+        self.add_code(self.continue_post_expr.clone().as_str());
         self.newline();
         self.add_code("continue");
     }

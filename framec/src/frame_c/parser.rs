@@ -4246,6 +4246,13 @@ impl<'a> Parser<'a> {
         conditional_branches.push(first_branch_node);
 
         while self.match_token(&[TokenType::ElseContinue]) {
+            // This enables a "dangling" ElseContinue.
+            // :> : :|
+            if self.peek().token_type == TokenType::Colon
+                || self.peek().token_type == TokenType::ColonBar
+            {
+                break;
+            }
             match self.bool_test_else_continue_branch() {
                 Ok(branch_node) => {
                     conditional_branches.push(branch_node);
@@ -4263,7 +4270,7 @@ impl<'a> Parser<'a> {
             });
         }
 
-        // '::'
+        // ':|'
         if let Err(parse_error) = self.consume(TokenType::ColonBar, "Expected TestTerminator.") {
             return Err(parse_error);
         }
@@ -4462,8 +4469,7 @@ impl<'a> Parser<'a> {
 
         while self.match_token(&[TokenType::ElseContinue]) {
             // This enables a "dangling" ElseContinue.
-            // :> :
-            // :> ::
+            // :> : :|
             if self.peek().token_type == TokenType::Colon
                 || self.peek().token_type == TokenType::ColonBar
             {
@@ -6865,8 +6871,7 @@ impl<'a> Parser<'a> {
 
         while self.match_token(&[TokenType::ElseContinue]) {
             // This enables a "dangling" ElseContinue.
-            // :> :
-            // :> ::
+            // :> : :|
             if self.peek().token_type == TokenType::Colon
                 || self.peek().token_type == TokenType::ColonBar
             {
@@ -7044,8 +7049,7 @@ impl<'a> Parser<'a> {
 
         while self.match_token(&[TokenType::ElseContinue]) {
             // This enables a "dangling" ElseContinue.
-            // :> :
-            // :> ::
+            // :> : :|
             if self.peek().token_type == TokenType::Colon
                 || self.peek().token_type == TokenType::ColonBar
             {
