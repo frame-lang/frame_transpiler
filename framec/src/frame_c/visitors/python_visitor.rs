@@ -56,7 +56,7 @@ pub struct PythonVisitor {
     skip_next_newline: bool,
     generate_main: bool,
     variable_init_override_opt: Option<String>,
-    continue_post_expr: String,
+    continue_post_expr_vec: Vec<String>,
 }
 
 impl PythonVisitor {
@@ -112,7 +112,7 @@ impl PythonVisitor {
             skip_next_newline: false,
             generate_main: false,
             variable_init_override_opt: Option::None,
-            continue_post_expr: String::new(),
+            continue_post_expr_vec: Vec::new(),
         }
     }
 
@@ -3057,8 +3057,6 @@ impl AstVisitor for PythonVisitor {
 
         let mut post_expr = String::new();
 
-        self.continue_post_expr = String::new();
-
         if let Some(expr_type_rcref) = &loop_for_expr_node.post_expr_rcref_opt {
             let expr_t = expr_type_rcref.borrow();
             // expr_t.auto_pre_inc_dec(self);
@@ -3071,7 +3069,7 @@ impl AstVisitor for PythonVisitor {
             // expr_t.auto_post_inc_dec(self);
         }
 
-        self.continue_post_expr = post_expr;
+        self.continue_post_expr_vec.push(post_expr);
 
         self.add_code(&format!("while True:"));
         self.indent();
@@ -3119,11 +3117,16 @@ impl AstVisitor for PythonVisitor {
             self.newline();
             self.add_code(&format!("pass"));
         }
-        self.newline();
-        self.add_code(self.continue_post_expr.clone().as_str());
+
+        if let Some(post_expr) = self.continue_post_expr_vec.pop() {
+            self.newline();
+            self.add_code(post_expr.clone().as_str());
+        }
+
         self.outdent();
         self.newline();
-        // self.loop_for_inc_dec_expr_rcref_opt = None;
+
+
     }
 
     //* --------------------------------------------------------------------- *//
@@ -3244,8 +3247,16 @@ impl AstVisitor for PythonVisitor {
         //     expr_t.auto_pre_inc_dec(self);
         //     expr_t.auto_post_inc_dec(self);
         // }
-        self.newline();
-        self.add_code(self.continue_post_expr.clone().as_str());
+//       let vec = &self.continue_post_expr_vec;
+        let mut str = String::new();
+        if let Some(post_expr) = self.continue_post_expr_vec.last() {
+            str = post_expr.clone();
+        }
+
+        if str.len() != 0 {
+            self.newline();
+            self.add_code(str.as_str());
+        }
         self.newline();
         self.add_code("continue");
     }
