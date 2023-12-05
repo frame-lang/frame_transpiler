@@ -56,7 +56,7 @@ pub struct PythonVisitor {
     skip_next_newline: bool,
     generate_main: bool,
     variable_init_override_opt: Option<String>,
-    continue_post_expr_vec: Vec<String>,
+    continue_post_expr_vec: Vec<Option<String>>,
 }
 
 impl PythonVisitor {
@@ -3069,7 +3069,7 @@ impl AstVisitor for PythonVisitor {
             // expr_t.auto_post_inc_dec(self);
         }
 
-        self.continue_post_expr_vec.push(post_expr);
+        self.continue_post_expr_vec.push(Some(post_expr));
 
         self.add_code(&format!("while True:"));
         self.indent();
@@ -3120,7 +3120,7 @@ impl AstVisitor for PythonVisitor {
 
         if let Some(post_expr) = self.continue_post_expr_vec.pop() {
             self.newline();
-            self.add_code(post_expr.clone().as_str());
+            self.add_code(post_expr.unwrap().clone().as_str());
         }
 
         self.outdent();
@@ -3214,7 +3214,9 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_loop_infinite_stmt_node(&mut self, loop_in_expr_node: &LoopInfiniteStmtNode) {
+        self.continue_post_expr_vec.push(None);
         self.newline();
+
         self.add_code(&format!("while True:"));
 
         self.indent();
@@ -3222,6 +3224,7 @@ impl AstVisitor for PythonVisitor {
         self.visit_decl_stmts(&loop_in_expr_node.statements);
         self.outdent();
         self.newline();
+        self.continue_post_expr_vec.pop();
     }
 
     //* --------------------------------------------------------------------- *//
@@ -3247,16 +3250,23 @@ impl AstVisitor for PythonVisitor {
         //     expr_t.auto_pre_inc_dec(self);
         //     expr_t.auto_post_inc_dec(self);
         // }
-//       let vec = &self.continue_post_expr_vec;
-        let mut str = String::new();
+
+        // In the loop_for syntax we need to generate the
+        // post_expr before a "continue". However none of the
+        // other loops should do that.  The continue_post_expr_vec
+        // is used to store a string option that has a Some value
+        // for the loop_for scope and None value for the other loop types.
+
+        let mut opt_str = None;
         if let Some(post_expr) = self.continue_post_expr_vec.last() {
-            str = post_expr.clone();
+            opt_str = post_expr.clone();
         }
 
-        if str.len() != 0 {
+        if let Some(new_str) = opt_str {
             self.newline();
-            self.add_code(str.as_str());
+            self.add_code(new_str.as_str());
         }
+
         self.newline();
         self.add_code("continue");
     }
