@@ -2806,6 +2806,11 @@ impl AstVisitor for Java8Visitor {
                 } => {
                     interface_method_call_expr_node.accept(self);
                 }
+                CallChainNodeType::OperationCallT {
+                    operation_call_expr_node,
+                } => {
+                    operation_call_expr_node.accept(self);
+                }
                 CallChainNodeType::ActionCallT {
                     action_call_expr_node,
                 } => {
@@ -2843,6 +2848,11 @@ impl AstVisitor for Java8Visitor {
                     interface_method_call_expr_node,
                 } => {
                     interface_method_call_expr_node.accept_to_string(self, output);
+                }
+                CallChainNodeType::OperationCallT {
+                    operation_call_expr_node,
+                } => {
+                    operation_call_expr_node.accept_to_string(self, output);
                 }
                 CallChainNodeType::ActionCallT {
                     action_call_expr_node,

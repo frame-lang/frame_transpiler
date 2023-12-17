@@ -101,6 +101,7 @@ class Naming:
             elif ((e._parameters["event"] == "event123")):
                 self.event123(e._parameters["param"])
                 return
+            
             else:
                 pass
             
@@ -112,21 +113,21 @@ class Naming:
     def __naming_state_snake_state(self, e):
           #  1100
         if e._message == "snake_event":
-            snake_local_var : int = self.__compartment.state_vars["snake_state_var"] + self.__compartment.state_args["snake_state_param"] + e._parameters["snake_param"]
+            snake_local_var: int = self.__compartment.state_vars["snake_state_var"] + self.__compartment.state_args["snake_state_param"] + e._parameters["snake_param"]
             self.snake_action_do(snake_local_var)
             compartment = NamingCompartment('__naming_state_Final')
             compartment.state_args["result"] = snake_local_var
             self.__transition(compartment)
             return
         elif e._message == "CamelEvent":
-            CamelLocalVar : int = self.__compartment.state_vars["snake_state_var"] + self.__compartment.state_args["snake_state_param"] + e._parameters["CamelParam"]
+            CamelLocalVar: int = self.__compartment.state_vars["snake_state_var"] + self.__compartment.state_args["snake_state_param"] + e._parameters["CamelParam"]
             self.CamelAction_do(CamelLocalVar)
             compartment = NamingCompartment('__naming_state_Final')
             compartment.state_args["result"] = CamelLocalVar
             self.__transition(compartment)
             return
         elif e._message == "event123":
-            localVar123 : int = self.__compartment.state_vars["snake_state_var"] + self.__compartment.state_args["snake_state_param"] + e._parameters["param123"]
+            localVar123: int = self.__compartment.state_vars["snake_state_var"] + self.__compartment.state_args["snake_state_param"] + e._parameters["param123"]
             self.action123_do(localVar123)
             compartment = NamingCompartment('__naming_state_Final')
             compartment.state_args["result"] = localVar123
@@ -142,6 +143,7 @@ class Naming:
             elif ((e._parameters["event"] == "event123")):
                 self.event123(e._parameters["param"])
                 return
+            
             else:
                 pass
             
@@ -153,21 +155,21 @@ class Naming:
     def __naming_state_CamelState(self, e):
           #  1200
         if e._message == "snake_event":
-            snake_local_var : int = self.__compartment.state_vars["CamelStateVar"] + self.__compartment.state_args["CamelStateParam"] + e._parameters["snake_param"]
+            snake_local_var: int = self.__compartment.state_vars["CamelStateVar"] + self.__compartment.state_args["CamelStateParam"] + e._parameters["snake_param"]
             self.snake_action_do(snake_local_var)
             compartment = NamingCompartment('__naming_state_Final')
             compartment.state_args["result"] = snake_local_var
             self.__transition(compartment)
             return
         elif e._message == "CamelEvent":
-            CamelLocalVar : int = self.__compartment.state_vars["CamelStateVar"] + self.__compartment.state_args["CamelStateParam"] + e._parameters["CamelParam"]
+            CamelLocalVar: int = self.__compartment.state_vars["CamelStateVar"] + self.__compartment.state_args["CamelStateParam"] + e._parameters["CamelParam"]
             self.CamelAction_do(CamelLocalVar)
             compartment = NamingCompartment('__naming_state_Final')
             compartment.state_args["result"] = CamelLocalVar
             self.__transition(compartment)
             return
         elif e._message == "event123":
-            localVar123 : int = self.__compartment.state_vars["CamelStateVar"] + self.__compartment.state_args["CamelStateParam"] + e._parameters["param123"]
+            localVar123: int = self.__compartment.state_vars["CamelStateVar"] + self.__compartment.state_args["CamelStateParam"] + e._parameters["param123"]
             self.action123_do(localVar123)
             compartment = NamingCompartment('__naming_state_Final')
             compartment.state_args["result"] = localVar123
@@ -183,6 +185,7 @@ class Naming:
             elif ((e._parameters["event"] == "event123")):
                 self.event123(e._parameters["param"])
                 return
+            
             else:
                 pass
             
@@ -194,21 +197,21 @@ class Naming:
     def __naming_state_state123(self, e):
           #  1300
         if e._message == "snake_event":
-            snake_local_var : int = self.__compartment.state_vars["stateVar123"] + self.__compartment.state_args["stateParam123"] + e._parameters["snake_param"]
+            snake_local_var: int = self.__compartment.state_vars["stateVar123"] + self.__compartment.state_args["stateParam123"] + e._parameters["snake_param"]
             self.snake_action_do(snake_local_var)
             compartment = NamingCompartment('__naming_state_Final')
             compartment.state_args["result"] = snake_local_var
             self.__transition(compartment)
             return
         elif e._message == "CamelEvent":
-            CamelLocalVar : int = self.__compartment.state_vars["stateVar123"] + self.__compartment.state_args["stateParam123"] + e._parameters["CamelParam"]
+            CamelLocalVar: int = self.__compartment.state_vars["stateVar123"] + self.__compartment.state_args["stateParam123"] + e._parameters["CamelParam"]
             self.CamelAction_do(CamelLocalVar)
             compartment = NamingCompartment('__naming_state_Final')
             compartment.state_args["result"] = CamelLocalVar
             self.__transition(compartment)
             return
         elif e._message == "event123":
-            localVar123 : int = self.__compartment.state_vars["stateVar123"] + self.__compartment.state_args["stateParam123"] + e._parameters["param123"]
+            localVar123: int = self.__compartment.state_vars["stateVar123"] + self.__compartment.state_args["stateParam123"] + e._parameters["param123"]
             self.action123_do(localVar123)
             compartment = NamingCompartment('__naming_state_Final')
             compartment.state_args["result"] = localVar123
@@ -224,6 +227,7 @@ class Naming:
             elif ((e._parameters["event"] == "event123")):
                 self.event123(e._parameters["param"])
                 return
+            
             else:
                 pass
             

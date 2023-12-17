@@ -4766,6 +4766,11 @@ impl AstVisitor for RustVisitor {
                         "Error: Interface method calls may not appear in call chains.",
                     ));
                 }
+                CallChainNodeType::OperationCallT {
+                    operation_call_expr_node,
+                } => {
+                    operation_call_expr_node.accept(self);
+                }
                 CallChainNodeType::ActionCallT {
                     action_call_expr_node,
                 } => {
@@ -4803,6 +4808,11 @@ impl AstVisitor for RustVisitor {
                     self.errors.push(String::from(
                         "Error: Interface method calls may not appear in call chains.",
                     ));
+                }
+                CallChainNodeType::OperationCallT {
+                    operation_call_expr_node,
+                } => {
+                    operation_call_expr_node.accept_to_string(self, output);
                 }
                 CallChainNodeType::ActionCallT {
                     action_call_expr_node,

@@ -89,7 +89,7 @@ class EventHandler:
         elif e._message == "LogReturn":
             self.log_do("a",e._parameters["a"])
             self.log_do("b",e._parameters["b"])
-            r  = e._parameters["a"] + e._parameters["b"]
+            r = e._parameters["a"] + e._parameters["b"]
             self.log_do("r",r)
             e._return = r
             return
@@ -100,7 +100,7 @@ class EventHandler:
             self.__transition(compartment)
             return
         elif e._message == "PassReturn":
-            r  = e._parameters["a"] + e._parameters["b"]
+            r = e._parameters["a"] + e._parameters["b"]
             self.log_do("r",r)
             compartment = EventHandlerCompartment('__eventhandler_state_S2')
             compartment.state_args["p"] = r

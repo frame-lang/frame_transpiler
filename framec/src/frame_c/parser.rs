@@ -103,6 +103,8 @@ pub struct Parser<'a> {
     is_parsing_rhs: bool,
     event_handler_has_transition: bool,
     is_action_scope: bool,
+    is_operation_scope: bool,
+    is_static: bool,
     is_function_scope: bool,
     is_loop_scope: bool,
     stmt_idx: i32,
@@ -148,6 +150,8 @@ impl<'a> Parser<'a> {
             generate_change_state: false,
             generate_transition_state: false,
             is_action_scope: false,
+            is_operation_scope:false,
+            is_static:false,
             is_function_scope: false,
             is_loop_scope: false,
             stmt_idx: 0,
@@ -172,6 +176,7 @@ impl<'a> Parser<'a> {
                 Module {
                     module_elements: vec![],
                 },
+                None,
                 None,
                 None,
                 None,
@@ -220,6 +225,7 @@ impl<'a> Parser<'a> {
                 String::new(),
                 module,
                 system_attributes_opt,
+                None,
                 None,
                 None,
                 None,
@@ -296,6 +302,7 @@ impl<'a> Parser<'a> {
         let mut interface_block_node_opt = Option::None;
         let mut machine_block_node_opt = Option::None;
         let mut actions_block_node_opt = Option::None;
+        let mut operations_block_node_opt = Option::None;
         let mut domain_block_node_opt = Option::None;
 
         if !self.match_token(&[TokenType::Identifier]) {
@@ -526,6 +533,12 @@ impl<'a> Parser<'a> {
             actions_block_node_opt = Option::Some(self.actions_block());
         }
 
+
+        if self.match_token(&[TokenType::OperationsBlock]) {
+            operations_block_node_opt = Option::Some(self.operations_block());
+        }
+
+
         if self.match_token(&[TokenType::DomainBlock]) {
             self.arcanum
                 .debug_print_current_symbols(self.arcanum.get_current_symtab());
@@ -559,6 +572,7 @@ impl<'a> Parser<'a> {
             interface_block_node_opt,
             machine_block_node_opt,
             actions_block_node_opt,
+            operations_block_node_opt,
             domain_block_node_opt,
             line,
             functions_opt,
@@ -799,76 +813,6 @@ impl<'a> Parser<'a> {
 
         Ok(None)
 
-        // if !self.is_building_symbol_table {
-        //     // check system domain params override a domain variable and match type
-        //     for arg in &expr_list_node.exprs_t {
-        //         let name = &arg.;
-        //         let domain_symbol_rcref_opt =
-        //             self.arcanum.lookup(name, &IdentifierDeclScope::DomainBlock);
-        //         if domain_symbol_rcref_opt.is_none() {
-        //             let err_msg = &format!(
-        //                 "System domain parameter '{}' does not exist in the domain.",
-        //                 name
-        //             );
-        //             self.error_at_current(err_msg);
-        //             return Err(ParseError::new(err_msg));
-        //
-        //         } else {
-        //             // domain var exists, check type matches
-        //             let symbol_type_rcref = domain_symbol_rcref_opt.unwrap();
-        //             let symbol_type = symbol_type_rcref.borrow();
-        //             match &*symbol_type {
-        //                 SymbolType::DomainVariable {
-        //                     domain_variable_symbol_rcref,
-        //                 } => {
-        //                     let domain_variable_symbol =
-        //                         domain_variable_symbol_rcref.borrow();
-        //                     let domain_variable_symbol_type_node_opt =
-        //                         &domain_variable_symbol.var_type;
-        //                     let param_type_node_opt = &arg.param_type_opt;
-        //                     if domain_variable_symbol_type_node_opt.is_none()
-        //                         && param_type_node_opt.is_none()
-        //                     {
-        //                         // ok
-        //                     } else if domain_variable_symbol_type_node_opt.is_some()
-        //                         && param_type_node_opt.is_some()
-        //                     {
-        //                         // maybe ok, check types match
-        //                         let domain_variable_type_node =
-        //                             domain_variable_symbol_type_node_opt
-        //                                 .as_ref()
-        //                                 .unwrap();
-        //                         let param_type_node =
-        //                             param_type_node_opt.as_ref().unwrap();
-        //                         if domain_variable_type_node
-        //                             .get_type_str()
-        //                             .ne(&param_type_node.get_type_str())
-        //                         {
-        //                             // error - one has a type and the other does not.
-        //                             let err_msg = &format!("System domain parameter '{}' type does not match domain variable type.", name);
-        //                             self.error_at_current(err_msg);
-        //                             return Err(ParseError::new(err_msg));
-        //                         }
-        //                     } else {
-        //                         // error - one has a type and the other does not.
-        //                         let err_msg = &format!("System domain parameter '{}' type does not match domain variable type.", name);
-        //                         self.error_at_current(err_msg);
-        //                         return Err(ParseError::new(err_msg));
-        //                     }
-        //                 }
-        //                 _ => {
-        //                     self.error_at_current(&format!(
-        //                         "Compiler error - wrong type found for '{}'.",
-        //                         name
-        //                     ));
-        //                     let err_msg = &format!("System domain parameter '{}' type does not match domain variable type.", name);
-        //                     self.error_at_current(err_msg);
-        //                     return Err(ParseError::new(err_msg));
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
     }
 
     /* --------------------------------------------------------------------- */
@@ -1319,46 +1263,6 @@ impl<'a> Parser<'a> {
         let y = Rc::new(x);
         Ok(y)
     }
-
-    /* --------------------------------------------------------------------- */
-
-    // These are attributes that relate to the a program module.
-    // See this about attribute affinity:  https://doc.rust-lang.org/reference/attributes.html
-    // fn module_attributes(&mut self) -> Result<Option<Vec<AttributeNode>>, ParseError> {
-    //     let mut attributes = Vec::new();
-    //
-    //     loop {
-    //         if self.peek().token_type == TokenType::OuterAttributeOrDomainParams {
-    //             return Ok(None);
-    //             // if self.peek(TokenType::OuterAttributeOrDomainParams) {
-    //             //     let err_msg = "Found '#[' token - outer attribute syntax not currently supported for modules.";
-    //             //     self.error_at_current(err_msg);
-    //             //     let parse_error = ParseError::new(
-    //             //         err_msg
-    //             //     );
-    //             //     return Err(parse_error);
-    //         } else if self.match_token(&[TokenType::InnerAttribute]) {
-    //             let attribute_node = match self.attribute(AttributeAffinity::Inner) {
-    //                 Ok(attribute_node) => attribute_node,
-    //                 Err(err) => {
-    //                     return Err(err);
-    //                 }
-    //             };
-    //             attributes.push(attribute_node);
-    //             if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
-    //                 return Err(parse_error);
-    //             }
-    //         } else {
-    //             break;
-    //         }
-    //     }
-    //
-    //     if attributes.is_empty() {
-    //         Ok(None)
-    //     } else {
-    //         Ok(Some(attributes))
-    //     }
-    // }
 
     /* --------------------------------------------------------------------- */
 
@@ -2130,6 +2034,7 @@ impl<'a> Parser<'a> {
         ActionsBlockNode::new(actions)
     }
 
+
     /* --------------------------------------------------------------------- */
     //
     // fn action_decl(&mut self) -> Result<Rc<RefCell<ActionNode>>, ParseError> {
@@ -2204,6 +2109,7 @@ impl<'a> Parser<'a> {
     //
     //     Ok(action_decl_rcref)
     // }
+
 
     /* --------------------------------------------------------------------- */
 
@@ -2350,30 +2256,222 @@ impl<'a> Parser<'a> {
             type_opt,
             code_opt,
         );
-        // let action_node_rcref = Rc::new(RefCell::new(action_node));
+
+        let action_node_ref = RefCell::new(action_node);
+        let action_node_rcref = Rc::new(action_node_ref);
+        Ok(action_node_rcref)
+    }
+
+
+    /* --------------------------------------------------------------------- */
+
+    // TODO: Return result
+    fn operations_block(&mut self) -> OperationsBlockNode {
+        if self.is_building_symbol_table {
+            let operations_block_scope_symbol = Rc::new(RefCell::new(OperationsBlockScopeSymbol::new()));
+            self.arcanum.enter_scope(ParseScopeType::OperationsBlock {
+                operations_block_scope_symbol_rcref: operations_block_scope_symbol,
+            });
+        } else {
+            self.arcanum
+                .set_parse_scope(OperationsBlockScopeSymbol::scope_name());
+        }
+
+        let mut operations = Vec::new();
+
+        while self.match_token(&[TokenType::Identifier]) {
+            if let Ok(operation_node) = self.operation_scope() {
+                operations.push(operation_node);
+            }
+        }
+
         //
-        // if self.is_building_symbol_table {
-        //     // syntactic pass.
-        //     // Add reference from action symbol to the ActionNode.
-        //     // TODO: note what is being done. We are linking to the AST node generated in the
-        //     // TODO: **syntax** pass (not the semantic pass).
-        //     // The  AST tree built during the syntax pass is otherwise disposed of, but not these
-        //     // references squirrled away in the symbol table.
-        //     // This may be fine but feels wrong. Alternatively
-        //     // we could copy this information out of the node and into the symbol.
+        // let marshal = match &system_attributes_opt {
+        //     Some(attributes) => {
+        //         for value in (*attributes).values() {
+        //             match value {
+        //                 AttributeNode::MetaListIdents { attr } => {
+        //                     match attr.name.as_str() {
+        //                         "derive" => {
+        //                             for ident in &attr.idents {
+        //                                 match ident.as_str() {
+        //                                     // TODO: constants and figure out mom vs managed
+        //                                     //  "Managed" => self.managed = true,
+        //                                     "marshal" => true,
+        //                                     _ => {}
+        //                                 }
+        //                             }
+        //                         }
+        //                         _ => false,
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //         false
+        //     }
+        //     None => false
+        // };
         //
-        //     let action_node_rcref = Rc::new(RefCell::new(action_node));
+        // if marshal {
         //
-        //     action_symbol.set_ast_node(Rc::clone(&action_node_rcref));
-        //     let action_symbol_rcref = Rc::new(RefCell::new(action_decl_symbol));
-        //     let action_decl_symbol_t = SymbolType::ActionScope {
-        //         action_decl_symbol_rcref,
-        //     };
         // }
 
-        let x = RefCell::new(action_node);
-        let y = Rc::new(x);
-        Ok(y)
+
+        self.arcanum.exit_scope();
+
+        OperationsBlockNode::new(operations)
+    }
+
+
+    /* --------------------------------------------------------------------- */
+
+    // This method wraps the call to the action() call which does
+    // the parsing. Here the scope stack is managed including
+    // the scope symbol creation and association with the AST node.
+
+    fn operation_scope(&mut self) -> Result<Rc<RefCell<OperationNode>>, ParseError> {
+        let operation_name = self.previous().lexeme.clone();
+
+        // The 'is_operation_context' flag is used to determine which statements are valid
+        // to be called in the context of an operation. Transitions, for example, are not
+        // allowed.
+        self.is_operation_scope = true;
+
+        if self.is_building_symbol_table {
+            // syntax pass
+            let operation_symbol = OperationScopeSymbol::new(operation_name.clone());
+            //            operation_symbol_opt = Some(operation_symbol);
+
+            let operation_scope_symbol_rcref = Rc::new(RefCell::new(operation_symbol));
+            let operation_symbol_parse_scope_t = ParseScopeType::Operation {
+                operation_scope_symbol_rcref,
+            };
+            self.arcanum.enter_scope(operation_symbol_parse_scope_t);
+        } else {
+            // semantic pass
+            // link operation symbol to operation declaration node
+
+            // TODO - remove?
+            // let a = self
+            //     .arcanum
+            //     .current_symtab
+            //     .borrow()
+            //     .lookup(&*operation_name, &IdentifierDeclScope::None);
+
+            // see if we can get the operation symbol set in the syntax pass. if so, then move
+            // all this to the calling function and pass inthe symbol
+            self.arcanum.set_parse_scope(&operation_name);
+        }
+
+        let ret = self.operation(operation_name.clone());
+
+        if self.is_building_symbol_table {
+            match &ret {
+                Ok(operation_node_rcref) => {
+                    // associate AST node with symbol
+                    // let a = operation_node_rcref.borrow();
+                    let b = self.arcanum.lookup_operation(&operation_name.clone());
+                    let c = b.unwrap();
+                    let mut d = c.borrow_mut();
+                    d.ast_node_opt = Some(operation_node_rcref.clone());
+                }
+                Err(_err) => {
+                    // just return the error upon exiting the function
+                }
+            }
+        }
+
+        self.arcanum.exit_scope();
+
+        self.is_operation_scope = false;
+
+        ret
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn operation(&mut self, operation_name: String) -> Result<Rc<RefCell<OperationNode>>, ParseError> {
+        let mut params: Option<Vec<ParameterNode>> = Option::None;
+
+        if self.match_token(&[TokenType::LBracket]) {
+            params = match self.parameters_scope() {
+                Ok(Some(parameters)) => Some(parameters),
+                Ok(None) => None,
+                Err(parse_error) => return Err(parse_error),
+            }
+        }
+
+        let mut type_opt: Option<TypeNode> = None;
+
+        if self.match_token(&[TokenType::Colon]) {
+            match self.type_decl() {
+                Ok(type_node) => type_opt = Some(type_node),
+                Err(parse_error) => return Err(parse_error),
+            }
+        }
+
+        let code_opt: Option<String> = None;
+        let mut statements = Vec::new();
+        let mut terminator_node_opt = None;
+        let mut is_implemented = false;
+
+        if self.match_token(&[TokenType::OpenBrace]) {
+            is_implemented = true;
+            // TODO - figure out how this needes to be added to statements
+            // if self.match_token(&[TokenType::SuperString]) {
+            //     let token = self.previous();
+            //     code_opt = Some(token.lexeme.clone());
+            // }
+
+            statements = self.statements(IdentifierDeclScope::BlockVar);
+
+            if self.match_token(&[TokenType::Caret]) {
+                if self.match_token(&[TokenType::LParen]) {
+                    let expr_t = match self.decorated_unary_expression() {
+                        Ok(Some(expr_t)) => expr_t,
+                        _ => {
+                            self.error_at_current("Expected expression as return value.");
+                            //  self.arcanum.exit_parse_scope();
+                            return Err(ParseError::new("TODO"));
+                        }
+                    };
+
+                    if let Err(parse_error) = self.consume(TokenType::RParen, "Expected ')'.") {
+                        // self.arcanum.exit_parse_scope();
+                        return Err(parse_error);
+                    }
+
+                    terminator_node_opt = Some(TerminatorExpr::new(
+                        Return,
+                        Some(expr_t),
+                        self.previous().line,
+                    ));
+                } else {
+                    terminator_node_opt =
+                        Some(TerminatorExpr::new(Return, None, self.previous().line));
+                }
+            }
+
+            if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
+                //   self.arcanum.exit_parse_scope();
+                return Err(parse_error);
+            } else {
+            }
+        }
+
+        let operation_node = OperationNode::new(
+            operation_name.clone(),
+            params,
+            is_implemented,
+            statements,
+            terminator_node_opt,
+            type_opt,
+            code_opt,
+        );
+
+        let operation_node_ref = RefCell::new(operation_node);
+        let operation_node_rcref = Rc::new(operation_node_ref);
+        Ok(operation_node_rcref)
     }
 
     /* --------------------------------------------------------------------- */
@@ -3124,6 +3222,7 @@ impl<'a> Parser<'a> {
                 let follows_vec = &vec![
                     TokenType::State,
                     TokenType::ActionsBlock,
+                    TokenType::OperationsBlock,
                     TokenType::DomainBlock,
                     TokenType::SystemEnd,
                 ];
@@ -5842,7 +5941,10 @@ impl<'a> Parser<'a> {
     ) -> Result<Option<ExprType>, ParseError> {
         let mut scope: IdentifierDeclScope;
 
-        // let debug_id_token = self.previous().lexeme.clone();
+        let debug_id_token = self.previous().lexeme.clone();
+        if debug_id_token == "d" {
+            let debug = 1;
+        }
 
         let mut id_node = IdentifierNode::new(
             self.previous().clone(),
@@ -5870,7 +5972,7 @@ impl<'a> Parser<'a> {
                         if !self.is_building_symbol_table {
                             if !is_first_node {
                                 // TODO - review if this can be factored out or simplified.
-                                // This code determines if the call is a call to a system interface.
+                                // This code determines if the call is a call to a system interface or operation.
                                 // If so it sets interface_method_symbol_rcref_opt to Some() which
                                 // will add an InterfaceMethodCallT rather than a UndeclaredCallT
                                 // to the call chain.
@@ -5878,6 +5980,7 @@ impl<'a> Parser<'a> {
                                 // interface_method_symbol_rcref_opt is used to indicate this.
 
                                 let mut interface_method_symbol_rcref_opt = None;
+                                let mut operation_symbol_rcref_opt = None;
                                 // get the previous node to see what kind it was
                                 let call_chain_node_type_opt = call_chain.get(call_chain.len() - 1);
                                 if let Some(call_chain_node_type) = call_chain_node_type_opt {
@@ -5949,63 +6052,155 @@ impl<'a> Parser<'a> {
                                                             }
                                                         }
                                                         None => {
-                                                            let err_msg = format!("Interface method '{}' not found on '{}' system.", call_expr_node.get_name(), var_node.get_name());
-                                                            self.error_at_previous(&err_msg);
                                                         }
+                                                    }
+                                                    // now check if the call was to a system operation
+                                                    match self.arcanum.lookup_operation(
+                                                        call_expr_node.get_name(),
+                                                    ) {
+                                                        Some(operation_symbol_rcref) => {
+                                                            operation_symbol_rcref_opt =
+                                                                Some(
+                                                                    operation_symbol_rcref
+                                                                        .clone(),
+                                                                );
+
+                                                            // TODO - factor out arg/param validation into a utility function.
+                                                            // validate args/params
+
+                                                            let operation_symbol =
+                                                                operation_symbol_rcref
+                                                                    .borrow();
+                                                            let operation_node_rcref =
+                                                                operation_symbol
+                                                                    .ast_node_opt
+                                                                    .as_ref()
+                                                                    .unwrap();
+                                                            let parameter_node_vec_opt =
+                                                                &operation_node_rcref
+                                                                    .borrow()
+                                                                    .params;
+
+                                                            // check if difference in the existence of parameters
+                                                            let params_is_none =
+                                                                parameter_node_vec_opt.is_none();
+                                                            let args_is_empty = call_expr_node
+                                                                .call_expr_list
+                                                                .exprs_t
+                                                                .is_empty();
+                                                            if (!params_is_none && args_is_empty)
+                                                                || (params_is_none
+                                                                && !args_is_empty)
+                                                            {
+                                                                let err_msg = format!("Incorrect number of arguments for interface method '{}'.", call_expr_node.get_name());
+                                                                self.error_at_previous(&err_msg);
+                                                            } else {
+                                                                // check parameter count equals argument count
+                                                                match parameter_node_vec_opt {
+                                                                    Some(symbol_params) => {
+                                                                        if symbol_params.len()
+                                                                            != call_expr_node
+                                                                            .call_expr_list
+                                                                            .exprs_t
+                                                                            .len()
+                                                                        {
+                                                                            let err_msg = format!("Number of arguments does not match parameters for interface method '{}'.", call_expr_node.get_name());
+                                                                            self.error_at_previous(
+                                                                                &err_msg,
+                                                                            );
+                                                                        }
+                                                                    }
+                                                                    None => {}
+                                                                }
+                                                            }
+                                                        }
+                                                        None => {}
+                                                    }
+                                                    if interface_method_symbol_rcref_opt.is_none()
+                                                        && operation_symbol_rcref_opt.is_none() {
+                                                        let err_msg = format!("Call to '{}' not found on '{}' system.", call_expr_node.get_name(), var_node.get_name());
+                                                        self.error_at_previous(&err_msg);
                                                     }
                                                 }
                                                 _ => {}
                                             }
-                                            match &var_node.symbol_type_rcref_opt {
-                                                Some(symbol_t_rcref) => {
-                                                    let symbol_t = symbol_t_rcref.borrow();
-                                                    match &*symbol_t {
-                                                        SymbolType::System {
-                                                            system_symbol_rcref,
-                                                        } => {
-                                                            interface_method_symbol_rcref_opt =
-                                                                system_symbol_rcref
-                                                                    .borrow()
-                                                                    .get_interface_method(
-                                                                        call_expr_node.get_name(),
-                                                                    );
-                                                            if interface_method_symbol_rcref_opt
-                                                                .is_none()
-                                                            {
-                                                                // this call is to an interface method but it doesn't
-                                                                // exist on the system
-                                                                let err_msg = &format!("Interface method {} not found on {}.", call_expr_node.get_name(), var_node.get_name());
-                                                                self.error_at_current(err_msg);
-                                                            }
-                                                        }
-                                                        _ => {}
-                                                    }
-                                                }
-                                                None => {}
-                                            }
+                                            // match &var_node.symbol_type_rcref_opt {
+                                            //     Some(symbol_t_rcref) => {
+                                            //         let symbol_t = symbol_t_rcref.borrow();
+                                            //         match &*symbol_t {
+                                            //             SymbolType::System {
+                                            //                 system_symbol_rcref,
+                                            //             } => {
+                                            //                 interface_method_symbol_rcref_opt =
+                                            //                     system_symbol_rcref
+                                            //                         .borrow()
+                                            //                         .get_interface_method(
+                                            //                             call_expr_node.get_name(),
+                                            //                         );
+                                            //                 if interface_method_symbol_rcref_opt
+                                            //                     .is_none()
+                                            //                 {
+                                            //                     // this call is to an interface method but it doesn't
+                                            //                     // exist on the system
+                                            //                     let err_msg = &format!("Interface method {} not found on {}.", call_expr_node.get_name(), var_node.get_name());
+                                            //                     self.error_at_current(err_msg);
+                                            //                 }
+                                            //             }
+                                            //             _ => {}
+                                            //         }
+                                            //     }
+                                            //     None => {}
+                                            // }
                                         }
                                         _ => {}
                                     }
                                 }
 
-                                let call_t = match interface_method_symbol_rcref_opt {
-                                    None => CallChainNodeType::UndeclaredCallT {
-                                        call: call_expr_node,
-                                    },
-                                    Some(interface_method_symbol_rcref) => {
-                                        let mut interface_method_call_expr_node =
-                                            InterfaceMethodCallExprNode::new(
-                                                call_expr_node,
-                                                InterfaceMethodCallType::External,
-                                            );
-                                        interface_method_call_expr_node.set_interface_symbol(
-                                            &interface_method_symbol_rcref.clone(),
-                                        );
-                                        CallChainNodeType::InterfaceMethodCallT {
-                                            interface_method_call_expr_node,
+
+                                let call_t =
+                                    if interface_method_symbol_rcref_opt.is_some() {
+                                        match interface_method_symbol_rcref_opt {
+                                            None => CallChainNodeType::UndeclaredCallT {
+                                                call: call_expr_node,
+                                            },
+                                            Some(interface_method_symbol_rcref) => {
+                                                let mut interface_method_call_expr_node =
+                                                    InterfaceMethodCallExprNode::new(
+                                                        call_expr_node,
+                                                        CallOrigin::External,
+                                                    );
+                                                interface_method_call_expr_node.set_interface_symbol(
+                                                    &interface_method_symbol_rcref.clone(),
+                                                );
+                                                CallChainNodeType::InterfaceMethodCallT {
+                                                    interface_method_call_expr_node,
+                                                }
+                                            }
                                         }
-                                    }
-                                };
+                                    } else if operation_symbol_rcref_opt.is_some() {
+                                        match operation_symbol_rcref_opt {
+                                            None => CallChainNodeType::UndeclaredCallT {
+                                                call: call_expr_node,
+                                            },
+                                            Some(operation_symbol_rcref) => {
+                                                let mut operation_call_expr_node =
+                                                    OperationCallExprNode::new(
+                                                        call_expr_node,
+                                                     //   CallOrigin::External,
+                                                    );
+                                                operation_call_expr_node.set_operation_symbol(
+                                                    &operation_symbol_rcref.clone(),
+                                                );
+                                                CallChainNodeType::OperationCallT {
+                                                    operation_call_expr_node,
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        CallChainNodeType::UndeclaredCallT {
+                                            call: call_expr_node,
+                                        }
+                                    };
 
                                 call_chain.push_back(call_t);
                             } else {
@@ -6152,7 +6347,7 @@ impl<'a> Parser<'a> {
                                                 let mut interface_method_call_expr_node =
                                                     InterfaceMethodCallExprNode::new(
                                                         call_expr_node,
-                                                        InterfaceMethodCallType::Internal,
+                                                        CallOrigin::Internal,
                                                     );
                                                 interface_method_call_expr_node
                                                     .set_interface_symbol(&Rc::clone(
@@ -6328,7 +6523,13 @@ impl<'a> Parser<'a> {
                 break;
             }
 
+
+
             if self.match_token(&[TokenType::Identifier]) {
+                let debug_id_token = self.previous().lexeme.clone();
+                if debug_id_token == "getD" {
+                    let debug = 1;
+                }
                 id_node = IdentifierNode::new(
                     self.previous().clone(),
                     None,

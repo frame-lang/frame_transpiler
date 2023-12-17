@@ -49,6 +49,7 @@ impl Scanner {
             ("-interface-".to_string(), TokenType::InterfaceBlock),
             ("-machine-".to_string(), TokenType::MachineBlock),
             ("-actions-".to_string(), TokenType::ActionsBlock),
+            ("-operations-".to_string(), TokenType::OperationsBlock),
             ("-domain-".to_string(), TokenType::DomainBlock),
         ]
         .iter()
@@ -558,6 +559,7 @@ impl Scanner {
             ("interface-", TokenType::InterfaceBlock),
             ("machine-", TokenType::MachineBlock),
             ("actions-", TokenType::ActionsBlock),
+            ("operations-", TokenType::OperationsBlock),
             ("domain-", TokenType::DomainBlock),
         ];
 
@@ -709,6 +711,7 @@ pub enum TokenType {
     InterfaceBlock,               // -interface-
     MachineBlock,                 // -machine-
     ActionsBlock,                 // -actions-
+    OperationsBlock,              // -operations-
     DomainBlock,                  // -domain-
     LParen,                       // (
     RParen,                       // )

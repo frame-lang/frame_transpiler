@@ -189,6 +189,22 @@ pub trait AstVisitor {
     fn visit_action_call_statement_node(&mut self, _node: &ActionCallStmtNode) {}
 
 
+
+    // ---
+    fn visit_operations_block_node(&mut self, _node: &OperationsBlockNode) {}
+    // fn visit_action_node_rust_trait(&mut self, _node: &ActionsBlockNode) {}
+    // fn visit_actions_node_rust_impl(&mut self, _node: &ActionsBlockNode) {}
+
+    fn visit_operation_node(&mut self, _node: &OperationNode) {}
+    // fn visit_action_impl_node(&mut self, _node: &ActionNode) {}
+    //
+    fn visit_operation_call_expression_node(&mut self, _node: &OperationCallExprNode) {}
+    fn visit_operation_call_expression_node_to_string(&mut self, _node: &OperationCallExprNode, _output: &mut String) {}
+    fn visit_operation_call_statement_node(&mut self, _node: &OperationCallExprNode) {}
+
+    // ---
+
+
     fn visit_domain_block_node(&mut self, _node: &DomainBlockNode) {}
     fn visit_domain_variable_decl_node(&mut self, _node: &VariableDeclNode) {}
     fn visit_variable_decl_node(&mut self, _node: &VariableDeclNode) {}

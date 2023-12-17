@@ -75,6 +75,7 @@ class MatchTests:
             self.log_do("Matched pear")
         elif (x == MatchTests_Fruit.Banana):
             self.log_do("Matched Banana")
+        
         else:
             self.log_do("no enum match")
         
@@ -88,6 +89,7 @@ class MatchTests:
             self.log_do("matched empty string")
         elif (s is None):
             self.log_do("matched null")
+        
         else:
             self.log_do("no string match")
         
@@ -101,6 +103,7 @@ class MatchTests:
             self.log_do("Matched .5")
         elif (n == 0.111):
             self.log_do("Matched .111")
+        
         else:
             self.log_do("no number match")
         
@@ -110,11 +113,13 @@ class MatchTests:
     def syntaxTests_do(self):
         if ((x == "a")):
             pass
+        
         else:
             pass
         
         if ((x == "a")):
             pass
+        
         else:
             pass
         
@@ -126,26 +131,31 @@ class MatchTests:
         
         if ((x == "a")):
             foo()
+        
         else:
             bar()
         
         if ((x == "a")):
             foo()
+        
         else:
             bar()
         
         if ((x == "a")):
             pass
+        
         else:
             pass
         
         if ((x == "a")):
                 foo()
+        
         else:
                 bar()
         
         if ((x == "a")):
                 foo()
+        
         else:
                 bar()
         

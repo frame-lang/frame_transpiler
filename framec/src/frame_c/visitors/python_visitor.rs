@@ -57,6 +57,7 @@ pub struct PythonVisitor {
     generate_main: bool,
     variable_init_override_opt: Option<String>,
     continue_post_expr_vec: Vec<Option<String>>,
+    is_operation_scope: bool,
 }
 
 impl PythonVisitor {
@@ -113,6 +114,7 @@ impl PythonVisitor {
             generate_main: false,
             variable_init_override_opt: Option::None,
             continue_post_expr_vec: Vec::new(),
+            is_operation_scope: false,
         }
     }
 
@@ -288,6 +290,11 @@ impl PythonVisitor {
     fn format_action_name(&self, action_name: &String) -> String {
         format!("{}_do", action_name)
     }
+    //* --------------------------------------------------------------------- *//
+
+    fn format_operation_name(&self, operation_name: &String) -> String {
+        format!("{}", operation_name)
+    }
 
     //* --------------------------------------------------------------------- *//
 
@@ -356,8 +363,6 @@ impl PythonVisitor {
                         }
                     }
                 }
-
-                // self.config.code.marshal_system_state_var = format!("{}State", &system_node.name);
             }
             None => {}
         }
@@ -659,6 +664,7 @@ impl PythonVisitor {
                 self.outdent();
             }
             _ => {
+                self.newline();
                 self.add_code("pass");
                 self.outdent();
                 self.newline();
@@ -1496,19 +1502,23 @@ impl PythonVisitor {
         } else {
             self.newline();
         }
-        self.newline();
-        self.add_code("# Send system start event");
+        if self.has_states{
 
-        if let Some(_enter_params) = &system_node.start_state_enter_params_opt {
             self.newline();
-            self.add_code("frame_event = FrameEvent(\">\", self.__compartment.enter_args)");
-        } else {
+            self.add_code("# Send system start event");
+
+            if let Some(_enter_params) = &system_node.start_state_enter_params_opt {
+                self.newline();
+                self.add_code("frame_event = FrameEvent(\">\", self.__compartment.enter_args)");
+            } else {
+                self.newline();
+                self.add_code("frame_event = FrameEvent(\">\", None)");
+            }
+
             self.newline();
-            self.add_code("frame_event = FrameEvent(\">\", None)");
+            self.add_code("self.__kernel(frame_event)");
+
         }
-
-        self.newline();
-        self.add_code("self.__kernel(frame_event)");
 
         self.outdent();
         self.newline();
@@ -1801,7 +1811,17 @@ impl AstVisitor for PythonVisitor {
             self.add_code(&format!("def __init__(self,{}):", new_params));
         }
 
+        // if self.has_states{
+        //     self.generate_new_fn(system_node);
+        // } else {
+        //     self.indent();
+        //     self.newline();
+        //     self.add_code("pass");
+        //     self.outdent();
+        //     self.newline();
+        // }
         self.generate_new_fn(system_node);
+
 
         // end of generate constructor
 
@@ -1852,6 +1872,10 @@ impl AstVisitor for PythonVisitor {
             actions_block_node.accept(self);
         }
 
+        if let Some(operations_block_node) = &system_node.operations_block_node_opt {
+            operations_block_node.accept(self);
+        }
+
         self.subclass_code
             .push("\n# ********************\n".to_string());
 
@@ -1864,9 +1888,9 @@ impl AstVisitor for PythonVisitor {
         self.deserialize.push("".to_string());
         self.deserialize.push("}".to_string());
 
-        if self.has_states {
-            self.generate_machinery(system_node);
-        }
+
+        self.generate_machinery(system_node);
+
 
         if self.config.code.public_state_info {
             self.generate_state_info_method()
@@ -2056,8 +2080,8 @@ impl AstVisitor for PythonVisitor {
         &mut self,
         interface_method_call_expr_node: &InterfaceMethodCallExprNode,
     ) {
-        if interface_method_call_expr_node.interface_method_call_t
-            == InterfaceMethodCallType::Internal
+        if interface_method_call_expr_node.call_origin
+            == CallOrigin::Internal
         {
             self.add_code("self.");
         }
@@ -2076,8 +2100,8 @@ impl AstVisitor for PythonVisitor {
         interface_method_call_expr_node: &InterfaceMethodCallExprNode,
         output: &mut String,
     ) {
-        if interface_method_call_expr_node.interface_method_call_t
-            == InterfaceMethodCallType::Internal
+        if interface_method_call_expr_node.call_origin
+            == CallOrigin::Internal
         {
             output.push_str(&format!("self."));
         }
@@ -2159,8 +2183,10 @@ impl AstVisitor for PythonVisitor {
             "e = FrameEvent(\"{}\",{})",
             method_name_or_alias, params_param_code
         ));
-        self.newline();
-        self.add_code("self.__kernel(e)");
+        if self.has_states {
+            self.newline();
+            self.add_code("self.__kernel(e)");
+        }
 
         match &interface_method_node.return_type_opt {
             Some(_) => {
@@ -2172,6 +2198,120 @@ impl AstVisitor for PythonVisitor {
 
         self.outdent();
         self.newline();
+    }
+
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_operations_block_node(&mut self, operation_block_node: &OperationsBlockNode) {
+        self.newline();
+        self.newline();
+        self.add_code("# ==================== Operations Block ================== #");
+
+        for operation_method_node_rcref in &operation_block_node.operations {
+            let operation_method_node = operation_method_node_rcref.borrow();
+            operation_method_node.accept(self);
+        }
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_operation_node(&mut self, operation_node: &OperationNode) {
+
+        self.is_operation_scope = true;
+        self.newline();
+        self.newline();
+        let operation_name = self.format_operation_name(&operation_node.name);
+        self.add_code(&format!("def {}(self", operation_name));
+
+        match &operation_node.params {
+            Some(params) => {
+                self.add_code(",");
+            }
+            None => {}
+        }
+
+        self.add_code("):");
+
+        self.indent();
+
+        // Generate statements
+        if operation_node.statements.is_empty() && operation_node.terminator_node_opt.is_none() {
+            self.newline();
+            self.add_code("pass");
+        } else {
+            if !operation_node.statements.is_empty() {
+                // self.newline();
+                self.visit_decl_stmts(&operation_node.statements);
+            }
+            if let Some(terminator_expr) = &operation_node.terminator_node_opt {
+                self.newline();
+                match &terminator_expr.terminator_type {
+                    TerminatorType::Return => match &terminator_expr.return_expr_t_opt {
+                        Some(expr_t) => {
+                            self.add_code("return ");
+                            expr_t.accept(self);
+                            // self.newline();
+                        }
+                        None => {
+                            self.add_code("return");
+                            // self.newline();
+                        }
+                    },
+                    TerminatorType::Continue => {
+                        // shouldn't happen.
+                        self.errors
+                            .push("Continue not allowed as operation terminator.".to_string());
+                    }
+                }
+            }
+        }
+
+        self.outdent();
+        self.is_operation_scope = false;
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_operation_call_expression_node(
+        &mut self,
+        operation_call_expr_node: &OperationCallExprNode,
+    ) {
+        // if operation_call_expr_node.call_origin
+        //     == CallOrigin::Internal
+        // {
+        //     self.add_code("self.");
+        // }
+
+        self.add_code(&format!(
+            "{}",
+            operation_call_expr_node.identifier.name.lexeme
+        ));
+        operation_call_expr_node.call_expr_list.accept(self);
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_operation_call_expression_node_to_string(
+        &mut self,
+        operation_call_expr_node: &OperationCallExprNode,
+        output: &mut String,
+    ) {
+        // if operation_call_expr_node.call_origin
+        //     == CallOrigin::Internal
+        // {
+        //     output.push_str(&format!("self."));
+        // }
+        output.push_str(&format!(
+            "{}",
+            operation_call_expr_node.identifier.name.lexeme
+        ));
+
+        operation_call_expr_node
+            .call_expr_list
+            .accept_to_string(self, output);
+
+        // TODO: review this return as I think it is a nop.
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2407,7 +2547,11 @@ impl AstVisitor for PythonVisitor {
                 Some(expr_t) => {
                     // expr_t.auto_pre_inc_dec(self);
                     self.newline();
-                    self.add_code("e._return = ");
+                    if self.is_operation_scope {
+                        self.add_code("return = ");
+                    } else {
+                        self.add_code("e._return = ");
+                    }
                     expr_t.accept(self);
                     // expr_t.auto_post_inc_dec(self);
                     self.generate_return();
@@ -2640,8 +2784,9 @@ impl AstVisitor for PythonVisitor {
     fn visit_bool_test_node(&mut self, bool_test_node: &BoolTestNode) {
         let mut if_or_else_if = "if ";
 
-        self.newline();
+
         for branch_node in &bool_test_node.conditional_branch_nodes {
+            self.newline();
             if branch_node.is_negated {
                 self.add_code(&format!("{} not (", if_or_else_if));
             } else {
@@ -2660,7 +2805,7 @@ impl AstVisitor for PythonVisitor {
             self.generate_return_if_transitioned();
 
             self.outdent();
-            self.newline();
+            //self.newline();
 
             if_or_else_if = "elif ";
         }
@@ -2747,6 +2892,11 @@ impl AstVisitor for PythonVisitor {
                     interface_method_call_expr_node,
                 } => {
                     interface_method_call_expr_node.accept(self);
+                }
+                CallChainNodeType::OperationCallT {
+                    operation_call_expr_node,
+                } => {
+                    operation_call_expr_node.accept(self);
                 }
                 CallChainNodeType::ActionCallT {
                     action_call_expr_node,
@@ -3007,6 +3157,11 @@ impl AstVisitor for PythonVisitor {
                 } => {
                     interface_method_call_expr_node.accept_to_string(self, output);
                 }
+                CallChainNodeType::OperationCallT {
+                    operation_call_expr_node,
+                } => {
+                    operation_call_expr_node.accept_to_string(self, output);
+                }
                 CallChainNodeType::ActionCallT {
                     action_call_expr_node,
                 } => {
@@ -3045,10 +3200,12 @@ impl AstVisitor for PythonVisitor {
     fn visit_loop_for_stmt_node(&mut self, loop_for_expr_node: &LoopForStmtNode) {
         // self.loop_for_inc_dec_expr_rcref_opt = loop_for_expr_node.post_expr_rcref_opt.clone();
         // self.loop_for_inc_dec_expr_rcref_opt = ;
-        self.newline();
+
         if let Some(expr_type_rcref) = &loop_for_expr_node.loop_init_expr_rcref_opt {
             let lfs = expr_type_rcref.borrow();
             lfs.accept(self);
+            self.newline();
+        } else {
             self.newline();
         }
 
@@ -3088,7 +3245,7 @@ impl AstVisitor for PythonVisitor {
             self.newline();
             self.add_code("break");
             self.outdent();
-            //            self.newline();
+            // self.newline();
             // test_expr.auto_post_inc_dec(self);
         }
 
@@ -3114,19 +3271,20 @@ impl AstVisitor for PythonVisitor {
         //     // expr_t.auto_post_inc_dec(self);
         // }
         // generate 'pass' after autoincdec if there are no statements
-        if loop_for_expr_node.statements.len() == 0 {
-            self.newline();
-            self.add_code(&format!("pass"));
-        }
+        // if loop_for_expr_node.statements.len() == 0 {
+        //     self.newline();
+        //     self.add_code(&format!("pass"));
+        // }
 
         if let Some(post_expr) = self.continue_post_expr_vec.pop() {
             self.newline();
             self.add_code(post_expr.unwrap().clone().as_str());
+        } else {
+            self.newline();
         }
 
         self.outdent();
-        self.newline();
-
+        //self.newline();
 
     }
 
@@ -3321,9 +3479,16 @@ impl AstVisitor for PythonVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code("e._return = ");
-                            expr_t.accept(self);
-                            self.generate_return();
+
+                            if self.is_operation_scope {
+                                self.add_code("return ");
+                                expr_t.accept(self);
+                            } else {
+                                self.add_code("e._return = ");
+                                expr_t.accept(self);
+                                self.generate_return();
+                            }
+
                         }
                         None => self.generate_return(),
                     },
@@ -3344,6 +3509,7 @@ impl AstVisitor for PythonVisitor {
         &mut self,
         bool_test_else_branch_node: &BoolTestElseBranchNode,
     ) {
+        self.newline();
         self.add_code("else:");
         self.indent();
         // let mut generate_pass = false;
@@ -3381,9 +3547,15 @@ impl AstVisitor for PythonVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code("e._return = ");
-                            expr_t.accept(self);
-                            self.generate_return();
+
+                            if self.is_operation_scope {
+                                self.add_code("return ");
+                                expr_t.accept(self);
+                            } else {
+                                self.add_code("e._return = ");
+                                expr_t.accept(self);
+                                self.generate_return();
+                            }
                         }
                         None => self.generate_return(),
                     },
@@ -3524,9 +3696,15 @@ impl AstVisitor for PythonVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code("e._return = ");
-                            expr_t.accept(self);
-                            self.generate_return();
+
+                            if self.is_operation_scope {
+                                self.add_code("return ");
+                                expr_t.accept(self);
+                            } else {
+                                self.add_code("e._return = ");
+                                expr_t.accept(self);
+                                self.generate_return();
+                            }
                         }
                         None => self.generate_return(),
                     },
@@ -3547,6 +3725,7 @@ impl AstVisitor for PythonVisitor {
         &mut self,
         string_match_test_else_branch_node: &StringMatchTestElseBranchNode,
     ) {
+        self.newline();
         self.add_code("else:");
         self.indent();
 
@@ -3586,10 +3765,14 @@ impl AstVisitor for PythonVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code("e._return = ");
-                            expr_t.accept(self);
-                            self.newline();
-                            self.generate_return();
+                            if self.is_operation_scope {
+                                self.add_code("return ");
+                                expr_t.accept(self);
+                            } else {
+                                self.add_code("e._return = ");
+                                expr_t.accept(self);
+                                self.generate_return();
+                            }
                         }
                         None => self.generate_return(),
                     },
@@ -3706,9 +3889,14 @@ impl AstVisitor for PythonVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code("e._return = ");
-                            expr_t.accept(self);
-                            self.generate_return();
+                            if self.is_operation_scope {
+                                self.add_code("return ");
+                                expr_t.accept(self);
+                            } else {
+                                self.add_code("e._return = ");
+                                expr_t.accept(self);
+                                self.generate_return();
+                            }
                         }
                         None => self.generate_return(),
                     },
@@ -3729,6 +3917,7 @@ impl AstVisitor for PythonVisitor {
         &mut self,
         number_match_test_else_branch_node: &NumberMatchTestElseBranchNode,
     ) {
+        self.newline();
         self.add_code("else:");
         self.indent();
 
@@ -3741,9 +3930,14 @@ impl AstVisitor for PythonVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code("e._return = ");
-                            expr_t.accept(self);
-                            self.generate_return();
+                            if self.is_operation_scope {
+                                self.add_code("return ");
+                                expr_t.accept(self);
+                            } else {
+                                self.add_code("e._return = ");
+                                expr_t.accept(self);
+                                self.generate_return();
+                            }
                         }
                         None => self.generate_return(),
                     },
@@ -3889,9 +4083,14 @@ impl AstVisitor for PythonVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code("e._return = ");
-                            expr_t.accept(self);
-                            self.generate_return();
+                            if self.is_operation_scope {
+                                self.add_code("return ");
+                                expr_t.accept(self);
+                            } else {
+                                self.add_code("e._return = ");
+                                expr_t.accept(self);
+                                self.generate_return();
+                            }
                         }
                         None => self.generate_return(),
                     },
@@ -3912,6 +4111,7 @@ impl AstVisitor for PythonVisitor {
         &mut self,
         enum_match_test_else_branch_node: &EnumMatchTestElseBranchNode,
     ) {
+        self.newline();
         self.add_code("else:");
         self.indent();
 
@@ -3947,10 +4147,14 @@ impl AstVisitor for PythonVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code("e._return = ");
-                            expr_t.accept(self);
-                            self.newline();
-                            self.generate_return();
+                            if self.is_operation_scope {
+                                self.add_code("return ");
+                                expr_t.accept(self);
+                            } else {
+                                self.add_code("e._return = ");
+                                expr_t.accept(self);
+                                self.generate_return();
+                            }
                         }
                         None => self.generate_return(),
                     },
@@ -4230,13 +4434,11 @@ impl AstVisitor for PythonVisitor {
         } else {
             // Generate statements
             if action_node.statements.is_empty() && action_node.terminator_node_opt.is_none() {
-                self.indent();
                 self.newline();
                 self.add_code("pass");
-                self.outdent();
-                self.newline();
             } else {
                 if !action_node.statements.is_empty() {
+                    // self.newline();
                     self.visit_decl_stmts(&action_node.statements);
                 }
                 if let Some(terminator_expr) = &action_node.terminator_node_opt {
@@ -4290,6 +4492,7 @@ impl AstVisitor for PythonVisitor {
         self.add_code("):");
         self.indent();
         self.newline();
+        // TODO: I think code_opt is dead code.
         self.add_code(action_node.code_opt.as_ref().unwrap().as_str());
         self.outdent();
     }
@@ -4362,13 +4565,14 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_variable_decl_node(&mut self, variable_decl_node: &VariableDeclNode) {
+        self.newline();
         let var_type = match &variable_decl_node.type_opt {
             Some(type_node) => self.format_type(type_node),
             None => String::from(""),
         };
         let var_name = &variable_decl_node.name;
         let var_init_expr = &variable_decl_node.get_initializer_value_rc();
-        self.newline();
+        //self.newline();
         let mut code = String::new();
         var_init_expr.accept_to_string(self, &mut code);
         match &variable_decl_node.identifier_decl_scope {
@@ -4386,14 +4590,14 @@ impl AstVisitor for PythonVisitor {
                 }
             }
             IdentifierDeclScope::EventHandlerVar => {
-                self.add_code(&format!("{} ", var_name));
+                self.add_code(&format!("{}", var_name));
                 if !var_type.is_empty() {
                     self.add_code(&format!(": {}", var_type));
                 }
                 self.add_code(&format!(" = {}", code));
             }
             IdentifierDeclScope::LoopVar => {
-                self.add_code(&format!("{} ", var_name));
+                self.add_code(&format!("{}", var_name));
                 if !var_type.is_empty() {
                     self.add_code(&format!(": {}", var_type));
                 }

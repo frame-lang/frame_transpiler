@@ -7,7 +7,7 @@ use super::symbol_table::{ActionScopeSymbol, EventSymbol, SymbolType};
 use crate::frame_c::ast::OperatorType::{
     Divide, Greater, GreaterEqual, LessEqual, Minus, Multiply, Plus,
 };
-use crate::frame_c::symbol_table::{InterfaceMethodSymbol, ParameterSymbol};
+use crate::frame_c::symbol_table::{InterfaceMethodSymbol, OperationScopeSymbol, ParameterSymbol};
 use crate::frame_c::visitors::*;
 use std::cell::RefCell;
 use std::collections::VecDeque;
@@ -90,6 +90,7 @@ pub enum CallChainNodeType {
     VariableNodeT {
         var_node: VariableNode,
     },
+    // TODO
     // ParameterNodeT {
     //     param_node: ParameterNode,
     // },
@@ -98,6 +99,9 @@ pub enum CallChainNodeType {
     // },
     InterfaceMethodCallT {
         interface_method_call_expr_node: InterfaceMethodCallExprNode,
+    },
+    OperationCallT {
+        operation_call_expr_node: OperationCallExprNode,
     },
     ActionCallT {
         action_call_expr_node: ActionCallExprNode,
@@ -235,6 +239,7 @@ pub struct SystemNode {
     pub interface_block_node_opt: Option<InterfaceBlockNode>,
     pub machine_block_node_opt: Option<MachineBlockNode>,
     pub actions_block_node_opt: Option<ActionsBlockNode>,
+    pub operations_block_node_opt: Option<OperationsBlockNode>,
     pub domain_block_node_opt: Option<DomainBlockNode>,
     pub line: usize,
     // TODO - move this int a module node
@@ -253,6 +258,7 @@ impl SystemNode {
         interface_block_node_opt: Option<InterfaceBlockNode>,
         machine_block_node_opt: Option<MachineBlockNode>,
         actions_block_node_opt: Option<ActionsBlockNode>,
+        operations_block_node_opt: Option<OperationsBlockNode>,
         domain_block_node_opt: Option<DomainBlockNode>,
         line: usize,
         functions_node_opt: Option<Vec<Rc<RefCell<FunctionNode>>>>,
@@ -267,6 +273,7 @@ impl SystemNode {
             interface_block_node_opt,
             machine_block_node_opt,
             actions_block_node_opt,
+            operations_block_node_opt,
             domain_block_node_opt,
             line,
             functions_opt: functions_node_opt,
@@ -517,6 +524,56 @@ impl NodeElement for ActionNode {
     }
 }
 
+
+//-----------------------------------------------------//
+
+pub struct OperationNode {
+    pub name: String,
+    pub params: Option<Vec<ParameterNode>>,
+    pub is_implemented: bool,
+    pub statements: Vec<DeclOrStmtType>,
+    pub terminator_node_opt: Option<TerminatorExpr>,
+    pub type_opt: Option<TypeNode>,
+    pub code_opt: Option<String>, // TODO - remove
+}
+
+impl OperationNode {
+    pub fn new(
+        name: String,
+        params: Option<Vec<ParameterNode>>,
+        is_implemented: bool,
+        statements: Vec<DeclOrStmtType>,
+        terminator_node_opt: Option<TerminatorExpr>,
+        type_opt: Option<TypeNode>,
+        code_opt: Option<String>,
+    ) -> OperationNode {
+        OperationNode {
+            name,
+            params,
+            is_implemented,
+            statements,
+            terminator_node_opt,
+            type_opt,
+            code_opt,
+        }
+    }
+}
+
+impl NodeElement for OperationNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_operation_node(self);
+    }
+    // fn accept_rust_impl(&self, ast_visitor: &mut dyn AstVisitor) {
+    //     ast_visitor.visit_action_impl_node(self);
+    // }
+    // fn accept_action_decl(&self, ast_visitor: &mut dyn AstVisitor) {
+    //     ast_visitor.visit_action_node(self);
+    // }
+    // fn accept_action_impl(&self, ast_visitor: &mut dyn AstVisitor) {
+    //     ast_visitor.visit_action_impl_node(self);
+    // }
+}
+
 //-----------------------------------------------------//
 
 pub struct VariableDeclNode {
@@ -764,6 +821,32 @@ impl NodeElement for ActionsBlockNode {
         ast_visitor.visit_actions_node_rust_impl(self);
     }
 }
+
+
+//-----------------------------------------------------//
+
+pub struct OperationsBlockNode {
+    pub operations: Vec<Rc<RefCell<OperationNode>>>,
+}
+
+impl OperationsBlockNode {
+    pub fn new(operations: Vec<Rc<RefCell<OperationNode>>>) -> OperationsBlockNode {
+        OperationsBlockNode { operations }
+    }
+}
+
+impl NodeElement for OperationsBlockNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_operations_block_node(self);
+    }
+    // fn accept_rust_trait(&self, ast_visitor: &mut dyn AstVisitor) {
+    //     ast_visitor.visit_operations_node_rust_trait(self);
+    // }
+    // fn accept_rust_impl(&self, ast_visitor: &mut dyn AstVisitor) {
+    //     ast_visitor.visit_operations_node_rust_impl(self);
+    // }
+}
+
 
 //-----------------------------------------------------//
 
@@ -1030,6 +1113,9 @@ impl NodeElement for TerminatorExpr {
 pub enum StateCallType {
     ActionCallExprT {
         action_call_expr_node: ActionCallExprNode,
+    },
+    OperationCallExprT {
+        operation_call_expr_node: OperationCallExprNode,
     },
     CallExprT {
         call_expr_node: CallExprNode,
@@ -2089,7 +2175,7 @@ impl NodeElement for StateStackOperationStatementNode {
 //-----------------------------------------------------//
 
 #[derive(PartialEq)]
-pub enum InterfaceMethodCallType {
+pub enum CallOrigin {
     External,
     Internal,
 }
@@ -2097,7 +2183,7 @@ pub enum InterfaceMethodCallType {
 pub struct InterfaceMethodCallExprNode {
     pub identifier: IdentifierNode,
     pub call_expr_list: CallExprListNode,
-    pub interface_method_call_t: InterfaceMethodCallType,
+    pub call_origin: CallOrigin,
     pub interface_symbol_rcref_opt: Option<Rc<RefCell<InterfaceMethodSymbol>>>,
 }
 
@@ -2107,13 +2193,13 @@ impl InterfaceMethodCallExprNode {
 
     pub fn new(
         call_expr_node: CallExprNode,
-        interface_method_call_t: InterfaceMethodCallType,
+        interface_method_call_t: CallOrigin,
     ) -> InterfaceMethodCallExprNode {
         InterfaceMethodCallExprNode {
             identifier: call_expr_node.identifier,
             call_expr_list: call_expr_node.call_expr_list,
             interface_symbol_rcref_opt: None,
-            interface_method_call_t,
+            call_origin: interface_method_call_t,
         }
     }
 
@@ -2177,6 +2263,48 @@ impl NodeElement for ActionCallExprNode {
 }
 
 impl fmt::Display for ActionCallExprNode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.identifier.to_string())
+    }
+}
+
+
+//-----------------------------------------------------//
+
+pub struct OperationCallExprNode {
+    pub identifier: IdentifierNode,
+    pub call_expr_list: CallExprListNode,
+    pub operation_symbol_rcref_opt: Option<Rc<RefCell<OperationScopeSymbol>>>,
+}
+
+impl OperationCallExprNode {
+    // Harvest the id and arguments from the CallExpressionNode.
+    // It will be discarded.
+
+    pub fn new(call_expr_node: CallExprNode) -> OperationCallExprNode {
+        OperationCallExprNode {
+            identifier: call_expr_node.identifier,
+            call_expr_list: call_expr_node.call_expr_list,
+            operation_symbol_rcref_opt: None,
+        }
+    }
+
+    pub fn set_operation_symbol(&mut self, operation_symbol: &Rc<RefCell<OperationScopeSymbol>>) {
+        self.operation_symbol_rcref_opt = Some(Rc::clone(operation_symbol));
+    }
+}
+
+impl NodeElement for OperationCallExprNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_operation_call_expression_node(self);
+    }
+
+    fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
+        ast_visitor.visit_operation_call_expression_node_to_string(self, output);
+    }
+}
+
+impl fmt::Display for OperationCallExprNode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.identifier.to_string())
     }
@@ -2533,6 +2661,11 @@ impl fmt::Display for CallChainExprNode {
                 } => {
                     output.push_str(&*interface_method_call_expr_node.to_string());
                 }
+                CallChainNodeType::OperationCallT {
+                    operation_call_expr_node,
+                } => {
+                    output.push_str(&*operation_call_expr_node.to_string());
+                }
                 CallChainNodeType::ActionCallT {
                     action_call_expr_node,
                 } => {
@@ -2770,6 +2903,7 @@ pub enum IdentifierDeclScope {
     DomainBlock,
     ActionsBlock,
     ActionVar,
+    OperationsBlock,
     StateParam,
     StateVar,
     EventHandlerParam,

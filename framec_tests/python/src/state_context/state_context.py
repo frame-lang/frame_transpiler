@@ -110,7 +110,7 @@ class StateContextSm:
             return
             
         elif e._message == "Next":
-            tmp  = e._parameters["arg"] * 10
+            tmp = e._parameters["arg"] * 10
             self.__compartment.exit_args["c"] = 10
             compartment = StateContextSmCompartment('__statecontextsm_state_Bar')
             compartment.enter_args["a"] = tmp

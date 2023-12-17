@@ -102,6 +102,7 @@ class Match:
         if e._message == "Onstring":
             if ((e._parameters["s"] == "") or (e._parameters["s"] == "foo")):
                 self.log_do("empty")
+            
             else:
                 self.log_do("?")
             
@@ -122,6 +123,7 @@ class Match:
                 self.log_do("!!!")
             elif (e._parameters["i"] == -200):
                 self.log_do("-200")
+            
             else:
                 self.log_do("?")
             
@@ -137,6 +139,7 @@ class Match:
                 self.log_do("testing")
             elif ((e._parameters["s"] == "$10!")):
                 self.log_do("money")
+            
             else:
                 self.log_do("?")
             
@@ -151,6 +154,7 @@ class Match:
                 self.log_do("3|-7")
             elif (e._parameters["i"] == -4) or (e._parameters["i"] == 5) or (e._parameters["i"] == 6):
                 self.log_do("-4|5|6")
+            
             else:
                 self.log_do("?")
             
@@ -160,6 +164,7 @@ class Match:
                 self.log_do("symbols")
             elif ((e._parameters["s"] == " ") or (e._parameters["s"] == "  ") or (e._parameters["s"] == "\t") or (e._parameters["s"] == "\n")):
                 self.log_do("whitespace")
+            
             else:
                 self.log_do("?")
             
@@ -177,6 +182,7 @@ class Match:
                         self.log_do("1")
                     elif (e._parameters["i"] == 2):
                         self.log_do("2")
+                    
                     else:
                         self.log_do("3")
                     
@@ -187,6 +193,7 @@ class Match:
                     else:
                         self.log_do("5")
                     
+                
                 else:
                     self.log_do("too big")
                 
@@ -201,6 +208,7 @@ class Match:
                     self.log_do("English")
                 elif ((e._parameters["s"] == "hola")):
                     self.log_do("Spanish")
+                
                 else:
                     self.log_do("French")
                 
@@ -210,9 +218,11 @@ class Match:
                     self.log_do("English")
                 elif ((e._parameters["s"] == "adios")):
                     self.log_do("Spanish")
+                
                 else:
                     self.log_do("French")
                 
+            
             else:
                 self.log_do("?")
             
@@ -240,6 +250,7 @@ class Match:
                 compartment = MatchCompartment('__match_state_Final')
                 self.__transition(compartment)
                 return
+            
             else:
                 self.log_do("no match in child")
             
@@ -254,6 +265,7 @@ class Match:
                 self.log_do("testing in child")
                 
                 return
+            
             else:
                 self.log_do("no match in child")
             
