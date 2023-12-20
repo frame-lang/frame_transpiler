@@ -99,6 +99,10 @@ pub trait AstVisitor {
     fn visit_system_instance_statement_node_to_string(&mut self, _system_instance_stmt_node: &SystemInstanceStmtNode, _output: &mut String) {}
     fn visit_system_instance_expr_node(&mut self, _system_instance_expr_node: &SystemInstanceExprNode) {}
     fn visit_system_instance_expr_node_to_string(&mut self, _system_instance_expr_node: &SystemInstanceExprNode, _output: &mut String) {}
+    fn visit_system_type_statement_node(&mut self, _system_type_stmt_node: &SystemTypeStmtNode) {}
+    fn visit_system_type_statement_node_to_string(&mut self, _system_type_stmt_node: &SystemTypeStmtNode, _output: &mut String) {}
+    fn visit_system_type_expr_node(&mut self, _system_type_expr_node: &SystemTypeExprNode) {}
+    fn visit_system_type_expr_node_to_string(&mut self, _system_type_expr_node: &SystemTypeExprNode, _output: &mut String) {}
     fn visit_interface_block_node(&mut self, _node: &InterfaceBlockNode) {}
     fn visit_interface_method_node(&mut self, _node: &InterfaceMethodNode) {}
     fn visit_machine_block_node(&mut self, _node: &MachineBlockNode) {}

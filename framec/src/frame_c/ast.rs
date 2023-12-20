@@ -335,6 +335,43 @@ impl fmt::Display for SystemInstanceExprNode {
     }
 }
 
+
+//-----------------------------------------------------//
+
+pub struct SystemTypeExprNode {
+    pub identifier: IdentifierNode,
+    pub call_chain_opt: Box<Option<ExprType>>,
+}
+
+impl SystemTypeExprNode {
+    pub fn new(
+        identifier: IdentifierNode,
+        call_chain_opt: Box<Option<ExprType>>,
+    ) -> SystemTypeExprNode {
+        SystemTypeExprNode {
+            identifier,
+            call_chain_opt,
+        }
+    }
+}
+
+impl NodeElement for SystemTypeExprNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_system_type_expr_node(self);
+    }
+
+    fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
+        ast_visitor.visit_system_type_expr_node_to_string(self, output);
+    }
+}
+
+impl fmt::Display for SystemTypeExprNode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.identifier)
+    }
+}
+
+
 //-----------------------------------------------------//
 
 pub struct InterfaceBlockNode {
@@ -530,6 +567,7 @@ impl NodeElement for ActionNode {
 pub struct OperationNode {
     pub name: String,
     pub params: Option<Vec<ParameterNode>>,
+    pub attributes_opt: Option<HashMap<String, AttributeNode>>,
     pub is_implemented: bool,
     pub statements: Vec<DeclOrStmtType>,
     pub terminator_node_opt: Option<TerminatorExpr>,
@@ -541,6 +579,7 @@ impl OperationNode {
     pub fn new(
         name: String,
         params: Option<Vec<ParameterNode>>,
+        attributes_opt: Option<HashMap<String, AttributeNode>>,
         is_implemented: bool,
         statements: Vec<DeclOrStmtType>,
         terminator_node_opt: Option<TerminatorExpr>,
@@ -550,12 +589,24 @@ impl OperationNode {
         OperationNode {
             name,
             params,
+            attributes_opt,
             is_implemented,
             statements,
             terminator_node_opt,
             type_opt,
             code_opt,
         }
+    }
+
+    pub fn is_static(&self) -> bool {
+
+        if let Some(attributes_map) = &self.attributes_opt {
+            let is_static = attributes_map.get("static");
+            is_static.is_some()
+        } else {
+            false
+        }
+
     }
 }
 
@@ -1223,6 +1274,10 @@ pub enum ExprType {
     SystemInstanceExprT {
         system_instance_expr_node: SystemInstanceExprNode,
     },
+    SystemTypeExprT {
+        system_type_expr_node: SystemTypeExprNode,
+    },
+    // TODO:
     // NilExprT is a new ExprType used atm to hack around
     // differences between variables and parameters. Parameters
     // can't be assigned values atm so this patches that
@@ -1308,6 +1363,7 @@ impl ExprType {
             ExprType::BinaryExprT { .. } => "BinaryExprT",
             ExprType::EnumeratorExprT { .. } => "EnumExprT",
             ExprType::SystemInstanceExprT { .. } => "SystemInstanceExprT",
+            ExprType::SystemTypeExprT { .. } => "SystemTypeExprT",
             ExprType::DefaultLiteralValueForTypeExprT { .. } => "DefaultLiteralValueForTypeExprT",
             ExprType::TransitionExprT { .. } => "TransitionExprT",
             ExprType::NilExprT { .. } => "NilExprT",
@@ -1425,6 +1481,11 @@ impl NodeElement for ExprType {
             } => {
                 ast_visitor.visit_system_instance_expr_node(system_instance_expr_node);
             }
+            ExprType::SystemTypeExprT {
+                system_type_expr_node,
+            } => {
+                ast_visitor.visit_system_type_expr_node(system_type_expr_node);
+            }
             ExprType::CallExprT { call_expr_node } => {
                 ast_visitor.visit_call_expression_node(call_expr_node);
             }
@@ -1496,6 +1557,12 @@ impl NodeElement for ExprType {
             } => {
                 ast_visitor
                     .visit_system_instance_expr_node_to_string(system_instance_expr_node, output);
+            }
+            ExprType::SystemTypeExprT {
+                system_type_expr_node,
+            } => {
+                ast_visitor
+                    .visit_system_type_expr_node_to_string(system_type_expr_node, output);
             }
             ExprType::CallExprT { call_expr_node } => {
                 ast_visitor.visit_call_expression_node_to_string(call_expr_node, output);
@@ -1683,6 +1750,9 @@ pub enum ExprStmtType {
     SystemInstanceStmtT {
         system_instance_stmt_node: SystemInstanceStmtNode,
     },
+    SystemTypeStmtT {
+        system_type_stmt_node: SystemTypeStmtNode,
+    },
     CallStmtT {
         call_stmt_node: CallStmtNode,
     },
@@ -1782,6 +1852,27 @@ impl SystemInstanceStmtNode {
 impl NodeElement for SystemInstanceStmtNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         ast_visitor.visit_system_instance_statement_node(self);
+    }
+}
+
+
+//-----------------------------------------------------//
+
+pub struct SystemTypeStmtNode {
+    pub system_type_expr_node: SystemTypeExprNode,
+}
+
+impl SystemTypeStmtNode {
+    pub fn new(system_type_expr_node: SystemTypeExprNode) -> SystemTypeStmtNode {
+        SystemTypeStmtNode {
+            system_type_expr_node,
+        }
+    }
+}
+
+impl NodeElement for SystemTypeStmtNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_system_type_statement_node(self);
     }
 }
 

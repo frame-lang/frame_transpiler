@@ -589,6 +589,9 @@ impl CppVisitor {
                                 ExprStmtType::SystemInstanceStmtT {
                                     system_instance_stmt_node,
                                 } => system_instance_stmt_node.accept(self),
+                                ExprStmtType::SystemTypeStmtT {
+                                    system_type_stmt_node,
+                                } => system_type_stmt_node.accept(self),
                                 ExprStmtType::ActionCallStmtT {
                                     action_call_stmt_node,
                                 } => action_call_stmt_node.accept(self), // // TODO

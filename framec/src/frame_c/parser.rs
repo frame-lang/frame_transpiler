@@ -103,8 +103,7 @@ pub struct Parser<'a> {
     is_parsing_rhs: bool,
     event_handler_has_transition: bool,
     is_action_scope: bool,
-    is_operation_scope: bool,
-    is_static: bool,
+    operation_scope_depth: i32,
     is_function_scope: bool,
     is_loop_scope: bool,
     stmt_idx: i32,
@@ -150,8 +149,7 @@ impl<'a> Parser<'a> {
             generate_change_state: false,
             generate_transition_state: false,
             is_action_scope: false,
-            is_operation_scope:false,
-            is_static:false,
+            operation_scope_depth:0,
             is_function_scope: false,
             is_loop_scope: false,
             stmt_idx: 0,
@@ -203,7 +201,7 @@ impl<'a> Parser<'a> {
         };
 
         // #[system_attribute]
-        let system_attributes_opt = match self.system_attributes() {
+        let system_attributes_opt = match self.entity_attributes() {
             Ok(attributes_opt) => attributes_opt,
             Err(_parse_error) => None,
         };
@@ -1199,7 +1197,7 @@ impl<'a> Parser<'a> {
 
             if self.match_token(&[TokenType::Caret]) {
                 if self.match_token(&[TokenType::LParen]) {
-                    let expr_t = match self.decorated_unary_expression() {
+                    let expr_t = match self.unary_expression() {
                         Ok(Some(expr_t)) => expr_t,
                         _ => {
                             self.error_at_current("Expected expression as return value.");
@@ -1268,7 +1266,7 @@ impl<'a> Parser<'a> {
 
     // These are attributes that relate to a system, not a module.
 
-    fn system_attributes(&mut self) -> Result<Option<HashMap<String, AttributeNode>>, ParseError> {
+    fn entity_attributes(&mut self) -> Result<Option<HashMap<String, AttributeNode>>, ParseError> {
         let mut attributes: HashMap<String, AttributeNode> = HashMap::new();
 
         loop {
@@ -2026,6 +2024,8 @@ impl<'a> Parser<'a> {
         while self.match_token(&[TokenType::Identifier]) {
             if let Ok(action_decl_node) = self.action_scope() {
                 actions.push(action_decl_node);
+            } else {
+                // TODO - see operations block for approach
             }
         }
 
@@ -2215,7 +2215,8 @@ impl<'a> Parser<'a> {
 
             if self.match_token(&[TokenType::Caret]) {
                 if self.match_token(&[TokenType::LParen]) {
-                    let expr_t = match self.decorated_unary_expression() {
+                    // let expr_t = match self.decorated_unary_expression() {
+                    let expr_t = match self.equality() {
                         Ok(Some(expr_t)) => expr_t,
                         _ => {
                             self.error_at_current("Expected expression as return value.");
@@ -2279,43 +2280,31 @@ impl<'a> Parser<'a> {
 
         let mut operations = Vec::new();
 
-        while self.match_token(&[TokenType::Identifier]) {
-            if let Ok(operation_node) = self.operation_scope() {
-                operations.push(operation_node);
+        loop {
+
+            // Comments are dealt with in match_token().
+            // As we do peek() checks next we need to consume any
+            // comments that preceed them.
+            self.match_token(&[TokenType::SingleLineComment, TokenType::MultiLineComment]);
+
+            if  matches!(self.peek().token_type, TokenType::OuterAttributeOrDomainParams) ||
+                matches!(self.peek().token_type, TokenType::Identifier) {
+
+                if let Ok(operation_node) = self.operation_scope() {
+                    operations.push(operation_node);
+                } else {
+                    // TODO: resync on next operation
+                    let sync_tokens = vec![
+                        TokenType::DomainBlock,
+                        TokenType::SystemEnd,
+                    ];
+                    self.synchronize(&sync_tokens);
+                    break;
+                }
+            } else {
+                break;
             }
         }
-
-        //
-        // let marshal = match &system_attributes_opt {
-        //     Some(attributes) => {
-        //         for value in (*attributes).values() {
-        //             match value {
-        //                 AttributeNode::MetaListIdents { attr } => {
-        //                     match attr.name.as_str() {
-        //                         "derive" => {
-        //                             for ident in &attr.idents {
-        //                                 match ident.as_str() {
-        //                                     // TODO: constants and figure out mom vs managed
-        //                                     //  "Managed" => self.managed = true,
-        //                                     "marshal" => true,
-        //                                     _ => {}
-        //                                 }
-        //                             }
-        //                         }
-        //                         _ => false,
-        //                     }
-        //                 }
-        //             }
-        //         }
-        //         false
-        //     }
-        //     None => false
-        // };
-        //
-        // if marshal {
-        //
-        // }
-
 
         self.arcanum.exit_scope();
 
@@ -2330,12 +2319,31 @@ impl<'a> Parser<'a> {
     // the scope symbol creation and association with the AST node.
 
     fn operation_scope(&mut self) -> Result<Rc<RefCell<OperationNode>>, ParseError> {
+
+        let attributes_opt;
+
+        // parse any outer attributes for operation
+        match self.entity_attributes() {
+            Ok(attributes_opt_tmp) => {
+                attributes_opt = attributes_opt_tmp;
+            }
+            Err(parse_err) => {
+                return Err(parse_err);
+            }
+        }
+
+        if !self.match_token(&[TokenType::Identifier]) {
+            let err_msg = "Expected Identifier.";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+
         let operation_name = self.previous().lexeme.clone();
 
-        // The 'is_operation_context' flag is used to determine which statements are valid
+        // The 'is_operation_scope' flag is used to determine which statements are valid
         // to be called in the context of an operation. Transitions, for example, are not
         // allowed.
-        self.is_operation_scope = true;
+        self.operation_scope_depth += 1;
 
         if self.is_building_symbol_table {
             // syntax pass
@@ -2363,7 +2371,7 @@ impl<'a> Parser<'a> {
             self.arcanum.set_parse_scope(&operation_name);
         }
 
-        let ret = self.operation(operation_name.clone());
+        let ret = self.operation(operation_name.clone(), attributes_opt);
 
         if self.is_building_symbol_table {
             match &ret {
@@ -2383,14 +2391,14 @@ impl<'a> Parser<'a> {
 
         self.arcanum.exit_scope();
 
-        self.is_operation_scope = false;
+        self.operation_scope_depth -= 1;
 
         ret
     }
 
     /* --------------------------------------------------------------------- */
 
-    fn operation(&mut self, operation_name: String) -> Result<Rc<RefCell<OperationNode>>, ParseError> {
+    fn operation(&mut self, operation_name:String, attributes_opt: Option<HashMap<String, AttributeNode>>) -> Result<Rc<RefCell<OperationNode>>, ParseError> {
         let mut params: Option<Vec<ParameterNode>> = Option::None;
 
         if self.match_token(&[TokenType::LBracket]) {
@@ -2427,12 +2435,12 @@ impl<'a> Parser<'a> {
 
             if self.match_token(&[TokenType::Caret]) {
                 if self.match_token(&[TokenType::LParen]) {
-                    let expr_t = match self.decorated_unary_expression() {
+                    let expr_t = match self.equality() {
                         Ok(Some(expr_t)) => expr_t,
                         _ => {
-                            self.error_at_current("Expected expression as return value.");
-                            //  self.arcanum.exit_parse_scope();
-                            return Err(ParseError::new("TODO"));
+                            let err_msg = "Expected expression as return value.";
+                            self.error_at_current(err_msg);
+                            return Err(ParseError::new(err_msg));
                         }
                     };
 
@@ -2462,6 +2470,7 @@ impl<'a> Parser<'a> {
         let operation_node = OperationNode::new(
             operation_name.clone(),
             params,
+            attributes_opt,
             is_implemented,
             statements,
             terminator_node_opt,
@@ -2509,6 +2518,8 @@ impl<'a> Parser<'a> {
                 match self.var_declaration(IdentifierDeclScope::DomainBlock) {
                     Ok(domain_variable_node) => domain_variables.push(domain_variable_node),
                     Err(_parse_err) => {
+
+                        // TODO: TokenType::Const isn't a real thing yet
                         let sync_tokens =
                             vec![TokenType::Var, TokenType::Const, TokenType::SystemEnd];
                         self.synchronize(&sync_tokens);
@@ -2700,6 +2711,13 @@ impl<'a> Parser<'a> {
                 })) => {
                     value = Rc::new(SystemInstanceExprT {
                         system_instance_expr_node,
+                    })
+                }
+                Ok(Some(SystemTypeExprT {
+                    system_type_expr_node,
+                })) => {
+                    value = Rc::new(SystemTypeExprT {
+                        system_type_expr_node,
                     })
                 }
                 Ok(Some(CallExprT { call_expr_node })) => {
@@ -3717,7 +3735,7 @@ impl<'a> Parser<'a> {
 
         if self.match_token(&[TokenType::Caret]) {
             if self.match_token(&[TokenType::LParen]) {
-                let expr_t = match self.expression() {
+                let expr_t = match self.equality() {
                     Ok(Some(expr_t)) => expr_t,
                     _ => {
                         // TODO - err_msg everywhere for ParseErrors
@@ -4036,6 +4054,16 @@ impl<'a> Parser<'a> {
                             SystemInstanceStmtNode::new(system_instance_expr_node);
                         let expr_stmt_t: ExprStmtType = SystemInstanceStmtT {
                             system_instance_stmt_node,
+                        };
+                        return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
+                    }                    
+                    SystemTypeExprT {
+                        system_type_expr_node,
+                    } => {
+                        let system_type_stmt_node =
+                            SystemTypeStmtNode::new(system_type_expr_node);
+                        let expr_stmt_t: ExprStmtType = SystemTypeStmtT {
+                            system_type_stmt_node,
                         };
                         return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
                     }
@@ -4505,7 +4533,7 @@ impl<'a> Parser<'a> {
     fn branch_terminator(&mut self) -> Result<Option<TerminatorExpr>, ParseError> {
         if self.match_token(&[TokenType::Caret]) {
             if self.match_token(&[TokenType::LParen]) {
-                let expr_t = match self.decorated_unary_expression() {
+                let expr_t = match self.unary_expression() {
                     Ok(Some(expr_t)) => expr_t,
                     _ => {
                         self.error_at_current("Expected expression as return value.");
@@ -4971,7 +4999,7 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     fn logical_and(&mut self) -> Result<Option<ExprType>, ParseError> {
-        let mut l_value = match self.decorated_unary_expression() {
+        let mut l_value = match self.unary_expression() {
             Ok(Some(expr_type)) => expr_type,
             Ok(None) => return Ok(None),
             Err(parse_error) => return Err(parse_error),
@@ -4980,7 +5008,7 @@ impl<'a> Parser<'a> {
         while self.match_token(&[TokenType::LogicalAnd]) {
             let operator_token = self.previous();
             let op_type = OperatorType::get_operator_type(&operator_token.token_type);
-            let r_value = match self.decorated_unary_expression() {
+            let r_value = match self.unary_expression() {
                 Ok(Some(expr_type)) => expr_type,
                 Ok(None) => return Ok(None),
                 Err(parse_error) => return Err(parse_error),
@@ -5003,152 +5031,153 @@ impl<'a> Parser<'a> {
     }
 
     /* --------------------------------------------------------------------- */
-
-    fn decorated_unary_expression(&mut self) -> Result<Option<ExprType>, ParseError> {
-        match self.prefix_unary_expression() {
-            Ok(Some(expr_t)) => {
-                return Ok(Some(expr_t));
-            }
-            Ok(None) => match self.unary_expression2() {
-                Ok(Some(expr_t)) => return Ok(Some(expr_t)),
-                Ok(None) => return Ok(None),
-                Err(parse_err) => return Err(parse_err),
-            },
-            Err(parse_error) => return Err(parse_error),
-        }
-    }
-
-    /* --------------------------------------------------------------------- */
-
-    fn prefix_unary_expression(&mut self) -> Result<Option<ExprType>, ParseError> {
-        if self.match_token(&[TokenType::PlusPlus]) {
-            match self.unary_expression2() {
-                Ok(Some(mut expr_t)) => {
-                    match expr_t {
-                        ExprType::CallChainExprT {
-                            ref mut call_chain_expr_node,
-                        } => {
-                            call_chain_expr_node.inc_dec = IncDecExpr::PreInc;
-                        }
-                        ExprType::LiteralExprT {
-                            ref mut literal_expr_node,
-                        } => {
-                            literal_expr_node.inc_dec = IncDecExpr::PreInc;
-                        }
-                        // ExprType::ExprListT {ref mut expr_list_node} => {
-                        //     expr_list_node.inc_dec = IncDecExpr::PreInc;
-                        // }
-                        ExprType::ExprListT {
-                            ref mut expr_list_node,
-                        } => {
-                            //       expr_list_node.inc_dec = IncDecExpr::PreDec;
-                            for expr_t in &mut expr_list_node.exprs_t {
-                                match expr_t {
-                                    ExprType::CallChainExprT {
-                                        ref mut call_chain_expr_node,
-                                    } => {
-                                        call_chain_expr_node.inc_dec = IncDecExpr::PreDec;
-                                    }
-                                    ExprType::LiteralExprT {
-                                        ref mut literal_expr_node,
-                                    } => {
-                                        literal_expr_node.inc_dec = IncDecExpr::PreDec;
-                                    }
-                                    _ => {
-                                        let err_msg = "Can not increment/decrement something that cannot be assigned.";
-                                        self.error_at_current(err_msg);
-                                        return Err(ParseError::new(err_msg));
-                                    }
-                                }
-                            }
-                        }
-                        _ => {}
-                    }
-                    return Ok(Some(expr_t));
-                }
-                Ok(None) => return Ok(None),
-                Err(parse_err) => return Err(parse_err),
-            }
-        } else if self.match_token(&[TokenType::DashDash]) {
-            match self.unary_expression2() {
-                Ok(Some(mut expr_t)) => {
-                    match expr_t {
-                        ExprType::CallChainExprT {
-                            ref mut call_chain_expr_node,
-                        } => {
-                            call_chain_expr_node.inc_dec = IncDecExpr::PreDec;
-                        }
-                        ExprType::LiteralExprT {
-                            ref mut literal_expr_node,
-                        } => {
-                            literal_expr_node.inc_dec = IncDecExpr::PreDec;
-                        }
-                        ExprType::ExprListT {
-                            ref mut expr_list_node,
-                        } => {
-                            //                          expr_list_node.inc_dec = IncDecExpr::PreDec;
-                            for expr_t in &mut expr_list_node.exprs_t {
-                                match expr_t {
-                                    ExprType::CallChainExprT {
-                                        ref mut call_chain_expr_node,
-                                    } => {
-                                        call_chain_expr_node.inc_dec = IncDecExpr::PreDec;
-                                    }
-                                    ExprType::LiteralExprT {
-                                        ref mut literal_expr_node,
-                                    } => {
-                                        literal_expr_node.inc_dec = IncDecExpr::PreDec;
-                                    }
-                                    _ => {
-                                        let err_msg = "Can not increment/decrement something that cannot be assigned.";
-                                        self.error_at_current(err_msg);
-                                        return Err(ParseError::new(err_msg));
-                                    }
-                                }
-                            }
-                        }
-                        _ => {}
-                    }
-                    return Ok(Some(expr_t));
-                }
-                Ok(None) => return Ok(None),
-                Err(parse_err) => return Err(parse_err),
-            }
-        }
-
-        return self.postfix_unary_expression();
-    }
-
-    /* --------------------------------------------------------------------- */
-
-    fn postfix_unary_expression(&mut self) -> Result<Option<ExprType>, ParseError> {
-        match self.unary_expression2() {
-            Ok(Some(CallChainExprT {
-                call_chain_expr_node,
-            })) => {
-                let mut x = CallChainExprT {
-                    call_chain_expr_node,
-                };
-                match self.post_inc_dec_expression(&mut x) {
-                    Ok(_result) => {
-                        return Ok(Some(x));
-                    }
-                    Err(err) => {
-                        return Err(err);
-                    }
-                }
-            }
-            Ok(Some(expr_t)) => return Ok(Some(expr_t)),
-            Err(parse_error) => return Err(parse_error),
-            Ok(None) => return Ok(None),
-        }
-    }
+    //
+    // fn decorated_unary_expression(&mut self) -> Result<Option<ExprType>, ParseError> {
+    //     // match self.prefix_unary_expression() {
+    //     match self.unary_expression() {
+    //         Ok(Some(expr_t)) => {
+    //             return Ok(Some(expr_t));
+    //         }
+    //         Ok(None) => match self.unary_expression() {
+    //             Ok(Some(expr_t)) => return Ok(Some(expr_t)),
+    //             Ok(None) => return Ok(None),
+    //             Err(parse_err) => return Err(parse_err),
+    //         },
+    //         Err(parse_error) => return Err(parse_error),
+    //     }
+    // }
+    //
+    // /* --------------------------------------------------------------------- */
+    //
+    // fn prefix_unary_expression(&mut self) -> Result<Option<ExprType>, ParseError> {
+    //     // if self.match_token(&[TokenType::PlusPlus]) {
+    //     //     match self.unary_expression2() {
+    //     //         Ok(Some(mut expr_t)) => {
+    //     //             match expr_t {
+    //     //                 ExprType::CallChainExprT {
+    //     //                     ref mut call_chain_expr_node,
+    //     //                 } => {
+    //     //                     call_chain_expr_node.inc_dec = IncDecExpr::PreInc;
+    //     //                 }
+    //     //                 ExprType::LiteralExprT {
+    //     //                     ref mut literal_expr_node,
+    //     //                 } => {
+    //     //                     literal_expr_node.inc_dec = IncDecExpr::PreInc;
+    //     //                 }
+    //     //                 // ExprType::ExprListT {ref mut expr_list_node} => {
+    //     //                 //     expr_list_node.inc_dec = IncDecExpr::PreInc;
+    //     //                 // }
+    //     //                 ExprType::ExprListT {
+    //     //                     ref mut expr_list_node,
+    //     //                 } => {
+    //     //                     //       expr_list_node.inc_dec = IncDecExpr::PreDec;
+    //     //                     for expr_t in &mut expr_list_node.exprs_t {
+    //     //                         match expr_t {
+    //     //                             ExprType::CallChainExprT {
+    //     //                                 ref mut call_chain_expr_node,
+    //     //                             } => {
+    //     //                                 call_chain_expr_node.inc_dec = IncDecExpr::PreDec;
+    //     //                             }
+    //     //                             ExprType::LiteralExprT {
+    //     //                                 ref mut literal_expr_node,
+    //     //                             } => {
+    //     //                                 literal_expr_node.inc_dec = IncDecExpr::PreDec;
+    //     //                             }
+    //     //                             _ => {
+    //     //                                 let err_msg = "Can not increment/decrement something that cannot be assigned.";
+    //     //                                 self.error_at_current(err_msg);
+    //     //                                 return Err(ParseError::new(err_msg));
+    //     //                             }
+    //     //                         }
+    //     //                     }
+    //     //                 }
+    //     //                 _ => {}
+    //     //             }
+    //     //             return Ok(Some(expr_t));
+    //     //         }
+    //     //         Ok(None) => return Ok(None),
+    //     //         Err(parse_err) => return Err(parse_err),
+    //     //     }
+    //     // } else if self.match_token(&[TokenType::DashDash]) {
+    //     //     match self.unary_expression2() {
+    //     //         Ok(Some(mut expr_t)) => {
+    //     //             match expr_t {
+    //     //                 ExprType::CallChainExprT {
+    //     //                     ref mut call_chain_expr_node,
+    //     //                 } => {
+    //     //                     call_chain_expr_node.inc_dec = IncDecExpr::PreDec;
+    //     //                 }
+    //     //                 ExprType::LiteralExprT {
+    //     //                     ref mut literal_expr_node,
+    //     //                 } => {
+    //     //                     literal_expr_node.inc_dec = IncDecExpr::PreDec;
+    //     //                 }
+    //     //                 ExprType::ExprListT {
+    //     //                     ref mut expr_list_node,
+    //     //                 } => {
+    //     //                     //                          expr_list_node.inc_dec = IncDecExpr::PreDec;
+    //     //                     for expr_t in &mut expr_list_node.exprs_t {
+    //     //                         match expr_t {
+    //     //                             ExprType::CallChainExprT {
+    //     //                                 ref mut call_chain_expr_node,
+    //     //                             } => {
+    //     //                                 call_chain_expr_node.inc_dec = IncDecExpr::PreDec;
+    //     //                             }
+    //     //                             ExprType::LiteralExprT {
+    //     //                                 ref mut literal_expr_node,
+    //     //                             } => {
+    //     //                                 literal_expr_node.inc_dec = IncDecExpr::PreDec;
+    //     //                             }
+    //     //                             _ => {
+    //     //                                 let err_msg = "Can not increment/decrement something that cannot be assigned.";
+    //     //                                 self.error_at_current(err_msg);
+    //     //                                 return Err(ParseError::new(err_msg));
+    //     //                             }
+    //     //                         }
+    //     //                     }
+    //     //                 }
+    //     //                 _ => {}
+    //     //             }
+    //     //             return Ok(Some(expr_t));
+    //     //         }
+    //     //         Ok(None) => return Ok(None),
+    //     //         Err(parse_err) => return Err(parse_err),
+    //     //     }
+    //     // }
+    //
+    //     return self.postfix_unary_expression();
+    // }
+    //
+    // /* --------------------------------------------------------------------- */
+    //
+    // fn postfix_unary_expression(&mut self) -> Result<Option<ExprType>, ParseError> {
+    //     match self.unary_expression() {
+    //         Ok(Some(CallChainExprT {
+    //             call_chain_expr_node,
+    //         })) => {
+    //             let mut x = CallChainExprT {
+    //                 call_chain_expr_node,
+    //             };
+    //             match self.post_inc_dec_expression(&mut x) {
+    //                 Ok(_result) => {
+    //                     return Ok(Some(x));
+    //                 }
+    //                 Err(err) => {
+    //                     return Err(err);
+    //                 }
+    //             }
+    //         }
+    //         Ok(Some(expr_t)) => return Ok(Some(expr_t)),
+    //         Err(parse_error) => return Err(parse_error),
+    //         Ok(None) => return Ok(None),
+    //     }
+    // }
 
     /* --------------------------------------------------------------------- */
 
     // unary_expression -> TODO
 
-    fn unary_expression2(&mut self) -> Result<Option<ExprType>, ParseError> {
+    fn unary_expression(&mut self) -> Result<Option<ExprType>, ParseError> {
         if self.match_token(&[TokenType::Bang, TokenType::Dash]) {
             let token = self.previous();
             let mut operator_type = OperatorType::get_operator_type(&token.token_type);
@@ -5157,7 +5186,7 @@ impl<'a> Parser<'a> {
                 // -x rather than - x
                 operator_type = OperatorType::Negated;
             }
-            let right_expr_t = self.decorated_unary_expression();
+            let right_expr_t = self.unary_expression();
             match right_expr_t {
                 Ok(Some(x)) => {
                     let unary_expr_node = UnaryExprNode::new(operator_type, x);
@@ -5202,16 +5231,57 @@ impl<'a> Parser<'a> {
                 // #.foo expression
                 scope = IdentifierDeclScope::DomainBlock;
             } else if self.match_token(&[TokenType::Identifier]) {
-                // #Foo(...) expression
-                // let system_name = self.previous().clone();
-                let id_node = IdentifierNode::new(
+                // #Foo(...)  or #Foo.call(...)
+                let system_id_node = IdentifierNode::new(
                     self.previous().clone(),
                     None,
                     IdentifierDeclScope::None,
                     false,
                     self.previous().line,
                 );
-                if let Err(parse_error) = self.consume(TokenType::LParen, "Expected '('.") {
+
+                if self.match_token(&[TokenType::Dot]) {
+                    // System static operation call
+                    // #FooSystem.staticOperation()
+
+                    if !self.match_token(&[TokenType::Identifier]) {
+                        let msg =
+                            &format!("Error - expected identifier.");
+                        self.error_at_current(msg);
+                        return Err(ParseError::new(msg));
+                    }
+
+                    let identifier_name = self.previous().lexeme.clone();
+
+                    if !self.is_building_symbol_table {
+                        if self.arcanum.lookup_operation(&identifier_name).is_none() {
+                            let err_msg = format!("Call to '{}' not found on '{}' system.", identifier_name, system_id_node);
+                            self.error_at_current(&err_msg);
+                            return Err(ParseError::new(&err_msg));
+                        }
+                    }
+
+                    let call_chain_result = self.call(IdentifierDeclScope::None);
+
+                     match call_chain_result {
+                        Ok(call_chain_opt) => {
+
+                            let system_type_expr_node = SystemTypeExprNode::new(
+                                system_id_node,
+                                Box::new(call_chain_opt));
+
+                            return Ok(Some(SystemTypeExprT {
+                                system_type_expr_node,
+                            }));
+
+                        }
+                        Err(parse_err) => {
+                            return Err(parse_err);
+                        }
+                    };
+
+
+                } else if let Err(parse_error) = self.consume(TokenType::LParen, "Expected '('.") {
                     return Err(parse_error);
                 }
                 let (system_start_state_args, start_enter_args, domain_args) =
@@ -5225,7 +5295,7 @@ impl<'a> Parser<'a> {
                     };
 
                 let system_instance_expr_node = SystemInstanceExprNode::new(
-                    id_node,
+                    system_id_node,
                     system_start_state_args,
                     start_enter_args,
                     domain_args,
@@ -5896,31 +5966,31 @@ impl<'a> Parser<'a> {
     // }
 
     /* --------------------------------------------------------------------- */
-
-    fn post_inc_dec_expression(&mut self, expr_t: &mut ExprType) -> Result<(), ParseError> {
-        let mut inc_dec = IncDecExpr::None;
-
-        if self.match_token(&[TokenType::PlusPlus]) {
-            inc_dec = IncDecExpr::PostInc;
-        } else if self.match_token(&[TokenType::DashDash]) {
-            inc_dec = IncDecExpr::PostDec;
-        }
-
-        match expr_t {
-            ExprType::CallChainExprT {
-                ref mut call_chain_expr_node,
-            } => {
-                call_chain_expr_node.inc_dec = inc_dec;
-            }
-            _ => {
-                let err_msg = "Expression can not be auto incremented or decrecmented";
-                self.error_at_current(err_msg);
-                return Err(ParseError::new(err_msg));
-            }
-        }
-
-        return Ok(());
-    }
+    //
+    // fn post_inc_dec_expression(&mut self, expr_t: &mut ExprType) -> Result<(), ParseError> {
+    //     let mut inc_dec = IncDecExpr::None;
+    //
+    //     if self.match_token(&[TokenType::PlusPlus]) {
+    //         inc_dec = IncDecExpr::PostInc;
+    //     } else if self.match_token(&[TokenType::DashDash]) {
+    //         inc_dec = IncDecExpr::PostDec;
+    //     }
+    //
+    //     match expr_t {
+    //         ExprType::CallChainExprT {
+    //             ref mut call_chain_expr_node,
+    //         } => {
+    //             call_chain_expr_node.inc_dec = inc_dec;
+    //         }
+    //         _ => {
+    //             let err_msg = "Expression can not be auto incremented or decrecmented";
+    //             self.error_at_current(err_msg);
+    //             return Err(ParseError::new(err_msg));
+    //         }
+    //     }
+    //
+    //     return Ok(());
+    // }
 
     /* --------------------------------------------------------------------- */
 
@@ -5941,10 +6011,7 @@ impl<'a> Parser<'a> {
     ) -> Result<Option<ExprType>, ParseError> {
         let mut scope: IdentifierDeclScope;
 
-        let debug_id_token = self.previous().lexeme.clone();
-        if debug_id_token == "d" {
-            let debug = 1;
-        }
+        // let debug_id_token = self.previous().lexeme.clone();
 
         let mut id_node = IdentifierNode::new(
             self.previous().clone(),
@@ -6526,10 +6593,10 @@ impl<'a> Parser<'a> {
 
 
             if self.match_token(&[TokenType::Identifier]) {
-                let debug_id_token = self.previous().lexeme.clone();
-                if debug_id_token == "getD" {
-                    let debug = 1;
-                }
+                // let debug_id_token = self.previous().lexeme.clone();
+                // if debug_id_token == "getD" {
+                //     let debug = 1;
+                // }
                 id_node = IdentifierNode::new(
                     self.previous().clone(),
                     None,

@@ -287,6 +287,27 @@ impl PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    fn format_operations_parameter_list(
+        &mut self,
+        params: &Vec<ParameterNode>,
+    ) {
+        let mut separator = "";
+        for param in params {
+            self.add_code(separator);
+            let param_type: String = match &param.param_type_opt {
+                Some(type_node) => self.format_type(type_node),
+                None => String::from(""),
+            };
+            self.add_code(&param.param_name.to_string());
+            if !param_type.is_empty() {
+                self.add_code(&format!(": {}", param_type));
+            }
+            separator = ",";
+        }
+    }
+
+    //* --------------------------------------------------------------------- *//
+
     fn format_action_name(&self, action_name: &String) -> String {
         format!("{}_do", action_name)
     }
@@ -480,6 +501,9 @@ impl PythonVisitor {
                                 ExprStmtType::SystemInstanceStmtT {
                                     system_instance_stmt_node,
                                 } => system_instance_stmt_node.accept(self),
+                                ExprStmtType::SystemTypeStmtT {
+                                    system_type_stmt_node,
+                                } => system_type_stmt_node.accept(self),
                                 ExprStmtType::ActionCallStmtT {
                                     action_call_stmt_node,
                                 } => action_call_stmt_node.accept(self), // // TODO
@@ -1924,6 +1948,7 @@ impl AstVisitor for PythonVisitor {
             .accept(self);
     }
 
+
     //* --------------------------------------------------------------------- *//
 
     fn visit_system_instance_expr_node(
@@ -2002,6 +2027,108 @@ impl AstVisitor for PythonVisitor {
             }
         }
         output.push_str(")");
+    }
+
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_system_type_statement_node(
+        &mut self,
+        system_type_stmt_node: &SystemTypeStmtNode,
+    ) {
+        self.newline();
+        system_type_stmt_node
+            .system_type_expr_node
+            .accept(self);
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_system_type_expr_node(
+        &mut self,
+        system_type_expr_node: &SystemTypeExprNode,
+    ) {
+        let system_name = &system_type_expr_node.identifier.name.lexeme;
+        self.add_code(&format!("{}", system_name));
+        if let Some(call_chain) = &*(system_type_expr_node.call_chain_opt) {
+            let mut output = String::new();
+            call_chain.accept_to_string(self, &mut output);
+            self.add_code(&format!(".{}", output));
+
+        }
+        // self.add_code("(");
+        // let mut separator = "";
+        // if let Some(start_state_state_args) = &system_type_expr_node.start_state_state_args_opt
+        // {
+        //     for expr_t in &start_state_state_args.exprs_t {
+        //         self.add_code(separator);
+        //         expr_t.accept(self);
+        //         separator = ",";
+        //     }
+        // }
+        //
+        // if let Some(start_state_enter_args) = &system_type_expr_node.start_state_enter_args_opt
+        // {
+        //     for expr_t in &start_state_enter_args.exprs_t {
+        //         self.add_code(separator);
+        //         expr_t.accept(self);
+        //         separator = ",";
+        //     }
+        // }
+        //
+        // if let Some(domain_args) = &system_type_expr_node.domain_args_opt {
+        //     for expr_t in &domain_args.exprs_t {
+        //         self.add_code(separator);
+        //         expr_t.accept(self);
+        //         separator = ",";
+        //     }
+        // }
+        // self.add_code(")");
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_system_type_expr_node_to_string(
+        &mut self,
+        system_type_expr_node: &SystemTypeExprNode,
+        output: &mut String,
+    ) {
+        let system_name = &system_type_expr_node.identifier.name.lexeme;
+        output.push_str(&format!("{}", system_name));
+        if let Some(call_chain) = &*(system_type_expr_node.call_chain_opt) {
+            // let mut output = String::new();
+            output.push_str(".");
+            call_chain.accept_to_string(self, output);
+            // output.push_str(&format!(".{}", output));
+        }
+        // output.push_str("(");
+        // let mut separator = "";
+        // if let Some(start_state_state_args) = &system_type_expr_node.start_state_state_args_opt
+        // {
+        //     for expr_t in &start_state_state_args.exprs_t {
+        //         output.push_str(separator);
+        //         expr_t.accept_to_string(self, output);
+        //         separator = ",";
+        //     }
+        // }
+        //
+        // if let Some(start_state_enter_args) = &system_type_expr_node.start_state_enter_args_opt
+        // {
+        //     for expr_t in &start_state_enter_args.exprs_t {
+        //         output.push_str(separator);
+        //         expr_t.accept_to_string(self, output);
+        //         separator = ",";
+        //     }
+        // }
+        //
+        // if let Some(domain_args) = &system_type_expr_node.domain_args_opt {
+        //     for expr_t in &domain_args.exprs_t {
+        //         output.push_str(separator);
+        //         expr_t.accept_to_string(self, output);
+        //         separator = ",";
+        //     }
+        // }
+        // output.push_str(")");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2222,11 +2349,23 @@ impl AstVisitor for PythonVisitor {
         self.newline();
         self.newline();
         let operation_name = self.format_operation_name(&operation_node.name);
-        self.add_code(&format!("def {}(self", operation_name));
+        if operation_node.is_static() {
+            self.add_code("@staticmethod");
+            self.newline();
+            self.add_code(&format!("def {}(", operation_name));
+        } else {
+            self.add_code(&format!("def {}(self", operation_name));
+        }
+
+
 
         match &operation_node.params {
             Some(params) => {
-                self.add_code(",");
+                if !operation_node.is_static() {
+                    self.add_code(",");
+                }
+
+                self.format_operations_parameter_list(params);
             }
             None => {}
         }
@@ -2584,9 +2723,10 @@ impl AstVisitor for PythonVisitor {
 
         self.add_code(&method_call.identifier.name.lexeme.to_string());
 
+        //let mut output = String::new();
+        //method_call.call_expr_list.accept_to_string(self, &mut output);
         method_call.call_expr_list.accept(self);
-
-        self.add_code("");
+        // self.add_code( output.as_str());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2604,10 +2744,8 @@ impl AstVisitor for PythonVisitor {
         }
 
         output.push_str(&method_call.identifier.name.lexeme.to_string());
-
         method_call.call_expr_list.accept_to_string(self, output);
 
-        output.push_str("");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -4685,6 +4823,7 @@ impl AstVisitor for PythonVisitor {
         // now generate assignment expression
         assignment_expr_node.l_value_box.accept(self);
         self.add_code(" = ");
+        //self.add_code(&*output);
         //       assignment_expr_node.r_value_box.auto_pre_inc_dec(self);
         let mut output = String::new();
         assignment_expr_node
