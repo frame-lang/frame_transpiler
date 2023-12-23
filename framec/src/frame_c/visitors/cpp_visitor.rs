@@ -2942,7 +2942,7 @@ impl AstVisitor for CppVisitor {
                 CallChainNodeType::OperationCallT {
                     operation_call_expr_node,
                 } => {
-                    operation_call_expr_node.accept_to_string(self,output);
+                    operation_call_expr_node.accept_to_string(self, output);
                 }
                 CallChainNodeType::ActionCallT {
                     action_call_expr_node,

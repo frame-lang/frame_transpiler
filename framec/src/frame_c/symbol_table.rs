@@ -571,10 +571,9 @@ impl ScopeSymbol for SymbolType {
             }
             SymbolType::EventHandlerParam { .. } => {
                 panic!("Fatal error - EventHandlerParam scope does not have a symbol table.")
-            }
-            // _ => {
-            //     panic!("Could not find SymbolType. Giving up.")
-            // }
+            } // _ => {
+              //     panic!("Could not find SymbolType. Giving up.")
+              // }
         }
     }
 
@@ -1221,7 +1220,6 @@ impl Arcanum {
         }
     }
 
-    
     #[allow(clippy::many_single_char_names)] // TODO
     pub fn lookup_function(&self, name: &str) -> Option<Rc<RefCell<FunctionScopeSymbol>>> {
         let symbol_type_rcref_opt = self.global_symtab.borrow().lookup_local(name);
@@ -1518,9 +1516,13 @@ impl Arcanum {
                     .borrow_mut()
                     .set_parent_symtab(&current_symbtab_rcref);
 
-                let operations_block_scope_symbol_rcref_clone = Rc::clone(operations_block_scope_symbol_rcref);
-                let operations_block_symbol_symtab_rcref =
-                    Rc::clone(&operations_block_scope_symbol_rcref_clone.borrow().symtab_rcref);
+                let operations_block_scope_symbol_rcref_clone =
+                    Rc::clone(operations_block_scope_symbol_rcref);
+                let operations_block_symbol_symtab_rcref = Rc::clone(
+                    &operations_block_scope_symbol_rcref_clone
+                        .borrow()
+                        .symtab_rcref,
+                );
 
                 // add new scope symbol to previous symbol table
                 self.current_symtab.borrow_mut().insert_parse_scope(scope_t);
@@ -2853,7 +2855,6 @@ impl ScopeSymbol for ActionsBlockScopeSymbol {
     }
 }
 
-
 // -----------------------
 
 const OPERATIONS_BLOCK_SCOPE_NAME: &str = "-operations-block-";
@@ -3046,7 +3047,6 @@ impl ScopeSymbol for ActionScopeSymbol {
         }
     }
 }
-
 
 // ----------------------- //
 

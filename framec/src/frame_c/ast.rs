@@ -335,7 +335,6 @@ impl fmt::Display for SystemInstanceExprNode {
     }
 }
 
-
 //-----------------------------------------------------//
 
 pub struct SystemTypeExprNode {
@@ -370,7 +369,6 @@ impl fmt::Display for SystemTypeExprNode {
         write!(f, "{}", self.identifier)
     }
 }
-
 
 //-----------------------------------------------------//
 
@@ -561,7 +559,6 @@ impl NodeElement for ActionNode {
     }
 }
 
-
 //-----------------------------------------------------//
 
 pub struct OperationNode {
@@ -599,14 +596,12 @@ impl OperationNode {
     }
 
     pub fn is_static(&self) -> bool {
-
         if let Some(attributes_map) = &self.attributes_opt {
             let is_static = attributes_map.get("static");
             is_static.is_some()
         } else {
             false
         }
-
     }
 }
 
@@ -873,7 +868,6 @@ impl NodeElement for ActionsBlockNode {
     }
 }
 
-
 //-----------------------------------------------------//
 
 pub struct OperationsBlockNode {
@@ -897,7 +891,6 @@ impl NodeElement for OperationsBlockNode {
     //     ast_visitor.visit_operations_node_rust_impl(self);
     // }
 }
-
 
 //-----------------------------------------------------//
 
@@ -1561,8 +1554,7 @@ impl NodeElement for ExprType {
             ExprType::SystemTypeExprT {
                 system_type_expr_node,
             } => {
-                ast_visitor
-                    .visit_system_type_expr_node_to_string(system_type_expr_node, output);
+                ast_visitor.visit_system_type_expr_node_to_string(system_type_expr_node, output);
             }
             ExprType::CallExprT { call_expr_node } => {
                 ast_visitor.visit_call_expression_node_to_string(call_expr_node, output);
@@ -1854,7 +1846,6 @@ impl NodeElement for SystemInstanceStmtNode {
         ast_visitor.visit_system_instance_statement_node(self);
     }
 }
-
 
 //-----------------------------------------------------//
 
@@ -2358,7 +2349,6 @@ impl fmt::Display for ActionCallExprNode {
         write!(f, "{}", self.identifier.to_string())
     }
 }
-
 
 //-----------------------------------------------------//
 

@@ -251,7 +251,7 @@ impl Scanner {
                 } else if self.match_char('|') {
                     self.add_token(TokenType::LogicalXor)
                 } else {
-                    self.add_token(TokenType::And)
+                    self.add_token(TokenType::Ampersand)
                 }
             }
             '?' => {
@@ -309,7 +309,7 @@ impl Scanner {
                             self.add_token(TokenType::Transition);
                         }
                     } else if self.is_digit(self.peek()) {
-                        self.number();
+                        self.number(true);
                     } else {
                         self.add_token(TokenType::Dash);
                     }
@@ -379,12 +379,16 @@ impl Scanner {
                 }
             }
             '.' => {
-                self.add_token(TokenType::Dot);
+                if self.is_digit(self.peek()) {
+                    self.number(false);
+                } else {
+                    self.add_token(TokenType::Dot);
+                }
             }
             ',' => self.add_token(TokenType::Comma),
             _ => {
                 if self.is_digit(c) {
-                    self.number();
+                    self.number(true);
                 } else if self.is_alpha(c) {
                     self.identifier();
                 } else {
@@ -439,17 +443,21 @@ impl Scanner {
         ('0'..='9').contains(&c)
     }
 
-    fn number(&mut self) {
-        while self.is_digit(self.peek()) {
-            self.advance();
+    fn number(&mut self, mut is_integer: bool) {
+        if is_integer {
+            // consume whole number
+            while self.is_digit(self.peek()) {
+                self.advance();
+            }
+
+            if self.peek() == '.' {
+                is_integer = false;
+                // consume the '.'
+                self.advance();
+            }
         }
 
-        let mut is_integer = true;
-        if self.peek() == '.' && self.is_digit(self.peek_next()) {
-            is_integer = false;
-            self.advance();
-        }
-
+        // consume mantissa, if present
         while self.is_digit(self.peek()) {
             self.advance();
         }
@@ -683,23 +691,23 @@ pub enum TokenType {
     Eof,
     Identifier,
     State,
-    GT,                           // >
+    GT, // >
     // GTx2,                         // >>
     // GTx3,                         // >>>
-    Plus,                         // +
-    PlusPlus,                     // ++
-    Dash,                         // -
-    DashDash,                     // --
-    Star,                         // *
-    EqualEqual,                   // ==
-    Bang,                         // !
-    BangEqual,                    // !=
-    GreaterEqual,                 // >=
-    LessEqual,                    // <=
-    LT,                           // <
+    Plus,         // +
+    PlusPlus,     // ++
+    Dash,         // -
+    DashDash,     // --
+    Star,         // *
+    EqualEqual,   // ==
+    Bang,         // !
+    BangEqual,    // !=
+    GreaterEqual, // >=
+    LessEqual,    // <=
+    LT,           // <
     // LTx2,                         // <<
     // LTx3,                         // <<<
-    And,                          // &
+    Ampersand,                    // &
     Pipe,                         // |
     Caret,                        // ^
     LogicalAnd,                   // &&
@@ -755,7 +763,7 @@ pub enum TokenType {
     EnumTest,                // '?:'
     EnumMatchStart,          // ':/'
     ElseContinue,            // :>
-    ColonBar,              // ::
+    ColonBar,                // ::
     ForwardSlash,            // /
     MatchString,             // '/<any characters>/' - contains <string>
     MatchEmptyString,        // '~//'
