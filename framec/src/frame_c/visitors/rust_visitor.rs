@@ -206,13 +206,13 @@ impl RustVisitor {
         };
         let mut borrowed = false;
         match var_node.scope {
-            IdentifierDeclScope::DomainBlock => {
+            IdentifierDeclScope::DomainBlockScope => {
                 if var_node.id_node.is_reference {
                     code.push('&');
                 }
                 code.push_str(&format!("self.{}", var_name));
             }
-            IdentifierDeclScope::StateParam => {
+            IdentifierDeclScope::StateParamScope => {
                 borrowed = true;
                 if self.visiting_call_chain_literal_variable {
                     code.push('(');
@@ -231,7 +231,7 @@ impl RustVisitor {
                     code.push(')');
                 }
             }
-            IdentifierDeclScope::StateVar => {
+            IdentifierDeclScope::StateVarScope => {
                 borrowed = true;
                 if self.visiting_call_chain_literal_variable {
                     code.push('(');
@@ -250,7 +250,7 @@ impl RustVisitor {
                     code.push(')');
                 }
             }
-            IdentifierDeclScope::EventHandlerParam => {
+            IdentifierDeclScope::EventHandlerParamScope => {
                 borrowed = true;
                 if self.visiting_call_chain_literal_variable {
                     code.push('(');
@@ -275,13 +275,13 @@ impl RustVisitor {
                     code.push(')');
                 }
             }
-            IdentifierDeclScope::EventHandlerVar => {
+            IdentifierDeclScope::EventHandlerVarScope => {
                 if var_node.id_node.is_reference {
                     code.push('&');
                 }
                 code.push_str(&self.format_value_name(&var_node.id_node.name.lexeme));
             }
-            IdentifierDeclScope::None => {
+            IdentifierDeclScope::NoneScope => {
                 // TODO: Explore labeling Variables as "extern" scope
                 if var_node.id_node.is_reference {
                     code.push('&');

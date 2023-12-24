@@ -210,13 +210,13 @@ impl CppVisitor {
         let mut code = String::new();
 
         match variable_node.scope {
-            IdentifierDeclScope::System => {
+            IdentifierDeclScope::SystemScope => {
                 code.push_str("this");
             }
-            IdentifierDeclScope::DomainBlock => {
+            IdentifierDeclScope::DomainBlockScope => {
                 code.push_str(&format!("this->{}", variable_node.id_node.name.lexeme));
             }
-            IdentifierDeclScope::StateParam => {
+            IdentifierDeclScope::StateParamScope => {
                 let var_node = variable_node;
                 let var_symbol_rcref_opt = &var_node.symbol_type_rcref_opt;
                 let var_symbol_rcref = var_symbol_rcref_opt.as_ref().unwrap();
@@ -241,7 +241,7 @@ impl CppVisitor {
                     code.push(')');
                 }
             }
-            IdentifierDeclScope::StateVar => {
+            IdentifierDeclScope::StateVarScope => {
                 let var_node = variable_node;
                 let var_symbol_rcref_opt = &var_node.symbol_type_rcref_opt;
                 let var_symbol_rcref = var_symbol_rcref_opt.as_ref().unwrap();
@@ -269,7 +269,7 @@ impl CppVisitor {
                     }
                 }
             }
-            IdentifierDeclScope::EventHandlerParam => {
+            IdentifierDeclScope::EventHandlerParamScope => {
                 let var_node = variable_node;
                 let var_symbol_rcref_opt = &var_node.symbol_type_rcref_opt;
                 let var_symbol_rcref = var_symbol_rcref_opt.as_ref().unwrap();
@@ -295,10 +295,10 @@ impl CppVisitor {
                     }
                 }
             }
-            IdentifierDeclScope::EventHandlerVar => {
+            IdentifierDeclScope::EventHandlerVarScope => {
                 code.push_str(&variable_node.id_node.name.lexeme.to_string());
             }
-            IdentifierDeclScope::None => {
+            IdentifierDeclScope::NoneScope => {
                 // TODO: Explore labeling Variables as "extern" scope
                 code.push_str(&variable_node.id_node.name.lexeme.to_string());
             } // Actions?
@@ -3701,7 +3701,7 @@ impl AstVisitor for CppVisitor {
             //     }
             //     self.add_code(&format!(" = {}", code));
             // }
-            IdentifierDeclScope::DomainBlock => {
+            IdentifierDeclScope::DomainBlockScope => {
                 if !var_type.is_empty() {
                     self.add_code("public:");
                     self.newline();
@@ -3715,7 +3715,7 @@ impl AstVisitor for CppVisitor {
                     self.add_code(&format!(";"));
                 }
             }
-            IdentifierDeclScope::EventHandlerVar => {
+            IdentifierDeclScope::EventHandlerVarScope => {
                 self.add_code(&format!("{} ", var_type));
                 if !var_type.is_empty() {
                     self.add_code(&format!("{} ", var_name));

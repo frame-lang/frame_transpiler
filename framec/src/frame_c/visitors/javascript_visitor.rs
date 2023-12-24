@@ -168,17 +168,17 @@ impl JavaScriptVisitor {
         let mut code = String::new();
 
         match variable_node.scope {
-            IdentifierDeclScope::System => {
+            IdentifierDeclScope::SystemScope => {
                 code.push_str("this");
             }
-            IdentifierDeclScope::DomainBlock => {
+            IdentifierDeclScope::DomainBlockScope => {
                 if self.config.code.public_domain {
                     code.push_str(&format!("this.{}", variable_node.id_node.name.lexeme));
                 } else {
                     code.push_str(&format!("this.#{}", variable_node.id_node.name.lexeme));
                 }
             }
-            IdentifierDeclScope::StateParam => {
+            IdentifierDeclScope::StateParamScope => {
                 let var_node = variable_node;
                 let var_symbol_rcref_opt = &var_node.symbol_type_rcref_opt;
                 let var_symbol_rcref = var_symbol_rcref_opt.as_ref().unwrap();
@@ -196,7 +196,7 @@ impl JavaScriptVisitor {
                     code.push(')');
                 }
             }
-            IdentifierDeclScope::StateVar => {
+            IdentifierDeclScope::StateVarScope => {
                 let var_node = variable_node;
                 let var_symbol_rcref_opt = &var_node.symbol_type_rcref_opt;
                 let var_symbol_rcref = var_symbol_rcref_opt.as_ref().unwrap();
@@ -214,7 +214,7 @@ impl JavaScriptVisitor {
                     code.push(')');
                 }
             }
-            IdentifierDeclScope::EventHandlerParam => {
+            IdentifierDeclScope::EventHandlerParamScope => {
                 let var_node = variable_node;
                 let var_symbol_rcref_opt = &var_node.symbol_type_rcref_opt;
                 let var_symbol_rcref = var_symbol_rcref_opt.as_ref().unwrap();
@@ -232,10 +232,10 @@ impl JavaScriptVisitor {
                     code.push(')');
                 }
             }
-            IdentifierDeclScope::EventHandlerVar => {
+            IdentifierDeclScope::EventHandlerVarScope => {
                 code.push_str(&variable_node.id_node.name.lexeme.to_string());
             }
-            IdentifierDeclScope::None => {
+            IdentifierDeclScope::NoneScope => {
                 // TODO: Explore labeling Variables as "extern" scope
                 code.push_str(&variable_node.id_node.name.lexeme.to_string());
             } // Actions?
@@ -3216,10 +3216,10 @@ impl AstVisitor for JavaScriptVisitor {
         let mut code = String::new();
         var_init_expr.accept_to_string(self, &mut code);
         match &variable_decl_node.identifier_decl_scope {
-            IdentifierDeclScope::DomainBlock => {
+            IdentifierDeclScope::DomainBlockScope => {
                 self.add_code(&format!("{} = {};", var_name, code));
             }
-            IdentifierDeclScope::EventHandlerVar => {
+            IdentifierDeclScope::EventHandlerVarScope => {
                 self.add_code(&format!("let {} = {};", var_name, code));
             }
             _ => panic!("Error - unexpected scope for variable declaration"),

@@ -177,13 +177,13 @@ impl PythonVisitor {
         let mut code = String::new();
 
         match variable_node.scope {
-            IdentifierDeclScope::System => {
+            IdentifierDeclScope::SystemScope => {
                 code.push_str("self");
             }
-            IdentifierDeclScope::DomainBlock => {
+            IdentifierDeclScope::DomainBlockScope => {
                 code.push_str(&format!("self.{}", variable_node.id_node.name.lexeme));
             }
-            IdentifierDeclScope::StateParam => {
+            IdentifierDeclScope::StateParamScope => {
                 if self.visiting_call_chain_literal_variable {
                     code.push('(');
                 }
@@ -195,7 +195,7 @@ impl PythonVisitor {
                     code.push(')');
                 }
             }
-            IdentifierDeclScope::StateVar => {
+            IdentifierDeclScope::StateVarScope => {
                 if self.visiting_call_chain_literal_variable {
                     code.push('(');
                 }
@@ -207,7 +207,7 @@ impl PythonVisitor {
                     code.push(')');
                 }
             }
-            IdentifierDeclScope::EventHandlerParam => {
+            IdentifierDeclScope::EventHandlerParamScope => {
                 // if self.visiting_call_chain_literal_variable {
                 //     code.push_str("(");
                 // }
@@ -219,10 +219,10 @@ impl PythonVisitor {
                 //     code.push_str(")");
                 // }
             }
-            IdentifierDeclScope::EventHandlerVar => {
+            IdentifierDeclScope::EventHandlerVarScope => {
                 code.push_str(&variable_node.id_node.name.lexeme.to_string());
             }
-            IdentifierDeclScope::None => {
+            IdentifierDeclScope::NoneScope => {
                 // TODO: Explore labeling Variables as "extern" scope
                 code.push_str(&variable_node.id_node.name.lexeme.to_string());
             } // Actions?
@@ -4676,7 +4676,7 @@ impl AstVisitor for PythonVisitor {
         let mut code = String::new();
         var_init_expr.accept_to_string(self, &mut code);
         match &variable_decl_node.identifier_decl_scope {
-            IdentifierDeclScope::DomainBlock => {
+            IdentifierDeclScope::DomainBlockScope => {
                 self.add_code(&format!("self.{} ", var_name));
                 if !var_type.is_empty() {
                     self.add_code(&format!(": {}", var_type));
@@ -4689,21 +4689,21 @@ impl AstVisitor for PythonVisitor {
                     self.add_code(&format!(" = {}", code));
                 }
             }
-            IdentifierDeclScope::EventHandlerVar => {
+            IdentifierDeclScope::EventHandlerVarScope => {
                 self.add_code(&format!("{}", var_name));
                 if !var_type.is_empty() {
                     self.add_code(&format!(": {}", var_type));
                 }
                 self.add_code(&format!(" = {}", code));
             }
-            IdentifierDeclScope::LoopVar => {
+            IdentifierDeclScope::LoopVarScope => {
                 self.add_code(&format!("{}", var_name));
                 if !var_type.is_empty() {
                     self.add_code(&format!(": {}", var_type));
                 }
                 self.add_code(&format!(" = {}", code));
             }
-            IdentifierDeclScope::BlockVar => {
+            IdentifierDeclScope::BlockVarScope => {
                 self.add_code(&format!("{}", var_name));
                 if !var_type.is_empty() {
                     self.add_code(&format!(": {}", var_type));
@@ -4735,7 +4735,7 @@ impl AstVisitor for PythonVisitor {
         let mut code = String::new();
         var_init_expr.accept_to_string(self, &mut code);
         match &loop_variable_decl_node.identifier_decl_scope {
-            IdentifierDeclScope::LoopVar => {
+            IdentifierDeclScope::LoopVarScope => {
                 self.add_code(&format!("self.{} ", var_name));
                 if !var_type.is_empty() {
                     self.add_code(&format!(": {}", var_type));

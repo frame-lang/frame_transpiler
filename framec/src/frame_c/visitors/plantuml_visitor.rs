@@ -171,10 +171,10 @@ impl PlantUmlVisitor {
         let code = String::new();
 
         match variable_node.scope {
-            IdentifierDeclScope::DomainBlock => {
+            IdentifierDeclScope::DomainBlockScope => {
                 // code.push_str(&format!("this.{}",variable_node.id_node.name.lexeme));
             }
-            IdentifierDeclScope::StateParam => {
+            IdentifierDeclScope::StateParamScope => {
                 // let var_node = variable_node;
                 // let var_symbol_rcref_opt = &var_node.symbol_type_rcref_opt;
                 // let var_symbol_rcref = var_symbol_rcref_opt.as_ref().unwrap();
@@ -185,7 +185,7 @@ impl PlantUmlVisitor {
                 //                        ,var_type
                 //                        ,variable_node.id_node.name.lexeme));
             }
-            IdentifierDeclScope::StateVar => {
+            IdentifierDeclScope::StateVarScope => {
                 // let var_node = variable_node;
                 // let var_symbol_rcref_opt = &var_node.symbol_type_rcref_opt;
                 // let var_symbol_rcref = var_symbol_rcref_opt.as_ref().unwrap();
@@ -196,7 +196,7 @@ impl PlantUmlVisitor {
                 //                        ,var_type
                 //                        ,variable_node.id_node.name.lexeme));
             }
-            IdentifierDeclScope::EventHandlerParam => {
+            IdentifierDeclScope::EventHandlerParamScope => {
                 // let var_node = variable_node;
                 // let var_symbol_rcref_opt = &var_node.symbol_type_rcref_opt;
                 // let var_symbol_rcref = var_symbol_rcref_opt.as_ref().unwrap();
@@ -207,10 +207,10 @@ impl PlantUmlVisitor {
                 //                        ,var_type
                 //                        ,variable_node.id_node.name.lexeme));
             }
-            IdentifierDeclScope::EventHandlerVar => {
+            IdentifierDeclScope::EventHandlerVarScope => {
                 // code.push_str(&format!("{}",variable_node.id_node.name.lexeme));
             }
-            IdentifierDeclScope::None => {
+            IdentifierDeclScope::NoneScope => {
                 // TODO: Explore labeling Variables as "extern" scope
                 // code.push_str(&format!("{}",variable_node.id_node.name.lexeme));
             } // Actions?

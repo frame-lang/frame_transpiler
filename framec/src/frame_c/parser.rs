@@ -979,7 +979,7 @@ impl<'a> Parser<'a> {
                         for param in &parameters {
                             let name = &param.param_name;
                             let domain_symbol_rcref_opt =
-                                self.arcanum.lookup(name, &IdentifierDeclScope::DomainBlock);
+                                self.arcanum.lookup(name, &IdentifierDeclScope::DomainBlockScope);
                             if domain_symbol_rcref_opt.is_none() {
                                 self.error_at_current(&format!(
                                     "System domain parameter '{}' does not exist in the domain.",
@@ -1190,7 +1190,7 @@ impl<'a> Parser<'a> {
             //     code_opt = Some(token.lexeme.clone());
             // }
 
-            statements = self.statements(IdentifierDeclScope::BlockVar);
+            statements = self.statements(IdentifierDeclScope::BlockVarScope);
 
             if self.match_token(&[TokenType::Caret]) {
                 if self.match_token(&[TokenType::LParen]) {
@@ -1498,7 +1498,7 @@ impl<'a> Parser<'a> {
                     let param_symbol = ParameterSymbol::new(
                         param_node.param_name.clone(),
                         param_node.param_type_opt.clone(),
-                        IdentifierDeclScope::None,
+                        IdentifierDeclScope::NoneScope,
                     );
                     vec.push(param_symbol);
                 }
@@ -1620,7 +1620,7 @@ impl<'a> Parser<'a> {
                 // See if this is an enumerated type.
                 let symbol_t_refcell_opt = self
                     .arcanum
-                    .lookup(&type_str, &IdentifierDeclScope::DomainBlock);
+                    .lookup(&type_str, &IdentifierDeclScope::DomainBlockScope);
                 if let Some(symbol_t_rcref) = symbol_t_refcell_opt {
                     let symbol_t = symbol_t_rcref.borrow();
                     if let SymbolType::EnumDeclSymbolT { .. } = *symbol_t {
@@ -2214,7 +2214,7 @@ impl<'a> Parser<'a> {
             //     code_opt = Some(token.lexeme.clone());
             // }
 
-            statements = self.statements(IdentifierDeclScope::BlockVar);
+            statements = self.statements(IdentifierDeclScope::BlockVarScope);
 
             if self.match_token(&[TokenType::Caret]) {
                 if self.match_token(&[TokenType::LParen]) {
@@ -2434,7 +2434,7 @@ impl<'a> Parser<'a> {
             //     code_opt = Some(token.lexeme.clone());
             // }
 
-            statements = self.statements(IdentifierDeclScope::BlockVar);
+            statements = self.statements(IdentifierDeclScope::BlockVarScope);
 
             if self.match_token(&[TokenType::Caret]) {
                 if self.match_token(&[TokenType::LParen]) {
@@ -2518,7 +2518,7 @@ impl<'a> Parser<'a> {
                     }
                 }
             } else {
-                match self.var_declaration(IdentifierDeclScope::DomainBlock) {
+                match self.var_declaration(IdentifierDeclScope::DomainBlockScope) {
                     Ok(domain_variable_node) => domain_variables.push(domain_variable_node),
                     Err(_parse_err) => {
                         // TODO: TokenType::Const isn't a real thing yet
@@ -2627,7 +2627,7 @@ impl<'a> Parser<'a> {
             // TODO
             self.arcanum
                 .debug_print_current_symbols(self.arcanum.get_current_symtab());
-            let x = self.arcanum.lookup(&identifier, &IdentifierDeclScope::None);
+            let x = self.arcanum.lookup(&identifier, &IdentifierDeclScope::NoneScope);
             let y = x.unwrap();
             let z = y.borrow();
             match &*z {
@@ -2819,19 +2819,19 @@ impl<'a> Parser<'a> {
                 VariableSymbol::new(name, type_node_opt, scope, variable_decl_node_rcref.clone());
             let variable_symbol_rcref = Rc::new(RefCell::new(variable_symbol));
             let variable_symbol_t = match identifier_decl_scope {
-                IdentifierDeclScope::DomainBlock => SymbolType::DomainVariable {
+                IdentifierDeclScope::DomainBlockScope => SymbolType::DomainVariable {
                     domain_variable_symbol_rcref: variable_symbol_rcref,
                 },
-                IdentifierDeclScope::StateVar => SymbolType::StateVariable {
+                IdentifierDeclScope::StateVarScope => SymbolType::StateVariable {
                     state_variable_symbol_rcref: variable_symbol_rcref,
                 },
-                IdentifierDeclScope::EventHandlerVar => SymbolType::EventHandlerVariable {
+                IdentifierDeclScope::EventHandlerVarScope => SymbolType::EventHandlerVariable {
                     event_handler_variable_symbol_rcref: variable_symbol_rcref,
                 },
-                IdentifierDeclScope::LoopVar => SymbolType::LoopVar {
+                IdentifierDeclScope::LoopVarScope => SymbolType::LoopVar {
                     loop_variable_symbol_rcref: variable_symbol_rcref,
                 },
-                IdentifierDeclScope::BlockVar => SymbolType::BlockVar {
+                IdentifierDeclScope::BlockVarScope => SymbolType::BlockVar {
                     block_variable_symbol_rcref: variable_symbol_rcref,
                 },
                 _ => {
@@ -2863,7 +2863,7 @@ impl<'a> Parser<'a> {
             // TODO
             self.arcanum
                 .debug_print_current_symbols(self.arcanum.get_current_symtab());
-            let symbol_t_opt = self.arcanum.lookup(&name, &IdentifierDeclScope::None);
+            let symbol_t_opt = self.arcanum.lookup(&name, &IdentifierDeclScope::NoneScope);
             let symbol_t_rcref = symbol_t_opt.unwrap();
             let mut symbol_t = symbol_t_rcref.borrow_mut();
             // TODO - NOTE! setting the ast node
@@ -3108,7 +3108,7 @@ impl<'a> Parser<'a> {
         // const c   (immutable)
         while self.match_token(&[TokenType::Var, TokenType::Const]) {
             self.generate_state_context = true;
-            match self.var_declaration(IdentifierDeclScope::StateVar) {
+            match self.var_declaration(IdentifierDeclScope::StateVarScope) {
                 Ok(variable_node) => {
                     vars.push(variable_node);
                 }
@@ -3130,7 +3130,7 @@ impl<'a> Parser<'a> {
 
         // @TODO - add reference syntax
         while self.match_token(&[TokenType::Identifier]) {
-            match self.call(IdentifierDeclScope::None) {
+            match self.call(IdentifierDeclScope::NoneScope) {
                 Ok(Some(CallChainExprT {
                     call_chain_expr_node,
                 })) => calls.push(call_chain_expr_node),
@@ -3431,7 +3431,7 @@ impl<'a> Parser<'a> {
                                 let param_symbol = ParameterSymbol::new(
                                     param_node.param_name.clone(),
                                     param_node.param_type_opt.clone(),
-                                    IdentifierDeclScope::None,
+                                    IdentifierDeclScope::NoneScope,
                                 );
                                 vec.push(param_symbol);
                             }
@@ -3664,7 +3664,7 @@ impl<'a> Parser<'a> {
         let event_symbol_rcref = self.arcanum.get_event(&*msg, &self.state_name_opt).unwrap();
         self.current_event_symbol_opt = Some(event_symbol_rcref);
 
-        let statements = self.statements(IdentifierDeclScope::EventHandlerVar);
+        let statements = self.statements(IdentifierDeclScope::EventHandlerVarScope);
         let event_symbol_rcref = self.arcanum.get_event(&msg, &self.state_name_opt).unwrap();
         let ret_event_symbol_rcref = Rc::clone(&event_symbol_rcref);
         let terminator_node = match self.event_handler_terminator(event_symbol_rcref) {
@@ -4274,7 +4274,7 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     fn block(&mut self) -> Result<StatementType, ParseError> {
-        let statements = self.statements(IdentifierDeclScope::BlockVar);
+        let statements = self.statements(IdentifierDeclScope::BlockVarScope);
 
         if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
             return Err(parse_error);
@@ -4480,7 +4480,7 @@ impl<'a> Parser<'a> {
         is_negated: bool,
         expr_t: ExprType,
     ) -> Result<BoolTestConditionalBranchNode, ParseError> {
-        let statements = self.statements(IdentifierDeclScope::BlockVar);
+        let statements = self.statements(IdentifierDeclScope::BlockVarScope);
         let result = self.branch_terminator();
         match result {
             Ok(branch_terminator_expr_opt) => Ok(BoolTestConditionalBranchNode::new(
@@ -4515,7 +4515,7 @@ impl<'a> Parser<'a> {
     // bool_test_else_branch -> statements* branch_terminator?
 
     fn bool_test_else_branch(&mut self) -> Result<BoolTestElseBranchNode, ParseError> {
-        let statements = self.statements(IdentifierDeclScope::BlockVar);
+        let statements = self.statements(IdentifierDeclScope::BlockVarScope);
         let result = self.branch_terminator();
         match result {
             Ok(branch_terminator_expr_opt) => Ok(BoolTestElseBranchNode::new(
@@ -4690,7 +4690,7 @@ impl<'a> Parser<'a> {
             return Err(ParseError::new("TODO"));
         }
 
-        let statements = self.statements(IdentifierDeclScope::BlockVar);
+        let statements = self.statements(IdentifierDeclScope::BlockVarScope);
         let result = self.branch_terminator();
 
         match result {
@@ -4710,7 +4710,7 @@ impl<'a> Parser<'a> {
     fn string_match_test_else_branch(
         &mut self,
     ) -> Result<StringMatchTestElseBranchNode, ParseError> {
-        let statements = self.statements(IdentifierDeclScope::BlockVar);
+        let statements = self.statements(IdentifierDeclScope::BlockVarScope);
         let result = self.branch_terminator();
         match result {
             Ok(branch_terminator_opt) => Ok(StringMatchTestElseBranchNode::new(
@@ -5215,7 +5215,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let mut scope = IdentifierDeclScope::None;
+        let mut scope = IdentifierDeclScope::NoneScope;
 
         if self.match_token(&[TokenType::Transition]) {
             match self.transition_expr() {
@@ -5230,13 +5230,13 @@ impl<'a> Parser<'a> {
             // Parsing syntax related to a system.
             if self.match_token(&[TokenType::Dot]) {
                 // #.foo expression
-                scope = IdentifierDeclScope::DomainBlock;
+                scope = IdentifierDeclScope::DomainBlockScope;
             } else if self.match_token(&[TokenType::Identifier]) {
                 // #Foo(...)  or #Foo.call(...)
                 let system_id_node = IdentifierNode::new(
                     self.previous().clone(),
                     None,
-                    IdentifierDeclScope::None,
+                    IdentifierDeclScope::NoneScope,
                     false,
                     self.previous().line,
                 );
@@ -5264,7 +5264,7 @@ impl<'a> Parser<'a> {
                         }
                     }
 
-                    let call_chain_result = self.call(IdentifierDeclScope::None);
+                    let call_chain_result = self.call(IdentifierDeclScope::NoneScope);
 
                     match call_chain_result {
                         Ok(call_chain_opt) => {
@@ -5326,7 +5326,7 @@ impl<'a> Parser<'a> {
                     let id_node = IdentifierNode::new(
                         self.previous().clone(),
                         None,
-                        IdentifierDeclScope::StateParam,
+                        IdentifierDeclScope::StateParamScope,
                         false,
                         self.previous().line,
                     );
@@ -5348,7 +5348,7 @@ impl<'a> Parser<'a> {
                     let id_node = IdentifierNode::new(
                         self.previous().clone(),
                         None,
-                        IdentifierDeclScope::StateVar,
+                        IdentifierDeclScope::StateVarScope,
                         false,
                         self.previous().line,
                     );
@@ -5372,7 +5372,7 @@ impl<'a> Parser<'a> {
                 id_node = IdentifierNode::new(
                     self.previous().clone(),
                     None,
-                    IdentifierDeclScope::EventHandlerParam,
+                    IdentifierDeclScope::EventHandlerParamScope,
                     false,
                     self.previous().line,
                 );
@@ -5394,7 +5394,7 @@ impl<'a> Parser<'a> {
                 id_node = IdentifierNode::new(
                     id_tok,
                     None,
-                    IdentifierDeclScope::EventHandlerVar,
+                    IdentifierDeclScope::EventHandlerVarScope,
                     false,
                     self.previous().line,
                 );
@@ -5409,7 +5409,7 @@ impl<'a> Parser<'a> {
             return Ok(Some(VariableExprT { var_node }));
         } else if self.match_token(&[TokenType::New]) {
             if self.match_token(&[TokenType::Identifier]) {
-                match self.call(IdentifierDeclScope::None) {
+                match self.call(IdentifierDeclScope::NoneScope) {
                     Ok(Some(CallChainExprT {
                         mut call_chain_expr_node,
                     })) => {
@@ -5593,7 +5593,7 @@ impl<'a> Parser<'a> {
 
         if self.match_token(&[TokenType::Var]) {
             // loop var x:int = 0; ...
-            match self.var_declaration(IdentifierDeclScope::LoopVar) {
+            match self.var_declaration(IdentifierDeclScope::LoopVarScope) {
                 Ok(var_decl_t_rc_ref) => {
                     init_stmt = LoopFirstStmt::VarDecl {
                         var_decl_node_rcref: var_decl_t_rc_ref,
@@ -5679,7 +5679,7 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     fn loop_infinite_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
-        let statements = self.statements(IdentifierDeclScope::BlockVar);
+        let statements = self.statements(IdentifierDeclScope::BlockVarScope);
 
         if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
             return Err(parse_error);
@@ -5728,7 +5728,7 @@ impl<'a> Parser<'a> {
 
         // statements block
         if self.match_token(&[TokenType::OpenBrace]) {
-            let statements = self.statements(IdentifierDeclScope::BlockVar);
+            let statements = self.statements(IdentifierDeclScope::BlockVarScope);
 
             if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
                 return Err(parse_error);
@@ -5769,7 +5769,7 @@ impl<'a> Parser<'a> {
 
         // statements block
         if self.match_token(&[TokenType::OpenBrace]) {
-            let statements = self.statements(IdentifierDeclScope::BlockVar);
+            let statements = self.statements(IdentifierDeclScope::BlockVarScope);
 
             if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
                 return Err(parse_error);
@@ -5828,7 +5828,7 @@ impl<'a> Parser<'a> {
                 let param_symbol_rcref;
                 let symbol_type_rcref_opt = self
                     .arcanum
-                    .lookup(&id_tok.lexeme, &IdentifierDeclScope::None);
+                    .lookup(&id_tok.lexeme, &IdentifierDeclScope::NoneScope);
                 match symbol_type_rcref_opt {
                     Some(symbol_type_rcref) => {
                         let symbol_type = symbol_type_rcref.borrow();
@@ -6018,6 +6018,10 @@ impl<'a> Parser<'a> {
             false,
             self.previous().line,
         );
+
+        if id_node.name.lexeme == "signal_handler" {
+            let debug = 1;
+        }
 
         let mut call_chain: std::collections::VecDeque<CallChainNodeType> =
             std::collections::VecDeque::new();
@@ -6592,7 +6596,7 @@ impl<'a> Parser<'a> {
                 id_node = IdentifierNode::new(
                     self.previous().clone(),
                     None,
-                    IdentifierDeclScope::None,
+                    IdentifierDeclScope::NoneScope,
                     false,
                     self.previous().line,
                 );
@@ -6632,7 +6636,10 @@ impl<'a> Parser<'a> {
         identifier_node: &IdentifierNode,
         explicit_scope: &IdentifierDeclScope,
     ) -> Result<IdentifierDeclScope, ParseError> {
-        let mut scope: IdentifierDeclScope = IdentifierDeclScope::None;
+        if identifier_node.name.lexeme == "signal_handler" {
+            let debug = 1;
+        }
+        let mut scope: IdentifierDeclScope = IdentifierDeclScope::NoneScope;
         // find the variable in the arcanum
         let symbol_type_rcref_opt: Option<Rc<RefCell<SymbolType>>> = self
             .arcanum
@@ -6667,7 +6674,7 @@ impl<'a> Parser<'a> {
                         scope = event_handler_param_symbol_rcref.borrow().scope.clone();
                     }
                     SymbolType::EventHandlerLocalScope { .. } => {
-                        scope = IdentifierDeclScope::None;
+                        scope = IdentifierDeclScope::NoneScope;
                     }
                     SymbolType::EnumDeclSymbolT { enum_symbol_rcref } => {
                         scope = enum_symbol_rcref.borrow().scope.clone();
@@ -6689,7 +6696,7 @@ impl<'a> Parser<'a> {
                         // scope = loop_variable_symbol_rcref.borrow().scope.clone();
                     }
                     SymbolType::System { .. } => {
-                        scope = IdentifierDeclScope::None;
+                        scope = IdentifierDeclScope::NoneScope;
                     }
                     _ => {
                         // scope = IdentifierDeclScope::None;
@@ -6706,7 +6713,7 @@ impl<'a> Parser<'a> {
         };
 
         if !self.is_building_symbol_table
-            && *explicit_scope != IdentifierDeclScope::None
+            && *explicit_scope != IdentifierDeclScope::NoneScope
             && *explicit_scope != scope
         {
             let msg = &format!(
@@ -7204,7 +7211,7 @@ impl<'a> Parser<'a> {
         if let Err(parse_error) = self.consume(TokenType::ForwardSlash, "Expected '/'.") {
             return Err(parse_error);
         }
-        let statements = self.statements(IdentifierDeclScope::BlockVar);
+        let statements = self.statements(IdentifierDeclScope::BlockVarScope);
         let result = self.branch_terminator();
         match result {
             Ok(branch_terminator_t_opt) => Ok(NumberMatchTestMatchBranchNode::new(
@@ -7223,7 +7230,7 @@ impl<'a> Parser<'a> {
     fn number_match_test_else_branch(
         &mut self,
     ) -> Result<NumberMatchTestElseBranchNode, ParseError> {
-        let statements = self.statements(IdentifierDeclScope::BlockVar);
+        let statements = self.statements(IdentifierDeclScope::BlockVarScope);
         let result = self.branch_terminator();
         match result {
             Ok(branch_terminator_opt) => Ok(NumberMatchTestElseBranchNode::new(
@@ -7264,7 +7271,7 @@ impl<'a> Parser<'a> {
             enum_type_name = self.previous().lexeme.clone();
             let enum_symbol_t_rcref_opt = self
                 .arcanum
-                .lookup(enum_type_name.as_str(), &IdentifierDeclScope::DomainBlock);
+                .lookup(enum_type_name.as_str(), &IdentifierDeclScope::DomainBlockScope);
             match enum_symbol_t_rcref_opt {
                 None => {
                     let err_msg = &format!("Enumerated type '{}' does not exist.", enum_type_name);
@@ -7418,7 +7425,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let statements = self.statements(IdentifierDeclScope::BlockVar);
+        let statements = self.statements(IdentifierDeclScope::BlockVarScope);
         let result = self.branch_terminator();
         match result {
             Ok(branch_terminator_t_opt) => Ok(EnumMatchTestMatchBranchNode::new(
@@ -7436,7 +7443,7 @@ impl<'a> Parser<'a> {
     // enum_match_test_else_branch -> statements* branch_terminator?
 
     fn enum_match_test_else_branch(&mut self) -> Result<EnumMatchTestElseBranchNode, ParseError> {
-        let statements = self.statements(IdentifierDeclScope::BlockVar);
+        let statements = self.statements(IdentifierDeclScope::BlockVarScope);
         let result = self.branch_terminator();
         match result {
             Ok(branch_terminator_opt) => Ok(EnumMatchTestElseBranchNode::new(
@@ -7721,7 +7728,7 @@ impl<'a> Parser<'a> {
             let l_value_name = name_opt.unwrap();
             let symbol_t_opt = self
                 .arcanum
-                .lookup(l_value_name.as_str(), &IdentifierDeclScope::None);
+                .lookup(l_value_name.as_str(), &IdentifierDeclScope::NoneScope);
             match symbol_t_opt {
                 Some(symbol_t_rcref) => {
                     let mut symbol_t = symbol_t_rcref.borrow_mut();

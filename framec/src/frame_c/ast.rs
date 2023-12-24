@@ -2978,20 +2978,21 @@ impl NodeElement for ExprListNode {
 // for instance States have a IdentiferDeclScope of None. Should be machine
 #[derive(Clone, PartialEq)]
 pub enum IdentifierDeclScope {
-    //     Global,  TODO!
-    System,
-    InterfaceBlock,
-    DomainBlock,
-    ActionsBlock,
-    ActionVar,
-    OperationsBlock,
-    StateParam,
-    StateVar,
-    EventHandlerParam,
-    EventHandlerVar,
-    LoopVar,
-    BlockVar,
-    None,
+    //     GlobalScope,  TODO!
+    NoneScope, // TODO - should this module or global scope?
+    SystemScope,
+    InterfaceBlockScope,
+    DomainBlockScope,
+    ActionsBlockScope,
+    ActionVarScope,
+    OperationsBlockScope,
+    StateParamScope,
+    StateVarScope,
+    EventHandlerParamScope,
+    EventHandlerVarScope,
+    LoopVarScope,
+    BlockVarScope,
+
 }
 
 // #[derive(Clone)]
