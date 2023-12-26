@@ -210,7 +210,7 @@ impl PlantUmlVisitor {
             IdentifierDeclScope::EventHandlerVarScope => {
                 // code.push_str(&format!("{}",variable_node.id_node.name.lexeme));
             }
-            IdentifierDeclScope::NoneScope => {
+            IdentifierDeclScope::UnknownScope => {
                 // TODO: Explore labeling Variables as "extern" scope
                 // code.push_str(&format!("{}",variable_node.id_node.name.lexeme));
             } // Actions?

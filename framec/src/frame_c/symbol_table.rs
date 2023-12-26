@@ -1,5 +1,8 @@
 use super::ast::*;
 use crate::compiler::Exe;
+use crate::frame_c::symbol_table::SystemSymbolType::{
+    ActionSymbol, DomainSymbol, InterfaceSymbol, OperationSymbol,
+};
 use core::fmt;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -1005,12 +1008,12 @@ impl SymbolTable {
         if self.is_system_symtab {
             let domain_block_scope_symtype =
                 (self.symbols).get(DomainBlockScopeSymbol::scope_name());
-            let x = match domain_block_scope_symtype {
+            let symbol_type_rcref = match domain_block_scope_symtype {
                 Some(symbol_type) => symbol_type,
                 None => return None,
             };
-            let y = x.borrow();
-            match &*y {
+            let symbol_type = symbol_type_rcref.borrow();
+            match &*symbol_type {
                 SymbolType::DomainBlockScope {
                     domain_block_symbol_rcref,
                 } => {
@@ -1027,7 +1030,8 @@ impl SymbolTable {
             }
         }
 
-        if *search_scope == IdentifierDeclScope::NoneScope || *search_scope == self.identifier_decl_scope
+        if *search_scope == IdentifierDeclScope::UnknownScope
+            || *search_scope == self.identifier_decl_scope
         {
             if let Some(aa) = self.symbols.get(name) {
                 return Some(Rc::clone(aa));
@@ -1063,6 +1067,21 @@ impl fmt::Display for SymbolTable {
     }
 }
 
+pub enum SystemSymbolType {
+    DomainSymbol {
+        domain_scope_symbol_rcref: Rc<RefCell<SymbolType>>,
+    },
+    OperationSymbol {
+        operation_scope_symbol_rcref: Rc<RefCell<OperationScopeSymbol>>,
+    },
+    ActionSymbol {
+        action_scope_symbol_rcref: Rc<RefCell<ActionScopeSymbol>>,
+    },
+    InterfaceSymbol {
+        interface_scope_symbol_rcref: Rc<RefCell<InterfaceMethodSymbol>>,
+    },
+}
+
 pub struct Arcanum {
     pub global_symtab: Rc<RefCell<SymbolTable>>,
     pub current_symtab: Rc<RefCell<SymbolTable>>,
@@ -1076,7 +1095,7 @@ impl Arcanum {
         let st = SymbolTable::new(
             String::from("global"),
             None,
-            IdentifierDeclScope::NoneScope,
+            IdentifierDeclScope::UnknownScope,
             false,
         );
         let global_symbtab_rc = Rc::new(RefCell::new(st));
@@ -1124,6 +1143,30 @@ impl Arcanum {
         search_scope: &IdentifierDeclScope,
     ) -> Option<Rc<RefCell<SymbolType>>> {
         self.current_symtab.borrow().lookup(name, search_scope)
+    }
+
+    pub fn lookup_system_symbol(&self, name: &str) -> Option<SystemSymbolType> {
+        if let Some(domain_scope_symbol_rcref) =
+            self.lookup(name, &IdentifierDeclScope::DomainBlockScope)
+        {
+            Some(DomainSymbol {
+                domain_scope_symbol_rcref,
+            })
+        } else if let Some(action_scope_symbol_rcref) = self.lookup_action(name) {
+            Some(ActionSymbol {
+                action_scope_symbol_rcref,
+            })
+        } else if let Some(interface_scope_symbol_rcref) = self.lookup_interface_method(name) {
+            Some(InterfaceSymbol {
+                interface_scope_symbol_rcref,
+            })
+        } else if let Some(operation_scope_symbol_rcref) = self.lookup_operation(name) {
+            Some(OperationSymbol {
+                operation_scope_symbol_rcref,
+            })
+        } else {
+            None
+        }
     }
 
     // Interface methods are only declared in the -interface- block.
@@ -1697,7 +1740,8 @@ impl Arcanum {
                 }
 
                 let symbol_table = states_symtab_rcref.borrow();
-                let state_symbol_t = symbol_table.lookup(state_name, &IdentifierDeclScope::NoneScope);
+                let state_symbol_t =
+                    symbol_table.lookup(state_name, &IdentifierDeclScope::UnknownScope);
                 match state_symbol_t {
                     Some(symbol_t_ref) => {
                         let symbol_type = symbol_t_ref.borrow();
@@ -1900,7 +1944,7 @@ impl SystemSymbol {
             symtab_rcref: Rc::new(RefCell::new(SymbolTable::new(
                 name,
                 None,
-                IdentifierDeclScope::NoneScope,
+                IdentifierDeclScope::UnknownScope,
                 true,
             ))),
             events: HashMap::new(),
@@ -2173,7 +2217,7 @@ impl MachineBlockScopeSymbol {
             symtab_rcref: Rc::new(RefCell::new(SymbolTable::new(
                 name.to_string(),
                 None,
-                IdentifierDeclScope::NoneScope,
+                IdentifierDeclScope::UnknownScope,
                 false,
             ))),
         }
@@ -2238,7 +2282,7 @@ impl StateSymbol {
         let st_rcref = SymbolTable::new(
             state_name.to_string(),
             Some(Rc::clone(&parent_symtab)),
-            IdentifierDeclScope::NoneScope,
+            IdentifierDeclScope::UnknownScope,
             false,
         );
         StateSymbol {
@@ -2596,7 +2640,7 @@ impl EventHandlerScopeSymbol {
             symtab_rcref: Rc::new(RefCell::new(SymbolTable::new(
                 name.to_string(),
                 None,
-                IdentifierDeclScope::NoneScope,
+                IdentifierDeclScope::UnknownScope,
                 false,
             ))),
         }
@@ -3004,7 +3048,7 @@ impl ActionScopeSymbol {
             symtab_rcref: Rc::new(RefCell::new(SymbolTable::new(
                 name.to_string(),
                 None,
-                IdentifierDeclScope::NoneScope,
+                IdentifierDeclScope::UnknownScope,
                 false,
             ))),
         }
@@ -3064,7 +3108,7 @@ impl OperationScopeSymbol {
             symtab_rcref: Rc::new(RefCell::new(SymbolTable::new(
                 name.to_string(),
                 None,
-                IdentifierDeclScope::NoneScope,
+                IdentifierDeclScope::UnknownScope,
                 false,
             ))),
         }
@@ -3127,7 +3171,7 @@ impl LoopStmtScopeSymbol {
                 // TODO: Should this use the name passed in?
                 String::from("loop"),
                 None,
-                IdentifierDeclScope::NoneScope,
+                IdentifierDeclScope::UnknownScope,
                 false,
             ))),
         }
@@ -3191,7 +3235,7 @@ impl FunctionScopeSymbol {
             symtab_rcref: Rc::new(RefCell::new(SymbolTable::new(
                 name.to_string(),
                 None,
-                IdentifierDeclScope::NoneScope,
+                IdentifierDeclScope::UnknownScope,
                 false,
             ))),
         }

@@ -281,7 +281,7 @@ impl RustVisitor {
                 }
                 code.push_str(&self.format_value_name(&var_node.id_node.name.lexeme));
             }
-            IdentifierDeclScope::NoneScope => {
+            IdentifierDeclScope::UnknownScope => {
                 // TODO: Explore labeling Variables as "extern" scope
                 if var_node.id_node.is_reference {
                     code.push('&');
@@ -4774,6 +4774,11 @@ impl AstVisitor for RustVisitor {
                 } => {
                     operation_call_expr_node.accept(self);
                 }
+                CallChainNodeType::OperationRefT {
+                    operation_ref_expr_node,
+                } => {
+                    operation_ref_expr_node.accept(self);
+                }
                 CallChainNodeType::ActionCallT {
                     action_call_expr_node,
                 } => {
@@ -4816,6 +4821,11 @@ impl AstVisitor for RustVisitor {
                     operation_call_expr_node,
                 } => {
                     operation_call_expr_node.accept_to_string(self, output);
+                }
+                CallChainNodeType::OperationRefT {
+                    operation_ref_expr_node,
+                } => {
+                    operation_ref_expr_node.accept(self);
                 }
                 CallChainNodeType::ActionCallT {
                     action_call_expr_node,

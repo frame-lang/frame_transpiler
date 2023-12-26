@@ -103,6 +103,9 @@ pub enum CallChainNodeType {
     OperationCallT {
         operation_call_expr_node: OperationCallExprNode,
     },
+    OperationRefT {
+        operation_ref_expr_node: OperationRefExprNode,
+    },
     ActionCallT {
         action_call_expr_node: ActionCallExprNode,
     },
@@ -2393,6 +2396,34 @@ impl fmt::Display for OperationCallExprNode {
 
 //-----------------------------------------------------//
 
+pub struct OperationRefExprNode {
+    pub name: String,
+}
+
+impl OperationRefExprNode {
+    pub fn new(name: String) -> OperationRefExprNode {
+        OperationRefExprNode { name }
+    }
+}
+
+impl NodeElement for OperationRefExprNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_operation_ref_expression_node(self);
+    }
+
+    fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
+        ast_visitor.visit_operation_ref_expression_node_to_string(self, output);
+    }
+}
+
+impl fmt::Display for OperationRefExprNode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.name.to_string())
+    }
+}
+
+//-----------------------------------------------------//
+
 pub enum LoopStmtTypes {
     LoopInfiniteStmt {
         loop_infinite_stmt_node: LoopInfiniteStmtNode,
@@ -2747,6 +2778,11 @@ impl fmt::Display for CallChainExprNode {
                 } => {
                     output.push_str(&*operation_call_expr_node.to_string());
                 }
+                CallChainNodeType::OperationRefT {
+                    operation_ref_expr_node,
+                } => {
+                    output.push_str(&*operation_ref_expr_node.to_string());
+                }
                 CallChainNodeType::ActionCallT {
                     action_call_expr_node,
                 } => {
@@ -2979,7 +3015,7 @@ impl NodeElement for ExprListNode {
 #[derive(Clone, PartialEq)]
 pub enum IdentifierDeclScope {
     //     GlobalScope,  TODO!
-    NoneScope, // TODO - should this module or global scope?
+    UnknownScope, // TODO - should this module or global scope?
     SystemScope,
     InterfaceBlockScope,
     DomainBlockScope,
@@ -2992,7 +3028,6 @@ pub enum IdentifierDeclScope {
     EventHandlerVarScope,
     LoopVarScope,
     BlockVarScope,
-
 }
 
 // #[derive(Clone)]

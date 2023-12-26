@@ -357,6 +357,10 @@ impl<'a> Parser<'a> {
             ) = self.system_params();
         }
 
+        if self.match_token(&[TokenType::OperationsBlock]) {
+            operations_block_node_opt = Option::Some(self.operations_block());
+        }
+
         if self.match_token(&[TokenType::InterfaceBlock]) {
             self.arcanum
                 .debug_print_current_symbols(self.arcanum.get_current_symtab());
@@ -529,10 +533,6 @@ impl<'a> Parser<'a> {
 
         if self.match_token(&[TokenType::ActionsBlock]) {
             actions_block_node_opt = Option::Some(self.actions_block());
-        }
-
-        if self.match_token(&[TokenType::OperationsBlock]) {
-            operations_block_node_opt = Option::Some(self.operations_block());
         }
 
         if self.match_token(&[TokenType::DomainBlock]) {
@@ -978,8 +978,9 @@ impl<'a> Parser<'a> {
                         // check system domain params override a domain variable and match type
                         for param in &parameters {
                             let name = &param.param_name;
-                            let domain_symbol_rcref_opt =
-                                self.arcanum.lookup(name, &IdentifierDeclScope::DomainBlockScope);
+                            let domain_symbol_rcref_opt = self
+                                .arcanum
+                                .lookup(name, &IdentifierDeclScope::DomainBlockScope);
                             if domain_symbol_rcref_opt.is_none() {
                                 self.error_at_current(&format!(
                                     "System domain parameter '{}' does not exist in the domain.",
@@ -1107,7 +1108,7 @@ impl<'a> Parser<'a> {
         self.is_function_scope = true;
 
         if self.is_building_symbol_table {
-            // syntax pass
+            // lexical pass
             let function_symbol = FunctionScopeSymbol::new(function_name.clone());
             //            function_symbol_opt = Some(function_symbol);
 
@@ -1127,7 +1128,7 @@ impl<'a> Parser<'a> {
             //     .borrow()
             //     .lookup(&*function_name, &IdentifierDeclScope::None);
 
-            // see if we can get the function symbol set in the syntax pass. if so, then move
+            // see if we can get the function symbol set in the lexical pass. if so, then move
             // all this to the calling function and pass inthe symbol
             self.arcanum.set_parse_scope(&function_name);
         }
@@ -1240,7 +1241,7 @@ impl<'a> Parser<'a> {
         //     // Add reference from action symbol to the ActionNode.
         //     // TODO: note what is being done. We are linking to the AST node generated in the
         //     // TODO: **syntax** pass (not the semantic pass).
-        //     // The  AST tree built during the syntax pass is otherwise disposed of, but not these
+        //     // The  AST tree built during the lexical pass is otherwise disposed of, but not these
         //     // references squirrled away in the symbol table.
         //     // This may be fine but feels wrong. Alternatively
         //     // we could copy this information out of the node and into the symbol.
@@ -1465,6 +1466,7 @@ impl<'a> Parser<'a> {
                         TokenType::RParen,
                         TokenType::MachineBlock,
                         TokenType::ActionsBlock,
+                        TokenType::OperationsBlock,
                         TokenType::DomainBlock,
                         TokenType::SystemEnd,
                     ];
@@ -1483,6 +1485,7 @@ impl<'a> Parser<'a> {
                     TokenType::Identifier,
                     TokenType::MachineBlock,
                     TokenType::ActionsBlock,
+                    TokenType::OperationsBlock,
                     TokenType::DomainBlock,
                     TokenType::SystemEnd,
                 ];
@@ -1498,7 +1501,7 @@ impl<'a> Parser<'a> {
                     let param_symbol = ParameterSymbol::new(
                         param_node.param_name.clone(),
                         param_node.param_type_opt.clone(),
-                        IdentifierDeclScope::NoneScope,
+                        IdentifierDeclScope::UnknownScope,
                     );
                     vec.push(param_symbol);
                 }
@@ -1547,7 +1550,7 @@ impl<'a> Parser<'a> {
 
         if self.is_building_symbol_table {
             let mut interface_method_symbol = InterfaceMethodSymbol::new(name);
-            // TODO: note what is being done. We are linking to the AST node generated in the syntax pass.
+            // TODO: note what is being done. We are linking to the AST node generated in the lexical pass.
             // This AST tree is otherwise disposed of. This may be fine but feels wrong. Alternatively
             // we could copy this information out of the node and into the symbol.
             interface_method_symbol.set_ast_node(Rc::clone(&interface_method_rcref));
@@ -2093,7 +2096,7 @@ impl<'a> Parser<'a> {
     //     if self.is_building_symbol_table {
     //         let s = action_name;
     //         let mut action_decl_symbol = ActionDeclSymbol::new(s);
-    //         // TODO: note what is being done. We are linking to the AST node generated in the syntax pass.
+    //         // TODO: note what is being done. We are linking to the AST node generated in the lexical pass.
     //         // This AST tree is otherwise disposed of. This may be fine but feels wrong. Alternatively
     //         // we could copy this information out of the node and into the symbol.
     //         // TODO: just insert into arcanum directly
@@ -2129,7 +2132,7 @@ impl<'a> Parser<'a> {
         self.is_action_scope = true;
 
         if self.is_building_symbol_table {
-            // syntax pass
+            // lexical pass
             let action_symbol = ActionScopeSymbol::new(action_name.clone());
             //            action_symbol_opt = Some(action_symbol);
 
@@ -2140,16 +2143,8 @@ impl<'a> Parser<'a> {
             self.arcanum.enter_scope(action_symbol_parse_scope_t);
         } else {
             // semantic pass
-            // link action symbol to action declaration node
 
-            // TODO - remove?
-            // let a = self
-            //     .arcanum
-            //     .current_symtab
-            //     .borrow()
-            //     .lookup(&*action_name, &IdentifierDeclScope::None);
-
-            // see if we can get the action symbol set in the syntax pass. if so, then move
+            // see if we can get the action symbol set in the lexical pass. if so, then move
             // all this to the calling function and pass inthe symbol
             self.arcanum.set_parse_scope(&action_name);
         }
@@ -2345,7 +2340,7 @@ impl<'a> Parser<'a> {
         self.operation_scope_depth += 1;
 
         if self.is_building_symbol_table {
-            // syntax pass
+            // lexical pass
             let operation_symbol = OperationScopeSymbol::new(operation_name.clone());
             //            operation_symbol_opt = Some(operation_symbol);
 
@@ -2356,16 +2351,8 @@ impl<'a> Parser<'a> {
             self.arcanum.enter_scope(operation_symbol_parse_scope_t);
         } else {
             // semantic pass
-            // link operation symbol to operation declaration node
 
-            // TODO - remove?
-            // let a = self
-            //     .arcanum
-            //     .current_symtab
-            //     .borrow()
-            //     .lookup(&*operation_name, &IdentifierDeclScope::None);
-
-            // see if we can get the operation symbol set in the syntax pass. if so, then move
+            // see if we can get the operation symbol set in the lexical pass. if so, then move
             // all this to the calling function and pass inthe symbol
             self.arcanum.set_parse_scope(&operation_name);
         }
@@ -2594,11 +2581,11 @@ impl<'a> Parser<'a> {
         let enum_decl_node_rcref = Rc::new(RefCell::new(enum_decl_node));
 
         if self.is_building_symbol_table {
-            // syntactic pass
+            // lexical pass
             let scope = self.arcanum.get_current_identifier_scope();
             let mut enum_symbol = EnumSymbol::new(identifier.clone(), scope);
 
-            // TODO: note what is being done. We are linking to the AST node generated in the syntax pass.
+            // TODO: note what is being done. We are linking to the AST node generated in the lexical pass.
             // This AST tree is otherwise disposed of. This may be fine but feels wrong. Alternatively
             // we could copy this information out of the node and into the symbol.
             enum_symbol.set_ast_node(Rc::clone(&enum_decl_node_rcref));
@@ -2627,12 +2614,14 @@ impl<'a> Parser<'a> {
             // TODO
             self.arcanum
                 .debug_print_current_symbols(self.arcanum.get_current_symtab());
-            let x = self.arcanum.lookup(&identifier, &IdentifierDeclScope::NoneScope);
+            let x = self
+                .arcanum
+                .lookup(&identifier, &IdentifierDeclScope::UnknownScope);
             let y = x.unwrap();
             let z = y.borrow();
             match &*z {
                 SymbolType::EnumDeclSymbolT { enum_symbol_rcref } => {
-                    // assign enum decl node to symbol created in syntactic pass
+                    // assign enum decl node to symbol created in lexical pass
                     enum_symbol_rcref.borrow_mut().ast_node_opt =
                         Some(enum_decl_node_rcref.clone());
                 }
@@ -2811,7 +2800,7 @@ impl<'a> Parser<'a> {
         let variable_decl_node_rcref = Rc::new(RefCell::new(variable_decl_node));
 
         if self.is_building_symbol_table {
-            // syntactic pass
+            // lexical pass
             // add variable to current symbol table
             let scope = self.arcanum.get_current_identifier_scope();
             // Create variable symbol and set value to the intializer expression.
@@ -2863,7 +2852,9 @@ impl<'a> Parser<'a> {
             // TODO
             self.arcanum
                 .debug_print_current_symbols(self.arcanum.get_current_symtab());
-            let symbol_t_opt = self.arcanum.lookup(&name, &IdentifierDeclScope::NoneScope);
+            let symbol_t_opt = self
+                .arcanum
+                .lookup(&name, &IdentifierDeclScope::UnknownScope);
             let symbol_t_rcref = symbol_t_opt.unwrap();
             let mut symbol_t = symbol_t_rcref.borrow_mut();
             // TODO - NOTE! setting the ast node
@@ -3130,7 +3121,7 @@ impl<'a> Parser<'a> {
 
         // @TODO - add reference syntax
         while self.match_token(&[TokenType::Identifier]) {
-            match self.call(IdentifierDeclScope::NoneScope) {
+            match self.call(IdentifierDeclScope::UnknownScope) {
                 Ok(Some(CallChainExprT {
                     call_chain_expr_node,
                 })) => calls.push(call_chain_expr_node),
@@ -3295,13 +3286,13 @@ impl<'a> Parser<'a> {
         // variable declarations in both passes.
         if self.is_building_symbol_table {
             // Set state with dummy variable values (CallChainNodeType::UndeclaredIdentifierNodeT)
-            // in syntactic pass.
+            // in lexical pass.
             state_symbol_rcref
                 .borrow_mut()
                 .set_state_node(Rc::clone(&state_node_rcref));
         } else {
             // Set state with variable decl values for the type (CallChainNodeType::VariableNodeT)
-            // in syntactic pass.
+            // in lexical pass.
             state_symbol_rcref
                 .borrow_mut()
                 .set_state_node(Rc::clone(&state_node_rcref));
@@ -3431,7 +3422,7 @@ impl<'a> Parser<'a> {
                                 let param_symbol = ParameterSymbol::new(
                                     param_node.param_name.clone(),
                                     param_node.param_type_opt.clone(),
-                                    IdentifierDeclScope::NoneScope,
+                                    IdentifierDeclScope::UnknownScope,
                                 );
                                 vec.push(param_symbol);
                             }
@@ -5215,7 +5206,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let mut scope = IdentifierDeclScope::NoneScope;
+        let mut scope = IdentifierDeclScope::UnknownScope;
 
         if self.match_token(&[TokenType::Transition]) {
             match self.transition_expr() {
@@ -5230,13 +5221,13 @@ impl<'a> Parser<'a> {
             // Parsing syntax related to a system.
             if self.match_token(&[TokenType::Dot]) {
                 // #.foo expression
-                scope = IdentifierDeclScope::DomainBlockScope;
+                scope = IdentifierDeclScope::SystemScope;
             } else if self.match_token(&[TokenType::Identifier]) {
                 // #Foo(...)  or #Foo.call(...)
                 let system_id_node = IdentifierNode::new(
                     self.previous().clone(),
                     None,
-                    IdentifierDeclScope::NoneScope,
+                    IdentifierDeclScope::UnknownScope,
                     false,
                     self.previous().line,
                 );
@@ -5264,7 +5255,7 @@ impl<'a> Parser<'a> {
                         }
                     }
 
-                    let call_chain_result = self.call(IdentifierDeclScope::NoneScope);
+                    let call_chain_result = self.call(IdentifierDeclScope::UnknownScope);
 
                     match call_chain_result {
                         Ok(call_chain_opt) => {
@@ -5409,7 +5400,7 @@ impl<'a> Parser<'a> {
             return Ok(Some(VariableExprT { var_node }));
         } else if self.match_token(&[TokenType::New]) {
             if self.match_token(&[TokenType::Identifier]) {
-                match self.call(IdentifierDeclScope::NoneScope) {
+                match self.call(IdentifierDeclScope::UnknownScope) {
                     Ok(Some(CallChainExprT {
                         mut call_chain_expr_node,
                     })) => {
@@ -5446,6 +5437,7 @@ impl<'a> Parser<'a> {
             // let debug_is_building_symbol_table = self.is_building_symbol_table;
             // let debug_current_token = self.current_token.clone();
             // let debug_processed_tokens = self.processed_tokens.clone();
+            // let x = self.arcanum.lookup_system_symbol()
             match self.call(scope) {
                 Ok(Some(VariableExprT { mut var_node })) => {
                     var_node.id_node.is_reference = is_reference;
@@ -5828,7 +5820,7 @@ impl<'a> Parser<'a> {
                 let param_symbol_rcref;
                 let symbol_type_rcref_opt = self
                     .arcanum
-                    .lookup(&id_tok.lexeme, &IdentifierDeclScope::NoneScope);
+                    .lookup(&id_tok.lexeme, &IdentifierDeclScope::UnknownScope);
                 match symbol_type_rcref_opt {
                     Some(symbol_type_rcref) => {
                         let symbol_type = symbol_type_rcref.borrow();
@@ -6018,10 +6010,6 @@ impl<'a> Parser<'a> {
             false,
             self.previous().line,
         );
-
-        if id_node.name.lexeme == "signal_handler" {
-            let debug = 1;
-        }
 
         let mut call_chain: std::collections::VecDeque<CallChainNodeType> =
             std::collections::VecDeque::new();
@@ -6441,15 +6429,21 @@ impl<'a> Parser<'a> {
                 }
             } else {
                 // Not a call so just an identifier which may be a variable
+                // or a reference to a system function.
 
-                // This is a very subtle but important part of the logic here.
-                // We do a lookup for the id to find what scope it is in, if any.
-                // If there is a scope, it is a variable and the scope will be
-                // added to the Variable node so the parser and
-                // visitors will know what kind of variable it is.
-                match self.get_identifier_scope(&id_node, &explicit_scope) {
-                    Ok(id_decl_scope) => scope = id_decl_scope,
-                    Err(err) => return Err(err),
+                if explicit_scope != IdentifierDeclScope::SystemScope {
+                    // This is a very subtle but important part of the logic here.
+                    // We do a lookup for the id to find what scope it is in, if any.
+                    // If there is a scope, it is a variable and the scope will be
+                    // added to the Variable node so the parser and
+                    // visitors will know what kind of variable it is.
+                    match self.get_identifier_scope(&id_node, &explicit_scope) {
+                        Ok(id_decl_scope) => scope = id_decl_scope,
+                        Err(err) => return Err(err),
+                    }
+                } else {
+                    // TODO - validate this
+                    scope = IdentifierDeclScope::UnknownScope;
                 }
 
                 // Variables must be the first "node" in a get expression. See https://craftinginterpreters.com/classes.html#properties-on-instances.
@@ -6460,128 +6454,152 @@ impl<'a> Parser<'a> {
                     // the first (or only) node in the call chain
 
                     let symbol_name = format!("{}", &id_node.name.lexeme);
-                    let symbol_type_rcref_opt: Option<Rc<RefCell<SymbolType>>> =
-                        self.arcanum.lookup(&symbol_name, &explicit_scope).clone();
-                    let call_chain_node_t = match &symbol_type_rcref_opt {
-                        Some(symbol_t) => {
-                            match &*symbol_t.borrow() {
-                                // node is Enumeration decl
-                                SymbolType::EnumDeclSymbolT { enum_symbol_rcref } => {
-                                    let enum_symbol = enum_symbol_rcref.borrow();
 
-                                    let enum_decl_node =
-                                        enum_symbol.ast_node_opt.as_ref().unwrap().borrow();
-                                    // match '.'
-                                    if !self.match_token(&[TokenType::Dot]) {
-                                        let msg = &format!(
-                                            "Expected '.' after enum {} identifier.",
-                                            enum_symbol.name
-                                        );
-                                        self.error_at_current(msg);
-                                        return Err(ParseError::new(msg));
+                    if explicit_scope == IdentifierDeclScope::SystemScope {
+                        if let Some(system_symbol_type) = self
+                            .arcanum
+                            .lookup_system_symbol(id_node.name.lexeme.as_str())
+                        {
+                            match system_symbol_type {
+                                SystemSymbolType::DomainSymbol {
+                                    domain_scope_symbol_rcref,
+                                } => {
+                                    let x = Some(domain_scope_symbol_rcref.clone());
+                                    let var_node = VariableNode::new(
+                                        id_node,
+                                        IdentifierDeclScope::DomainBlockScope,
+                                        x,
+                                    );
+                                    CallChainNodeType::VariableNodeT { var_node }
+                                    // CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
+                                }
+                                SystemSymbolType::OperationSymbol { .. } => {
+                                    let operation_ref_expr_node =
+                                        OperationRefExprNode::new(id_node.name.lexeme.clone());
+                                    CallChainNodeType::OperationRefT {
+                                        operation_ref_expr_node,
                                     }
+                                }
+                                SystemSymbolType::ActionSymbol { .. } => {
+                                    // TODO!! Finish this. Add ActionRefT.
+                                    CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
+                                }
+                                SystemSymbolType::InterfaceSymbol { .. } => {
+                                    // TODO!! Finish this. Add InterfaceRefT.
+                                    CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
+                                }
+                            }
+                        } else {
+                            CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
+                        }
+                    } else {
+                        let symbol_type_rcref_opt: Option<Rc<RefCell<SymbolType>>> =
+                            self.arcanum.lookup(&symbol_name, &explicit_scope).clone();
+                        let call_chain_node_t = match &symbol_type_rcref_opt {
+                            Some(symbol_t) => {
+                                match &*symbol_t.borrow() {
+                                    // node is Enumeration decl
+                                    SymbolType::EnumDeclSymbolT { enum_symbol_rcref } => {
+                                        let enum_symbol = enum_symbol_rcref.borrow();
 
-                                    if self.match_token(&[TokenType::Identifier]) {
-                                        let enumerator_name = &self.previous().lexeme;
-                                        let mut found_enumerator = false;
-                                        for enum_decl_node in &enum_symbol
-                                            .ast_node_opt
-                                            .as_ref()
-                                            .unwrap()
-                                            .borrow()
-                                            .enums
-                                        {
-                                            if *enumerator_name == enum_decl_node.name {
-                                                found_enumerator = true;
-                                                break;
-                                            }
-                                        }
-                                        if !found_enumerator {
+                                        let enum_decl_node =
+                                            enum_symbol.ast_node_opt.as_ref().unwrap().borrow();
+                                        // match '.'
+                                        if !self.match_token(&[TokenType::Dot]) {
                                             let msg = &format!(
-                                                "Expected enumerator for {} - found {}.",
-                                                enum_symbol.name, enumerator_name,
+                                                "Expected '.' after enum {} identifier.",
+                                                enum_symbol.name
                                             );
                                             self.error_at_current(msg);
                                             return Err(ParseError::new(msg));
                                         }
 
-                                        let enum_expr_node = EnumeratorExprNode::new(
-                                            enum_decl_node.name.clone(),
-                                            enumerator_name.clone(),
-                                        );
-                                        return Ok(Some(ExprType::EnumeratorExprT {
-                                            enum_expr_node,
-                                        }));
-                                    } else {
-                                        return Err(ParseError::new("TODO"));
+                                        if self.match_token(&[TokenType::Identifier]) {
+                                            let enumerator_name = &self.previous().lexeme;
+                                            let mut found_enumerator = false;
+                                            for enum_decl_node in &enum_symbol
+                                                .ast_node_opt
+                                                .as_ref()
+                                                .unwrap()
+                                                .borrow()
+                                                .enums
+                                            {
+                                                if *enumerator_name == enum_decl_node.name {
+                                                    found_enumerator = true;
+                                                    break;
+                                                }
+                                            }
+                                            if !found_enumerator {
+                                                let msg = &format!(
+                                                    "Expected enumerator for {} - found {}.",
+                                                    enum_symbol.name, enumerator_name,
+                                                );
+                                                self.error_at_current(msg);
+                                                return Err(ParseError::new(msg));
+                                            }
+
+                                            let enum_expr_node = EnumeratorExprNode::new(
+                                                enum_decl_node.name.clone(),
+                                                enumerator_name.clone(),
+                                            );
+                                            return Ok(Some(ExprType::EnumeratorExprT {
+                                                enum_expr_node,
+                                            }));
+                                        } else {
+                                            return Err(ParseError::new("TODO"));
+                                        }
                                     }
-                                }
-                                // TODO!!! Need to figure out how parameters should work wrt
-                                // setting their values in assignments. Parameters are different
-                                // than variables as THEY ARE NOT INITIALIZED in a variable
-                                // declaration. So lumping them in with variables is likely a
-                                // problem.
+                                    // TODO!!! Need to figure out how parameters should work wrt
+                                    // setting their values in assignments. Parameters are different
+                                    // than variables as THEY ARE NOT INITIALIZED in a variable
+                                    // declaration. So lumping them in with variables is likely a
+                                    // problem.
 
-                                // #STATE_NODE_UPDATE_BUG - Not updating the symbol table in the semantic pass
-                                // with resolved AST value for variables caused a very subtle bug
-                                // that resulted in the node always being UndeclaredIdentifierNodeT
-                                // rather than being updadted to VariableNodeT in the semantic pass.
-                                // Search on #STATE_NODE_UPDATE_BUG  to see other areas that are
-                                // related to his particular problem.
+                                    // #STATE_NODE_UPDATE_BUG - Not updating the symbol table in the semantic pass
+                                    // with resolved AST value for variables caused a very subtle bug
+                                    // that resulted in the node always being UndeclaredIdentifierNodeT
+                                    // rather than being updadted to VariableNodeT in the semantic pass.
+                                    // Search on #STATE_NODE_UPDATE_BUG  to see other areas that are
+                                    // related to his particular problem.
 
-                                // TODO!! It is a general point of failure
-                                // and source of fragility for the compiler that the sympol table references
-                                // AST nodes from the semantic pass to resolve parameter and types.
-                                SymbolType::BlockVar { .. }
-                                | SymbolType::DomainVariable { .. }
-                                | SymbolType::StateVariable { .. }
-                                | SymbolType::EventHandlerVariable { .. }
-                                | SymbolType::ParamSymbol { .. }
-                                | SymbolType::StateParam { .. }
-                                | SymbolType::EventHandlerParam { .. } => {
-                                    let var_node = VariableNode::new(
-                                        id_node,
-                                        scope,
-                                        (&symbol_type_rcref_opt).clone(),
-                                    );
-                                    CallChainNodeType::VariableNodeT { var_node }
+                                    // TODO!! It is a general point of failure
+                                    // and source of fragility for the compiler that the sympol table references
+                                    // AST nodes from the semantic pass to resolve parameters and types.
+                                    SymbolType::BlockVar { .. }
+                                    | SymbolType::DomainVariable { .. }
+                                    | SymbolType::StateVariable { .. }
+                                    | SymbolType::EventHandlerVariable { .. }
+                                    | SymbolType::ParamSymbol { .. }
+                                    | SymbolType::StateParam { .. }
+                                    | SymbolType::EventHandlerParam { .. } => {
+                                        let var_node = VariableNode::new(
+                                            id_node,
+                                            scope,
+                                            (&symbol_type_rcref_opt).clone(),
+                                        );
+                                        CallChainNodeType::VariableNodeT { var_node }
+                                    }
+                                    // SymbolType::ParamSymbol {..} |
+                                    // SymbolType::StateParam {..} |
+                                    // SymbolType::EventHandlerParam {..} => {
+                                    //     // TODO - need to support passing Frame types.
+                                    //     // See https://github.com/frame-lang/frame_transpiler/issues/151
+                                    //     CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
+                                    // }
+                                    _ => CallChainNodeType::UndeclaredIdentifierNodeT { id_node },
                                 }
-                                // SymbolType::ParamSymbol {..} |
-                                // SymbolType::StateParam {..} |
-                                // SymbolType::EventHandlerParam {..} => {
-                                //     // TODO - need to support passing Frame types.
-                                //     // See https://github.com/frame-lang/frame_transpiler/issues/151
-                                //     CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
-                                // }
-                                _ => CallChainNodeType::UndeclaredIdentifierNodeT { id_node },
                             }
-                        }
-                        None => CallChainNodeType::UndeclaredIdentifierNodeT { id_node },
-                    };
+                            None => CallChainNodeType::UndeclaredIdentifierNodeT { id_node },
+                        };
 
-                    call_chain_node_t
+                        call_chain_node_t
+                    }
                 } else {
                     CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
                 };
 
-                // if !self.is_building_symbol_table {
-                //     match &node {
-                //         CallChainNodeType::UndeclaredIdentifierNodeT {id_node} => {
-                //             let debug_id_nod_namee = id_node.name.lexeme.as_str().clone();
-                //             let debug = 1;
-                //         }
-                //         CallChainNodeType::VariableNodeT {var_node} => {
-                //             let debug_var_nod_namee = var_node.get_name();
-                //             let debug = 1;
-                //         }
-                //         _ => {
-                //             // let debug_wtf_node = 1;
-                //         }
-                //     }
-                //
-                // }
                 call_chain.push_back(node);
-            }
+            };
 
             // end of chain if no  '.'
             if !self.match_token(&[TokenType::Dot]) {
@@ -6589,14 +6607,10 @@ impl<'a> Parser<'a> {
             }
 
             if self.match_token(&[TokenType::Identifier]) {
-                // let debug_id_token = self.previous().lexeme.clone();
-                // if debug_id_token == "getD" {
-                //     let debug = 1;
-                // }
                 id_node = IdentifierNode::new(
                     self.previous().clone(),
                     None,
-                    IdentifierDeclScope::NoneScope,
+                    IdentifierDeclScope::UnknownScope,
                     false,
                     self.previous().line,
                 );
@@ -6606,23 +6620,6 @@ impl<'a> Parser<'a> {
             is_first_node = false;
         }
 
-        if !self.is_building_symbol_table {
-            // let first_node = call_chain.get(0).unwrap();
-            // match first_node {
-            //     CallChainNodeType::UndeclaredIdentifierNodeT {id_node} => {
-            //         let id_node_name = id_node.name.lexeme.as_str().clone();
-            //         let _debug = 0;
-            //     }
-            //     CallChainNodeType::VariableNodeT {var_node} => {
-            //         let id_node_name = var_node.id_node.name.lexeme.as_str().clone();
-            //         let _debug = 0;
-            //     }
-            //     _ => {
-            //         let _debug = 0;
-            //     }
-            // }
-            // let _debug = 0;
-        }
         let call_chain_expr_node = CallChainExprNode::new(call_chain);
         Ok(Some(CallChainExprT {
             call_chain_expr_node,
@@ -6636,11 +6633,8 @@ impl<'a> Parser<'a> {
         identifier_node: &IdentifierNode,
         explicit_scope: &IdentifierDeclScope,
     ) -> Result<IdentifierDeclScope, ParseError> {
-        if identifier_node.name.lexeme == "signal_handler" {
-            let debug = 1;
-        }
-        let mut scope: IdentifierDeclScope = IdentifierDeclScope::NoneScope;
-        // find the variable in the arcanum
+        let mut scope: IdentifierDeclScope = IdentifierDeclScope::UnknownScope;
+        // find the symbol in the arcanum
         let symbol_type_rcref_opt: Option<Rc<RefCell<SymbolType>>> = self
             .arcanum
             .lookup(&identifier_node.name.lexeme, explicit_scope);
@@ -6674,7 +6668,7 @@ impl<'a> Parser<'a> {
                         scope = event_handler_param_symbol_rcref.borrow().scope.clone();
                     }
                     SymbolType::EventHandlerLocalScope { .. } => {
-                        scope = IdentifierDeclScope::NoneScope;
+                        scope = IdentifierDeclScope::UnknownScope;
                     }
                     SymbolType::EnumDeclSymbolT { enum_symbol_rcref } => {
                         scope = enum_symbol_rcref.borrow().scope.clone();
@@ -6696,7 +6690,7 @@ impl<'a> Parser<'a> {
                         // scope = loop_variable_symbol_rcref.borrow().scope.clone();
                     }
                     SymbolType::System { .. } => {
-                        scope = IdentifierDeclScope::NoneScope;
+                        scope = IdentifierDeclScope::UnknownScope;
                     }
                     _ => {
                         // scope = IdentifierDeclScope::None;
@@ -6713,7 +6707,7 @@ impl<'a> Parser<'a> {
         };
 
         if !self.is_building_symbol_table
-            && *explicit_scope != IdentifierDeclScope::NoneScope
+            && *explicit_scope != IdentifierDeclScope::UnknownScope
             && *explicit_scope != scope
         {
             let msg = &format!(
@@ -7269,9 +7263,10 @@ impl<'a> Parser<'a> {
             //
 
             enum_type_name = self.previous().lexeme.clone();
-            let enum_symbol_t_rcref_opt = self
-                .arcanum
-                .lookup(enum_type_name.as_str(), &IdentifierDeclScope::DomainBlockScope);
+            let enum_symbol_t_rcref_opt = self.arcanum.lookup(
+                enum_type_name.as_str(),
+                &IdentifierDeclScope::DomainBlockScope,
+            );
             match enum_symbol_t_rcref_opt {
                 None => {
                     let err_msg = &format!("Enumerated type '{}' does not exist.", enum_type_name);
@@ -7728,7 +7723,7 @@ impl<'a> Parser<'a> {
             let l_value_name = name_opt.unwrap();
             let symbol_t_opt = self
                 .arcanum
-                .lookup(l_value_name.as_str(), &IdentifierDeclScope::NoneScope);
+                .lookup(l_value_name.as_str(), &IdentifierDeclScope::UnknownScope);
             match symbol_t_opt {
                 Some(symbol_t_rcref) => {
                     let mut symbol_t = symbol_t_rcref.borrow_mut();

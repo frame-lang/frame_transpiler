@@ -206,6 +206,10 @@ pub trait AstVisitor {
     fn visit_operation_call_expression_node_to_string(&mut self, _node: &OperationCallExprNode, _output: &mut String) {}
     fn visit_operation_call_statement_node(&mut self, _node: &OperationCallExprNode) {}
 
+    fn visit_operation_ref_expression_node(&mut self, _node: &OperationRefExprNode) {}
+    fn visit_operation_ref_expression_node_to_string(&mut self, _node: &OperationRefExprNode, _output: &mut String) {}
+    fn visit_operation_ref_statement_node(&mut self, _node: &OperationRefExprNode) {}
+
     // ---
 
 

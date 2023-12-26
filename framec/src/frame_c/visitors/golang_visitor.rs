@@ -277,7 +277,7 @@ impl GolangVisitor {
             IdentifierDeclScope::EventHandlerVarScope => {
                 code.push_str(&variable_node.id_node.name.lexeme.to_string());
             }
-            IdentifierDeclScope::NoneScope => {
+            IdentifierDeclScope::UnknownScope => {
                 // TODO: Explore labeling Variables as "extern" scope
                 code.push_str(&variable_node.id_node.name.lexeme.to_string());
             } // Actions?
@@ -2728,6 +2728,11 @@ impl AstVisitor for GolangVisitor {
                 } => {
                     operation_call_expr_node.accept(self);
                 }
+                CallChainNodeType::OperationRefT {
+                    operation_ref_expr_node,
+                } => {
+                    operation_ref_expr_node.accept(self);
+                }
                 CallChainNodeType::ActionCallT {
                     action_call_expr_node,
                 } => {
@@ -2771,6 +2776,11 @@ impl AstVisitor for GolangVisitor {
                     operation_call_expr_node,
                 } => {
                     operation_call_expr_node.accept_to_string(self, output);
+                }
+                CallChainNodeType::OperationRefT {
+                    operation_ref_expr_node,
+                } => {
+                    operation_ref_expr_node.accept(self);
                 }
                 CallChainNodeType::ActionCallT {
                     action_call_expr_node,

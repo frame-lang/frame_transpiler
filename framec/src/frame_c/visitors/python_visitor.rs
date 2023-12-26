@@ -222,7 +222,7 @@ impl PythonVisitor {
             IdentifierDeclScope::EventHandlerVarScope => {
                 code.push_str(&variable_node.id_node.name.lexeme.to_string());
             }
-            IdentifierDeclScope::NoneScope => {
+            IdentifierDeclScope::UnknownScope => {
                 // TODO: Explore labeling Variables as "extern" scope
                 code.push_str(&variable_node.id_node.name.lexeme.to_string());
             } // Actions?
@@ -2422,6 +2422,26 @@ impl AstVisitor for PythonVisitor {
 
         // TODO: review this return as I think it is a nop.
     }
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_operation_ref_expression_node(
+        &mut self,
+        operation_ref_expr_node: &OperationRefExprNode,
+    ) {
+        self.add_code(&format!("self.{}", operation_ref_expr_node.name));
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_operation_ref_expression_node_to_string(
+        &mut self,
+        operation_ref_expr_node: &OperationRefExprNode,
+        output: &mut String,
+    ) {
+        output.push_str(&format!("self.{}", operation_ref_expr_node.name));
+
+        // TODO: review this return as I think it is a nop.
+    }
 
     //* --------------------------------------------------------------------- *//
 
@@ -2954,7 +2974,10 @@ impl AstVisitor for PythonVisitor {
                 // Leaving here in case there is an unconsidered edge case.
                 // Needs to be directly solved by the mandatory event handler solution,
                 // whatever that is going to be.
-                self.generate_return();
+                if !self.is_operation_scope {
+                    self.generate_return();
+                }
+
                 return;
             }
         }
@@ -3003,6 +3026,11 @@ impl AstVisitor for PythonVisitor {
                     operation_call_expr_node,
                 } => {
                     operation_call_expr_node.accept(self);
+                }
+                CallChainNodeType::OperationRefT {
+                    operation_ref_expr_node,
+                } => {
+                    operation_ref_expr_node.accept(self);
                 }
                 CallChainNodeType::ActionCallT {
                     action_call_expr_node,
@@ -3267,6 +3295,11 @@ impl AstVisitor for PythonVisitor {
                     operation_call_expr_node,
                 } => {
                     operation_call_expr_node.accept_to_string(self, output);
+                }
+                CallChainNodeType::OperationRefT {
+                    operation_ref_expr_node,
+                } => {
+                    operation_ref_expr_node.accept(self);
                 }
                 CallChainNodeType::ActionCallT {
                     action_call_expr_node,
