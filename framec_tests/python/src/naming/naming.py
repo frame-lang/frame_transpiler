@@ -1,10 +1,11 @@
-# emitted from framec_v0.11.0
+
 
 
 
 from framelang.framelang import FrameEvent
 
 
+# Emitted from framec_v0.11.0
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -22,8 +23,7 @@ class Naming:
         
          # Create and intialize start state compartment.
         
-        self.__state = '__naming_state_Init'
-        self.__compartment: 'NamingCompartment' = NamingCompartment(self.__state)
+        self.__compartment: 'NamingCompartment' = NamingCompartment('__naming_state_Init')
         self.__next_compartment: 'NamingCompartment' = None
         
         # Initialize domain

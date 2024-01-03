@@ -1,10 +1,11 @@
-# emitted from framec_v0.11.0
+
 
 
 
 from framelang.framelang import FrameEvent
 
 
+# Emitted from framec_v0.11.0
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -26,8 +27,7 @@ class StateContextStack:
         
          # Create and intialize start state compartment.
         
-        self.__state = '__statecontextstack_state_A'
-        self.__compartment: 'StateContextStackCompartment' = StateContextStackCompartment(self.__state)
+        self.__compartment: 'StateContextStackCompartment' = StateContextStackCompartment('__statecontextstack_state_A')
         self.__next_compartment: 'StateContextStackCompartment' = None
         self.__compartment.state_vars["x"] = 0
         

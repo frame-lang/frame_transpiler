@@ -1,5 +1,6 @@
-# emitted from framec_v0.11.0
 
+
+# Emitted from framec_v0.11.0
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -17,8 +18,7 @@ class ChangeStateSm:
         
          # Create and intialize start state compartment.
         
-        self.__state = '__changestatesm_state_S0'
-        self.__compartment: 'ChangeStateSmCompartment' = ChangeStateSmCompartment(self.__state)
+        self.__compartment: 'ChangeStateSmCompartment' = ChangeStateSmCompartment('__changestatesm_state_S0')
         self.__next_compartment: 'ChangeStateSmCompartment' = None
         
         # Initialize domain

@@ -1,7 +1,8 @@
-# emitted from framec_v0.11.0
+
 
 import sys
 from enum import Enum
+# Emitted from framec_v0.11.0
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -27,8 +28,7 @@ class MatchTests:
         
          # Create and intialize start state compartment.
         
-        self.__state = '__matchtests_state_A'
-        self.__compartment: 'MatchTestsCompartment' = MatchTestsCompartment(self.__state)
+        self.__compartment: 'MatchTestsCompartment' = MatchTestsCompartment('__matchtests_state_A')
         self.__next_compartment: 'MatchTestsCompartment' = None
         
         # Initialize domain

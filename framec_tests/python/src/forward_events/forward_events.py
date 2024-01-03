@@ -1,10 +1,11 @@
-# emitted from framec_v0.11.0
+
 
 
 
 from framelang.framelang import FrameEvent
 
 
+# Emitted from framec_v0.11.0
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -26,8 +27,7 @@ class ForwardEvents:
         
          # Create and intialize start state compartment.
         
-        self.__state = '__forwardevents_state_S0'
-        self.__compartment: 'ForwardEventsCompartment' = ForwardEventsCompartment(self.__state)
+        self.__compartment: 'ForwardEventsCompartment' = ForwardEventsCompartment('__forwardevents_state_S0')
         self.__next_compartment: 'ForwardEventsCompartment' = None
         
         # Initialize domain

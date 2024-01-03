@@ -1,10 +1,11 @@
-# emitted from framec_v0.11.0
+
 
 
 
 from framelang.framelang import FrameEvent
 
 
+# Emitted from framec_v0.11.0
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -22,8 +23,7 @@ class TransitParams:
         
          # Create and intialize start state compartment.
         
-        self.__state = '__transitparams_state_Init'
-        self.__compartment: 'TransitParamsCompartment' = TransitParamsCompartment(self.__state)
+        self.__compartment: 'TransitParamsCompartment' = TransitParamsCompartment('__transitparams_state_Init')
         self.__next_compartment: 'TransitParamsCompartment' = None
         
         # Initialize domain

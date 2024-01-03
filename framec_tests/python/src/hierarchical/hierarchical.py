@@ -1,10 +1,11 @@
-# emitted from framec_v0.11.0
+
 
 
 
 from framelang.framelang import FrameEvent
 
 
+# Emitted from framec_v0.11.0
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -22,8 +23,7 @@ class Hierarchical:
         
          # Create and intialize start state compartment.
         
-        self.__state = '__hierarchical_state_I'
-        self.__compartment: 'HierarchicalCompartment' = HierarchicalCompartment(self.__state)
+        self.__compartment: 'HierarchicalCompartment' = HierarchicalCompartment('__hierarchical_state_I')
         self.__next_compartment: 'HierarchicalCompartment' = None
         
         # Initialize domain

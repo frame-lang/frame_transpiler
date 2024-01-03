@@ -384,7 +384,6 @@ impl PythonVisitor {
             }
             None => {}
         }
-        self.add_code(&format!("# {}", self.compiler_version));
         self.newline();
 
         if self.marshal {
@@ -1414,14 +1413,21 @@ impl PythonVisitor {
             self.newline();
             self.newline();
             self.add_code(&format!(
-                "self.__state = '{}'",
+                "self.__compartment: '{}Compartment' = {}Compartment('{}')",
+                system_node.name,
+                system_node.name,
                 self.format_target_state_name(&self.first_state_name)
             ));
+            self.newline();
+            self.add_code(&format!(
+                "self.__next_compartment: '{}Compartment' = None",
+                system_node.name
+            ));
         } else {
-            self.add_code(" # Create and intialize start state compartment.");
+            // self.add_code(" # Create and intialize start state compartment.");
             self.newline();
             self.newline();
-            self.add_code("self.__state = None");
+            self.add_code("self.__compartment = None");
         }
 
         // if self.managed {
@@ -1429,16 +1435,7 @@ impl PythonVisitor {
         //     self.add_code("self._manager = manager");
         // }
 
-        self.newline();
-        self.add_code(&format!(
-            "self.__compartment: '{}Compartment' = {}Compartment(self.__state)",
-            system_node.name, system_node.name
-        ));
-        self.newline();
-        self.add_code(&format!(
-            "self.__next_compartment: '{}Compartment' = None",
-            system_node.name
-        ));
+
 
         // Initialize state arguments.
         match &system_node.start_state_state_params_opt {
@@ -1643,6 +1640,9 @@ impl AstVisitor for PythonVisitor {
                 }
             }
         }
+
+        self.add_code(&format!("# {}", self.compiler_version));
+        self.newline();
 
         if generate_frame_event {
             self.newline();

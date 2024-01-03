@@ -1,10 +1,11 @@
-# emitted from framec_v0.11.0
+
 
 
 
 from framelang.framelang import FrameEvent
 
 
+# Emitted from framec_v0.11.0
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -22,8 +23,7 @@ class Basic:
         
          # Create and intialize start state compartment.
         
-        self.__state = '__basic_state_S0'
-        self.__compartment: 'BasicCompartment' = BasicCompartment(self.__state)
+        self.__compartment: 'BasicCompartment' = BasicCompartment('__basic_state_S0')
         self.__next_compartment: 'BasicCompartment' = None
         
         # Initialize domain

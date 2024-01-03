@@ -1,4 +1,4 @@
-# emitted from framec_v0.11.0
+
 
 
 
@@ -6,6 +6,7 @@ from framelang.framelang import FrameEvent
 from enum import Enum
 
 
+# Emitted from framec_v0.11.0
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -32,8 +33,7 @@ class EnumTest:
         
          # Create and intialize start state compartment.
         
-        self.__state = '__enumtest_state_SUN'
-        self.__compartment: 'EnumTestCompartment' = EnumTestCompartment(self.__state)
+        self.__compartment: 'EnumTestCompartment' = EnumTestCompartment('__enumtest_state_SUN')
         self.__next_compartment: 'EnumTestCompartment' = None
         
         # Initialize domain
