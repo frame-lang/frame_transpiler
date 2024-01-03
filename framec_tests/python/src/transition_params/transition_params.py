@@ -37,16 +37,16 @@ class TransitParams:
     # ==================== Interface Block ================== #
     
     def Next(self,):
-        e = FrameEvent("Next",None)
-        self.__kernel(e)
+        __e = FrameEvent("Next",None)
+        self.__kernel(__e)
     
     # ===================== Machine Block =================== #
     
     # ----------------------------------------
     # $Init
     
-    def __transitparams_state_Init(self, e):
-        if e._message == "Next":
+    def __transitparams_state_Init(self, __e):
+        if __e._message == "Next":
             compartment = TransitParamsCompartment('__transitparams_state_A')
             compartment.enter_args["msg"] = "hi A"
             self.__transition(compartment)
@@ -55,14 +55,14 @@ class TransitParams:
     # ----------------------------------------
     # $A
     
-    def __transitparams_state_A(self, e):
-        if e._message == ">":
-            self.log_do(e._parameters["msg"])
+    def __transitparams_state_A(self, __e):
+        if __e._message == ">":
+            self.log_do(__e._parameters["msg"])
             return
-        elif e._message == "<":
+        elif __e._message == "<":
             self.log_do("bye A")
             return
-        elif e._message == "Next":
+        elif __e._message == "Next":
             compartment = TransitParamsCompartment('__transitparams_state_B')
             compartment.enter_args["msg"] = "hi B"
             compartment.enter_args["val"] = 42
@@ -72,16 +72,16 @@ class TransitParams:
     # ----------------------------------------
     # $B
     
-    def __transitparams_state_B(self, e):
-        if e._message == ">":
-            self.log_do(e._parameters["msg"])
-            self.log_do(str(e._parameters["val"]))
+    def __transitparams_state_B(self, __e):
+        if __e._message == ">":
+            self.log_do(__e._parameters["msg"])
+            self.log_do(str(__e._parameters["val"]))
             return
-        elif e._message == "<":
-            self.log_do(str(e._parameters["val"]))
-            self.log_do(e._parameters["msg"])
+        elif __e._message == "<":
+            self.log_do(str(__e._parameters["val"]))
+            self.log_do(__e._parameters["msg"])
             return
-        elif e._message == "Next":
+        elif __e._message == "Next":
             self.__compartment.exit_args["val"] = True
             self.__compartment.exit_args["msg"] = "bye B"
             compartment = TransitParamsCompartment('__transitparams_state_A')
@@ -96,10 +96,10 @@ class TransitParams:
     
     # ==================== System Runtime =================== #
     
-    def __kernel(self, e):
+    def __kernel(self, __e):
         
         # send event to current state
-        self.__router(e)
+        self.__router(__e)
         
         # loop until no transitions occur
         while self.__next_compartment != None:
@@ -127,13 +127,13 @@ class TransitParams:
                 next_compartment.forward_event = None
                 
     
-    def __router(self, e):
+    def __router(self, __e):
         if self.__compartment.state == '__transitparams_state_Init':
-            self.__transitparams_state_Init(e)
+            self.__transitparams_state_Init(__e)
         elif self.__compartment.state == '__transitparams_state_A':
-            self.__transitparams_state_A(e)
+            self.__transitparams_state_A(__e)
         elif self.__compartment.state == '__transitparams_state_B':
-            self.__transitparams_state_B(e)
+            self.__transitparams_state_B(__e)
         
     def __transition(self, compartment: 'TransitParamsCompartment'):
         self.__next_compartment = compartment

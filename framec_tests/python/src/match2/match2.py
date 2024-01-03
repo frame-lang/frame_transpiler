@@ -44,8 +44,8 @@ class MatchTests:
     # ----------------------------------------
     # $A
     
-    def __matchtests_state_A(self, e):
-        if e._message == ">":
+    def __matchtests_state_A(self, __e):
+        if __e._message == ">":
             self.matchFruit_do(MatchTests_Fruit.PEACH)
             self.matchFruit_do(MatchTests_Fruit.pear)
             self.matchFruit_do(MatchTests_Fruit.Banana)
@@ -167,10 +167,10 @@ class MatchTests:
     
     # ==================== System Runtime =================== #
     
-    def __kernel(self, e):
+    def __kernel(self, __e):
         
         # send event to current state
-        self.__router(e)
+        self.__router(__e)
         
         # loop until no transitions occur
         while self.__next_compartment != None:
@@ -198,9 +198,9 @@ class MatchTests:
                 next_compartment.forward_event = None
                 
     
-    def __router(self, e):
+    def __router(self, __e):
         if self.__compartment.state == '__matchtests_state_A':
-            self.__matchtests_state_A(e)
+            self.__matchtests_state_A(__e)
         
     def __transition(self, compartment: 'MatchTestsCompartment'):
         self.__next_compartment = compartment

@@ -35,50 +35,50 @@ class SimpleHandlerCalls:
     # ==================== Interface Block ================== #
     
     def A(self,):
-        e = FrameEvent("A",None)
-        self.__kernel(e)
+        __e = FrameEvent("A",None)
+        self.__kernel(__e)
     
     def B(self,):
-        e = FrameEvent("B",None)
-        self.__kernel(e)
+        __e = FrameEvent("B",None)
+        self.__kernel(__e)
     
     def C(self,):
-        e = FrameEvent("C",None)
-        self.__kernel(e)
+        __e = FrameEvent("C",None)
+        self.__kernel(__e)
     
     def D(self,):
-        e = FrameEvent("D",None)
-        self.__kernel(e)
+        __e = FrameEvent("D",None)
+        self.__kernel(__e)
     
     def E(self,):
-        e = FrameEvent("E",None)
-        self.__kernel(e)
+        __e = FrameEvent("E",None)
+        self.__kernel(__e)
     
     # ===================== Machine Block =================== #
     
     # ----------------------------------------
     # $Init
     
-    def __simplehandlercalls_state_Init(self, e):
-        if e._message == "A":
+    def __simplehandlercalls_state_Init(self, __e):
+        if __e._message == "A":
             compartment = SimpleHandlerCallsCompartment('__simplehandlercalls_state_A')
             self.__transition(compartment)
             return
-        elif e._message == "B":
+        elif __e._message == "B":
             compartment = SimpleHandlerCallsCompartment('__simplehandlercalls_state_B')
             self.__transition(compartment)
             return
-        elif e._message == "C":
+        elif __e._message == "C":
             self.A()
             return
             return
-        elif e._message == "D":
+        elif __e._message == "D":
             self.B()
             return
             compartment = SimpleHandlerCallsCompartment('__simplehandlercalls_state_A')
             self.__transition(compartment)
             return
-        elif e._message == "E":
+        elif __e._message == "E":
             self.D()
             return
             self.C()
@@ -88,24 +88,24 @@ class SimpleHandlerCalls:
     # ----------------------------------------
     # $A
     
-    def __simplehandlercalls_state_A(self, e):
+    def __simplehandlercalls_state_A(self, __e):
         pass
         
     
     # ----------------------------------------
     # $B
     
-    def __simplehandlercalls_state_B(self, e):
+    def __simplehandlercalls_state_B(self, __e):
         pass
         
     
     
     # ==================== System Runtime =================== #
     
-    def __kernel(self, e):
+    def __kernel(self, __e):
         
         # send event to current state
-        self.__router(e)
+        self.__router(__e)
         
         # loop until no transitions occur
         while self.__next_compartment != None:
@@ -133,13 +133,13 @@ class SimpleHandlerCalls:
                 next_compartment.forward_event = None
                 
     
-    def __router(self, e):
+    def __router(self, __e):
         if self.__compartment.state == '__simplehandlercalls_state_Init':
-            self.__simplehandlercalls_state_Init(e)
+            self.__simplehandlercalls_state_Init(__e)
         elif self.__compartment.state == '__simplehandlercalls_state_A':
-            self.__simplehandlercalls_state_A(e)
+            self.__simplehandlercalls_state_A(__e)
         elif self.__compartment.state == '__simplehandlercalls_state_B':
-            self.__simplehandlercalls_state_B(e)
+            self.__simplehandlercalls_state_B(__e)
         
     def __transition(self, compartment: 'SimpleHandlerCallsCompartment'):
         self.__next_compartment = compartment

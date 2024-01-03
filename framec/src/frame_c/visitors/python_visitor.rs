@@ -212,7 +212,7 @@ impl PythonVisitor {
                 //     code.push_str("(");
                 // }
                 code.push_str(&format!(
-                    "e._parameters[\"{}\"]",
+                    "__e._parameters[\"{}\"]",
                     variable_node.id_node.name.lexeme
                 ));
                 // if self.visiting_call_chain_literal_variable {
@@ -384,7 +384,6 @@ impl PythonVisitor {
             }
             None => {}
         }
-        self.newline();
 
         if self.marshal {
             self.newline();
@@ -579,7 +578,7 @@ impl PythonVisitor {
         self.add_code("# ==================== System Runtime =================== #");
         self.newline();
         self.newline();
-        self.add_code("def __kernel(self, e):");
+        self.add_code("def __kernel(self, __e):");
         self.indent();
 
         match &system_node.machine_block_node_opt {
@@ -588,7 +587,7 @@ impl PythonVisitor {
                 self.newline();
                 self.add_code("# send event to current state");
                 self.newline();
-                self.add_code("self.__router(e)");
+                self.add_code("self.__router(__e)");
                 self.newline();
                 self.newline();
                 self.add_code("# loop until no transitions occur");
@@ -650,7 +649,7 @@ impl PythonVisitor {
                 self.outdent();
                 self.newline();
                 self.newline();
-                self.add_code("def __router(self, e):");
+                self.add_code("def __router(self, __e):");
                 self.indent();
                 self.newline();
 
@@ -672,7 +671,7 @@ impl PythonVisitor {
                     }
                     self.indent();
                     self.newline();
-                    self.add_code(&format!("self.{}(e)", state_name));
+                    self.add_code(&format!("self.{}(__e)", state_name));
                     self.outdent();
                     if current_index != len {
                         self.newline();
@@ -1121,7 +1120,7 @@ impl PythonVisitor {
 
         if transition_expr_node.forward_event {
             self.newline();
-            self.add_code("compartment.forward_event = e");
+            self.add_code("compartment.forward_event = __e");
         }
 
         // self.newline();
@@ -1355,7 +1354,7 @@ impl PythonVisitor {
         self.newline();
 
         if transition_expr_node.forward_event {
-            self.add_code("compartment.forward_event = e");
+            self.add_code("compartment.forward_event = __e");
             self.newline();
         }
 
@@ -1616,6 +1615,11 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_module(&mut self, module: &Module) {
+
+        self.add_code(&format!("# {}", self.compiler_version));
+        self.newline();
+        self.newline();
+
         let mut generate_frame_event = true;
 
         for module_element in &module.module_elements {
@@ -1641,8 +1645,6 @@ impl AstVisitor for PythonVisitor {
             }
         }
 
-        self.add_code(&format!("# {}", self.compiler_version));
-        self.newline();
 
         if generate_frame_event {
             self.newline();
@@ -1683,7 +1685,6 @@ impl AstVisitor for PythonVisitor {
 
         self.system_name = system_node.name.clone();
 
-        self.newline();
         let _ = &system_node.module.accept(self);
 
         // Generate any enums
@@ -2281,18 +2282,18 @@ impl AstVisitor for PythonVisitor {
 
         self.newline();
         self.add_code(&format!(
-            "e = FrameEvent(\"{}\",{})",
+            "__e = FrameEvent(\"{}\",{})",
             method_name_or_alias, params_param_code
         ));
         if self.has_states {
             self.newline();
-            self.add_code("self.__kernel(e)");
+            self.add_code("self.__kernel(__e)");
         }
 
         match &interface_method_node.return_type_opt {
             Some(_) => {
                 self.newline();
-                self.add_code("return e._return");
+                self.add_code("return __e._return");
             }
             None => {}
         }
@@ -2545,7 +2546,7 @@ impl AstVisitor for PythonVisitor {
         self.newline();
         self.newline();
         self.add_code(&format!(
-            "def {}(self, e):",
+            "def {}(self, __e):",
             self.format_target_state_name(&state_node.name)
         ));
         self.indent();
@@ -2609,9 +2610,9 @@ impl AstVisitor for PythonVisitor {
         //        let mut generate_final_close_paren = true;
         if let MessageType::CustomMessage { message_node } = &evt_handler_node.msg_t {
             if self.first_event_handler {
-                self.add_code(&format!("if e._message == \"{}\":", message_node.name));
+                self.add_code(&format!("if __e._message == \"{}\":", message_node.name));
             } else {
-                self.add_code(&format!("elif e._message == \"{}\":", message_node.name));
+                self.add_code(&format!("elif __e._message == \"{}\":", message_node.name));
             }
         } else {
             // AnyMessage ( ||* )
@@ -2679,7 +2680,7 @@ impl AstVisitor for PythonVisitor {
                     if self.is_operation_scope {
                         self.add_code("return = ");
                     } else {
-                        self.add_code("e._return = ");
+                        self.add_code("__e._return = ");
                     }
                     expr_t.accept(self);
                     // expr_t.auto_post_inc_dec(self);
@@ -2874,7 +2875,7 @@ impl AstVisitor for PythonVisitor {
     fn visit_dispatch_node(&mut self, dispatch_node: &DispatchNode) {
         self.newline();
         self.add_code(&format!(
-            "self.{}(e)",
+            "self.{}(__e)",
             self.format_target_state_name(&dispatch_node.target_state_ref.name)
         ));
         self.generate_comment(dispatch_node.line);
@@ -3620,7 +3621,7 @@ impl AstVisitor for PythonVisitor {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
-                                self.add_code("e._return = ");
+                                self.add_code("__e._return = ");
                                 expr_t.accept(self);
                                 self.generate_return();
                             }
@@ -3686,7 +3687,7 @@ impl AstVisitor for PythonVisitor {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
-                                self.add_code("e._return = ");
+                                self.add_code("__e._return = ");
                                 expr_t.accept(self);
                                 self.generate_return();
                             }
@@ -3834,7 +3835,7 @@ impl AstVisitor for PythonVisitor {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
-                                self.add_code("e._return = ");
+                                self.add_code("__e._return = ");
                                 expr_t.accept(self);
                                 self.generate_return();
                             }
@@ -3902,7 +3903,7 @@ impl AstVisitor for PythonVisitor {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
-                                self.add_code("e._return = ");
+                                self.add_code("__e._return = ");
                                 expr_t.accept(self);
                                 self.generate_return();
                             }
@@ -4026,7 +4027,7 @@ impl AstVisitor for PythonVisitor {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
-                                self.add_code("e._return = ");
+                                self.add_code("__e._return = ");
                                 expr_t.accept(self);
                                 self.generate_return();
                             }
@@ -4067,7 +4068,7 @@ impl AstVisitor for PythonVisitor {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
-                                self.add_code("e._return = ");
+                                self.add_code("__e._return = ");
                                 expr_t.accept(self);
                                 self.generate_return();
                             }
@@ -4220,7 +4221,7 @@ impl AstVisitor for PythonVisitor {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
-                                self.add_code("e._return = ");
+                                self.add_code("__e._return = ");
                                 expr_t.accept(self);
                                 self.generate_return();
                             }
@@ -4284,7 +4285,7 @@ impl AstVisitor for PythonVisitor {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
-                                self.add_code("e._return = ");
+                                self.add_code("__e._return = ");
                                 expr_t.accept(self);
                                 self.generate_return();
                             }
@@ -4349,7 +4350,7 @@ impl AstVisitor for PythonVisitor {
         expr_list: &ExprListNode,
         output: &mut String,
     ) {
-        //        self.add_code(&format!("{}(e);\n",dispatch_node.target_state_ref.name));
+        //        self.add_code(&format!("{}(__e);\n",dispatch_node.target_state_ref.name));
 
         let mut separator = "";
         output.push('(');
@@ -4491,17 +4492,17 @@ impl AstVisitor for PythonVisitor {
             } => self.add_code("e"),
             FrameEventPart::Message {
                 is_reference: _is_reference,
-            } => self.add_code("e._message"),
+            } => self.add_code("__e._message"),
             FrameEventPart::Param {
                 param_symbol_rcref,
                 is_reference: _is_reference,
             } => self.add_code(&format!(
-                "e._parameters[\"{}\"]",
+                "__e._parameters[\"{}\"]",
                 param_symbol_rcref.borrow().name
             )),
             FrameEventPart::Return {
                 is_reference: _is_reference,
-            } => self.add_code("e._return"),
+            } => self.add_code("__e._return"),
         }
     }
 
@@ -4520,17 +4521,17 @@ impl AstVisitor for PythonVisitor {
             } => output.push('e'),
             FrameEventPart::Message {
                 is_reference: _is_reference,
-            } => output.push_str("e._message"),
+            } => output.push_str("__e._message"),
             FrameEventPart::Param {
                 param_symbol_rcref,
                 is_reference: _is_reference,
             } => output.push_str(&format!(
-                "e._parameters[\"{}\"]",
+                "__e._parameters[\"{}\"]",
                 param_symbol_rcref.borrow().name
             )),
             FrameEventPart::Return {
                 is_reference: _is_reference,
-            } => output.push_str("e._return"),
+            } => output.push_str("__e._return"),
         }
     }
 

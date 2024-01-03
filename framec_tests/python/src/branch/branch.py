@@ -37,68 +37,68 @@ class Branch:
     # ==================== Interface Block ================== #
     
     def A(self,):
-        e = FrameEvent("A",None)
-        self.__kernel(e)
+        __e = FrameEvent("A",None)
+        self.__kernel(__e)
     
     def B(self,):
-        e = FrameEvent("B",None)
-        self.__kernel(e)
+        __e = FrameEvent("B",None)
+        self.__kernel(__e)
     
     def C(self,):
-        e = FrameEvent("C",None)
-        self.__kernel(e)
+        __e = FrameEvent("C",None)
+        self.__kernel(__e)
     
     def D(self,):
-        e = FrameEvent("D",None)
-        self.__kernel(e)
+        __e = FrameEvent("D",None)
+        self.__kernel(__e)
     
     def E(self,):
-        e = FrameEvent("E",None)
-        self.__kernel(e)
+        __e = FrameEvent("E",None)
+        self.__kernel(__e)
     
     def F(self,):
-        e = FrameEvent("F",None)
-        self.__kernel(e)
+        __e = FrameEvent("F",None)
+        self.__kernel(__e)
     
     def OnBool(self,b: bool):
         parameters = {}
         parameters["b"] = b
-        e = FrameEvent("OnBool",parameters)
-        self.__kernel(e)
+        __e = FrameEvent("OnBool",parameters)
+        self.__kernel(__e)
     
     def OnInt(self,i: int):
         parameters = {}
         parameters["i"] = i
-        e = FrameEvent("OnInt",parameters)
-        self.__kernel(e)
+        __e = FrameEvent("OnInt",parameters)
+        self.__kernel(__e)
     
     # ===================== Machine Block =================== #
     
     # ----------------------------------------
     # $I
     
-    def __branch_state_I(self, e):
-        if e._message == "A":
+    def __branch_state_I(self, __e):
+        if __e._message == "A":
             compartment = BranchCompartment('__branch_state_SimpleIf')
             self.__transition(compartment)
             return
-        elif e._message == "B":
+        elif __e._message == "B":
             compartment = BranchCompartment('__branch_state_NegatedIf')
             self.__transition(compartment)
             return
-        elif e._message == "C":
+        elif __e._message == "C":
             compartment = BranchCompartment('__branch_state_Precedence')
             self.__transition(compartment)
             return
-        elif e._message == "D":
+        elif __e._message == "D":
             compartment = BranchCompartment('__branch_state_NestedIf')
             self.__transition(compartment)
             return
-        elif e._message == "E":
+        elif __e._message == "E":
             compartment = BranchCompartment('__branch_state_GuardedTransition')
             self.__transition(compartment)
             return
-        elif e._message == "F":
+        elif __e._message == "F":
             compartment = BranchCompartment('__branch_state_NestedGuardedTransition')
             self.__transition(compartment)
             return
@@ -106,24 +106,24 @@ class Branch:
     # ----------------------------------------
     # $SimpleIf
     
-    def __branch_state_SimpleIf(self, e):
-        if e._message == "OnBool":
-            if  e._parameters["b"]:
+    def __branch_state_SimpleIf(self, __e):
+        if __e._message == "OnBool":
+            if  __e._parameters["b"]:
                 self.log_do("then 1")
             else:
                 pass
             
-            if  e._parameters["b"]:
+            if  __e._parameters["b"]:
                 pass
             else:
                 self.log_do("else 1")
             
-            if  e._parameters["b"]:
+            if  __e._parameters["b"]:
                 self.log_do("then 2")
             else:
                 self.log_do("else 2")
             
-            if  e._parameters["b"]:
+            if  __e._parameters["b"]:
                 compartment = BranchCompartment('__branch_state_F1')
                 self.__transition(compartment)
                 return
@@ -133,18 +133,18 @@ class Branch:
                 return
             
             return
-        elif e._message == "OnInt":
-            if  e._parameters["i"] > 5:
+        elif __e._message == "OnInt":
+            if  __e._parameters["i"] > 5:
                 self.log_do("> 5")
             else:
                 self.log_do("<= 5")
             
-            if  e._parameters["i"] < 10:
+            if  __e._parameters["i"] < 10:
                 self.log_do("< 10")
             else:
                 self.log_do(">= 10")
             
-            if  e._parameters["i"] == 7:
+            if  __e._parameters["i"] == 7:
                 self.log_do("== 7")
                 compartment = BranchCompartment('__branch_state_F1')
                 self.__transition(compartment)
@@ -160,24 +160,24 @@ class Branch:
     # ----------------------------------------
     # $NegatedIf
     
-    def __branch_state_NegatedIf(self, e):
-        if e._message == "OnBool":
-            if  not (e._parameters["b"]):
+    def __branch_state_NegatedIf(self, __e):
+        if __e._message == "OnBool":
+            if  not (__e._parameters["b"]):
                 self.log_do("then 1")
             else:
                 pass
             
-            if  not (e._parameters["b"]):
+            if  not (__e._parameters["b"]):
                 pass
             else:
                 self.log_do("else 1")
             
-            if  not (e._parameters["b"]):
+            if  not (__e._parameters["b"]):
                 self.log_do("then 2")
             else:
                 self.log_do("else 2")
             
-            if  not (e._parameters["b"]):
+            if  not (__e._parameters["b"]):
                 compartment = BranchCompartment('__branch_state_F1')
                 self.__transition(compartment)
                 return
@@ -187,18 +187,18 @@ class Branch:
                 return
             
             return
-        elif e._message == "OnInt":
-            if  not (e._parameters["i"] >= 5):
+        elif __e._message == "OnInt":
+            if  not (__e._parameters["i"] >= 5):
                 self.log_do("< 5")
             else:
                 self.log_do(">= 5")
             
-            if  not (e._parameters["i"] <= 10):
+            if  not (__e._parameters["i"] <= 10):
                 self.log_do("> 10")
             else:
                 self.log_do("<= 10")
             
-            if  not (e._parameters["i"] != 7):
+            if  not (__e._parameters["i"] != 7):
                 self.log_do("== 7")
                 compartment = BranchCompartment('__branch_state_F1')
                 self.__transition(compartment)
@@ -214,24 +214,24 @@ class Branch:
     # ----------------------------------------
     # $Precedence
     
-    def __branch_state_Precedence(self, e):
-        if e._message == "OnInt":
-            if  -e._parameters["i"] >= 0 and -e._parameters["i"] <= 5:
+    def __branch_state_Precedence(self, __e):
+        if __e._message == "OnInt":
+            if  -__e._parameters["i"] >= 0 and -__e._parameters["i"] <= 5:
                 self.log_do("then 1")
             else:
                 self.log_do("else 1")
             
-            if   not (e._parameters["i"] >= -5 and e._parameters["i"] <= 5) and (e._parameters["i"] >= -10 and e._parameters["i"] <= 10):
+            if   not (__e._parameters["i"] >= -5 and __e._parameters["i"] <= 5) and (__e._parameters["i"] >= -10 and __e._parameters["i"] <= 10):
                 self.log_do("then 2")
             else:
                 self.log_do("else 2")
             
-            if  e._parameters["i"] >= 0 and e._parameters["i"] <= 5 or e._parameters["i"] >= 10 and e._parameters["i"] <= 20:
+            if  __e._parameters["i"] >= 0 and __e._parameters["i"] <= 5 or __e._parameters["i"] >= 10 and __e._parameters["i"] <= 20:
                 self.log_do("then 3")
             else:
                 self.log_do("else 3")
             
-            if  not ((e._parameters["i"] < 0 or e._parameters["i"] > 10) and e._parameters["i"] + 5 < 20):
+            if  not ((__e._parameters["i"] < 0 or __e._parameters["i"] > 10) and __e._parameters["i"] + 5 < 20):
                 self.log_do("then 4")
             else:
                 self.log_do("else 4")
@@ -241,11 +241,11 @@ class Branch:
     # ----------------------------------------
     # $NestedIf
     
-    def __branch_state_NestedIf(self, e):
-        if e._message == "OnInt":
-            if  e._parameters["i"] > 0:
+    def __branch_state_NestedIf(self, __e):
+        if __e._message == "OnInt":
+            if  __e._parameters["i"] > 0:
                 self.log_do("> 0")
-                if  e._parameters["i"] < 100:
+                if  __e._parameters["i"] < 100:
                     self.log_do("< 100")
                     compartment = BranchCompartment('__branch_state_F1')
                     self.__transition(compartment)
@@ -255,7 +255,7 @@ class Branch:
                 
             else:
                 self.log_do("<= 0")
-                if  e._parameters["i"] > -10:
+                if  __e._parameters["i"] > -10:
                     self.log_do("> -10")
                 else:
                     self.log_do("<= -10")
@@ -269,9 +269,9 @@ class Branch:
     # ----------------------------------------
     # $GuardedTransition
     
-    def __branch_state_GuardedTransition(self, e):
-        if e._message == "OnInt":
-            if  e._parameters["i"] > 100:
+    def __branch_state_GuardedTransition(self, __e):
+        if __e._message == "OnInt":
+            if  __e._parameters["i"] > 100:
                 self.log_do("-> $F1")
                 compartment = BranchCompartment('__branch_state_F1')
                 self.__transition(compartment)
@@ -279,7 +279,7 @@ class Branch:
             else:
                 pass
             
-            if  not (e._parameters["i"] > 10):
+            if  not (__e._parameters["i"] > 10):
                 pass
             else:
                 self.log_do("-> $F2")
@@ -295,10 +295,10 @@ class Branch:
     # ----------------------------------------
     # $NestedGuardedTransition
     
-    def __branch_state_NestedGuardedTransition(self, e):
-        if e._message == "OnInt":
-            if  e._parameters["i"] > 10:
-                if  e._parameters["i"] > 100:
+    def __branch_state_NestedGuardedTransition(self, __e):
+        if __e._message == "OnInt":
+            if  __e._parameters["i"] > 10:
+                if  __e._parameters["i"] > 100:
                     self.log_do("-> $F1")
                     compartment = BranchCompartment('__branch_state_F1')
                     self.__transition(compartment)
@@ -306,7 +306,7 @@ class Branch:
                 else:
                     pass
                 
-                if  e._parameters["i"] > 50:
+                if  __e._parameters["i"] > 50:
                     pass
                 else:
                     self.log_do("-> $F2")
@@ -325,21 +325,21 @@ class Branch:
     # ----------------------------------------
     # $F1
     
-    def __branch_state_F1(self, e):
+    def __branch_state_F1(self, __e):
         pass
         
     
     # ----------------------------------------
     # $F2
     
-    def __branch_state_F2(self, e):
+    def __branch_state_F2(self, __e):
         pass
         
     
     # ----------------------------------------
     # $F3
     
-    def __branch_state_F3(self, e):
+    def __branch_state_F3(self, __e):
         pass
         
     
@@ -350,10 +350,10 @@ class Branch:
     
     # ==================== System Runtime =================== #
     
-    def __kernel(self, e):
+    def __kernel(self, __e):
         
         # send event to current state
-        self.__router(e)
+        self.__router(__e)
         
         # loop until no transitions occur
         while self.__next_compartment != None:
@@ -381,27 +381,27 @@ class Branch:
                 next_compartment.forward_event = None
                 
     
-    def __router(self, e):
+    def __router(self, __e):
         if self.__compartment.state == '__branch_state_I':
-            self.__branch_state_I(e)
+            self.__branch_state_I(__e)
         elif self.__compartment.state == '__branch_state_SimpleIf':
-            self.__branch_state_SimpleIf(e)
+            self.__branch_state_SimpleIf(__e)
         elif self.__compartment.state == '__branch_state_NegatedIf':
-            self.__branch_state_NegatedIf(e)
+            self.__branch_state_NegatedIf(__e)
         elif self.__compartment.state == '__branch_state_Precedence':
-            self.__branch_state_Precedence(e)
+            self.__branch_state_Precedence(__e)
         elif self.__compartment.state == '__branch_state_NestedIf':
-            self.__branch_state_NestedIf(e)
+            self.__branch_state_NestedIf(__e)
         elif self.__compartment.state == '__branch_state_GuardedTransition':
-            self.__branch_state_GuardedTransition(e)
+            self.__branch_state_GuardedTransition(__e)
         elif self.__compartment.state == '__branch_state_NestedGuardedTransition':
-            self.__branch_state_NestedGuardedTransition(e)
+            self.__branch_state_NestedGuardedTransition(__e)
         elif self.__compartment.state == '__branch_state_F1':
-            self.__branch_state_F1(e)
+            self.__branch_state_F1(__e)
         elif self.__compartment.state == '__branch_state_F2':
-            self.__branch_state_F2(e)
+            self.__branch_state_F2(__e)
         elif self.__compartment.state == '__branch_state_F3':
-            self.__branch_state_F3(e)
+            self.__branch_state_F3(__e)
         
     def __transition(self, compartment: 'BranchCompartment'):
         self.__next_compartment = compartment

@@ -39,80 +39,80 @@ class VarScope:
     # ==================== Interface Block ================== #
     
     def to_nn(self,):
-        e = FrameEvent("to_nn",None)
-        self.__kernel(e)
+        __e = FrameEvent("to_nn",None)
+        self.__kernel(__e)
     
     def to_ny(self,):
-        e = FrameEvent("to_ny",None)
-        self.__kernel(e)
+        __e = FrameEvent("to_ny",None)
+        self.__kernel(__e)
     
     def to_yn(self,):
-        e = FrameEvent("to_yn",None)
-        self.__kernel(e)
+        __e = FrameEvent("to_yn",None)
+        self.__kernel(__e)
     
     def to_yy(self,):
-        e = FrameEvent("to_yy",None)
-        self.__kernel(e)
+        __e = FrameEvent("to_yy",None)
+        self.__kernel(__e)
     
     def nn(self,d: str):
         parameters = {}
         parameters["d"] = d
-        e = FrameEvent("nn",parameters)
-        self.__kernel(e)
+        __e = FrameEvent("nn",parameters)
+        self.__kernel(__e)
     
     def ny(self,d: str):
         parameters = {}
         parameters["d"] = d
-        e = FrameEvent("ny",parameters)
-        self.__kernel(e)
+        __e = FrameEvent("ny",parameters)
+        self.__kernel(__e)
     
     def yn(self,d: str,x: str):
         parameters = {}
         parameters["d"] = d
         parameters["x"] = x
-        e = FrameEvent("yn",parameters)
-        self.__kernel(e)
+        __e = FrameEvent("yn",parameters)
+        self.__kernel(__e)
     
     def yy(self,d: str,x: str):
         parameters = {}
         parameters["d"] = d
         parameters["x"] = x
-        e = FrameEvent("yy",parameters)
-        self.__kernel(e)
+        __e = FrameEvent("yy",parameters)
+        self.__kernel(__e)
     
     def sigils(self,x: str):
         parameters = {}
         parameters["x"] = x
-        e = FrameEvent("sigils",parameters)
-        self.__kernel(e)
+        __e = FrameEvent("sigils",parameters)
+        self.__kernel(__e)
     
     # ===================== Machine Block =================== #
     
     # ----------------------------------------
     # $Init
     
-    def __varscope_state_Init(self, e):
-        if e._message == "to_nn":
+    def __varscope_state_Init(self, __e):
+        if __e._message == "to_nn":
             compartment = VarScopeCompartment('__varscope_state_NN')
             compartment.state_args["b"] = "$NN[b]"
             compartment.state_vars["c"] = "$NN.c"
             self.__transition(compartment)
             return
-        elif e._message == "to_ny":
+        elif __e._message == "to_ny":
             compartment = VarScopeCompartment('__varscope_state_NY')
             compartment.state_args["b"] = "$NY[b]"
             compartment.state_vars["c"] = "$NY.c"
             compartment.state_vars["x"] = "$NY.x"
             self.__transition(compartment)
             return
-        elif e._message == "to_yn":
+        elif __e._message == "to_yn":
             compartment = VarScopeCompartment('__varscope_state_YN')
             compartment.state_args["b"] = "$YN[b]"
             compartment.state_args["x"] = "$YN[x]"
             compartment.state_vars["c"] = "$YN.c"
             self.__transition(compartment)
             return
-        elif e._message == "to_yy":
+        elif __e._message == "to_yy":
             compartment = VarScopeCompartment('__varscope_state_YY')
             compartment.state_args["b"] = "$YY[b]"
             compartment.state_args["x"] = "$YY[x]"
@@ -124,46 +124,46 @@ class VarScope:
     # ----------------------------------------
     # $NN
     
-    def __varscope_state_NN(self, e):
-        if e._message == "nn":
+    def __varscope_state_NN(self, __e):
+        if __e._message == "nn":
             et: str = "|nn|.e"
             self.log_do(self.a)
             self.log_do((self.__compartment.state_args["b"]))
             self.log_do((self.__compartment.state_vars["c"]))
-            self.log_do(e._parameters["d"])
+            self.log_do(__e._parameters["d"])
             self.log_do(et)
             self.log_do(self.x)
             return
-        elif e._message == "ny":
+        elif __e._message == "ny":
             et: str = "|ny|.e"
             x: str = "|ny|.x"
             self.log_do(self.a)
             self.log_do((self.__compartment.state_args["b"]))
             self.log_do((self.__compartment.state_vars["c"]))
-            self.log_do(e._parameters["d"])
+            self.log_do(__e._parameters["d"])
             self.log_do(et)
             self.log_do(x)
             return
-        elif e._message == "yn":
+        elif __e._message == "yn":
             et: str = "|yn|.e"
             self.log_do(self.a)
             self.log_do((self.__compartment.state_args["b"]))
             self.log_do((self.__compartment.state_vars["c"]))
-            self.log_do(e._parameters["d"])
+            self.log_do(__e._parameters["d"])
             self.log_do(et)
-            self.log_do(e._parameters["x"])
+            self.log_do(__e._parameters["x"])
             return
-        elif e._message == "yy":
+        elif __e._message == "yy":
             et: str = "|yy|.e"
             x: str = "|yy|.x"
             self.log_do(self.a)
             self.log_do((self.__compartment.state_args["b"]))
             self.log_do((self.__compartment.state_vars["c"]))
-            self.log_do(e._parameters["d"])
+            self.log_do(__e._parameters["d"])
             self.log_do(et)
             self.log_do(x)
             return
-        elif e._message == "sigils":
+        elif __e._message == "sigils":
             self.log_do(self.x)
             return
       #  var x:str = "|sigils|.x"
@@ -174,46 +174,46 @@ class VarScope:
     # ----------------------------------------
     # $NY
     
-    def __varscope_state_NY(self, e):
-        if e._message == "nn":
+    def __varscope_state_NY(self, __e):
+        if __e._message == "nn":
             et: str = "|nn|.e"
             self.log_do(self.a)
             self.log_do((self.__compartment.state_args["b"]))
             self.log_do((self.__compartment.state_vars["c"]))
-            self.log_do(e._parameters["d"])
+            self.log_do(__e._parameters["d"])
             self.log_do(et)
             self.log_do((self.__compartment.state_vars["x"]))
             return
-        elif e._message == "ny":
+        elif __e._message == "ny":
             et: str = "|ny|.e"
             x: str = "|ny|.x"
             self.log_do(self.a)
             self.log_do((self.__compartment.state_args["b"]))
             self.log_do((self.__compartment.state_vars["c"]))
-            self.log_do(e._parameters["d"])
+            self.log_do(__e._parameters["d"])
             self.log_do(et)
             self.log_do(x)
             return
-        elif e._message == "yn":
+        elif __e._message == "yn":
             et: str = "|yn|.e"
             self.log_do(self.a)
             self.log_do((self.__compartment.state_args["b"]))
             self.log_do((self.__compartment.state_vars["c"]))
-            self.log_do(e._parameters["d"])
+            self.log_do(__e._parameters["d"])
             self.log_do(et)
-            self.log_do(e._parameters["x"])
+            self.log_do(__e._parameters["x"])
             return
-        elif e._message == "yy":
+        elif __e._message == "yy":
             et: str = "|yy|.e"
             x: str = "|yy|.x"
             self.log_do(self.a)
             self.log_do((self.__compartment.state_args["b"]))
             self.log_do((self.__compartment.state_vars["c"]))
-            self.log_do(e._parameters["d"])
+            self.log_do(__e._parameters["d"])
             self.log_do(et)
             self.log_do(x)
             return
-        elif e._message == "sigils":
+        elif __e._message == "sigils":
             self.log_do(self.x)
             return
       #  var x:str = "|sigils|.x"
@@ -225,46 +225,46 @@ class VarScope:
     # ----------------------------------------
     # $YN
     
-    def __varscope_state_YN(self, e):
-        if e._message == "nn":
+    def __varscope_state_YN(self, __e):
+        if __e._message == "nn":
             et: str = "|nn|.e"
             self.log_do(self.a)
             self.log_do((self.__compartment.state_args["b"]))
             self.log_do((self.__compartment.state_vars["c"]))
-            self.log_do(e._parameters["d"])
+            self.log_do(__e._parameters["d"])
             self.log_do(et)
             self.log_do((self.__compartment.state_args["x"]))
             return
-        elif e._message == "ny":
+        elif __e._message == "ny":
             et: str = "|ny|.e"
             x: str = "|ny|.x"
             self.log_do(self.a)
             self.log_do((self.__compartment.state_args["b"]))
             self.log_do((self.__compartment.state_vars["c"]))
-            self.log_do(e._parameters["d"])
+            self.log_do(__e._parameters["d"])
             self.log_do(et)
             self.log_do(x)
             return
-        elif e._message == "yn":
+        elif __e._message == "yn":
             et: str = "|yn|.e"
             self.log_do(self.a)
             self.log_do((self.__compartment.state_args["b"]))
             self.log_do((self.__compartment.state_vars["c"]))
-            self.log_do(e._parameters["d"])
+            self.log_do(__e._parameters["d"])
             self.log_do(et)
-            self.log_do(e._parameters["x"])
+            self.log_do(__e._parameters["x"])
             return
-        elif e._message == "yy":
+        elif __e._message == "yy":
             et: str = "|yy|.e"
             x: str = "|yy|.x"
             self.log_do(self.a)
             self.log_do((self.__compartment.state_args["b"]))
             self.log_do((self.__compartment.state_vars["c"]))
-            self.log_do(e._parameters["d"])
+            self.log_do(__e._parameters["d"])
             self.log_do(et)
             self.log_do(x)
             return
-        elif e._message == "sigils":
+        elif __e._message == "sigils":
             self.log_do(self.x)
             return
       #  var x:str = "|sigils|.x"
@@ -276,46 +276,46 @@ class VarScope:
     # ----------------------------------------
     # $YY
     
-    def __varscope_state_YY(self, e):
-        if e._message == "nn":
+    def __varscope_state_YY(self, __e):
+        if __e._message == "nn":
             et: str = "|nn|.e"
             self.log_do(self.a)
             self.log_do((self.__compartment.state_args["b"]))
             self.log_do((self.__compartment.state_vars["c"]))
-            self.log_do(e._parameters["d"])
+            self.log_do(__e._parameters["d"])
             self.log_do(et)
             self.log_do((self.__compartment.state_vars["x"]))
             return
-        elif e._message == "ny":
+        elif __e._message == "ny":
             et: str = "|ny|.e"
             x: str = "|ny|.x"
             self.log_do(self.a)
             self.log_do((self.__compartment.state_args["b"]))
             self.log_do((self.__compartment.state_vars["c"]))
-            self.log_do(e._parameters["d"])
+            self.log_do(__e._parameters["d"])
             self.log_do(et)
             self.log_do(x)
             return
-        elif e._message == "yn":
+        elif __e._message == "yn":
             et: str = "|yn|.e"
             self.log_do(self.a)
             self.log_do((self.__compartment.state_args["b"]))
             self.log_do((self.__compartment.state_vars["c"]))
-            self.log_do(e._parameters["d"])
+            self.log_do(__e._parameters["d"])
             self.log_do(et)
-            self.log_do(e._parameters["x"])
+            self.log_do(__e._parameters["x"])
             return
-        elif e._message == "yy":
+        elif __e._message == "yy":
             et: str = "|yy|.e"
             x: str = "|yy|.x"
             self.log_do(self.a)
             self.log_do((self.__compartment.state_args["b"]))
             self.log_do((self.__compartment.state_vars["c"]))
-            self.log_do(e._parameters["d"])
+            self.log_do(__e._parameters["d"])
             self.log_do(et)
             self.log_do(x)
             return
-        elif e._message == "sigils":
+        elif __e._message == "sigils":
             self.log_do(self.x)
             return
     
@@ -326,10 +326,10 @@ class VarScope:
     
     # ==================== System Runtime =================== #
     
-    def __kernel(self, e):
+    def __kernel(self, __e):
         
         # send event to current state
-        self.__router(e)
+        self.__router(__e)
         
         # loop until no transitions occur
         while self.__next_compartment != None:
@@ -357,17 +357,17 @@ class VarScope:
                 next_compartment.forward_event = None
                 
     
-    def __router(self, e):
+    def __router(self, __e):
         if self.__compartment.state == '__varscope_state_Init':
-            self.__varscope_state_Init(e)
+            self.__varscope_state_Init(__e)
         elif self.__compartment.state == '__varscope_state_NN':
-            self.__varscope_state_NN(e)
+            self.__varscope_state_NN(__e)
         elif self.__compartment.state == '__varscope_state_NY':
-            self.__varscope_state_NY(e)
+            self.__varscope_state_NY(__e)
         elif self.__compartment.state == '__varscope_state_YN':
-            self.__varscope_state_YN(e)
+            self.__varscope_state_YN(__e)
         elif self.__compartment.state == '__varscope_state_YY':
-            self.__varscope_state_YY(e)
+            self.__varscope_state_YY(__e)
         
     def __transition(self, compartment: 'VarScopeCompartment'):
         self.__next_compartment = compartment

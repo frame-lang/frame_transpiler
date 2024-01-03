@@ -41,53 +41,53 @@ class StateStack:
     # ==================== Interface Block ================== #
     
     def to_a(self,):
-        e = FrameEvent("to_a",None)
-        self.__kernel(e)
+        __e = FrameEvent("to_a",None)
+        self.__kernel(__e)
     
     def to_b(self,):
-        e = FrameEvent("to_b",None)
-        self.__kernel(e)
+        __e = FrameEvent("to_b",None)
+        self.__kernel(__e)
     
     def to_c(self,):
-        e = FrameEvent("to_c",None)
-        self.__kernel(e)
+        __e = FrameEvent("to_c",None)
+        self.__kernel(__e)
     
     def push(self,):
-        e = FrameEvent("push",None)
-        self.__kernel(e)
+        __e = FrameEvent("push",None)
+        self.__kernel(__e)
     
     def pop(self,):
-        e = FrameEvent("pop",None)
-        self.__kernel(e)
+        __e = FrameEvent("pop",None)
+        self.__kernel(__e)
     
     # ===================== Machine Block =================== #
     
     # ----------------------------------------
     # $A
     
-    def __statestack_state_A(self, e):
-        if e._message == ">":
+    def __statestack_state_A(self, __e):
+        if __e._message == ">":
             self.log_do("A:>")
             return
-        elif e._message == "<":
+        elif __e._message == "<":
             self.log_do("A:<")
             return
-        elif e._message == "to_a":
+        elif __e._message == "to_a":
             compartment = StateStackCompartment('__statestack_state_A')
             self.__transition(compartment)
             return
-        elif e._message == "to_b":
+        elif __e._message == "to_b":
             compartment = StateStackCompartment('__statestack_state_B')
             self.__transition(compartment)
             return
-        elif e._message == "to_c":
+        elif __e._message == "to_c":
             compartment = StateStackCompartment('__statestack_state_C')
             self.__transition(compartment)
             return
-        elif e._message == "push":
+        elif __e._message == "push":
             self.__state_stack_push(self.__compartment)
             return
-        elif e._message == "pop":
+        elif __e._message == "pop":
             compartment = self.__state_stack_pop()
             self.__transition(compartment)
             return
@@ -95,29 +95,29 @@ class StateStack:
     # ----------------------------------------
     # $B
     
-    def __statestack_state_B(self, e):
-        if e._message == ">":
+    def __statestack_state_B(self, __e):
+        if __e._message == ">":
             self.log_do("B:>")
             return
-        elif e._message == "<":
+        elif __e._message == "<":
             self.log_do("B:<")
             return
-        elif e._message == "to_a":
+        elif __e._message == "to_a":
             compartment = StateStackCompartment('__statestack_state_A')
             self.__transition(compartment)
             return
-        elif e._message == "to_b":
+        elif __e._message == "to_b":
             compartment = StateStackCompartment('__statestack_state_B')
             self.__transition(compartment)
             return
-        elif e._message == "to_c":
+        elif __e._message == "to_c":
             compartment = StateStackCompartment('__statestack_state_C')
             self.__transition(compartment)
             return
-        elif e._message == "push":
+        elif __e._message == "push":
             self.__state_stack_push(self.__compartment)
             return
-        elif e._message == "pop":
+        elif __e._message == "pop":
             compartment = self.__state_stack_pop()
             self.__transition(compartment)
             return
@@ -125,29 +125,29 @@ class StateStack:
     # ----------------------------------------
     # $C
     
-    def __statestack_state_C(self, e):
-        if e._message == ">":
+    def __statestack_state_C(self, __e):
+        if __e._message == ">":
             self.log_do("C:>")
             return
-        elif e._message == "<":
+        elif __e._message == "<":
             self.log_do("C:<")
             return
-        elif e._message == "to_a":
+        elif __e._message == "to_a":
             compartment = StateStackCompartment('__statestack_state_A')
             self.__transition(compartment)
             return
-        elif e._message == "to_b":
+        elif __e._message == "to_b":
             compartment = StateStackCompartment('__statestack_state_B')
             self.__transition(compartment)
             return
-        elif e._message == "to_c":
+        elif __e._message == "to_c":
             compartment = StateStackCompartment('__statestack_state_C')
             self.__transition(compartment)
             return
-        elif e._message == "push":
+        elif __e._message == "push":
             self.__state_stack_push(self.__compartment)
             return
-        elif e._message == "pop":
+        elif __e._message == "pop":
             compartment = self.__state_stack_pop()
             self.__transition(compartment)
             return
@@ -159,10 +159,10 @@ class StateStack:
     
     # ==================== System Runtime =================== #
     
-    def __kernel(self, e):
+    def __kernel(self, __e):
         
         # send event to current state
-        self.__router(e)
+        self.__router(__e)
         
         # loop until no transitions occur
         while self.__next_compartment != None:
@@ -190,13 +190,13 @@ class StateStack:
                 next_compartment.forward_event = None
                 
     
-    def __router(self, e):
+    def __router(self, __e):
         if self.__compartment.state == '__statestack_state_A':
-            self.__statestack_state_A(e)
+            self.__statestack_state_A(__e)
         elif self.__compartment.state == '__statestack_state_B':
-            self.__statestack_state_B(e)
+            self.__statestack_state_B(__e)
         elif self.__compartment.state == '__statestack_state_C':
-            self.__statestack_state_C(e)
+            self.__statestack_state_C(__e)
         
     def __transition(self, compartment: 'StateStackCompartment'):
         self.__next_compartment = compartment

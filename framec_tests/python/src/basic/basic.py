@@ -38,26 +38,26 @@ class Basic:
     # ==================== Interface Block ================== #
     
     def A(self,):
-        e = FrameEvent("A",None)
-        self.__kernel(e)
+        __e = FrameEvent("A",None)
+        self.__kernel(__e)
     
     def B(self,):
-        e = FrameEvent("B",None)
-        self.__kernel(e)
+        __e = FrameEvent("B",None)
+        self.__kernel(__e)
     
     # ===================== Machine Block =================== #
     
     # ----------------------------------------
     # $S0
     
-    def __basic_state_S0(self, e):
-        if e._message == ">":
+    def __basic_state_S0(self, __e):
+        if __e._message == ">":
             self.entered_do("S0")
             return
-        elif e._message == "<":
+        elif __e._message == "<":
             self.left_do("S0")
             return
-        elif e._message == "A":
+        elif __e._message == "A":
             # ooh
             compartment = BasicCompartment('__basic_state_S1')
             self.__transition(compartment)
@@ -66,14 +66,14 @@ class Basic:
     # ----------------------------------------
     # $S1
     
-    def __basic_state_S1(self, e):
-        if e._message == ">":
+    def __basic_state_S1(self, __e):
+        if __e._message == ">":
             self.entered_do("S1")
             return
-        elif e._message == "<":
+        elif __e._message == "<":
             self.left_do("S1")
             return
-        elif e._message == "B":
+        elif __e._message == "B":
             # aah
             compartment = BasicCompartment('__basic_state_S0')
             self.__transition(compartment)
@@ -89,10 +89,10 @@ class Basic:
     
     # ==================== System Runtime =================== #
     
-    def __kernel(self, e):
+    def __kernel(self, __e):
         
         # send event to current state
-        self.__router(e)
+        self.__router(__e)
         
         # loop until no transitions occur
         while self.__next_compartment != None:
@@ -120,11 +120,11 @@ class Basic:
                 next_compartment.forward_event = None
                 
     
-    def __router(self, e):
+    def __router(self, __e):
         if self.__compartment.state == '__basic_state_S0':
-            self.__basic_state_S0(e)
+            self.__basic_state_S0(__e)
         elif self.__compartment.state == '__basic_state_S1':
-            self.__basic_state_S1(e)
+            self.__basic_state_S1(__e)
         
     def __transition(self, compartment: 'BasicCompartment'):
         self.__next_compartment = compartment

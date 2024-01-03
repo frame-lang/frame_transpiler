@@ -30,16 +30,16 @@ class ChangeStateSm:
     # ==================== Interface Block ================== #
     
     def change(self,):
-        e = FrameEvent("change",None)
-        self.__kernel(e)
+        __e = FrameEvent("change",None)
+        self.__kernel(__e)
     
     # ===================== Machine Block =================== #
     
     # ----------------------------------------
     # $S0
     
-    def __changestatesm_state_S0(self, e):
-        if e._message == "change":
+    def __changestatesm_state_S0(self, __e):
+        if __e._message == "change":
             compartment = ChangeStateSmCompartment('__changestatesm_state_S1')
             
             self.__change_state(compartment)
@@ -48,8 +48,8 @@ class ChangeStateSm:
     # ----------------------------------------
     # $S1
     
-    def __changestatesm_state_S1(self, e):
-        if e._message == "change":
+    def __changestatesm_state_S1(self, __e):
+        if __e._message == "change":
             compartment = ChangeStateSmCompartment('__changestatesm_state_S2')
             
             self.__change_state(compartment)
@@ -58,8 +58,8 @@ class ChangeStateSm:
     # ----------------------------------------
     # $S2
     
-    def __changestatesm_state_S2(self, e):
-        if e._message == "change":
+    def __changestatesm_state_S2(self, __e):
+        if __e._message == "change":
             compartment = ChangeStateSmCompartment('__changestatesm_state_S3')
             
             self.__change_state(compartment)
@@ -68,8 +68,8 @@ class ChangeStateSm:
     # ----------------------------------------
     # $S3
     
-    def __changestatesm_state_S3(self, e):
-        if e._message == "change":
+    def __changestatesm_state_S3(self, __e):
+        if __e._message == "change":
             compartment = ChangeStateSmCompartment('__changestatesm_state_S4')
             
             self.__change_state(compartment)
@@ -78,8 +78,8 @@ class ChangeStateSm:
     # ----------------------------------------
     # $S4
     
-    def __changestatesm_state_S4(self, e):
-        if e._message == "change":
+    def __changestatesm_state_S4(self, __e):
+        if __e._message == "change":
             compartment = ChangeStateSmCompartment('__changestatesm_state_S0')
             
             self.__change_state(compartment)
@@ -88,10 +88,10 @@ class ChangeStateSm:
     
     # ==================== System Runtime =================== #
     
-    def __kernel(self, e):
+    def __kernel(self, __e):
         
         # send event to current state
-        self.__router(e)
+        self.__router(__e)
         
         # loop until no transitions occur
         while self.__next_compartment != None:
@@ -119,17 +119,17 @@ class ChangeStateSm:
                 next_compartment.forward_event = None
                 
     
-    def __router(self, e):
+    def __router(self, __e):
         if self.__compartment.state == '__changestatesm_state_S0':
-            self.__changestatesm_state_S0(e)
+            self.__changestatesm_state_S0(__e)
         elif self.__compartment.state == '__changestatesm_state_S1':
-            self.__changestatesm_state_S1(e)
+            self.__changestatesm_state_S1(__e)
         elif self.__compartment.state == '__changestatesm_state_S2':
-            self.__changestatesm_state_S2(e)
+            self.__changestatesm_state_S2(__e)
         elif self.__compartment.state == '__changestatesm_state_S3':
-            self.__changestatesm_state_S3(e)
+            self.__changestatesm_state_S3(__e)
         elif self.__compartment.state == '__changestatesm_state_S4':
-            self.__changestatesm_state_S4(e)
+            self.__changestatesm_state_S4(__e)
         
     def __transition(self, compartment: 'ChangeStateSmCompartment'):
         self.__next_compartment = compartment

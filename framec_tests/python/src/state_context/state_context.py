@@ -38,23 +38,23 @@ class StateContextSm:
     # ==================== Interface Block ================== #
     
     def Start(self,):
-        e = FrameEvent("Start",None)
-        self.__kernel(e)
+        __e = FrameEvent("Start",None)
+        self.__kernel(__e)
     
     def LogState(self,):
-        e = FrameEvent("LogState",None)
-        self.__kernel(e)
+        __e = FrameEvent("LogState",None)
+        self.__kernel(__e)
     
     def Inc(self,):
-        e = FrameEvent("Inc",None)
-        self.__kernel(e)
-        return e._return
+        __e = FrameEvent("Inc",None)
+        self.__kernel(__e)
+        return __e._return
     
     def Next(self,arg: int):
         parameters = {}
         parameters["arg"] = arg
-        e = FrameEvent("Next",parameters)
-        self.__kernel(e)
+        __e = FrameEvent("Next",parameters)
+        self.__kernel(__e)
     
     # ===================== Machine Block =================== #
       #  Change [arg:int]
@@ -63,21 +63,21 @@ class StateContextSm:
     # ----------------------------------------
     # $Init
     
-    def __statecontextsm_state_Init(self, e):
-        if e._message == ">":
+    def __statecontextsm_state_Init(self, __e):
+        if __e._message == ">":
             (self.__compartment.state_vars["w"]) = 3
             self.log_do("w",(self.__compartment.state_vars["w"]))
             return
-        elif e._message == "Inc":
+        elif __e._message == "Inc":
             (self.__compartment.state_vars["w"]) = self.__compartment.state_vars["w"] + 1
             self.log_do("w",(self.__compartment.state_vars["w"]))
-            e._return = (self.__compartment.state_vars["w"])
+            __e._return = (self.__compartment.state_vars["w"])
             return
             
-        elif e._message == "LogState":
+        elif __e._message == "LogState":
             self.log_do("w",(self.__compartment.state_vars["w"]))
             return
-        elif e._message == "Start":
+        elif __e._message == "Start":
             compartment = StateContextSmCompartment('__statecontextsm_state_Foo')
             compartment.enter_args["a"] = 3
             compartment.enter_args["b"] = self.__compartment.state_vars["w"]
@@ -88,29 +88,29 @@ class StateContextSm:
     # ----------------------------------------
     # $Foo
     
-    def __statecontextsm_state_Foo(self, e):
-        if e._message == ">":
-            self.log_do("a",e._parameters["a"])
-            self.log_do("b",e._parameters["b"])
-            (self.__compartment.state_vars["x"]) = e._parameters["a"] * e._parameters["b"]
+    def __statecontextsm_state_Foo(self, __e):
+        if __e._message == ">":
+            self.log_do("a",__e._parameters["a"])
+            self.log_do("b",__e._parameters["b"])
+            (self.__compartment.state_vars["x"]) = __e._parameters["a"] * __e._parameters["b"]
             self.log_do("x",(self.__compartment.state_vars["x"]))
             return
-        elif e._message == "<":
-            self.log_do("c",e._parameters["c"])
-            (self.__compartment.state_vars["x"]) = self.__compartment.state_vars["x"] + e._parameters["c"]
+        elif __e._message == "<":
+            self.log_do("c",__e._parameters["c"])
+            (self.__compartment.state_vars["x"]) = self.__compartment.state_vars["x"] + __e._parameters["c"]
             self.log_do("x",(self.__compartment.state_vars["x"]))
             return
-        elif e._message == "LogState":
+        elif __e._message == "LogState":
             self.log_do("x",(self.__compartment.state_vars["x"]))
             return
-        elif e._message == "Inc":
+        elif __e._message == "Inc":
             (self.__compartment.state_vars["x"]) = self.__compartment.state_vars["x"] + 1
             self.log_do("x",(self.__compartment.state_vars["x"]))
-            e._return = (self.__compartment.state_vars["x"])
+            __e._return = (self.__compartment.state_vars["x"])
             return
             
-        elif e._message == "Next":
-            tmp = e._parameters["arg"] * 10
+        elif __e._message == "Next":
+            tmp = __e._parameters["arg"] * 10
             self.__compartment.exit_args["c"] = 10
             compartment = StateContextSmCompartment('__statecontextsm_state_Bar')
             compartment.enter_args["a"] = tmp
@@ -128,21 +128,21 @@ class StateContextSm:
     # ----------------------------------------
     # $Bar
     
-    def __statecontextsm_state_Bar(self, e):
-        if e._message == ">":
-            self.log_do("a",e._parameters["a"])
+    def __statecontextsm_state_Bar(self, __e):
+        if __e._message == ">":
+            self.log_do("a",__e._parameters["a"])
             self.log_do("y",(self.__compartment.state_args["y"]))
-            (self.__compartment.state_vars["z"]) = e._parameters["a"] + self.__compartment.state_args["y"]
+            (self.__compartment.state_vars["z"]) = __e._parameters["a"] + self.__compartment.state_args["y"]
             self.log_do("z",(self.__compartment.state_vars["z"]))
             return
-        elif e._message == "LogState":
+        elif __e._message == "LogState":
             self.log_do("y",(self.__compartment.state_args["y"]))
             self.log_do("z",(self.__compartment.state_vars["z"]))
             return
-        elif e._message == "Inc":
+        elif __e._message == "Inc":
             (self.__compartment.state_vars["z"]) = self.__compartment.state_vars["z"] + 1
             self.log_do("z",(self.__compartment.state_vars["z"]))
-            e._return = (self.__compartment.state_vars["z"])
+            __e._return = (self.__compartment.state_vars["z"])
             return
             
     
@@ -153,10 +153,10 @@ class StateContextSm:
     
     # ==================== System Runtime =================== #
     
-    def __kernel(self, e):
+    def __kernel(self, __e):
         
         # send event to current state
-        self.__router(e)
+        self.__router(__e)
         
         # loop until no transitions occur
         while self.__next_compartment != None:
@@ -184,13 +184,13 @@ class StateContextSm:
                 next_compartment.forward_event = None
                 
     
-    def __router(self, e):
+    def __router(self, __e):
         if self.__compartment.state == '__statecontextsm_state_Init':
-            self.__statecontextsm_state_Init(e)
+            self.__statecontextsm_state_Init(__e)
         elif self.__compartment.state == '__statecontextsm_state_Foo':
-            self.__statecontextsm_state_Foo(e)
+            self.__statecontextsm_state_Foo(__e)
         elif self.__compartment.state == '__statecontextsm_state_Bar':
-            self.__statecontextsm_state_Bar(e)
+            self.__statecontextsm_state_Bar(__e)
         
     def __transition(self, compartment: 'StateContextSmCompartment'):
         self.__next_compartment = compartment

@@ -37,53 +37,53 @@ class HandlerCalls:
     # ==================== Interface Block ================== #
     
     def NonRec(self,):
-        e = FrameEvent("NonRec",None)
-        self.__kernel(e)
+        __e = FrameEvent("NonRec",None)
+        self.__kernel(__e)
     
     def SelfRec(self,):
-        e = FrameEvent("SelfRec",None)
-        self.__kernel(e)
+        __e = FrameEvent("SelfRec",None)
+        self.__kernel(__e)
     
     def MutRec(self,):
-        e = FrameEvent("MutRec",None)
-        self.__kernel(e)
+        __e = FrameEvent("MutRec",None)
+        self.__kernel(__e)
     
     def Call(self,event: str,arg: int):
         parameters = {}
         parameters["event"] = event
         parameters["arg"] = arg
-        e = FrameEvent("Call",parameters)
-        self.__kernel(e)
+        __e = FrameEvent("Call",parameters)
+        self.__kernel(__e)
     
     def Foo(self,arg: int):
         parameters = {}
         parameters["arg"] = arg
-        e = FrameEvent("Foo",parameters)
-        self.__kernel(e)
+        __e = FrameEvent("Foo",parameters)
+        self.__kernel(__e)
     
     def Bar(self,arg: int):
         parameters = {}
         parameters["arg"] = arg
-        e = FrameEvent("Bar",parameters)
-        self.__kernel(e)
+        __e = FrameEvent("Bar",parameters)
+        self.__kernel(__e)
     
     # ===================== Machine Block =================== #
     
     # ----------------------------------------
     # $Init
     
-    def __handlercalls_state_Init(self, e):
-        if e._message == "NonRec":
+    def __handlercalls_state_Init(self, __e):
+        if __e._message == "NonRec":
             compartment = HandlerCallsCompartment('__handlercalls_state_NonRecursive')
             compartment.state_vars["counter"] = 0
             self.__transition(compartment)
             return
-        elif e._message == "SelfRec":
+        elif __e._message == "SelfRec":
             compartment = HandlerCallsCompartment('__handlercalls_state_SelfRecursive')
             compartment.state_vars["counter"] = 0
             self.__transition(compartment)
             return
-        elif e._message == "MutRec":
+        elif __e._message == "MutRec":
             compartment = HandlerCallsCompartment('__handlercalls_state_MutuallyRecursive')
             compartment.state_vars["counter"] = 0
             self.__transition(compartment)
@@ -92,28 +92,28 @@ class HandlerCalls:
     # ----------------------------------------
     # $NonRecursive
     
-    def __handlercalls_state_NonRecursive(self, e):
-        if e._message == "Foo":
-            self.log_do("Foo",e._parameters["arg"])
-            (self.__compartment.state_vars["counter"]) = self.__compartment.state_vars["counter"] + e._parameters["arg"]
-            self.Bar(e._parameters["arg"] * 2)
+    def __handlercalls_state_NonRecursive(self, __e):
+        if __e._message == "Foo":
+            self.log_do("Foo",__e._parameters["arg"])
+            (self.__compartment.state_vars["counter"]) = self.__compartment.state_vars["counter"] + __e._parameters["arg"]
+            self.Bar(__e._parameters["arg"] * 2)
             return
             self.log_do("Unreachable",0)
             return
           #  the front-end should report the next line as a static error
-        elif e._message == "Bar":
-            self.log_do("Bar",e._parameters["arg"])
-            (self.__compartment.state_vars["counter"]) = self.__compartment.state_vars["counter"] + e._parameters["arg"]
+        elif __e._message == "Bar":
+            self.log_do("Bar",__e._parameters["arg"])
+            (self.__compartment.state_vars["counter"]) = self.__compartment.state_vars["counter"] + __e._parameters["arg"]
             compartment = HandlerCallsCompartment('__handlercalls_state_Final')
             compartment.state_args["counter"] = self.__compartment.state_vars["counter"]
             self.__transition(compartment)
             return
-        elif e._message == "Call":
-            if ((e._parameters["event"] == "Foo")):
-                self.Foo(e._parameters["arg"])
+        elif __e._message == "Call":
+            if ((__e._parameters["event"] == "Foo")):
+                self.Foo(__e._parameters["arg"])
                 return
-            elif ((e._parameters["event"] == "Bar")):
-                self.Bar(e._parameters["arg"])
+            elif ((__e._parameters["event"] == "Bar")):
+                self.Bar(__e._parameters["arg"])
                 return
             
             else:
@@ -125,12 +125,12 @@ class HandlerCalls:
     # ----------------------------------------
     # $SelfRecursive
     
-    def __handlercalls_state_SelfRecursive(self, e):
-        if e._message == "Foo":
-            self.log_do("Foo",e._parameters["arg"])
-            (self.__compartment.state_vars["counter"]) = self.__compartment.state_vars["counter"] + e._parameters["arg"]
+    def __handlercalls_state_SelfRecursive(self, __e):
+        if __e._message == "Foo":
+            self.log_do("Foo",__e._parameters["arg"])
+            (self.__compartment.state_vars["counter"]) = self.__compartment.state_vars["counter"] + __e._parameters["arg"]
             if  (self.__compartment.state_vars["counter"]) < 100:
-                self.Foo(e._parameters["arg"] * 2)
+                self.Foo(__e._parameters["arg"] * 2)
                 return
             else:
                 compartment = HandlerCallsCompartment('__handlercalls_state_Final')
@@ -139,19 +139,19 @@ class HandlerCalls:
                 return
             
             return
-        elif e._message == "Bar":
-            self.log_do("Bar",e._parameters["arg"])
-            (self.__compartment.state_vars["counter"]) = self.__compartment.state_vars["counter"] + e._parameters["arg"]
+        elif __e._message == "Bar":
+            self.log_do("Bar",__e._parameters["arg"])
+            (self.__compartment.state_vars["counter"]) = self.__compartment.state_vars["counter"] + __e._parameters["arg"]
             compartment = HandlerCallsCompartment('__handlercalls_state_Final')
             compartment.state_args["counter"] = self.__compartment.state_vars["counter"]
             self.__transition(compartment)
             return
-        elif e._message == "Call":
-            if ((e._parameters["event"] == "Foo")):
-                self.Foo(e._parameters["arg"])
+        elif __e._message == "Call":
+            if ((__e._parameters["event"] == "Foo")):
+                self.Foo(__e._parameters["arg"])
                 return
-            elif ((e._parameters["event"] == "Bar")):
-                self.Bar(e._parameters["arg"])
+            elif ((__e._parameters["event"] == "Bar")):
+                self.Bar(__e._parameters["arg"])
                 return
             
             else:
@@ -162,41 +162,41 @@ class HandlerCalls:
     # ----------------------------------------
     # $MutuallyRecursive
     
-    def __handlercalls_state_MutuallyRecursive(self, e):
-        if e._message == "Foo":
-            self.log_do("Foo",e._parameters["arg"])
-            (self.__compartment.state_vars["counter"]) = self.__compartment.state_vars["counter"] + e._parameters["arg"]
+    def __handlercalls_state_MutuallyRecursive(self, __e):
+        if __e._message == "Foo":
+            self.log_do("Foo",__e._parameters["arg"])
+            (self.__compartment.state_vars["counter"]) = self.__compartment.state_vars["counter"] + __e._parameters["arg"]
             if  (self.__compartment.state_vars["counter"]) > 100:
                 compartment = HandlerCallsCompartment('__handlercalls_state_Final')
                 compartment.state_args["counter"] = self.__compartment.state_vars["counter"]
                 self.__transition(compartment)
                 return
             else:
-                self.Bar(e._parameters["arg"] * 2)
+                self.Bar(__e._parameters["arg"] * 2)
                 return
             
             return
-        elif e._message == "Bar":
-            self.log_do("Bar",e._parameters["arg"])
-            (self.__compartment.state_vars["counter"]) = self.__compartment.state_vars["counter"] + e._parameters["arg"]
-            if (e._parameters["arg"] == 4):
-                self.Foo(e._parameters["arg"])
+        elif __e._message == "Bar":
+            self.log_do("Bar",__e._parameters["arg"])
+            (self.__compartment.state_vars["counter"]) = self.__compartment.state_vars["counter"] + __e._parameters["arg"]
+            if (__e._parameters["arg"] == 4):
+                self.Foo(__e._parameters["arg"])
                 return
-            elif (e._parameters["arg"] == 8):
-                self.Foo(e._parameters["arg"] * 2)
+            elif (__e._parameters["arg"] == 8):
+                self.Foo(__e._parameters["arg"] * 2)
                 return
             
             else:
-                self.Foo(e._parameters["arg"] * 3)
+                self.Foo(__e._parameters["arg"] * 3)
                 return
             
             return
-        elif e._message == "Call":
-            if ((e._parameters["event"] == "Foo")):
-                self.Foo(e._parameters["arg"])
+        elif __e._message == "Call":
+            if ((__e._parameters["event"] == "Foo")):
+                self.Foo(__e._parameters["arg"])
                 return
-            elif ((e._parameters["event"] == "Bar")):
-                self.Bar(e._parameters["arg"])
+            elif ((__e._parameters["event"] == "Bar")):
+                self.Bar(__e._parameters["arg"])
                 return
             
             else:
@@ -207,8 +207,8 @@ class HandlerCalls:
     # ----------------------------------------
     # $Final
     
-    def __handlercalls_state_Final(self, e):
-        if e._message == ">":
+    def __handlercalls_state_Final(self, __e):
+        if __e._message == ">":
             self.log_do("Final",(self.__compartment.state_args["counter"]))
             compartment = HandlerCallsCompartment('__handlercalls_state_Init')
             self.__transition(compartment)
@@ -221,10 +221,10 @@ class HandlerCalls:
     
     # ==================== System Runtime =================== #
     
-    def __kernel(self, e):
+    def __kernel(self, __e):
         
         # send event to current state
-        self.__router(e)
+        self.__router(__e)
         
         # loop until no transitions occur
         while self.__next_compartment != None:
@@ -252,17 +252,17 @@ class HandlerCalls:
                 next_compartment.forward_event = None
                 
     
-    def __router(self, e):
+    def __router(self, __e):
         if self.__compartment.state == '__handlercalls_state_Init':
-            self.__handlercalls_state_Init(e)
+            self.__handlercalls_state_Init(__e)
         elif self.__compartment.state == '__handlercalls_state_NonRecursive':
-            self.__handlercalls_state_NonRecursive(e)
+            self.__handlercalls_state_NonRecursive(__e)
         elif self.__compartment.state == '__handlercalls_state_SelfRecursive':
-            self.__handlercalls_state_SelfRecursive(e)
+            self.__handlercalls_state_SelfRecursive(__e)
         elif self.__compartment.state == '__handlercalls_state_MutuallyRecursive':
-            self.__handlercalls_state_MutuallyRecursive(e)
+            self.__handlercalls_state_MutuallyRecursive(__e)
         elif self.__compartment.state == '__handlercalls_state_Final':
-            self.__handlercalls_state_Final(e)
+            self.__handlercalls_state_Final(__e)
         
     def __transition(self, compartment: 'HandlerCallsCompartment'):
         self.__next_compartment = compartment
