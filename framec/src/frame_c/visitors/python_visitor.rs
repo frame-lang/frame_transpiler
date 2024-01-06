@@ -690,29 +690,13 @@ impl PythonVisitor {
         if system_node.get_first_state().is_some() {
             self.newline();
             self.add_code(&format!(
-                "def __transition(self, compartment: '{}Compartment'):",
+                "def __transition(self, next_compartment: '{}Compartment'):",
                 self.system_name
             ));
             self.indent();
             self.newline();
-            self.add_code("self.__next_compartment = compartment");
+            self.add_code("self.__next_compartment = next_compartment");
             self.outdent();
-
-            // self.newline();
-            // self.newline();
-            // self.add_code(&format!(
-            //     "def  __do_transition(self, next_compartment: '{}Compartment'):",
-            //     self.system_name
-            // ));
-            //
-            // self.indent();
-            // self.newline();
-            // self.add_code("self.__router(FrameEvent(\"<\", self.__compartment.exit_args))");
-            // self.newline();
-            // self.add_code("self.__compartment = next_compartment");
-            // self.newline();
-            // self.add_code("self.__router(FrameEvent(\">\", self.__compartment.enter_args))");
-            // self.outdent();
 
             if self.generate_state_stack {
                 self.newline();
@@ -1113,14 +1097,14 @@ impl PythonVisitor {
         // -- Enter Arguments --
         self.newline();
         self.add_code(&format!(
-            "compartment = {}Compartment('{}')",
+            "next_compartment = {}Compartment('{}')",
             self.system_name, state_ref_code
         ));
         // self.newline();
 
         if transition_expr_node.forward_event {
             self.newline();
-            self.add_code("compartment.forward_event = __e");
+            self.add_code("next_compartment.forward_event = __e");
         }
 
         // self.newline();
@@ -1159,7 +1143,7 @@ impl PythonVisitor {
                                     expr_t.accept_to_string(self, &mut expr);
                                     self.newline();
                                     self.add_code(&format!(
-                                        "compartment.enter_args[\"{}\"] = {}",
+                                        "next_compartment.enter_args[\"{}\"] = {}",
                                         p.name, expr
                                     ));
                                 }
@@ -1207,7 +1191,7 @@ impl PythonVisitor {
                                     expr_t.accept_to_string(self, &mut expr);
                                     self.newline();
                                     self.add_code(&format!(
-                                        "compartment.state_args[\"{}\"] = {}",
+                                        "next_compartment.state_args[\"{}\"] = {}",
                                         param_symbol.name, expr
                                     ));
                                 }
@@ -1253,7 +1237,7 @@ impl PythonVisitor {
                             initalizer_value_expr_t.accept_to_string(self, &mut expr_code);
                             self.newline();
                             self.add_code(&format!(
-                                "compartment.state_vars[\"{}\"] = {}",
+                                "next_compartment.state_vars[\"{}\"] = {}",
                                 var_decl_node.name, expr_code
                             ));
                         }
@@ -1266,7 +1250,7 @@ impl PythonVisitor {
         }
 
         self.newline();
-        self.add_code("self.__transition(compartment)");
+        self.add_code("self.__transition(next_compartment)");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1350,15 +1334,15 @@ impl PythonVisitor {
             }
         }
 
-        self.add_code("compartment = self.__state_stack_pop()");
+        self.add_code("next_compartment = self.__state_stack_pop()");
         self.newline();
 
         if transition_expr_node.forward_event {
-            self.add_code("compartment.forward_event = __e");
+            self.add_code("next_compartment.forward_event = __e");
             self.newline();
         }
 
-        self.add_code("self.__transition(compartment)");
+        self.add_code("self.__transition(next_compartment)");
     }
 
     //* --------------------------------------------------------------------- *//

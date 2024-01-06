@@ -1,11 +1,10 @@
-
+# Emitted from framec_v0.11.0
 
 
 
 from framelang.framelang import FrameEvent
 
 
-# Emitted from framec_v0.11.0
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -78,11 +77,11 @@ class StateContextSm:
             self.log_do("w",(self.__compartment.state_vars["w"]))
             return
         elif __e._message == "Start":
-            compartment = StateContextSmCompartment('__statecontextsm_state_Foo')
-            compartment.enter_args["a"] = 3
-            compartment.enter_args["b"] = self.__compartment.state_vars["w"]
-            compartment.state_vars["x"] = 0
-            self.__transition(compartment)
+            next_compartment = StateContextSmCompartment('__statecontextsm_state_Foo')
+            next_compartment.enter_args["a"] = 3
+            next_compartment.enter_args["b"] = self.__compartment.state_vars["w"]
+            next_compartment.state_vars["x"] = 0
+            self.__transition(next_compartment)
             return
     
     # ----------------------------------------
@@ -112,11 +111,11 @@ class StateContextSm:
         elif __e._message == "Next":
             tmp = __e._parameters["arg"] * 10
             self.__compartment.exit_args["c"] = 10
-            compartment = StateContextSmCompartment('__statecontextsm_state_Bar')
-            compartment.enter_args["a"] = tmp
-            compartment.state_args["y"] = self.__compartment.state_vars["x"]
-            compartment.state_vars["z"] = 0
-            self.__transition(compartment)
+            next_compartment = StateContextSmCompartment('__statecontextsm_state_Bar')
+            next_compartment.enter_args["a"] = tmp
+            next_compartment.state_args["y"] = self.__compartment.state_vars["x"]
+            next_compartment.state_vars["z"] = 0
+            self.__transition(next_compartment)
             return
       #  FIXME: Swapping this to 10 * arg causes a parse error!
       #  |Change| [arg:int]
@@ -192,8 +191,8 @@ class StateContextSm:
         elif self.__compartment.state == '__statecontextsm_state_Bar':
             self.__statecontextsm_state_Bar(__e)
         
-    def __transition(self, compartment: 'StateContextSmCompartment'):
-        self.__next_compartment = compartment
+    def __transition(self, next_compartment: 'StateContextSmCompartment'):
+        self.__next_compartment = next_compartment
     
     def state_info(self):
         return self.__compartment.state

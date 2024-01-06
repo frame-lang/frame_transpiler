@@ -1,11 +1,10 @@
-
+# Emitted from framec_v0.11.0
 
 
 
 from framelang.framelang import FrameEvent
 
 
-# Emitted from framec_v0.11.0
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -54,9 +53,9 @@ class StateVars:
     
     def __statevars_state_Init(self, __e):
         if __e._message == ">":
-            compartment = StateVarsCompartment('__statevars_state_A')
-            compartment.state_vars["x"] = 0
-            self.__transition(compartment)
+            next_compartment = StateVarsCompartment('__statevars_state_A')
+            next_compartment.state_vars["x"] = 0
+            self.__transition(next_compartment)
             return
     
     # ----------------------------------------
@@ -67,16 +66,16 @@ class StateVars:
             (self.__compartment.state_vars["x"]) = self.__compartment.state_vars["x"] + 1
             return
         elif __e._message == "Y":
-            compartment = StateVarsCompartment('__statevars_state_B')
-            compartment.state_vars["y"] = 10
-            compartment.state_vars["z"] = 100
-            self.__transition(compartment)
+            next_compartment = StateVarsCompartment('__statevars_state_B')
+            next_compartment.state_vars["y"] = 10
+            next_compartment.state_vars["z"] = 100
+            self.__transition(next_compartment)
             return
         elif __e._message == "Z":
-            compartment = StateVarsCompartment('__statevars_state_B')
-            compartment.state_vars["y"] = 10
-            compartment.state_vars["z"] = 100
-            self.__transition(compartment)
+            next_compartment = StateVarsCompartment('__statevars_state_B')
+            next_compartment.state_vars["y"] = 10
+            next_compartment.state_vars["z"] = 100
+            self.__transition(next_compartment)
             return
     
     # ----------------------------------------
@@ -84,9 +83,9 @@ class StateVars:
     
     def __statevars_state_B(self, __e):
         if __e._message == "X":
-            compartment = StateVarsCompartment('__statevars_state_A')
-            compartment.state_vars["x"] = 0
-            self.__transition(compartment)
+            next_compartment = StateVarsCompartment('__statevars_state_A')
+            next_compartment.state_vars["x"] = 0
+            self.__transition(next_compartment)
             return
         elif __e._message == "Y":
             (self.__compartment.state_vars["y"]) = self.__compartment.state_vars["y"] + 1
@@ -138,8 +137,8 @@ class StateVars:
         elif self.__compartment.state == '__statevars_state_B':
             self.__statevars_state_B(__e)
         
-    def __transition(self, compartment: 'StateVarsCompartment'):
-        self.__next_compartment = compartment
+    def __transition(self, next_compartment: 'StateVarsCompartment'):
+        self.__next_compartment = next_compartment
     
     def state_info(self):
         return self.__compartment.state

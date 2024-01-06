@@ -1,11 +1,10 @@
-
+# Emitted from framec_v0.11.0
 
 
 
 from framelang.framelang import FrameEvent
 
 
-# Emitted from framec_v0.11.0
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -93,32 +92,32 @@ class VarScope:
     
     def __varscope_state_Init(self, __e):
         if __e._message == "to_nn":
-            compartment = VarScopeCompartment('__varscope_state_NN')
-            compartment.state_args["b"] = "$NN[b]"
-            compartment.state_vars["c"] = "$NN.c"
-            self.__transition(compartment)
+            next_compartment = VarScopeCompartment('__varscope_state_NN')
+            next_compartment.state_args["b"] = "$NN[b]"
+            next_compartment.state_vars["c"] = "$NN.c"
+            self.__transition(next_compartment)
             return
         elif __e._message == "to_ny":
-            compartment = VarScopeCompartment('__varscope_state_NY')
-            compartment.state_args["b"] = "$NY[b]"
-            compartment.state_vars["c"] = "$NY.c"
-            compartment.state_vars["x"] = "$NY.x"
-            self.__transition(compartment)
+            next_compartment = VarScopeCompartment('__varscope_state_NY')
+            next_compartment.state_args["b"] = "$NY[b]"
+            next_compartment.state_vars["c"] = "$NY.c"
+            next_compartment.state_vars["x"] = "$NY.x"
+            self.__transition(next_compartment)
             return
         elif __e._message == "to_yn":
-            compartment = VarScopeCompartment('__varscope_state_YN')
-            compartment.state_args["b"] = "$YN[b]"
-            compartment.state_args["x"] = "$YN[x]"
-            compartment.state_vars["c"] = "$YN.c"
-            self.__transition(compartment)
+            next_compartment = VarScopeCompartment('__varscope_state_YN')
+            next_compartment.state_args["b"] = "$YN[b]"
+            next_compartment.state_args["x"] = "$YN[x]"
+            next_compartment.state_vars["c"] = "$YN.c"
+            self.__transition(next_compartment)
             return
         elif __e._message == "to_yy":
-            compartment = VarScopeCompartment('__varscope_state_YY')
-            compartment.state_args["b"] = "$YY[b]"
-            compartment.state_args["x"] = "$YY[x]"
-            compartment.state_vars["c"] = "$YY.c"
-            compartment.state_vars["x"] = "$YY.x"
-            self.__transition(compartment)
+            next_compartment = VarScopeCompartment('__varscope_state_YY')
+            next_compartment.state_args["b"] = "$YY[b]"
+            next_compartment.state_args["x"] = "$YY[x]"
+            next_compartment.state_vars["c"] = "$YY.c"
+            next_compartment.state_vars["x"] = "$YY.x"
+            self.__transition(next_compartment)
             return
     
     # ----------------------------------------
@@ -369,8 +368,8 @@ class VarScope:
         elif self.__compartment.state == '__varscope_state_YY':
             self.__varscope_state_YY(__e)
         
-    def __transition(self, compartment: 'VarScopeCompartment'):
-        self.__next_compartment = compartment
+    def __transition(self, next_compartment: 'VarScopeCompartment'):
+        self.__next_compartment = next_compartment
     
     def state_info(self):
         return self.__compartment.state

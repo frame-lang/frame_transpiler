@@ -1,6 +1,5 @@
-
-
 # Emitted from framec_v0.11.0
+
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -131,8 +130,8 @@ class ChangeStateSm:
         elif self.__compartment.state == '__changestatesm_state_S4':
             self.__changestatesm_state_S4(__e)
         
-    def __transition(self, compartment: 'ChangeStateSmCompartment'):
-        self.__next_compartment = compartment
+    def __transition(self, next_compartment: 'ChangeStateSmCompartment'):
+        self.__next_compartment = next_compartment
     
     def __change_state(self, new_compartment: 'ChangeStateSmCompartment'):
         self.__compartment = new_compartment

@@ -1,11 +1,10 @@
-
+# Emitted from framec_v0.11.0
 
 
 
 from framelang.framelang import FrameEvent
 
 
-# Emitted from framec_v0.11.0
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -70,14 +69,14 @@ class ForwardEvents:
             return
         elif __e._message == "GotoS1":
             self.log_do("Recieved |GotoS1|")
-            compartment = ForwardEventsCompartment('__forwardevents_state_S1')
-            self.__transition(compartment)
+            next_compartment = ForwardEventsCompartment('__forwardevents_state_S1')
+            self.__transition(next_compartment)
             return
         elif __e._message == "GotoS2":
             self.log_do("Recieved |GotoS2|")
             self.__state_stack_push(self.__compartment)
-            compartment = ForwardEventsCompartment('__forwardevents_state_S2')
-            self.__transition(compartment)
+            next_compartment = ForwardEventsCompartment('__forwardevents_state_S2')
+            self.__transition(next_compartment)
             return
         elif __e._message == "ReturnFromS1":
             self.log_do("|ReturnFromS1| Forwarded")
@@ -97,9 +96,9 @@ class ForwardEvents:
             self.log_do("Exit $S1")
             return
         elif __e._message == "ReturnFromS1":
-            compartment = ForwardEventsCompartment('__forwardevents_state_S0')
-            compartment.forward_event = __e
-            self.__transition(compartment)
+            next_compartment = ForwardEventsCompartment('__forwardevents_state_S0')
+            next_compartment.forward_event = __e
+            self.__transition(next_compartment)
             return
     
     # ----------------------------------------
@@ -113,9 +112,9 @@ class ForwardEvents:
             self.log_do("Exit $S2")
             return
         elif __e._message == "ReturnFromS2":
-            compartment = self.__state_stack_pop()
-            compartment.forward_event = __e
-            self.__transition(compartment)
+            next_compartment = self.__state_stack_pop()
+            next_compartment.forward_event = __e
+            self.__transition(next_compartment)
             return
     
     # ===================== Actions Block =================== #
@@ -165,8 +164,8 @@ class ForwardEvents:
         elif self.__compartment.state == '__forwardevents_state_S2':
             self.__forwardevents_state_S2(__e)
         
-    def __transition(self, compartment: 'ForwardEventsCompartment'):
-        self.__next_compartment = compartment
+    def __transition(self, next_compartment: 'ForwardEventsCompartment'):
+        self.__next_compartment = next_compartment
     
     def __state_stack_push(self, compartment: 'ForwardEventsCompartment'):
         self.__state_stack.append(compartment)

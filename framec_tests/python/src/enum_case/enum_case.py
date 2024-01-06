@@ -1,4 +1,4 @@
-
+# Emitted from framec_v0.11.0
 
 
 
@@ -6,7 +6,6 @@ from framelang.framelang import FrameEvent
 from enum import Enum
 
 
-# Emitted from framec_v0.11.0
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -65,8 +64,8 @@ class EnumTest:
             return
         elif __e._message == "B":
             self.left_do("MONDAY",EnumTest_Days.MONDAY)
-            compartment = EnumTestCompartment('__enumtest_state_MON')
-            self.__transition(compartment)
+            next_compartment = EnumTestCompartment('__enumtest_state_MON')
+            self.__transition(next_compartment)
             return
     
     # ----------------------------------------
@@ -78,8 +77,8 @@ class EnumTest:
             return
         elif __e._message == "B":
             self.left_do("TUESDAY",EnumTest_Days.TUESDAY)
-            compartment = EnumTestCompartment('__enumtest_state_TUE')
-            self.__transition(compartment)
+            next_compartment = EnumTestCompartment('__enumtest_state_TUE')
+            self.__transition(next_compartment)
             return
     
     # ----------------------------------------
@@ -91,8 +90,8 @@ class EnumTest:
             return
         elif __e._message == "B":
             self.left_do("WEDNESDAY",EnumTest_Days.WEDNESDAY)
-            compartment = EnumTestCompartment('__enumtest_state_WED')
-            self.__transition(compartment)
+            next_compartment = EnumTestCompartment('__enumtest_state_WED')
+            self.__transition(next_compartment)
             return
     
     # ----------------------------------------
@@ -104,8 +103,8 @@ class EnumTest:
             return
         elif __e._message == "B":
             self.left_do("THURSDAY",EnumTest_Days.THURSDAY)
-            compartment = EnumTestCompartment('__enumtest_state_THR')
-            self.__transition(compartment)
+            next_compartment = EnumTestCompartment('__enumtest_state_THR')
+            self.__transition(next_compartment)
             return
     
     # ----------------------------------------
@@ -117,8 +116,8 @@ class EnumTest:
             return
         elif __e._message == "B":
             self.left_do("FRIDAY",EnumTest_Days.FRIDAY)
-            compartment = EnumTestCompartment('__enumtest_state_FRI')
-            self.__transition(compartment)
+            next_compartment = EnumTestCompartment('__enumtest_state_FRI')
+            self.__transition(next_compartment)
             return
     
     # ----------------------------------------
@@ -130,8 +129,8 @@ class EnumTest:
             return
         elif __e._message == "B":
             self.left_do("SUNDAY",EnumTest_Days.SUNDAY)
-            compartment = EnumTestCompartment('__enumtest_state_SUN')
-            self.__transition(compartment)
+            next_compartment = EnumTestCompartment('__enumtest_state_SUN')
+            self.__transition(next_compartment)
             return
     
     # ===================== Actions Block =================== #
@@ -189,8 +188,8 @@ class EnumTest:
         elif self.__compartment.state == '__enumtest_state_FRI':
             self.__enumtest_state_FRI(__e)
         
-    def __transition(self, compartment: 'EnumTestCompartment'):
-        self.__next_compartment = compartment
+    def __transition(self, next_compartment: 'EnumTestCompartment'):
+        self.__next_compartment = next_compartment
     
     def state_info(self):
         return self.__compartment.state

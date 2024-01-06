@@ -1,11 +1,10 @@
-
+# Emitted from framec_v0.11.0
 
 
 
 from framelang.framelang import FrameEvent
 
 
-# Emitted from framec_v0.11.0
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -73,23 +72,23 @@ class StateStack:
             self.log_do("A:<")
             return
         elif __e._message == "to_a":
-            compartment = StateStackCompartment('__statestack_state_A')
-            self.__transition(compartment)
+            next_compartment = StateStackCompartment('__statestack_state_A')
+            self.__transition(next_compartment)
             return
         elif __e._message == "to_b":
-            compartment = StateStackCompartment('__statestack_state_B')
-            self.__transition(compartment)
+            next_compartment = StateStackCompartment('__statestack_state_B')
+            self.__transition(next_compartment)
             return
         elif __e._message == "to_c":
-            compartment = StateStackCompartment('__statestack_state_C')
-            self.__transition(compartment)
+            next_compartment = StateStackCompartment('__statestack_state_C')
+            self.__transition(next_compartment)
             return
         elif __e._message == "push":
             self.__state_stack_push(self.__compartment)
             return
         elif __e._message == "pop":
-            compartment = self.__state_stack_pop()
-            self.__transition(compartment)
+            next_compartment = self.__state_stack_pop()
+            self.__transition(next_compartment)
             return
     
     # ----------------------------------------
@@ -103,23 +102,23 @@ class StateStack:
             self.log_do("B:<")
             return
         elif __e._message == "to_a":
-            compartment = StateStackCompartment('__statestack_state_A')
-            self.__transition(compartment)
+            next_compartment = StateStackCompartment('__statestack_state_A')
+            self.__transition(next_compartment)
             return
         elif __e._message == "to_b":
-            compartment = StateStackCompartment('__statestack_state_B')
-            self.__transition(compartment)
+            next_compartment = StateStackCompartment('__statestack_state_B')
+            self.__transition(next_compartment)
             return
         elif __e._message == "to_c":
-            compartment = StateStackCompartment('__statestack_state_C')
-            self.__transition(compartment)
+            next_compartment = StateStackCompartment('__statestack_state_C')
+            self.__transition(next_compartment)
             return
         elif __e._message == "push":
             self.__state_stack_push(self.__compartment)
             return
         elif __e._message == "pop":
-            compartment = self.__state_stack_pop()
-            self.__transition(compartment)
+            next_compartment = self.__state_stack_pop()
+            self.__transition(next_compartment)
             return
     
     # ----------------------------------------
@@ -133,23 +132,23 @@ class StateStack:
             self.log_do("C:<")
             return
         elif __e._message == "to_a":
-            compartment = StateStackCompartment('__statestack_state_A')
-            self.__transition(compartment)
+            next_compartment = StateStackCompartment('__statestack_state_A')
+            self.__transition(next_compartment)
             return
         elif __e._message == "to_b":
-            compartment = StateStackCompartment('__statestack_state_B')
-            self.__transition(compartment)
+            next_compartment = StateStackCompartment('__statestack_state_B')
+            self.__transition(next_compartment)
             return
         elif __e._message == "to_c":
-            compartment = StateStackCompartment('__statestack_state_C')
-            self.__transition(compartment)
+            next_compartment = StateStackCompartment('__statestack_state_C')
+            self.__transition(next_compartment)
             return
         elif __e._message == "push":
             self.__state_stack_push(self.__compartment)
             return
         elif __e._message == "pop":
-            compartment = self.__state_stack_pop()
-            self.__transition(compartment)
+            next_compartment = self.__state_stack_pop()
+            self.__transition(next_compartment)
             return
     
     # ===================== Actions Block =================== #
@@ -198,8 +197,8 @@ class StateStack:
         elif self.__compartment.state == '__statestack_state_C':
             self.__statestack_state_C(__e)
         
-    def __transition(self, compartment: 'StateStackCompartment'):
-        self.__next_compartment = compartment
+    def __transition(self, next_compartment: 'StateStackCompartment'):
+        self.__next_compartment = next_compartment
     
     def __state_stack_push(self, compartment: 'StateStackCompartment'):
         self.__state_stack.append(compartment)

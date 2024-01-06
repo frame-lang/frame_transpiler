@@ -1,11 +1,10 @@
-
+# Emitted from framec_v0.11.0
 
 
 
 from framelang.framelang import FrameEvent
 
 
-# Emitted from framec_v0.11.0
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -61,12 +60,12 @@ class SimpleHandlerCalls:
     
     def __simplehandlercalls_state_Init(self, __e):
         if __e._message == "A":
-            compartment = SimpleHandlerCallsCompartment('__simplehandlercalls_state_A')
-            self.__transition(compartment)
+            next_compartment = SimpleHandlerCallsCompartment('__simplehandlercalls_state_A')
+            self.__transition(next_compartment)
             return
         elif __e._message == "B":
-            compartment = SimpleHandlerCallsCompartment('__simplehandlercalls_state_B')
-            self.__transition(compartment)
+            next_compartment = SimpleHandlerCallsCompartment('__simplehandlercalls_state_B')
+            self.__transition(next_compartment)
             return
         elif __e._message == "C":
             self.A()
@@ -75,8 +74,8 @@ class SimpleHandlerCalls:
         elif __e._message == "D":
             self.B()
             return
-            compartment = SimpleHandlerCallsCompartment('__simplehandlercalls_state_A')
-            self.__transition(compartment)
+            next_compartment = SimpleHandlerCallsCompartment('__simplehandlercalls_state_A')
+            self.__transition(next_compartment)
             return
         elif __e._message == "E":
             self.D()
@@ -141,8 +140,8 @@ class SimpleHandlerCalls:
         elif self.__compartment.state == '__simplehandlercalls_state_B':
             self.__simplehandlercalls_state_B(__e)
         
-    def __transition(self, compartment: 'SimpleHandlerCallsCompartment'):
-        self.__next_compartment = compartment
+    def __transition(self, next_compartment: 'SimpleHandlerCallsCompartment'):
+        self.__next_compartment = next_compartment
     
     def state_info(self):
         return self.__compartment.state

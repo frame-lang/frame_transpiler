@@ -1,11 +1,10 @@
-
+# Emitted from framec_v0.11.0
 
 
 
 from framelang.framelang import FrameEvent
 
 
-# Emitted from framec_v0.11.0
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -95,16 +94,16 @@ class EventHandler:
             return
             
         elif __e._message == "PassAdd":
-            compartment = EventHandlerCompartment('__eventhandler_state_S2')
-            compartment.state_args["p"] = __e._parameters["a"] + __e._parameters["b"]
-            self.__transition(compartment)
+            next_compartment = EventHandlerCompartment('__eventhandler_state_S2')
+            next_compartment.state_args["p"] = __e._parameters["a"] + __e._parameters["b"]
+            self.__transition(next_compartment)
             return
         elif __e._message == "PassReturn":
             r = __e._parameters["a"] + __e._parameters["b"]
             self.log_do("r",r)
-            compartment = EventHandlerCompartment('__eventhandler_state_S2')
-            compartment.state_args["p"] = r
-            self.__transition(compartment)
+            next_compartment = EventHandlerCompartment('__eventhandler_state_S2')
+            next_compartment.state_args["p"] = r
+            self.__transition(next_compartment)
             __e._return = r
             return
             
@@ -161,8 +160,8 @@ class EventHandler:
         elif self.__compartment.state == '__eventhandler_state_S2':
             self.__eventhandler_state_S2(__e)
         
-    def __transition(self, compartment: 'EventHandlerCompartment'):
-        self.__next_compartment = compartment
+    def __transition(self, next_compartment: 'EventHandlerCompartment'):
+        self.__next_compartment = next_compartment
     
     def state_info(self):
         return self.__compartment.state

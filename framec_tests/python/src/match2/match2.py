@@ -1,8 +1,7 @@
-
+# Emitted from framec_v0.11.0
 
 import sys
 from enum import Enum
-# Emitted from framec_v0.11.0
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -202,8 +201,8 @@ class MatchTests:
         if self.__compartment.state == '__matchtests_state_A':
             self.__matchtests_state_A(__e)
         
-    def __transition(self, compartment: 'MatchTestsCompartment'):
-        self.__next_compartment = compartment
+    def __transition(self, next_compartment: 'MatchTestsCompartment'):
+        self.__next_compartment = next_compartment
     
 
 # ===================== Compartment =================== #

@@ -1,11 +1,10 @@
-
+# Emitted from framec_v0.11.0
 
 
 
 from framelang.framelang import FrameEvent
 
 
-# Emitted from framec_v0.11.0
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -74,19 +73,19 @@ class HandlerCalls:
     
     def __handlercalls_state_Init(self, __e):
         if __e._message == "NonRec":
-            compartment = HandlerCallsCompartment('__handlercalls_state_NonRecursive')
-            compartment.state_vars["counter"] = 0
-            self.__transition(compartment)
+            next_compartment = HandlerCallsCompartment('__handlercalls_state_NonRecursive')
+            next_compartment.state_vars["counter"] = 0
+            self.__transition(next_compartment)
             return
         elif __e._message == "SelfRec":
-            compartment = HandlerCallsCompartment('__handlercalls_state_SelfRecursive')
-            compartment.state_vars["counter"] = 0
-            self.__transition(compartment)
+            next_compartment = HandlerCallsCompartment('__handlercalls_state_SelfRecursive')
+            next_compartment.state_vars["counter"] = 0
+            self.__transition(next_compartment)
             return
         elif __e._message == "MutRec":
-            compartment = HandlerCallsCompartment('__handlercalls_state_MutuallyRecursive')
-            compartment.state_vars["counter"] = 0
-            self.__transition(compartment)
+            next_compartment = HandlerCallsCompartment('__handlercalls_state_MutuallyRecursive')
+            next_compartment.state_vars["counter"] = 0
+            self.__transition(next_compartment)
             return
     
     # ----------------------------------------
@@ -104,9 +103,9 @@ class HandlerCalls:
         elif __e._message == "Bar":
             self.log_do("Bar",__e._parameters["arg"])
             (self.__compartment.state_vars["counter"]) = self.__compartment.state_vars["counter"] + __e._parameters["arg"]
-            compartment = HandlerCallsCompartment('__handlercalls_state_Final')
-            compartment.state_args["counter"] = self.__compartment.state_vars["counter"]
-            self.__transition(compartment)
+            next_compartment = HandlerCallsCompartment('__handlercalls_state_Final')
+            next_compartment.state_args["counter"] = self.__compartment.state_vars["counter"]
+            self.__transition(next_compartment)
             return
         elif __e._message == "Call":
             if ((__e._parameters["event"] == "Foo")):
@@ -133,18 +132,18 @@ class HandlerCalls:
                 self.Foo(__e._parameters["arg"] * 2)
                 return
             else:
-                compartment = HandlerCallsCompartment('__handlercalls_state_Final')
-                compartment.state_args["counter"] = self.__compartment.state_vars["counter"]
-                self.__transition(compartment)
+                next_compartment = HandlerCallsCompartment('__handlercalls_state_Final')
+                next_compartment.state_args["counter"] = self.__compartment.state_vars["counter"]
+                self.__transition(next_compartment)
                 return
             
             return
         elif __e._message == "Bar":
             self.log_do("Bar",__e._parameters["arg"])
             (self.__compartment.state_vars["counter"]) = self.__compartment.state_vars["counter"] + __e._parameters["arg"]
-            compartment = HandlerCallsCompartment('__handlercalls_state_Final')
-            compartment.state_args["counter"] = self.__compartment.state_vars["counter"]
-            self.__transition(compartment)
+            next_compartment = HandlerCallsCompartment('__handlercalls_state_Final')
+            next_compartment.state_args["counter"] = self.__compartment.state_vars["counter"]
+            self.__transition(next_compartment)
             return
         elif __e._message == "Call":
             if ((__e._parameters["event"] == "Foo")):
@@ -167,9 +166,9 @@ class HandlerCalls:
             self.log_do("Foo",__e._parameters["arg"])
             (self.__compartment.state_vars["counter"]) = self.__compartment.state_vars["counter"] + __e._parameters["arg"]
             if  (self.__compartment.state_vars["counter"]) > 100:
-                compartment = HandlerCallsCompartment('__handlercalls_state_Final')
-                compartment.state_args["counter"] = self.__compartment.state_vars["counter"]
-                self.__transition(compartment)
+                next_compartment = HandlerCallsCompartment('__handlercalls_state_Final')
+                next_compartment.state_args["counter"] = self.__compartment.state_vars["counter"]
+                self.__transition(next_compartment)
                 return
             else:
                 self.Bar(__e._parameters["arg"] * 2)
@@ -210,8 +209,8 @@ class HandlerCalls:
     def __handlercalls_state_Final(self, __e):
         if __e._message == ">":
             self.log_do("Final",(self.__compartment.state_args["counter"]))
-            compartment = HandlerCallsCompartment('__handlercalls_state_Init')
-            self.__transition(compartment)
+            next_compartment = HandlerCallsCompartment('__handlercalls_state_Init')
+            self.__transition(next_compartment)
             return
     
     # ===================== Actions Block =================== #
@@ -264,8 +263,8 @@ class HandlerCalls:
         elif self.__compartment.state == '__handlercalls_state_Final':
             self.__handlercalls_state_Final(__e)
         
-    def __transition(self, compartment: 'HandlerCallsCompartment'):
-        self.__next_compartment = compartment
+    def __transition(self, next_compartment: 'HandlerCallsCompartment'):
+        self.__next_compartment = next_compartment
     
     def state_info(self):
         return self.__compartment.state

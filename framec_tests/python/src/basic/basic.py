@@ -1,11 +1,10 @@
-
+# Emitted from framec_v0.11.0
 
 
 
 from framelang.framelang import FrameEvent
 
 
-# Emitted from framec_v0.11.0
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -59,8 +58,8 @@ class Basic:
             return
         elif __e._message == "A":
             # ooh
-            compartment = BasicCompartment('__basic_state_S1')
-            self.__transition(compartment)
+            next_compartment = BasicCompartment('__basic_state_S1')
+            self.__transition(next_compartment)
             return
     
     # ----------------------------------------
@@ -75,8 +74,8 @@ class Basic:
             return
         elif __e._message == "B":
             # aah
-            compartment = BasicCompartment('__basic_state_S0')
-            self.__transition(compartment)
+            next_compartment = BasicCompartment('__basic_state_S0')
+            self.__transition(next_compartment)
             return
     
     # ===================== Actions Block =================== #
@@ -126,8 +125,8 @@ class Basic:
         elif self.__compartment.state == '__basic_state_S1':
             self.__basic_state_S1(__e)
         
-    def __transition(self, compartment: 'BasicCompartment'):
-        self.__next_compartment = compartment
+    def __transition(self, next_compartment: 'BasicCompartment'):
+        self.__next_compartment = next_compartment
     
     def state_info(self):
         return self.__compartment.state

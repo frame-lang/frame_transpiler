@@ -1,11 +1,10 @@
-
+# Emitted from framec_v0.11.0
 
 
 
 from framelang.framelang import FrameEvent
 
 
-# Emitted from framec_v0.11.0
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -75,24 +74,24 @@ class Match:
     
     def __match_state_Init(self, __e):
         if __e._message == "Empty":
-            compartment = MatchCompartment('__match_state_EmptyMatch')
-            self.__transition(compartment)
+            next_compartment = MatchCompartment('__match_state_EmptyMatch')
+            self.__transition(next_compartment)
             return
         elif __e._message == "Simple":
-            compartment = MatchCompartment('__match_state_SimpleMatch')
-            self.__transition(compartment)
+            next_compartment = MatchCompartment('__match_state_SimpleMatch')
+            self.__transition(next_compartment)
             return
         elif __e._message == "Multi":
-            compartment = MatchCompartment('__match_state_MultiMatch')
-            self.__transition(compartment)
+            next_compartment = MatchCompartment('__match_state_MultiMatch')
+            self.__transition(next_compartment)
             return
         elif __e._message == "Nested":
-            compartment = MatchCompartment('__match_state_NestedMatch')
-            self.__transition(compartment)
+            next_compartment = MatchCompartment('__match_state_NestedMatch')
+            self.__transition(next_compartment)
             return
         elif __e._message == "Child":
-            compartment = MatchCompartment('__match_state_ChildMatch')
-            self.__transition(compartment)
+            next_compartment = MatchCompartment('__match_state_ChildMatch')
+            self.__transition(next_compartment)
             return
     
     # ----------------------------------------
@@ -234,8 +233,8 @@ class Match:
     def __match_state_ChildMatch(self, __e):
         if __e._message == "OnInt":
             if (__e._parameters["i"] == 0):
-                compartment = MatchCompartment('__match_state_Final')
-                self.__transition(compartment)
+                next_compartment = MatchCompartment('__match_state_Final')
+                self.__transition(next_compartment)
                 return
             elif (__e._parameters["i"] == 3):
                 self.log_do("3")
@@ -247,8 +246,8 @@ class Match:
                 self.log_do("42 in child")
             elif (__e._parameters["i"] == 5):
                 self.log_do("5")
-                compartment = MatchCompartment('__match_state_Final')
-                self.__transition(compartment)
+                next_compartment = MatchCompartment('__match_state_Final')
+                self.__transition(next_compartment)
                 return
             
             else:
@@ -258,8 +257,8 @@ class Match:
             if ((__e._parameters["s"] == "hello")):
                 self.log_do("hello in child")
             elif ((__e._parameters["s"] == "goodbye")):
-                compartment = MatchCompartment('__match_state_Final')
-                self.__transition(compartment)
+                next_compartment = MatchCompartment('__match_state_Final')
+                self.__transition(next_compartment)
                 return
             elif ((__e._parameters["s"] == "Testing 1, 2, 3...")):
                 self.log_do("testing in child")
@@ -334,8 +333,8 @@ class Match:
         elif self.__compartment.state == '__match_state_Final':
             self.__match_state_Final(__e)
         
-    def __transition(self, compartment: 'MatchCompartment'):
-        self.__next_compartment = compartment
+    def __transition(self, next_compartment: 'MatchCompartment'):
+        self.__next_compartment = next_compartment
     
     def state_info(self):
         return self.__compartment.state

@@ -1,11 +1,10 @@
-
+# Emitted from framec_v0.11.0
 
 
 
 from framelang.framelang import FrameEvent
 
 
-# Emitted from framec_v0.11.0
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -55,9 +54,9 @@ class StateParams:
     
     def __stateparams_state_Init(self, __e):
         if __e._message == "Next":
-            compartment = StateParamsCompartment('__stateparams_state_Split')
-            compartment.state_args["val"] = 1
-            self.__transition(compartment)
+            next_compartment = StateParamsCompartment('__stateparams_state_Split')
+            next_compartment.state_args["val"] = 1
+            self.__transition(next_compartment)
             return
     
     # ----------------------------------------
@@ -65,16 +64,16 @@ class StateParams:
     
     def __stateparams_state_Split(self, __e):
         if __e._message == "Next":
-            compartment = StateParamsCompartment('__stateparams_state_Merge')
-            compartment.state_args["left"] = self.__compartment.state_args["val"]
-            compartment.state_args["right"] = self.__compartment.state_args["val"] + 1
-            self.__transition(compartment)
+            next_compartment = StateParamsCompartment('__stateparams_state_Merge')
+            next_compartment.state_args["left"] = self.__compartment.state_args["val"]
+            next_compartment.state_args["right"] = self.__compartment.state_args["val"] + 1
+            self.__transition(next_compartment)
             return
         elif __e._message == "Prev":
-            compartment = StateParamsCompartment('__stateparams_state_Merge')
-            compartment.state_args["left"] = self.__compartment.state_args["val"] + 1
-            compartment.state_args["right"] = self.__compartment.state_args["val"]
-            self.__transition(compartment)
+            next_compartment = StateParamsCompartment('__stateparams_state_Merge')
+            next_compartment.state_args["left"] = self.__compartment.state_args["val"] + 1
+            next_compartment.state_args["right"] = self.__compartment.state_args["val"]
+            self.__transition(next_compartment)
             return
         elif __e._message == "Log":
             self.got_param_do("val",(self.__compartment.state_args["val"]))
@@ -85,14 +84,14 @@ class StateParams:
     
     def __stateparams_state_Merge(self, __e):
         if __e._message == "Next":
-            compartment = StateParamsCompartment('__stateparams_state_Split')
-            compartment.state_args["val"] = self.__compartment.state_args["left"] + self.__compartment.state_args["right"]
-            self.__transition(compartment)
+            next_compartment = StateParamsCompartment('__stateparams_state_Split')
+            next_compartment.state_args["val"] = self.__compartment.state_args["left"] + self.__compartment.state_args["right"]
+            self.__transition(next_compartment)
             return
         elif __e._message == "Prev":
-            compartment = StateParamsCompartment('__stateparams_state_Split')
-            compartment.state_args["val"] = self.__compartment.state_args["left"] * self.__compartment.state_args["right"]
-            self.__transition(compartment)
+            next_compartment = StateParamsCompartment('__stateparams_state_Split')
+            next_compartment.state_args["val"] = self.__compartment.state_args["left"] * self.__compartment.state_args["right"]
+            self.__transition(next_compartment)
             return
         elif __e._message == "Log":
             self.got_param_do("left",(self.__compartment.state_args["left"]))
@@ -145,8 +144,8 @@ class StateParams:
         elif self.__compartment.state == '__stateparams_state_Merge':
             self.__stateparams_state_Merge(__e)
         
-    def __transition(self, compartment: 'StateParamsCompartment'):
-        self.__next_compartment = compartment
+    def __transition(self, next_compartment: 'StateParamsCompartment'):
+        self.__next_compartment = next_compartment
     
     def state_info(self):
         return self.__compartment.state

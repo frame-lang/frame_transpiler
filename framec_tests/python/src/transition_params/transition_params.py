@@ -1,11 +1,10 @@
-
+# Emitted from framec_v0.11.0
 
 
 
 from framelang.framelang import FrameEvent
 
 
-# Emitted from framec_v0.11.0
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -47,9 +46,9 @@ class TransitParams:
     
     def __transitparams_state_Init(self, __e):
         if __e._message == "Next":
-            compartment = TransitParamsCompartment('__transitparams_state_A')
-            compartment.enter_args["msg"] = "hi A"
-            self.__transition(compartment)
+            next_compartment = TransitParamsCompartment('__transitparams_state_A')
+            next_compartment.enter_args["msg"] = "hi A"
+            self.__transition(next_compartment)
             return
     
     # ----------------------------------------
@@ -63,10 +62,10 @@ class TransitParams:
             self.log_do("bye A")
             return
         elif __e._message == "Next":
-            compartment = TransitParamsCompartment('__transitparams_state_B')
-            compartment.enter_args["msg"] = "hi B"
-            compartment.enter_args["val"] = 42
-            self.__transition(compartment)
+            next_compartment = TransitParamsCompartment('__transitparams_state_B')
+            next_compartment.enter_args["msg"] = "hi B"
+            next_compartment.enter_args["val"] = 42
+            self.__transition(next_compartment)
             return
     
     # ----------------------------------------
@@ -84,9 +83,9 @@ class TransitParams:
         elif __e._message == "Next":
             self.__compartment.exit_args["val"] = True
             self.__compartment.exit_args["msg"] = "bye B"
-            compartment = TransitParamsCompartment('__transitparams_state_A')
-            compartment.enter_args["msg"] = "hi again A"
-            self.__transition(compartment)
+            next_compartment = TransitParamsCompartment('__transitparams_state_A')
+            next_compartment.enter_args["msg"] = "hi again A"
+            self.__transition(next_compartment)
             return
     
     # ===================== Actions Block =================== #
@@ -135,8 +134,8 @@ class TransitParams:
         elif self.__compartment.state == '__transitparams_state_B':
             self.__transitparams_state_B(__e)
         
-    def __transition(self, compartment: 'TransitParamsCompartment'):
-        self.__next_compartment = compartment
+    def __transition(self, next_compartment: 'TransitParamsCompartment'):
+        self.__next_compartment = next_compartment
     
     def state_info(self):
         return self.__compartment.state

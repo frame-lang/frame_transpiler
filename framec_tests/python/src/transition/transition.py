@@ -1,11 +1,10 @@
-
+# Emitted from framec_v0.11.0
 
 
 
 from framelang.framelang import FrameEvent
 
 
-# Emitted from framec_v0.11.0
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -55,8 +54,8 @@ class TransitionSm:
             self.exit_do("S0")
             return
         elif __e._message == "transit":
-            compartment = TransitionSmCompartment('__transitionsm_state_S1')
-            self.__transition(compartment)
+            next_compartment = TransitionSmCompartment('__transitionsm_state_S1')
+            self.__transition(next_compartment)
             return
     
     # ----------------------------------------
@@ -80,8 +79,8 @@ class TransitionSm:
             self.exit_do("S2")
             return
         elif __e._message == "transit":
-            compartment = TransitionSmCompartment('__transitionsm_state_S3')
-            self.__transition(compartment)
+            next_compartment = TransitionSmCompartment('__transitionsm_state_S3')
+            self.__transition(next_compartment)
             return
     
     # ----------------------------------------
@@ -95,8 +94,8 @@ class TransitionSm:
             self.exit_do("S3")
             return
         elif __e._message == "transit":
-            compartment = TransitionSmCompartment('__transitionsm_state_S4')
-            self.__transition(compartment)
+            next_compartment = TransitionSmCompartment('__transitionsm_state_S4')
+            self.__transition(next_compartment)
             return
     
     # ----------------------------------------
@@ -163,8 +162,8 @@ class TransitionSm:
         elif self.__compartment.state == '__transitionsm_state_S4':
             self.__transitionsm_state_S4(__e)
         
-    def __transition(self, compartment: 'TransitionSmCompartment'):
-        self.__next_compartment = compartment
+    def __transition(self, next_compartment: 'TransitionSmCompartment'):
+        self.__next_compartment = next_compartment
     
     def __change_state(self, new_compartment: 'TransitionSmCompartment'):
         self.__compartment = new_compartment
