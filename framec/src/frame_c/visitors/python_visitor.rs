@@ -57,7 +57,8 @@ pub struct PythonVisitor {
     generate_main: bool,
     variable_init_override_opt: Option<String>,
     continue_post_expr_vec: Vec<Option<String>>,
-    is_operation_scope: bool,
+    operation_scope_depth: i32,
+    action_scope_depth: i32,
 }
 
 impl PythonVisitor {
@@ -114,8 +115,17 @@ impl PythonVisitor {
             generate_main: false,
             variable_init_override_opt: Option::None,
             continue_post_expr_vec: Vec::new(),
-            is_operation_scope: false,
+            operation_scope_depth: 0,
+            action_scope_depth: 0,
         }
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    /// This helper function determines if code is in the scope of
+    /// an action or operation.
+    pub fn is_in_action_or_operation(&self) -> bool {
+        self.operation_scope_depth > 0 || self.action_scope_depth > 0
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1418,8 +1428,6 @@ impl PythonVisitor {
         //     self.add_code("self._manager = manager");
         // }
 
-
-
         // Initialize state arguments.
         match &system_node.start_state_state_params_opt {
             Some(params) => {
@@ -1599,8 +1607,7 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_module(&mut self, module: &Module) {
-
-        self.add_code(&format!("# {}", self.compiler_version));
+        self.add_code(&format!("#{}", self.compiler_version));
         self.newline();
         self.newline();
 
@@ -1628,7 +1635,6 @@ impl AstVisitor for PythonVisitor {
                 }
             }
         }
-
 
         if generate_frame_event {
             self.newline();
@@ -2302,7 +2308,7 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_operation_node(&mut self, operation_node: &OperationNode) {
-        self.is_operation_scope = true;
+        self.operation_scope_depth += 1;
         self.newline();
         self.newline();
         let operation_name = self.format_operation_name(&operation_node.name);
@@ -2362,7 +2368,7 @@ impl AstVisitor for PythonVisitor {
         }
 
         self.outdent();
-        self.is_operation_scope = false;
+        self.operation_scope_depth -= 1;
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2661,7 +2667,7 @@ impl AstVisitor for PythonVisitor {
                 Some(expr_t) => {
                     // expr_t.auto_pre_inc_dec(self);
                     self.newline();
-                    if self.is_operation_scope {
+                    if self.is_in_action_or_operation() {
                         self.add_code("return = ");
                     } else {
                         self.add_code("__e._return = ");
@@ -2959,7 +2965,7 @@ impl AstVisitor for PythonVisitor {
                 // Leaving here in case there is an unconsidered edge case.
                 // Needs to be directly solved by the mandatory event handler solution,
                 // whatever that is going to be.
-                if !self.is_operation_scope {
+                if !self.is_in_action_or_operation() {
                     self.generate_return();
                 }
 
@@ -3601,7 +3607,7 @@ impl AstVisitor for PythonVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            if self.is_operation_scope {
+                            if self.is_in_action_or_operation() {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
@@ -3667,7 +3673,7 @@ impl AstVisitor for PythonVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            if self.is_operation_scope {
+                            if self.is_in_action_or_operation() {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
@@ -3815,7 +3821,7 @@ impl AstVisitor for PythonVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            if self.is_operation_scope {
+                            if self.is_in_action_or_operation() {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
@@ -3883,7 +3889,7 @@ impl AstVisitor for PythonVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            if self.is_operation_scope {
+                            if self.is_in_action_or_operation() {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
@@ -4007,7 +4013,7 @@ impl AstVisitor for PythonVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            if self.is_operation_scope {
+                            if self.is_in_action_or_operation() {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
@@ -4048,7 +4054,7 @@ impl AstVisitor for PythonVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            if self.is_operation_scope {
+                            if self.is_in_action_or_operation() {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
@@ -4201,7 +4207,7 @@ impl AstVisitor for PythonVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            if self.is_operation_scope {
+                            if self.is_in_action_or_operation() {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
@@ -4265,7 +4271,7 @@ impl AstVisitor for PythonVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            if self.is_operation_scope {
+                            if self.is_in_action_or_operation() {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
@@ -4522,6 +4528,8 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_action_node(&mut self, action_node: &ActionNode) {
+        self.action_scope_depth += 1;
+
         let mut subclass_code = String::new();
 
         self.newline();
@@ -4586,6 +4594,8 @@ impl AstVisitor for PythonVisitor {
         self.outdent();
         // self.newline();
         self.subclass_code.push(subclass_code);
+
+        self.action_scope_depth -= 1;
     }
 
     //* --------------------------------------------------------------------- *//

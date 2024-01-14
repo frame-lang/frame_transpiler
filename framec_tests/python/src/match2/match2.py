@@ -1,4 +1,4 @@
-# Emitted from framec_v0.11.0
+#Emitted from framec_v0.11.0
 
 import sys
 from enum import Enum
