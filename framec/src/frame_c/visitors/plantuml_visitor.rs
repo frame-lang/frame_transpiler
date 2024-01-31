@@ -725,46 +725,44 @@ impl PlantUmlVisitor {
         // -- State Variables --
 
         // plant uml
-        let target_state_name = match &transition_expr_node
-        .target_state_context_t
-    {
-        TargetStateContextType::StateRef { state_context_node } => {
-            &state_context_node.state_ref_node.name
+        let target_state_name = match &transition_expr_node.target_state_context_t {
+            TargetStateContextType::StateRef { state_context_node } => {
+                &state_context_node.state_ref_node.name
+            }
+            _ => panic!("TODO"),
+        };
+
+        let _state_ref_code = self.format_target_state_name(target_state_name);
+
+        // self.newline();
+        match &transition_expr_node.label_opt {
+            Some(_label) => {
+                // self.add_code(&format!("// {}", label));
+                // self.newline();
+            }
+            None => {}
         }
-        _ => panic!("TODO"),
-    };
 
-    let _state_ref_code = self.format_target_state_name(target_state_name);
-
-    // self.newline();
-    match &transition_expr_node.label_opt {
-        Some(_label) => {
-            // self.add_code(&format!("// {}", label));
-            // self.newline();
+        let mut current_state: String = "??".to_string();
+        if let Some(state_name) = &self.current_state_name_opt {
+            current_state = state_name.clone();
         }
-        None => {}
-    }
 
-    let mut current_state: String = "??".to_string();
-    if let Some(state_name) = &self.current_state_name_opt {
-        current_state = state_name.clone();
-    }
+        let label = match &transition_expr_node.label_opt {
+            Some(label) => {
+                let cleaned = str::replace(label, "|", "&#124;");
+                format!(" : {}", cleaned)
+            }
+            None => format!(" : {}", self.event_handler_msg.clone()),
+        };
 
-    let label = match &transition_expr_node.label_opt {
-        Some(label) => {
-            let cleaned = str::replace(label, "|", "&#124;");
-            format!(" : {}", cleaned)
-        }
-        None => format!(" : {}", self.event_handler_msg.clone()),
-    };
-
-    let transition_code = &format!(
-        "{} --> {}{}\n",
-        current_state,
-        target_state_name.to_string(),
-        label
-    );
-          println!("{}", &transition_code);
+        let transition_code = &format!(
+            "{} --> {}{}\n",
+            current_state,
+            target_state_name.to_string(),
+            label
+        );
+        println!("{}", &transition_code);
         //plant
         // self.newline();
         // self.add_code("self.__transition(next_compartment)");
@@ -1072,12 +1070,11 @@ impl AstVisitor for PlantUmlVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_operation_node(&mut self, operation_node: &OperationNode) {
-
-        // let operation_name = self.format_operation_name(&operation_node.name);    
+        // let operation_name = self.format_operation_name(&operation_node.name);
 
         // Generate statements
         if operation_node.statements.is_empty() && operation_node.terminator_node_opt.is_none() {
-            // 
+            //
         } else {
             if !operation_node.statements.is_empty() {
                 // self.newline();
@@ -1087,7 +1084,6 @@ impl AstVisitor for PlantUmlVisitor {
 
         self.outdent();
     }
-
 
     //* --------------------------------------------------------------------- *//
 
@@ -1309,8 +1305,6 @@ impl AstVisitor for PlantUmlVisitor {
                 self.newline();
                 self.add_code(&param_code);
             }
-
-            
         }
 
         // Generate statements
@@ -1522,7 +1516,6 @@ impl AstVisitor for PlantUmlVisitor {
         self.outdent();
     }
 
-
     //* --------------------------------------------------------------------- *//
 
     fn visit_event_handler_terminator_node(
@@ -1669,12 +1662,10 @@ impl AstVisitor for PlantUmlVisitor {
             .transition_expr_node
             .target_state_context_t
         {
-            TargetStateContextType::StateRef { .. } => {
-                self.generate_state_ref_transition(
-                    &transition_statement.transition_expr_node,
-                    &(transition_statement.exit_args_opt),
-                )
-            }
+            TargetStateContextType::StateRef { .. } => self.generate_state_ref_transition(
+                &transition_statement.transition_expr_node,
+                &(transition_statement.exit_args_opt),
+            ),
             TargetStateContextType::StateStackPop {} => self.generate_state_stack_pop_transition(
                 &transition_statement.transition_expr_node,
                 &(transition_statement.exit_args_opt),
@@ -1684,7 +1675,6 @@ impl AstVisitor for PlantUmlVisitor {
 
         // self.this_branch_transitioned = true;
     }
-
 
     fn visit_transition_expr_node(&mut self, transition_expr_node: &TransitionExprNode) {
         match &transition_expr_node.target_state_context_t {
@@ -2225,25 +2215,19 @@ impl AstVisitor for PlantUmlVisitor {
         &mut self,
         enum_match_test_match_branch_node: &EnumMatchTestMatchBranchNode,
     ) {
-       
-            self.visit_decl_stmts(&enum_match_test_match_branch_node.statements);
-        
-
+        self.visit_decl_stmts(&enum_match_test_match_branch_node.statements);
     }
 
-     //* --------------------------------------------------------------------- *//
-     fn visit_enum_match_test_else_branch_node(
+    //* --------------------------------------------------------------------- *//
+    fn visit_enum_match_test_else_branch_node(
         &mut self,
         enum_match_test_else_branch_node: &EnumMatchTestElseBranchNode,
     ) {
         self.newline();
         // self.indent();
 
-       
-            self.visit_decl_stmts(&enum_match_test_else_branch_node.statements);
-      
+        self.visit_decl_stmts(&enum_match_test_else_branch_node.statements);
     }
-
 
     //* --------------------------------------------------------------------- *//
 
@@ -2467,7 +2451,9 @@ impl AstVisitor for PlantUmlVisitor {
         self.indent();
         if !action_decl_node.is_implemented {
             // Generate statements
-            if action_decl_node.statements.is_empty() && action_decl_node.terminator_node_opt.is_none() {
+            if action_decl_node.statements.is_empty()
+                && action_decl_node.terminator_node_opt.is_none()
+            {
                 // self.newline();
                 // self.add_code("pass");
             } else {
@@ -2475,7 +2461,7 @@ impl AstVisitor for PlantUmlVisitor {
                     // self.newline();
                     self.visit_decl_stmts(&action_decl_node.statements);
                 }
-                         }
+            }
         }
 
         self.outdent();
