@@ -10,7 +10,7 @@ from framelang.framelang import FrameEvent
     to_c
     push
     pop
-    pop_change
+
 
     -machine-
     $A
@@ -28,8 +28,6 @@ from framelang.framelang import FrameEvent
             $$[+] ^
         |pop|
             -> $$[-] ^
-        |pop_change|
-            ->> $$[-] ^
 
     $B
         |>|
@@ -46,8 +44,6 @@ from framelang.framelang import FrameEvent
             $$[+] ^
         |pop|
             -> $$[-] ^
-        |pop_change|
-            ->> $$[-] ^
 
     $C
         |>|
@@ -64,8 +60,6 @@ from framelang.framelang import FrameEvent
             $$[+] ^
         |pop|
             -> $$[-] ^
-        |pop_change|
-            ->> $$[-] ^
 
     -actions-
     log [msg:str]

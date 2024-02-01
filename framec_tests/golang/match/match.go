@@ -1,8 +1,5 @@
-// emitted from framec_v0.10.0
+// emitted from framec_v0.11.0
 // get include files at https://github.com/frame-lang/frame-ancillary-files
-package match
-
-import "golang/framelang"
 
 
 func NewMatch() Match {
@@ -172,7 +169,7 @@ func (m *matchStruct) _MatchState_Init_(e *framelang.FrameEvent) {
 func (m *matchStruct) _MatchState_EmptyMatch_(e *framelang.FrameEvent) {
     switch e.Msg {
     case "Onstring":
-        if e.Params["s"].(string) == "" || e.Params["s"].(string) == "foo" {
+        if e.Params["s"].(string) {
             m.log("empty")
         } else {
             m.log("?")
@@ -180,7 +177,7 @@ func (m *matchStruct) _MatchState_EmptyMatch_(e *framelang.FrameEvent) {
         
         return
     }
-}  //  TODO: matching only the empty string is broken
+}  // TODO: matching only the empty string is broken
 
 
 func (m *matchStruct) _MatchState_SimpleMatch_(e *framelang.FrameEvent) {
@@ -200,15 +197,15 @@ func (m *matchStruct) _MatchState_SimpleMatch_(e *framelang.FrameEvent) {
         
         return
     case "Onstring":
-        if e.Params["s"].(string) == "hello" {
+        if e.Params["s"].(string) {
             m.log("hello")
-        } else if e.Params["s"].(string) == "hello" {
+        } else if e.Params["s"].(string) {
             m.log("!!!")
-        } else if e.Params["s"].(string) == "goodbye" {
+        } else if e.Params["s"].(string) {
             m.log("goodbye")
-        } else if e.Params["s"].(string) == "Testing 1, 2, 3..." {
+        } else if e.Params["s"].(string) {
             m.log("testing")
-        } else if e.Params["s"].(string) == "$10!" {
+        } else if e.Params["s"].(string) {
             m.log("money")
         } else {
             m.log("?")
@@ -231,9 +228,9 @@ func (m *matchStruct) _MatchState_MultiMatch_(e *framelang.FrameEvent) {
         
         return
     case "Onstring":
-        if e.Params["s"].(string) == "$10" || e.Params["s"].(string) == "12.5%" || e.Params["s"].(string) == "@#*!" {
+        if e.Params["s"].(string) {
             m.log("symbols")
-        } else if e.Params["s"].(string) == " " || e.Params["s"].(string) == "  " || e.Params["s"].(string) == "\t" || e.Params["s"].(string) == "\n" {
+        } else if e.Params["s"].(string) {
             m.log("whitespace")
         } else {
             m.log("?")
@@ -272,20 +269,20 @@ func (m *matchStruct) _MatchState_NestedMatch_(e *framelang.FrameEvent) {
         
         return
     case "Onstring":
-        if e.Params["s"].(string) == "hello" || e.Params["s"].(string) == "hola" || e.Params["s"].(string) == "bonjour" {
+        if e.Params["s"].(string) {
             m.log("greeting")
-            if e.Params["s"].(string) == "hello" {
+            if e.Params["s"].(string) {
                 m.log("English")
-            } else if e.Params["s"].(string) == "hola" {
+            } else if e.Params["s"].(string) {
                 m.log("Spanish")
             } else {
                 m.log("French")
             }
-        } else if e.Params["s"].(string) == "goodbye" || e.Params["s"].(string) == "adios" || e.Params["s"].(string) == "au revoir" {
+        } else if e.Params["s"].(string) {
             m.log("farewell")
-            if e.Params["s"].(string) == "goodbye" {
+            if e.Params["s"].(string) {
                 m.log("English")
-            } else if e.Params["s"].(string) == "adios" {
+            } else if e.Params["s"].(string) {
                 m.log("Spanish")
             } else {
                 m.log("French")
@@ -323,13 +320,13 @@ func (m *matchStruct) _MatchState_ChildMatch_(e *framelang.FrameEvent) {
         }
         
     case "Onstring":
-        if e.Params["s"].(string) == "hello" {
+        if e.Params["s"].(string) {
             m.log("hello in child")
-        } else if e.Params["s"].(string) == "goodbye" {
+        } else if e.Params["s"].(string) {
             compartment := NewMatchCompartment(MatchState_Final)
             m._transition_(compartment)
             return
-        } else if e.Params["s"].(string) == "Testing 1, 2, 3..." {
+        } else if e.Params["s"].(string) {
             m.log("testing in child")
             
             return

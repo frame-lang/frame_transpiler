@@ -5,17 +5,25 @@
 #![allow(clippy::ptr_arg)]
 #![allow(non_snake_case)]
 
+use crate::config::*;
 use crate::frame_c::ast::*;
 use crate::frame_c::scanner::{Token, TokenType};
 use crate::frame_c::symbol_table::*;
 use crate::frame_c::visitors::*;
 // use yaml_rust::{YamlLoader, Yaml};
 
+#[derive(PartialEq)]
+enum ExprContext {
+    None,
+    Lvalue,
+    Rvalue,
+}
 pub struct CsVisitor {
     compiler_version: String,
     code: String,
     dent: usize,
     current_state_name_opt: Option<String>,
+    current_event_msg: String,
     current_event_ret_type: String,
     arcanium: Arcanum,
     symbol_config: SymbolConfig,
@@ -31,11 +39,22 @@ pub struct CsVisitor {
     has_states: bool,
     errors: Vec<String>,
     visiting_call_chain_literal_variable: bool,
-    generate_exit_args: bool,
+    //generate_exit_args: bool,
     generate_state_context: bool,
     generate_state_stack: bool,
     generate_change_state: bool,
-    generate_transition_state: bool,
+    //generate_transition_state: bool,
+    current_var_type: String,
+    expr_context: ExprContext,
+    /* Persistence */
+    managed: bool, //Generate Managed code
+    marshal: bool, //Generate JSON code
+    manager: String,
+
+    // keeping track of traversal context
+    this_branch_transitioned: bool,
+    // config
+    config: CsharpConfig,
 }
 
 impl CsVisitor {
@@ -43,19 +62,22 @@ impl CsVisitor {
 
     pub fn new(
         arcanium: Arcanum,
-        generate_exit_args: bool,
+        //generate_exit_args: bool,
         generate_state_context: bool,
         generate_state_stack: bool,
         generate_change_state: bool,
-        generate_transition_state: bool,
+        //generate_transition_state: bool,
         compiler_version: &str,
         comments: Vec<Token>,
+        config: FrameConfig,
     ) -> CsVisitor {
+        let cs_config = config.codegen.csharp;
         CsVisitor {
             compiler_version: compiler_version.to_string(),
             code: String::from(""),
             dent: 0,
             current_state_name_opt: None,
+            current_event_msg: String::new(),
             current_event_ret_type: String::new(),
             arcanium,
             symbol_config: SymbolConfig::new(),
@@ -71,14 +93,49 @@ impl CsVisitor {
             subclass_code: Vec::new(),
             warnings: Vec::new(),
             visiting_call_chain_literal_variable: false,
-            generate_exit_args,
+            //generate_exit_args,
             generate_state_context,
             generate_state_stack,
             generate_change_state,
-            generate_transition_state,
+            //generate_transition_state,
+            current_var_type: String::new(),
+            expr_context: ExprContext::None,
+
+            /* Persistence */
+            managed: false, // Generate Managed code
+            marshal: false, // Generate Json code
+            manager: String::new(),
+            this_branch_transitioned: false,
+
+            config: cs_config,
         }
     }
 
+    //* --------------------------------------------------------------------- *//
+
+    pub fn format_type(&self, type_node: &TypeNode) -> String {
+        let mut s = String::new();
+
+        if let Some(frame_event_part) = &type_node.frame_event_part_opt {
+            match frame_event_part {
+                FrameEventPart::Event { is_reference } => {
+                    if *is_reference {
+                        s.push('&');
+                    }
+                    // s.push_str(&*self.config.code.frame_event_type_name.clone());
+                }
+                _ => {}
+            }
+        } else {
+            if type_node.is_reference {
+                s.push('&');
+            }
+
+            s.push_str(&type_node.type_str.clone());
+        }
+
+        s
+    }
     //* --------------------------------------------------------------------- *//
 
     pub fn get_code(&self) -> String {
@@ -143,10 +200,13 @@ impl CsVisitor {
         let mut code = String::new();
 
         match variable_node.scope {
-            IdentifierDeclScope::DomainBlock => {
+            IdentifierDeclScope::SystemScope => {
+                code.push_str("this");
+            }
+            IdentifierDeclScope::DomainBlockScope => {
                 code.push_str(&format!("this.{}", variable_node.id_node.name.lexeme));
             }
-            IdentifierDeclScope::StateParam => {
+            IdentifierDeclScope::StateParamScope => {
                 let var_node = variable_node;
                 let var_symbol_rcref_opt = &var_node.symbol_type_rcref_opt;
                 let var_symbol_rcref = var_symbol_rcref_opt.as_ref().unwrap();
@@ -154,17 +214,64 @@ impl CsVisitor {
                 let var_type = self.get_variable_type(&*var_symbol);
 
                 if self.visiting_call_chain_literal_variable {
-                    code.push('(');
+                    //code.push('(');
                 }
-                code.push_str(&format!(
-                    "({}) _stateContext_.getStateArg(\"{}\")",
-                    var_type, variable_node.id_node.name.lexeme
-                ));
+                // if is being used as an rval, cast it.
+                if self.expr_context == ExprContext::Rvalue
+                    || self.expr_context == ExprContext::None
+                {
+                    code.push_str(&format!(
+                        "({})this._compartment_.StateArgs[\"{}\"]",
+                        var_type, variable_node.id_node.name.lexeme
+                    ));
+                } else {
+                    code.push_str(&format!(
+                        "this._compartment_.StateArgs[\"{}\"]",
+                        variable_node.id_node.name.lexeme
+                    ));
+                }
+
                 if self.visiting_call_chain_literal_variable {
-                    code.push(')');
+                    //code.push(')');
                 }
             }
-            IdentifierDeclScope::StateVar => {
+            IdentifierDeclScope::StateVarScope => {
+                let var_node = variable_node;
+                let var_symbol_rcref_opt = &var_node.symbol_type_rcref_opt;
+                let var_symbol_rcref = var_symbol_rcref_opt.as_ref().unwrap();
+                let var_symbol = var_symbol_rcref.borrow();
+                let var_type = self.get_variable_type(&*var_symbol);
+
+                if self.expr_context == ExprContext::Rvalue
+                    || self.expr_context == ExprContext::None
+                {
+                    if self.visiting_call_chain_literal_variable {
+                        code.push('(');
+                    }
+                }
+                // if is being used as an rval, cast it.
+                if self.expr_context == ExprContext::Rvalue
+                    || self.expr_context == ExprContext::None
+                {
+                    code.push_str(&format!(
+                        "({})this._compartment_.StateVars[\"{}\"]",
+                        var_type, variable_node.id_node.name.lexeme
+                    ));
+                } else {
+                    code.push_str(&format!(
+                        "this._compartment_.StateVars[\"{}\"]",
+                        variable_node.id_node.name.lexeme
+                    ));
+                }
+                if self.expr_context == ExprContext::Rvalue
+                    || self.expr_context == ExprContext::None
+                {
+                    if self.visiting_call_chain_literal_variable {
+                        code.push(')');
+                    }
+                }
+            }
+            IdentifierDeclScope::EventHandlerParamScope => {
                 let var_node = variable_node;
                 let var_symbol_rcref_opt = &var_node.symbol_type_rcref_opt;
                 let var_symbol_rcref = var_symbol_rcref_opt.as_ref().unwrap();
@@ -172,38 +279,26 @@ impl CsVisitor {
                 let var_type = self.get_variable_type(&*var_symbol);
 
                 if self.visiting_call_chain_literal_variable {
-                    code.push('(');
+                    // code.push('(');
+                }
+                // if is being used as an rval, cast it.
+                if self.expr_context == ExprContext::Rvalue
+                    || self.expr_context == ExprContext::None
+                {
+                    code.push_str(&format!("({})", var_type));
                 }
                 code.push_str(&format!(
-                    "({}) _stateContext_.getStateVar(\"{}\")",
-                    var_type, variable_node.id_node.name.lexeme
+                    "e._parameters[\"{}\"]",
+                    variable_node.id_node.name.lexeme
                 ));
                 if self.visiting_call_chain_literal_variable {
-                    code.push(')');
+                    // code.push(')');
                 }
             }
-            IdentifierDeclScope::EventHandlerParam => {
-                let var_node = variable_node;
-                let var_symbol_rcref_opt = &var_node.symbol_type_rcref_opt;
-                let var_symbol_rcref = var_symbol_rcref_opt.as_ref().unwrap();
-                let var_symbol = var_symbol_rcref.borrow();
-                let var_type = self.get_variable_type(&*var_symbol);
-
-                if self.visiting_call_chain_literal_variable {
-                    code.push('(');
-                }
-                code.push_str(&format!(
-                    "({}) e._parameters[\"{}\"]",
-                    var_type, variable_node.id_node.name.lexeme
-                ));
-                if self.visiting_call_chain_literal_variable {
-                    code.push(')');
-                }
-            }
-            IdentifierDeclScope::EventHandlerVar => {
+            IdentifierDeclScope::EventHandlerVarScope => {
                 code.push_str(&variable_node.id_node.name.lexeme.to_string());
             }
-            IdentifierDeclScope::None => {
+            IdentifierDeclScope::UnknownScope => {
                 // TODO: Explore labeling Variables as "extern" scope
                 code.push_str(&variable_node.id_node.name.lexeme.to_string());
             } // Actions?
@@ -243,12 +338,111 @@ impl CsVisitor {
                 Some(ret_type) => ret_type.get_type_str(),
                 None => String::from("<?>"),
             };
+            separator = ", ";
             self.add_code(&format!("{} {}", param_type, param.param_name));
             subclass_actions.push_str(&format!("{} {}", param_type, param.param_name));
-            separator = ",";
         }
     }
+    //* --------------------------------------------------------------------- *//
 
+    // format system params,if any.
+    fn format_params(&mut self, system_node: &SystemNode) -> (String, String) {
+        let mut separator = String::new();
+        let ref_params: String = String::new();
+        let mut formatted_params: String = match &system_node.start_state_state_params_opt {
+            Some(param_list) => {
+                let mut params = String::new();
+                for param_node in param_list {
+                    params.push_str(&format!("{}{}", separator, param_node.param_name));
+                    separator = String::from(", ");
+                }
+                params
+            }
+            None => String::new(),
+        };
+
+        match &system_node.start_state_enter_params_opt {
+            Some(param_list) => {
+                for param_node in param_list {
+                    formatted_params.push_str(&format!("{}{}", separator, param_node.param_name));
+                    separator = String::from(",");
+                }
+            }
+            None => {}
+        };
+        match &system_node.domain_params_opt {
+            Some(param_list) => {
+                for param_node in param_list {
+                    formatted_params.push_str(&format!("{}{}", separator, param_node.param_name));
+                    separator = String::from(",");
+                }
+            }
+            None => {}
+        };
+        (formatted_params.to_string(), ref_params.to_string())
+    }
+    //* --------------------------------------------------------------------- *//
+
+    fn format_new_params(&mut self, system_node: &SystemNode) -> (String, String) {
+        let mut ref_params: String = String::new(); // ref params is passing reference of constructor params
+        let mut separator = String::new();
+        let mut new_params: String = match &system_node.start_state_state_params_opt {
+            Some(param_list) => {
+                let mut params = String::new();
+                for param_node in param_list {
+                    let param_type = match &param_node.param_type_opt {
+                        Some(type_node) => self.format_type(type_node),
+                        None => String::new(),
+                    };
+                    separator = String::new();
+                    params.push_str(&format!(
+                        "{}{} {}",
+                        separator, &*param_type, param_node.param_name
+                    ));
+                    ref_params.push_str(&format!("{}{}", separator, param_node.param_name));
+                    separator = String::from(", ");
+                }
+                params
+            }
+            None => String::new(),
+        };
+        match &system_node.start_state_enter_params_opt {
+            Some(param_list) => {
+                for param_node in param_list {
+                    let param_type = match &param_node.param_type_opt {
+                        Some(type_node) => self.format_type(type_node),
+                        None => String::new(),
+                    };
+                    new_params.push_str(&format!(
+                        "{}{} {}",
+                        separator, &*param_type, param_node.param_name
+                    ));
+                    ref_params.push_str(&format!("{}{}", separator, param_node.param_name));
+                    separator = String::from(", ");
+                }
+            }
+            None => {}
+        };
+        match &system_node.domain_params_opt {
+            Some(param_list) => {
+                for param_node in param_list {
+                    let param_type = match &param_node.param_type_opt {
+                        Some(type_node) => self.format_type(type_node),
+                        None => String::new(),
+                    };
+                    new_params.push_str(&format!(
+                        "{}{} {}",
+                        separator, &*param_type, param_node.param_name
+                    ));
+                    ref_params.push_str(&format!("{}{}", separator, param_node.param_name));
+                    separator = String::from(", ");
+                }
+            }
+            None => {}
+        };
+
+        (new_params.to_string(), ref_params.to_string())
+    }
     //* --------------------------------------------------------------------- *//
 
     fn format_action_name(&mut self, action_name: &String) -> String {
@@ -258,6 +452,68 @@ impl CsVisitor {
     //* --------------------------------------------------------------------- *//
 
     pub fn run(&mut self, system_node: &SystemNode) {
+        match &system_node.system_attributes_opt {
+            Some(attributes) => {
+                for value in (*attributes).values() {
+                    match value {
+                        AttributeNode::MetaWord { .. } => {
+                            // TODO
+                            panic!("Need to implement attribute MetaWord.")
+                        }
+                        AttributeNode::MetaNameValueStr { attr } => {
+                            match attr.name.as_str() {
+                                // TODO: constants
+                                // "stateType" => self.config.code.state_type = attr.value.clone(),
+                                "managed" => {
+                                    self.manager = attr.value.clone();
+                                    self.managed = true;
+                                }
+                                _ => {}
+                            }
+                        }
+                        AttributeNode::MetaListIdents { attr } => {
+                            match attr.name.as_str() {
+                                "derive" => {
+                                    for ident in &attr.idents {
+                                        match ident.as_str() {
+                                            // TODO: constants and figure out mom vs managed
+                                            //  "Managed" => self.managed = true,
+                                            "Marshal" => self.marshal = true,
+                                            _ => {}
+                                        }
+                                    }
+                                }
+                                "managed" => {
+                                    self.managed = true;
+                                    if attr.idents.len() != 1 {
+                                        self.errors.push(
+                                            "Attribute 'managed' takes 1 parameter".to_string(),
+                                        );
+                                    }
+                                    match attr.idents.get(0) {
+                                        Some(manager_type) => {
+                                            self.manager = manager_type.clone();
+                                        }
+                                        None => {
+                                            self.errors.push(
+                                                "Attribute 'managed' missing manager type."
+                                                    .to_string(),
+                                            );
+                                        }
+                                    }
+                                }
+                                _ => {
+                                    self.errors.push("Unknown attribute".to_string());
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // self.config.code.marshal_system_state_var = format!("{}State", &system_node.name);
+            }
+            None => {}
+        }
         system_node.accept(self);
     }
 
@@ -302,7 +558,9 @@ impl CsVisitor {
     fn visit_decl_stmts(&mut self, decl_stmt_types: &Vec<DeclOrStmtType>) {
         for decl_stmt_t in decl_stmt_types.iter() {
             match decl_stmt_t {
-                DeclOrStmtType::VarDeclT { var_decl_t_rc_ref } => {
+                DeclOrStmtType::VarDeclT {
+                    var_decl_t_rcref: var_decl_t_rc_ref,
+                } => {
                     let variable_decl_node = var_decl_t_rc_ref.borrow();
                     variable_decl_node.accept(self);
                 }
@@ -310,13 +568,19 @@ impl CsVisitor {
                     match stmt_t {
                         StatementType::ExpressionStmt { expr_stmt_t } => {
                             match expr_stmt_t {
+                                ExprStmtType::SystemInstanceStmtT {
+                                    system_instance_stmt_node,
+                                } => system_instance_stmt_node.accept(self),
+                                ExprStmtType::SystemTypeStmtT {
+                                    system_type_stmt_node,
+                                } => system_type_stmt_node.accept(self),
                                 ExprStmtType::ActionCallStmtT {
                                     action_call_stmt_node,
                                 } => action_call_stmt_node.accept(self), // // TODO
                                 ExprStmtType::CallStmtT { call_stmt_node } => {
                                     call_stmt_node.accept(self)
                                 }
-                                ExprStmtType::CallChainLiteralStmtT {
+                                ExprStmtType::CallChainStmtT {
                                     call_chain_literal_stmt_node,
                                 } => call_chain_literal_stmt_node.accept(self),
                                 ExprStmtType::AssignmentStmtT {
@@ -325,10 +589,22 @@ impl CsVisitor {
                                 ExprStmtType::VariableStmtT { variable_stmt_node } => {
                                     variable_stmt_node.accept(self)
                                 }
+                                ExprStmtType::ExprListStmtT {
+                                    expr_list_stmt_node,
+                                } => expr_list_stmt_node.accept(self),
+                                ExprStmtType::EnumeratorStmtT {
+                                    enumerator_stmt_node,
+                                } => enumerator_stmt_node.accept(self),
+                                ExprStmtType::BinaryStmtT { binary_stmt_node } => {
+                                    binary_stmt_node.accept(self)
+                                }
+                                ExprStmtType::TransitionStmtT {
+                                    transition_statement_node: _transition_statement_node,
+                                } => panic!("TODO"),
                             }
                         }
                         StatementType::TransitionStmt {
-                            transition_statement,
+                            transition_statement_node: transition_statement,
                         } => {
                             transition_statement.accept(self);
                         }
@@ -340,8 +616,27 @@ impl CsVisitor {
                         } => {
                             state_stack_operation_statement_node.accept(self);
                         }
-                        StatementType::ChangeStateStmt { change_state_stmt } => {
+                        StatementType::ChangeStateStmt {
+                            change_state_stmt_node: change_state_stmt,
+                        } => {
                             change_state_stmt.accept(self);
+                        }
+                        StatementType::LoopStmt { loop_stmt_node } => {
+                            loop_stmt_node.accept(self);
+                        }
+                        StatementType::BlockStmt { block_stmt_node } => {
+                            block_stmt_node.accept(self);
+                        }
+                        StatementType::ContinueStmt { continue_stmt_node } => {
+                            continue_stmt_node.accept(self);
+                        }
+                        StatementType::BreakStmt { break_stmt_node } => {
+                            break_stmt_node.accept(self);
+                        }
+                        StatementType::SuperStringStmt {
+                            super_string_stmt_node,
+                        } => {
+                            super_string_stmt_node.accept(self);
                         }
                         StatementType::NoStmt => {
                             // TODO
@@ -362,91 +657,162 @@ impl CsVisitor {
         self.newline();
         if system_node.get_first_state().is_some() {
             self.newline();
-            self.add_code("private delegate void FrameState(FrameEvent e);");
+            self.add_code("private int _state_;");
             self.newline();
-            self.add_code("private FrameState _state_;");
-            if self.generate_state_context {
-                self.newline();
-                self.add_code("private StateContext _stateContext_;");
-            }
-            if self.generate_transition_state {
-                self.newline();
-                self.newline();
-                if self.generate_state_context {
-                    if self.generate_exit_args {
-                        self.add_code("private void _transition_(FrameState newState,Dictionary<String,object> exitArgs, StateContext stateContext) {");
-                    } else {
-                        self.add_code("private void _transition_(FrameState newState, StateContext stateContext) {");
-                    }
-                } else if self.generate_exit_args {
-                    self.add_code("private void _transition_(FrameState newState,Dictionary<String,object> exitArgs) {");
-                } else {
-                    self.add_code("private void _transition_(FrameState newState) {");
-                }
-                self.indent();
-                self.newline();
-                if self.generate_exit_args {
-                    self.add_code("FrameEvent exitEvent = new FrameEvent(\"<\",exitArgs);");
-                } else {
-                    self.add_code("FrameEvent exitEvent = new FrameEvent(\"<\",null);");
-                }
-                self.newline();
-                self.add_code("_state_(exitEvent);");
-                self.newline();
-                self.add_code("_state_ = newState;");
-                self.newline();
-                if self.generate_state_context {
-                    self.add_code("_stateContext_ = stateContext;");
-                    self.newline();
-                    self.add_code("FrameEvent enterEvent = new FrameEvent(\">\",_stateContext_.getEnterArgs());");
-                    self.newline();
-                } else {
-                    self.add_code("FrameEvent enterEvent = new FrameEvent(\">\",null);");
-                    self.newline();
-                }
-                self.add_code("_state_(enterEvent);");
-                self.outdent();
-                self.newline();
-                self.add_code("}");
-            }
+            self.newline();
+            self.add_code(&format!(
+                "private void _transition_({}Compartment compartment)",
+                self.system_name
+            ));
+            self.newline();
+            self.add_code("{");
+            self.indent();
+            self.newline();
+            self.add_code("this._nextCompartment_ = compartment;");
+            self.outdent();
+            self.newline();
+            self.add_code("}");
+
+            self.newline();
+            self.newline();
+            self.add_code(&format!(
+                "private void _doTransition_({}Compartment nextCompartment)",
+                self.system_name
+            ));
+            self.newline();
+            self.add_code("{");
+
+            self.indent();
+            self.newline();
+            self.add_code("this._mux_(new FrameEvent(\"<\", this._compartment_.ExitArgs));");
+            self.newline();
+            self.add_code("this._compartment_ = nextCompartment;");
+            self.newline();
+            self.add_code("this._mux_(new FrameEvent(\">\", this._compartment_.EnterArgs));");
+            self.outdent();
+            self.newline();
+            self.add_code("}");
+
             if self.generate_state_stack {
                 self.newline();
                 self.newline();
                 if self.generate_state_context {
                     self.add_code(
-                        "private Stack<StateContext> _stateStack_ = new Stack<StateContext>();",
+                        "private Stack<StateContextStackCompartment> _stateStack_ = new Stack<StateContextStackCompartment>();",
                     );
                     self.newline();
                     self.newline();
-                    self.add_code("private void _stateStack_push_(StateContext stateContext) {");
+                    self.add_code(&format!(
+                        "private void _stateStack_push_({}Compartment compartment) {{",
+                        self.system_name
+                    ));
                     self.indent();
                     self.newline();
-                    self.add_code("_stateStack_.Push(stateContext);");
+                    self.add_code("_stateStack_.Push(this.DeepCopyCompartment(compartment));");
                     self.outdent();
                     self.newline();
                     self.add_code("}");
                     self.newline();
                     self.newline();
-                    self.add_code("private StateContext _stateStack_pop_() {");
+
+                    self.add_code(&format!(
+                        "private {}Compartment DeepCopyCompartment({}Compartment c)",
+                        self.system_name, self.system_name
+                    ));
+                    self.newline();
+                    self.add_code("{");
+                    self.indent();
+                    self.newline();
+                    self.add_code(&format!(
+                        "{}Compartment copyCompartment = new {}Compartment(c.state)",
+                        self.system_name, self.system_name
+                    ));
+                    self.newline();
+                    self.add_code("{");
+                    self.indent();
+                    self.newline();
+                    self.add_code("state = c.state,");
+                    self.newline();
+                    self.add_code("StateArgs = c.StateArgs == null ? new Dictionary<string, object>() : new Dictionary<string, object>(c.StateArgs),");
+                    self.newline();
+                    self.add_code("StateVars = c.StateVars == null ? new Dictionary<string, object>() : new Dictionary<string, object>(c.StateVars),");
+                    self.newline();
+                    self.add_code("EnterArgs = c.EnterArgs == null ? new Dictionary<string, object>() : new Dictionary<string, object>(c.EnterArgs),");
+                    self.newline();
+                    self.add_code("ExitArgs = c.ExitArgs == null ? new Dictionary<string, object>() : new Dictionary<string, object>(c.ExitArgs)");
+                    self.outdent();
+                    self.newline();
+                    self.add_code("};");
+                    self.newline();
+                    self.newline();
+                    self.add_code("if (c._forwardEvent != null)");
+                    self.newline();
+                    self.add_code("{");
+                    self.indent();
+                    self.newline();
+                    self.add_code("FrameEvent forwardEventCopy = new FrameEvent()");
+                    self.newline();
+                    self.add_code("{");
+                    self.indent();
+                    self.newline();
+                    self.add_code("_message = c._forwardEvent._message,");
+                    self.newline();
+                    self.add_code("_return = c._forwardEvent._return");
+                    self.outdent();
+                    self.newline();
+                    self.add_code("};");
+                    self.newline();
+                    self.add_code("if(c._forwardEvent._parameters!=null){");
+                    self.indent();
+                    self.newline();
+                    self.add_code("forwardEventCopy._parameters=new Dictionary<string, object>(c._forwardEvent._parameters);");
+                    self.outdent();
+                    self.newline();
+                    self.add_code("}");
+                    self.newline();
+                    self.add_code("copyCompartment._forwardEvent = forwardEventCopy;");
+                    self.outdent();
+                    self.newline();
+                    self.add_code("}");
+                    self.newline();
+                    self.newline();
+                    self.add_code("return copyCompartment;");
+                    self.outdent();
+                    self.newline();
+                    self.add_code("}");
+
+                    self.newline();
+                    self.newline();
+                    self.add_code(&format!(
+                        "private {}Compartment _stateStack_pop_() {{",
+                        self.system_name
+                    ));
                     self.indent();
                     self.newline();
                     self.add_code("return _stateStack_.Pop();");
                 } else {
-                    self.add_code(
-                        "private Stack<FrameState> _stateStack_ = new Stack<FrameState>();",
-                    );
+                    self.add_code(&format!(
+                        "private Stack<{}Compartment> _stateStack_ = new Stack<{}Compartment>();",
+                        self.system_name, self.system_name
+                    ));
                     self.newline();
                     self.newline();
-                    self.add_code("private void _stateStack_push_(FrameState state) {");
+                    self.add_code(&format!(
+                        "private void _stateStack_push_({}Compartment compartment) {{",
+                        self.system_name
+                    ));
                     self.indent();
                     self.newline();
-                    self.add_code("_stateStack_.Push(state);");
+                    self.add_code("_stateStack_.Push(compartment);");
                     self.outdent();
                     self.newline();
                     self.add_code("}");
                     self.newline();
                     self.newline();
-                    self.add_code("private FrameState _stateStack_pop_() {");
+                    self.add_code(&format!(
+                        "private {}Compartment _stateStack_pop_() {{",
+                        self.system_name
+                    ));
                     self.indent();
                     self.newline();
                     self.add_code("return _stateStack_.Pop();");
@@ -459,10 +825,15 @@ impl CsVisitor {
             if self.generate_change_state {
                 self.newline();
                 self.newline();
-                self.add_code("private void _changeState_(FrameState newState) {");
+                self.add_code(&format!(
+                    "private void _changeState_({}Compartment compartment)",
+                    self.system_name
+                ));
+                self.newline();
+                self.add_code("{");
                 self.indent();
                 self.newline();
-                self.add_code("_state_ = newState;");
+                self.add_code("this._compartment_ = compartment;");
                 self.outdent();
                 self.newline();
                 self.add_code("}");
@@ -489,6 +860,23 @@ impl CsVisitor {
         for line in self.subclass_code.iter() {
             self.code.push_str(&*line.to_string());
             self.code.push_str(&*format!("\n{}", self.dent()));
+        }
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    /// Generate a return statement within a handler. Call this rather than adding a return
+    /// statement directly to ensure that the control-flow state is properly maintained.
+    fn generate_return(&mut self) {
+        self.newline();
+        self.add_code("return;");
+        self.this_branch_transitioned = false;
+    }
+
+    /// Generate a return statement if the current branch contained a transition or change-state.
+    fn generate_return_if_transitioned(&mut self) {
+        if self.this_branch_transitioned {
+            self.generate_return();
         }
     }
 
@@ -531,7 +919,7 @@ impl CsVisitor {
         change_state_stmt_node: &ChangeStateStatementNode,
     ) {
         let target_state_name = match &change_state_stmt_node.state_context_t {
-            StateContextType::StateRef { state_context_node } => {
+            TargetStateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_node.name
             }
             _ => {
@@ -540,34 +928,9 @@ impl CsVisitor {
                 "error"
             }
         };
+        //let state_ref_code = self.generate_state_ref_code(target_state_name);
 
-        self.newline();
-        self.add_code(&format!(
-            "_changeState_({});",
-            self.format_target_state_name(target_state_name)
-        ));
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn generate_state_ref_code(&self, target_state_name: &str) -> String {
-        self.format_target_state_name(target_state_name)
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn generate_state_ref_transition(&mut self, transition_statement: &TransitionStatementNode) {
-        self.newline();
-        let target_state_name = match &transition_statement.target_state_context_t {
-            StateContextType::StateRef { state_context_node } => {
-                &state_context_node.state_ref_node.name
-            }
-            _ => {
-                self.errors.push("Unknown error.".to_string());
-                ""
-            }
-        };
-        match &transition_statement.label_opt {
+        match &change_state_stmt_node.label_opt {
             Some(label) => {
                 self.add_code(&format!("// {}", label));
                 self.newline();
@@ -575,20 +938,195 @@ impl CsVisitor {
             None => {}
         }
 
-        if self.generate_state_context {
-            self.add_code(&format!(
-                "stateContext = new StateContext({});",
-                self.generate_state_ref_code(target_state_name)
-            ));
-            self.newline();
+        self.newline();
+        self.add_code(&format!(
+            "compartment =  new {}Compartment((int){}State.{});",
+            self.system_name,
+            self.system_name,
+            target_state_name.to_uppercase()
+        ));
+        self.newline();
+        // -- Enter Arguments --
+
+        let enter_args_opt = match &change_state_stmt_node.state_context_t {
+            TargetStateContextType::StateRef { state_context_node } => {
+                &state_context_node.enter_args_opt
+            }
+            TargetStateContextType::StateStackPop {} => &None,
+        };
+
+        if let Some(enter_args) = enter_args_opt {
+            // Note - searching for event keyed with "State:>"
+            // e.g. "S1:>"
+
+            let mut msg: String = String::from(target_state_name);
+            msg.push(':');
+            msg.push_str(&self.symbol_config.enter_msg_symbol);
+
+            if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt) {
+                match &event_sym.borrow().event_symbol_params_opt {
+                    Some(event_params) => {
+                        if enter_args.exprs_t.len() != event_params.len() {
+                            self.errors.push(
+                                "Fatal error: misaligned parameters to arguments.".to_string(),
+                            );
+                        }
+                        let mut param_symbols_it = event_params.iter();
+                        for expr_t in &enter_args.exprs_t {
+                            match param_symbols_it.next() {
+                                Some(p) => {
+                                    let _param_type = match &p.param_type_opt {
+                                        Some(param_type) => param_type.get_type_str(),
+                                        None => String::from("<?>"),
+                                    };
+                                    let mut expr = String::new();
+                                    expr_t.accept_to_string(self, &mut expr);
+                                    self.add_code(&format!(
+                                        "compartment.EnterArgs[\"{}\"] = {};",
+                                        p.name, expr
+                                    ));
+                                    self.newline();
+                                }
+                                None => panic!(
+                                    "Invalid number of arguments for \"{}\" event handler.",
+                                    msg
+                                ),
+                            }
+                        }
+                    }
+                    None => self.errors.push(format!(
+                        "Invalid number of arguments for \"{}\" event handler.",
+                        msg
+                    )),
+                }
+            } else {
+                self.warnings.push(format!("State {} does not have an enter event handler but is being passed parameters in a transition", target_state_name));
+            }
+        }
+        // -- State Arguments --
+        let target_state_args_opt = match &change_state_stmt_node.state_context_t {
+            TargetStateContextType::StateRef { state_context_node } => {
+                &state_context_node.state_ref_args_opt
+            }
+            TargetStateContextType::StateStackPop {} => &Option::None,
+        };
+        //
+        if let Some(state_args) = target_state_args_opt {
+            //            let mut params_copy = Vec::new();
+            if let Some(state_sym) = self.arcanium.get_state(target_state_name) {
+                match &state_sym.borrow().params_opt {
+                    Some(event_params) => {
+                        let mut param_symbols_it = event_params.iter();
+                        // Loop through the ARGUMENTS...
+                        for expr_t in &state_args.exprs_t {
+                            // ...and validate w/ the PARAMETERS
+                            match param_symbols_it.next() {
+                                Some(param_symbol_rcref) => {
+                                    let param_symbol = param_symbol_rcref.borrow();
+                                    let _param_type = match &param_symbol.param_type_opt {
+                                        Some(param_type) => param_type.get_type_str(),
+                                        None => String::from("<?>"),
+                                    };
+                                    let mut expr = String::new();
+                                    expr_t.accept_to_string(self, &mut expr);
+                                    self.add_code(&format!(
+                                        "compartment.StateArgs[\"{}\"] = {};",
+                                        param_symbol.name, expr
+                                    ));
+                                    self.newline();
+                                }
+                                None => self.errors.push(format!(
+                                    "Invalid number of arguments for \"{}\" state parameters.",
+                                    target_state_name
+                                )),
+                            }
+                            //
+                        }
+                    }
+                    None => {}
+                }
+            } else {
+                self.errors.push("TODO".to_string());
+            }
+        } // -- State Arguments --
+          // -- State Variables --
+
+        let target_state_rcref_opt = self.arcanium.get_state(target_state_name);
+
+        match target_state_rcref_opt {
+            Some(q) => {
+                //                target_state_vars = "stateVars".to_string();
+                if let Some(state_symbol_rcref) = self.arcanium.get_state(&q.borrow().name) {
+                    let state_symbol = state_symbol_rcref.borrow();
+                    let state_node = &state_symbol.state_node_opt.as_ref().unwrap().borrow();
+                    // generate local state variables
+                    if state_node.vars_opt.is_some() {
+                        //                        let mut separator = "";
+                        for var_rcref in state_node.vars_opt.as_ref().unwrap() {
+                            let var = var_rcref.borrow();
+                            let _var_type = match &var.type_opt {
+                                Some(var_type) => var_type.get_type_str(),
+                                None => String::from("<?>"),
+                            };
+                            let expr_t = &var.value_rc;
+                            let mut expr_code = String::new();
+                            expr_t.accept_to_string(self, &mut expr_code);
+                            self.add_code(&format!(
+                                "compartment.StateVars[\"{}\"] = {};",
+                                var.name, expr_code
+                            ));
+                            self.newline();
+                        }
+                    }
+                }
+            }
+            None => {
+                //                code = target_state_vars.clone();
+            }
+        }
+        self.newline();
+        self.add_code("this._changeState_(compartment);");
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    // fn generate_state_ref_code(&self, target_state_name: &str) -> String {
+    //     self.format_target_state_name(target_state_name)
+    // }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn generate_state_ref_transition(&mut self, transition_statement: &TransitionStatementNode) {
+        self.newline();
+        let target_state_name = match &transition_statement
+            .transition_expr_node
+            .target_state_context_t
+        {
+            TargetStateContextType::StateRef { state_context_node } => {
+                &state_context_node.state_ref_node.name
+            }
+            _ => {
+                self.errors.push("Unknown error.".to_string());
+                ""
+            }
+        };
+        //let state_ref_code = self.format_target_state_name(target_state_name);
+
+        self.newline();
+        match &transition_statement.transition_expr_node.label_opt {
+            Some(label) => {
+                self.add_code(&format!("// {}", label));
+                self.newline();
+            }
+            None => {}
         }
 
         // -- Exit Arguments --
 
-        let mut has_exit_args = false;
+        //let mut has_exit_args = false;
         if let Some(exit_args) = &transition_statement.exit_args_opt {
             if !exit_args.exprs_t.is_empty() {
-                has_exit_args = true;
+                //has_exit_args = true;
 
                 // Note - searching for event keyed with "State:<"
                 // e.g. "S1:<"
@@ -602,7 +1140,7 @@ impl CsVisitor {
 
                 if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt)
                 {
-                    match &event_sym.borrow().params_opt {
+                    match &event_sym.borrow().event_symbol_params_opt {
                         Some(event_params) => {
                             if exit_args.exprs_t.len() != event_params.len() {
                                 self.errors.push(
@@ -610,8 +1148,8 @@ impl CsVisitor {
                                 );
                             }
                             let mut param_symbols_it = event_params.iter();
-                            self.add_code("Dictionary<String,object> exitArgs = new Dictionary<String,object>();");
-                            self.newline();
+                            //self.add_code("ExitArgs = new Dictionary<string,object>();");
+                            //self.newline();
                             // Loop through the ARGUMENTS...
                             for expr_t in &exit_args.exprs_t {
                                 // ...and validate w/ the PARAMETERS
@@ -620,7 +1158,7 @@ impl CsVisitor {
                                         let mut expr = String::new();
                                         expr_t.accept_to_string(self, &mut expr);
                                         self.add_code(&format!(
-                                            "exitArgs[\"{}\"] = {};",
+                                            "this._compartment_.ExitArgs[\"{}\"] = {};",
                                             p.name, expr
                                         ));
                                         self.newline();
@@ -648,9 +1186,33 @@ impl CsVisitor {
 
         // -- Enter Arguments --
 
-        let enter_args_opt = match &transition_statement.target_state_context_t {
-            StateContextType::StateRef { state_context_node } => &state_context_node.enter_args_opt,
-            StateContextType::StateStackPop {} => &None,
+        // if self.generate_state_context {
+        self.newline();
+        self.add_code(&format!(
+            "compartment =  new {}Compartment((int){}State.{});",
+            self.system_name,
+            self.system_name,
+            target_state_name.to_uppercase()
+        ));
+        self.newline();
+
+        // }
+
+        if transition_statement.transition_expr_node.forward_event {
+            self.newline();
+            self.add_code("compartment._forwardEvent = e;");
+        }
+
+        self.newline();
+
+        let enter_args_opt = match &transition_statement
+            .transition_expr_node
+            .target_state_context_t
+        {
+            TargetStateContextType::StateRef { state_context_node } => {
+                &state_context_node.enter_args_opt
+            }
+            TargetStateContextType::StateStackPop {} => &None,
         };
 
         if let Some(enter_args) = enter_args_opt {
@@ -662,7 +1224,7 @@ impl CsVisitor {
             msg.push_str(&self.symbol_config.enter_msg_symbol);
 
             if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt) {
-                match &event_sym.borrow().params_opt {
+                match &event_sym.borrow().event_symbol_params_opt {
                     Some(event_params) => {
                         if enter_args.exprs_t.len() != event_params.len() {
                             self.errors.push(
@@ -676,7 +1238,7 @@ impl CsVisitor {
                                     let mut expr = String::new();
                                     expr_t.accept_to_string(self, &mut expr);
                                     self.add_code(&format!(
-                                        "stateContext.addEnterArg(\"{}\",{});",
+                                        "compartment.EnterArgs[\"{}\"]  = {};",
                                         p.name, expr
                                     ));
                                     self.newline();
@@ -700,11 +1262,14 @@ impl CsVisitor {
 
         // -- State Arguments --
 
-        let target_state_args_opt = match &transition_statement.target_state_context_t {
-            StateContextType::StateRef { state_context_node } => {
+        let target_state_args_opt = match &transition_statement
+            .transition_expr_node
+            .target_state_context_t
+        {
+            TargetStateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_args_opt
             }
-            StateContextType::StateStackPop {} => &Option::None,
+            TargetStateContextType::StateStackPop {} => &Option::None,
         };
         //
         if let Some(state_args) = target_state_args_opt {
@@ -722,7 +1287,7 @@ impl CsVisitor {
                                     let mut expr = String::new();
                                     expr_t.accept_to_string(self, &mut expr);
                                     self.add_code(&format!(
-                                        "stateContext.addStateArg(\"{}\",{});",
+                                        "compartment.StateArgs[\"{}\"] = {};",
                                         param_symbol.name, expr
                                     ));
                                     self.newline();
@@ -751,18 +1316,18 @@ impl CsVisitor {
                 //                target_state_vars = "stateVars".to_string();
                 if let Some(state_symbol_rcref) = self.arcanium.get_state(&q.borrow().name) {
                     let state_symbol = state_symbol_rcref.borrow();
-                    let state_node = &state_symbol.state_node.as_ref().unwrap().borrow();
+                    let state_node = &state_symbol.state_node_opt.as_ref().unwrap().borrow();
                     // generate local state variables
                     if state_node.vars_opt.is_some() {
                         //                        let mut separator = "";
                         for var_rcref in state_node.vars_opt.as_ref().unwrap() {
                             let var = var_rcref.borrow();
-                            let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
+                            let expr_t = &var.value_rc;
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
                             self.newline();
                             self.add_code(&format!(
-                                "stateContext.addStateVar(\"{}\",{});",
+                                "compartment.StateVars[\"{}\"] = {};",
                                 var.name, expr_code
                             ));
                             self.newline();
@@ -774,39 +1339,15 @@ impl CsVisitor {
                 //                code = target_state_vars.clone();
             }
         }
-        let exit_args = if has_exit_args { "exitArgs" } else { "null" };
-        if self.generate_state_context {
-            if self.generate_exit_args {
-                self.add_code(&format!(
-                    "_transition_({},{},stateContext);",
-                    self.format_target_state_name(target_state_name),
-                    exit_args
-                ));
-            } else {
-                self.add_code(&format!(
-                    "_transition_({},stateContext);",
-                    self.format_target_state_name(target_state_name)
-                ));
-            }
-        } else if self.generate_exit_args {
-            self.add_code(&format!(
-                "_transition_({},{});",
-                self.format_target_state_name(target_state_name),
-                exit_args
-            ));
-        } else {
-            self.add_code(&format!(
-                "_transition_({});",
-                self.format_target_state_name(target_state_name)
-            ));
-        }
+        self.newline();
+        self.add_code("this._transition_(compartment);");
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn format_target_state_name(&self, state_name: &str) -> String {
-        format!("_s{}_", state_name)
-    }
+    // fn format_target_state_name(&self, state_name: &str) -> String {
+    //     format!("_s{}_", state_name)
+    // }
 
     //* --------------------------------------------------------------------- *//
 
@@ -818,7 +1359,7 @@ impl CsVisitor {
         transition_statement: &TransitionStatementNode,
     ) {
         self.newline();
-        match &transition_statement.label_opt {
+        match &transition_statement.transition_expr_node.label_opt {
             Some(label) => {
                 self.add_code(&format!("// {}", label));
                 self.newline();
@@ -842,7 +1383,7 @@ impl CsVisitor {
 
                 if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt)
                 {
-                    match &event_sym.borrow().params_opt {
+                    match &event_sym.borrow().event_symbol_params_opt {
                         Some(event_params) => {
                             if exit_args.exprs_t.len() != event_params.len() {
                                 self.errors.push(
@@ -850,7 +1391,7 @@ impl CsVisitor {
                                 );
                             }
                             let mut param_symbols_it = event_params.iter();
-                            self.add_code("Dictionary<String,object> exitArgs = new Dictionary<String,object>();");
+                            self.add_code("Dictionary<string,object> ExitArgs = new Dictionary<string,object>();");
                             self.newline();
                             // Loop through the ARGUMENTS...
                             for expr_t in &exit_args.exprs_t {
@@ -860,7 +1401,7 @@ impl CsVisitor {
                                         let mut expr = String::new();
                                         expr_t.accept_to_string(self, &mut expr);
                                         self.add_code(&format!(
-                                            "exitArgs[\"{}\"] = {};",
+                                            "ExitArgs[\"{}\"] = {};",
                                             p.name, expr
                                         ));
                                         self.newline();
@@ -882,23 +1423,294 @@ impl CsVisitor {
             }
         }
 
-        if self.generate_state_context {
-            self.add_code("StateContext stateContext = _stateStack_pop_();");
+        //if self.generate_state_context {
+        self.add_code(&format!(
+            "{}Compartment compartment = _stateStack_pop_();",
+            self.system_name
+        ));
+        // } else {
+        //     self.add_code("StateStackCompartment compartment = _stateStack_pop_();");
+        // }
+        self.newline();
+        // if self.generate_exit_args {
+        //     if self.generate_state_context {
+        //         self.add_code("_transition_(stateContext);");
+        //     } else {
+        self.add_code("_transition_(compartment);");
+        //     }
+        // } else if self.generate_state_context {
+        //     self.add_code("_transition_(stateContext);");
+        // } else {
+        //     self.add_code("_transition_(compartment);");
+        // }
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn generate_state_stack_pop_change_state(
+        &mut self,
+        change_state_stmt_node: &ChangeStateStatementNode,
+    ) {
+        self.newline();
+        match &change_state_stmt_node.label_opt {
+            Some(label) => {
+                self.add_code(&format!("// {}", label));
+                self.newline();
+            }
+            None => {}
+        }
+
+        self.add_code(&format!(
+            "{}Compartment compartment = this._stateStack_pop_();",
+            self.system_name
+        ));
+        //self.add_code("compartment = self.__state_stack_pop()");
+        self.newline();
+        self.add_code("this._changeState_(compartment);");
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    // fn generate_state_ref_code(&self, target_state_name: &str) -> String {
+    //     format!(
+    //         "(int){}State.{}",
+    //         self.system_name,
+    //         target_state_name.to_uppercase()
+    //     )
+    // }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn generate_compartment(&mut self, system_name: &str) {
+        self.newline();
+        self.add_code("//=============== Compartment ==============//");
+        self.newline();
+        self.newline();
+        self.add_code(&format!("class {}Compartment", system_name));
+        self.newline();
+        self.add_code("{");
+        self.newline();
+        self.indent();
+        self.newline();
+        self.add_code("public int state;");
+        self.newline();
+        self.newline();
+        self.add_code(&format!("public {}Compartment(int state)", system_name));
+        self.newline();
+        self.add_code("{");
+        // self.newline();
+        self.indent();
+        self.newline();
+        self.add_code("this.state = state;");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.newline();
+        self.newline();
+        self.add_code("public Dictionary<string, object> StateArgs { get; set; } = new Dictionary<string, object>();");
+        self.newline();
+        self.add_code("public Dictionary<string, object> StateVars { get; set; } = new Dictionary<string, object>();");
+        self.newline();
+        self.add_code("public Dictionary<string, object> EnterArgs { get; set; } = new Dictionary<string, object>();");
+        self.newline();
+        self.add_code("public Dictionary<string, object> ExitArgs { get; set; } = new Dictionary<string, object>();");
+        self.newline();
+        self.add_code("public FrameEvent _forwardEvent = new FrameEvent();");
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.newline();
+        self.newline();
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn generate_new_fn(&mut self, system_node: &SystemNode) {
+        self.indent();
+        if system_node.get_first_state().is_some() {
+            self.newline();
+            self.newline();
+
+            if self.generate_state_stack {
+                self.add_code("// Create state stack.");
+                self.newline();
+                self.newline();
+                self.add_code(&format!(
+                    "this._stateStack_ = new Stack<{}Compartment>();",
+                    self.system_name
+                ));
+                self.newline();
+                self.newline();
+            }
+
+            self.add_code("// Create and intialize start state compartment.");
         } else {
-            self.add_code("FrameState state = _stateStack_pop_();");
+            self.add_code("// Create and intialize start state compartment.");
+        }
+
+        if self.managed {
+            self.newline();
+            self.add_code("this._manager = manager;");
         }
         self.newline();
-        if self.generate_exit_args {
-            if self.generate_state_context {
-                self.add_code("_transition_(stateContext.state,exitArgs,stateContext);");
-            } else {
-                self.add_code("_transition_(state,exitArgs);");
+        self.newline();
+        self.add_code(&format!(
+            "this._state_ = (int){}State.{};",
+            self.system_name,
+            self.first_state_name.to_uppercase()
+        ));
+        // if let Some(machine_block_node) = &system_node.machine_block_node_opt {
+        //     for state_node_rcref in &machine_block_node.states {
+        //         self.newline();
+        //         self.add_code(&format!(
+        //             "this._state_ = (int){}State.{};",
+        //             system_node.name,
+        //             state_node_rcref.borrow().name.to_uppercase()
+        //         ));
+        //         break;
+        //     }
+        // }
+        self.newline();
+        self.add_code(&format!(
+            "this._compartment_ = new {}Compartment(this._state_);",
+            system_node.name
+        ));
+        self.newline();
+        self.add_code("this._nextCompartment_ = null;");
+
+        // Initialize state arguments.
+        match &system_node.start_state_state_params_opt {
+            Some(params) => {
+                for param in params {
+                    self.newline();
+                    self.add_code(&format!(
+                        "this._compartment_.StateArgs[\"{}\"] = {};",
+                        param.param_name, param.param_name,
+                    ));
+                }
             }
-        } else if self.generate_state_context {
-            self.add_code("_transition_(stateContext.state,stateContext);");
-        } else {
-            self.add_code("_transition_(state);");
+            None => {}
         }
+
+        match system_node.get_first_state() {
+            Some(state_rcref) => {
+                let state_node = state_rcref.borrow();
+                match &state_node.vars_opt {
+                    Some(vars) => {
+                        for var_rcref in vars {
+                            let var_decl_node = var_rcref.borrow();
+                            let expr_t = &var_decl_node.value_rc;
+                            let mut expr_code = String::new();
+                            expr_t.accept_to_string(self, &mut expr_code);
+
+                            self.newline();
+                            self.add_code(&format!(
+                                "this._compartment_.StateVars[\"{}\"] = {};",
+                                var_decl_node.name, expr_code,
+                            ));
+                        }
+                    }
+                    None => {}
+                }
+            }
+            None => {}
+        }
+
+        if let Some(enter_params) = &system_node.start_state_enter_params_opt {
+            for param in enter_params {
+                self.newline();
+                self.add_code(&format!(
+                    "this._compartment_.EnterArgs[\"{}\"] = {};",
+                    param.param_name, param.param_name,
+                ));
+            }
+        }
+
+        self.newline();
+        self.newline();
+
+        self.newline();
+        self.add_code("// Send system start event");
+
+        /* FrameEvent frameEvent = new FrameEvent(">", this._compartment_.enterArgs); */
+
+        if let Some(_enter_params) = &system_node.start_state_enter_params_opt {
+            self.newline();
+            self.add_code(
+                "FrameEvent frameEvent = new FrameEvent(\">\", this._compartment_.EnterArgs);",
+            );
+        } else {
+            self.newline();
+            self.add_code("FrameEvent frameEvent = new FrameEvent(\">\", null);");
+        }
+
+        self.newline();
+        self.add_code("this._mux_(frameEvent);");
+
+        self.outdent();
+        self.newline();
+    }
+
+    //* --------------------------------------------------------------------- *//
+    fn format_load_fn(&mut self, system_node: &SystemNode) {
+        self.newline();
+        self.newline();
+        let mut manager_param = "";
+        if self.managed {
+            manager_param = "manager";
+        }
+        self.add_code(&format!(
+            "public static {} load{}({}Controller {}, {}Controller data)",
+            system_node.name, system_node.name, self.manager, manager_param, system_node.name,
+        ));
+        self.newline();
+        self.add_code("{");
+        self.indent();
+        self.newline();
+        self.newline();
+        if self.managed {
+            self.add_code("data._manager = manager;");
+        }
+        self.newline();
+        self.add_code("return data;");
+        self.newline();
+
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+    }
+
+    //* --------------------------------------------------------------------- *//
+    fn generate_json_fn(&mut self, system_node: &SystemNode) {
+        self.newline();
+        self.newline();
+        self.add_code(&format!("public {} marshal()", system_node.name));
+        self.newline();
+        self.add_code("{");
+        self.indent();
+        self.newline();
+        self.newline();
+        self.add_code(&format!("{} data = this;", system_node.name));
+        self.newline();
+        self.add_code("return data;");
+        self.newline();
+
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+        self.newline();
+    }
+
+    fn generate_state_info_method(&mut self) {
+        self.newline();
+        self.add_code("public string state_info(){");
+        self.indent();
+        self.newline();
+        self.add_code("return this._compartment_.state.ToString();");
+        self.newline();
+        self.add_code("}");
+        self.newline();
+        self.outdent();
     }
 }
 
@@ -915,10 +1727,67 @@ impl AstVisitor for CsVisitor {
             "// get include files at https://github.com/frame-lang/frame-ancillary-files",
         );
         self.newline();
+        // self.add_code(&system_node.header);
         self.newline();
-        self.add_code(&format!("public partial class {} {{", system_node.name));
+        self.add_code("{");
+        self.newline();
+        self.newline();
+        self.add_code(&format!("class {}", system_node.name));
+        self.newline();
+        self.add_code("{");
         self.indent();
         self.newline();
+
+        /* private CompartmentParamsCompartment _compartment_;
+        private CompartmentParamsCompartment _nextCompartment_; */
+        self.newline();
+        self.add_code(&format!(
+            "public {}Compartment _compartment_;",
+            system_node.name
+        ));
+        self.newline();
+        self.add_code(&format!(
+            "public {}Compartment _nextCompartment_;",
+            system_node.name
+        ));
+        self.newline();
+        self.newline();
+        if self.managed {
+            self.add_code(&format!("protected {} _manager;", self.manager));
+        }
+        self.newline();
+        //format system params,if any
+        //let new_params: String = String::from(&self.format_new_params(system_node).0);
+        // First state name needed for machinery.
+        // Don't generate if there isn't at least one state.
+        // format system params,if any.
+        let new_params: String = String::from(&self.format_new_params(system_node).0);
+        let formatted_params: String = String::from(&self.format_params(system_node).0);
+        match system_node.get_first_state() {
+            Some(x) => {
+                self.first_state_name = x.borrow().name.clone();
+                self.has_states = true;
+            }
+            None => {}
+        }
+        self.newline();
+        self.add_code(&format!("public {}(", system_node.name));
+        if self.managed {
+            if new_params.is_empty() {
+                self.add_code(&format!("{} manager)", self.manager));
+            } else {
+                self.add_code(&format!("manager,{})", new_params));
+            }
+        } else {
+            self.add_code(&format!("{})", new_params));
+        }
+        // self.newline();
+        // self.add_code(&format!("public {}({})", system_node.name, new_params));
+        // self.newline();
+        self.add_code("{");
+        self.newline();
+
+        // let mut params = String::new();
 
         // First state name needed for machinery.
         // Don't generate if there isn't at least one state.
@@ -929,49 +1798,145 @@ impl AstVisitor for CsVisitor {
             }
             None => {}
         }
-
         // generate constructor
 
-        if self.has_states {
-            self.add_code(&format!("public {}() {{", system_node.name));
+        // end of generate constructor
+
+        self.generate_new_fn(system_node);
+        self.newline();
+        self.add_code("}");
+        self.newline();
+        self.newline();
+
+        // Define state constants
+        if let Some(machine_block_node) = &system_node.machine_block_node_opt {
+            self.add_code("// states enum");
+            self.newline();
+            self.add_code(&format!("private enum {}State", system_node.name));
+            self.newline();
+            self.add_code("{");
             self.indent();
             self.newline();
+            let len = machine_block_node.states.len();
+            let mut current = 0;
             self.newline();
-            self.add_code(&format!("_state_ = _s{}_;", self.first_state_name));
-            if self.generate_state_context {
-                self.newline();
+            for state_node_rcref in &machine_block_node.states {
                 self.add_code(&format!(
-                    "_stateContext_ = new StateContext(_s{}_);",
-                    self.first_state_name
+                    "{} = {}",
+                    &state_node_rcref.borrow().name.to_uppercase(),
+                    current
                 ));
-                if let Some(state_symbol_rcref) = self.arcanium.get_state(&self.first_state_name) {
-                    //   self.newline();
-                    let state_symbol = state_symbol_rcref.borrow();
-                    let state_node = &state_symbol.state_node.as_ref().unwrap().borrow();
-                    // generate local state variables
-                    if state_node.vars_opt.is_some() {
-                        for var_rcref in state_node.vars_opt.as_ref().unwrap() {
-                            let var = var_rcref.borrow();
-                            let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
-                            let mut expr_code = String::new();
-                            expr_t.accept_to_string(self, &mut expr_code);
-                            self.newline();
-                            self.add_code(&format!(
-                                "_stateContext_.addStateVar(\"{}\",{});",
-                                var.name, expr_code
-                            ));
-                        }
-                    }
+                current += 1;
+
+                if current != len {
+                    self.add_code(",");
+                    self.newline();
                 }
             }
+            self.outdent();
+            self.newline();
+            self.add_code("}");
+        }
 
+        if self.marshal {
+            //generate Load() factory
+            self.format_load_fn(system_node);
+            self.generate_json_fn(system_node);
+        }
+
+        // generate #mux
+
+        self.newline();
+        self.add_code("//====================== Multiplexer ====================//");
+        self.newline();
+        self.newline();
+
+        self.add_code("private void _mux_(FrameEvent e)");
+        self.newline();
+        self.add_code("{");
+        self.indent();
+
+        if let Some(machine_block_node) = &system_node.machine_block_node_opt {
+            self.newline();
+            //
+            self.add_code("switch (this._compartment_.state)");
+            self.newline();
+            self.add_code("{");
+            self.indent();
+            for state_node_rcref in &machine_block_node.states {
+                let state_name = &format!("this._s{}_", &state_node_rcref.borrow().name);
+                self.newline();
+                self.add_code(&format!(
+                    "case (int){}State.{}:",
+                    system_node.name,
+                    state_node_rcref.borrow().name.to_uppercase()
+                ));
+                self.indent();
+                self.newline();
+                self.add_code(&format!("{}(e);", state_name));
+                self.newline();
+                self.add_code("break;");
+                self.outdent();
+            }
+            self.outdent();
+            self.newline();
+            self.add_code("}");
+            self.newline();
+            self.newline();
+            self.add_code("if( this._nextCompartment_ != null)");
+            self.newline();
+            self.add_code("{");
+            self.indent();
+            self.newline();
+            self.add_code("var nextCompartment = this._nextCompartment_;");
+            self.newline();
+            self.add_code("this._nextCompartment_ = null;");
+            self.newline();
+            self.add_code("if (nextCompartment._forwardEvent != null && ");
+            self.newline();
+            self.add_code("   nextCompartment._forwardEvent._message == \">\")");
+            self.newline();
+            self.add_code("{");
+            self.indent();
+            self.newline();
+            self.add_code("this._mux_(new FrameEvent( \"<\", this._compartment_.ExitArgs));");
+            self.newline();
+            self.add_code("this._compartment_ = nextCompartment;");
+            self.newline();
+            self.add_code("this._mux_(nextCompartment._forwardEvent);");
+            self.outdent();
+            self.newline();
+            self.add_code("}");
+            self.newline();
+            self.add_code("else");
+            self.newline();
+            self.add_code("{");
+            self.indent();
+            self.newline();
+            self.add_code("this._doTransition_(nextCompartment);");
+            self.newline();
+            self.add_code("if (nextCompartment._forwardEvent != null)");
+            self.newline();
+            self.add_code("{");
+            self.indent();
+            self.newline();
+            self.add_code("this._mux_(nextCompartment._forwardEvent);");
+            self.outdent();
+            self.newline();
+            self.add_code("}");
+            self.outdent();
+            self.newline();
+            self.add_code("}");
+            self.newline();
+            self.add_code("nextCompartment._forwardEvent = null;");
+            self.outdent();
+            self.newline();
+            self.add_code("}");
             self.outdent();
             self.newline();
             self.add_code("}");
             self.newline();
         }
-
-        // end of generate constructor
 
         self.serialize.push("".to_string());
         self.serialize.push("Bag _serialize__do() {".to_string());
@@ -986,9 +1951,36 @@ impl AstVisitor for CsVisitor {
         self.subclass_code
             .push("/********************\n".to_string());
         self.subclass_code.push(format!(
-            "public partial class {}Controller : {} {{",
+            "class {}Controller : {}",
             system_node.name, system_node.name
         ));
+        self.subclass_code.push("{".to_string());
+        // self.subclass_code.push(format!(
+        //         "\tpublic {}Controller({}) {{}}",
+        //         system_node.name, new_params
+        //     ));
+        if self.managed {
+            if new_params.is_empty() {
+                self.subclass_code.push(format!(
+                    "\tpublic {}Controller({} manager) : base(manager)",
+                    system_node.name, self.manager
+                ));
+                // self.subclass_code.push("\t{".to_string());
+                // self.subclass_code.push("\t  super(manager);".to_string());
+            } else {
+                self.subclass_code.push(format!(
+                    "\tpublic {}Controller({} manager,{}) : base({} manager{})\n{{",
+                    system_node.name, self.manager, new_params, self.manager, new_params
+                ));
+            }
+        } else {
+            self.subclass_code.push(format!(
+                "\tpublic {}Controller({}) : base({})",
+                system_node.name, new_params, formatted_params
+            ));
+        }
+        self.subclass_code.push("\t{".to_string());
+        self.subclass_code.push("\t}".to_string());
 
         if let Some(interface_block_node) = &system_node.interface_block_node_opt {
             interface_block_node.accept(self);
@@ -1007,9 +1999,11 @@ impl AstVisitor for CsVisitor {
         }
 
         self.subclass_code.push("}".to_string());
+
         self.subclass_code
             .push("\n********************/".to_string());
-
+        self.newline();
+        self.subclass_code.push("}".to_string());
         self.serialize.push("".to_string());
         self.serialize
             .push("\treturn JSON.stringify(bag);".to_string());
@@ -1023,6 +2017,10 @@ impl AstVisitor for CsVisitor {
             self.generate_machinery(system_node);
         }
 
+        if self.config.code.public_state_info {
+            self.generate_state_info_method()
+        }
+
         // TODO: add comments back
         // self.newline();
         // self.generate_comment(system_node.line);
@@ -1031,6 +2029,8 @@ impl AstVisitor for CsVisitor {
         self.newline();
         self.add_code("}");
         self.newline();
+
+        self.generate_compartment(&system_node.name);
 
         self.generate_subclass();
     }
@@ -1139,7 +2139,7 @@ impl AstVisitor for CsVisitor {
             params_param_code = String::from("parameters");
             self.newline();
             self.add_code(
-                "Dictionary<String,object> parameters = new Dictionary<String,object>();",
+                "Dictionary<string,object> parameters = new Dictionary<string,object>();",
             );
             match &interface_method_node.params {
                 Some(params) => {
@@ -1161,7 +2161,7 @@ impl AstVisitor for CsVisitor {
             method_name_or_alias, params_param_code
         ));
         self.newline();
-        self.add_code("_state_(e);");
+        self.add_code("this._mux_(e);");
 
         match &interface_method_node.return_type_opt {
             Some(return_type) => {
@@ -1186,7 +2186,12 @@ impl AstVisitor for CsVisitor {
         self.newline();
         self.newline();
         self.add_code("//===================== Machine Block ===================//");
-
+        self.newline();
+        self.newline();
+        self.add_code(&format!("{}Compartment compartment;", self.system_name));
+        self.newline();
+        // self.add_code("Dictionary<string, object> ExitArgs;");
+        // self.newline();
         self.serialize.push("".to_string());
         self.serialize.push("\tvar stateName = null;".to_string());
 
@@ -1217,14 +2222,25 @@ impl AstVisitor for CsVisitor {
         self.newline();
         self.newline();
         self.add_code("//===================== Actions Block ===================//");
-        self.newline();
 
-        for action_decl_node_rcref in &actions_block_node.actions {
-            let action_decl_node = action_decl_node_rcref.borrow();
-            action_decl_node.accept(self);
+        for action_rcref in &actions_block_node.actions {
+            let action_node = action_rcref.borrow();
+            if action_node.code_opt.is_some() {
+                action_node.accept_action_impl(self);
+            }
         }
 
         self.newline();
+        self.newline();
+        self.add_code("// Unimplemented Actions");
+        self.newline();
+
+        for action_rcref in &actions_block_node.actions {
+            let action_node = action_rcref.borrow();
+            if action_node.code_opt.is_none() {
+                action_node.accept_action_decl(self);
+            }
+        }
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1261,9 +2277,11 @@ impl AstVisitor for CsVisitor {
         self.newline();
         self.newline();
         self.add_code(&format!(
-            "private void _s{}_(FrameEvent e) {{",
+            "private void _s{}_(FrameEvent e)",
             state_node.name
         ));
+        self.newline();
+        self.add_code("{");
         self.indent();
 
         self.serialize.push(format!(
@@ -1315,33 +2333,42 @@ impl AstVisitor for CsVisitor {
         //        let mut generate_final_close_paren = true;
         if let MessageType::CustomMessage { message_node } = &evt_handler_node.msg_t {
             if self.first_event_handler {
-                self.add_code(&format!(
-                    "if (e._message.Equals(\"{}\")) {{",
-                    message_node.name
-                ));
+                self.add_code(&format!("if (e._message == \"{}\")", message_node.name));
+                self.newline();
+                self.add_code("{");
+
+                //self.add_code(&format!("{}Compartment compartment;",self.system_name));
             } else {
                 self.add_code(&format!(
-                    "else if (e._message.Equals(\"{}\")) {{",
+                    "else if (e._message == \"{}\")",
                     message_node.name
                 ));
+                self.newline();
+                self.add_code("{");
+
+                //self.add_code(&format!("{}Compartment compartment;",self.system_name));
             }
         } else {
             // AnyMessage ( ||* )
             if self.first_event_handler {
                 // This logic is for when there is only the catch all event handler ||*
-                self.add_code("if (true) {");
+                self.add_code("if (true)");
+                self.newline();
+                self.add_code("{");
             } else {
                 // other event handlers preceded ||*
-                self.add_code("else {");
+                self.add_code("else");
+                self.newline();
+                self.add_code("{");
             }
         }
         self.generate_comment(evt_handler_node.line);
 
         self.indent();
-        if evt_handler_node.event_handler_has_transition && self.generate_state_context {
-            self.newline();
-            self.add_code("StateContext stateContext = null;");
-        }
+        // if evt_handler_node.event_handler_has_transition && self.generate_state_context {
+        //     self.newline();
+        //     self.add_code("StateContext stateContext = null;");
+        // }
 
         match &evt_handler_node.msg_t {
             MessageType::CustomMessage { .. } => {
@@ -1387,12 +2414,13 @@ impl AstVisitor for CsVisitor {
                     expr_t.accept(self);
                     self.add_code(";");
                     self.newline();
-                    self.add_code("return;");
+                    self.generate_return();
                     self.newline();
                 }
-                None => self.add_code("return;"),
+                None => self.generate_return(),
             },
             TerminatorType::Continue => {
+                self.generate_return_if_transitioned();
                 // self.add_code("break;")
             }
         }
@@ -1481,9 +2509,14 @@ impl AstVisitor for CsVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_action_call_expression_node(&mut self, action_call: &ActionCallExprNode) {
-        let action_name = self.format_action_name(&action_call.identifier.name.lexeme);
-        self.add_code(&action_name);
+        let action_name = &format!(
+            "this.{}",
+            self.format_action_name(&action_call.identifier.name.lexeme)
+        );
+        self.add_code(action_name);
         action_call.call_expr_list.accept(self);
+
+        self.add_code("");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1493,8 +2526,11 @@ impl AstVisitor for CsVisitor {
         action_call: &ActionCallExprNode,
         output: &mut String,
     ) {
-        let action_name = self.format_action_name(&action_call.identifier.name.lexeme);
-        output.push_str(&action_name);
+        let action_name = &format!(
+            "this.{}",
+            self.format_action_name(&action_call.identifier.name.lexeme)
+        );
+        output.push_str(action_name);
         action_call.call_expr_list.accept_to_string(self, output);
     }
 
@@ -1509,14 +2545,18 @@ impl AstVisitor for CsVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_transition_statement_node(&mut self, transition_statement: &TransitionStatementNode) {
-        match &transition_statement.target_state_context_t {
-            StateContextType::StateRef { .. } => {
+        match &transition_statement
+            .transition_expr_node
+            .target_state_context_t
+        {
+            TargetStateContextType::StateRef { .. } => {
                 self.generate_state_ref_transition(transition_statement)
             }
-            StateContextType::StateStackPop {} => {
+            TargetStateContextType::StateStackPop {} => {
                 self.generate_state_stack_pop_transition(transition_statement)
             }
         };
+        self.this_branch_transitioned = true;
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1532,13 +2572,14 @@ impl AstVisitor for CsVisitor {
         change_state_stmt_node: &ChangeStateStatementNode,
     ) {
         match &change_state_stmt_node.state_context_t {
-            StateContextType::StateRef { .. } => {
+            TargetStateContextType::StateRef { .. } => {
                 self.generate_state_ref_change_state(change_state_stmt_node)
             }
-            StateContextType::StateStackPop {} => self
-                .errors
-                .push("Fatal error - change state stack pop not implemented.".to_string()),
+            TargetStateContextType::StateStackPop {} => {
+                self.generate_state_stack_pop_change_state(change_state_stmt_node)
+            }
         };
+        self.this_branch_transitioned = true;
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1574,6 +2615,11 @@ impl AstVisitor for CsVisitor {
             } => {
                 number_match_test_node.accept(self);
             }
+            TestType::EnumMatchTest {
+                enum_match_test_node,
+            } => {
+                enum_match_test_node.accept(self);
+            }
         }
     }
 
@@ -1599,6 +2645,7 @@ impl AstVisitor for CsVisitor {
             self.indent();
 
             branch_node.accept(self);
+            self.generate_return_if_transitioned();
 
             self.outdent();
             self.newline();
@@ -1615,22 +2662,40 @@ impl AstVisitor for CsVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_chain_literal_statement_node(
+    fn visit_call_chain_statement_node(
         &mut self,
-        method_call_chain_literal_stmt_node: &CallChainLiteralStmtNode,
+        method_call_chain_literal_stmt_node: &CallChainStmtNode,
     ) {
         self.newline();
+
+        // special case for interface method calls
+        let call_chain = &method_call_chain_literal_stmt_node
+            .call_chain_literal_expr_node
+            .call_chain;
+        if call_chain.len() == 1 {
+            if let CallChainNodeType::InterfaceMethodCallT {
+                interface_method_call_expr_node,
+            } = &call_chain[0]
+            {
+                self.this_branch_transitioned = true;
+                interface_method_call_expr_node.accept(self);
+                self.add_code(";");
+                self.generate_return();
+                return;
+            }
+        }
+
+        // standard case
         method_call_chain_literal_stmt_node
             .call_chain_literal_expr_node
             .accept(self);
         self.add_code(";");
     }
-
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_chain_literal_expr_node(
+    fn visit_call_chain_expr_node(
         &mut self,
-        method_call_chain_expression_node: &CallChainLiteralExprNode,
+        method_call_chain_expression_node: &CallChainExprNode,
     ) {
         // TODO: maybe put this in an AST node
 
@@ -1639,23 +2704,38 @@ impl AstVisitor for CsVisitor {
         for node in &method_call_chain_expression_node.call_chain {
             self.add_code(separator);
             match &node {
-                CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
+                CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                     id_node.accept(self);
                 }
-                CallChainLiteralNodeType::CallT { call } => {
+                CallChainNodeType::UndeclaredCallT { call } => {
+                    match &method_call_chain_expression_node.is_new_expr {
+                        true => self.add_code("new "),
+                        false => {}
+                    }
+
                     call.accept(self);
                 }
-                CallChainLiteralNodeType::InterfaceMethodCallT {
+                CallChainNodeType::InterfaceMethodCallT {
                     interface_method_call_expr_node,
                 } => {
                     interface_method_call_expr_node.accept(self);
                 }
-                CallChainLiteralNodeType::ActionCallT {
+                CallChainNodeType::OperationCallT {
+                    operation_call_expr_node,
+                } => {
+                    operation_call_expr_node.accept(self);
+                }
+                CallChainNodeType::OperationRefT {
+                    operation_ref_expr_node,
+                } => {
+                    operation_ref_expr_node.accept(self);
+                }
+                CallChainNodeType::ActionCallT {
                     action_call_expr_node,
                 } => {
                     action_call_expr_node.accept(self);
                 }
-                CallChainLiteralNodeType::VariableNodeT { var_node } => {
+                CallChainNodeType::VariableNodeT { var_node } => {
                     self.visiting_call_chain_literal_variable = true;
                     var_node.accept(self);
                     self.visiting_call_chain_literal_variable = false;
@@ -1667,9 +2747,9 @@ impl AstVisitor for CsVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_chain_literal_expr_node_to_string(
+    fn visit_call_chain_expr_node_to_string(
         &mut self,
-        method_call_chain_expression_node: &CallChainLiteralExprNode,
+        method_call_chain_expression_node: &CallChainExprNode,
         output: &mut String,
     ) {
         let mut separator = "";
@@ -1677,23 +2757,33 @@ impl AstVisitor for CsVisitor {
         for node in &method_call_chain_expression_node.call_chain {
             output.push_str(separator);
             match &node {
-                CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
+                CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                     id_node.accept_to_string(self, output);
                 }
-                CallChainLiteralNodeType::CallT { call } => {
+                CallChainNodeType::UndeclaredCallT { call } => {
                     call.accept_to_string(self, output);
                 }
-                CallChainLiteralNodeType::InterfaceMethodCallT {
+                CallChainNodeType::InterfaceMethodCallT {
                     interface_method_call_expr_node,
                 } => {
                     interface_method_call_expr_node.accept_to_string(self, output);
                 }
-                CallChainLiteralNodeType::ActionCallT {
+                CallChainNodeType::OperationCallT {
+                    operation_call_expr_node,
+                } => {
+                    operation_call_expr_node.accept_to_string(self, output);
+                }
+                CallChainNodeType::OperationRefT {
+                    operation_ref_expr_node,
+                } => {
+                    operation_ref_expr_node.accept(self);
+                }
+                CallChainNodeType::ActionCallT {
                     action_call_expr_node,
                 } => {
                     action_call_expr_node.accept_to_string(self, output);
                 }
-                CallChainLiteralNodeType::VariableNodeT { var_node } => {
+                CallChainNodeType::VariableNodeT { var_node } => {
                     var_node.accept_to_string(self, output);
                 }
             }
@@ -1719,16 +2809,19 @@ impl AstVisitor for CsVisitor {
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
-                            self.add_code("return;");
+                            self.generate_return();
                         }
-                        None => self.add_code("return;"),
+                        None => self.generate_return(),
                     },
                     TerminatorType::Continue => {
+                        self.generate_return_if_transitioned();
                         self.add_code("break;");
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
     }
 
@@ -1754,16 +2847,19 @@ impl AstVisitor for CsVisitor {
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
-                            self.add_code("return;");
+                            self.generate_return();
                         }
-                        None => self.add_code("return;"),
+                        None => self.generate_return(),
                     },
                     TerminatorType::Continue => {
+                        self.generate_return_if_transitioned();
                         self.add_code("break;");
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
 
         self.outdent();
@@ -1778,7 +2874,7 @@ impl AstVisitor for CsVisitor {
 
         self.newline();
         for match_branch_node in &string_match_test_node.match_branch_nodes {
-            self.add_code(&format!("{} (", if_or_else_if));
+            self.add_code(&format!("{} ((", if_or_else_if));
             // TODO: use string_match_test_node.expr_t.accept(self) ?
             match &string_match_test_node.expr_t {
                 ExprType::CallExprT {
@@ -1787,7 +2883,7 @@ impl AstVisitor for CsVisitor {
                 ExprType::ActionCallExprT {
                     action_call_expr_node,
                 } => action_call_expr_node.accept(self),
-                ExprType::CallChainLiteralExprT {
+                ExprType::CallChainExprT {
                     call_chain_expr_node,
                 } => call_chain_expr_node.accept(self),
                 ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
@@ -1810,36 +2906,38 @@ impl AstVisitor for CsVisitor {
             // match_branch_node.string_match_pattern_node.accept(self);
             // self.add_code(&format!("\") {{"));
 
-            let mut first_match = true;
-            for match_string in &match_branch_node
-                .string_match_pattern_node
-                .match_pattern_strings
-            {
-                if first_match {
-                    self.add_code(&format!(" == \"{}\")", match_string));
-                    first_match = false;
-                } else {
-                    self.add_code(" || (");
-                    match &string_match_test_node.expr_t {
-                        ExprType::CallExprT {
-                            call_expr_node: method_call_expr_node,
-                        } => method_call_expr_node.accept(self),
-                        ExprType::ActionCallExprT {
-                            action_call_expr_node,
-                        } => action_call_expr_node.accept(self),
-                        ExprType::CallChainLiteralExprT {
-                            call_chain_expr_node,
-                        } => call_chain_expr_node.accept(self),
-                        ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
-                        _ => self.errors.push("TODO".to_string()),
-                    }
-                    self.add_code(&format!(" == \"{}\")", match_string));
-                }
-            }
-            self.add_code(" {");
+            // let mut first_match = true;
+            // TODO: Fix this section to deal with empty strings and null strings
+            //     for match_string in &match_branch_node
+            //         .string_match_pattern_node
+            //         .match_pattern_strings
+            //     {
+            //         if first_match {
+            //             self.add_code(&format!(" == \"{}\")", match_string));
+            //             first_match = false;
+            //         } else {
+            //             self.add_code(" || (");
+            //             match &string_match_test_node.expr_t {
+            //                 ExprType::CallExprT {
+            //                     call_expr_node: method_call_expr_node,
+            //                 } => method_call_expr_node.accept(self),
+            //                 ExprType::ActionCallExprT {
+            //                     action_call_expr_node,
+            //                 } => action_call_expr_node.accept(self),
+            //                 ExprType::CallChainExprT {
+            //                     call_chain_expr_node,
+            //                 } => call_chain_expr_node.accept(self),
+            //                 ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
+            //                 _ => self.errors.push("TODO".to_string()),
+            //             }
+            //             self.add_code(&format!(" == \"{}\")", match_string));
+            //         }
+            //     }
+            self.add_code(") {");
             self.indent();
 
             match_branch_node.accept(self);
+            self.generate_return_if_transitioned();
 
             self.outdent();
             self.newline();
@@ -1872,16 +2970,19 @@ impl AstVisitor for CsVisitor {
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
-                            self.add_code("return;");
+                            self.generate_return();
                         }
-                        None => self.add_code("return;"),
+                        None => self.generate_return(),
                     },
                     TerminatorType::Continue => {
+                        self.generate_return_if_transitioned();
                         self.add_code("break;");
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
     }
 
@@ -1907,16 +3008,19 @@ impl AstVisitor for CsVisitor {
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
-                            self.add_code("return;");
+                            self.generate_return();
                         }
-                        None => self.add_code("return;"),
+                        None => self.generate_return(),
                     },
                     TerminatorType::Continue => {
+                        self.generate_return_if_transitioned();
                         self.add_code("break;");
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
 
         self.outdent();
@@ -1941,7 +3045,7 @@ impl AstVisitor for CsVisitor {
 
         self.newline();
         for match_branch_node in &number_match_test_node.match_branch_nodes {
-            self.add_code(&format!("{} (", if_or_else_if));
+            self.add_code(&format!("{} ((", if_or_else_if));
             match &number_match_test_node.expr_t {
                 ExprType::CallExprT {
                     call_expr_node: method_call_expr_node,
@@ -1949,7 +3053,7 @@ impl AstVisitor for CsVisitor {
                 ExprType::ActionCallExprT {
                     action_call_expr_node,
                 } => action_call_expr_node.accept(self),
-                ExprType::CallChainLiteralExprT {
+                ExprType::CallChainExprT {
                     call_chain_expr_node,
                 } => call_chain_expr_node.accept(self),
                 ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
@@ -1980,7 +3084,7 @@ impl AstVisitor for CsVisitor {
                         ExprType::ActionCallExprT {
                             action_call_expr_node,
                         } => action_call_expr_node.accept(self),
-                        ExprType::CallChainLiteralExprT {
+                        ExprType::CallChainExprT {
                             call_chain_expr_node,
                         } => call_chain_expr_node.accept(self),
                         ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
@@ -1994,6 +3098,7 @@ impl AstVisitor for CsVisitor {
             self.indent();
 
             match_branch_node.accept(self);
+            self.generate_return_if_transitioned();
 
             self.outdent();
             self.newline();
@@ -2027,16 +3132,19 @@ impl AstVisitor for CsVisitor {
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
-                            self.add_code("return;");
+                            self.generate_return();
                         }
-                        None => self.add_code("return;"),
+                        None => self.generate_return(),
                     },
                     TerminatorType::Continue => {
+                        self.generate_return_if_transitioned();
                         self.add_code("break;");
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
     }
 
@@ -2062,16 +3170,19 @@ impl AstVisitor for CsVisitor {
                             expr_t.accept(self);
                             self.add_code(";");
                             self.newline();
-                            self.add_code("return;");
+                            self.generate_return();
                         }
-                        None => self.add_code("return;"),
+                        None => self.generate_return(),
                     },
                     TerminatorType::Continue => {
+                        self.generate_return_if_transitioned();
                         self.add_code("break;");
                     }
                 }
             }
-            None => {}
+            None => {
+                self.generate_return_if_transitioned();
+            }
         }
 
         self.outdent();
@@ -2162,6 +3273,9 @@ impl AstVisitor for CsVisitor {
             TokenType::Null => {
                 output.push_str("null");
             }
+            TokenType::SuperString => {
+                output.push_str(&literal_expression_node.value.to_string());
+            }
             _ => self
                 .errors
                 .push("TODO: visit_literal_expression_node_to_string".to_string()),
@@ -2215,24 +3329,27 @@ impl AstVisitor for CsVisitor {
         {
             StateStackOperationType::Push => {
                 self.newline();
-                if self.generate_state_context {
-                    self.add_code("_stateStack_push_(_state_context_);");
-                } else {
-                    self.add_code("_stateStack_push_(_state_);");
-                }
+                //if self.generate_state_context {
+                self.add_code("_stateStack_push_(_compartment_);");
+                //} else {
+                //    self.add_code("_stateStack_push_(_compartment_);");
+                //}
             }
             StateStackOperationType::Pop => {
-                if self.generate_state_context {
-                    self.add_code("StateContext stateContext = _stateStack_pop_()");
-                } else {
-                    self.add_code("FrameState state = _stateStack_pop_()");
-                }
+                // if self.generate_state_context {
+                self.add_code(&format!(
+                    "{}Compartment stateContext = _stateStack_pop_()",
+                    self.system_name
+                ));
+                // } else {
+                //     self.add_code("FrameState state = _stateStack_pop_()");
+                // }
             }
         }
     }
     //* --------------------------------------------------------------------- *//
 
-    fn visit_state_context_node(&mut self, _state_context_node: &StateContextNode) {
+    fn visit_state_context_node(&mut self, _state_context_node: &TargetStateContextNode) {
         // TODO
         //        self.add_code(&format!("{}",identifier_node.name.lexeme));
     }
@@ -2251,10 +3368,53 @@ impl AstVisitor for CsVisitor {
             FrameEventPart::Param {
                 param_symbol_rcref,
                 is_reference: _is_reference,
-            } => self.add_code(&format!(
-                "e._parameters[\"{}\"]",
-                param_symbol_rcref.borrow().name
-            )),
+            } => {
+                self.add_code(&format!(
+                    "e._parameters[\"{}\"]",
+                    param_symbol_rcref.borrow().name
+                ));
+                if self.expr_context == ExprContext::Rvalue
+                    || self.expr_context == ExprContext::None
+                {
+                    let event_symbol_opt_rcref = self
+                        .arcanium
+                        .get_event(&self.current_event_msg, &Option::None);
+                    let x = &event_symbol_opt_rcref.unwrap();
+                    let event_symbol = x.borrow();
+                    let param_type: String = match &event_symbol.event_symbol_params_opt {
+                        Some(param_symbols) => {
+                            let mut param_type: String = String::new();
+                            for param_symbol in param_symbols {
+                                if param_symbol.name == param_symbol_rcref.borrow().name {
+                                    match &param_symbol.param_type_opt {
+                                        Some(type_node) => {
+                                            param_type = self.format_type(type_node);
+                                        }
+                                        None => {
+                                            self.errors.push(format!(
+                                                "Error: {}[{}] type is not declared.",
+                                                event_symbol.msg, param_symbol.name
+                                            ));
+                                            return;
+                                        }
+                                    };
+                                    break;
+                                }
+                            }
+                            param_type
+                        }
+                        None => {
+                            self.errors.push(format!(
+                                "Error: {}[{}] type is not declared.",
+                                event_symbol.msg,
+                                param_symbol_rcref.borrow().name
+                            ));
+                            "".to_string()
+                        }
+                    };
+                    self.add_code(&format!(".({})", param_type));
+                }
+            }
             FrameEventPart::Return {
                 is_reference: _is_reference,
             } => self.add_code("e._return"),
@@ -2292,28 +3452,24 @@ impl AstVisitor for CsVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_decl_node(&mut self, action_decl_node: &ActionNode) {
+    fn visit_action_node(&mut self, action_node: &ActionNode) {
         let mut subclass_code = String::new();
 
         self.newline();
         self.newline_to_string(&mut subclass_code);
 
-        let action_ret_type: String = match &action_decl_node.type_opt {
-            Some(ret_type) => ret_type.get_type_str(),
+        let action_ret_type: String = match &action_node.type_opt {
+            Some(type_node) => self.format_type(type_node),
             None => String::from("void"),
         };
 
-        let action_name = self.format_action_name(&action_decl_node.name);
-        self.add_code(&format!(
-            "protected virtual {} {}(",
-            action_ret_type, action_name
-        ));
+        let action_name = self.format_action_name(&action_node.name);
+        self.add_code(&format!("protected {} {}(", action_ret_type, action_name));
         subclass_code.push_str(&format!(
-            "protected override {} {}(",
+            "protected new {} {}(",
             action_ret_type, action_name
         ));
-
-        match &action_decl_node.params {
+        match &action_node.params {
             Some(params) => {
                 self.format_actions_parameter_list(params, &mut subclass_code);
             }
@@ -2322,13 +3478,7 @@ impl AstVisitor for CsVisitor {
         subclass_code.push_str(") {}");
         self.subclass_code.push(subclass_code);
 
-        self.add_code(") { throw new NotImplementedException(); }");
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_action_impl_node(&mut self, _action_decl_node: &ActionNode) {
-        panic!("visit_action_impl_node() not implemented.");
+        self.add_code(") {  throw new NotImplementedException();  }");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2339,17 +3489,87 @@ impl AstVisitor for CsVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    fn visit_action_impl_node(&mut self, action_node: &ActionNode) {
+        let mut subclass_code = String::new();
+
+        self.newline();
+        self.newline();
+
+        let action_ret_type: String = match &action_node.type_opt {
+            Some(type_node) => self.format_type(type_node),
+            None => String::from("void"),
+        };
+
+        let action_name = self.format_action_name(&action_node.name);
+        self.add_code(&format!("public {} {}(", action_ret_type, action_name));
+        match &action_node.params {
+            Some(params) => {
+                self.format_actions_parameter_list(params, &mut subclass_code);
+            }
+            None => {}
+        }
+
+        self.add_code(")");
+        self.newline();
+        self.add_code("{");
+        // self.subclass_code.push(subclass_code);
+        self.indent();
+        self.newline();
+        self.add_code(action_node.code_opt.as_ref().unwrap().as_str());
+        self.outdent();
+        self.newline();
+        self.add_code("}");
+    }
+
+    //* --------------------------------------------------------------------- *//
+
     fn visit_variable_decl_node(&mut self, variable_decl_node: &VariableDeclNode) {
         let var_type = match &variable_decl_node.type_opt {
             Some(x) => x.get_type_str(),
             None => String::from("<?>"),
         };
         let var_name = &variable_decl_node.name;
-        let var_init_expr = &variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
+        let var_init_expr = &variable_decl_node.value_rc;
         self.newline();
         let mut code = String::new();
+        self.current_var_type = var_type.clone(); // used for casting
+        self.expr_context = ExprContext::Rvalue;
         var_init_expr.accept_to_string(self, &mut code);
-        self.add_code(&format!("{} {} = {};", var_type, var_name, code));
+        self.expr_context = ExprContext::None;
+
+        match &variable_decl_node.identifier_decl_scope {
+            // IdentifierDeclScope::DomainBlock => {
+            //     self.add_code(&format!("this.{} ", var_name));
+            //     if !var_type.is_empty() {
+            //         self.add_code(&format!(": {}", var_type));
+            //     }
+            //     self.add_code(&format!(" = {}", code));
+            // }
+            IdentifierDeclScope::DomainBlockScope => {
+                if !var_type.is_empty() {
+                    self.add_code(&format!("public {}", var_type));
+                }
+                self.add_code(&format!(" {} ", var_name));
+
+                if !code.is_empty() {
+                    self.add_code(&format!(" = {};", code));
+                } else {
+                    self.add_code(&format!(";"));
+                }
+            }
+            IdentifierDeclScope::EventHandlerVarScope => {
+                self.add_code(&format!("{} ", var_type));
+                if !var_type.is_empty() {
+                    self.add_code(&format!("{} ", var_name));
+                }
+                if !code.is_empty() {
+                    self.add_code(&format!(" = {};", code));
+                } else {
+                    self.add_code(&format!(";"));
+                }
+            }
+            _ => panic!("Error - unexpected scope for variable declaration"),
+        }
 
         self.serialize
             .push(format!("\tbag.domain[\"{}\"] = {};", var_name, var_name));
@@ -2390,9 +3610,11 @@ impl AstVisitor for CsVisitor {
     fn visit_assignment_expr_node(&mut self, assignment_expr_node: &AssignmentExprNode) {
         self.generate_comment(assignment_expr_node.line);
         self.newline();
+        self.expr_context = ExprContext::Lvalue;
         assignment_expr_node.l_value_box.accept(self);
         self.add_code(" = ");
-        assignment_expr_node.r_value_box.accept(self);
+        self.expr_context = ExprContext::Rvalue;
+        assignment_expr_node.r_value_rc.accept(self);
         self.add_code(";");
     }
 
@@ -2403,15 +3625,17 @@ impl AstVisitor for CsVisitor {
         assignment_expr_node: &AssignmentExprNode,
         output: &mut String,
     ) {
-        self.generate_comment(assignment_expr_node.line);
+        //self.generate_comment(assignment_expr_node.line);
         self.newline();
         self.newline_to_string(output);
+        self.expr_context = ExprContext::Lvalue;
         assignment_expr_node
             .l_value_box
             .accept_to_string(self, output);
         output.push_str(" = ");
+        self.expr_context = ExprContext::Rvalue;
         assignment_expr_node
-            .r_value_box
+            .r_value_rc
             .accept_to_string(self, output);
         output.push(';');
     }

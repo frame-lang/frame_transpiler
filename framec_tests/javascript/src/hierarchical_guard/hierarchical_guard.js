@@ -1,4 +1,4 @@
-// emitted from framec_v0.10.0
+// emitted from framec_v0.11.0
 // get include files at https://github.com/frame-lang/frame-ancillary-files
 
 function FrameEvent(message, parameters) {
@@ -171,7 +171,7 @@ class HierarchicalGuard {
                 break;
                 }
                 
-              //  fall through else branch
+              // fall through else branch
 			case "B":
                 {
                 this.log_do("S0.B");
@@ -190,7 +190,7 @@ class HierarchicalGuard {
         }
         this.#sS_(e);
         
-    }  //  fall through then branch
+    }  // fall through then branch
 	
     
     #sS1_(e) {
@@ -213,7 +213,7 @@ class HierarchicalGuard {
         }
         this.#sS0_(e);
         
-    }  //  fall through else branch
+    }  // fall through else branch
 	
     
     #sS2_(e) {
@@ -233,7 +233,7 @@ class HierarchicalGuard {
                 break;
                 }
                 
-              //  fall through then branch
+              // fall through then branch
 			case "B":
                 {
                 this.log_do("S2.B");
@@ -252,7 +252,7 @@ class HierarchicalGuard {
         }
         this.#sS1_(e);
         
-    }  //  fall through then branch
+    }  // fall through then branch
 	
     
     #sS3_(e) {

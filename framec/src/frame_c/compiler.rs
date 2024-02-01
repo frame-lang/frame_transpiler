@@ -5,8 +5,8 @@ use crate::frame_c::symbol_table::*;
 use crate::frame_c::utils::{frame_exitcode, RunError};
 use crate::frame_c::visitors::cpp_visitor::CppVisitor;
 use crate::frame_c::visitors::cs_visitor::CsVisitor;
-use crate::frame_c::visitors::cs_visitor_for_bob::CsVisitorForBob;
-use crate::frame_c::visitors::gdscript_3_2_visitor::GdScript32Visitor;
+//use crate::frame_c::visitors::cs_visitor_for_bob::CsVisitorForBob;
+// use crate::frame_c::visitors::gdscript_3_2_visitor::GdScript32Visitor;
 use crate::frame_c::visitors::golang_visitor::GolangVisitor;
 use crate::frame_c::visitors::java_8_visitor::Java8Visitor;
 use crate::frame_c::visitors::javascript_visitor::JavaScriptVisitor;
@@ -30,7 +30,7 @@ use std::convert::TryFrom;
 /* --------------------------------------------------------------------- */
 
 static IS_DEBUG: bool = false;
-static FRAMEC_VERSION: &str = "emitted from framec_v0.10.0";
+static FRAMEC_VERSION: &str = "Emitted from framec_v0.11.0";
 
 /* --------------------------------------------------------------------- */
 
@@ -207,7 +207,7 @@ impl Exe {
         };
 
         // check for language attribute override in spec specifying target language
-        match &system_node.attributes_opt {
+        match &system_node.system_attributes_opt {
             Some(attributes) => {
                 if let Some(attr_node) = attributes.get("language") {
                     match attr_node {
@@ -232,14 +232,13 @@ impl Exe {
                 TargetLanguage::Cpp => {
                     let mut visitor = CppVisitor::new(
                         semantic_parser.get_arcanum(),
-                        config,
                         generate_exit_args,
                         generate_enter_args || generate_state_context,
                         generate_state_stack,
                         generate_change_state,
-                        generate_transition_state,
                         FRAMEC_VERSION,
                         comments,
+                        config
                     );
                     visitor.run(&system_node);
                     output = visitor.get_code();
@@ -247,45 +246,46 @@ impl Exe {
                 TargetLanguage::CSharp => {
                     let mut visitor = CsVisitor::new(
                         semantic_parser.get_arcanum(),
-                        generate_exit_args,
+                        //generate_exit_args,
                         generate_enter_args || generate_state_context,
                         generate_state_stack,
                         generate_change_state,
-                        generate_transition_state,
+                        //generate_transition_state,
                         FRAMEC_VERSION,
                         comments,
+                        config
                     );
                     visitor.run(&system_node);
                     output = visitor.get_code();
                 }
-                TargetLanguage::CSharpForBob => {
-                    let mut visitor = CsVisitorForBob::new(
-                        semantic_parser.get_arcanum(),
-                        generate_exit_args,
-                        generate_enter_args || generate_state_context,
-                        generate_state_stack,
-                        generate_change_state,
-                        generate_transition_state,
-                        FRAMEC_VERSION,
-                        comments,
-                    );
-                    visitor.run(&system_node);
-                    output = visitor.get_code();
-                }
-                TargetLanguage::GdScript => {
-                    let mut visitor = GdScript32Visitor::new(
-                        semantic_parser.get_arcanum(),
-                        generate_exit_args,
-                        generate_enter_args || generate_state_context,
-                        generate_state_stack,
-                        generate_change_state,
-                        generate_transition_state,
-                        FRAMEC_VERSION,
-                        comments,
-                    );
-                    visitor.run(&system_node);
-                    output = visitor.get_code();
-                }
+                // TargetLanguage::CSharpForBob => {
+                //     let mut visitor = CsVisitorForBob::new(
+                //         semantic_parser.get_arcanum(),
+                //         generate_exit_args,
+                //         generate_enter_args || generate_state_context,
+                //         generate_state_stack,
+                //         generate_change_state,
+                //         generate_transition_state,
+                //         FRAMEC_VERSION,
+                //         comments,
+                //     );
+                //     visitor.run(&system_node);
+                //     output = visitor.get_code();
+                // }
+                // TargetLanguage::GdScript => {
+                //     let mut visitor = GdScript32Visitor::new(
+                //         semantic_parser.get_arcanum(),
+                //         generate_exit_args,
+                //         generate_enter_args || generate_state_context,
+                //         generate_state_stack,
+                //         generate_change_state,
+                //         generate_transition_state,
+                //         FRAMEC_VERSION,
+                //         comments,
+                //     );
+                //     visitor.run(&system_node);
+                //     output = visitor.get_code();
+                // }
                 TargetLanguage::GoLang => {
                     let mut visitor = GolangVisitor::new(
                         semantic_parser.get_arcanum(),
@@ -304,13 +304,13 @@ impl Exe {
                 TargetLanguage::Java8 => {
                     let mut visitor = Java8Visitor::new(
                         semantic_parser.get_arcanum(),
-                        generate_exit_args,
+                        // generate_exit_args,
                         generate_enter_args || generate_state_context,
                         generate_state_stack,
                         generate_change_state,
-                        generate_transition_state,
                         FRAMEC_VERSION,
                         comments,
+                        config
                     );
                     visitor.run(&system_node);
                     output = visitor.get_code();

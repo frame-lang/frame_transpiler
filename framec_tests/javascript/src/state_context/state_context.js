@@ -1,4 +1,4 @@
-// emitted from framec_v0.10.0
+// emitted from framec_v0.11.0
 // get include files at https://github.com/frame-lang/frame-ancillary-files
 
 function FrameEvent(message, parameters) {
@@ -26,7 +26,7 @@ class StateContextSm {
         this.#state = this.#sInit_;
         this.#compartment = new StateContextSmCompartment(this.#state);
         this.#nextCompartment = null;
-        this.#compartment.StateVars["w"] = 0;
+        this.#compartment.StateVars["w"] = this.#compartment.StateVars["w"] + 1;
         
         // Initialize domain
         this.tape = [];
@@ -130,7 +130,7 @@ class StateContextSm {
                 
                 compartment.EnterArgs["a"] = 3;
                 compartment.EnterArgs["b"] = this.#compartment.StateVars["w"];
-                compartment.StateVars["x"] = 0;
+                compartment.StateVars["x"] = this.#compartment.StateVars["x"] + 1;
                 
                 this.#transition(compartment);
                 
@@ -184,28 +184,24 @@ class StateContextSm {
                 
                 compartment.EnterArgs["a"] = tmp;
                 compartment.StateArgs["y"] = this.#compartment.StateVars["x"];
-                compartment.StateVars["z"] = 0;
+                compartment.StateVars["z"] = this.#compartment.StateVars["z"] + 1;
                 
                 this.#transition(compartment);
                 
                 return;
                 }
                 
-              //  FIXME: Swapping this to 10 * arg causes a parse error!
+              // FIXME: Swapping this to 10 * arg causes a parse error!
 			case "Change":
                 {
                 let tmp = this.#compartment.StateVars["x"] + e._parameters["arg"];
-                let compartment =  new StateContextSmCompartment(this.#sBar_);
-                compartment.StateArgs["y"] = tmp;
-                compartment.StateVars["z"] = 0;
-                
-                this.#changeState(compartment);
                 
                 return;
                 }
                 
         }
-    }
+    }  // ->> $Bar(tmp)
+	
     
     #sBar_(e) {
         switch (e._message) {
@@ -239,10 +235,6 @@ class StateContextSm {
                 {
                 let tmp = this.#compartment.StateArgs["y"] + this.#compartment.StateVars["z"] + e._parameters["arg"];
                 this.log_do("tmp",tmp);
-                let compartment =  new StateContextSmCompartment(this.#sInit_);
-                compartment.StateVars["w"] = 0;
-                
-                this.#changeState(compartment);
                 
                 return;
                 }
@@ -268,14 +260,12 @@ class StateContextSm {
         this.#mux(FrameEvent(">", this.#compartment.EnterArgs));
     }
     
-    #changeState(compartment) {
-        this.#compartment = compartment;
-    }
-    
     state_info() {
         return this.#compartment.state.name;
     }
     
+      // ->> $Init
+	
     
 };
 

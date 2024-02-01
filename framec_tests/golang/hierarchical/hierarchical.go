@@ -1,8 +1,5 @@
-// emitted from framec_v0.10.0
+// emitted from framec_v0.11.0
 // get include files at https://github.com/frame-lang/frame-ancillary-files
-package hierarchical
-
-import "golang/framelang"
 
 
 func NewHierarchical() Hierarchical {
@@ -160,18 +157,18 @@ func (m *hierarchicalStruct) _HierarchicalState_S0_(e *framelang.FrameEvent) {
     case "<":
         m.exit("S0")
         
-      //  override parent handler
+      // override parent handler
     case "A":
         m.log("S0.A")
         compartment := NewHierarchicalCompartment(HierarchicalState_T)
         m._transition_(compartment)
         
         return
-      //  do this, then parent handler
+      // do this, then parent handler
     case "B":
         m.log("S0.B")
         
-      //  extend parent handler
+      // extend parent handler
     case "C":
         m.log("S0.C")
         compartment := NewHierarchicalCompartment(HierarchicalState_S2)
@@ -193,12 +190,12 @@ func (m *hierarchicalStruct) _HierarchicalState_S1_(e *framelang.FrameEvent) {
         m.exit("S1")
         
         return
-      //  defer to parent for A
-      //  do this, then parent, which transitions here
+      // defer to parent for A
+      // do this, then parent, which transitions here
     case "B":
         m.log("S1.B")
         
-      //  propagate message not handled by parent
+      // propagate message not handled by parent
     case "C":
         m.log("S1.C")
         
@@ -215,7 +212,7 @@ func (m *hierarchicalStruct) _HierarchicalState_S2_(e *framelang.FrameEvent) {
     case "<":
         m.exit("S2")
         
-      //  will propagate to S0 and S
+      // will propagate to S0 and S
     case "B":
         m.log("S2.B")
         
@@ -228,7 +225,7 @@ func (m *hierarchicalStruct) _HierarchicalState_S2_(e *framelang.FrameEvent) {
     }
     m._HierarchicalState_S0_(e)
     
-}  //  continue after transition (should be ignored)
+}  // continue after transition (should be ignored)
 
 
 func (m *hierarchicalStruct) _HierarchicalState_S3_(e *framelang.FrameEvent) {
@@ -239,8 +236,8 @@ func (m *hierarchicalStruct) _HierarchicalState_S3_(e *framelang.FrameEvent) {
     case "<":
         m.exit("S3")
         
-      //  defer to grandparent for A
-      //  override and move to sibling
+      // defer to grandparent for A
+      // override and move to sibling
     case "B":
         m.log("S3.B")
         compartment := NewHierarchicalCompartment(HierarchicalState_S2)

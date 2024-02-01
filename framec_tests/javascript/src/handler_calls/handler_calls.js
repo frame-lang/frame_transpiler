@@ -1,4 +1,4 @@
-// emitted from framec_v0.10.0
+// emitted from framec_v0.11.0
 // get include files at https://github.com/frame-lang/frame-ancillary-files
 
 function FrameEvent(message, parameters) {
@@ -114,7 +114,7 @@ class HandlerCalls {
                 {
                 let compartment =  new HandlerCallsCompartment(this.#sNonRecursive_);
                 
-                compartment.StateVars["counter"] = 0;
+                compartment.StateVars["counter"] = this.#compartment.StateVars["counter"] + e._parameters["arg"];
                 
                 this.#transition(compartment);
                 
@@ -125,7 +125,7 @@ class HandlerCalls {
                 {
                 let compartment =  new HandlerCallsCompartment(this.#sSelfRecursive_);
                 
-                compartment.StateVars["counter"] = 0;
+                compartment.StateVars["counter"] = this.#compartment.StateVars["counter"] + e._parameters["arg"];
                 
                 this.#transition(compartment);
                 
@@ -136,7 +136,7 @@ class HandlerCalls {
                 {
                 let compartment =  new HandlerCallsCompartment(this.#sMutuallyRecursive_);
                 
-                compartment.StateVars["counter"] = 0;
+                compartment.StateVars["counter"] = this.#compartment.StateVars["counter"] + e._parameters["arg"];
                 
                 this.#transition(compartment);
                 
@@ -152,15 +152,21 @@ class HandlerCalls {
                 {
                 this.log_do("Foo",(e._parameters["arg"]));
                 (this.#compartment.StateVars["counter"]) = (this.#compartment.StateVars["counter"]) + (e._parameters["arg"]);
-                this.Bar((e._parameters["arg"]) * 2);
-                return;
+                should;
+                report;
+                the;
+                next;
+                line;
+                as;
+                a;
+                static;
+                error;
                 this.log_do("Unreachable",0);
                 
                 return;
                 }
                 
-              //  the front-end should report the next line as a static error
-			case "Bar":
+            case "Bar":
                 {
                 this.log_do("Bar",(e._parameters["arg"]));
                 (this.#compartment.StateVars["counter"]) = (this.#compartment.StateVars["counter"]) + (e._parameters["arg"]);
@@ -175,10 +181,10 @@ class HandlerCalls {
                 
             case "Call":
                 {
-                if (((e._parameters["event"]) == "Foo")) {
+                if (((e._parameters["event"])) {
                     this.Foo((e._parameters["arg"]));
                     return;
-                } else if (((e._parameters["event"]) == "Bar")) {
+                } else if (((e._parameters["event"])) {
                     this.Bar((e._parameters["arg"]));
                     return;
                 } else {
@@ -228,10 +234,10 @@ class HandlerCalls {
                 
             case "Call":
                 {
-                if (((e._parameters["event"]) == "Foo")) {
+                if (((e._parameters["event"])) {
                     this.Foo((e._parameters["arg"]));
                     return;
-                } else if (((e._parameters["event"]) == "Bar")) {
+                } else if (((e._parameters["event"])) {
                     this.Bar((e._parameters["arg"]));
                     return;
                 } else {
@@ -284,10 +290,10 @@ class HandlerCalls {
                 
             case "Call":
                 {
-                if (((e._parameters["event"]) == "Foo")) {
+                if (((e._parameters["event"])) {
                     this.Foo((e._parameters["arg"]));
                     return;
-                } else if (((e._parameters["event"]) == "Bar")) {
+                } else if (((e._parameters["event"])) {
                     this.Bar((e._parameters["arg"]));
                     return;
                 } else {

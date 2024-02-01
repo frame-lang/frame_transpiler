@@ -6,14 +6,13 @@ from framelang.framelang import FrameEvent
 #TransitParams
     -interface-
     Next
-    Change
+
 
     -machine-
     $Init
         |Next|
             -> ("hi A") $A ^
-        |Change|
-            ->> $A ^
+
 
     $A
         |>| [msg:str]
@@ -23,25 +22,21 @@ from framelang.framelang import FrameEvent
             log("bye A") ^
 
         |Next|
-            -> ("hi B" 42) $B ^
+            -> ("hi B", 42) $B ^
 
-        |Change|
-            ->> $B ^
 
     $B
-        |>| [msg:str val:int]
+        |>| [msg:str, val:int]
             log(msg)
             log(str(val)) ^
 
-        |<| [val:bool msg:str]
+        |<| [val:bool, msg:str]
             log(str(val))
             log(msg) ^
 
         |Next|
-            (true "bye B") -> ("hi again A") $A ^
+            (true, "bye B") -> ("hi again A") $A ^
 
-        |Change|
-            ->> $A ^
 
     -actions-
     log [msg:str]

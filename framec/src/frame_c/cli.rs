@@ -27,7 +27,7 @@ pub struct Cli {
 impl Cli {
     pub fn new() -> Cli {
         let matches = clap::Command::new("framec")
-            .version("0.10.0")
+            .version("0.11.0")
             .about("Says hello")
             .arg(
                 Arg::new("GENERATE-CONFIG")

@@ -1,4 +1,4 @@
-// emitted from framec_v0.10.0
+// emitted from framec_v0.11.0
 // get include files at https://github.com/frame-lang/frame-ancillary-files
 
 function FrameEvent(message, parameters) {
@@ -31,7 +31,7 @@ class StateContextStack {
         this.#state = this.#sA_;
         this.#compartment = new StateContextStackCompartment(this.#state);
         this.#nextCompartment = null;
-        this.#compartment.StateVars["x"] = 0;
+        this.#compartment.StateVars["x"] = this.#compartment.StateVars["x"] + 1;
         
         // Initialize domain
         this.tape = [];
@@ -152,7 +152,7 @@ class StateContextStack {
                 {
                 let compartment =  new StateContextStackCompartment(this.#sA_);
                 
-                compartment.StateVars["x"] = 0;
+                compartment.StateVars["x"] = this.#compartment.StateVars["x"] + 1;
                 
                 this.#transition(compartment);
                 
@@ -163,7 +163,7 @@ class StateContextStack {
                 {
                 let compartment =  new StateContextStackCompartment(this.#sB_);
                 
-                compartment.StateVars["y"] = 0;
+                compartment.StateVars["y"] = this.#compartment.StateVars["y"] + 5;
                 
                 this.#transition(compartment);
                 
@@ -174,7 +174,7 @@ class StateContextStack {
                 {
                 let compartment =  new StateContextStackCompartment(this.#sC_);
                 
-                compartment.StateVars["z"] = 0;
+                compartment.StateVars["z"] = this.#compartment.StateVars["z"] + 10;
                 
                 this.#transition(compartment);
                 
@@ -198,14 +198,13 @@ class StateContextStack {
                 
             case "pop_change":
                 {
-                let compartment = this.#stateStack_pop()
-                this.#changeState(compartment)
                 
                 return;
                 }
                 
         }
-    }
+    }  // ->> $$[-]
+	
     
     #sB_(e) {
         switch (e._message) {
@@ -240,7 +239,7 @@ class StateContextStack {
                 {
                 let compartment =  new StateContextStackCompartment(this.#sA_);
                 
-                compartment.StateVars["x"] = 0;
+                compartment.StateVars["x"] = this.#compartment.StateVars["x"] + 1;
                 
                 this.#transition(compartment);
                 
@@ -251,7 +250,7 @@ class StateContextStack {
                 {
                 let compartment =  new StateContextStackCompartment(this.#sB_);
                 
-                compartment.StateVars["y"] = 0;
+                compartment.StateVars["y"] = this.#compartment.StateVars["y"] + 5;
                 
                 this.#transition(compartment);
                 
@@ -262,7 +261,7 @@ class StateContextStack {
                 {
                 let compartment =  new StateContextStackCompartment(this.#sC_);
                 
-                compartment.StateVars["z"] = 0;
+                compartment.StateVars["z"] = this.#compartment.StateVars["z"] + 10;
                 
                 this.#transition(compartment);
                 
@@ -286,14 +285,13 @@ class StateContextStack {
                 
             case "pop_change":
                 {
-                let compartment = this.#stateStack_pop()
-                this.#changeState(compartment)
                 
                 return;
                 }
                 
         }
-    }
+    }  // ->> $$[-]
+	
     
     #sC_(e) {
         switch (e._message) {
@@ -328,7 +326,7 @@ class StateContextStack {
                 {
                 let compartment =  new StateContextStackCompartment(this.#sA_);
                 
-                compartment.StateVars["x"] = 0;
+                compartment.StateVars["x"] = this.#compartment.StateVars["x"] + 1;
                 
                 this.#transition(compartment);
                 
@@ -339,7 +337,7 @@ class StateContextStack {
                 {
                 let compartment =  new StateContextStackCompartment(this.#sB_);
                 
-                compartment.StateVars["y"] = 0;
+                compartment.StateVars["y"] = this.#compartment.StateVars["y"] + 5;
                 
                 this.#transition(compartment);
                 
@@ -350,7 +348,7 @@ class StateContextStack {
                 {
                 let compartment =  new StateContextStackCompartment(this.#sC_);
                 
-                compartment.StateVars["z"] = 0;
+                compartment.StateVars["z"] = this.#compartment.StateVars["z"] + 10;
                 
                 this.#transition(compartment);
                 
@@ -374,8 +372,6 @@ class StateContextStack {
                 
             case "pop_change":
                 {
-                let compartment = this.#stateStack_pop()
-                this.#changeState(compartment)
                 
                 return;
                 }
@@ -443,14 +439,12 @@ class StateContextStack {
         }
     }
     
-    #changeState(compartment) {
-        this.#compartment = compartment;
-    }
-    
     state_info() {
         return this.#compartment.state.name;
     }
     
+      // ->> $$[-]
+	
     
 };
 

@@ -1,4 +1,4 @@
-// emitted from framec_v0.10.0
+// emitted from framec_v0.11.0
 // get include files at https://github.com/frame-lang/frame-ancillary-files
 
 function FrameEvent(message, parameters) {
@@ -178,7 +178,7 @@ class Match {
         switch (e._message) {
             case "OnString":
                 {
-                if (((e._parameters["s"]) == "") || ((e._parameters["s"]) == "foo")) {
+                if (((e._parameters["s"])) {
                     this.log_do("empty");
                 } else {
                     this.log_do("?");
@@ -188,7 +188,7 @@ class Match {
                 }
                 
         }
-    }  //  TODO: matching only the empty string is broken
+    }  // TODO: matching only the empty string is broken
 	
     
     #sSimpleMatch_(e) {
@@ -212,15 +212,15 @@ class Match {
                 
             case "OnString":
                 {
-                if (((e._parameters["s"]) == "hello")) {
+                if (((e._parameters["s"])) {
                     this.log_do("hello");
-                } else if (((e._parameters["s"]) == "hello")) {
+                } else if (((e._parameters["s"])) {
                     this.log_do("!!!");
-                } else if (((e._parameters["s"]) == "goodbye")) {
+                } else if (((e._parameters["s"])) {
                     this.log_do("goodbye");
-                } else if (((e._parameters["s"]) == "Testing 1, 2, 3...")) {
+                } else if (((e._parameters["s"])) {
                     this.log_do("testing");
-                } else if (((e._parameters["s"]) == "$10!")) {
+                } else if (((e._parameters["s"])) {
                     this.log_do("money");
                 } else {
                     this.log_do("?");
@@ -249,9 +249,9 @@ class Match {
                 
             case "OnString":
                 {
-                if (((e._parameters["s"]) == "$10") || ((e._parameters["s"]) == "12.5%") || ((e._parameters["s"]) == "@#*!")) {
+                if (((e._parameters["s"])) {
                     this.log_do("symbols");
-                } else if (((e._parameters["s"]) == " ") || ((e._parameters["s"]) == "  ") || ((e._parameters["s"]) == "\t") || ((e._parameters["s"]) == "\n")) {
+                } else if (((e._parameters["s"])) {
                     this.log_do("whitespace");
                 } else {
                     this.log_do("?");
@@ -296,20 +296,20 @@ class Match {
                 
             case "OnString":
                 {
-                if (((e._parameters["s"]) == "hello") || ((e._parameters["s"]) == "hola") || ((e._parameters["s"]) == "bonjour")) {
+                if (((e._parameters["s"])) {
                     this.log_do("greeting");
-                    if (((e._parameters["s"]) == "hello")) {
+                    if (((e._parameters["s"])) {
                         this.log_do("English");
-                    } else if (((e._parameters["s"]) == "hola")) {
+                    } else if (((e._parameters["s"])) {
                         this.log_do("Spanish");
                     } else {
                         this.log_do("French");
                     }
-                } else if (((e._parameters["s"]) == "goodbye") || ((e._parameters["s"]) == "adios") || ((e._parameters["s"]) == "au revoir")) {
+                } else if (((e._parameters["s"])) {
                     this.log_do("farewell");
-                    if (((e._parameters["s"]) == "goodbye")) {
+                    if (((e._parameters["s"])) {
                         this.log_do("English");
-                    } else if (((e._parameters["s"]) == "adios")) {
+                    } else if (((e._parameters["s"])) {
                         this.log_do("Spanish");
                     } else {
                         this.log_do("French");
@@ -358,15 +358,15 @@ class Match {
                 
             case "OnString":
                 {
-                if (((e._parameters["s"]) == "hello")) {
+                if (((e._parameters["s"])) {
                     this.log_do("hello in child");
-                } else if (((e._parameters["s"]) == "goodbye")) {
+                } else if (((e._parameters["s"])) {
                     let compartment =  new MatchCompartment(this.#sFinal_);
                     
                     
                     this.#transition(compartment);
                     return;
-                } else if (((e._parameters["s"]) == "Testing 1, 2, 3...")) {
+                } else if (((e._parameters["s"])) {
                     this.log_do("testing in child");
                     
                     return;

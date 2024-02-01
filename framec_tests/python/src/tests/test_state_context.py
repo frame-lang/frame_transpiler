@@ -48,7 +48,7 @@ class TestStateContextSm:
         assert sm.tape == ["z=48", "z=49", "z=50"]
 
     
-    def test_change_state(self):
+    def change_state(self):
 
         sm = StateContextController()
         sm.Inc()

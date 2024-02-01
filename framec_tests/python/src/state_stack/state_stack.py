@@ -1,8 +1,22 @@
-# emitted from framec_v0.10.0
-# get include files at https://github.com/frame-lang/frame-ancillary-files
+#Emitted from framec_v0.11.0
+
+
+
 from framelang.framelang import FrameEvent
 
+
+
+class FrameEvent:
+    def __init__(self, message, parameters):
+        self._message = message
+        self._parameters = parameters
+        self._return = None
+
+
 class StateStack:
+    
+    
+    # ==================== System Factory =================== #
     
     def __init__(self):
         
@@ -10,10 +24,12 @@ class StateStack:
         
         self.__state_stack = []
         
-        # Create and intialize start state compartment.
-        self.__state = self.__statestack_state_A
-        self.__compartment: 'StateStackCompartment' = StateStackCompartment(self.__state)
+         # Create and intialize start state compartment.
+        
+        self.__compartment: 'StateStackCompartment' = StateStackCompartment('__statestack_state_A')
         self.__next_compartment: 'StateStackCompartment' = None
+        self.__compartment: StateStackCompartment = StateStackCompartment(self.__state)
+        self.__next_compartment: StateStackCompartment = None
         
         # Initialize domain
         
@@ -21,217 +37,170 @@ class StateStack:
         
         # Send system start event
         frame_event = FrameEvent(">", None)
-        self.__mux(frame_event)
+        self.__kernel(frame_event)
     
-    # ===================== Interface Block =================== #
+    # ==================== Interface Block ================== #
     
     def to_a(self,):
-        e = FrameEvent("to_a",None)
-        self.__mux(e)
+        __e = FrameEvent("to_a",None)
+        self.__kernel(__e)
     
     def to_b(self,):
-        e = FrameEvent("to_b",None)
-        self.__mux(e)
+        __e = FrameEvent("to_b",None)
+        self.__kernel(__e)
     
     def to_c(self,):
-        e = FrameEvent("to_c",None)
-        self.__mux(e)
+        __e = FrameEvent("to_c",None)
+        self.__kernel(__e)
     
     def push(self,):
-        e = FrameEvent("push",None)
-        self.__mux(e)
+        __e = FrameEvent("push",None)
+        self.__kernel(__e)
     
     def pop(self,):
-        e = FrameEvent("pop",None)
-        self.__mux(e)
-    
-    def pop_change(self,):
-        e = FrameEvent("pop_change",None)
-        self.__mux(e)
-    
-    # ====================== Multiplexer ==================== #
-    
-    def __mux(self, e):
-        if self.__compartment.state.__name__ == '__statestack_state_A':
-            self.__statestack_state_A(e)
-        elif self.__compartment.state.__name__ == '__statestack_state_B':
-            self.__statestack_state_B(e)
-        elif self.__compartment.state.__name__ == '__statestack_state_C':
-            self.__statestack_state_C(e)
-        
-        if self.__next_compartment != None:
-            next_compartment = self.__next_compartment
-            self.__next_compartment = None
-            if(next_compartment.forward_event is not None and 
-               next_compartment.forward_event._message == ">"):
-                self.__mux(FrameEvent( "<", self.__compartment.exit_args))
-                self.__compartment = next_compartment
-                self.__mux(next_compartment.forward_event)
-            else:
-                self.__do_transition(next_compartment)
-                if next_compartment.forward_event is not None:
-                    self.__mux(next_compartment.forward_event)
-            next_compartment.forward_event = None
+        __e = FrameEvent("pop",None)
+        self.__kernel(__e)
     
     # ===================== Machine Block =================== #
     
-    def __statestack_state_A(self, e):
-        if e._message == ">":
+    # ----------------------------------------
+    # $A
+    
+    def __statestack_state_A(self, __e):
+        if __e._message == ">":
             self.log_do("A:>")
-            
             return
-        
-        elif e._message == "<":
+        elif __e._message == "<":
             self.log_do("A:<")
-            
             return
-        
-        elif e._message == "to_a":
-            compartment = StateStackCompartment(self.__statestack_state_A)
-            self.__transition(compartment)
-            
+        elif __e._message == "to_a":
+            next_compartment = StateStackCompartment('__statestack_state_A')
+            self.__transition(next_compartment)
             return
-        
-        elif e._message == "to_b":
-            compartment = StateStackCompartment(self.__statestack_state_B)
-            self.__transition(compartment)
-            
+        elif __e._message == "to_b":
+            next_compartment = StateStackCompartment('__statestack_state_B')
+            self.__transition(next_compartment)
             return
-        
-        elif e._message == "to_c":
-            compartment = StateStackCompartment(self.__statestack_state_C)
-            self.__transition(compartment)
-            
+        elif __e._message == "to_c":
+            next_compartment = StateStackCompartment('__statestack_state_C')
+            self.__transition(next_compartment)
             return
-        
-        elif e._message == "push":
+        elif __e._message == "push":
             self.__state_stack_push(self.__compartment)
-            
             return
-        
-        elif e._message == "pop":
-            compartment = self.__state_stack_pop()
-            self.__transition(compartment)
-            
+        elif __e._message == "pop":
+            next_compartment = self.__state_stack_pop()
+            self.__transition(next_compartment)
             return
-        
-        elif e._message == "pop_change":
-            compartment = self.__state_stack_pop()
-            self.__change_state(compartment)
-            
-            return
-        
-    def __statestack_state_B(self, e):
-        if e._message == ">":
+    
+    # ----------------------------------------
+    # $B
+    
+    def __statestack_state_B(self, __e):
+        if __e._message == ">":
             self.log_do("B:>")
-            
             return
-        
-        elif e._message == "<":
+        elif __e._message == "<":
             self.log_do("B:<")
-            
             return
-        
-        elif e._message == "to_a":
-            compartment = StateStackCompartment(self.__statestack_state_A)
-            self.__transition(compartment)
-            
+        elif __e._message == "to_a":
+            next_compartment = StateStackCompartment('__statestack_state_A')
+            self.__transition(next_compartment)
             return
-        
-        elif e._message == "to_b":
-            compartment = StateStackCompartment(self.__statestack_state_B)
-            self.__transition(compartment)
-            
+        elif __e._message == "to_b":
+            next_compartment = StateStackCompartment('__statestack_state_B')
+            self.__transition(next_compartment)
             return
-        
-        elif e._message == "to_c":
-            compartment = StateStackCompartment(self.__statestack_state_C)
-            self.__transition(compartment)
-            
+        elif __e._message == "to_c":
+            next_compartment = StateStackCompartment('__statestack_state_C')
+            self.__transition(next_compartment)
             return
-        
-        elif e._message == "push":
+        elif __e._message == "push":
             self.__state_stack_push(self.__compartment)
-            
             return
-        
-        elif e._message == "pop":
-            compartment = self.__state_stack_pop()
-            self.__transition(compartment)
-            
+        elif __e._message == "pop":
+            next_compartment = self.__state_stack_pop()
+            self.__transition(next_compartment)
             return
-        
-        elif e._message == "pop_change":
-            compartment = self.__state_stack_pop()
-            self.__change_state(compartment)
-            
-            return
-        
-    def __statestack_state_C(self, e):
-        if e._message == ">":
+    
+    # ----------------------------------------
+    # $C
+    
+    def __statestack_state_C(self, __e):
+        if __e._message == ">":
             self.log_do("C:>")
-            
             return
-        
-        elif e._message == "<":
+        elif __e._message == "<":
             self.log_do("C:<")
-            
             return
-        
-        elif e._message == "to_a":
-            compartment = StateStackCompartment(self.__statestack_state_A)
-            self.__transition(compartment)
-            
+        elif __e._message == "to_a":
+            next_compartment = StateStackCompartment('__statestack_state_A')
+            self.__transition(next_compartment)
             return
-        
-        elif e._message == "to_b":
-            compartment = StateStackCompartment(self.__statestack_state_B)
-            self.__transition(compartment)
-            
+        elif __e._message == "to_b":
+            next_compartment = StateStackCompartment('__statestack_state_B')
+            self.__transition(next_compartment)
             return
-        
-        elif e._message == "to_c":
-            compartment = StateStackCompartment(self.__statestack_state_C)
-            self.__transition(compartment)
-            
+        elif __e._message == "to_c":
+            next_compartment = StateStackCompartment('__statestack_state_C')
+            self.__transition(next_compartment)
             return
-        
-        elif e._message == "push":
+        elif __e._message == "push":
             self.__state_stack_push(self.__compartment)
-            
             return
-        
-        elif e._message == "pop":
-            compartment = self.__state_stack_pop()
-            self.__transition(compartment)
-            
+        elif __e._message == "pop":
+            next_compartment = self.__state_stack_pop()
+            self.__transition(next_compartment)
             return
-        
-        elif e._message == "pop_change":
-            compartment = self.__state_stack_pop()
-            self.__change_state(compartment)
-            
-            return
-        
     
     # ===================== Actions Block =================== #
-    
-    
-    # Unimplemented Actions
     
     def log_do(self,msg: str):
         raise NotImplementedError
     
+    # ==================== System Runtime =================== #
     
-    # =============== Machinery and Mechanisms ============== #
+    def __kernel(self, __e):
+        
+        # send event to current state
+        self.__router(__e)
+        
+        # loop until no transitions occur
+        while self.__next_compartment != None:
+            next_compartment = self.__next_compartment
+            self.__next_compartment = None
+            
+            # exit current state
+            self.__router(FrameEvent( "<", self.__compartment.exit_args))
+            # change state
+            self.__compartment = next_compartment
+            
+            if next_compartment.forward_event is None:
+                # send normal enter event
+                self.__router(FrameEvent(">", self.__compartment.enter_args))
+            else: # there is a forwarded event
+                if next_compartment.forward_event._message == ">":
+                    # forwarded event is enter event
+                    self.__router(next_compartment.forward_event)
+                else:
+                    # forwarded event is not enter event
+                    # send normal enter event
+                    self.__router(FrameEvent(">", self.__compartment.enter_args))
+                    # and now forward event to new, intialized state
+                    self.__router(next_compartment.forward_event)
+                next_compartment.forward_event = None
+                
     
-    def __transition(self, compartment: 'StateStackCompartment'):
-        self.__next_compartment = compartment
-    
-    def  __do_transition(self, next_compartment: 'StateStackCompartment'):
-        self.__mux(FrameEvent("<", self.__compartment.exit_args))
-        self.__compartment = next_compartment
-        self.__mux(FrameEvent(">", self.__compartment.enter_args))
+    def __router(self, __e):
+        if self.__compartment.state == '__statestack_state_A':
+            self.__statestack_state_A(__e)
+        elif self.__compartment.state == '__statestack_state_B':
+            self.__statestack_state_B(__e)
+        elif self.__compartment.state == '__statestack_state_C':
+            self.__statestack_state_C(__e)
+        
+    def __transition(self, next_compartment: 'StateStackCompartment'):
+        self.__next_compartment = next_compartment
     
     def __state_stack_push(self, compartment: 'StateStackCompartment'):
         self.__state_stack.append(compartment)
@@ -239,37 +208,19 @@ class StateStack:
     def __state_stack_pop(self):
         return self.__state_stack.pop()
     
-    
-    def __change_state(self, new_compartment: 'StateStackCompartment'):
-        self.__compartment = new_compartment
-    
-    
     def state_info(self):
-        return self.__compartment.state.__name__
+        return self.__compartment.state
         
 
 # ===================== Compartment =================== #
 
 class StateStackCompartment:
 
-    def __init__(self, state):
+    def __init__(self,state):
         self.state = state
         self.state_args = {}
         self.state_vars = {}
         self.enter_args = {}
         self.exit_args = {}
-        self.forward_event = FrameEvent(None, None)
+        self.forward_event = None
     
-
-
-# ********************
-
-#class StateStackController(StateStack):
-	#def __init__(self,):
-	    #super().__init__()
-
-    #def log_do(self,msg: str):
-        #pass
-
-# ********************
-

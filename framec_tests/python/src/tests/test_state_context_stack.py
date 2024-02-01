@@ -119,13 +119,13 @@ class TestStateContextStack:
         sm.to_a()
         sm.tape.clear()
         assert sm.state_info() ==  return_state_name("A")
-        sm.pop_change()
-        assert sm.state_info() ==  return_state_name("C")
-        assert len(sm.tape) == 0
         sm.pop()
-        sm.pop_change()
+        assert sm.state_info() ==  return_state_name("C")
+        assert len(sm.tape) == 2
+        sm.pop()
+        sm.pop()
         assert sm.state_info() ==  return_state_name("B")
-        assert sm.tape ==  ["C:<", "A:>"]
+        assert sm.tape ==  ['A:<', 'C:>', 'C:<', 'A:>', 'A:<', 'B:>']
 
     def test_pop_restores_state_variables(self):
         """

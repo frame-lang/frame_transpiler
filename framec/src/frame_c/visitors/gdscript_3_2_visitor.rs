@@ -228,7 +228,9 @@ impl GdScript32Visitor {
     fn visit_decl_stmts(&mut self, decl_stmt_types: &Vec<DeclOrStmtType>) {
         for decl_stmt_t in decl_stmt_types.iter() {
             match decl_stmt_t {
-                DeclOrStmtType::VarDeclT { var_decl_t_rc_ref } => {
+                DeclOrStmtType::VarDeclT {
+                    var_decl_t_rcref: var_decl_t_rc_ref,
+                } => {
                     let variable_decl_node = var_decl_t_rc_ref.borrow();
                     variable_decl_node.accept(self);
                 }
@@ -236,6 +238,9 @@ impl GdScript32Visitor {
                     match stmt_t {
                         StatementType::ExpressionStmt { expr_stmt_t } => {
                             match expr_stmt_t {
+                                ExprStmtType::SystemInstanceStmtT {
+                                    system_instance_stmt_node,
+                                } => system_instance_stmt_node.accept(self),
                                 ExprStmtType::ActionCallStmtT {
                                     action_call_stmt_node,
                                 } => action_call_stmt_node.accept(self), // // TODO
@@ -250,6 +255,15 @@ impl GdScript32Visitor {
                                 } => assignment_stmt_node.accept(self),
                                 ExprStmtType::VariableStmtT { variable_stmt_node } => {
                                     variable_stmt_node.accept(self)
+                                }
+                                ExprStmtType::ExprListStmtT {
+                                    expr_list_stmt_node,
+                                } => expr_list_stmt_node.accept(self),
+                                ExprStmtType::EnumeratorStmtT {
+                                    enumerator_stmt_node,
+                                } => enumerator_stmt_node.accept(self),
+                                ExprStmtType::BinaryStmtT { binary_stmt_node } => {
+                                    binary_stmt_node.accept(self)
                                 }
                             }
                         }
@@ -268,6 +282,23 @@ impl GdScript32Visitor {
                         }
                         StatementType::ChangeStateStmt { change_state_stmt } => {
                             change_state_stmt.accept(self);
+                        }
+                        StatementType::LoopStmt { loop_stmt_node } => {
+                            loop_stmt_node.accept(self);
+                        }
+                        StatementType::BlockStmt { block_stmt_node } => {
+                            block_stmt_node.accept(self);
+                        }
+                        StatementType::ContinueStmt { continue_stmt_node } => {
+                            continue_stmt_node.accept(self);
+                        }
+                        StatementType::BreakStmt { break_stmt_node } => {
+                            break_stmt_node.accept(self);
+                        }
+                        StatementType::SuperStringStmt {
+                            super_string_stmt_node,
+                        } => {
+                            super_string_stmt_node.accept(self);
                         }
                         StatementType::NoStmt => {
                             // TODO
@@ -524,7 +555,7 @@ impl GdScript32Visitor {
 
                 if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt)
                 {
-                    match &event_sym.borrow().params_opt {
+                    match &event_sym.borrow().event_symbol_params_opt {
                         Some(event_params) => {
                             if exit_args.exprs_t.len() != event_params.len() {
                                 self.errors.push(
@@ -580,7 +611,7 @@ impl GdScript32Visitor {
             msg.push_str(&self.symbol_config.enter_msg_symbol);
 
             if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt) {
-                match &event_sym.borrow().params_opt {
+                match &event_sym.borrow().event_symbol_params_opt {
                     Some(event_params) => {
                         if enter_args.exprs_t.len() != event_params.len() {
                             self.errors.push(
@@ -669,13 +700,13 @@ impl GdScript32Visitor {
                 //                target_state_vars = "stateVars".to_string();
                 if let Some(state_symbol_rcref) = self.arcanium.get_state(&q.borrow().name) {
                     let state_symbol = state_symbol_rcref.borrow();
-                    let state_node = &state_symbol.state_node.as_ref().unwrap().borrow();
+                    let state_node = &state_symbol.state_node_opt.as_ref().unwrap().borrow();
                     // generate local state variables
                     if state_node.vars_opt.is_some() {
                         //                        let mut separator = "";
                         for var_rcref in state_node.vars_opt.as_ref().unwrap() {
                             let var = var_rcref.borrow();
-                            let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
+                            let expr_t = var.value;
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
                             self.add_code(&format!(
@@ -759,7 +790,7 @@ impl GdScript32Visitor {
 
                 if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt)
                 {
-                    match &event_sym.borrow().params_opt {
+                    match &event_sym.borrow().event_symbol_params_opt {
                         Some(event_params) => {
                             if exit_args.exprs_t.len() != event_params.len() {
                                 self.errors.push(
@@ -863,12 +894,12 @@ impl AstVisitor for GdScript32Visitor {
                 if let Some(state_symbol_rcref) = self.arcanium.get_state(&self.first_state_name) {
                     //   self.newline();
                     let state_symbol = state_symbol_rcref.borrow();
-                    let state_node = &state_symbol.state_node.as_ref().unwrap().borrow();
+                    let state_node = &state_symbol.state_node_opt.as_ref().unwrap().borrow();
                     // generate local state variables
                     if state_node.vars_opt.is_some() {
                         for var_rcref in state_node.vars_opt.as_ref().unwrap() {
                             let var = var_rcref.borrow();
-                            let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
+                            let expr_t = var.value;
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
                             self.newline();
@@ -1467,6 +1498,11 @@ impl AstVisitor for GdScript32Visitor {
                 number_match_test_node,
             } => {
                 number_match_test_node.accept(self);
+            }
+            TestType::EnumMatchTest {
+                enum_match_test_node,
+            } => {
+                enum_match_test_node.accept(self);
             }
         }
     }
@@ -2176,7 +2212,7 @@ impl AstVisitor for GdScript32Visitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_decl_node(&mut self, action_decl_node: &ActionNode) {
+    fn visit_action_node(&mut self, action_decl_node: &ActionNode) {
         self.newline();
 
         let action_name = self.format_action_name(&action_decl_node.name);
@@ -2221,7 +2257,7 @@ impl AstVisitor for GdScript32Visitor {
             None => String::from(""),
         };
         let var_name = &variable_decl_node.name;
-        let var_init_expr = &variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
+        let var_init_expr = &variable_decl_node.value;
         self.newline();
         let mut code = String::new();
         var_init_expr.accept_to_string(self, &mut code);
@@ -2272,7 +2308,7 @@ impl AstVisitor for GdScript32Visitor {
         self.newline();
         assignment_expr_node.l_value_box.accept(self);
         self.add_code(" = ");
-        assignment_expr_node.r_value_box.accept(self);
+        assignment_expr_node.r_value_rc.accept(self);
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2290,7 +2326,7 @@ impl AstVisitor for GdScript32Visitor {
             .accept_to_string(self, output);
         output.push_str(" = ");
         assignment_expr_node
-            .r_value_box
+            .r_value_rc
             .accept_to_string(self, output);
     }
 

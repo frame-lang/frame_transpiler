@@ -8,7 +8,7 @@ from framelang.framelang import FrameEvent
     snake_event [snake_param:int]
     CamelEvent [CamelParam:int]
     event123 [param123:int]
-    call [event:str param:int]
+    call [event:str, param:int]
 
     -machine-
     $Init
@@ -21,16 +21,16 @@ from framelang.framelang import FrameEvent
         |event123| [param123:int]
             -> $state123(param123) ^
 
-        |call| [event:str param:int]
+        |call| [event:str, param:int]
             event ?~
-                /snake_event/ snake_event(param) :>
-                /CamelEvent/ CamelEvent(param) :>
-                /event123/ event123(param)
-                : :: ^
+                ~/snake_event/ snake_event(param) :>
+                ~/CamelEvent/ CamelEvent(param) :>
+                ~/event123/ event123(param)
+                : :| ^
 
     $snake_state [snake_state_param:int]
 
-        --- 1100
+        // 1100
         var snake_state_var:int = snake_domain_var + CamelDomainVar + domainVar123 + 100
 
         |snake_event| [snake_param:int]
@@ -48,16 +48,16 @@ from framelang.framelang import FrameEvent
             action123(localVar123)
             -> $Final(localVar123) ^
 
-        |call| [event:str param:int]
+        |call| [event:str, param:int]
             event ?~
-                /snake_event/ snake_event(param) :>
-                /CamelEvent/ CamelEvent(param) :>
-                /event123/ event123(param)
-                : :: ^
+                ~/snake_event/ snake_event(param) :>
+                ~/CamelEvent/ CamelEvent(param) :>
+                ~/event123/ event123(param)
+                : :| ^
 
     $CamelState [CamelStateParam:int]
 
-        --- 1200
+        // 1200
         var CamelStateVar:int = snake_domain_var + CamelDomainVar + domainVar123 + 200
 
         |snake_event| [snake_param:int]
@@ -75,16 +75,16 @@ from framelang.framelang import FrameEvent
             action123(localVar123)
             -> $Final(localVar123) ^
 
-        |call| [event:str param:int]
+        |call| [event:str, param:int]
             event ?~
-                /snake_event/ snake_event(param) :>
-                /CamelEvent/ CamelEvent(param) :>
-                /event123/ event123(param)
-                : :: ^
+                ~/snake_event/ snake_event(param) :>
+                ~/CamelEvent/ CamelEvent(param) :>
+                ~/event123/ event123(param)
+                : :| ^
 
     $state123 [stateParam123:int]
 
-        --- 1300
+        // 1300
         var stateVar123:int = snake_domain_var + CamelDomainVar + domainVar123 + 300
 
         |snake_event| [snake_param:int]
@@ -102,12 +102,12 @@ from framelang.framelang import FrameEvent
             action123(localVar123)
             -> $Final(localVar123) ^
 
-        |call| [event:str param:int]
+        |call| [event:str, param:int]
             event ?~
-                /snake_event/ snake_event(param) :>
-                /CamelEvent/ CamelEvent(param) :>
-                /event123/ event123(param)
-                : :: ^
+                ~/snake_event/ snake_event(param) :>
+                ~/CamelEvent/ CamelEvent(param) :>
+                ~/event123/ event123(param)
+                : :| ^
 
     $Final [result:int]
         |>|

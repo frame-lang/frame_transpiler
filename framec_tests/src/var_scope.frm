@@ -6,16 +6,16 @@
     to_yy
     nn [d:String]
     ny [d:String]
-    yn [d:String x:String]
-    yy [d:String x:String]
+    yn [d:String, x:String]
+    yy [d:String, x:String]
     sigils [x:String]
 
     -machine-
     $Init
         |to_nn| -> $NN ("$NN[b]") ^
         |to_ny| -> $NY ("$NY[b]") ^
-        |to_yn| -> $YN ("$YN[b]" "$YN[x]") ^
-        |to_yy| -> $YY ("$YY[b]" "$YY[x]") ^
+        |to_yn| -> $YN ("$YN[b]", "$YN[x]") ^
+        |to_yy| -> $YY ("$YY[b]", "$YY[x]") ^
 
     $NN [b:String]
         var c:String = "$NN.c"
@@ -41,7 +41,7 @@
             log(x.clone())
             ^
 
-        |yn| [d:String x:String]
+        |yn| [d:String, x:String]
             var e:String = "|yn|.e"
             log(a.clone())
             log(b.clone())
@@ -51,7 +51,7 @@
             log(x.clone())
             ^
 
-        |yy| [d:String x:String]
+        |yy| [d:String, x:String]
             var e:String = "|yy|.e"
             var x:String = "|yy|.x"
             log(a.clone())
@@ -65,8 +65,8 @@
         |sigils| [x:String]
             var x:String = "|sigils|.x"
             log(#.x.clone())
-            --- log(||[x].clone())
-            --- log(||.x.clone())
+            // log(||[x].clone())
+            // log(||.x.clone())
             ^
 
     $NY [b:String]
@@ -94,7 +94,7 @@
             log(x.clone())
             ^
 
-        |yn| [d:String x:String]
+        |yn| [d:String, x:String]
             var e:String = "|yn|.e"
             log(a.clone())
             log(b.clone())
@@ -104,7 +104,7 @@
             log(x.clone())
             ^
 
-        |yy| [d:String x:String]
+        |yy| [d:String, x:String]
             var e:String = "|yy|.e"
             var x:String = "|yy|.x"
             log(a.clone())
@@ -118,12 +118,12 @@
         |sigils| [x:String]
             var x:String = "|sigils|.x"
             log(#.x.clone())
-            --- log($.x.clone())
-            --- log(||[x].clone())
-            --- log(||.x.clone())
+            // log($.x.clone())
+            // log(||[x].clone())
+            // log(||.x.clone())
             ^
 
-    $YN [b:String x:String]
+    $YN [b:String, x:String]
         var c:String = "$YN.c"
 
         |nn| [d:String]
@@ -147,7 +147,7 @@
             log(x.clone())
             ^
 
-        |yn| [d:String x:String]
+        |yn| [d:String, x:String]
             var e:String = "|yn|.e"
             log(a.clone())
             log(b.clone())
@@ -157,7 +157,7 @@
             log(x.clone())
             ^
 
-        |yy| [d:String x:String]
+        |yy| [d:String, x:String]
             var e:String = "|yy|.e"
             var x:String = "|yy|.x"
             log(a.clone())
@@ -171,12 +171,12 @@
         |sigils| [x:String]
             var x:String = "|sigils|.x"
             log(#.x.clone())
-            --- log($[x].clone())
-            --- log(||[x].clone())
-            --- log(||.x.clone())
+            // log($[x].clone())
+            // log(||[x].clone())
+            // log(||.x.clone())
             ^
 
-    $YY [b:String x:String]
+    $YY [b:String, x:String]
         var c:String = "$YY.c"
         var x:String = "$YY.x"
 
@@ -201,7 +201,7 @@
             log(x.clone())
             ^
 
-        |yn| [d:String x:String]
+        |yn| [d:String, x:String]
             var e:String = "|yn|.e"
             log(a.clone())
             log(b.clone())
@@ -211,7 +211,7 @@
             log(x.clone())
             ^
 
-        |yy| [d:String x:String]
+        |yy| [d:String, x:String]
             var e:String = "|yy|.e"
             var x:String = "|yy|.x"
             log(a.clone())
@@ -225,10 +225,10 @@
         |sigils| [x:String]
             var x:String = "|sigils|.x"
             log(#.x.clone())
-            --- log($[x].clone())
-            --- log($.x.clone())
-            --- log(||[x].clone())
-            --- log(||.x.clone())
+            // log($[x].clone())
+            // log($.x.clone())
+            // log(||[x].clone())
+            // log(||.x.clone())
             ^
 
     -actions-

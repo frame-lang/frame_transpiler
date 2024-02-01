@@ -1,0 +1,867 @@
+#Test
+
+    -machine-
+
+    $S1
+        |e| [x,y]
+            var x:int = 0
+
+            loop var x in foo(--a,b++) {
+                bar()
+            }
+
+            z = a + b
+            x ? a(x) b() : c() ::
+
+            z = y++ - --x
+            bar(x++, y++)
+
+            loop var a = 0; a < 100; a++ { foo(a) }
+            ^
+    -actions-
+
+    foo1 [a:int, b:string] {
+
+        var x:int = 0
+
+        loop x = 1; x < 10; x++ {
+            x ? a(x) b() : c() ::
+        }
+        ^(42)
+    }
+##
+
+#Test
+    -machine-
+
+    $S1
+        |k|
+            loop var m = 0; m < goo(a++,--b); m++ { foo() }
+            ^
+##
+
+#Test
+    -machine-
+
+    $S1
+        |k|
+            b ? loop { foo() } :>
+            c ? loop x in bar() { a() }
+            : loop var m = 0; m < 10; m++ { foo() } :: --- Error - missing '?' for next test
+            ^
+##
+
+#TestMissingElseContinueNextTest
+    -machine-
+
+    $S1
+        |k|
+            b ? :>
+            foo() :: --- Error - missing '?' for next test
+            ^
+##
+
+#TestEmptyBranchesForPython2
+    -machine-
+
+    $S1
+
+        |e|
+            a ? ::
+            b ? {} ::
+            c ? {} {} {} ::
+            d ? { {} } ::
+            ^
+        |f|
+            e ? {} { foo() } {} ::
+            f ? foo() {} ::
+            g ? {} foo() ::
+            h ? foo() {}  ::
+            i ? { { { foo() } } } ::
+            ^
+        |g|
+            a ? : ::
+            b ? : foo() ::
+            c ? : {} ::
+            c1 ? : {} {} {} ::
+            d ? : {} { foo() } {} ::
+            e ? : foo() {} ::
+            f ? : {} foo() ::
+            f1 ? : foo() {}  ::
+            g ? : { {} } ::
+            h ? : { { { foo() } } } ::
+            ^
+##
+
+#TestEmptyBranchesPython
+    -machine-
+
+    $S1
+
+        |e|
+            x ? :>    --- should generate a pass in python
+            y ? ^   --- should generate a return
+            : ::
+
+            x ? : ^ :: ^
+        |f|
+            x ? {} :>    --- should generate a pass in python
+            y ? {} ^   --- should generate a return
+            : {} ::
+
+            x ? {} : {} ^ :: ^
+##
+
+#BlockScopes
+
+    -machine-
+
+    $S1
+
+        |e|
+            var a = 0
+            {
+                var a = 1
+                {
+                    var a = 2
+                }
+
+                a()
+            }
+            ^
+        |f|
+            var a = 0
+            x ?
+                var a = 1
+                {
+                    var a = 2
+                } :>
+            y ?  ::
+
+            ^
+        |g| {
+
+        } ^
+
+        |h| {
+            {
+                {
+                a()
+                }
+            }
+        } ^
+
+##
+
+
+#TestContinueBranchScopes
+
+    -machine-
+
+    $S1
+
+        |e|
+
+            x ?
+                var b = 0
+                var b = 0 :>
+            y ?
+                var c = 0
+                var c = 0 :>
+            ::
+            ^
+##
+
+#UniqueScopeParameters
+
+    -machine-
+
+    $S1
+    $S2  [a,a]          --- Error
+        |e| [b,b] ^     --- Error
+
+    -actions-
+
+    foo [c,c]           --- Error
+
+##
+
+#DisallowSameIdNameInScopeTest
+
+    -machine-
+
+    $S1
+        var a = 0
+        var a = 1               --- Error
+
+        |e|
+            x ?
+                var b = 0
+                var b = 1 ::    --- Error
+            ^
+
+    -domain-
+
+    var c = 0
+    var c = 1                   --- Error
+##
+
+
+#BranchScopes
+
+    -machine-
+
+    $S1
+
+        |e|
+            x ?
+                --- scope
+                var a = 1
+                foo(a)
+            :
+                --- scope
+                var b = bar()
+                {
+                    --- scope
+                    var b = 1
+
+                }
+            ::
+            {
+                --- scope
+                {
+                    --- scope
+                }
+            }
+            {
+                --- scope
+            }
+            ^
+
+
+
+##
+
+#DupEventHandlerName
+
+    -machine-
+
+    $S1
+
+        |i| ^
+        |i| ^ --- Error
+
+    $S2
+
+##
+
+
+#LoopFnAutoincdec
+
+    -machine-
+
+    $S1
+
+        |e|
+            loop var x = 0; x == 5 && foo(++a,b--,zoo(++c,d--)); bar(++x,y--) { a() } ^
+        |f|
+            loop var x = 0; x < 10; ((x = x + 2)) {
+                a()
+                var z = foo() + bar()
+                b()
+            }
+            var z = foo() + bar()
+            z ? a() ^ : b() ::
+            ^
+        |g|
+            loop var x = 0; x == 5 && foo(++a,b--,zoo(++c,d--)); bar(++x,y--) {
+                loop var m = 0; foo(++n,o--,zoo(++p,q--)); bar(++r,s--) { b() }
+            } ^
+
+##
+
+
+
+------------------
+
+#LoopFnAutoincdec
+
+    -machine-
+
+    $S1
+
+        |e|
+            loop var x = 0; foo(++a,b--); x = bar(++x,y--) {}
+            loop var x in foo(++x,y--) {}
+            ^
+##
+
+#NestedLoops
+
+    -machine-
+
+    $S1
+
+        |e|
+            loop var x = 0; x < 10; x++ {
+                loop var y = 0; y < 10; ++y {
+                    loop z in foo() {
+                        loop {
+                            break
+                        }
+                    }
+                }
+            } ^
+
+##
+
+
+#ForLoopContinue
+
+    -machine-
+
+    $S1
+
+        |e|
+            loop var x = 0; x < 10; x++ {
+                a = 1
+                y ?
+                    z ? foo() continue : bar() continue ::
+                ::
+                a = 2
+            }
+
+            loop {
+                a = 1
+                y ?
+                    z ? foo() continue : bar() continue ::
+                ::
+                a = 2
+            }
+
+            loop x in foo() {
+                a = 1
+                y ?
+                    z ? foo() continue : bar() continue ::
+                ::
+                a = 2
+            }
+
+            ^
+
+##
+
+
+#ActionArgumentValidation
+
+    -machine-
+
+    $S1
+
+        |e| a1(1,2) ^
+
+    -actions-
+
+    a1 [x,y] { a2(x,y) }
+    a2 [x,y] {}
+##
+
+#ExpressionListAutoIncDec
+
+    -machine-
+
+    $S1
+        |e|
+
+            ((++a, b--)) ^
+
+##
+
+#ActionValidation
+
+    -machine-
+
+    $S1
+
+        |e| a(1) ^
+
+    -actions-
+
+    a1 {}
+    a2 {}
+##
+
+#BinaryExpressionStatementTest
+
+    -machine-
+
+    $S1
+
+        |d| a + b c - d e * f i / j ^(b + a) --- binary expression statement ok.
+        |e| a++ + b-- ^(++b + --a) --- binary expression statement ok.
+        |f| ++a + --b ^(b++ + a--) --- binary expression statement ok.
+
+##
+
+
+#BinaryExpressionStatementTest
+
+    -machine-
+
+    $S1
+
+        |e| a + b ^(b + a) --- binary expression statement ok.
+        |f| ++a + --b ^(b++ + a--) --- binary expression statement ok.
+
+##
+
+#InterfaceParamArgTests
+
+    -interface-
+
+    i [x]
+
+    -machine-
+
+    $S1
+
+        |i| [x]
+            i()     --- Error
+            i(0)    --- Ok
+            i(1,2)  --- Error
+            ^
+##
+
+#BinaryExpressionStatementTest
+
+    -machine-
+
+    $S1
+
+        |e| a + b ^ --- binary expression statement ok.
+##
+
+#EventLookupTest
+
+    -machine-
+
+    $S1
+
+        |f| f ^ --- symbol lookup should not find event |f|.
+##
+
+#Test
+
+    -machine-
+
+    $S1
+
+        |f| x e x ^
+        |e| x e x ^ --- error. It should succeed?
+##
+
+#Test
+
+    -machine-
+
+    $S1
+
+        |e|
+            x e x ^
+##
+
+#AutoIncDec
+
+    -interface-
+
+    if_call
+
+    -machine-
+
+    $S1
+
+        |e|
+
+            x ? ++a --a a++ b-- : ++a --a a++ b-- ::
+            x1 ? ++a :>
+            x2 ? a--
+               : y = ++c + d-- / --g * f++ ::
+            ^
+##
+
+#InterfaceCallRestrictionInAction
+
+    -interface-
+
+    if1
+
+    -machine-
+
+    $S1
+        |e1|
+            x ? if1() : a1() ::
+            a2() --- should error due to if1() required to be last statement.
+            ^(42)
+        |e2|
+            x ? if1() ^ : a1() :: --- ok
+            a2()
+            ^(42)
+        |e3|
+            x ? if1() : a1() :: --- ok
+            ^(42)
+    -actions-
+
+    a1 {}
+    a2 {}
+##
+
+#InterfaceCallRestriction
+
+    -interface-
+
+    if1
+
+    -machine-
+
+    $S1
+        |>|
+            if1() if1() --- should be an error
+            ^
+##
+
+#InterfaceCallRestrictionInAction
+
+    -interface-
+
+    if1
+
+    -machine-
+
+    $S1
+        |>|
+            a1()
+            ^
+
+    -actions-
+
+    a1 {
+        if1() --- should generate error
+    }
+
+##
+
+#SystemInitTest $[q] >[a] [x,y]
+
+
+    -machine-
+
+    $S1 [q]
+        |>|[a] ^
+
+    -domain-
+
+    var x = 0
+    var y = 0
+
+##
+
+#Test
+
+    -interface-
+
+    if_call
+
+    -machine-
+
+    $S1 [q]
+        |e| [o,p]
+
+            (if_call(++a, b--))
+            (act_call(++c, d--))
+            ^(if_call(++m, n--) + act_call(++o, p--) - fn_call(++q, r--))
+
+    -actions-
+
+    act_call {
+
+    }
+##
+
+#Test
+    -machine-
+
+    $S1
+        |e|
+
+            ((++a, b--)) ^
+
+##
+
+#Test
+
+    -interface-
+
+    if_call
+
+    -machine-
+
+    $S1
+        |e|
+
+            (if_call(++a, b--))
+            (act_call(++c, d--))
+            ^(if_call(++m, n--) + act_call(++o, p--) - fn_call(++q, r--))
+
+    -actions-
+
+    act {
+
+    }
+##
+
+
+#Test
+
+    -machine-
+
+    $S1
+        |e|[g,h:int]
+
+            bar(++a + b--,++c,d--)
+            (++e + f--,++g,h--)
+            ^(foo(++g + h--,++y,z--))
+
+##
+
+#Test
+
+    -machine-
+
+    $S1
+        |e|[g,h:int]
+            a()
+            b = c + d
+            ```
+            print "mark"
+            print "hi"
+            ```
+            z = g-- + ++h
+            loop var x = 0; x < 10; x++ { foo(x) }
+            -> $S2
+            ^(foo(g,h))
+    -actions-
+
+    foo1[i:int32,j:float]  {
+        var m = 0
+        a()
+        b = c++ + ++d
+        ```
+        print "mark"
+        print "hi"
+        ```
+        loop var z in foo(b) { bar(z) }
+        ^(42)
+    }
+##
+
+
+#SupestringTest
+
+    -machine-
+
+    $S1
+        |e|
+            a()
+            b = c + d
+            ```
+            print "mark"
+            print "hi"
+            ```
+            -> $S2
+            ^
+    -actions-
+
+    foo1  {
+        a()
+        b = c + d
+        ```
+        print "mark"
+        print "hi"
+        ```
+        ^(42)
+    }
+##
+
+#Test
+
+    -machine-
+
+    $S1
+        |e| [m,n]
+    ---        a() ^
+            x ? a(++x) b(n++,--m) : c(x--, ++x) :: ^
+
+
+##
+
+#Test
+
+    -machine-
+
+    $S1
+        |e| [x,y]
+
+            x ? a(x) b() : c() ::
+
+            z = y++ - --x
+            bar(x++, y++)
+
+            loop var a = 0; a < 100; a++ { foo(a) }
+            ^
+    -actions-
+
+    foo1 [a:int, b:string] {
+
+        var x:int = 0
+
+        loop x = 1; x < 10; x++ {
+            x ? a(x) b() : c() ::
+        }
+        ^(42)
+    }
+##
+
+
+
+#LoopTest
+
+    -machine-
+
+    -actions-
+
+    foo1:Days {
+        loop var x = 0; x < 100; x++ { foo(x) }
+
+        loop var y in foo() { bar(y) }
+    }
+
+##
+
+#EnumTest
+
+    -machine-
+
+    $S1
+        |e|
+            Days.MONDAY
+            ^
+
+    -actions-
+
+    foo1 {
+        foo(DAY.MONDAY1)
+    }
+
+    -domain-
+
+    enum Days {
+        SUNDAY = 1
+        MONDAY
+    }
+
+##
+
+#EnumTest
+
+    -machine-
+
+    $S1
+
+    -actions-
+
+    foo1 {
+        bar()
+        var x = MONDAY
+
+    }
+
+    -domain-
+
+    enum Days {
+        SUNDAY = 1
+        MONDAY
+        TUESDAY
+    }
+
+##
+---------------------------
+
+#EnumTest
+
+    -machine-
+
+    $S1
+        |e|
+            ^(Days.Sunday)
+    -domain-
+
+    enum Days {
+        SUNDAY = 1
+        MONDAY
+    }
+
+##
+---------------------------
+
+#Test
+
+    -machine-
+
+    $S1
+        |e|
+            ^(x)
+
+    -domain-
+
+    var x:int = 0
+
+##
+
+---------------------------
+
+#LoopTest
+
+    -machine-
+
+    $S1
+        |z|
+            var mark = "guy"
+            var x = 23
+
+            loop {
+                loop {
+                    continue
+                    loop x = 0; x < 10; ++x {
+                        foo()
+                    }
+                }
+            }
+
+            ^
+
+    -actions-
+
+    a[x:int]:Days {
+        var res:Days = Days.SUNDAY
+        ^(res)
+    }
+
+    -domain-
+
+    enum Days {
+        SUNDAY
+        MONDAY = 2
+        TUESDAY = 2
+    }
+
+##

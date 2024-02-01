@@ -25,40 +25,40 @@ from framelang.framelang import FrameEvent
 
     $SimpleIf
         |OnBool| [b:bool]
-            b ? log("then 1") : ::
-            b ? : log("else 1") ::
-            b ? log("then 2") : log("else 2") :: b ? -> $F1 : -> $F2 :: ^
+            b ? log("then 1") : :|
+            b ? : log("else 1") :|
+            b ? log("then 2") : log("else 2") :| b ? -> $F1 : -> $F2 :| ^
 
         |OnInt| [i:int]
-            i > 5 ? log("> 5") : log("<= 5") ::
-            i < 10 ? log("< 10") : log(">= 10") ::
+            i > 5 ? log("> 5") : log("<= 5") :|
+            i < 10 ? log("< 10") : log(">= 10") :|
             i == 7 ?
                 log("== 7")
                 -> $F1
             :
                 log("!= 7")
                 -> $F2
-            ::
+            :|
             ^
 
     $NegatedIf
         |OnBool| [b:bool]
-            b ?! log("then 1") : ::
-            b ?! : log("else 1") ::
-            b ?! log("then 2") : log("else 2") ::
-            b ?! -> $F1 : -> $F2 ::
+            b ?! log("then 1") : :|
+            b ?! : log("else 1") :|
+            b ?! log("then 2") : log("else 2") :|
+            b ?! -> $F1 : -> $F2 :|
             ^
 
         |OnInt| [i:int]
-            i >= 5 ?! log("< 5") : log(">= 5") ::
-            i <= 10 ?! log("> 10") : log("<= 10") ::
+            i >= 5 ?! log("< 5") : log(">= 5") :|
+            i <= 10 ?! log("> 10") : log("<= 10") :|
             i != 7 ?!
                 log("== 7")
                 -> $F1
             :
                 log("!= 7")
                 -> $F2
-            ::
+            :|
             ^
 
     $Precedence
@@ -67,22 +67,22 @@ from framelang.framelang import FrameEvent
                 log("then 1")
             :
                 log("else 1")
-            ::
+            :|
             !(i >= -5 && i <= 5) && (i >= -10 && i <= 10) ?
                 log("then 2")
             :
                 log("else 2")
-            ::
+            :|
             i >= 0 && i <= 5 || i >= 10 && i <= 20 ?
                 log("then 3")
             :
                 log("else 3")
-            ::
+            :|
             (i < 0 || i > 10) && i+5 < 20 ?!
                 log("then 4")
             :
                 log("else 4")
-            ::
+            :|
             ^
 
     $NestedIf
@@ -94,7 +94,7 @@ from framelang.framelang import FrameEvent
                     -> $F1
                 :
                     log(">= 100")
-                ::
+                :|
             :
                 log("<= 0")
                 i > -10 ?
@@ -102,8 +102,8 @@ from framelang.framelang import FrameEvent
                 :
                     log("<= -10")
                     -> $F2
-                ::
-            ::
+                :|
+            :|
             ^
 
       $GuardedTransition
@@ -111,12 +111,12 @@ from framelang.framelang import FrameEvent
               i > 100 ?
                   log("-> $F1")
                   -> $F1
-              : ::
+              : :|
               i > 10 ?!
               :
                   log("-> $F2")
                   -> $F2
-              ::
+              :|
               log("-> $F3")
               -> $F3
               ^
@@ -127,13 +127,13 @@ from framelang.framelang import FrameEvent
                   i > 100 ?
                       log("-> $F1")
                       -> $F1
-                  : ::
+                  : :|
                   i > 50 ?
                   :
                       log("-> $F2")
                       -> $F2
-                  ::
-              : ::
+                  :|
+              : :|
               log("-> $F3")
               -> $F3
               ^

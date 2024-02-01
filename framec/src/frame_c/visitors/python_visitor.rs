@@ -6,10 +6,13 @@
 #![allow(non_snake_case)]
 
 use crate::config::*;
+use crate::frame_c::ast::DeclOrStmtType;
+use crate::frame_c::ast::DeclOrStmtType::{StmtT, VarDeclT};
 use crate::frame_c::ast::*;
 use crate::frame_c::scanner::{Token, TokenType};
 use crate::frame_c::symbol_table::*;
 use crate::frame_c::visitors::*;
+
 // use yaml_rust::{YamlLoader, Yaml};
 
 pub struct PythonVisitor {
@@ -38,6 +41,7 @@ pub struct PythonVisitor {
     generate_change_state: bool,
     // generate_transition_state: bool,
     event_handler_has_code: bool,
+    // loop_for_inc_dec_expr_rcref_opt: Option<Rc<RefCell<ExprType>>>,
 
     /* Persistence */
     managed: bool, // Generate Managed code
@@ -49,6 +53,12 @@ pub struct PythonVisitor {
 
     // keeping track of traversal context
     this_branch_transitioned: bool,
+    skip_next_newline: bool,
+    generate_main: bool,
+    variable_init_override_opt: Option<String>,
+    continue_post_expr_vec: Vec<Option<String>>,
+    operation_scope_depth: i32,
+    action_scope_depth: i32,
 }
 
 impl PythonVisitor {
@@ -92,6 +102,7 @@ impl PythonVisitor {
             generate_change_state,
             // generate_transition_state,
             event_handler_has_code: false,
+            // loop_for_inc_dec_expr_rcref_opt: None,
 
             /* Persistence */
             managed: false, // Generate Managed code
@@ -100,78 +111,61 @@ impl PythonVisitor {
             config: python_config,
             // keeping track of traversal context
             this_branch_transitioned: false,
+            skip_next_newline: false,
+            generate_main: false,
+            variable_init_override_opt: Option::None,
+            continue_post_expr_vec: Vec::new(),
+            operation_scope_depth: 0,
+            action_scope_depth: 0,
         }
     }
 
     //* --------------------------------------------------------------------- *//
 
-    pub fn format_type(&self, type_node: &TypeNode) -> String {
-        let mut s = String::new();
-
-        // if let Some(frame_event_part) = &type_node.frame_event_part_opt {
-        //     match frame_event_part {
-        //         FrameEventPart::Event { is_reference } => {
-        //             if *is_reference {
-        //                 s.push();
-        //             }
-        //             s.push_str(&*self.config.code.frame_event_type_name.clone());
-        //         }
-        //         _ => {}
-        //     }
-        // } else {
-        //     if type_node.is_reference {
-        //         s.push('&');
-        //     }
-
-        s.push_str(&type_node.type_str.clone());
-        // }
-
-        s
+    /// This helper function determines if code is in the scope of
+    /// an action or operation.
+    pub fn is_in_action_or_operation(&self) -> bool {
+        self.operation_scope_depth > 0 || self.action_scope_depth > 0
     }
 
     //* --------------------------------------------------------------------- *//
 
-    // fn get_variable_type(&mut self, symbol_type: &SymbolType) -> String {
-    //     let var_type = match &*symbol_type {
-    //         SymbolType::DomainVariable {
-    //             domain_variable_symbol_rcref,
-    //         } => match &domain_variable_symbol_rcref.borrow().var_type {
-    //             Some(type_node) => self.format_type(type_node),
-    //             None => String::from(""),
-    //         },
-    //         SymbolType::StateParam {
-    //             state_param_symbol_rcref,
-    //         } => match &state_param_symbol_rcref.borrow().param_type_opt {
-    //             Some(type_node) => self.format_type(type_node),
-    //             None => String::from(""),
-    //         },
-    //         SymbolType::StateVariable {
-    //             state_variable_symbol_rcref,
-    //         } => match &state_variable_symbol_rcref.borrow().var_type {
-    //             Some(type_node) => self.format_type(type_node),
-    //             None => String::from(""),
-    //         },
-    //         SymbolType::EventHandlerParam {
-    //             event_handler_param_symbol_rcref,
-    //         } => match &event_handler_param_symbol_rcref.borrow().param_type_opt {
-    //             Some(type_node) => self.format_type(type_node),
-    //             None => String::from(""),
-    //         },
-    //         SymbolType::EventHandlerVariable {
-    //             event_handler_variable_symbol_rcref,
-    //         } => match &event_handler_variable_symbol_rcref.borrow().var_type {
-    //             Some(type_node) => self.format_type(type_node),
-    //             None => String::from(""),
-    //         },
+    /// This helper function determines if there are any "real"  (non empty block)
+    /// statements in a vec of statements and decls.
 
-    //         _ => {
-    //             self.errors.push("Unknown scope.".to_string());
-    //             return "error".to_string(); // won't get emitted
-    //         }
-    //     };
+    pub fn has_non_block_statements(&self, decl_or_stmts: &Vec<DeclOrStmtType>) -> bool {
+        for decl_or_stmt in decl_or_stmts {
+            match decl_or_stmt {
+                VarDeclT { .. } => {
+                    return true;
+                }
+                StmtT { stmt_t } => {
+                    if let StatementType::BlockStmt { block_stmt_node } = stmt_t {
+                        if self.has_non_block_statements(&block_stmt_node.statements) {
+                            return true;
+                        }
+                    } else {
+                        return true;
+                    }
+                }
+            }
+        }
+        false
+    }
 
-    //     var_type
-    // }
+    //* --------------------------------------------------------------------- *//
+
+    pub fn format_type(&self, type_node: &TypeNode) -> String {
+        if type_node.is_system {
+            String::new()
+        } else if type_node.is_enum {
+            format!("{}_{}", self.system_name, type_node.type_str)
+        } else {
+            let mut s = String::new();
+            s.push_str(&type_node.type_str.clone());
+            s
+        }
+    }
 
     //* --------------------------------------------------------------------- *//
 
@@ -193,13 +187,13 @@ impl PythonVisitor {
         let mut code = String::new();
 
         match variable_node.scope {
-            IdentifierDeclScope::System => {
+            IdentifierDeclScope::SystemScope => {
                 code.push_str("self");
             }
-            IdentifierDeclScope::DomainBlock => {
+            IdentifierDeclScope::DomainBlockScope => {
                 code.push_str(&format!("self.{}", variable_node.id_node.name.lexeme));
             }
-            IdentifierDeclScope::StateParam => {
+            IdentifierDeclScope::StateParamScope => {
                 if self.visiting_call_chain_literal_variable {
                     code.push('(');
                 }
@@ -211,7 +205,7 @@ impl PythonVisitor {
                     code.push(')');
                 }
             }
-            IdentifierDeclScope::StateVar => {
+            IdentifierDeclScope::StateVarScope => {
                 if self.visiting_call_chain_literal_variable {
                     code.push('(');
                 }
@@ -223,22 +217,22 @@ impl PythonVisitor {
                     code.push(')');
                 }
             }
-            IdentifierDeclScope::EventHandlerParam => {
+            IdentifierDeclScope::EventHandlerParamScope => {
                 // if self.visiting_call_chain_literal_variable {
                 //     code.push_str("(");
                 // }
                 code.push_str(&format!(
-                    "e._parameters[\"{}\"]",
+                    "__e._parameters[\"{}\"]",
                     variable_node.id_node.name.lexeme
                 ));
                 // if self.visiting_call_chain_literal_variable {
                 //     code.push_str(")");
                 // }
             }
-            IdentifierDeclScope::EventHandlerVar => {
+            IdentifierDeclScope::EventHandlerVarScope => {
                 code.push_str(&variable_node.id_node.name.lexeme.to_string());
             }
-            IdentifierDeclScope::None => {
+            IdentifierDeclScope::UnknownScope => {
                 // TODO: Explore labeling Variables as "extern" scope
                 code.push_str(&variable_node.id_node.name.lexeme.to_string());
             } // Actions?
@@ -303,28 +297,51 @@ impl PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    // fn format_parameter_list_to_string(&mut self,params:&Vec<ParameterNode>,output:&mut String) {
-    //     let mut separator = "";
-    //     for param in params {
-    //         output.push_str(&format!("{}", separator));
-    //         output.push_str(&format!("{}", param.param_name));
-    //         separator = ",";
-    //     }
-    // }
+    fn format_operations_parameter_list(&mut self, params: &Vec<ParameterNode>) {
+        let mut separator = "";
+        for param in params {
+            self.add_code(separator);
+            let param_type: String = match &param.param_type_opt {
+                Some(type_node) => self.format_type(type_node),
+                None => String::from(""),
+            };
+            self.add_code(&param.param_name.to_string());
+            if !param_type.is_empty() {
+                self.add_code(&format!(": {}", param_type));
+            }
+            separator = ",";
+        }
+    }
 
     //* --------------------------------------------------------------------- *//
 
-    fn format_action_name(&mut self, action_name: &String) -> String {
-        return format!("{}_do", action_name);
+    fn format_action_name(&self, action_name: &String) -> String {
+        format!("{}_do", action_name)
+    }
+    //* --------------------------------------------------------------------- *//
+
+    fn format_operation_name(&self, operation_name: &String) -> String {
+        format!("{}", operation_name)
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn format_enum_name(&self, enum_type_name: &String) -> String {
+        format!("{}_{}", self.system_name, enum_type_name)
     }
 
     //* --------------------------------------------------------------------- *//
 
     pub fn run(&mut self, system_node: &SystemNode) {
-        match &system_node.attributes_opt {
+        match &system_node.system_attributes_opt {
             Some(attributes) => {
                 for value in (*attributes).values() {
                     match value {
+                        AttributeNode::MetaWord { attr } => {
+                            // TODO
+                            let err_msg = format!("Unknown attribute {}.", attr.name);
+                            self.errors.push(err_msg);
+                        }
                         AttributeNode::MetaNameValueStr { attr } => {
                             match attr.name.as_str() {
                                 // TODO: constants
@@ -343,7 +360,7 @@ impl PythonVisitor {
                                         match ident.as_str() {
                                             // TODO: constants and figure out mom vs managed
                                             //  "Managed" => self.managed = true,
-                                            "Marshal" => self.marshal = true,
+                                            "marshal" => self.marshal = true,
                                             _ => {}
                                         }
                                     }
@@ -374,13 +391,46 @@ impl PythonVisitor {
                         }
                     }
                 }
-
-                // self.config.code.marshal_system_state_var = format!("{}State", &system_node.name);
             }
             None => {}
         }
 
+        if self.marshal {
+            self.newline();
+            self.add_code("import jsonpickle");
+        }
+
         system_node.accept(self);
+
+        if self.generate_main {
+            self.newline();
+            self.add_code("if __name__ == '__main__':");
+            self.indent();
+            self.newline();
+            let mut arg_cnt: usize = 0;
+            if let Some(functions) = &system_node.functions_opt {
+                for function_rcref in functions {
+                    let function_node = function_rcref.borrow();
+                    if function_node.name == "main" {
+                        if let Some(params) = &function_node.params {
+                            arg_cnt = params.len();
+                        } else {
+                            arg_cnt = 0;
+                        }
+                        break;
+                    }
+                }
+            };
+            self.add_code("main(");
+            let mut separator = "";
+            for i in 1..arg_cnt + 1 {
+                self.add_code(&format!("{}sys.argv[{}]", separator, i));
+                separator = ",";
+            }
+            self.add_code(")");
+            self.outdent();
+            self.newline();
+        }
     }
 
     //* --------------------------------------------------------------------- *//
@@ -389,6 +439,22 @@ impl PythonVisitor {
         self.code.push_str(&*s.to_string());
     }
 
+    //* --------------------------------------------------------------------- *//
+
+    fn skip_next_newline(&mut self) {
+        self.code.push_str(&*format!("\n{}", self.dent()));
+        self.skip_next_newline = true;
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn test_skip_newline(&mut self) {
+        if self.skip_next_newline {
+            self.skip_next_newline = false;
+        } else {
+            self.code.push_str(&*format!("\n{}", self.dent()));
+        }
+    }
     //* --------------------------------------------------------------------- *//
 
     fn newline(&mut self) {
@@ -424,7 +490,9 @@ impl PythonVisitor {
     fn visit_decl_stmts(&mut self, decl_stmt_types: &Vec<DeclOrStmtType>) {
         for decl_stmt_t in decl_stmt_types.iter() {
             match decl_stmt_t {
-                DeclOrStmtType::VarDeclT { var_decl_t_rc_ref } => {
+                DeclOrStmtType::VarDeclT {
+                    var_decl_t_rcref: var_decl_t_rc_ref,
+                } => {
                     let variable_decl_node = var_decl_t_rc_ref.borrow();
                     variable_decl_node.accept(self);
                 }
@@ -432,25 +500,43 @@ impl PythonVisitor {
                     match stmt_t {
                         StatementType::ExpressionStmt { expr_stmt_t } => {
                             match expr_stmt_t {
+                                ExprStmtType::TransitionStmtT {
+                                    transition_statement_node: _transition_statement_node,
+                                } => panic!("TODO"),
+                                ExprStmtType::SystemInstanceStmtT {
+                                    system_instance_stmt_node,
+                                } => system_instance_stmt_node.accept(self),
+                                ExprStmtType::SystemTypeStmtT {
+                                    system_type_stmt_node,
+                                } => system_type_stmt_node.accept(self),
                                 ExprStmtType::ActionCallStmtT {
                                     action_call_stmt_node,
                                 } => action_call_stmt_node.accept(self), // // TODO
                                 ExprStmtType::CallStmtT { call_stmt_node } => {
                                     call_stmt_node.accept(self)
                                 }
-                                ExprStmtType::CallChainLiteralStmtT {
-                                    call_chain_literal_stmt_node,
-                                } => call_chain_literal_stmt_node.accept(self),
+                                ExprStmtType::CallChainStmtT {
+                                    call_chain_literal_stmt_node: call_chain_stmt_node,
+                                } => call_chain_stmt_node.accept(self),
                                 ExprStmtType::AssignmentStmtT {
                                     assignment_stmt_node,
                                 } => assignment_stmt_node.accept(self),
                                 ExprStmtType::VariableStmtT { variable_stmt_node } => {
                                     variable_stmt_node.accept(self)
                                 }
+                                ExprStmtType::ExprListStmtT {
+                                    expr_list_stmt_node,
+                                } => expr_list_stmt_node.accept(self),
+                                ExprStmtType::EnumeratorStmtT {
+                                    enumerator_stmt_node,
+                                } => enumerator_stmt_node.accept(self),
+                                ExprStmtType::BinaryStmtT { binary_stmt_node } => {
+                                    binary_stmt_node.accept(self)
+                                }
                             }
                         }
                         StatementType::TransitionStmt {
-                            transition_statement,
+                            transition_statement_node: transition_statement,
                         } => {
                             transition_statement.accept(self);
                         }
@@ -462,8 +548,27 @@ impl PythonVisitor {
                         } => {
                             state_stack_operation_statement_node.accept(self);
                         }
-                        StatementType::ChangeStateStmt { change_state_stmt } => {
+                        StatementType::ChangeStateStmt {
+                            change_state_stmt_node: change_state_stmt,
+                        } => {
                             change_state_stmt.accept(self);
+                        }
+                        StatementType::LoopStmt { loop_stmt_node } => {
+                            loop_stmt_node.accept(self);
+                        }
+                        StatementType::BlockStmt { block_stmt_node } => {
+                            block_stmt_node.accept(self);
+                        }
+                        StatementType::ContinueStmt { continue_stmt_node } => {
+                            continue_stmt_node.accept(self);
+                        }
+                        StatementType::BreakStmt { break_stmt_node } => {
+                            break_stmt_node.accept(self);
+                        }
+                        StatementType::SuperStringStmt {
+                            super_string_stmt_node,
+                        } => {
+                            super_string_stmt_node.accept(self);
                         }
                         StatementType::NoStmt => {
                             // TODO
@@ -480,33 +585,127 @@ impl PythonVisitor {
     fn generate_machinery(&mut self, system_node: &SystemNode) {
         self.newline();
         self.newline();
-        self.add_code("# =============== Machinery and Mechanisms ============== #");
+        self.add_code("# ==================== System Runtime =================== #");
         self.newline();
+        self.newline();
+        self.add_code("def __kernel(self, __e):");
+        self.indent();
+
+        match &system_node.machine_block_node_opt {
+            Some(machine_block_node) => {
+                self.newline();
+                self.newline();
+                self.add_code("# send event to current state");
+                self.newline();
+                self.add_code("self.__router(__e)");
+                self.newline();
+                self.newline();
+                self.add_code("# loop until no transitions occur");
+                self.newline();
+                self.add_code("while self.__next_compartment != None:");
+                self.indent();
+                self.newline();
+                self.add_code("next_compartment = self.__next_compartment");
+                self.newline();
+                self.add_code("self.__next_compartment = None");
+                self.newline();
+                self.newline();
+                self.add_code("# exit current state");
+                self.newline();
+                self.add_code("self.__router(FrameEvent( \"<\", self.__compartment.exit_args))");
+                self.newline();
+                self.add_code("# change state");
+                self.newline();
+                self.add_code("self.__compartment = next_compartment");
+                self.newline();
+                self.newline();
+                self.add_code("if next_compartment.forward_event is None:");
+                self.indent();
+                self.newline();
+                self.add_code("# send normal enter event");
+                self.newline();
+                self.add_code("self.__router(FrameEvent(\">\", self.__compartment.enter_args))");
+                self.outdent();
+                self.newline();
+                self.add_code("else: # there is a forwarded event");
+                self.indent();
+                self.newline();
+                self.add_code("if next_compartment.forward_event._message == \">\":");
+                self.indent();
+                self.newline();
+                self.add_code("# forwarded event is enter event");
+                self.newline();
+                self.add_code("self.__router(next_compartment.forward_event)");
+                self.outdent();
+                self.newline();
+                self.add_code("else:");
+                self.indent();
+                self.newline();
+                self.add_code("# forwarded event is not enter event");
+                self.newline();
+                self.add_code("# send normal enter event");
+                self.newline();
+                self.add_code("self.__router(FrameEvent(\">\", self.__compartment.enter_args))");
+                self.newline();
+                self.add_code("# and now forward event to new, intialized state");
+                self.newline();
+                self.add_code("self.__router(next_compartment.forward_event)");
+                self.outdent();
+                self.newline();
+                self.add_code("next_compartment.forward_event = None");
+                self.newline();
+                self.outdent();
+                self.outdent();
+                self.outdent();
+                self.newline();
+                self.newline();
+                self.add_code("def __router(self, __e):");
+                self.indent();
+                self.newline();
+
+                let _current_index = 0;
+                let len = machine_block_node.states.len();
+                for (current_index, state_node_rcref) in
+                    machine_block_node.states.iter().enumerate()
+                {
+                    let state_name = &self
+                        .format_target_state_name(&state_node_rcref.borrow().name)
+                        .to_string();
+                    if current_index == 0 {
+                        self.add_code(&format!("if self.__compartment.state == '{}':", state_name));
+                    } else {
+                        self.add_code(&format!(
+                            "elif self.__compartment.state == '{}':",
+                            state_name
+                        ));
+                    }
+                    self.indent();
+                    self.newline();
+                    self.add_code(&format!("self.{}(__e)", state_name));
+                    self.outdent();
+                    if current_index != len {
+                        self.newline();
+                    }
+                }
+                self.outdent();
+            }
+            _ => {
+                self.newline();
+                self.add_code("pass");
+                self.outdent();
+                self.newline();
+            }
+        }
+
         if system_node.get_first_state().is_some() {
             self.newline();
             self.add_code(&format!(
-                "def __transition(self, compartment: '{}Compartment'):",
+                "def __transition(self, next_compartment: '{}Compartment'):",
                 self.system_name
             ));
             self.indent();
             self.newline();
-            self.add_code("self.__next_compartment = compartment");
-            self.outdent();
-
-            self.newline();
-            self.newline();
-            self.add_code(&format!(
-                "def  __do_transition(self, next_compartment: '{}Compartment'):",
-                self.system_name
-            ));
-
-            self.indent();
-            self.newline();
-            self.add_code("self.__mux(FrameEvent(\"<\", self.__compartment.exit_args))");
-            self.newline();
-            self.add_code("self.__compartment = next_compartment");
-            self.newline();
-            self.add_code("self.__mux(FrameEvent(\">\", self.__compartment.enter_args))");
+            self.add_code("self.__next_compartment = next_compartment");
             self.outdent();
 
             if self.generate_state_stack {
@@ -527,7 +726,6 @@ impl PythonVisitor {
                 self.newline();
                 self.add_code("return self.__state_stack.pop()");
                 self.outdent();
-                self.newline();
             }
             if self.generate_change_state {
                 self.newline();
@@ -560,12 +758,12 @@ impl PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn generate_subclass(&mut self) {
-        for line in self.subclass_code.iter() {
-            self.code.push_str(&*line.to_string());
-            self.code.push_str(&*format!("\n{}", self.dent()));
-        }
-    }
+    // fn generate_subclass(&mut self) {
+    //     for line in self.subclass_code.iter() {
+    //         self.code.push_str(&*line.to_string());
+    //         self.code.push_str(&*format!("\n{}", self.dent()));
+    //     }
+    // }
 
     //* --------------------------------------------------------------------- *//
 
@@ -604,7 +802,7 @@ impl PythonVisitor {
             let comment = &self.comments[self.current_comment_idx];
             if comment.token_type == TokenType::SingleLineComment {
                 self.code
-                    .push_str(&*format!("  # {}", &comment.lexeme[3..]));
+                    .push_str(&*format!("  # {}", &comment.lexeme[2..]));
                 self.code.push_str(&*format!(
                     "\n{}",
                     (0..self.dent).map(|_| "    ").collect::<String>()
@@ -631,7 +829,7 @@ impl PythonVisitor {
         change_state_stmt_node: &ChangeStateStatementNode,
     ) {
         let target_state_name = match &change_state_stmt_node.state_context_t {
-            StateContextType::StateRef { state_context_node } => {
+            TargetStateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_node.name
             }
             _ => {
@@ -652,7 +850,7 @@ impl PythonVisitor {
         }
         self.newline();
         self.add_code(&format!(
-            "compartment = {}Compartment(self.{})",
+            "compartment = {}Compartment('{}')",
             self.system_name, state_ref_code
         ));
         self.newline();
@@ -660,8 +858,10 @@ impl PythonVisitor {
         // -- Enter Arguments --
 
         let enter_args_opt = match &change_state_stmt_node.state_context_t {
-            StateContextType::StateRef { state_context_node } => &state_context_node.enter_args_opt,
-            StateContextType::StateStackPop {} => &None,
+            TargetStateContextType::StateRef { state_context_node } => {
+                &state_context_node.enter_args_opt
+            }
+            TargetStateContextType::StateStackPop {} => &None,
         };
 
         if let Some(enter_args) = enter_args_opt {
@@ -673,7 +873,7 @@ impl PythonVisitor {
             msg.push_str(&self.symbol_config.enter_msg_symbol);
 
             if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt) {
-                match &event_sym.borrow().params_opt {
+                match &event_sym.borrow().event_symbol_params_opt {
                     Some(event_params) => {
                         if enter_args.exprs_t.len() != event_params.len() {
                             panic!("Fatal error: misaligned parameters to arguments.")
@@ -710,10 +910,10 @@ impl PythonVisitor {
 
         /*  -- State Arguments -- */
         let target_state_args_opt = match &change_state_stmt_node.state_context_t {
-            StateContextType::StateRef { state_context_node } => {
+            TargetStateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_args_opt
             }
-            StateContextType::StateStackPop {} => &Option::None,
+            TargetStateContextType::StateStackPop {} => &Option::None,
         };
 
         if let Some(state_args) = target_state_args_opt {
@@ -764,7 +964,7 @@ impl PythonVisitor {
                 //                target_state_vars = "stateVars".to_string();
                 if let Some(state_symbol_rcref) = self.arcanium.get_state(&q.borrow().name) {
                     let state_symbol = state_symbol_rcref.borrow();
-                    let state_node = &state_symbol.state_node.as_ref().unwrap().borrow();
+                    let state_node = &state_symbol.state_node_opt.as_ref().unwrap().borrow();
                     // generate local state variables
                     if state_node.vars_opt.is_some() {
                         //                        let mut separator = "";
@@ -774,7 +974,7 @@ impl PythonVisitor {
                                 Some(var_type) => var_type.get_type_str(),
                                 None => String::from(""),
                             };
-                            let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
+                            let expr_t = &var.get_initializer_value_rc();
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
                             self.add_code(&format!(
@@ -823,9 +1023,13 @@ impl PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn generate_state_ref_transition(&mut self, transition_statement: &TransitionStatementNode) {
-        let target_state_name = match &transition_statement.target_state_context_t {
-            StateContextType::StateRef { state_context_node } => {
+    fn generate_state_ref_transition(
+        &mut self,
+        transition_expr_node: &TransitionExprNode,
+        expr_list_node_opt: &Option<ExprListNode>,
+    ) {
+        let target_state_name = match &transition_expr_node.target_state_context_t {
+            TargetStateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_node.name
             }
             _ => {
@@ -837,7 +1041,7 @@ impl PythonVisitor {
         let state_ref_code = self.generate_state_ref_code(target_state_name);
 
         // self.newline();
-        match &transition_statement.label_opt {
+        match &transition_expr_node.label_opt {
             Some(label) => {
                 self.newline();
                 self.add_code(&format!("# {}", label));
@@ -847,7 +1051,7 @@ impl PythonVisitor {
 
         // -- Exit Arguments --
 
-        if let Some(exit_args) = &transition_statement.exit_args_opt {
+        if let Some(exit_args) = expr_list_node_opt {
             if !exit_args.exprs_t.is_empty() {
                 // Note - searching for event keyed with "State:<"
                 // e.g. "S1:<"
@@ -861,7 +1065,7 @@ impl PythonVisitor {
 
                 if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt)
                 {
-                    match &event_sym.borrow().params_opt {
+                    match &event_sym.borrow().event_symbol_params_opt {
                         Some(event_params) => {
                             if exit_args.exprs_t.len() != event_params.len() {
                                 panic!("Fatal error: misaligned parameters to arguments.")
@@ -903,21 +1107,23 @@ impl PythonVisitor {
         // -- Enter Arguments --
         self.newline();
         self.add_code(&format!(
-            "compartment = {}Compartment(self.{})",
+            "next_compartment = {}Compartment('{}')",
             self.system_name, state_ref_code
         ));
         // self.newline();
 
-        if transition_statement.forward_event {
+        if transition_expr_node.forward_event {
             self.newline();
-            self.add_code("compartment.forward_event = e");
+            self.add_code("next_compartment.forward_event = __e");
         }
 
         // self.newline();
 
-        let enter_args_opt = match &transition_statement.target_state_context_t {
-            StateContextType::StateRef { state_context_node } => &state_context_node.enter_args_opt,
-            StateContextType::StateStackPop {} => &None,
+        let enter_args_opt = match &transition_expr_node.target_state_context_t {
+            TargetStateContextType::StateRef { state_context_node } => {
+                &state_context_node.enter_args_opt
+            }
+            TargetStateContextType::StateStackPop {} => &None,
         };
 
         if let Some(enter_args) = enter_args_opt {
@@ -929,7 +1135,7 @@ impl PythonVisitor {
             msg.push_str(&self.symbol_config.enter_msg_symbol);
 
             if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt) {
-                match &event_sym.borrow().params_opt {
+                match &event_sym.borrow().event_symbol_params_opt {
                     Some(event_params) => {
                         if enter_args.exprs_t.len() != event_params.len() {
                             panic!("Fatal error: misaligned parameters to arguments.")
@@ -947,7 +1153,7 @@ impl PythonVisitor {
                                     expr_t.accept_to_string(self, &mut expr);
                                     self.newline();
                                     self.add_code(&format!(
-                                        "compartment.enter_args[\"{}\"] = {}",
+                                        "next_compartment.enter_args[\"{}\"] = {}",
                                         p.name, expr
                                     ));
                                 }
@@ -967,11 +1173,11 @@ impl PythonVisitor {
 
         // -- State Arguments --
 
-        let target_state_args_opt = match &transition_statement.target_state_context_t {
-            StateContextType::StateRef { state_context_node } => {
+        let target_state_args_opt = match &transition_expr_node.target_state_context_t {
+            TargetStateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_args_opt
             }
-            StateContextType::StateStackPop {} => &Option::None,
+            TargetStateContextType::StateStackPop {} => &Option::None,
         };
         //
         if let Some(state_args) = target_state_args_opt {
@@ -995,7 +1201,7 @@ impl PythonVisitor {
                                     expr_t.accept_to_string(self, &mut expr);
                                     self.newline();
                                     self.add_code(&format!(
-                                        "compartment.state_args[\"{}\"] = {}",
+                                        "next_compartment.state_args[\"{}\"] = {}",
                                         param_symbol.name, expr
                                     ));
                                 }
@@ -1022,25 +1228,27 @@ impl PythonVisitor {
             Some(q) => {
                 //                target_state_vars = "stateVars".to_string();
                 if let Some(state_symbol_rcref) = self.arcanium.get_state(&q.borrow().name) {
+                    // #STATE_NODE_UPDATE_BUG - search comments in parser for why this is here
                     let state_symbol = state_symbol_rcref.borrow();
-                    let state_node = &state_symbol.state_node.as_ref().unwrap().borrow();
+                    let state_node = &state_symbol.state_node_opt.as_ref().unwrap().borrow();
                     // generate local state variables
                     if state_node.vars_opt.is_some() {
-                        //                        let mut separator = "";
-                        for var_rcref in state_node.vars_opt.as_ref().unwrap() {
-                            let var = var_rcref.borrow();
-                            let _var_type = match &var.type_opt {
-                                Some(var_type) => var_type.get_type_str(),
-                                // TODO: check this
-                                None => String::from(""),
-                            };
-                            let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
+                        for variable_decl_node_rcref in state_node.vars_opt.as_ref().unwrap() {
+                            let var_decl_node = variable_decl_node_rcref.borrow();
+                            let initalizer_value_expr_t = &var_decl_node.get_initializer_value_rc();
+                            initalizer_value_expr_t.debug_print();
                             let mut expr_code = String::new();
-                            expr_t.accept_to_string(self, &mut expr_code);
+                            // #STATE_NODE_UPDATE_BUG - the AST state node wasn't being updated
+                            // in the semantic pass and contained var decls from the syntactic
+                            // pass. The types of the nodes therefore were CallChainNodeType::UndeclaredIdentifierNodeT
+                            // and not CallChainNodeType::VariableNodeT. Therefore the generation
+                            // code that relies on knowing what kind of variable this is
+                            // broke. That happened in this next line.
+                            initalizer_value_expr_t.accept_to_string(self, &mut expr_code);
                             self.newline();
                             self.add_code(&format!(
-                                "compartment.state_vars[\"{}\"] = {}",
-                                var.name, expr_code
+                                "next_compartment.state_vars[\"{}\"] = {}",
+                                var_decl_node.name, expr_code
                             ));
                         }
                     }
@@ -1052,7 +1260,7 @@ impl PythonVisitor {
         }
 
         self.newline();
-        self.add_code("self.__transition(compartment)");
+        self.add_code("self.__transition(next_compartment)");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1068,10 +1276,11 @@ impl PythonVisitor {
 
     fn generate_state_stack_pop_transition(
         &mut self,
-        transition_statement: &TransitionStatementNode,
+        transition_expr_node: &TransitionExprNode,
+        expr_list_node_opt: &Option<ExprListNode>,
     ) {
         self.newline();
-        match &transition_statement.label_opt {
+        match &transition_expr_node.label_opt {
             Some(label) => {
                 self.add_code(&format!("# {}", label));
                 self.newline();
@@ -1081,7 +1290,7 @@ impl PythonVisitor {
 
         // -- Exit Arguments --
 
-        if let Some(exit_args) = &transition_statement.exit_args_opt {
+        if let Some(exit_args) = &expr_list_node_opt {
             if !exit_args.exprs_t.is_empty() {
                 // Note - searching for event keyed with "State:<"
                 // e.g. "S1:<"
@@ -1095,7 +1304,7 @@ impl PythonVisitor {
 
                 if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt)
                 {
-                    match &event_sym.borrow().params_opt {
+                    match &event_sym.borrow().event_symbol_params_opt {
                         Some(event_params) => {
                             if exit_args.exprs_t.len() != event_params.len() {
                                 panic!("Fatal error: misaligned parameters to arguments.")
@@ -1135,9 +1344,15 @@ impl PythonVisitor {
             }
         }
 
-        self.add_code("compartment = self.__state_stack_pop()");
+        self.add_code("next_compartment = self.__state_stack_pop()");
         self.newline();
-        self.add_code("self.__transition(compartment)");
+
+        if transition_expr_node.forward_event {
+            self.add_code("next_compartment.forward_event = __e");
+            self.newline();
+        }
+
+        self.add_code("self.__transition(next_compartment)");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1151,8 +1366,7 @@ impl PythonVisitor {
         self.newline();
         self.indent();
         self.newline();
-        self.add_code("def __init__(self, state):");
-        // self.newline();
+        self.add_code("def __init__(self,state):");
         self.indent();
         self.newline();
         self.add_code("self.state = state");
@@ -1165,12 +1379,10 @@ impl PythonVisitor {
         self.newline();
         self.add_code("self.exit_args = {}");
         self.newline();
-        self.add_code("self.forward_event = FrameEvent(None, None)");
+        self.add_code("self.forward_event = None");
         self.outdent();
         self.newline();
         self.outdent();
-        self.newline();
-        self.newline();
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1190,17 +1402,25 @@ impl PythonVisitor {
                 self.newline();
             }
 
-            self.add_code("# Create and intialize start state compartment.");
+            self.add_code(" # Create and intialize start state compartment.");
+            self.newline();
             self.newline();
             self.add_code(&format!(
-                "self.__state = self.{}",
+                "self.__compartment: '{}Compartment' = {}Compartment('{}')",
+                system_node.name,
+                system_node.name,
                 self.format_target_state_name(&self.first_state_name)
             ));
+            self.newline();
+            self.add_code(&format!(
+                "self.__next_compartment: '{}Compartment' = None",
+                system_node.name
+            ));
         } else {
-            self.add_code("# Create and intialize start state compartment.");
+            // self.add_code(" # Create and intialize start state compartment.");
             self.newline();
             self.newline();
-            self.add_code("self.__state = None");
+            self.add_code("self.__compartment = None");
         }
 
         if self.managed {
@@ -1225,7 +1445,7 @@ impl PythonVisitor {
                 for param in params {
                     self.newline();
                     self.add_code(&format!(
-                        "self.__compartment.state_args[\"{}\"] = {}",
+                        "self.__compartment.state_args[\"{}\"] = start_state_state_param_{}",
                         param.param_name, param.param_name,
                     ));
                 }
@@ -1235,20 +1455,24 @@ impl PythonVisitor {
 
         match system_node.get_first_state() {
             Some(state_rcref) => {
+                // TODO. This code is related to #STATE_NODE_UPDATE_BUG
+                // and should be refactored with the other related code
+                // that generates state vars.
                 let state_node = state_rcref.borrow();
                 match &state_node.vars_opt {
                     Some(vars) => {
-                        for var_rcref in vars {
-                            let var_decl_node = var_rcref.borrow();
-                            let expr_t = var_decl_node.initializer_expr_t_opt.as_ref().unwrap();
+                        for variable_decl_node_rcref in vars {
+                            let var_decl_node = variable_decl_node_rcref.borrow();
+                            let initalizer_value_expr_t = &var_decl_node.get_initializer_value_rc();
+                            initalizer_value_expr_t.debug_print();
                             let mut expr_code = String::new();
-                            expr_t.accept_to_string(self, &mut expr_code);
-
+                            initalizer_value_expr_t.accept_to_string(self, &mut expr_code);
                             self.newline();
-                            self.add_code(&format!(
+                            let code = &format!(
                                 "self.__compartment.state_vars[\"{}\"] = {}",
                                 var_decl_node.name, expr_code,
-                            ));
+                            );
+                            self.add_code(code);
                         }
                     }
                     None => {}
@@ -1261,39 +1485,55 @@ impl PythonVisitor {
             for param in enter_params {
                 self.newline();
                 self.add_code(&format!(
-                    "self.__compartment.enter_args[\"{}\"] = {}",
+                    "self.__compartment.enter_args[\"{}\"] = start_state_enter_param_{}",
                     param.param_name, param.param_name,
                 ));
             }
         }
-
-        // if self.config.code.public_state_info {
-        //     self.newline();
-        //     self.add_code("this.state = this.#compartment.state.name");
-        // }
 
         self.newline();
         self.newline();
         self.add_code("# Initialize domain");
 
         if let Some(domain_block_node) = &system_node.domain_block_node_opt {
-            domain_block_node.accept(self);
+            // domain_block_node.accept(self);
+            self.newline();
+
+            for variable_decl_node_rcref in &domain_block_node.member_variables {
+                let variable_decl_node = variable_decl_node_rcref.borrow_mut();
+                //         variable_decl_node.initializer_expr_t_opt = Option::None;
+                if let Some(domain_params_vec) = &system_node.domain_params_opt {
+                    for domain_param in domain_params_vec {
+                        if domain_param.param_name == variable_decl_node.name {
+                            self.variable_init_override_opt = Some(domain_param.param_name.clone());
+                            break;
+                        }
+                    }
+                }
+
+                variable_decl_node.accept(self);
+                self.variable_init_override_opt = Option::None;
+            }
+
+            self.newline();
         } else {
             self.newline();
         }
-        self.newline();
-        self.add_code("# Send system start event");
+        if self.has_states {
+            self.newline();
+            self.add_code("# Send system start event");
 
-        if let Some(_enter_params) = &system_node.start_state_enter_params_opt {
+            if let Some(_enter_params) = &system_node.start_state_enter_params_opt {
+                self.newline();
+                self.add_code("frame_event = FrameEvent(\">\", self.__compartment.enter_args)");
+            } else {
+                self.newline();
+                self.add_code("frame_event = FrameEvent(\">\", None)");
+            }
+
             self.newline();
-            self.add_code("frame_event = FrameEvent(\">\", self.__compartment.enter_args)");
-        } else {
-            self.newline();
-            self.add_code("frame_event = FrameEvent(\">\", None)");
+            self.add_code("self.__kernel(frame_event)");
         }
-
-        self.newline();
-        self.add_code("self.__mux(frame_event)");
 
         self.outdent();
         self.newline();
@@ -1301,66 +1541,51 @@ impl PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn format_load_fn(&mut self, system_node: &SystemNode) {
-        self.newline();
-        self.newline();
-        let mut manager_param = "";
-        if self.managed {
-            manager_param = "manager";
-        }
-        self.newline();
-        self.add_code("@staticmethod");
-        self.newline();
-        self.add_code(&format!(
-            "def load{}({}, data):",
-            system_node.name, manager_param
-        ));
-
-        self.indent();
-        self.newline();
-        self.newline();
-        if self.managed {
-            self.add_code("data._manager = manager");
-        }
-        // self.newline();
-        // self.newline();
-        // self.add_code("// Initialize machine");
-        // self.newline();
-        // self.add_code("data.compartment =.compartment");
-        // self.newline();
-        // // for x in domain_vec {
-        // //     self.newline();
-        // //     self.add_code(&format!("this.{} = parseObj.{}", x.0, x.0))
-        // // }
-        self.newline();
-        self.newline();
-        self.add_code("return data");
-        self.newline();
-
-        self.outdent();
-        self.newline();
-        // self.add_code("}");
-    }
+    // fn generate_marshal_machinery_fn(&mut self, system_node: &SystemNode) {
+    //     self.newline();
+    //     self.newline();
+    //     // @staticmethod
+    //     // def unmarshal(data):
+    //     // return jsonpickle.decode(data)
+    //     //
+    //     // def marshal(self):
+    //     // return jsonpickle.encode(self)
+    //
+    //     // let mut manager_param = "";
+    //     // if self.managed {
+    //     //     manager_param = "manager";
+    //     // }
+    //
+    //     self.add_code("@staticmethod");
+    //     self.newline();
+    //     self.indent();
+    //     self.add_code("def unmarshal(data):");
+    //     self.outdent()
+    //     self.newline();
+    //     self.add_code("return jsonpickle.decode(data)");
+    //     self.newline();
+    //     self.newline();
+    //     self.add_code("def marshal(self):");
+    //     self.indent();
+    //     self.newline();
+    //     self.add_code("return jsonpickle.encode(self)");
+    //     self.outdent();
+    //     self.newline();
+    //
+    // }
 
     //* --------------------------------------------------------------------- *//
 
-    fn generate_json_fn(&mut self) {
-        self.newline();
-        self.newline();
-        self.add_code("def marshal(self):");
-        self.indent();
-        self.newline();
-        self.newline();
-        self.add_code("data = copy.deepcopy(self)");
-        self.newline();
-        self.add_code("return data");
-        self.newline();
-
-        self.outdent();
-        // self.newline();
-        // self.add_code("}");
-        self.newline();
-    }
+    // fn generate_json_fn(&mut self) {
+    //     self.newline();
+    //     self.add_code("def marshal(self):");
+    //     self.indent();
+    //     self.newline();
+    //     self.add_code("data = copy.deepcopy(self)");
+    //     self.newline();
+    //     self.add_code("return data");
+    //     self.outdent();
+    // }
 
     //* --------------------------------------------------------------------- *//
 
@@ -1369,7 +1594,7 @@ impl PythonVisitor {
         self.add_code("def state_info(self):");
         self.indent();
         self.newline();
-        self.add_code("return self.__compartment.state.__name__");
+        self.add_code("return self.__compartment.state");
         self.newline();
         self.outdent();
     }
@@ -1392,6 +1617,57 @@ impl PythonVisitor {
 impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
+    fn visit_module(&mut self, module: &Module) {
+        self.add_code(&format!("#{}", self.compiler_version));
+        self.newline();
+        self.newline();
+
+        let mut generate_frame_event = true;
+
+        for module_element in &module.module_elements {
+            match module_element {
+                ModuleElement::CodeBlock { code_block } => {
+                    self.add_code(code_block);
+                    self.newline();
+                }
+                ModuleElement::ModuleAttribute { attribute_node } => {
+                    // By default framec will generate the FrameEvent.
+                    // See if generate_frame_event is false to disable generation.
+                    if attribute_node.get_name() == "generate_frame_event" {
+                        if let AttributeNode::MetaListIdents { attr } = attribute_node {
+                            let attr_opt = attr.idents.get(0);
+                            if let Some(attr) = attr_opt {
+                                if attr == "false" {
+                                    generate_frame_event = false;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if generate_frame_event {
+            self.newline();
+            self.add_code("class FrameEvent:");
+            self.indent();
+            self.newline();
+            self.add_code("def __init__(self, message, parameters):");
+            self.indent();
+            self.newline();
+            self.add_code("self._message = message");
+            self.newline();
+            self.add_code("self._parameters = parameters");
+            self.newline();
+            self.add_code("self._return = None");
+            self.outdent();
+            self.outdent();
+            self.newline();
+        }
+    }
+
+    //* --------------------------------------------------------------------- *//
+
     fn visit_system_node(&mut self, system_node: &SystemNode) {
         // domain variable vector
         let mut domain_vec: Vec<(String, String)> = Vec::new();
@@ -1400,7 +1676,7 @@ impl AstVisitor for PythonVisitor {
             for var_rcref in &domain_block_node.member_variables {
                 let var_name = var_rcref.borrow().name.clone();
                 let var = var_rcref.borrow();
-                let var_init_expr = var.initializer_expr_t_opt.as_ref().unwrap();
+                let var_init_expr = &var.get_initializer_value_rc();
                 let mut init_expression = String::new();
                 var_init_expr.accept_to_string(self, &mut init_expression);
                 // push for later initialization
@@ -1409,14 +1685,28 @@ impl AstVisitor for PythonVisitor {
         }
 
         self.system_name = system_node.name.clone();
-        self.add_code(&format!("# {}", self.compiler_version));
-        self.newline();
-        self.add_code("# get include files at https://github.com/frame-lang/frame-ancillary-files");
 
-        self.newline();
-        self.add_code(&system_node.header);
+        let _ = &system_node.module.accept(self);
 
+        // Generate any enums
+
+        if let Some(domain_block_node) = &system_node.domain_block_node_opt {
+            domain_block_node.accept_enums(self);
+        }
+
+        if let Some(vec) = &system_node.functions_opt {
+            for function_node_rcref in vec {
+                let function_node = function_node_rcref.borrow();
+                function_node.accept(self);
+            }
+        }
         self.newline();
+        // TODO!!: This is a hack until we rework modules to detect if there
+        // was no system parsed
+        if system_node.name == "" {
+            return;
+        }
+
         self.newline();
         self.add_code(&format!("class {}:", system_node.name));
         self.indent();
@@ -1425,8 +1715,8 @@ impl AstVisitor for PythonVisitor {
         // First state name needed for machinery.
         // Don't generate if there isn't at least one state.
         match system_node.get_first_state() {
-            Some(x) => {
-                self.first_state_name = x.borrow().name.clone();
+            Some(state_node_rcref) => {
+                self.first_state_name = state_node_rcref.borrow().name.clone();
                 self.has_states = true;
             }
             None => {}
@@ -1442,7 +1732,10 @@ impl AstVisitor for PythonVisitor {
                         Some(type_node) => self.format_type(type_node),
                         None => String::from(""),
                     };
-                    params.push_str(&format!("{}{}", separator, param_node.param_name));
+                    params.push_str(&format!(
+                        "{}start_state_state_param_{}",
+                        separator, param_node.param_name
+                    ));
                     if !param_type.is_empty() {
                         params.push_str(&format!(": {}", param_type));
                     }
@@ -1460,7 +1753,10 @@ impl AstVisitor for PythonVisitor {
                         Some(type_node) => self.format_type(type_node),
                         None => String::from(""),
                     };
-                    new_params.push_str(&format!("{}{}", separator, param_node.param_name));
+                    new_params.push_str(&format!(
+                        "{}start_state_enter_param_{}",
+                        separator, param_node.param_name
+                    ));
                     if !param_type.is_empty() {
                         new_params.push_str(&format!(": {}", param_type));
                     }
@@ -1476,7 +1772,10 @@ impl AstVisitor for PythonVisitor {
                         Some(type_node) => self.format_type(type_node),
                         None => String::from(""),
                     };
-                    new_params.push_str(&format!("{}{}", separator, param_node.param_name));
+                    new_params.push_str(&format!(
+                        "{}domain_param_{}",
+                        separator, param_node.param_name
+                    ));
                     if !param_type.is_empty() {
                         new_params.push_str(&format!(": {}", param_type));
                     }
@@ -1486,19 +1785,59 @@ impl AstVisitor for PythonVisitor {
             None => {}
         };
 
+        if self.marshal {
+            self.newline();
+            self.add_code("# ================== System Marshaling ================== #");
+            self.newline();
+            self.newline();
+            self.add_code("@staticmethod");
+            self.newline();
+            self.add_code("def unmarshal(data):");
+            self.indent();
+            self.newline();
+            self.add_code("return jsonpickle.decode(data)");
+            self.outdent();
+            self.newline();
+            self.newline();
+            self.add_code("def marshal(self):");
+            self.indent();
+            self.newline();
+            self.add_code("return jsonpickle.encode(self)");
+            self.outdent();
+            self.newline();
+        }
         self.newline();
-        if self.managed {
-            if new_params.is_empty() {
-                self.add_code("def __init__(self, manager):");
-            } else {
-                self.add_code(&format!("def __init__(self, manager, {}):", new_params));
-            }
-        } else if !self.managed && !new_params.is_empty() {
-            self.add_code(&format!("def __init__(self, {}):", new_params));
-        } else {
+        self.newline();
+        self.add_code("# ==================== System Factory =================== #");
+        self.newline();
+        self.newline();
+        // if self.managed {
+        //     if new_params.is_empty() {
+        //         self.add_code("def __init__(self,manager):");
+        //     } else {
+        //         self.add_code(&format!("def __init__(self,manager, {}):", new_params));
+        //     }
+        // } else if !self.managed && !new_params.is_empty() {
+        //     self.add_code(&format!("def __init__(self,{}):", new_params));
+        // } else {
+        //     self.add_code("def __init__(self):");
+        // }
+
+        if new_params.is_empty() {
             self.add_code("def __init__(self):");
+        } else {
+            self.add_code(&format!("def __init__(self,{}):", new_params));
         }
 
+        // if self.has_states{
+        //     self.generate_new_fn(system_node);
+        // } else {
+        //     self.indent();
+        //     self.newline();
+        //     self.add_code("pass");
+        //     self.outdent();
+        //     self.newline();
+        // }
         self.generate_new_fn(system_node);
 
         // end of generate constructor
@@ -1522,7 +1861,7 @@ impl AstVisitor for PythonVisitor {
         if self.managed {
             if new_params.is_empty() {
                 self.subclass_code
-                    .push("\t#def __init__(self, manager):".to_string());
+                    .push("\t#def __init__(self,manager):".to_string());
                 self.subclass_code
                     .push("\t#  super().__init__(manager)".to_string());
             } else {
@@ -1542,105 +1881,16 @@ impl AstVisitor for PythonVisitor {
             interface_block_node.accept(self);
         }
 
-        if self.marshal {
-            // generate Load() factory
-            self.format_load_fn(system_node);
-            self.generate_json_fn();
-        }
-
-        // generate __mux
-
-        self.newline();
-        self.add_code("# ====================== Multiplexer ==================== #");
-        self.newline();
-        self.newline();
-
-        self.add_code("def __mux(self, e):");
-        self.indent();
-
-        if let Some(machine_block_node) = &system_node.machine_block_node_opt {
-            self.newline();
-            //
-            let _current_index = 0;
-            let len = machine_block_node.states.len();
-            for (current_index, state_node_rcref) in machine_block_node.states.iter().enumerate() {
-                let state_name = &self
-                    .format_target_state_name(&state_node_rcref.borrow().name)
-                    .to_string();
-                if current_index == 0 {
-                    self.add_code(&format!(
-                        "if self.__compartment.state.__name__ == '{}':",
-                        state_name
-                    ));
-                } else {
-                    self.add_code(&format!(
-                        "elif self.__compartment.state.__name__ == '{}':",
-                        state_name
-                    ));
-                }
-                self.indent();
-                self.newline();
-                self.add_code(&format!("self.{}(e)", state_name));
-                self.outdent();
-                if current_index != len {
-                    self.newline();
-                }
-
-                // current_index += 1
-            }
-
-            self.newline();
-            self.add_code("if self.__next_compartment != None:");
-            self.indent();
-            self.newline();
-            self.add_code("next_compartment = self.__next_compartment");
-            self.newline();
-            self.add_code("self.__next_compartment = None");
-            self.newline();
-            self.add_code("if(next_compartment.forward_event is not None and ");
-            self.newline();
-            self.add_code("   next_compartment.forward_event._message == \">\"):");
-            self.indent();
-            self.newline();
-            self.add_code("self.__mux(FrameEvent( \"<\", self.__compartment.exit_args))");
-            self.newline();
-            self.add_code("self.__compartment = next_compartment");
-            self.newline();
-            self.add_code("self.__mux(next_compartment.forward_event)");
-            self.outdent();
-            self.newline();
-            self.add_code("else:");
-            self.indent();
-            self.newline();
-            self.add_code("self.__do_transition(next_compartment)");
-            self.newline();
-            self.add_code("if next_compartment.forward_event is not None:");
-            self.indent();
-            self.newline();
-            self.add_code("self.__mux(next_compartment.forward_event)");
-            self.outdent();
-            // self.newline();
-            // self.add_code("}");
-            self.outdent();
-            // self.newline();
-            // self.add_code("}");
-            self.newline();
-            self.add_code("next_compartment.forward_event = None");
-            self.outdent();
-            // self.newline();
-            // self.add_code("}");
-            self.outdent();
-            // self.newline();
-            // self.add_code("}");
-            self.newline();
-        }
-
         if let Some(machine_block_node) = &system_node.machine_block_node_opt {
             machine_block_node.accept(self);
         }
 
         if let Some(actions_block_node) = &system_node.actions_block_node_opt {
             actions_block_node.accept(self);
+        }
+
+        if let Some(operations_block_node) = &system_node.operations_block_node_opt {
+            operations_block_node.accept(self);
         }
 
         self.subclass_code
@@ -1655,9 +1905,7 @@ impl AstVisitor for PythonVisitor {
         self.deserialize.push("".to_string());
         self.deserialize.push("}".to_string());
 
-        if self.has_states {
-            self.generate_machinery(system_node);
-        }
+        self.generate_machinery(system_node);
 
         if self.config.code.public_state_info {
             self.generate_state_info_method()
@@ -1676,7 +1924,249 @@ impl AstVisitor for PythonVisitor {
 
         self.generate_compartment(&system_node.name);
 
-        self.generate_subclass();
+        // TODO: Remove subclass code.
+        //  self.generate_subclass();
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_system_instance_statement_node(
+        &mut self,
+        system_instance_stmt_node: &SystemInstanceStmtNode,
+    ) {
+        system_instance_stmt_node
+            .system_instance_expr_node
+            .accept(self);
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_system_instance_expr_node(
+        &mut self,
+        system_instance_expr_node: &SystemInstanceExprNode,
+    ) {
+        let system_name = &system_instance_expr_node.identifier.name.lexeme;
+
+        self.newline();
+        self.add_code(&format!("{}", system_name));
+        self.add_code("(");
+        let mut separator = "";
+        if let Some(start_state_state_args) = &system_instance_expr_node.start_state_state_args_opt
+        {
+            for expr_t in &start_state_state_args.exprs_t {
+                self.add_code(separator);
+                expr_t.accept(self);
+                separator = ",";
+            }
+        }
+
+        if let Some(start_state_enter_args) = &system_instance_expr_node.start_state_enter_args_opt
+        {
+            for expr_t in &start_state_enter_args.exprs_t {
+                self.add_code(separator);
+                expr_t.accept(self);
+                separator = ",";
+            }
+        }
+
+        if let Some(domain_args) = &system_instance_expr_node.domain_args_opt {
+            for expr_t in &domain_args.exprs_t {
+                self.add_code(separator);
+                expr_t.accept(self);
+                separator = ",";
+            }
+        }
+        self.add_code(")");
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_system_instance_expr_node_to_string(
+        &mut self,
+        system_instance_expr_node: &SystemInstanceExprNode,
+        output: &mut String,
+    ) {
+        let system_name = &system_instance_expr_node.identifier.name.lexeme;
+
+        output.push_str(&format!("{}", system_name));
+        output.push_str("(");
+        let mut separator = "";
+        if let Some(start_state_state_args) = &system_instance_expr_node.start_state_state_args_opt
+        {
+            for expr_t in &start_state_state_args.exprs_t {
+                output.push_str(separator);
+                expr_t.accept_to_string(self, output);
+                separator = ",";
+            }
+        }
+
+        if let Some(start_state_enter_args) = &system_instance_expr_node.start_state_enter_args_opt
+        {
+            for expr_t in &start_state_enter_args.exprs_t {
+                output.push_str(separator);
+                expr_t.accept_to_string(self, output);
+                separator = ",";
+            }
+        }
+
+        if let Some(domain_args) = &system_instance_expr_node.domain_args_opt {
+            for expr_t in &domain_args.exprs_t {
+                output.push_str(separator);
+                expr_t.accept_to_string(self, output);
+                separator = ",";
+            }
+        }
+        output.push_str(")");
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_system_type_statement_node(&mut self, system_type_stmt_node: &SystemTypeStmtNode) {
+        self.newline();
+        system_type_stmt_node.system_type_expr_node.accept(self);
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_system_type_expr_node(&mut self, system_type_expr_node: &SystemTypeExprNode) {
+        let system_name = &system_type_expr_node.identifier.name.lexeme;
+        self.add_code(&format!("{}", system_name));
+        if let Some(call_chain) = &*(system_type_expr_node.call_chain_opt) {
+            let mut output = String::new();
+            call_chain.accept_to_string(self, &mut output);
+            self.add_code(&format!(".{}", output));
+        }
+        // self.add_code("(");
+        // let mut separator = "";
+        // if let Some(start_state_state_args) = &system_type_expr_node.start_state_state_args_opt
+        // {
+        //     for expr_t in &start_state_state_args.exprs_t {
+        //         self.add_code(separator);
+        //         expr_t.accept(self);
+        //         separator = ",";
+        //     }
+        // }
+        //
+        // if let Some(start_state_enter_args) = &system_type_expr_node.start_state_enter_args_opt
+        // {
+        //     for expr_t in &start_state_enter_args.exprs_t {
+        //         self.add_code(separator);
+        //         expr_t.accept(self);
+        //         separator = ",";
+        //     }
+        // }
+        //
+        // if let Some(domain_args) = &system_type_expr_node.domain_args_opt {
+        //     for expr_t in &domain_args.exprs_t {
+        //         self.add_code(separator);
+        //         expr_t.accept(self);
+        //         separator = ",";
+        //     }
+        // }
+        // self.add_code(")");
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_system_type_expr_node_to_string(
+        &mut self,
+        system_type_expr_node: &SystemTypeExprNode,
+        output: &mut String,
+    ) {
+        let system_name = &system_type_expr_node.identifier.name.lexeme;
+        output.push_str(&format!("{}", system_name));
+        if let Some(call_chain) = &*(system_type_expr_node.call_chain_opt) {
+            // let mut output = String::new();
+            output.push_str(".");
+            call_chain.accept_to_string(self, output);
+            // output.push_str(&format!(".{}", output));
+        }
+        // output.push_str("(");
+        // let mut separator = "";
+        // if let Some(start_state_state_args) = &system_type_expr_node.start_state_state_args_opt
+        // {
+        //     for expr_t in &start_state_state_args.exprs_t {
+        //         output.push_str(separator);
+        //         expr_t.accept_to_string(self, output);
+        //         separator = ",";
+        //     }
+        // }
+        //
+        // if let Some(start_state_enter_args) = &system_type_expr_node.start_state_enter_args_opt
+        // {
+        //     for expr_t in &start_state_enter_args.exprs_t {
+        //         output.push_str(separator);
+        //         expr_t.accept_to_string(self, output);
+        //         separator = ",";
+        //     }
+        // }
+        //
+        // if let Some(domain_args) = &system_type_expr_node.domain_args_opt {
+        //     for expr_t in &domain_args.exprs_t {
+        //         output.push_str(separator);
+        //         expr_t.accept_to_string(self, output);
+        //         separator = ",";
+        //     }
+        // }
+        // output.push_str(")");
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_function_node(&mut self, function_node: &FunctionNode) {
+        self.newline();
+        self.add_code(&format!("def {}(", function_node.name));
+
+        self.format_parameter_list(&function_node.params);
+
+        self.add_code("):");
+
+        if !function_node.is_implemented {
+            self.newline();
+            self.add_code("raise NotImplementedError");
+        } else {
+            // Generate statements
+            if function_node.statements.is_empty() && function_node.terminator_node_opt.is_none() {
+                self.indent();
+                self.newline();
+                self.add_code("pass");
+                self.outdent();
+                // self.newline();
+            } else {
+                if !function_node.statements.is_empty() {
+                    self.indent();
+                    self.visit_decl_stmts(&function_node.statements);
+                    self.outdent();
+                    // self.newline();
+                }
+                if let Some(terminator_expr) = &function_node.terminator_node_opt {
+                    self.indent();
+                    self.newline();
+                    match &terminator_expr.terminator_type {
+                        TerminatorType::Return => match &terminator_expr.return_expr_t_opt {
+                            Some(expr_t) => {
+                                self.add_code("return ");
+                                expr_t.accept(self);
+                            }
+                            None => {
+                                self.add_code("return");
+                            }
+                        },
+                        TerminatorType::Continue => {
+                            // shouldn't happen.
+                            self.errors
+                                .push("Continue not allowed as action terminator.".to_string());
+                        }
+                    }
+                    self.outdent();
+                    // self.newline();
+                }
+            }
+        }
+
+        if function_node.name == "main" {
+            self.generate_main = true;
+        }
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1697,13 +2187,15 @@ impl AstVisitor for PythonVisitor {
         &mut self,
         interface_method_call_expr_node: &InterfaceMethodCallExprNode,
     ) {
+        if interface_method_call_expr_node.call_origin == CallOrigin::Internal {
+            self.add_code("self.");
+        }
+
         self.add_code(&format!(
-            "self.{}",
+            "{}",
             interface_method_call_expr_node.identifier.name.lexeme
         ));
         interface_method_call_expr_node.call_expr_list.accept(self);
-
-        // TODO: review this return as I think it is a nop.
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1713,10 +2205,14 @@ impl AstVisitor for PythonVisitor {
         interface_method_call_expr_node: &InterfaceMethodCallExprNode,
         output: &mut String,
     ) {
+        if interface_method_call_expr_node.call_origin == CallOrigin::Internal {
+            output.push_str(&format!("self."));
+        }
         output.push_str(&format!(
-            "self.{}",
+            "{}",
             interface_method_call_expr_node.identifier.name.lexeme
         ));
+
         interface_method_call_expr_node
             .call_expr_list
             .accept_to_string(self, output);
@@ -1728,7 +2224,7 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_interface_block_node(&mut self, interface_block_node: &InterfaceBlockNode) {
         self.newline();
-        self.add_code("# ===================== Interface Block =================== #");
+        self.add_code("# ==================== Interface Block ================== #");
         self.newline();
 
         for interface_method_node_rcref in &interface_block_node.interface_methods {
@@ -1776,7 +2272,7 @@ impl AstVisitor for PythonVisitor {
                     for param in params {
                         let pname = &param.param_name;
                         self.newline();
-                        self.add_code(&format!("parameters[\"{}\"] = {}\n", pname, pname));
+                        self.add_code(&format!("parameters[\"{}\"] = {}", pname, pname));
                     }
                 }
                 None => {}
@@ -1787,16 +2283,18 @@ impl AstVisitor for PythonVisitor {
 
         self.newline();
         self.add_code(&format!(
-            "e = FrameEvent(\"{}\",{})",
+            "__e = FrameEvent(\"{}\",{})",
             method_name_or_alias, params_param_code
         ));
-        self.newline();
-        self.add_code("self.__mux(e)");
+        if self.has_states {
+            self.newline();
+            self.add_code("self.__kernel(__e)");
+        }
 
         match &interface_method_node.return_type_opt {
             Some(_) => {
                 self.newline();
-                self.add_code("return e._return");
+                self.add_code("return __e._return");
             }
             None => {}
         }
@@ -1807,10 +2305,151 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    fn visit_operations_block_node(&mut self, operation_block_node: &OperationsBlockNode) {
+        self.newline();
+        self.newline();
+        self.add_code("# ==================== Operations Block ================== #");
+
+        for operation_method_node_rcref in &operation_block_node.operations {
+            let operation_method_node = operation_method_node_rcref.borrow();
+            operation_method_node.accept(self);
+        }
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_operation_node(&mut self, operation_node: &OperationNode) {
+        self.operation_scope_depth += 1;
+        self.newline();
+        self.newline();
+        let operation_name = self.format_operation_name(&operation_node.name);
+        if operation_node.is_static() {
+            self.add_code("@staticmethod");
+            self.newline();
+            self.add_code(&format!("def {}(", operation_name));
+        } else {
+            self.add_code(&format!("def {}(self", operation_name));
+        }
+
+        match &operation_node.params {
+            Some(params) => {
+                if !operation_node.is_static() {
+                    self.add_code(",");
+                }
+
+                self.format_operations_parameter_list(params);
+            }
+            None => {}
+        }
+
+        self.add_code("):");
+
+        self.indent();
+
+        // Generate statements
+        if operation_node.statements.is_empty() && operation_node.terminator_node_opt.is_none() {
+            self.newline();
+            self.add_code("pass");
+        } else {
+            if !operation_node.statements.is_empty() {
+                // self.newline();
+                self.visit_decl_stmts(&operation_node.statements);
+            }
+            if let Some(terminator_expr) = &operation_node.terminator_node_opt {
+                self.newline();
+                match &terminator_expr.terminator_type {
+                    TerminatorType::Return => match &terminator_expr.return_expr_t_opt {
+                        Some(expr_t) => {
+                            self.add_code("return ");
+                            expr_t.accept(self);
+                            // self.newline();
+                        }
+                        None => {
+                            self.add_code("return");
+                            // self.newline();
+                        }
+                    },
+                    TerminatorType::Continue => {
+                        // shouldn't happen.
+                        self.errors
+                            .push("Continue not allowed as operation terminator.".to_string());
+                    }
+                }
+            }
+        }
+
+        self.outdent();
+        self.operation_scope_depth -= 1;
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_operation_call_expression_node(
+        &mut self,
+        operation_call_expr_node: &OperationCallExprNode,
+    ) {
+        // if operation_call_expr_node.call_origin
+        //     == CallOrigin::Internal
+        // {
+        //     self.add_code("self.");
+        // }
+
+        self.add_code(&format!(
+            "{}",
+            operation_call_expr_node.identifier.name.lexeme
+        ));
+        operation_call_expr_node.call_expr_list.accept(self);
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_operation_call_expression_node_to_string(
+        &mut self,
+        operation_call_expr_node: &OperationCallExprNode,
+        output: &mut String,
+    ) {
+        // if operation_call_expr_node.call_origin
+        //     == CallOrigin::Internal
+        // {
+        //     output.push_str(&format!("self."));
+        // }
+        output.push_str(&format!(
+            "{}",
+            operation_call_expr_node.identifier.name.lexeme
+        ));
+
+        operation_call_expr_node
+            .call_expr_list
+            .accept_to_string(self, output);
+
+        // TODO: review this return as I think it is a nop.
+    }
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_operation_ref_expression_node(
+        &mut self,
+        operation_ref_expr_node: &OperationRefExprNode,
+    ) {
+        self.add_code(&format!("self.{}", operation_ref_expr_node.name));
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_operation_ref_expression_node_to_string(
+        &mut self,
+        operation_ref_expr_node: &OperationRefExprNode,
+        output: &mut String,
+    ) {
+        output.push_str(&format!("self.{}", operation_ref_expr_node.name));
+
+        // TODO: review this return as I think it is a nop.
+    }
+
+    //* --------------------------------------------------------------------- *//
+
     fn visit_machine_block_node(&mut self, machine_block_node: &MachineBlockNode) {
         self.newline();
         self.add_code("# ===================== Machine Block =================== #");
-        self.newline();
         self.newline();
 
         self.serialize.push("".to_string());
@@ -1842,7 +2481,10 @@ impl AstVisitor for PythonVisitor {
     fn visit_actions_block_node(&mut self, actions_block_node: &ActionsBlockNode) {
         self.newline();
         self.add_code("# ===================== Actions Block =================== #");
-        self.newline();
+        //        self.newline();
+
+        // TODO - for some reason action_node.accept_action_impl() isn't being
+        // called but action_node.accept_action_decl() is.
 
         for action_rcref in &actions_block_node.actions {
             let action_node = action_rcref.borrow();
@@ -1851,10 +2493,8 @@ impl AstVisitor for PythonVisitor {
             }
         }
 
-        self.newline();
-        self.newline();
-        self.add_code("# Unimplemented Actions");
-        self.newline();
+        // self.newline();
+        // self.newline();
 
         for action_rcref in &actions_block_node.actions {
             let action_node = action_rcref.borrow();
@@ -1878,18 +2518,19 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_domain_block_node(&mut self, domain_block_node: &DomainBlockNode) {
-        // self.newline();
-        // self.newline();
-        // self.add_code("# ===================== Domain Block =================== #");
-        self.newline();
-
-        for variable_decl_node_rcref in &domain_block_node.member_variables {
-            let variable_decl_node = variable_decl_node_rcref.borrow();
-            variable_decl_node.accept(self);
-        }
-        self.newline();
-    }
+    // fn visit_domain_block_node(&mut self, domain_block_node: &DomainBlockNode) {
+    //     // self.newline();
+    //     // self.newline();
+    //     // self.add_code("# ===================== Domain Block =================== #");
+    //     self.newline();
+    //
+    //     for variable_decl_node_rcref in &domain_block_node.member_variables {
+    //         let variable_decl_node = variable_decl_node_rcref.borrow();
+    //         variable_decl_node.accept(self);
+    //     }
+    //
+    //     self.newline();
+    // }
 
     //* --------------------------------------------------------------------- *//
 
@@ -1899,8 +2540,14 @@ impl AstVisitor for PythonVisitor {
         }
         self.current_state_name_opt = Some(state_node.name.clone());
 
+        self.newline();
+        self.add_code("# ----------------------------------------");
+        self.newline();
+        self.add_code(&format!("# ${}", &state_node.name));
+        self.newline();
+        self.newline();
         self.add_code(&format!(
-            "def {}(self, e):",
+            "def {}(self, __e):",
             self.format_target_state_name(&state_node.name)
         ));
         self.indent();
@@ -1934,18 +2581,18 @@ impl AstVisitor for PythonVisitor {
             }
         }
 
-        match &state_node.dispatch_opt {
-            Some(dispatch) => {
-                generate_pass = false;
-                dispatch.accept(self);
-            }
-            None => {}
-        }
-
         if generate_pass {
             self.newline();
             self.add_code("pass");
             self.newline();
+        }
+
+        match &state_node.dispatch_opt {
+            Some(dispatch) => {
+                self.newline();
+                dispatch.accept(self);
+            }
+            None => {}
         }
 
         self.outdent();
@@ -1964,23 +2611,24 @@ impl AstVisitor for PythonVisitor {
         //        let mut generate_final_close_paren = true;
         if let MessageType::CustomMessage { message_node } = &evt_handler_node.msg_t {
             if self.first_event_handler {
-                self.add_code(&format!("if e._message == \"{}\":", message_node.name));
+                self.add_code(&format!("if __e._message == \"{}\":", message_node.name));
             } else {
-                self.add_code(&format!("elif e._message == \"{}\":", message_node.name));
+                self.add_code(&format!("elif __e._message == \"{}\":", message_node.name));
             }
         } else {
             // AnyMessage ( ||* )
             if self.first_event_handler {
                 // This logic is for when there is only the catch all event handler ||*
-                self.add_code("if true:");
+                self.add_code("if True:");
             } else {
                 // other event handlers preceded ||*
                 self.add_code("else:");
             }
         }
         self.generate_comment(evt_handler_node.line);
-
         self.indent();
+        // self.newline();
+
         //  if let MessageType::CustomMessage {message_node} =
         match &evt_handler_node.msg_t {
             MessageType::CustomMessage { .. } => {
@@ -1999,13 +2647,19 @@ impl AstVisitor for PythonVisitor {
         }
 
         // Generate statements
-        self.visit_decl_stmts(&evt_handler_node.statements);
-
         self.event_handler_has_code = !evt_handler_node.statements.is_empty();
+        if self.event_handler_has_code {
+            self.visit_decl_stmts(&evt_handler_node.statements);
+        }
+        // else {
+        //     self.newline();
+        //     self.add_code("pass");
+        // }
+
         let terminator_node = &evt_handler_node.terminator_node;
         terminator_node.accept(self);
         self.outdent();
-        self.newline();
+        // self.newline();
 
         // this controls formatting here
         self.first_event_handler = false;
@@ -2018,12 +2672,19 @@ impl AstVisitor for PythonVisitor {
         &mut self,
         evt_handler_terminator_node: &TerminatorExpr,
     ) {
-        self.newline();
+        // self.newline();
         match &evt_handler_terminator_node.terminator_type {
             TerminatorType::Return => match &evt_handler_terminator_node.return_expr_t_opt {
                 Some(expr_t) => {
-                    self.add_code("e._return = ");
+                    // expr_t.auto_pre_inc_dec(self);
+                    self.newline();
+                    if self.is_in_action_or_operation() {
+                        self.add_code("return = ");
+                    } else {
+                        self.add_code("__e._return = ");
+                    }
                     expr_t.accept(self);
+                    // expr_t.auto_post_inc_dec(self);
                     self.generate_return();
                     self.newline();
                 }
@@ -2054,9 +2715,10 @@ impl AstVisitor for PythonVisitor {
 
         self.add_code(&method_call.identifier.name.lexeme.to_string());
 
+        //let mut output = String::new();
+        //method_call.call_expr_list.accept_to_string(self, &mut output);
         method_call.call_expr_list.accept(self);
-
-        self.add_code("");
+        // self.add_code( output.as_str());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2074,10 +2736,7 @@ impl AstVisitor for PythonVisitor {
         }
 
         output.push_str(&method_call.identifier.name.lexeme.to_string());
-
         method_call.call_expr_list.accept_to_string(self, output);
-
-        output.push_str("");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2149,14 +2808,35 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_transition_statement_node(&mut self, transition_statement: &TransitionStatementNode) {
-        match &transition_statement.target_state_context_t {
-            StateContextType::StateRef { .. } => {
-                self.generate_state_ref_transition(transition_statement)
-            }
-            StateContextType::StateStackPop {} => {
-                self.generate_state_stack_pop_transition(transition_statement)
-            }
+        match &transition_statement
+            .transition_expr_node
+            .target_state_context_t
+        {
+            TargetStateContextType::StateRef { .. } => self.generate_state_ref_transition(
+                &transition_statement.transition_expr_node,
+                &(transition_statement.exit_args_opt),
+            ),
+            TargetStateContextType::StateStackPop {} => self.generate_state_stack_pop_transition(
+                &transition_statement.transition_expr_node,
+                &(transition_statement.exit_args_opt),
+            ),
         };
+        // &transition_statement.transition_expr_node.accept(self);
+
+        self.this_branch_transitioned = true;
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_transition_expr_node(&mut self, transition_expr_node: &TransitionExprNode) {
+        match &transition_expr_node.target_state_context_t {
+            TargetStateContextType::StateRef { .. } => {
+                self.generate_state_ref_transition(&transition_expr_node, &None)
+            }
+            TargetStateContextType::StateStackPop {} => {
+                self.generate_state_stack_pop_transition(transition_expr_node, &None)
+            }
+        }
 
         self.this_branch_transitioned = true;
     }
@@ -2174,10 +2854,10 @@ impl AstVisitor for PythonVisitor {
         change_state_stmt_node: &ChangeStateStatementNode,
     ) {
         match &change_state_stmt_node.state_context_t {
-            StateContextType::StateRef { .. } => {
+            TargetStateContextType::StateRef { .. } => {
                 self.generate_state_ref_change_state(change_state_stmt_node)
             }
-            StateContextType::StateStackPop { .. } => {
+            TargetStateContextType::StateStackPop { .. } => {
                 self.generate_state_stack_pop_change_state(change_state_stmt_node)
             }
         };
@@ -2196,7 +2876,7 @@ impl AstVisitor for PythonVisitor {
     fn visit_dispatch_node(&mut self, dispatch_node: &DispatchNode) {
         self.newline();
         self.add_code(&format!(
-            "self.{}(e)",
+            "self.{}(__e)",
             self.format_target_state_name(&dispatch_node.target_state_ref.name)
         ));
         self.generate_comment(dispatch_node.line);
@@ -2220,6 +2900,11 @@ impl AstVisitor for PythonVisitor {
             } => {
                 number_match_test_node.accept(self);
             }
+            TestType::EnumMatchTest {
+                enum_match_test_node,
+            } => {
+                enum_match_test_node.accept(self);
+            }
         }
     }
 
@@ -2228,8 +2913,8 @@ impl AstVisitor for PythonVisitor {
     fn visit_bool_test_node(&mut self, bool_test_node: &BoolTestNode) {
         let mut if_or_else_if = "if ";
 
-        self.newline();
         for branch_node in &bool_test_node.conditional_branch_nodes {
+            self.newline();
             if branch_node.is_negated {
                 self.add_code(&format!("{} not (", if_or_else_if));
             } else {
@@ -2248,7 +2933,7 @@ impl AstVisitor for PythonVisitor {
             self.generate_return_if_transitioned();
 
             self.outdent();
-            self.newline();
+            //self.newline();
 
             if_or_else_if = "elif ";
         }
@@ -2274,102 +2959,356 @@ impl AstVisitor for PythonVisitor {
     // handlers harder to reason about. The conservative approach has the advantage of both
     // simplifying the implementation and reasoning about Frame programs.
 
-    fn visit_call_chain_literal_statement_node(
-        &mut self,
-        method_call_chain_literal_stmt_node: &CallChainLiteralStmtNode,
-    ) {
-        self.newline();
+    fn visit_call_chain_statement_node(&mut self, method_call_chain_stmt_node: &CallChainStmtNode) {
+        self.skip_next_newline();
         // special case for interface method calls
-        let call_chain = &method_call_chain_literal_stmt_node
+        let call_chain = &method_call_chain_stmt_node
             .call_chain_literal_expr_node
             .call_chain;
         if call_chain.len() == 1 {
-            if let CallChainLiteralNodeType::InterfaceMethodCallT {
+            if let CallChainNodeType::InterfaceMethodCallT {
                 interface_method_call_expr_node,
             } = &call_chain[0]
             {
                 self.this_branch_transitioned = true;
                 interface_method_call_expr_node.accept(self);
-                self.generate_return();
+                // TODO - this next statement was problematic if not in a branch.
+                // Leaving here in case there is an unconsidered edge case.
+                // Needs to be directly solved by the mandatory event handler solution,
+                // whatever that is going to be.
+                if !self.is_in_action_or_operation() {
+                    self.generate_return();
+                }
+
                 return;
             }
         }
 
         // standard case
 
-        method_call_chain_literal_stmt_node
+        method_call_chain_stmt_node
             .call_chain_literal_expr_node
             .accept(self);
+
+        // TODO - review autoinc logic
+        // resets flag used in autoinc code
+        self.skip_next_newline = false;
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_chain_literal_expr_node(
-        &mut self,
-        method_call_chain_expression_node: &CallChainLiteralExprNode,
-    ) {
+    fn visit_call_chain_expr_node(&mut self, call_l_chain_expression_node: &CallChainExprNode) {
         // TODO: maybe put this in an AST node
 
         let mut separator = "";
 
-        for node in &method_call_chain_expression_node.call_chain {
+        if call_l_chain_expression_node.inc_dec != IncDecExpr::None {
+            self.errors.push(
+                "Error - auto increment/decrement operator (++/--) not allowed in Python."
+                    .to_string(),
+            );
+            return;
+        }
+        for node in &call_l_chain_expression_node.call_chain {
             self.add_code(separator);
+            separator = ".";
             match &node {
-                CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
+                CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                     id_node.accept(self);
                 }
-                CallChainLiteralNodeType::CallT { call } => {
+                CallChainNodeType::UndeclaredCallT { call } => {
                     call.accept(self);
                 }
-                CallChainLiteralNodeType::InterfaceMethodCallT {
+                CallChainNodeType::InterfaceMethodCallT {
                     interface_method_call_expr_node,
                 } => {
                     interface_method_call_expr_node.accept(self);
                 }
-                CallChainLiteralNodeType::ActionCallT {
+                CallChainNodeType::OperationCallT {
+                    operation_call_expr_node,
+                } => {
+                    operation_call_expr_node.accept(self);
+                }
+                CallChainNodeType::OperationRefT {
+                    operation_ref_expr_node,
+                } => {
+                    operation_ref_expr_node.accept(self);
+                }
+                CallChainNodeType::ActionCallT {
                     action_call_expr_node,
                 } => {
                     action_call_expr_node.accept(self);
                 }
-                CallChainLiteralNodeType::VariableNodeT { var_node } => {
+                CallChainNodeType::VariableNodeT { var_node } => {
                     self.visiting_call_chain_literal_variable = true;
                     var_node.accept(self);
                     self.visiting_call_chain_literal_variable = false;
                 }
             }
-            separator = ".";
         }
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_chain_literal_expr_node_to_string(
+    // fn visit_auto_pre_inc_dec_expr_node(&mut self, ref_expr_type: &RefExprType) {
+    //
+    //     // match ref_expr_type.as_mut() {
+    //     //     RefExprType::CallChainLiteralExprT {
+    //     //         ref mut call_chain_expr_node,
+    //     //     } => {
+    //     //         *call_chain_expr_node.is_new_expr = false;
+    //     //     }
+    //     //     _ => {
+    //     //
+    //     //     }
+    //     // };
+    //
+    //     match ref_expr_type {
+    //         RefExprType::AssignmentExprT { .. } => {}
+    //         RefExprType::CallExprT { call_expr_node } => {
+    //             // TODO - not sure if this loop should move into the CallExprNode.
+    //             // if so need to implement similar functionality for other expr nodes
+    //             for expr_t in &call_expr_node.call_expr_list.exprs_t {
+    //                 expr_t.auto_pre_inc_dec(self);
+    //             }
+    //         }
+    //         RefExprType::BinaryExprT { binary_expr_node } => {
+    //             binary_expr_node.left_rcref.borrow().auto_pre_inc_dec(self);
+    //             binary_expr_node.right_rcref.borrow().auto_pre_inc_dec(self);
+    //         }
+    //         RefExprType::CallChainLiteralExprT {
+    //             call_chain_expr_node,
+    //         } => {
+    //             // *call_chain_expr_node.inc_dec = IncDecExpr::None;
+    //             match call_chain_expr_node.inc_dec {
+    //                 IncDecExpr::PreInc => {
+    //                     // this is a hack coordinating newline generation
+    //                     // in multiple different paths. One path is a pure
+    //                     // expression and no newline should be generated.
+    //                     // self.test_skip_newline();
+    //                     let mut output = String::new();
+    //                     call_chain_expr_node.accept_to_string(self, &mut output);
+    //                     // self.add_code(&format!("{} = {} + 1", output, output));
+    //                     // self.skip_next_newline();
+    //                     // *call_chain_expr_node.inc_dec = IncDecExpr::None;
+    //                    // let err = format!("[line {}] Error - autoincrement of variables disallowed in Python",call_chain_expr_node.call_chain.);
+    //                     self.errors
+    //                         .push("Error - autoincrement of variables disallowed in Python".to_string());
+    //
+    //
+    //                 }
+    //                 IncDecExpr::PreDec => {
+    //                     // this is a hack coordinating newline generation
+    //                     // in multiple different paths. One path is a pure
+    //                     // expression and no newline should be generated.
+    //                     // self.test_skip_newline();
+    //                     // let mut output = String::new();
+    //                     // call_chain_expr_node.accept_to_string(self, &mut output);
+    //                     // self.add_code(&format!("{} = {} - 1", output, output));
+    //                     // self.skip_next_newline();
+    //                     self.errors
+    //                         .push("Error - autodecrement of variables disallowed in Python".to_string());
+    //
+    //                 }
+    //                 _ => {}
+    //             }
+    //
+    //             // now generate pre inc/dec for all arguments
+    //             for node in &call_chain_expr_node.call_chain {
+    //                 match &node {
+    //                     // CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
+    //                     //     id_node.accept(self);
+    //                     // }
+    //                     CallChainLiteralNodeType::CallT { call } => {
+    //                         for expr_t in &call.call_expr_list.exprs_t {
+    //                             expr_t.auto_pre_inc_dec(self);
+    //                         }
+    //                     }
+    //                     CallChainLiteralNodeType::InterfaceMethodCallT {
+    //                         interface_method_call_expr_node,
+    //                     } => {
+    //                         for expr_t in &interface_method_call_expr_node.call_expr_list.exprs_t {
+    //                             expr_t.auto_pre_inc_dec(self);
+    //                         }
+    //                     }
+    //                     CallChainLiteralNodeType::ActionCallT {
+    //                         action_call_expr_node,
+    //                     } => {
+    //                         for expr_t in &action_call_expr_node.call_expr_list.exprs_t {
+    //                             expr_t.auto_pre_inc_dec(self);
+    //                         }
+    //                     }
+    //                     _ => {}
+    //                 }
+    //             }
+    //         }
+    //         RefExprType::ExprListT { expr_list_node } => {
+    //             for expr in &expr_list_node.exprs_t {
+    //                 expr.auto_pre_inc_dec(self);
+    //             }
+    //         }
+    //         RefExprType::LoopStmtT { loop_types } => {
+    //             match loop_types {
+    //                 LoopStmtTypes::LoopForStmt {
+    //                     loop_for_stmt_node: loop_for_expr_node,
+    //                 } => {
+    //                     for expr in &loop_for_expr_node.post_expr_rcref_opt {
+    //                         expr.borrow().auto_pre_inc_dec(self);
+    //                     }
+    //                 }
+    //                 LoopStmtTypes::LoopInStmt { loop_in_stmt_node } => {
+    //                     loop_in_stmt_node.iterable_expr.auto_pre_inc_dec(self);
+    //                 }
+    //                 LoopStmtTypes::LoopInfiniteStmt { .. } => {
+    //
+    //                     // TODO
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
+    //
+    // //* --------------------------------------------------------------------- *//
+    //
+    // fn visit_auto_post_inc_dec_expr_node(&mut self, ref_expr_type: &RefExprType) {
+    //     match ref_expr_type {
+    //         RefExprType::AssignmentExprT { .. } => {}
+    //         RefExprType::CallExprT { call_expr_node } => {
+    //             // TODO - not sure if this loop should move into the CallExprNode.
+    //             // if so need to implement similar functionality for other expr nodes
+    //             for expr_t in &call_expr_node.call_expr_list.exprs_t {
+    //                 expr_t.auto_post_inc_dec(self);
+    //             }
+    //         }
+    //         RefExprType::BinaryExprT { binary_expr_node } => {
+    //             binary_expr_node.left_rcref.borrow().auto_post_inc_dec(self);
+    //             binary_expr_node
+    //                 .right_rcref
+    //                 .borrow()
+    //                 .auto_post_inc_dec(self);
+    //         }
+    //         RefExprType::CallChainLiteralExprT {
+    //             call_chain_expr_node,
+    //         } => {
+    //             match call_chain_expr_node.inc_dec {
+    //                 IncDecExpr::PostInc => {
+    //                     self.newline();
+    //                     let mut output = String::new();
+    //                     call_chain_expr_node.accept_to_string(self, &mut output);
+    //                     self.add_code(&format!("{} = {} + 1", output, output));
+    //                 }
+    //                 IncDecExpr::PostDec => {
+    //                     self.newline();
+    //                     let mut output = String::new();
+    //                     call_chain_expr_node.accept_to_string(self, &mut output);
+    //                     self.add_code(&format!("{} = {} - 1", output, output));
+    //                 }
+    //                 _ => {}
+    //             }
+    //
+    //             // now generate pre inc/dec for all arguments
+    //             for node in &call_chain_expr_node.call_chain {
+    //                 match &node {
+    //                     // CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
+    //                     //     id_node.accept(self);
+    //                     // }
+    //                     CallChainLiteralNodeType::CallT { call } => {
+    //                         for expr_t in &call.call_expr_list.exprs_t {
+    //                             expr_t.auto_post_inc_dec(self);
+    //                         }
+    //                     }
+    //
+    //                     CallChainLiteralNodeType::InterfaceMethodCallT {
+    //                         interface_method_call_expr_node,
+    //                     } => {
+    //                         for expr_t in &interface_method_call_expr_node.call_expr_list.exprs_t {
+    //                             expr_t.auto_post_inc_dec(self);
+    //                         }
+    //                     }
+    //                     CallChainLiteralNodeType::ActionCallT {
+    //                         action_call_expr_node,
+    //                     } => {
+    //                         for expr_t in &action_call_expr_node.call_expr_list.exprs_t {
+    //                             expr_t.auto_post_inc_dec(self);
+    //                         }
+    //                     }
+    //                     // CallChainLiteralNodeType::VariableNodeT { var_node } => {
+    //                     //     self.visiting_call_chain_literal_variable = true;
+    //                     //     var_node.accept(self);
+    //                     //     self.visiting_call_chain_literal_variable = false;
+    //                     // }
+    //                     _ => {}
+    //                 }
+    //             }
+    //         }
+    //         RefExprType::ExprListT { expr_list_node } => {
+    //             for expr in &expr_list_node.exprs_t {
+    //                 expr.auto_post_inc_dec(self);
+    //             }
+    //         }
+    //         // RefExprType::LoopExprT {loop_expr_node} => {
+    //         //     for expr in &loop_expr_node.inc_dec_expr_rcref_opt {
+    //         //         let x = expr.borrow();
+    //         //         x.auto_post_inc_dec(self);
+    //         //     }
+    //         // }
+    //         RefExprType::LoopStmtT { loop_types } => {
+    //             match loop_types {
+    //                 LoopStmtTypes::LoopForStmt { loop_for_stmt_node } => {
+    //                     for expr in &loop_for_stmt_node.post_expr_rcref_opt {
+    //                         expr.borrow().auto_post_inc_dec(self);
+    //                     }
+    //                 }
+    //                 LoopStmtTypes::LoopInStmt { loop_in_stmt_node } => {
+    //                     loop_in_stmt_node.iterable_expr.auto_post_inc_dec(self);
+    //                 }
+    //                 LoopStmtTypes::LoopInfiniteStmt { .. } => {
+    //                     // TODO
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_call_chain_expr_node_to_string(
         &mut self,
-        method_call_chain_expression_node: &CallChainLiteralExprNode,
+        call_chain_expression_node: &CallChainExprNode,
         output: &mut String,
     ) {
         let mut separator = "";
 
-        for node in &method_call_chain_expression_node.call_chain {
+        for node in &call_chain_expression_node.call_chain {
             output.push_str(separator);
             match &node {
-                CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
+                CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                     id_node.accept_to_string(self, output);
                 }
-                CallChainLiteralNodeType::CallT { call } => {
+                CallChainNodeType::UndeclaredCallT { call } => {
                     call.accept_to_string(self, output);
                 }
-                CallChainLiteralNodeType::InterfaceMethodCallT {
+                CallChainNodeType::InterfaceMethodCallT {
                     interface_method_call_expr_node,
                 } => {
                     interface_method_call_expr_node.accept_to_string(self, output);
                 }
-                CallChainLiteralNodeType::ActionCallT {
+                CallChainNodeType::OperationCallT {
+                    operation_call_expr_node,
+                } => {
+                    operation_call_expr_node.accept_to_string(self, output);
+                }
+                CallChainNodeType::OperationRefT {
+                    operation_ref_expr_node,
+                } => {
+                    operation_ref_expr_node.accept(self);
+                }
+                CallChainNodeType::ActionCallT {
                     action_call_expr_node,
                 } => {
                     action_call_expr_node.accept_to_string(self, output);
                 }
-                CallChainLiteralNodeType::VariableNodeT { var_node } => {
+                CallChainNodeType::VariableNodeT { var_node } => {
                     var_node.accept_to_string(self, output);
                 }
             }
@@ -2379,13 +3318,291 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    fn visit_loop_stmt_node(&mut self, loop_stmt_node: &LoopStmtNode) {
+        match &loop_stmt_node.loop_types {
+            LoopStmtTypes::LoopForStmt {
+                loop_for_stmt_node: loop_for_expr_node,
+            } => {
+                loop_for_expr_node.accept(self);
+            }
+            LoopStmtTypes::LoopInStmt { loop_in_stmt_node } => {
+                loop_in_stmt_node.accept(self);
+            }
+            LoopStmtTypes::LoopInfiniteStmt {
+                loop_infinite_stmt_node,
+            } => {
+                loop_infinite_stmt_node.accept(self);
+            }
+        }
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_loop_for_stmt_node(&mut self, loop_for_expr_node: &LoopForStmtNode) {
+        // self.loop_for_inc_dec_expr_rcref_opt = loop_for_expr_node.post_expr_rcref_opt.clone();
+        // self.loop_for_inc_dec_expr_rcref_opt = ;
+
+        if let Some(expr_type_rcref) = &loop_for_expr_node.loop_init_expr_rcref_opt {
+            let lfs = expr_type_rcref.borrow();
+            lfs.accept(self);
+            self.newline();
+        } else {
+            self.newline();
+        }
+
+        // all autoincdec code in loop control should be generated as the last statement
+        // in the loop
+        // for ..; ..; x++
+
+        let mut post_expr = String::new();
+
+        if let Some(expr_type_rcref) = &loop_for_expr_node.post_expr_rcref_opt {
+            let expr_t = expr_type_rcref.borrow();
+            // expr_t.auto_pre_inc_dec(self);
+            match *expr_t {
+                ExprType::CallChainExprT { .. } => {
+                    // don't emit just a simple expression.
+                }
+                _ => expr_t.accept_to_string(self, &mut post_expr),
+            }
+            // expr_t.auto_post_inc_dec(self);
+        }
+
+        self.continue_post_expr_vec.push(Some(post_expr));
+
+        self.add_code(&format!("while True:"));
+        self.indent();
+        self.newline();
+        if let Some(test_expr_rcref) = &loop_for_expr_node.test_expr_rcref_opt {
+            let mut output = String::new();
+            test_expr_rcref.borrow().accept_to_string(self, &mut output);
+
+            // let test_expr = test_expr_rcref.borrow();
+            // test_expr.auto_pre_inc_dec(self);
+
+            //            self.newline();
+            self.add_code(&format!("if not({}):", output));
+            self.indent();
+            self.newline();
+            self.add_code("break");
+            self.outdent();
+            // self.newline();
+            // test_expr.auto_post_inc_dec(self);
+        }
+
+        // only call if there are statements
+        if loop_for_expr_node.statements.len() != 0 {
+            self.visit_decl_stmts(&loop_for_expr_node.statements);
+            //  self.newline();
+        }
+
+        // all autoincdec code in loop control should be generated as the last statement
+        // in the loop
+        // for ..; ..; x++
+        // if let Some(expr_type_rcref) = &loop_for_expr_node.post_expr_rcref_opt {
+        //     let expr_t = expr_type_rcref.borrow();
+        //     // expr_t.auto_pre_inc_dec(self);
+        //     match *expr_t {
+        //         ExprType::CallChainExprT { .. } => {
+        //             // don't emit just a simple expression.
+        //         }
+        //         _ => expr_t.accept(self),
+        //     }
+        //     // expr_t.auto_post_inc_dec(self);
+        // }
+        // generate 'pass' after autoincdec if there are no statements
+        // if loop_for_expr_node.statements.len() == 0 {
+        //     self.newline();
+        //     self.add_code(&format!("pass"));
+        // }
+
+        if let Some(post_expr) = self.continue_post_expr_vec.pop() {
+            self.newline();
+            self.add_code(post_expr.unwrap().clone().as_str());
+        } else {
+            self.newline();
+        }
+
+        self.outdent();
+        //self.newline();
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_loop_in_stmt_node(&mut self, loop_in_stmt_node: &LoopInStmtNode) {
+        self.newline();
+
+        // TODO - this won't work properly for autoincdec.
+        // See https://www.w3schools.com/python/python_iterators.asp
+        // See https://www.w3schools.com/python/python_while_loops.asp
+        // Need to turn for in loop into a while statement that does something like
+        // this for non-function
+
+        // _frame_iterable_1_ = [1, 2, 3]
+        // _frame_iterator_1_ = iter(_frame_iterable_1_)
+        //
+        // while True:
+        //     try:
+        //     print(next(_frame_iterator_1_))
+        // except StopIteration as e:
+        //      break
+
+        // autoinc any arguments to the iterable expression
+        //  loop_in_stmt_node.iterable_expr.auto_pre_inc_dec(self);
+        let mut output = String::new();
+        loop_in_stmt_node
+            .iterable_expr
+            .accept_to_string(self, &mut output);
+
+        match &loop_in_stmt_node.loop_first_stmt {
+            LoopFirstStmt::Var { var_node } => {
+                self.add_code(&format!("for {} in {}:", var_node.id_node.name, output));
+            }
+            LoopFirstStmt::CallChain {
+                call_chain_expr_node,
+            } => {
+                let mut output_first_stmt = String::new();
+                call_chain_expr_node.accept_to_string(self, &mut output_first_stmt);
+                self.add_code(&format!("for {} in {}:", output_first_stmt, output));
+            }
+            LoopFirstStmt::VarDecl {
+                var_decl_node_rcref,
+            } => {
+                self.add_code(&format!(
+                    "for {} in {}:",
+                    var_decl_node_rcref.borrow().name,
+                    output
+                ));
+            }
+            // LoopFirstStmt::VarDeclAssign {var_decl_node_rcref} => {
+            //     self.add_code(&format!("for {} in {}:"
+            //                            , var_decl_node_rcref.borrow().name
+            //                            , output));
+            // }
+            // TODO
+            _ => panic!("Error - unexpected target expression in 'in' loop."),
+        };
+
+        self.indent();
+        // self.newline();
+
+        // only call if there are statements
+        if loop_in_stmt_node.statements.len() != 0 {
+            self.visit_decl_stmts(&loop_in_stmt_node.statements);
+        }
+
+        // all autoincdec code in loop control should be generated as the last statement
+        // in the loop
+        // for var x in foo(++x,y--) {}
+        // if let Some(expr_type_rcref) = &loop_in_expr_node.inc_dec_expr_rcref_opt {
+        //     let expr_t = expr_type_rcref.borrow();
+        //     expr_t.auto_pre_inc_dec(self);
+        //     expr_t.auto_post_inc_dec(self);
+        // }
+        // generate 'pass' after autoincdec if there are no statements
+        if loop_in_stmt_node.statements.len() == 0 {
+            self.newline();
+            self.add_code(&format!("pass"));
+        }
+
+        self.outdent();
+        self.newline();
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_loop_infinite_stmt_node(&mut self, loop_in_expr_node: &LoopInfiniteStmtNode) {
+        self.continue_post_expr_vec.push(None);
+        self.newline();
+
+        self.add_code(&format!("while True:"));
+
+        self.indent();
+        // self.newline();
+        self.visit_decl_stmts(&loop_in_expr_node.statements);
+        self.outdent();
+        self.newline();
+        self.continue_post_expr_vec.pop();
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_block_stmt_node(&mut self, block_stmt_node: &BlockStmtNode) {
+        self.indent();
+        // Generate statements
+        self.visit_decl_stmts(&block_stmt_node.statements);
+        self.outdent();
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_continue_stmt_node(&mut self, _: &ContinueStmtNode) {
+        // THE FOLLOWING COMMENT IS NOT VALID. LEAVING UNTIL
+        // FINAL FIX IS DECIDED ON ABOUT AUTO INC/DEC.
+        // In the context of a for loop, the auto inc/dec clause needs to
+        // be executed prior to generating the 'continue' statement.
+        // e.g.: loop var x = 0; x < 10; x++ { .. }
+        // let loop_for_inc_dec_expr_rcref_opt = self.loop_for_inc_dec_expr_rcref_opt.clone();
+        // if let Some(expr_type_rcref) = loop_for_inc_dec_expr_rcref_opt {
+        //     let expr_t = expr_type_rcref.borrow();
+        //     expr_t.auto_pre_inc_dec(self);
+        //     expr_t.auto_post_inc_dec(self);
+        // }
+
+        // In the loop_for syntax we need to generate the
+        // post_expr before a "continue". However none of the
+        // other loops should do that.  The continue_post_expr_vec
+        // is used to store a string option that has a Some value
+        // for the loop_for scope and None value for the other loop types.
+
+        let mut opt_str = None;
+        if let Some(post_expr) = self.continue_post_expr_vec.last() {
+            opt_str = post_expr.clone();
+        }
+
+        if let Some(new_str) = opt_str {
+            self.newline();
+            self.add_code(new_str.as_str());
+        }
+
+        self.newline();
+        self.add_code("continue");
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_superstring_stmt_node(&mut self, super_string_stmt_node: &SuperStringStmtNode) {
+        //        self.newline();
+        super_string_stmt_node.literal_expr_node.accept(self);
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_break_stmt_node(&mut self, _: &BreakStmtNode) {
+        self.newline();
+        self.add_code("break");
+    }
+
+    //* --------------------------------------------------------------------- *//
+
     fn visit_bool_test_conditional_branch_node(
         &mut self,
         bool_test_true_branch_node: &BoolTestConditionalBranchNode,
     ) {
-        let mut generate_pass = false;
-        if bool_test_true_branch_node.statements.is_empty() {
-            generate_pass = true
+        // generate 'pass' unless there is a statement that will generate code
+        let mut generate_pass = true;
+        if bool_test_true_branch_node
+            .branch_terminator_expr_opt
+            .is_some()
+        {
+            generate_pass = false;
+        }
+
+        // even if there statements, it is possible there are only empty
+        // blocks, which should generate a pass. Check if there are only
+        // empty blocks.
+        if generate_pass && self.has_non_block_statements(&bool_test_true_branch_node.statements) {
+            generate_pass = false;
         }
 
         if generate_pass {
@@ -2401,9 +3618,14 @@ impl AstVisitor for PythonVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code("e._return = ");
-                            expr_t.accept(self);
-                            self.generate_return();
+                            if self.is_in_action_or_operation() {
+                                self.add_code("return ");
+                                expr_t.accept(self);
+                            } else {
+                                self.add_code("__e._return = ");
+                                expr_t.accept(self);
+                                self.generate_return();
+                            }
                         }
                         None => self.generate_return(),
                     },
@@ -2424,12 +3646,30 @@ impl AstVisitor for PythonVisitor {
         &mut self,
         bool_test_else_branch_node: &BoolTestElseBranchNode,
     ) {
+        self.newline();
         self.add_code("else:");
         self.indent();
-        let mut generate_pass = false;
-        if bool_test_else_branch_node.statements.is_empty() {
-            generate_pass = true
+        // let mut generate_pass = false;
+        // if bool_test_else_branch_node.statements.is_empty() && bool_test_else_branch_node.branch_terminator_expr_opt.is_none() {
+        //     generate_pass = true
+        // }
+
+        // generate 'pass' unless there is a statement that will generate code
+        let mut generate_pass = true;
+        if bool_test_else_branch_node
+            .branch_terminator_expr_opt
+            .is_some()
+        {
+            generate_pass = false;
         }
+
+        // even if there statements, it is possible there are only empty
+        // blocks, which should generate a pass. Check if there are only
+        // empty blocks.
+        if generate_pass && self.has_non_block_statements(&bool_test_else_branch_node.statements) {
+            generate_pass = false;
+        }
+
         if generate_pass {
             self.newline();
             self.add_code("pass");
@@ -2444,9 +3684,14 @@ impl AstVisitor for PythonVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code("e._return = ");
-                            expr_t.accept(self);
-                            self.generate_return();
+                            if self.is_in_action_or_operation() {
+                                self.add_code("return ");
+                                expr_t.accept(self);
+                            } else {
+                                self.add_code("__e._return = ");
+                                expr_t.accept(self);
+                                self.generate_return();
+                            }
                         }
                         None => self.generate_return(),
                     },
@@ -2472,18 +3717,21 @@ impl AstVisitor for PythonVisitor {
         self.newline();
         for match_branch_node in &string_match_test_node.match_branch_nodes {
             self.add_code(&format!("{} (", if_or_else_if));
-            // TODO: use string_match_test_node.expr_t.accept(self) ?
+
+            let mut expr_code = String::new();
             match &string_match_test_node.expr_t {
                 ExprType::CallExprT {
                     call_expr_node: method_call_expr_node,
-                } => method_call_expr_node.accept(self),
+                } => method_call_expr_node.accept_to_string(self, &mut expr_code),
                 ExprType::ActionCallExprT {
                     action_call_expr_node,
-                } => action_call_expr_node.accept(self),
-                ExprType::CallChainLiteralExprT {
+                } => action_call_expr_node.accept_to_string(self, &mut expr_code),
+                ExprType::CallChainExprT {
                     call_chain_expr_node,
-                } => call_chain_expr_node.accept(self),
-                ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
+                } => call_chain_expr_node.accept_to_string(self, &mut expr_code),
+                ExprType::VariableExprT { var_node: id_node } => {
+                    id_node.accept_to_string(self, &mut expr_code)
+                }
                 ExprType::ExprListT { expr_list_node } => {
                     // must be only 1 expression in the list
                     if expr_list_node.exprs_t.len() != 1 {
@@ -2491,44 +3739,39 @@ impl AstVisitor for PythonVisitor {
                         self.errors
                             .push("Error - expression list is not testable.".to_string());
                     }
-                    let x = expr_list_node.exprs_t.first().unwrap();
-                    x.accept(self);
+                    let expr_t = expr_list_node.exprs_t.first().unwrap();
+                    expr_t.accept(self);
                 }
 
                 _ => self.errors.push("TODO".to_string()),
             }
 
-            // TODO: use accept
-            // self.add_code(&format!(" == \""));
-            // match_branch_node.string_match_pattern_node.accept(self);
-            // self.add_code(&format!("\") {{"));
-
             let mut first_match = true;
-            for match_string in &match_branch_node
-                .string_match_pattern_node
-                .match_pattern_strings
-            {
-                if first_match {
-                    self.add_code(&format!(" == \"{}\")", match_string));
-                    first_match = false;
-                } else {
-                    self.add_code(" or (");
-                    match &string_match_test_node.expr_t {
-                        ExprType::CallExprT {
-                            call_expr_node: method_call_expr_node,
-                        } => method_call_expr_node.accept(self),
-                        ExprType::ActionCallExprT {
-                            action_call_expr_node,
-                        } => action_call_expr_node.accept(self),
-                        ExprType::CallChainLiteralExprT {
-                            call_chain_expr_node,
-                        } => call_chain_expr_node.accept(self),
-                        ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
-                        _ => self.errors.push("TODO".to_string()),
+            match &match_branch_node.string_match_type {
+                StringMatchType::MatchString {
+                    string_match_test_pattern_node,
+                } => {
+                    for match_string in &string_match_test_pattern_node.match_pattern_strings {
+                        if first_match {
+                            first_match = false;
+                            self.add_code(&format!("({} == \"{}\")", expr_code, match_string));
+                        } else {
+                            self.add_code(&format!(" or ({} == \"{}\")", expr_code, match_string));
+                        }
                     }
-                    self.add_code(&format!(" == \"{}\")", match_string));
+                    self.add_code(")");
+                }
+                StringMatchType::MatchNullString => {
+                    self.add_code(&format!("{} is None)", expr_code));
+                }
+                StringMatchType::MatchEmptyString => {
+                    self.add_code(&format!(
+                        "isinstance({}, str) and len({}) == 0)",
+                        expr_code, expr_code
+                    ));
                 }
             }
+
             self.add_code(":");
             self.indent();
 
@@ -2553,9 +3796,27 @@ impl AstVisitor for PythonVisitor {
         &mut self,
         string_match_test_match_branch_node: &StringMatchTestMatchBranchNode,
     ) {
-        let mut generate_pass = false;
-        if string_match_test_match_branch_node.statements.is_empty() {
-            generate_pass = true;
+        // let mut generate_pass = false;
+        // if string_match_test_match_branch_node.statements.is_empty() && string_match_test_match_branch_node.branch_terminator_expr_opt.is_none() {
+        //     generate_pass = true;
+        // }
+
+        // generate 'pass' unless there is a statement that will generate code
+        let mut generate_pass = true;
+        if string_match_test_match_branch_node
+            .branch_terminator_expr_opt
+            .is_some()
+        {
+            generate_pass = false;
+        }
+
+        // even if there statements, it is possible there are only empty
+        // blocks, which should generate a pass. Check if there are only
+        // empty blocks.
+        if generate_pass
+            && self.has_non_block_statements(&string_match_test_match_branch_node.statements)
+        {
+            generate_pass = false;
         }
 
         if generate_pass {
@@ -2571,9 +3832,14 @@ impl AstVisitor for PythonVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code("e._return = ");
-                            expr_t.accept(self);
-                            self.generate_return();
+                            if self.is_in_action_or_operation() {
+                                self.add_code("return ");
+                                expr_t.accept(self);
+                            } else {
+                                self.add_code("__e._return = ");
+                                expr_t.accept(self);
+                                self.generate_return();
+                            }
                         }
                         None => self.generate_return(),
                     },
@@ -2594,11 +3860,30 @@ impl AstVisitor for PythonVisitor {
         &mut self,
         string_match_test_else_branch_node: &StringMatchTestElseBranchNode,
     ) {
+        self.newline();
         self.add_code("else:");
         self.indent();
-        let mut generate_pass = false;
-        if string_match_test_else_branch_node.statements.is_empty() {
-            generate_pass = true;
+
+        // if string_match_test_else_branch_node.statements.is_empty() && string_match_test_else_branch_node.branch_terminator_expr_opt.is_none() {
+        //     generate_pass = true;
+        // }
+
+        // generate 'pass' unless there is a statement that will generate code
+        let mut generate_pass = true;
+        if string_match_test_else_branch_node
+            .branch_terminator_expr_opt
+            .is_some()
+        {
+            generate_pass = false;
+        }
+
+        // even if there statements, it is possible there are only empty
+        // blocks, which should generate a pass. Check if there are only
+        // empty blocks.
+        if generate_pass
+            && self.has_non_block_statements(&string_match_test_else_branch_node.statements)
+        {
+            generate_pass = false;
         }
 
         if generate_pass {
@@ -2615,10 +3900,14 @@ impl AstVisitor for PythonVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code("e._return = ");
-                            expr_t.accept(self);
-                            self.newline();
-                            self.generate_return();
+                            if self.is_in_action_or_operation() {
+                                self.add_code("return ");
+                                expr_t.accept(self);
+                            } else {
+                                self.add_code("__e._return = ");
+                                expr_t.accept(self);
+                                self.generate_return();
+                            }
                         }
                         None => self.generate_return(),
                     },
@@ -2661,7 +3950,7 @@ impl AstVisitor for PythonVisitor {
                 ExprType::ActionCallExprT {
                     action_call_expr_node,
                 } => action_call_expr_node.accept(self),
-                ExprType::CallChainLiteralExprT {
+                ExprType::CallChainExprT {
                     call_chain_expr_node,
                 } => call_chain_expr_node.accept(self),
                 ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
@@ -2692,7 +3981,7 @@ impl AstVisitor for PythonVisitor {
                         ExprType::ActionCallExprT {
                             action_call_expr_node,
                         } => action_call_expr_node.accept(self),
-                        ExprType::CallChainLiteralExprT {
+                        ExprType::CallChainExprT {
                             call_chain_expr_node,
                         } => call_chain_expr_node.accept(self),
                         ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
@@ -2735,9 +4024,14 @@ impl AstVisitor for PythonVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code("e._return = ");
-                            expr_t.accept(self);
-                            self.generate_return();
+                            if self.is_in_action_or_operation() {
+                                self.add_code("return ");
+                                expr_t.accept(self);
+                            } else {
+                                self.add_code("__e._return = ");
+                                expr_t.accept(self);
+                                self.generate_return();
+                            }
                         }
                         None => self.generate_return(),
                     },
@@ -2758,6 +4052,7 @@ impl AstVisitor for PythonVisitor {
         &mut self,
         number_match_test_else_branch_node: &NumberMatchTestElseBranchNode,
     ) {
+        self.newline();
         self.add_code("else:");
         self.indent();
 
@@ -2770,9 +4065,14 @@ impl AstVisitor for PythonVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            self.add_code("e._return = ");
-                            expr_t.accept(self);
-                            self.generate_return();
+                            if self.is_in_action_or_operation() {
+                                self.add_code("return ");
+                                expr_t.accept(self);
+                            } else {
+                                self.add_code("__e._return = ");
+                                expr_t.accept(self);
+                                self.generate_return();
+                            }
                         }
                         None => self.generate_return(),
                     },
@@ -2799,17 +4099,249 @@ impl AstVisitor for PythonVisitor {
         self.add_code(&match_pattern_node.match_pattern_number.to_string());
     }
 
+    //-----------------------------------------------------//
+
+    fn visit_enum_match_test_node(&mut self, enum_match_test_node: &EnumMatchTestNode) {
+        let mut if_or_else_if = "if";
+
+        self.newline();
+        for match_branch_node in &enum_match_test_node.match_branch_nodes {
+            self.add_code(&format!("{} (", if_or_else_if));
+            match &enum_match_test_node.expr_t {
+                ExprType::CallExprT {
+                    call_expr_node: method_call_expr_node,
+                } => method_call_expr_node.accept(self),
+                ExprType::ActionCallExprT {
+                    action_call_expr_node,
+                } => action_call_expr_node.accept(self),
+                ExprType::CallChainExprT {
+                    call_chain_expr_node,
+                } => call_chain_expr_node.accept(self),
+                ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
+                ExprType::ExprListT { expr_list_node } => {
+                    // must be only 1 expression in the list
+                    if expr_list_node.exprs_t.len() != 1 {
+                        // TODO: how to do this better.
+                        self.errors
+                            .push("Error - expression list is not testable.".to_string());
+                    }
+                    let x = expr_list_node.exprs_t.first().unwrap();
+                    x.accept(self);
+                }
+                _ => self.errors.push("TODO.".to_string()),
+            }
+
+            let mut first_match = true;
+            for match_test_pattern_node in &match_branch_node.enum_match_pattern_node {
+                if first_match {
+                    self.add_code(&format!(
+                        " == {}.{})",
+                        self.format_enum_name(&enum_match_test_node.enum_type_name),
+                        match_test_pattern_node.match_pattern
+                    ));
+                    first_match = false;
+                } else {
+                    self.add_code(" or (");
+                    match &enum_match_test_node.expr_t {
+                        ExprType::CallExprT {
+                            call_expr_node: method_call_expr_node,
+                        } => method_call_expr_node.accept(self),
+                        ExprType::ActionCallExprT {
+                            action_call_expr_node,
+                        } => action_call_expr_node.accept(self),
+                        ExprType::CallChainExprT {
+                            call_chain_expr_node,
+                        } => call_chain_expr_node.accept(self),
+                        ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
+                        _ => self.errors.push("TODO.".to_string()),
+                    }
+                    self.add_code(&format!(
+                        " == {}.{})",
+                        self.format_enum_name(&enum_match_test_node.enum_type_name),
+                        match_test_pattern_node.match_pattern
+                    ));
+                }
+            }
+
+            self.add_code(":");
+            self.indent();
+
+            match_branch_node.accept(self);
+            self.generate_return_if_transitioned();
+
+            self.outdent();
+            self.newline();
+
+            if_or_else_if = "elif";
+        }
+
+        // (':' number_test_else_branch)?
+        if let Some(number_match_else_branch_node) = &enum_match_test_node.else_branch_node_opt {
+            number_match_else_branch_node.accept(self);
+        }
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_enum_match_test_match_branch_node(
+        &mut self,
+        enum_match_test_match_branch_node: &EnumMatchTestMatchBranchNode,
+    ) {
+        // generate 'pass' unless there is a statement that will generate code
+        let mut generate_pass = true;
+        if enum_match_test_match_branch_node
+            .branch_terminator_t_opt
+            .is_some()
+        {
+            generate_pass = false;
+        }
+
+        // even if there statements, it is possible there are only empty
+        // blocks, which should generate a pass. Check if there are only
+        // empty blocks.
+        if generate_pass
+            && self.has_non_block_statements(&enum_match_test_match_branch_node.statements)
+        {
+            generate_pass = false;
+        }
+
+        if generate_pass {
+            self.newline();
+            self.add_code("pass");
+        } else {
+            self.visit_decl_stmts(&enum_match_test_match_branch_node.statements);
+        }
+
+        match &enum_match_test_match_branch_node.branch_terminator_t_opt {
+            Some(branch_terminator_expr) => {
+                self.newline();
+                match &branch_terminator_expr.terminator_type {
+                    TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
+                        Some(expr_t) => {
+                            if self.is_in_action_or_operation() {
+                                self.add_code("return ");
+                                expr_t.accept(self);
+                            } else {
+                                self.add_code("__e._return = ");
+                                expr_t.accept(self);
+                                self.generate_return();
+                            }
+                        }
+                        None => self.generate_return(),
+                    },
+                    TerminatorType::Continue => {
+                        self.generate_return_if_transitioned();
+                    }
+                }
+            }
+            None => {
+                self.generate_return_if_transitioned();
+            }
+        }
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_enum_match_test_else_branch_node(
+        &mut self,
+        enum_match_test_else_branch_node: &EnumMatchTestElseBranchNode,
+    ) {
+        self.newline();
+        self.add_code("else:");
+        self.indent();
+
+        // generate 'pass' unless there is a statement that will generate code
+        let mut generate_pass = true;
+        if enum_match_test_else_branch_node
+            .branch_terminator_expr_opt
+            .is_some()
+        {
+            generate_pass = false;
+        }
+
+        // even if there statements, it is possible there are only empty
+        // blocks, which should generate a pass. Check if there are only
+        // empty blocks.
+        if generate_pass
+            && self.has_non_block_statements(&enum_match_test_else_branch_node.statements)
+        {
+            generate_pass = false;
+        }
+
+        if generate_pass {
+            self.newline();
+            self.add_code("pass");
+        } else {
+            self.visit_decl_stmts(&enum_match_test_else_branch_node.statements);
+        }
+
+        // TODO - factor this out to work w/ other terminator code.
+        match &enum_match_test_else_branch_node.branch_terminator_expr_opt {
+            Some(branch_terminator_expr) => {
+                self.newline();
+                match &branch_terminator_expr.terminator_type {
+                    TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
+                        Some(expr_t) => {
+                            if self.is_in_action_or_operation() {
+                                self.add_code("return ");
+                                expr_t.accept(self);
+                            } else {
+                                self.add_code("__e._return = ");
+                                expr_t.accept(self);
+                                self.generate_return();
+                            }
+                        }
+                        None => self.generate_return(),
+                    },
+                    TerminatorType::Continue => {
+                        self.generate_return_if_transitioned();
+                    }
+                }
+            }
+            None => {
+                self.generate_return_if_transitioned();
+            }
+        }
+
+        self.outdent();
+        self.newline();
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_enum_match_test_pattern_node(
+        &mut self,
+        _enum_match_test_pattern_node: &EnumMatchTestPatternNode,
+    ) {
+        // TODO
+        self.errors.push("Not implemented.".to_string());
+    }
+
     //* --------------------------------------------------------------------- *//
 
     fn visit_expression_list_node(&mut self, expr_list: &ExprListNode) {
+        //  self.in_expr_list = true;
+        let mut generate_parens = true;
+        if expr_list.exprs_t.len() == 1 {
+            if let Some(ExprType::TransitionExprT { .. }) = expr_list.exprs_t.get(0) {
+                generate_parens = false;
+            }
+        }
         let mut separator = "";
-        self.add_code("(");
+        if generate_parens {
+            self.add_code("(");
+        }
+
         for expr in &expr_list.exprs_t {
             self.add_code(separator);
             expr.accept(self);
             separator = ",";
         }
-        self.add_code(")");
+
+        if generate_parens {
+            self.add_code(")");
+        }
+        //  self.in_expr_list = false;
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2819,7 +4351,7 @@ impl AstVisitor for PythonVisitor {
         expr_list: &ExprListNode,
         output: &mut String,
     ) {
-        //        self.add_code(&format!("{}(e);\n",dispatch_node.target_state_ref.name));
+        //        self.add_code(&format!("{}(__e);\n",dispatch_node.target_state_ref.name));
 
         let mut separator = "";
         output.push('(');
@@ -2829,6 +4361,14 @@ impl AstVisitor for PythonVisitor {
             separator = ",";
         }
         output.push(')');
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_expr_list_stmt_node(&mut self, expr_list_stmt_node: &ExprListStmtNode) {
+        let ref expr_list_node = expr_list_stmt_node.expr_list_node;
+        self.test_skip_newline();
+        expr_list_node.accept(self);
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2938,7 +4478,7 @@ impl AstVisitor for PythonVisitor {
     }
     //* --------------------------------------------------------------------- *//
 
-    fn visit_state_context_node(&mut self, _state_context_node: &StateContextNode) {
+    fn visit_state_context_node(&mut self, _state_context_node: &TargetStateContextNode) {
         // TODO
         //        self.add_code(&format!("{}",identifier_node.name.lexeme));
     }
@@ -2953,17 +4493,17 @@ impl AstVisitor for PythonVisitor {
             } => self.add_code("e"),
             FrameEventPart::Message {
                 is_reference: _is_reference,
-            } => self.add_code("e._message"),
+            } => self.add_code("__e._message"),
             FrameEventPart::Param {
                 param_symbol_rcref,
                 is_reference: _is_reference,
             } => self.add_code(&format!(
-                "e._params[\"{}\"]",
+                "__e._parameters[\"{}\"]",
                 param_symbol_rcref.borrow().name
             )),
             FrameEventPart::Return {
                 is_reference: _is_reference,
-            } => self.add_code("e._return"),
+            } => self.add_code("__e._return"),
         }
     }
 
@@ -2982,33 +4522,35 @@ impl AstVisitor for PythonVisitor {
             } => output.push('e'),
             FrameEventPart::Message {
                 is_reference: _is_reference,
-            } => output.push_str("e._message"),
+            } => output.push_str("__e._message"),
             FrameEventPart::Param {
                 param_symbol_rcref,
                 is_reference: _is_reference,
             } => output.push_str(&format!(
-                "e._params[\"{}\"]",
+                "__e._parameters[\"{}\"]",
                 param_symbol_rcref.borrow().name
             )),
             FrameEventPart::Return {
                 is_reference: _is_reference,
-            } => output.push_str("e._return"),
+            } => output.push_str("__e._return"),
         }
     }
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_decl_node(&mut self, action_decl_node: &ActionNode) {
+    fn visit_action_node(&mut self, action_node: &ActionNode) {
+        self.action_scope_depth += 1;
+
         let mut subclass_code = String::new();
 
         self.newline();
-
-        let action_name = self.format_action_name(&action_decl_node.name);
+        self.newline();
+        let action_name = self.format_action_name(&action_node.name);
         self.add_code(&format!("def {}(self", action_name));
         self.newline_to_string(&mut subclass_code);
         subclass_code.push_str(&format!("#def {}(self", action_name));
 
-        match &action_decl_node.params {
+        match &action_node.params {
             Some(params) => {
                 self.add_code(",");
                 subclass_code.push(',');
@@ -3019,14 +4561,52 @@ impl AstVisitor for PythonVisitor {
 
         self.add_code("):");
         subclass_code.push_str("):");
+
         self.indent();
-        self.newline();
-        self.add_code("raise NotImplementedError");
-        self.newline_to_string(&mut subclass_code);
-        subclass_code.push_str("#pass");
+        if !action_node.is_implemented {
+            self.newline();
+            self.add_code("raise NotImplementedError");
+            self.newline_to_string(&mut subclass_code);
+            subclass_code.push_str("#pass");
+        } else {
+            // Generate statements
+            if action_node.statements.is_empty() && action_node.terminator_node_opt.is_none() {
+                self.newline();
+                self.add_code("pass");
+            } else {
+                if !action_node.statements.is_empty() {
+                    // self.newline();
+                    self.visit_decl_stmts(&action_node.statements);
+                }
+                if let Some(terminator_expr) = &action_node.terminator_node_opt {
+                    self.newline();
+                    match &terminator_expr.terminator_type {
+                        TerminatorType::Return => match &terminator_expr.return_expr_t_opt {
+                            Some(expr_t) => {
+                                self.add_code("return ");
+                                expr_t.accept(self);
+                                self.newline();
+                            }
+                            None => {
+                                self.add_code("return");
+                                self.newline();
+                            }
+                        },
+                        TerminatorType::Continue => {
+                            // shouldn't happen.
+                            self.errors
+                                .push("Continue not allowed as action terminator.".to_string());
+                        }
+                    }
+                }
+            }
+        }
+
         self.outdent();
-        self.newline();
+        // self.newline();
         self.subclass_code.push(subclass_code);
+
+        self.action_scope_depth -= 1;
     }
 
     //* --------------------------------------------------------------------- *//
@@ -3051,9 +4631,70 @@ impl AstVisitor for PythonVisitor {
         self.add_code("):");
         self.indent();
         self.newline();
+        // TODO: I think code_opt is dead code.
         self.add_code(action_node.code_opt.as_ref().unwrap().as_str());
         self.outdent();
     }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_enum_decl_node(&mut self, enum_decl_node: &EnumDeclNode) {
+        self.newline();
+        self.newline();
+
+        self.add_code(&format!(
+            "class {}_{}(Enum):",
+            self.system_name, enum_decl_node.name
+        ));
+        self.indent();
+
+        for enumerator_decl_node in &enum_decl_node.enums {
+            enumerator_decl_node.accept(self);
+        }
+
+        self.outdent();
+        self.newline()
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_enumerator_decl_node(&mut self, enumerator_decl_node: &EnumeratorDeclNode) {
+        self.newline();
+        self.add_code(&format!(
+            "{} = {}",
+            enumerator_decl_node.name, enumerator_decl_node.value
+        ));
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_enumerator_expr_node(&mut self, enum_expr_node: &EnumeratorExprNode) {
+        self.add_code(&format!(
+            "{}_{}.{}",
+            self.system_name, enum_expr_node.enum_type, enum_expr_node.enumerator
+        ));
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_enumerator_expr_node_to_string(
+        &mut self,
+        enum_expr_node: &EnumeratorExprNode,
+        output: &mut String,
+    ) {
+        output.push_str(&format!(
+            "{}_{}.{}",
+            self.system_name, enum_expr_node.enum_type, enum_expr_node.enumerator
+        ));
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_enumerator_statement_node(&mut self, enumerator_stmt_node: &EnumeratorStmtNode) {
+        self.newline();
+        enumerator_stmt_node.enumerator_expr_node.accept(self);
+    }
+
     //* --------------------------------------------------------------------- *//
 
     fn visit_domain_variable_decl_node(&mut self, variable_decl_node: &VariableDeclNode) {
@@ -3063,25 +4704,46 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_variable_decl_node(&mut self, variable_decl_node: &VariableDeclNode) {
+        self.newline();
         let var_type = match &variable_decl_node.type_opt {
             Some(type_node) => self.format_type(type_node),
             None => String::from(""),
         };
         let var_name = &variable_decl_node.name;
-        let var_init_expr = &variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
-        self.newline();
+        let var_init_expr = &variable_decl_node.get_initializer_value_rc();
+        //self.newline();
         let mut code = String::new();
         var_init_expr.accept_to_string(self, &mut code);
         match &variable_decl_node.identifier_decl_scope {
-            IdentifierDeclScope::DomainBlock => {
+            IdentifierDeclScope::DomainBlockScope => {
                 self.add_code(&format!("self.{} ", var_name));
+                if !var_type.is_empty() {
+                    self.add_code(&format!(": {}", var_type));
+                }
+                if let Some(variable_init_override) = &self.variable_init_override_opt {
+                    // TODO - move "domain_param_" prefix into config variables.
+                    let copy_to_suppress_warning = variable_init_override.clone();
+                    self.add_code(&format!(" = domain_param_{}", copy_to_suppress_warning));
+                } else {
+                    self.add_code(&format!(" = {}", code));
+                }
+            }
+            IdentifierDeclScope::EventHandlerVarScope => {
+                self.add_code(&format!("{}", var_name));
                 if !var_type.is_empty() {
                     self.add_code(&format!(": {}", var_type));
                 }
                 self.add_code(&format!(" = {}", code));
             }
-            IdentifierDeclScope::EventHandlerVar => {
-                self.add_code(&format!("{} ", var_name));
+            IdentifierDeclScope::LoopVarScope => {
+                self.add_code(&format!("{}", var_name));
+                if !var_type.is_empty() {
+                    self.add_code(&format!(": {}", var_type));
+                }
+                self.add_code(&format!(" = {}", code));
+            }
+            IdentifierDeclScope::BlockVarScope => {
+                self.add_code(&format!("{}", var_name));
                 if !var_type.is_empty() {
                     self.add_code(&format!(": {}", var_type));
                 }
@@ -3094,6 +4756,33 @@ impl AstVisitor for PythonVisitor {
             .push(format!("\tbag.domain[\"{}\"] = {}", var_name, var_name));
         self.deserialize
             .push(format!("\t{} = bag.domain[\"{}\"]", var_name, var_name));
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_loop_variable_decl_node(&mut self, loop_variable_decl_node: &LoopVariableDeclNode) {
+        let var_type = match &loop_variable_decl_node.type_opt {
+            Some(type_node) => self.format_type(type_node),
+            None => String::from(""),
+        };
+        let var_name = &loop_variable_decl_node.name;
+        let var_init_expr = &loop_variable_decl_node
+            .initializer_expr_t_opt
+            .as_ref()
+            .unwrap();
+        self.newline();
+        let mut code = String::new();
+        var_init_expr.accept_to_string(self, &mut code);
+        match &loop_variable_decl_node.identifier_decl_scope {
+            IdentifierDeclScope::LoopVarScope => {
+                self.add_code(&format!("self.{} ", var_name));
+                if !var_type.is_empty() {
+                    self.add_code(&format!(": {}", var_type));
+                }
+                self.add_code(&format!(" = {}", code));
+            }
+            _ => panic!("Error - unexpected scope for variable declaration"),
+        }
     }
 
     //* --------------------------------------------------------------------- *//
@@ -3127,11 +4816,22 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_assignment_expr_node(&mut self, assignment_expr_node: &AssignmentExprNode) {
-        self.generate_comment(assignment_expr_node.line);
-        self.newline();
+        // self.generate_comment(assignment_expr_node.line);
+        // self.newline();
+        // inc/dec all *rvalue* expressions before generating the
+        // assignement statement
+        // assignment_expr_node.r_value_box.auto_pre_inc_dec(self);
+        // now generate assignment expression
         assignment_expr_node.l_value_box.accept(self);
         self.add_code(" = ");
-        assignment_expr_node.r_value_box.accept(self);
+        //self.add_code(&*output);
+        //       assignment_expr_node.r_value_box.auto_pre_inc_dec(self);
+        let mut output = String::new();
+        assignment_expr_node
+            .r_value_rc
+            .accept_to_string(self, &mut output);
+        self.add_code(&*output);
+        // assignment_expr_node.r_value_box.auto_post_inc_dec(self);
     }
 
     //* --------------------------------------------------------------------- *//
@@ -3141,15 +4841,15 @@ impl AstVisitor for PythonVisitor {
         assignment_expr_node: &AssignmentExprNode,
         output: &mut String,
     ) {
-        self.generate_comment(assignment_expr_node.line);
-        self.newline();
-        self.newline_to_string(output);
+        // self.generate_comment(assignment_expr_node.line);
+        // self.newline();
+        // self.newline_to_string(output);
         assignment_expr_node
             .l_value_box
             .accept_to_string(self, output);
         output.push_str(" = ");
         assignment_expr_node
-            .r_value_box
+            .r_value_rc
             .accept_to_string(self, output);
     }
 
@@ -3157,6 +4857,7 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_assignment_statement_node(&mut self, assignment_stmt_node: &AssignmentStmtNode) {
         self.generate_comment(assignment_stmt_node.get_line());
+        self.newline();
         assignment_stmt_node.assignment_expr_node.accept(self);
     }
 
@@ -3183,6 +4884,34 @@ impl AstVisitor for PythonVisitor {
             .right_rcref
             .borrow()
             .accept_to_string(self, output);
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_binary_stmt_node(&mut self, binary_stmt_node: &BinaryStmtNode) {
+        self.newline();
+
+        // binary_stmt_node
+        //     .binary_expr_node
+        //     .left_rcref
+        //     .borrow()
+        //     .auto_pre_inc_dec(self);
+        // binary_stmt_node
+        //     .binary_expr_node
+        //     .right_rcref
+        //     .borrow()
+        //     .auto_pre_inc_dec(self);
+        binary_stmt_node.binary_expr_node.accept(self);
+        // binary_stmt_node
+        //     .binary_expr_node
+        //     .left_rcref
+        //     .borrow()
+        //     .auto_post_inc_dec(self);
+        // binary_stmt_node
+        //     .binary_expr_node
+        //     .right_rcref
+        //     .borrow()
+        //     .auto_post_inc_dec(self);
     }
 
     //* --------------------------------------------------------------------- *//

@@ -11,16 +11,16 @@ from framelang.framelang import FrameEvent
     to_yy
     nn [d:str]
     ny [d:str]
-    yn [d:str x:str]
-    yy [d:str x:str]
+    yn [d:str, x:str]
+    yy [d:str, x:str]
     sigils [x:str]
 
     -machine-
     $Init
         |to_nn| -> $NN ("$NN[b]") ^
         |to_ny| -> $NY ("$NY[b]") ^
-        |to_yn| -> $YN ("$YN[b]" "$YN[x]") ^
-        |to_yy| -> $YY ("$YY[b]" "$YY[x]") ^
+        |to_yn| -> $YN ("$YN[b]", "$YN[x]") ^
+        |to_yy| -> $YY ("$YY[b]", "$YY[x]") ^
 
     $NN [b:str]
         var c:str = "$NN.c"
@@ -46,7 +46,7 @@ from framelang.framelang import FrameEvent
             log(x)
             ^
 
-        |yn| [d:str x:str]
+        |yn| [d:str, x:str]
             var et:str = "|yn|.e"
             log(a)
             log(b)
@@ -56,7 +56,7 @@ from framelang.framelang import FrameEvent
             log(x)
             ^
 
-        |yy| [d:str x:str]
+        |yy| [d:str, x:str]
             var et:str = "|yy|.e"
             var x:str = "|yy|.x"
             log(a)
@@ -68,10 +68,10 @@ from framelang.framelang import FrameEvent
             ^
 
         |sigils| [x:str]
-            --- var x:str = "|sigils|.x"
+            // var x:str = "|sigils|.x"
             log(#.x)
-            --- log(||[x])
-            --- log(||.x)
+            // log(||[x])
+            // log(||.x)
             ^
 
     $NY [b:str]
@@ -99,7 +99,7 @@ from framelang.framelang import FrameEvent
             log(x)
             ^
 
-        |yn| [d:str x:str]
+        |yn| [d:str, x:str]
             var et:str = "|yn|.e"
             log(a)
             log(b)
@@ -109,7 +109,7 @@ from framelang.framelang import FrameEvent
             log(x)
             ^
 
-        |yy| [d:str x:str]
+        |yy| [d:str, x:str]
             var et:str = "|yy|.e"
             var x:str = "|yy|.x"
             log(a)
@@ -121,14 +121,14 @@ from framelang.framelang import FrameEvent
             ^
 
         |sigils| [x:str]
-            --- var x:str = "|sigils|.x"
+            // var x:str = "|sigils|.x"
             log(#.x)
-            --- log($.x)
-            --- log(||[x])
-            --- log(||.x)
+            // log($.x)
+            // log(||[x])
+            // log(||.x)
             ^
 
-    $YN [b:str x:str]
+    $YN [b:str, x:str]
         var c:str = "$YN.c"
 
         |nn| [d:str]
@@ -152,7 +152,7 @@ from framelang.framelang import FrameEvent
             log(x)
             ^
 
-        |yn| [d:str x:str]
+        |yn| [d:str, x:str]
             var et:str = "|yn|.e"
             log(a)
             log(b)
@@ -162,7 +162,7 @@ from framelang.framelang import FrameEvent
             log(x)
             ^
 
-        |yy| [d:str x:str]
+        |yy| [d:str, x:str]
             var et:str = "|yy|.e"
             var x:str = "|yy|.x"
             log(a)
@@ -174,14 +174,14 @@ from framelang.framelang import FrameEvent
             ^
 
         |sigils| [x:str]
-            --- var x:str = "|sigils|.x"
+            // var x:str = "|sigils|.x"
             log(#.x)
-            --- log($[x])
-            --- log(||[x])
-            --- log(||.x)
+            // log($[x])
+            // log(||[x])
+            // log(||.x)
             ^
 
-    $YY [b:str x:str]
+    $YY [b:str, x:str]
         var c:str = "$YY.c"
         var x:str = "$YY.x"
 
@@ -206,7 +206,7 @@ from framelang.framelang import FrameEvent
             log(x)
             ^
 
-        |yn| [d:str x:str]
+        |yn| [d:str, x:str]
             var et:str = "|yn|.e"
             log(a)
             log(b)
@@ -216,7 +216,7 @@ from framelang.framelang import FrameEvent
             log(x)
             ^
 
-        |yy| [d:str x:str]
+        |yy| [d:str, x:str]
             var et:str = "|yy|.e"
             var x:str = "|yy|.x"
             log(a)
@@ -228,12 +228,12 @@ from framelang.framelang import FrameEvent
             ^
 
         |sigils| [x:str]
-            --- var x:str = "|sigils|.x"
+            // var x:str = "|sigils|.x"
             log(#.x)
-            --- log($[x])
-            --- log($.x)
-            --- log(||[x])
-            --- log(||.x)
+            // log($[x])
+            // log($.x)
+            // log(||[x])
+            // log(||.x)
             ^
 
     -actions-

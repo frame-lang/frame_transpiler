@@ -1,4 +1,4 @@
-// emitted from framec_v0.10.0
+// emitted from framec_v0.11.0
 // get include files at https://github.com/frame-lang/frame-ancillary-files
 
 function FrameEvent(message, parameters) {
@@ -167,7 +167,7 @@ class EventHandler {
     
     // Unimplemented Actions
     
-    log_do(val) { throw new Error('Action not implemented.'); }
+    log_do(msg,val) { throw new Error('Action not implemented.'); }
     
     //=============== Machinery and Mechanisms ==============//
     
@@ -211,7 +211,7 @@ class EventHandlerController extends EventHandler {
 	constructor() {
 	  super()
 	}
-	log_do(val) {}
+	log_do(msg,val) {}
 };
 
 ********************/

@@ -206,13 +206,13 @@ impl RustVisitor {
         };
         let mut borrowed = false;
         match var_node.scope {
-            IdentifierDeclScope::DomainBlock => {
+            IdentifierDeclScope::DomainBlockScope => {
                 if var_node.id_node.is_reference {
                     code.push('&');
                 }
                 code.push_str(&format!("self.{}", var_name));
             }
-            IdentifierDeclScope::StateParam => {
+            IdentifierDeclScope::StateParamScope => {
                 borrowed = true;
                 if self.visiting_call_chain_literal_variable {
                     code.push('(');
@@ -231,7 +231,7 @@ impl RustVisitor {
                     code.push(')');
                 }
             }
-            IdentifierDeclScope::StateVar => {
+            IdentifierDeclScope::StateVarScope => {
                 borrowed = true;
                 if self.visiting_call_chain_literal_variable {
                     code.push('(');
@@ -250,7 +250,7 @@ impl RustVisitor {
                     code.push(')');
                 }
             }
-            IdentifierDeclScope::EventHandlerParam => {
+            IdentifierDeclScope::EventHandlerParamScope => {
                 borrowed = true;
                 if self.visiting_call_chain_literal_variable {
                     code.push('(');
@@ -275,13 +275,13 @@ impl RustVisitor {
                     code.push(')');
                 }
             }
-            IdentifierDeclScope::EventHandlerVar => {
+            IdentifierDeclScope::EventHandlerVarScope => {
                 if var_node.id_node.is_reference {
                     code.push('&');
                 }
                 code.push_str(&self.format_value_name(&var_node.id_node.name.lexeme));
             }
-            IdentifierDeclScope::None => {
+            IdentifierDeclScope::UnknownScope => {
                 // TODO: Explore labeling Variables as "extern" scope
                 if var_node.id_node.is_reference {
                     code.push('&');
@@ -671,20 +671,31 @@ impl RustVisitor {
     fn visit_decl_stmts(&mut self, decl_stmt_types: &[DeclOrStmtType]) {
         for decl_stmt_t in decl_stmt_types.iter() {
             match decl_stmt_t {
-                DeclOrStmtType::VarDeclT { var_decl_t_rc_ref } => {
+                DeclOrStmtType::VarDeclT {
+                    var_decl_t_rcref: var_decl_t_rc_ref,
+                } => {
                     let variable_decl_node = var_decl_t_rc_ref.borrow();
                     variable_decl_node.accept(self);
                 }
                 DeclOrStmtType::StmtT { stmt_t } => {
                     match stmt_t {
                         StatementType::ExpressionStmt { expr_stmt_t } => match expr_stmt_t {
+                            ExprStmtType::TransitionStmtT {
+                                transition_statement_node: _transition_statement_node,
+                            } => panic!("TODO"),
+                            ExprStmtType::SystemInstanceStmtT {
+                                system_instance_stmt_node,
+                            } => system_instance_stmt_node.accept(self),
+                            ExprStmtType::SystemTypeStmtT {
+                                system_type_stmt_node,
+                            } => system_type_stmt_node.accept(self),
                             ExprStmtType::ActionCallStmtT {
                                 action_call_stmt_node,
                             } => action_call_stmt_node.accept(self),
                             ExprStmtType::CallStmtT { call_stmt_node } => {
                                 call_stmt_node.accept(self)
                             }
-                            ExprStmtType::CallChainLiteralStmtT {
+                            ExprStmtType::CallChainStmtT {
                                 call_chain_literal_stmt_node,
                             } => call_chain_literal_stmt_node.accept(self),
                             ExprStmtType::AssignmentStmtT {
@@ -693,9 +704,18 @@ impl RustVisitor {
                             ExprStmtType::VariableStmtT { variable_stmt_node } => {
                                 variable_stmt_node.accept(self)
                             }
+                            ExprStmtType::ExprListStmtT {
+                                expr_list_stmt_node,
+                            } => expr_list_stmt_node.accept(self),
+                            ExprStmtType::EnumeratorStmtT {
+                                enumerator_stmt_node,
+                            } => enumerator_stmt_node.accept(self),
+                            ExprStmtType::BinaryStmtT { binary_stmt_node } => {
+                                binary_stmt_node.accept(self)
+                            }
                         },
                         StatementType::TransitionStmt {
-                            transition_statement,
+                            transition_statement_node: transition_statement,
                         } => {
                             transition_statement.accept(self);
                         }
@@ -707,8 +727,27 @@ impl RustVisitor {
                         } => {
                             state_stack_operation_statement_node.accept(self);
                         }
-                        StatementType::ChangeStateStmt { change_state_stmt } => {
+                        StatementType::ChangeStateStmt {
+                            change_state_stmt_node: change_state_stmt,
+                        } => {
                             change_state_stmt.accept(self);
+                        }
+                        StatementType::LoopStmt { loop_stmt_node } => {
+                            loop_stmt_node.accept(self);
+                        }
+                        StatementType::BlockStmt { block_stmt_node } => {
+                            block_stmt_node.accept(self);
+                        }
+                        StatementType::ContinueStmt { continue_stmt_node } => {
+                            continue_stmt_node.accept(self);
+                        }
+                        StatementType::BreakStmt { break_stmt_node } => {
+                            break_stmt_node.accept(self);
+                        }
+                        StatementType::SuperStringStmt {
+                            super_string_stmt_node,
+                        } => {
+                            super_string_stmt_node.accept(self);
                         }
                         StatementType::NoStmt => {
                             // TODO
@@ -893,9 +932,9 @@ impl RustVisitor {
                 self.newline();
                 self.add_code("&MethodInfo");
                 self.enter_block();
-                let action_decl_rcref = self.arcanum.lookup_action(&action_name).unwrap();
-                let action_decl = action_decl_rcref.borrow();
-                if let Some(action_rcref) = &action_decl.ast_node {
+                let action_scope_symbol_rcref = self.arcanum.lookup_action(&action_name).unwrap();
+                let action_scope_symbol = action_scope_symbol_rcref.borrow();
+                if let Some(action_rcref) = &action_scope_symbol.ast_node_opt {
                     let action = action_rcref.borrow();
                     self.add_code(&format!("name: \"{}\",", action.name));
                     self.newline();
@@ -928,7 +967,7 @@ impl RustVisitor {
                         }
                     ));
                 } else {
-                    self.add_code(&format!("name: \"{}\",", action_decl.name));
+                    self.add_code(&format!("name: \"{}\",", action_scope_symbol.name));
                     self.newline();
                     self.add_code("parameters: &[],");
                     self.newline();
@@ -958,7 +997,7 @@ impl RustVisitor {
                 if let Some(event_rcref) = self.arcanum.get_event(event_name, &None) {
                     let event = event_rcref.borrow();
                     self.add_code("parameters: &[");
-                    if let Some(params) = &event.params_opt {
+                    if let Some(params) = &event.event_symbol_params_opt {
                         if !params.is_empty() {
                             self.indent();
                             for param in params {
@@ -1083,7 +1122,7 @@ impl RustVisitor {
         let state_name = state_node.name.clone();
         let state_symbol_rcref = self.arcanum.get_state(&state_name).unwrap();
         let state_symbol = state_symbol_rcref.borrow();
-        let state_node_rcref = state_symbol.state_node.as_ref().unwrap();
+        let state_node_rcref = state_symbol.state_node_opt.as_ref().unwrap();
         let state_node = state_node_rcref.borrow();
 
         // begin constant, machine, and name
@@ -1180,7 +1219,7 @@ impl RustVisitor {
     fn generate_state_enum(&mut self, system_node: &SystemNode) {
         // add derived traits
         let mut traits = self.config.code.state_enum_traits.clone();
-        match &system_node.attributes_opt {
+        match &system_node.system_attributes_opt {
             Some(attributes) => {
                 if let Some(new_traits) = attributes.get("override_state_enum_traits") {
                     if let AttributeNode::MetaNameValueStr { attr } = new_traits {
@@ -1519,7 +1558,7 @@ impl RustVisitor {
         // generate an arg struct for all events that have parameters
         for event_name in self.arcanum.get_event_names() {
             if let Some(event_sym) = self.arcanum.get_event(&event_name, &None) {
-                if let Some(params) = &event_sym.borrow().params_opt {
+                if let Some(params) = &event_sym.borrow().event_symbol_params_opt {
                     let event_type_name = self.format_event_type_name(&event_name);
                     let args_struct_name = self.format_args_struct_name(&event_type_name);
                     let mut bound_names: Vec<String> = Vec::new();
@@ -2136,7 +2175,7 @@ impl RustVisitor {
             for variable_decl_node_rcref in &domain_block_node.member_variables {
                 let variable_decl_node = variable_decl_node_rcref.borrow();
                 let variable_name = self.format_value_name(&variable_decl_node.name);
-                let var_init_expr = &variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
+                let var_init_expr = &variable_decl_node.value_rc;
                 let mut code = String::new();
                 var_init_expr.accept_to_string(self, &mut code);
                 self.newline();
@@ -2815,7 +2854,7 @@ impl RustVisitor {
                 .arcanum
                 .get_event(&exit_msg, &self.current_state_name_opt)
             {
-                match &event_sym.borrow().params_opt {
+                match &event_sym.borrow().event_symbol_params_opt {
                     Some(event_params) => {
                         let param_names = event_params.iter().map(|p| &p.name).collect();
                         has_args = self.generate_arguments(
@@ -2856,7 +2895,7 @@ impl RustVisitor {
     fn generate_enter_arguments(
         &mut self,
         target_state_name: &str,
-        state_context_node: &StateContextNode,
+        state_context_node: &TargetStateContextNode,
         arg_code: &mut String,
     ) -> bool {
         let mut has_args = false;
@@ -2872,7 +2911,7 @@ impl RustVisitor {
                 .arcanum
                 .get_event(&enter_msg, &self.current_state_name_opt)
             {
-                match &event_sym.borrow().params_opt {
+                match &event_sym.borrow().event_symbol_params_opt {
                     Some(event_params) => {
                         let param_names = event_params.iter().map(|p| &p.name).collect();
                         has_args = self.generate_arguments(
@@ -2956,7 +2995,7 @@ impl RustVisitor {
         let mut has_vars = false;
         if let Some(state_symbol_rcref) = self.arcanum.get_state(target_state_name) {
             let state_symbol = state_symbol_rcref.borrow();
-            let state_node = &state_symbol.state_node.as_ref().unwrap().borrow();
+            let state_node = &state_symbol.state_node_opt.as_ref().unwrap().borrow();
             // generate local state variables
             if state_node.vars_opt.is_some() {
                 has_vars = true;
@@ -2967,7 +3006,7 @@ impl RustVisitor {
                 self.indent();
                 for var_rcref in state_node.vars_opt.as_ref().unwrap() {
                     let var = var_rcref.borrow();
-                    let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
+                    let expr_t = &var.value_rc;
                     let mut expr_code = String::new();
                     expr_t.accept_to_string(self, &mut expr_code);
                     self.newline_to_string(var_code);
@@ -3057,7 +3096,7 @@ impl RustVisitor {
 
         // get the name of the next state
         let target_state_name = match &change_state_stmt.state_context_t {
-            StateContextType::StateRef { state_context_node } => {
+            TargetStateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_node.name
             }
             _ => {
@@ -3082,7 +3121,7 @@ impl RustVisitor {
         let mut has_state_args = false;
         let mut state_args_code = String::new();
         match &change_state_stmt.state_context_t {
-            StateContextType::StateRef { state_context_node } => {
+            TargetStateContextType::StateRef { state_context_node } => {
                 if let Some(state_args) = &state_context_node.state_ref_args_opt {
                     has_state_args = self.generate_state_arguments(
                         target_state_name,
@@ -3091,7 +3130,7 @@ impl RustVisitor {
                     );
                 }
             }
-            StateContextType::StateStackPop {} => {}
+            TargetStateContextType::StateStackPop {} => {}
         };
 
         // generate state variables
@@ -3155,8 +3194,8 @@ impl RustVisitor {
         self.add_code("// Start transition");
 
         // get the name of the next state
-        let target_state_name = match &transition_stmt.target_state_context_t {
-            StateContextType::StateRef { state_context_node } => {
+        let target_state_name = match &transition_stmt.transition_expr_node.target_state_context_t {
+            TargetStateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_node.name
             }
             _ => {
@@ -3167,7 +3206,7 @@ impl RustVisitor {
 
         // get the transition label, and print it if provided
         let mut label = String::new();
-        if let Some(s) = &transition_stmt.label_opt {
+        if let Some(s) = &transition_stmt.transition_expr_node.label_opt {
             label.push_str(s);
             self.newline();
             self.add_code(&format!("// {}", s));
@@ -3188,15 +3227,15 @@ impl RustVisitor {
         if self.generate_enter_args {
             let mut has_enter_args = false;
             let mut enter_args_code = String::new();
-            match &transition_stmt.target_state_context_t {
-                StateContextType::StateRef { state_context_node } => {
+            match &transition_stmt.transition_expr_node.target_state_context_t {
+                TargetStateContextType::StateRef { state_context_node } => {
                     has_enter_args = self.generate_enter_arguments(
                         target_state_name,
                         state_context_node,
                         &mut enter_args_code,
                     );
                 }
-                StateContextType::StateStackPop {} => {}
+                TargetStateContextType::StateStackPop {} => {}
             }
             if !has_enter_args {
                 enter_args_code = format!("{}::None", self.config.code.frame_event_args_type_name);
@@ -3214,8 +3253,8 @@ impl RustVisitor {
         // generate state arguments
         let mut has_state_args = false;
         let mut state_args_code = String::new();
-        match &transition_stmt.target_state_context_t {
-            StateContextType::StateRef { state_context_node } => {
+        match &transition_stmt.transition_expr_node.target_state_context_t {
+            TargetStateContextType::StateRef { state_context_node } => {
                 if let Some(state_args) = &state_context_node.state_ref_args_opt {
                     has_state_args = self.generate_state_arguments(
                         target_state_name,
@@ -3224,7 +3263,7 @@ impl RustVisitor {
                     );
                 }
             }
-            StateContextType::StateStackPop {} => {}
+            TargetStateContextType::StateStackPop {} => {}
         };
 
         // generate state variables
@@ -3370,7 +3409,7 @@ impl RustVisitor {
 
         // get the transition label, and print it if provided
         let mut label = String::new();
-        if let Some(s) = &transition_stmt.label_opt {
+        if let Some(s) = &transition_stmt.transition_expr_node.label_opt {
             label.push_str(s);
             self.newline();
             self.add_code(&format!("// {}", s));
@@ -3444,7 +3483,7 @@ impl AstVisitor for RustVisitor {
 
         self.add_code(&format!("// {}", self.compiler_version));
         self.newline();
-        self.add_code(&system_node.header);
+        // self.add_code(&system_node.header);
         self.newline();
         self.add_code("#[allow(unused_imports)]");
         self.newline();
@@ -4543,11 +4582,14 @@ impl AstVisitor for RustVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_transition_statement_node(&mut self, transition_statement: &TransitionStatementNode) {
-        match &transition_statement.target_state_context_t {
-            StateContextType::StateRef { .. } => {
+        match &transition_statement
+            .transition_expr_node
+            .target_state_context_t
+        {
+            TargetStateContextType::StateRef { .. } => {
                 self.generate_state_ref_transition(transition_statement)
             }
-            StateContextType::StateStackPop {} => {
+            TargetStateContextType::StateStackPop {} => {
                 self.generate_state_stack_pop_transition(transition_statement)
             }
         };
@@ -4567,10 +4609,10 @@ impl AstVisitor for RustVisitor {
         change_state_stmt_node: &ChangeStateStatementNode,
     ) {
         match &change_state_stmt_node.state_context_t {
-            StateContextType::StateRef { .. } => {
+            TargetStateContextType::StateRef { .. } => {
                 self.generate_state_ref_change_state(change_state_stmt_node)
             }
-            StateContextType::StateStackPop {} => {
+            TargetStateContextType::StateStackPop {} => {
                 self.generate_state_stack_pop_change_state(change_state_stmt_node)
             }
         };
@@ -4612,6 +4654,11 @@ impl AstVisitor for RustVisitor {
                 number_match_test_node,
             } => {
                 number_match_test_node.accept(self);
+            }
+            TestType::EnumMatchTest {
+                enum_match_test_node,
+            } => {
+                enum_match_test_node.accept(self);
             }
         }
     }
@@ -4668,9 +4715,9 @@ impl AstVisitor for RustVisitor {
     // precisely, but this would require embedding some logic in the generated code and would make
     // handlers harder to reason about. The conservative approach has the advantage of both
     // simplifying the implementation and reasoning about Frame programs.
-    fn visit_call_chain_literal_statement_node(
+    fn visit_call_chain_statement_node(
         &mut self,
-        method_call_chain_literal_stmt_node: &CallChainLiteralStmtNode,
+        method_call_chain_literal_stmt_node: &CallChainStmtNode,
     ) {
         self.newline();
 
@@ -4679,7 +4726,7 @@ impl AstVisitor for RustVisitor {
             .call_chain_literal_expr_node
             .call_chain;
         if call_chain.len() == 1 {
-            if let CallChainLiteralNodeType::InterfaceMethodCallT {
+            if let CallChainNodeType::InterfaceMethodCallT {
                 interface_method_call_expr_node,
             } = &call_chain[0]
             {
@@ -4701,9 +4748,9 @@ impl AstVisitor for RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_chain_literal_expr_node(
+    fn visit_call_chain_expr_node(
         &mut self,
-        method_call_chain_expression_node: &CallChainLiteralExprNode,
+        method_call_chain_expression_node: &CallChainExprNode,
     ) {
         // TODO: maybe put this in an AST node
         let mut separator = "";
@@ -4711,23 +4758,33 @@ impl AstVisitor for RustVisitor {
         for node in &method_call_chain_expression_node.call_chain {
             self.add_code(separator);
             match &node {
-                CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
+                CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                     id_node.accept(self);
                 }
-                CallChainLiteralNodeType::CallT { call } => {
+                CallChainNodeType::UndeclaredCallT { call } => {
                     call.accept(self);
                 }
-                CallChainLiteralNodeType::InterfaceMethodCallT { .. } => {
+                CallChainNodeType::InterfaceMethodCallT { .. } => {
                     self.errors.push(String::from(
                         "Error: Interface method calls may not appear in call chains.",
                     ));
                 }
-                CallChainLiteralNodeType::ActionCallT {
+                CallChainNodeType::OperationCallT {
+                    operation_call_expr_node,
+                } => {
+                    operation_call_expr_node.accept(self);
+                }
+                CallChainNodeType::OperationRefT {
+                    operation_ref_expr_node,
+                } => {
+                    operation_ref_expr_node.accept(self);
+                }
+                CallChainNodeType::ActionCallT {
                     action_call_expr_node,
                 } => {
                     action_call_expr_node.accept(self);
                 }
-                CallChainLiteralNodeType::VariableNodeT { var_node } => {
+                CallChainNodeType::VariableNodeT { var_node } => {
                     self.visiting_call_chain_literal_variable = true;
                     var_node.accept(self);
                     self.visiting_call_chain_literal_variable = false;
@@ -4739,9 +4796,9 @@ impl AstVisitor for RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_chain_literal_expr_node_to_string(
+    fn visit_call_chain_expr_node_to_string(
         &mut self,
-        method_call_chain_expression_node: &CallChainLiteralExprNode,
+        method_call_chain_expression_node: &CallChainExprNode,
         output: &mut String,
     ) {
         let mut separator = "";
@@ -4749,23 +4806,33 @@ impl AstVisitor for RustVisitor {
         for node in &method_call_chain_expression_node.call_chain {
             output.push_str(separator);
             match &node {
-                CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
+                CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                     id_node.accept_to_string(self, output);
                 }
-                CallChainLiteralNodeType::CallT { call } => {
+                CallChainNodeType::UndeclaredCallT { call } => {
                     call.accept_to_string(self, output);
                 }
-                CallChainLiteralNodeType::InterfaceMethodCallT { .. } => {
+                CallChainNodeType::InterfaceMethodCallT { .. } => {
                     self.errors.push(String::from(
                         "Error: Interface method calls may not appear in call chains.",
                     ));
                 }
-                CallChainLiteralNodeType::ActionCallT {
+                CallChainNodeType::OperationCallT {
+                    operation_call_expr_node,
+                } => {
+                    operation_call_expr_node.accept_to_string(self, output);
+                }
+                CallChainNodeType::OperationRefT {
+                    operation_ref_expr_node,
+                } => {
+                    operation_ref_expr_node.accept(self);
+                }
+                CallChainNodeType::ActionCallT {
                     action_call_expr_node,
                 } => {
                     action_call_expr_node.accept_to_string(self, output);
                 }
-                CallChainLiteralNodeType::VariableNodeT { var_node } => {
+                CallChainNodeType::VariableNodeT { var_node } => {
                     var_node.accept_to_string(self, output);
                 }
             }
@@ -4865,7 +4932,7 @@ impl AstVisitor for RustVisitor {
                 ExprType::ActionCallExprT {
                     action_call_expr_node,
                 } => action_call_expr_node.accept(self),
-                ExprType::CallChainLiteralExprT {
+                ExprType::CallChainExprT {
                     call_chain_expr_node,
                 } => call_chain_expr_node.accept(self),
                 ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
@@ -4888,32 +4955,33 @@ impl AstVisitor for RustVisitor {
             // match_branch_node.string_match_pattern_node.accept(self);
             // self.add_code(&format!("\") {{"));
 
-            let mut first_match = true;
-            for match_string in &match_branch_node
-                .string_match_pattern_node
-                .match_pattern_strings
-            {
-                if first_match {
-                    self.add_code(&format!(".eq(\"{}\")", match_string));
-                    first_match = false;
-                } else {
-                    self.add_code(" || ");
-                    match &string_match_test_node.expr_t {
-                        ExprType::CallExprT {
-                            call_expr_node: method_call_expr_node,
-                        } => method_call_expr_node.accept(self),
-                        ExprType::ActionCallExprT {
-                            action_call_expr_node,
-                        } => action_call_expr_node.accept(self),
-                        ExprType::CallChainLiteralExprT {
-                            call_chain_expr_node,
-                        } => call_chain_expr_node.accept(self),
-                        ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
-                        _ => self.errors.push("TODO".to_string()),
-                    }
-                    self.add_code(&format!(".eq(\"{}\")", match_string));
-                }
-            }
+            // let mut first_match = true;
+            // TODO: Fix this section to deal with empty strings and null strings
+            // for match_string in &match_branch_node
+            //     .string_match_pattern_node
+            //     .match_pattern_strings
+            // {
+            //     if first_match {
+            //         self.add_code(&format!(".eq(\"{}\")", match_string));
+            //         first_match = false;
+            //     } else {
+            //         self.add_code(" || ");
+            //         match &string_match_test_node.expr_t {
+            //             ExprType::CallExprT {
+            //                 call_expr_node: method_call_expr_node,
+            //             } => method_call_expr_node.accept(self),
+            //             ExprType::ActionCallExprT {
+            //                 action_call_expr_node,
+            //             } => action_call_expr_node.accept(self),
+            //             ExprType::CallChainExprT {
+            //                 call_chain_expr_node,
+            //             } => call_chain_expr_node.accept(self),
+            //             ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
+            //             _ => self.errors.push("TODO".to_string()),
+            //         }
+            //         self.add_code(&format!(".eq(\"{}\")", match_string));
+            //     }
+            // }
             self.add_code(" {");
             self.indent();
 
@@ -5035,7 +5103,7 @@ impl AstVisitor for RustVisitor {
                 ExprType::ActionCallExprT {
                     action_call_expr_node,
                 } => action_call_expr_node.accept(self),
-                ExprType::CallChainLiteralExprT {
+                ExprType::CallChainExprT {
                     call_chain_expr_node,
                 } => call_chain_expr_node.accept(self),
                 ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
@@ -5066,7 +5134,7 @@ impl AstVisitor for RustVisitor {
                         ExprType::ActionCallExprT {
                             action_call_expr_node,
                         } => action_call_expr_node.accept(self),
-                        ExprType::CallChainLiteralExprT {
+                        ExprType::CallChainExprT {
                             call_chain_expr_node,
                         } => call_chain_expr_node.accept(self),
                         ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
@@ -5360,7 +5428,7 @@ impl AstVisitor for RustVisitor {
     }
     //* --------------------------------------------------------------------- *//
 
-    fn visit_state_context_node(&mut self, _state_context_node: &StateContextNode) {
+    fn visit_state_context_node(&mut self, _state_context_node: &TargetStateContextNode) {
         // TODO
         //        self.add_code(&format!("{}",identifier_node.name.lexeme));
     }
@@ -5460,7 +5528,7 @@ impl AstVisitor for RustVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_decl_node(&mut self, action_decl_node: &ActionNode) {
+    fn visit_action_node(&mut self, action_decl_node: &ActionNode) {
         //        let mut subclass_code = String::new();
 
         self.newline();
@@ -5556,7 +5624,7 @@ impl AstVisitor for RustVisitor {
             None => String::new(),
         };
         let var_name = self.format_value_name(&variable_decl_node.name);
-        let var_init_expr = &variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
+        let var_init_expr = &variable_decl_node.value_rc;
         self.newline();
         let mut code = String::new();
         var_init_expr.accept_to_string(self, &mut code);
@@ -5635,7 +5703,7 @@ impl AstVisitor for RustVisitor {
                 self.enter_block_to_string(output);
                 output.push_str("return_value: ");
                 assignment_expr_node
-                    .r_value_box
+                    .r_value_rc
                     .accept_to_string(self, output);
                 self.exit_block_to_string(output);
                 if !self.config.features.thread_safe {
@@ -5655,7 +5723,7 @@ impl AstVisitor for RustVisitor {
                 // compute rhs
                 self.indent();
                 assignment_expr_node
-                    .r_value_box
+                    .r_value_rc
                     .accept_to_string(self, &mut rhs);
                 self.outdent();
                 // stick em together

@@ -5,7 +5,7 @@
     snake_event [snake_param:i32]
     CamelEvent [CamelParam:i32]
     event123 [param123:i32]
-    call [event:String param:i32]
+    call [event:String, param:i32]
 
     -machine-
     $Init
@@ -18,7 +18,7 @@
         |event123| [param123:i32]
             -> $state123(param123) ^
 
-        |call| [event:String param:i32]
+        |call| [event:String, param:i32]
             event ?~
                 /snake_event/ snake_event(param) :>
                 /CamelEvent/ CamelEvent(param) :>
@@ -27,7 +27,7 @@
 
     $snake_state [snake_state_param:i32]
 
-        --- 1100
+        // 1100
         var snake_state_var:i32 = snake_domain_var + CamelDomainVar + domainVar123 + 100
 
         |snake_event| [snake_param:i32]
@@ -45,7 +45,7 @@
             action123(localVar123)
             -> $Final(localVar123) ^
 
-        |call| [event:String param:i32]
+        |call| [event:String, param:i32]
             event ?~
                 /snake_event/ snake_event(param) :>
                 /CamelEvent/ CamelEvent(param) :>
@@ -54,7 +54,7 @@
 
     $CamelState [CamelStateParam:i32]
 
-        --- 1200
+        // 1200
         var CamelStateVar:i32 = snake_domain_var + CamelDomainVar + domainVar123 + 200
 
         |snake_event| [snake_param:i32]
@@ -72,7 +72,7 @@
             action123(localVar123)
             -> $Final(localVar123) ^
 
-        |call| [event:String param:i32]
+        |call| [event:String, param:i32]
             event ?~
                 /snake_event/ snake_event(param) :>
                 /CamelEvent/ CamelEvent(param) :>
@@ -81,7 +81,7 @@
 
     $state123 [stateParam123:i32]
 
-        --- 1300
+        // 1300
         var stateVar123:i32 = snake_domain_var + CamelDomainVar + domainVar123 + 300
 
         |snake_event| [snake_param:i32]
@@ -99,7 +99,7 @@
             action123(localVar123)
             -> $Final(localVar123) ^
 
-        |call| [event:String param:i32]
+        |call| [event:String, param:i32]
             event ?~
                 /snake_event/ snake_event(param) :>
                 /CamelEvent/ CamelEvent(param) :>

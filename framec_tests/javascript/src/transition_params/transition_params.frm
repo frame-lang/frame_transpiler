@@ -12,7 +12,8 @@
         |Next|
             -> ("hi A") $A ^
         |Change|
-            ->> $A ^
+            // ->> $A
+            ^
 
     $A
         |>| [msg:str]
@@ -22,25 +23,27 @@
             log("bye A") ^
 
         |Next|
-            -> ("hi B" 42) $B ^
+            -> ("hi B", 42) $B ^
 
         |Change|
-            ->> $B ^
+            // ->> $B
+            ^
 
     $B
-        |>| [msg:str val:int]
+        |>| [msg:str, val:int]
             log(msg)
             log(val.toString()) ^
 
-        |<| [val:bool msg:str]
+        |<| [val:bool, msg:str]
             log(val.toString())
             log(msg) ^
 
         |Next|
-            (true "bye B") -> ("hi again A") $A ^
+            (true, "bye B") -> ("hi again A") $A ^
 
         |Change|
-            ->> $A ^
+            // ->> $A
+            ^
 
     -actions-
     log [msg:str]

@@ -1,8 +1,5 @@
-// emitted from framec_v0.10.0
+// emitted from framec_v0.11.0
 // get include files at https://github.com/frame-lang/frame-ancillary-files
-package state_vars
-
-import "golang/framelang"
 
 
 func NewStateVars() StateVars {
@@ -98,7 +95,7 @@ func (m *stateVarsStruct) _StateVarsState_Init_(e *framelang.FrameEvent) {
     switch e.Msg {
     case ">":
         compartment := NewStateVarsCompartment(StateVarsState_A)
-        compartment.StateVars["x"] = 0
+        compartment.StateVars["x"] = m._compartment_.StateVars["x"].(int) + 1
         
         m._transition_(compartment)
         
@@ -114,18 +111,18 @@ func (m *stateVarsStruct) _StateVarsState_A_(e *framelang.FrameEvent) {
         return
     case "Y":
         compartment := NewStateVarsCompartment(StateVarsState_B)
-        compartment.StateVars["y"] = 10
+        compartment.StateVars["y"] = m._compartment_.StateVars["y"].(int) + 1
         
-        compartment.StateVars["z"] = 100
+        compartment.StateVars["z"] = m._compartment_.StateVars["z"].(int) + 1
         
         m._transition_(compartment)
         
         return
     case "Z":
         compartment := NewStateVarsCompartment(StateVarsState_B)
-        compartment.StateVars["y"] = 10
+        compartment.StateVars["y"] = m._compartment_.StateVars["y"].(int) + 1
         
-        compartment.StateVars["z"] = 100
+        compartment.StateVars["z"] = m._compartment_.StateVars["z"].(int) + 1
         
         m._transition_(compartment)
         
@@ -137,7 +134,7 @@ func (m *stateVarsStruct) _StateVarsState_B_(e *framelang.FrameEvent) {
     switch e.Msg {
     case "X":
         compartment := NewStateVarsCompartment(StateVarsState_A)
-        compartment.StateVars["x"] = 0
+        compartment.StateVars["x"] = m._compartment_.StateVars["x"].(int) + 1
         
         m._transition_(compartment)
         

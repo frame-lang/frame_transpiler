@@ -1,6 +1,6 @@
-Frame v0.10.0 Documentation
+Frame v0.11.0 Documentation
 =======================================================
-Welcome! Here you will find the official v0.10.0 documentation for the **Frame System Design Language**.
+Welcome! Here you will find the official v0.11.0 documentation for the **Frame System Design Language**.
 
 What is Frame?
 --------------
@@ -102,28 +102,28 @@ The true power of Frame, however, is realized by the ability to generate both do
     :caption: General
     :name: sec-about
 
-    about/introduction
+    source/about/introduction
 
 .. toctree::
     :caption: Getting Started
     :name: sec-getting-started
 
-    getting_started/introduction/index
+    source/getting_started/introduction/index
 
 .. toctree::
     :caption: Intermediate Frame
     :name: sec-intermediate-frame
 
-    intermediate_frame/index
+    source/intermediate_frame/index
 
 .. toctree::
     :caption: Advanced Frame
     :name: sec-advanced-frame
 
-    advanced_frame/index
+    source/advanced_frame/index
 
 .. toctree::
     :caption: Language
     :name: sec-language
 
-    language/index
+    source/language/index

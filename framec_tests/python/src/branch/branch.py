@@ -1,15 +1,31 @@
-# emitted from framec_v0.10.0
-# get include files at https://github.com/frame-lang/frame-ancillary-files
+#Emitted from framec_v0.11.0
+
+
+
 from framelang.framelang import FrameEvent
+
+
+
+class FrameEvent:
+    def __init__(self, message, parameters):
+        self._message = message
+        self._parameters = parameters
+        self._return = None
+
 
 class Branch:
     
+    
+    # ==================== System Factory =================== #
+    
     def __init__(self):
         
-        # Create and intialize start state compartment.
-        self.__state = self.__branch_state_I
-        self.__compartment: 'BranchCompartment' = BranchCompartment(self.__state)
+         # Create and intialize start state compartment.
+        
+        self.__compartment: 'BranchCompartment' = BranchCompartment('__branch_state_I')
         self.__next_compartment: 'BranchCompartment' = None
+        self.__compartment: BranchCompartment = BranchCompartment(self.__state)
+        self.__next_compartment: BranchCompartment = None
         
         # Initialize domain
         
@@ -17,391 +33,393 @@ class Branch:
         
         # Send system start event
         frame_event = FrameEvent(">", None)
-        self.__mux(frame_event)
+        self.__kernel(frame_event)
     
-    # ===================== Interface Block =================== #
+    # ==================== Interface Block ================== #
     
     def A(self,):
-        e = FrameEvent("A",None)
-        self.__mux(e)
+        __e = FrameEvent("A",None)
+        self.__kernel(__e)
     
     def B(self,):
-        e = FrameEvent("B",None)
-        self.__mux(e)
+        __e = FrameEvent("B",None)
+        self.__kernel(__e)
     
     def C(self,):
-        e = FrameEvent("C",None)
-        self.__mux(e)
+        __e = FrameEvent("C",None)
+        self.__kernel(__e)
     
     def D(self,):
-        e = FrameEvent("D",None)
-        self.__mux(e)
+        __e = FrameEvent("D",None)
+        self.__kernel(__e)
     
     def E(self,):
-        e = FrameEvent("E",None)
-        self.__mux(e)
+        __e = FrameEvent("E",None)
+        self.__kernel(__e)
     
     def F(self,):
-        e = FrameEvent("F",None)
-        self.__mux(e)
+        __e = FrameEvent("F",None)
+        self.__kernel(__e)
     
     def OnBool(self,b: bool):
         parameters = {}
         parameters["b"] = b
-
-        e = FrameEvent("OnBool",parameters)
-        self.__mux(e)
+        __e = FrameEvent("OnBool",parameters)
+        self.__kernel(__e)
     
     def OnInt(self,i: int):
         parameters = {}
         parameters["i"] = i
-
-        e = FrameEvent("OnInt",parameters)
-        self.__mux(e)
-    
-    # ====================== Multiplexer ==================== #
-    
-    def __mux(self, e):
-        if self.__compartment.state.__name__ == '__branch_state_I':
-            self.__branch_state_I(e)
-        elif self.__compartment.state.__name__ == '__branch_state_SimpleIf':
-            self.__branch_state_SimpleIf(e)
-        elif self.__compartment.state.__name__ == '__branch_state_NegatedIf':
-            self.__branch_state_NegatedIf(e)
-        elif self.__compartment.state.__name__ == '__branch_state_Precedence':
-            self.__branch_state_Precedence(e)
-        elif self.__compartment.state.__name__ == '__branch_state_NestedIf':
-            self.__branch_state_NestedIf(e)
-        elif self.__compartment.state.__name__ == '__branch_state_GuardedTransition':
-            self.__branch_state_GuardedTransition(e)
-        elif self.__compartment.state.__name__ == '__branch_state_NestedGuardedTransition':
-            self.__branch_state_NestedGuardedTransition(e)
-        elif self.__compartment.state.__name__ == '__branch_state_F1':
-            self.__branch_state_F1(e)
-        elif self.__compartment.state.__name__ == '__branch_state_F2':
-            self.__branch_state_F2(e)
-        elif self.__compartment.state.__name__ == '__branch_state_F3':
-            self.__branch_state_F3(e)
-        
-        if self.__next_compartment != None:
-            next_compartment = self.__next_compartment
-            self.__next_compartment = None
-            if(next_compartment.forward_event is not None and 
-               next_compartment.forward_event._message == ">"):
-                self.__mux(FrameEvent( "<", self.__compartment.exit_args))
-                self.__compartment = next_compartment
-                self.__mux(next_compartment.forward_event)
-            else:
-                self.__do_transition(next_compartment)
-                if next_compartment.forward_event is not None:
-                    self.__mux(next_compartment.forward_event)
-            next_compartment.forward_event = None
+        __e = FrameEvent("OnInt",parameters)
+        self.__kernel(__e)
     
     # ===================== Machine Block =================== #
     
-    def __branch_state_I(self, e):
-        if e._message == "A":
-            compartment = BranchCompartment(self.__branch_state_SimpleIf)
-            self.__transition(compartment)
-            
+    # ----------------------------------------
+    # $I
+    
+    def __branch_state_I(self, __e):
+        if __e._message == "A":
+            next_compartment = BranchCompartment('__branch_state_SimpleIf')
+            self.__transition(next_compartment)
             return
-        
-        elif e._message == "B":
-            compartment = BranchCompartment(self.__branch_state_NegatedIf)
-            self.__transition(compartment)
-            
+        elif __e._message == "B":
+            next_compartment = BranchCompartment('__branch_state_NegatedIf')
+            self.__transition(next_compartment)
             return
-        
-        elif e._message == "C":
-            compartment = BranchCompartment(self.__branch_state_Precedence)
-            self.__transition(compartment)
-            
+        elif __e._message == "C":
+            next_compartment = BranchCompartment('__branch_state_Precedence')
+            self.__transition(next_compartment)
             return
-        
-        elif e._message == "D":
-            compartment = BranchCompartment(self.__branch_state_NestedIf)
-            self.__transition(compartment)
-            
+        elif __e._message == "D":
+            next_compartment = BranchCompartment('__branch_state_NestedIf')
+            self.__transition(next_compartment)
             return
-        
-        elif e._message == "E":
-            compartment = BranchCompartment(self.__branch_state_GuardedTransition)
-            self.__transition(compartment)
-            
+        elif __e._message == "E":
+            next_compartment = BranchCompartment('__branch_state_GuardedTransition')
+            self.__transition(next_compartment)
             return
-        
-        elif e._message == "F":
-            compartment = BranchCompartment(self.__branch_state_NestedGuardedTransition)
-            self.__transition(compartment)
-            
+        elif __e._message == "F":
+            next_compartment = BranchCompartment('__branch_state_NestedGuardedTransition')
+            self.__transition(next_compartment)
             return
-        
-    def __branch_state_SimpleIf(self, e):
-        if e._message == "OnBool":
-            if  e._parameters["b"]:
+    
+    # ----------------------------------------
+    # $SimpleIf
+    
+    def __branch_state_SimpleIf(self, __e):
+        if __e._message == "OnBool":
+            if  __e._parameters["b"]:
                 self.log_do("then 1")
             else:
                 pass
             
-            if  e._parameters["b"]:
+            if  __e._parameters["b"]:
                 pass
             else:
                 self.log_do("else 1")
             
-            if  e._parameters["b"]:
+            if  __e._parameters["b"]:
                 self.log_do("then 2")
             else:
                 self.log_do("else 2")
             
-            if  e._parameters["b"]:
-                compartment = BranchCompartment(self.__branch_state_F1)
-                self.__transition(compartment)
+            if  __e._parameters["b"]:
+                next_compartment = BranchCompartment('__branch_state_F1')
+                self.__transition(next_compartment)
                 return
             else:
-                compartment = BranchCompartment(self.__branch_state_F2)
-                self.__transition(compartment)
+                next_compartment = BranchCompartment('__branch_state_F2')
+                self.__transition(next_compartment)
                 return
             
-            
             return
-        
-        elif e._message == "OnInt":
-            if  e._parameters["i"] > 5:
+        elif __e._message == "OnInt":
+            if  __e._parameters["i"] > 5:
                 self.log_do("> 5")
             else:
                 self.log_do("<= 5")
             
-            if  e._parameters["i"] < 10:
+            if  __e._parameters["i"] < 10:
                 self.log_do("< 10")
             else:
                 self.log_do(">= 10")
             
-            if  e._parameters["i"] == 7:
+            if  __e._parameters["i"] == 7:
                 self.log_do("== 7")
-                compartment = BranchCompartment(self.__branch_state_F1)
-                self.__transition(compartment)
+                next_compartment = BranchCompartment('__branch_state_F1')
+                self.__transition(next_compartment)
                 return
             else:
                 self.log_do("!= 7")
-                compartment = BranchCompartment(self.__branch_state_F2)
-                self.__transition(compartment)
+                next_compartment = BranchCompartment('__branch_state_F2')
+                self.__transition(next_compartment)
                 return
             
-            
             return
-        
-    def __branch_state_NegatedIf(self, e):
-        if e._message == "OnBool":
-            if  not (e._parameters["b"]):
+    
+    # ----------------------------------------
+    # $NegatedIf
+    
+    def __branch_state_NegatedIf(self, __e):
+        if __e._message == "OnBool":
+            if  not (__e._parameters["b"]):
                 self.log_do("then 1")
             else:
                 pass
             
-            if  not (e._parameters["b"]):
+            if  not (__e._parameters["b"]):
                 pass
             else:
                 self.log_do("else 1")
             
-            if  not (e._parameters["b"]):
+            if  not (__e._parameters["b"]):
                 self.log_do("then 2")
             else:
                 self.log_do("else 2")
             
-            if  not (e._parameters["b"]):
-                compartment = BranchCompartment(self.__branch_state_F1)
-                self.__transition(compartment)
+            if  not (__e._parameters["b"]):
+                next_compartment = BranchCompartment('__branch_state_F1')
+                self.__transition(next_compartment)
                 return
             else:
-                compartment = BranchCompartment(self.__branch_state_F2)
-                self.__transition(compartment)
+                next_compartment = BranchCompartment('__branch_state_F2')
+                self.__transition(next_compartment)
                 return
             
-            
             return
-        
-        elif e._message == "OnInt":
-            if  not (e._parameters["i"] >= 5):
+        elif __e._message == "OnInt":
+            if  not (__e._parameters["i"] >= 5):
                 self.log_do("< 5")
             else:
                 self.log_do(">= 5")
             
-            if  not (e._parameters["i"] <= 10):
+            if  not (__e._parameters["i"] <= 10):
                 self.log_do("> 10")
             else:
                 self.log_do("<= 10")
             
-            if  not (e._parameters["i"] != 7):
+            if  not (__e._parameters["i"] != 7):
                 self.log_do("== 7")
-                compartment = BranchCompartment(self.__branch_state_F1)
-                self.__transition(compartment)
+                next_compartment = BranchCompartment('__branch_state_F1')
+                self.__transition(next_compartment)
                 return
             else:
                 self.log_do("!= 7")
-                compartment = BranchCompartment(self.__branch_state_F2)
-                self.__transition(compartment)
+                next_compartment = BranchCompartment('__branch_state_F2')
+                self.__transition(next_compartment)
                 return
             
-            
             return
-        
-    def __branch_state_Precedence(self, e):
-        if e._message == "OnInt":
-            if  -e._parameters["i"] >= 0 and -e._parameters["i"] <= 5:
+    
+    # ----------------------------------------
+    # $Precedence
+    
+    def __branch_state_Precedence(self, __e):
+        if __e._message == "OnInt":
+            if  -__e._parameters["i"] >= 0 and -__e._parameters["i"] <= 5:
                 self.log_do("then 1")
             else:
                 self.log_do("else 1")
             
-            if   not (e._parameters["i"] >= -5 and e._parameters["i"] <= 5) and (e._parameters["i"] >= -10 and e._parameters["i"] <= 10):
+            if   not (__e._parameters["i"] >= -5 and __e._parameters["i"] <= 5) and (__e._parameters["i"] >= -10 and __e._parameters["i"] <= 10):
                 self.log_do("then 2")
             else:
                 self.log_do("else 2")
             
-            if  e._parameters["i"] >= 0 and e._parameters["i"] <= 5 or e._parameters["i"] >= 10 and e._parameters["i"] <= 20:
+            if  __e._parameters["i"] >= 0 and __e._parameters["i"] <= 5 or __e._parameters["i"] >= 10 and __e._parameters["i"] <= 20:
                 self.log_do("then 3")
             else:
                 self.log_do("else 3")
             
-            if  not ((e._parameters["i"] < 0 or e._parameters["i"] > 10) and e._parameters["i"] + 5 < 20):
+            if  not ((__e._parameters["i"] < 0 or __e._parameters["i"] > 10) and __e._parameters["i"] + 5 < 20):
                 self.log_do("then 4")
             else:
                 self.log_do("else 4")
             
-            
             return
-        
-    def __branch_state_NestedIf(self, e):
-        if e._message == "OnInt":
-            if  e._parameters["i"] > 0:
+    
+    # ----------------------------------------
+    # $NestedIf
+    
+    def __branch_state_NestedIf(self, __e):
+        if __e._message == "OnInt":
+            if  __e._parameters["i"] > 0:
                 self.log_do("> 0")
-                if  e._parameters["i"] < 100:
+                if  __e._parameters["i"] < 100:
                     self.log_do("< 100")
-                    compartment = BranchCompartment(self.__branch_state_F1)
-                    self.__transition(compartment)
+                    next_compartment = BranchCompartment('__branch_state_F1')
+                    self.__transition(next_compartment)
                     return
                 else:
                     self.log_do(">= 100")
                 
             else:
                 self.log_do("<= 0")
-                if  e._parameters["i"] > -10:
+                if  __e._parameters["i"] > -10:
                     self.log_do("> -10")
                 else:
                     self.log_do("<= -10")
-                    compartment = BranchCompartment(self.__branch_state_F2)
-                    self.__transition(compartment)
+                    next_compartment = BranchCompartment('__branch_state_F2')
+                    self.__transition(next_compartment)
                     return
                 
             
-            
             return
-        
-    def __branch_state_GuardedTransition(self, e):
-        if e._message == "OnInt":
-            if  e._parameters["i"] > 100:
+    
+    # ----------------------------------------
+    # $GuardedTransition
+    
+    def __branch_state_GuardedTransition(self, __e):
+        if __e._message == "OnInt":
+            if  __e._parameters["i"] > 100:
                 self.log_do("-> $F1")
-                compartment = BranchCompartment(self.__branch_state_F1)
-                self.__transition(compartment)
+                next_compartment = BranchCompartment('__branch_state_F1')
+                self.__transition(next_compartment)
                 return
             else:
                 pass
             
-            if  not (e._parameters["i"] > 10):
+            if  not (__e._parameters["i"] > 10):
                 pass
             else:
                 self.log_do("-> $F2")
-                compartment = BranchCompartment(self.__branch_state_F2)
-                self.__transition(compartment)
+                next_compartment = BranchCompartment('__branch_state_F2')
+                self.__transition(next_compartment)
                 return
             
             self.log_do("-> $F3")
-            compartment = BranchCompartment(self.__branch_state_F3)
-            self.__transition(compartment)
-            
+            next_compartment = BranchCompartment('__branch_state_F3')
+            self.__transition(next_compartment)
             return
-        
-    def __branch_state_NestedGuardedTransition(self, e):
-        if e._message == "OnInt":
-            if  e._parameters["i"] > 10:
-                if  e._parameters["i"] > 100:
+    
+    # ----------------------------------------
+    # $NestedGuardedTransition
+    
+    def __branch_state_NestedGuardedTransition(self, __e):
+        if __e._message == "OnInt":
+            if  __e._parameters["i"] > 10:
+                if  __e._parameters["i"] > 100:
                     self.log_do("-> $F1")
-                    compartment = BranchCompartment(self.__branch_state_F1)
-                    self.__transition(compartment)
+                    next_compartment = BranchCompartment('__branch_state_F1')
+                    self.__transition(next_compartment)
                     return
                 else:
                     pass
                 
-                if  e._parameters["i"] > 50:
+                if  __e._parameters["i"] > 50:
                     pass
                 else:
                     self.log_do("-> $F2")
-                    compartment = BranchCompartment(self.__branch_state_F2)
-                    self.__transition(compartment)
+                    next_compartment = BranchCompartment('__branch_state_F2')
+                    self.__transition(next_compartment)
                     return
                 
             else:
                 pass
             
             self.log_do("-> $F3")
-            compartment = BranchCompartment(self.__branch_state_F3)
-            self.__transition(compartment)
-            
+            next_compartment = BranchCompartment('__branch_state_F3')
+            self.__transition(next_compartment)
             return
-        
-    def __branch_state_F1(self, e):
+    
+    # ----------------------------------------
+    # $F1
+    
+    def __branch_state_F1(self, __e):
         pass
         
-    def __branch_state_F2(self, e):
+    
+    # ----------------------------------------
+    # $F2
+    
+    def __branch_state_F2(self, __e):
         pass
         
-    def __branch_state_F3(self, e):
+    
+    # ----------------------------------------
+    # $F3
+    
+    def __branch_state_F3(self, __e):
         pass
         
     
     # ===================== Actions Block =================== #
     
-    
-    # Unimplemented Actions
-    
     def log_do(self,msg: str):
         raise NotImplementedError
     
+    # ==================== System Runtime =================== #
     
-    # =============== Machinery and Mechanisms ============== #
+    def __kernel(self, __e):
+        
+        # send event to current state
+        self.__router(__e)
+        
+        # loop until no transitions occur
+        while self.__next_compartment != None:
+            next_compartment = self.__next_compartment
+            self.__next_compartment = None
+            
+            # exit current state
+            self.__router(FrameEvent( "<", self.__compartment.exit_args))
+            # change state
+            self.__compartment = next_compartment
+            
+            if next_compartment.forward_event is None:
+                # send normal enter event
+                self.__router(FrameEvent(">", self.__compartment.enter_args))
+            else: # there is a forwarded event
+                if next_compartment.forward_event._message == ">":
+                    # forwarded event is enter event
+                    self.__router(next_compartment.forward_event)
+                else:
+                    # forwarded event is not enter event
+                    # send normal enter event
+                    self.__router(FrameEvent(">", self.__compartment.enter_args))
+                    # and now forward event to new, intialized state
+                    self.__router(next_compartment.forward_event)
+                next_compartment.forward_event = None
+                
     
-    def __transition(self, compartment: 'BranchCompartment'):
-        self.__next_compartment = compartment
-    
-    def  __do_transition(self, next_compartment: 'BranchCompartment'):
-        self.__mux(FrameEvent("<", self.__compartment.exit_args))
-        self.__compartment = next_compartment
-        self.__mux(FrameEvent(">", self.__compartment.enter_args))
+    def __router(self, __e):
+        if self.__compartment.state == '__branch_state_I':
+            self.__branch_state_I(__e)
+        elif self.__compartment.state == '__branch_state_SimpleIf':
+            self.__branch_state_SimpleIf(__e)
+        elif self.__compartment.state == '__branch_state_NegatedIf':
+            self.__branch_state_NegatedIf(__e)
+        elif self.__compartment.state == '__branch_state_Precedence':
+            self.__branch_state_Precedence(__e)
+        elif self.__compartment.state == '__branch_state_NestedIf':
+            self.__branch_state_NestedIf(__e)
+        elif self.__compartment.state == '__branch_state_GuardedTransition':
+            self.__branch_state_GuardedTransition(__e)
+        elif self.__compartment.state == '__branch_state_NestedGuardedTransition':
+            self.__branch_state_NestedGuardedTransition(__e)
+        elif self.__compartment.state == '__branch_state_F1':
+            self.__branch_state_F1(__e)
+        elif self.__compartment.state == '__branch_state_F2':
+            self.__branch_state_F2(__e)
+        elif self.__compartment.state == '__branch_state_F3':
+            self.__branch_state_F3(__e)
+        
+    def __transition(self, next_compartment: 'BranchCompartment'):
+        self.__next_compartment = next_compartment
     
     def state_info(self):
-        return self.__compartment.state.__name__
+        return self.__compartment.state
         
 
 # ===================== Compartment =================== #
 
 class BranchCompartment:
 
-    def __init__(self, state):
+    def __init__(self,state):
         self.state = state
         self.state_args = {}
         self.state_vars = {}
         self.enter_args = {}
         self.exit_args = {}
-        self.forward_event = FrameEvent(None, None)
+        self.forward_event = None
     
-
-
-# ********************
-
-#class BranchController(Branch):
-	#def __init__(self,):
-	    #super().__init__()
-
-    #def log_do(self,msg: str):
-        #pass
-
-# ********************
-

@@ -1,4 +1,4 @@
-// emitted from framec_v0.10.0
+// emitted from framec_v0.11.0
 // get include files at https://github.com/frame-lang/frame-ancillary-files
 
 function FrameEvent(message, parameters) {
@@ -117,15 +117,13 @@ class TransitionSm {
                 
             case "change":
                 {
-                let compartment =  new TransitionSmCompartment(this.#sS1_);
-                
-                this.#changeState(compartment);
                 
                 return;
                 }
                 
         }
-    }
+    }  // ->> $S1
+	
     
     #sS1_(e) {
         switch (e._message) {
@@ -155,15 +153,13 @@ class TransitionSm {
                 
             case "change":
                 {
-                let compartment =  new TransitionSmCompartment(this.#sS2_);
-                
-                this.#changeState(compartment);
                 
                 return;
                 }
                 
         }
-    }
+    }  // ->> $S2
+	
     
     #sS2_(e) {
         switch (e._message) {
@@ -197,15 +193,13 @@ class TransitionSm {
                 
             case "change":
                 {
-                let compartment =  new TransitionSmCompartment(this.#sS3_);
-                
-                this.#changeState(compartment);
                 
                 return;
                 }
                 
         }
-    }
+    }  // ->> $S3
+	
     
     #sS3_(e) {
         switch (e._message) {
@@ -235,29 +229,25 @@ class TransitionSm {
                 
             case "change":
                 {
-                let compartment =  new TransitionSmCompartment(this.#sS4_);
-                
-                this.#changeState(compartment);
                 
                 return;
                 }
                 
         }
-    }
+    }  // ->> $S4
+	
     
     #sS4_(e) {
         switch (e._message) {
             case ">":
                 {
                 this.enter_do("S4");
-                let compartment =  new TransitionSmCompartment(this.#sS0_);
-                
-                this.#changeState(compartment);
                 
                 return;
                 }
                 
-            case "<":
+              // ->> $S0
+			case "<":
                 {
                 this.exit_do("S4");
                 
@@ -284,10 +274,6 @@ class TransitionSm {
         this.#mux(FrameEvent("<", this.#compartment.ExitArgs));
         this.#compartment = nextCompartment;
         this.#mux(FrameEvent(">", this.#compartment.EnterArgs));
-    }
-    
-    #changeState(compartment) {
-        this.#compartment = compartment;
     }
     
     state_info() {

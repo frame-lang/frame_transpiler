@@ -1,4 +1,4 @@
-// emitted from framec_v0.10.0
+// emitted from framec_v0.11.0
 // get include files at https://github.com/frame-lang/frame-ancillary-files
 
 function FrameEvent(message, parameters) {
@@ -97,15 +97,13 @@ class TransitParams {
                 
             case "Change":
                 {
-                let compartment =  new TransitParamsCompartment(this.#sA_);
-                
-                this.#changeState(compartment);
                 
                 return;
                 }
                 
         }
-    }
+    }  // ->> $A
+	
     
     #sA_(e) {
         switch (e._message) {
@@ -137,15 +135,13 @@ class TransitParams {
                 
             case "Change":
                 {
-                let compartment =  new TransitParamsCompartment(this.#sB_);
-                
-                this.#changeState(compartment);
                 
                 return;
                 }
                 
         }
-    }
+    }  // ->> $B
+	
     
     #sB_(e) {
         switch (e._message) {
@@ -180,9 +176,6 @@ class TransitParams {
                 
             case "Change":
                 {
-                let compartment =  new TransitParamsCompartment(this.#sA_);
-                
-                this.#changeState(compartment);
                 
                 return;
                 }
@@ -208,14 +201,12 @@ class TransitParams {
         this.#mux(FrameEvent(">", this.#compartment.EnterArgs));
     }
     
-    #changeState(compartment) {
-        this.#compartment = compartment;
-    }
-    
     state_info() {
         return this.#compartment.state.name;
     }
     
+      // ->> $A
+	
     
 };
 

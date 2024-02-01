@@ -1,146 +1,163 @@
-# emitted from framec_v0.10.0
-# get include files at https://github.com/frame-lang/frame-ancillary-files
+#Emitted from framec_v0.11.0
+
+
+
 from framelang.framelang import FrameEvent
+
+
+
+class FrameEvent:
+    def __init__(self, message, parameters):
+        self._message = message
+        self._parameters = parameters
+        self._return = None
+
 
 class SimpleHandlerCalls:
     
+    
+    # ==================== System Factory =================== #
+    
     def __init__(self):
         
-        # Create and intialize start state compartment.
-        self.__state = self.__simplehandlercalls_state_Init
-        self.__compartment: 'SimpleHandlerCallsCompartment' = SimpleHandlerCallsCompartment(self.__state)
+         # Create and intialize start state compartment.
+        
+        self.__compartment: 'SimpleHandlerCallsCompartment' = SimpleHandlerCallsCompartment('__simplehandlercalls_state_Init')
         self.__next_compartment: 'SimpleHandlerCallsCompartment' = None
+        self.__compartment: SimpleHandlerCallsCompartment = SimpleHandlerCallsCompartment(self.__state)
+        self.__next_compartment: SimpleHandlerCallsCompartment = None
         
         # Initialize domain
         
         # Send system start event
         frame_event = FrameEvent(">", None)
-        self.__mux(frame_event)
+        self.__kernel(frame_event)
     
-    # ===================== Interface Block =================== #
+    # ==================== Interface Block ================== #
     
     def A(self,):
-        e = FrameEvent("A",None)
-        self.__mux(e)
+        __e = FrameEvent("A",None)
+        self.__kernel(__e)
     
     def B(self,):
-        e = FrameEvent("B",None)
-        self.__mux(e)
+        __e = FrameEvent("B",None)
+        self.__kernel(__e)
     
     def C(self,):
-        e = FrameEvent("C",None)
-        self.__mux(e)
+        __e = FrameEvent("C",None)
+        self.__kernel(__e)
     
     def D(self,):
-        e = FrameEvent("D",None)
-        self.__mux(e)
+        __e = FrameEvent("D",None)
+        self.__kernel(__e)
     
     def E(self,):
-        e = FrameEvent("E",None)
-        self.__mux(e)
-    
-    # ====================== Multiplexer ==================== #
-    
-    def __mux(self, e):
-        if self.__compartment.state.__name__ == '__simplehandlercalls_state_Init':
-            self.__simplehandlercalls_state_Init(e)
-        elif self.__compartment.state.__name__ == '__simplehandlercalls_state_A':
-            self.__simplehandlercalls_state_A(e)
-        elif self.__compartment.state.__name__ == '__simplehandlercalls_state_B':
-            self.__simplehandlercalls_state_B(e)
-        
-        if self.__next_compartment != None:
-            next_compartment = self.__next_compartment
-            self.__next_compartment = None
-            if(next_compartment.forward_event is not None and 
-               next_compartment.forward_event._message == ">"):
-                self.__mux(FrameEvent( "<", self.__compartment.exit_args))
-                self.__compartment = next_compartment
-                self.__mux(next_compartment.forward_event)
-            else:
-                self.__do_transition(next_compartment)
-                if next_compartment.forward_event is not None:
-                    self.__mux(next_compartment.forward_event)
-            next_compartment.forward_event = None
+        __e = FrameEvent("E",None)
+        self.__kernel(__e)
     
     # ===================== Machine Block =================== #
     
-    def __simplehandlercalls_state_Init(self, e):
-        if e._message == "A":
-            compartment = SimpleHandlerCallsCompartment(self.__simplehandlercalls_state_A)
-            self.__transition(compartment)
-            
+    # ----------------------------------------
+    # $Init
+    
+    def __simplehandlercalls_state_Init(self, __e):
+        if __e._message == "A":
+            next_compartment = SimpleHandlerCallsCompartment('__simplehandlercalls_state_A')
+            self.__transition(next_compartment)
             return
-        
-        elif e._message == "B":
-            compartment = SimpleHandlerCallsCompartment(self.__simplehandlercalls_state_B)
-            self.__transition(compartment)
-            
+        elif __e._message == "B":
+            next_compartment = SimpleHandlerCallsCompartment('__simplehandlercalls_state_B')
+            self.__transition(next_compartment)
             return
-        
-        elif e._message == "C":
+        elif __e._message == "C":
             self.A()
             return
-            
             return
-        
-        elif e._message == "D":
+        elif __e._message == "D":
             self.B()
             return
-            compartment = SimpleHandlerCallsCompartment(self.__simplehandlercalls_state_A)
-            self.__transition(compartment)
-            
+            next_compartment = SimpleHandlerCallsCompartment('__simplehandlercalls_state_A')
+            self.__transition(next_compartment)
             return
-        
-        elif e._message == "E":
+        elif __e._message == "E":
             self.D()
             return
             self.C()
             return
-            
             return
-        
-    def __simplehandlercalls_state_A(self, e):
+    
+    # ----------------------------------------
+    # $A
+    
+    def __simplehandlercalls_state_A(self, __e):
         pass
         
-    def __simplehandlercalls_state_B(self, e):
+    
+    # ----------------------------------------
+    # $B
+    
+    def __simplehandlercalls_state_B(self, __e):
         pass
         
     
     
-    # =============== Machinery and Mechanisms ============== #
+    # ==================== System Runtime =================== #
     
-    def __transition(self, compartment: 'SimpleHandlerCallsCompartment'):
-        self.__next_compartment = compartment
+    def __kernel(self, __e):
+        
+        # send event to current state
+        self.__router(__e)
+        
+        # loop until no transitions occur
+        while self.__next_compartment != None:
+            next_compartment = self.__next_compartment
+            self.__next_compartment = None
+            
+            # exit current state
+            self.__router(FrameEvent( "<", self.__compartment.exit_args))
+            # change state
+            self.__compartment = next_compartment
+            
+            if next_compartment.forward_event is None:
+                # send normal enter event
+                self.__router(FrameEvent(">", self.__compartment.enter_args))
+            else: # there is a forwarded event
+                if next_compartment.forward_event._message == ">":
+                    # forwarded event is enter event
+                    self.__router(next_compartment.forward_event)
+                else:
+                    # forwarded event is not enter event
+                    # send normal enter event
+                    self.__router(FrameEvent(">", self.__compartment.enter_args))
+                    # and now forward event to new, intialized state
+                    self.__router(next_compartment.forward_event)
+                next_compartment.forward_event = None
+                
     
-    def  __do_transition(self, next_compartment: 'SimpleHandlerCallsCompartment'):
-        self.__mux(FrameEvent("<", self.__compartment.exit_args))
-        self.__compartment = next_compartment
-        self.__mux(FrameEvent(">", self.__compartment.enter_args))
+    def __router(self, __e):
+        if self.__compartment.state == '__simplehandlercalls_state_Init':
+            self.__simplehandlercalls_state_Init(__e)
+        elif self.__compartment.state == '__simplehandlercalls_state_A':
+            self.__simplehandlercalls_state_A(__e)
+        elif self.__compartment.state == '__simplehandlercalls_state_B':
+            self.__simplehandlercalls_state_B(__e)
+        
+    def __transition(self, next_compartment: 'SimpleHandlerCallsCompartment'):
+        self.__next_compartment = next_compartment
     
     def state_info(self):
-        return self.__compartment.state.__name__
+        return self.__compartment.state
         
 
 # ===================== Compartment =================== #
 
 class SimpleHandlerCallsCompartment:
 
-    def __init__(self, state):
+    def __init__(self,state):
         self.state = state
         self.state_args = {}
         self.state_vars = {}
         self.enter_args = {}
         self.exit_args = {}
-        self.forward_event = FrameEvent(None, None)
+        self.forward_event = None
     
-
-
-# ********************
-
-#class SimpleHandlerCallsController(SimpleHandlerCalls):
-	#def __init__(self,):
-	    #super().__init__()
-
-# ********************
-

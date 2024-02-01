@@ -41,39 +41,19 @@ class TestTransitionEvents:
         sm = TransitionSmController()
         sm.clear_all()
         sm.change()
+        assert sm.state_info() == return_state_name("S0")
+        sm.transit()
         assert sm.state_info() == return_state_name("S1")
         sm.change()
         assert sm.state_info() == return_state_name("S2")
-        sm.change()
-        assert sm.state_info() == return_state_name("S3")
-        sm.change()
-        assert sm.state_info() == return_state_name("S4")
-        assert len(sm.exits) == 0
-        assert len(sm.enters) == 0
-    
-    def test_cascading_transition(self):
-        """Test transition that triggers another transition in an enter event handler."""
-        sm = TransitionSmController()
-        sm.change()
-        sm.clear_all()
-        assert sm.state_info() == return_state_name("S1")
         sm.transit()
-        assert sm.state_info() == return_state_name("S3")
-        assert sm.exits == ["S1", "S2"]
-        assert sm.enters == ["S2", "S3"]
-
-    def test_cascading_change_state(self):
-        """Test transition that triggers a change-state from an enter event handler."""
-        sm = TransitionSmController()
-        sm.change()
-        sm.change()
-        sm.change()
-        sm.clear_all()
         assert sm.state_info() == return_state_name("S3")
         sm.transit()
         assert sm.state_info() == return_state_name("S0")
-        assert sm.exits == ["S3"]
-        assert sm.enters == ["S4"]
+        assert sm.enters == ['S1','S3','S4']
+        assert sm.exits == ['S0','S2','S3']
+    
+
 
 
 

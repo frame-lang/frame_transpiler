@@ -168,17 +168,17 @@ impl JavaScriptVisitor {
         let mut code = String::new();
 
         match variable_node.scope {
-            IdentifierDeclScope::System => {
+            IdentifierDeclScope::SystemScope => {
                 code.push_str("this");
             }
-            IdentifierDeclScope::DomainBlock => {
+            IdentifierDeclScope::DomainBlockScope => {
                 if self.config.code.public_domain {
                     code.push_str(&format!("this.{}", variable_node.id_node.name.lexeme));
                 } else {
                     code.push_str(&format!("this.#{}", variable_node.id_node.name.lexeme));
                 }
             }
-            IdentifierDeclScope::StateParam => {
+            IdentifierDeclScope::StateParamScope => {
                 let var_node = variable_node;
                 let var_symbol_rcref_opt = &var_node.symbol_type_rcref_opt;
                 let var_symbol_rcref = var_symbol_rcref_opt.as_ref().unwrap();
@@ -196,7 +196,7 @@ impl JavaScriptVisitor {
                     code.push(')');
                 }
             }
-            IdentifierDeclScope::StateVar => {
+            IdentifierDeclScope::StateVarScope => {
                 let var_node = variable_node;
                 let var_symbol_rcref_opt = &var_node.symbol_type_rcref_opt;
                 let var_symbol_rcref = var_symbol_rcref_opt.as_ref().unwrap();
@@ -214,7 +214,7 @@ impl JavaScriptVisitor {
                     code.push(')');
                 }
             }
-            IdentifierDeclScope::EventHandlerParam => {
+            IdentifierDeclScope::EventHandlerParamScope => {
                 let var_node = variable_node;
                 let var_symbol_rcref_opt = &var_node.symbol_type_rcref_opt;
                 let var_symbol_rcref = var_symbol_rcref_opt.as_ref().unwrap();
@@ -232,10 +232,10 @@ impl JavaScriptVisitor {
                     code.push(')');
                 }
             }
-            IdentifierDeclScope::EventHandlerVar => {
+            IdentifierDeclScope::EventHandlerVarScope => {
                 code.push_str(&variable_node.id_node.name.lexeme.to_string());
             }
-            IdentifierDeclScope::None => {
+            IdentifierDeclScope::UnknownScope => {
                 // TODO: Explore labeling Variables as "extern" scope
                 code.push_str(&variable_node.id_node.name.lexeme.to_string());
             } // Actions?
@@ -265,10 +265,14 @@ impl JavaScriptVisitor {
     //* --------------------------------------------------------------------- *//
 
     pub fn run(&mut self, system_node: &SystemNode) {
-        match &system_node.attributes_opt {
+        match &system_node.system_attributes_opt {
             Some(attributes) => {
                 for value in (*attributes).values() {
                     match value {
+                        AttributeNode::MetaWord { .. } => {
+                            // TODO
+                            panic!("Need to implement attribute MetaWord.")
+                        }
                         AttributeNode::MetaNameValueStr { attr } => {
                             match attr.name.as_str() {
                                 // TODO: constants
@@ -367,7 +371,9 @@ impl JavaScriptVisitor {
     fn visit_decl_stmts(&mut self, decl_stmt_types: &Vec<DeclOrStmtType>) {
         for decl_stmt_t in decl_stmt_types.iter() {
             match decl_stmt_t {
-                DeclOrStmtType::VarDeclT { var_decl_t_rc_ref } => {
+                DeclOrStmtType::VarDeclT {
+                    var_decl_t_rcref: var_decl_t_rc_ref,
+                } => {
                     let variable_decl_node = var_decl_t_rc_ref.borrow();
                     variable_decl_node.accept(self);
                 }
@@ -375,13 +381,21 @@ impl JavaScriptVisitor {
                     match stmt_t {
                         StatementType::ExpressionStmt { expr_stmt_t } => {
                             match expr_stmt_t {
+                                ExprStmtType::TransitionStmtT { .. } => panic!("TODO"),
+
+                                ExprStmtType::SystemInstanceStmtT {
+                                    system_instance_stmt_node,
+                                } => system_instance_stmt_node.accept(self),
+                                ExprStmtType::SystemTypeStmtT {
+                                    system_type_stmt_node,
+                                } => system_type_stmt_node.accept(self),
                                 ExprStmtType::ActionCallStmtT {
                                     action_call_stmt_node,
                                 } => action_call_stmt_node.accept(self), // // TODO
                                 ExprStmtType::CallStmtT { call_stmt_node } => {
                                     call_stmt_node.accept(self)
                                 }
-                                ExprStmtType::CallChainLiteralStmtT {
+                                ExprStmtType::CallChainStmtT {
                                     call_chain_literal_stmt_node,
                                 } => call_chain_literal_stmt_node.accept(self),
                                 ExprStmtType::AssignmentStmtT {
@@ -390,10 +404,19 @@ impl JavaScriptVisitor {
                                 ExprStmtType::VariableStmtT { variable_stmt_node } => {
                                     variable_stmt_node.accept(self)
                                 }
+                                ExprStmtType::ExprListStmtT {
+                                    expr_list_stmt_node,
+                                } => expr_list_stmt_node.accept(self),
+                                ExprStmtType::EnumeratorStmtT {
+                                    enumerator_stmt_node,
+                                } => enumerator_stmt_node.accept(self),
+                                ExprStmtType::BinaryStmtT { binary_stmt_node } => {
+                                    binary_stmt_node.accept(self)
+                                }
                             }
                         }
                         StatementType::TransitionStmt {
-                            transition_statement,
+                            transition_statement_node: transition_statement,
                         } => {
                             transition_statement.accept(self);
                         }
@@ -405,8 +428,27 @@ impl JavaScriptVisitor {
                         } => {
                             state_stack_operation_statement_node.accept(self);
                         }
-                        StatementType::ChangeStateStmt { change_state_stmt } => {
+                        StatementType::ChangeStateStmt {
+                            change_state_stmt_node: change_state_stmt,
+                        } => {
                             change_state_stmt.accept(self);
+                        }
+                        StatementType::LoopStmt { loop_stmt_node } => {
+                            loop_stmt_node.accept(self);
+                        }
+                        StatementType::BlockStmt { block_stmt_node } => {
+                            block_stmt_node.accept(self);
+                        }
+                        StatementType::ContinueStmt { continue_stmt_node } => {
+                            continue_stmt_node.accept(self);
+                        }
+                        StatementType::BreakStmt { break_stmt_node } => {
+                            break_stmt_node.accept(self);
+                        }
+                        StatementType::SuperStringStmt {
+                            super_string_stmt_node,
+                        } => {
+                            super_string_stmt_node.accept(self);
                         }
                         StatementType::NoStmt => {
                             // TODO
@@ -585,7 +627,7 @@ impl JavaScriptVisitor {
         change_state_stmt_node: &ChangeStateStatementNode,
     ) {
         let target_state_name = match &change_state_stmt_node.state_context_t {
-            StateContextType::StateRef { state_context_node } => {
+            TargetStateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_node.name
             }
             _ => {
@@ -614,8 +656,10 @@ impl JavaScriptVisitor {
         // -- Enter Arguments --
 
         let enter_args_opt = match &change_state_stmt_node.state_context_t {
-            StateContextType::StateRef { state_context_node } => &state_context_node.enter_args_opt,
-            StateContextType::StateStackPop {} => &None,
+            TargetStateContextType::StateRef { state_context_node } => {
+                &state_context_node.enter_args_opt
+            }
+            TargetStateContextType::StateStackPop {} => &None,
         };
 
         if let Some(enter_args) = enter_args_opt {
@@ -627,7 +671,7 @@ impl JavaScriptVisitor {
             msg.push_str(&self.symbol_config.enter_msg_symbol);
 
             if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt) {
-                match &event_sym.borrow().params_opt {
+                match &event_sym.borrow().event_symbol_params_opt {
                     Some(event_params) => {
                         if enter_args.exprs_t.len() != event_params.len() {
                             panic!("Fatal error: misaligned parameters to arguments.")
@@ -664,10 +708,10 @@ impl JavaScriptVisitor {
 
         /*  -- State Arguments -- */
         let target_state_args_opt = match &change_state_stmt_node.state_context_t {
-            StateContextType::StateRef { state_context_node } => {
+            TargetStateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_args_opt
             }
-            StateContextType::StateStackPop {} => &Option::None,
+            TargetStateContextType::StateStackPop {} => &Option::None,
         };
 
         if let Some(state_args) = target_state_args_opt {
@@ -718,7 +762,7 @@ impl JavaScriptVisitor {
                 //                target_state_vars = "stateVars".to_string();
                 if let Some(state_symbol_rcref) = self.arcanium.get_state(&q.borrow().name) {
                     let state_symbol = state_symbol_rcref.borrow();
-                    let state_node = &state_symbol.state_node.as_ref().unwrap().borrow();
+                    let state_node = &state_symbol.state_node_opt.as_ref().unwrap().borrow();
                     // generate local state variables
                     if state_node.vars_opt.is_some() {
                         //                        let mut separator = "";
@@ -728,7 +772,7 @@ impl JavaScriptVisitor {
                                 Some(var_type) => var_type.get_type_str(),
                                 None => String::from("<?>"),
                             };
-                            let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
+                            let expr_t = &var.value_rc;
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
                             self.add_code(&format!(
@@ -752,8 +796,11 @@ impl JavaScriptVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn generate_state_ref_transition(&mut self, transition_statement: &TransitionStatementNode) {
-        let target_state_name = match &transition_statement.target_state_context_t {
-            StateContextType::StateRef { state_context_node } => {
+        let target_state_name = match &transition_statement
+            .transition_expr_node
+            .target_state_context_t
+        {
+            TargetStateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_node.name
             }
             _ => {
@@ -765,7 +812,7 @@ impl JavaScriptVisitor {
         let state_ref_code = self.format_target_state_name(target_state_name);
 
         self.newline();
-        match &transition_statement.label_opt {
+        match &transition_statement.transition_expr_node.label_opt {
             Some(label) => {
                 self.add_code(&format!("// {}", label));
                 self.newline();
@@ -792,7 +839,7 @@ impl JavaScriptVisitor {
 
                 if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt)
                 {
-                    match &event_sym.borrow().params_opt {
+                    match &event_sym.borrow().event_symbol_params_opt {
                         Some(event_params) => {
                             if exit_args.exprs_t.len() != event_params.len() {
                                 panic!("Fatal error: misaligned parameters to arguments.")
@@ -842,16 +889,21 @@ impl JavaScriptVisitor {
         self.newline();
         // }
 
-        if transition_statement.forward_event {
+        if transition_statement.transition_expr_node.forward_event {
             self.newline();
             self.add_code("compartment._forwardEvent = e;");
         }
 
         self.newline();
 
-        let enter_args_opt = match &transition_statement.target_state_context_t {
-            StateContextType::StateRef { state_context_node } => &state_context_node.enter_args_opt,
-            StateContextType::StateStackPop {} => &None,
+        let enter_args_opt = match &transition_statement
+            .transition_expr_node
+            .target_state_context_t
+        {
+            TargetStateContextType::StateRef { state_context_node } => {
+                &state_context_node.enter_args_opt
+            }
+            TargetStateContextType::StateStackPop {} => &None,
         };
 
         if let Some(enter_args) = enter_args_opt {
@@ -863,7 +915,7 @@ impl JavaScriptVisitor {
             msg.push_str(&self.symbol_config.enter_msg_symbol);
 
             if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt) {
-                match &event_sym.borrow().params_opt {
+                match &event_sym.borrow().event_symbol_params_opt {
                     Some(event_params) => {
                         if enter_args.exprs_t.len() != event_params.len() {
                             panic!("Fatal error: misaligned parameters to arguments.")
@@ -900,11 +952,14 @@ impl JavaScriptVisitor {
 
         // -- State Arguments --
 
-        let target_state_args_opt = match &transition_statement.target_state_context_t {
-            StateContextType::StateRef { state_context_node } => {
+        let target_state_args_opt = match &transition_statement
+            .transition_expr_node
+            .target_state_context_t
+        {
+            TargetStateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_args_opt
             }
-            StateContextType::StateStackPop {} => &Option::None,
+            TargetStateContextType::StateStackPop {} => &Option::None,
         };
         //
         if let Some(state_args) = target_state_args_opt {
@@ -955,7 +1010,7 @@ impl JavaScriptVisitor {
                 //                target_state_vars = "stateVars".to_string();
                 if let Some(state_symbol_rcref) = self.arcanium.get_state(&q.borrow().name) {
                     let state_symbol = state_symbol_rcref.borrow();
-                    let state_node = &state_symbol.state_node.as_ref().unwrap().borrow();
+                    let state_node = &state_symbol.state_node_opt.as_ref().unwrap().borrow();
                     // generate local state variables
                     if state_node.vars_opt.is_some() {
                         //                        let mut separator = "";
@@ -965,7 +1020,7 @@ impl JavaScriptVisitor {
                                 Some(var_type) => var_type.get_type_str(),
                                 None => String::from("<?>"),
                             };
-                            let expr_t = var.initializer_expr_t_opt.as_ref().unwrap();
+                            let expr_t = &var.value_rc;
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
                             self.add_code(&format!(
@@ -1002,7 +1057,7 @@ impl JavaScriptVisitor {
         transition_statement: &TransitionStatementNode,
     ) {
         self.newline();
-        match &transition_statement.label_opt {
+        match &transition_statement.transition_expr_node.label_opt {
             Some(label) => {
                 self.add_code(&format!("// {}", label));
                 self.newline();
@@ -1026,7 +1081,7 @@ impl JavaScriptVisitor {
 
                 if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt)
                 {
-                    match &event_sym.borrow().params_opt {
+                    match &event_sym.borrow().event_symbol_params_opt {
                         Some(event_params) => {
                             if exit_args.exprs_t.len() != event_params.len() {
                                 panic!("Fatal error: misaligned parameters to arguments.")
@@ -1204,7 +1259,7 @@ impl JavaScriptVisitor {
                     Some(vars) => {
                         for var_rcref in vars {
                             let var_decl_node = var_rcref.borrow();
-                            let expr_t = var_decl_node.initializer_expr_t_opt.as_ref().unwrap();
+                            let expr_t = &var_decl_node.value_rc;
                             let mut expr_code = String::new();
                             expr_t.accept_to_string(self, &mut expr_code);
 
@@ -1462,7 +1517,7 @@ impl AstVisitor for JavaScriptVisitor {
             for var_rcref in &domain_block_node.member_variables {
                 let var_name = var_rcref.borrow().name.clone();
                 let var = var_rcref.borrow();
-                let var_init_expr = var.initializer_expr_t_opt.as_ref().unwrap();
+                let var_init_expr = &var.value_rc;
                 let mut init_expression = String::new();
                 var_init_expr.accept_to_string(self, &mut init_expression);
                 // push for later initialization
@@ -2242,11 +2297,14 @@ impl AstVisitor for JavaScriptVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_transition_statement_node(&mut self, transition_statement: &TransitionStatementNode) {
-        match &transition_statement.target_state_context_t {
-            StateContextType::StateRef { .. } => {
+        match &transition_statement
+            .transition_expr_node
+            .target_state_context_t
+        {
+            TargetStateContextType::StateRef { .. } => {
                 self.generate_state_ref_transition(transition_statement)
             }
-            StateContextType::StateStackPop {} => {
+            TargetStateContextType::StateStackPop {} => {
                 self.generate_state_stack_pop_transition(transition_statement)
             }
         };
@@ -2266,10 +2324,10 @@ impl AstVisitor for JavaScriptVisitor {
         change_state_stmt_node: &ChangeStateStatementNode,
     ) {
         match &change_state_stmt_node.state_context_t {
-            StateContextType::StateRef { .. } => {
+            TargetStateContextType::StateRef { .. } => {
                 self.generate_state_ref_change_state(change_state_stmt_node)
             }
-            StateContextType::StateStackPop {} => {
+            TargetStateContextType::StateStackPop {} => {
                 self.generate_state_stack_pop_change_state(change_state_stmt_node)
             }
         };
@@ -2311,6 +2369,11 @@ impl AstVisitor for JavaScriptVisitor {
                 number_match_test_node,
             } => {
                 number_match_test_node.accept(self);
+            }
+            TestType::EnumMatchTest {
+                enum_match_test_node,
+            } => {
+                enum_match_test_node.accept(self);
             }
         }
     }
@@ -2366,9 +2429,9 @@ impl AstVisitor for JavaScriptVisitor {
     // precisely, but this would require embedding some logic in the generated code and would make
     // handlers harder to reason about. The conservative approach has the advantage of both
     // simplifying the implementation and reasoning about Frame programs.
-    fn visit_call_chain_literal_statement_node(
+    fn visit_call_chain_statement_node(
         &mut self,
-        method_call_chain_literal_stmt_node: &CallChainLiteralStmtNode,
+        method_call_chain_literal_stmt_node: &CallChainStmtNode,
     ) {
         self.newline();
 
@@ -2377,7 +2440,7 @@ impl AstVisitor for JavaScriptVisitor {
             .call_chain_literal_expr_node
             .call_chain;
         if call_chain.len() == 1 {
-            if let CallChainLiteralNodeType::InterfaceMethodCallT {
+            if let CallChainNodeType::InterfaceMethodCallT {
                 interface_method_call_expr_node,
             } = &call_chain[0]
             {
@@ -2398,9 +2461,9 @@ impl AstVisitor for JavaScriptVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_chain_literal_expr_node(
+    fn visit_call_chain_expr_node(
         &mut self,
-        method_call_chain_expression_node: &CallChainLiteralExprNode,
+        method_call_chain_expression_node: &CallChainExprNode,
     ) {
         // TODO: maybe put this in an AST node
 
@@ -2409,10 +2472,10 @@ impl AstVisitor for JavaScriptVisitor {
         for node in &method_call_chain_expression_node.call_chain {
             self.add_code(separator);
             match &node {
-                CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
+                CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                     id_node.accept(self);
                 }
-                CallChainLiteralNodeType::CallT { call } => {
+                CallChainNodeType::UndeclaredCallT { call } => {
                     match &method_call_chain_expression_node.is_new_expr {
                         true => self.add_code("new "),
                         false => {}
@@ -2420,17 +2483,27 @@ impl AstVisitor for JavaScriptVisitor {
 
                     call.accept(self);
                 }
-                CallChainLiteralNodeType::InterfaceMethodCallT {
+                CallChainNodeType::InterfaceMethodCallT {
                     interface_method_call_expr_node,
                 } => {
                     interface_method_call_expr_node.accept(self);
                 }
-                CallChainLiteralNodeType::ActionCallT {
+                CallChainNodeType::OperationCallT {
+                    operation_call_expr_node,
+                } => {
+                    operation_call_expr_node.accept(self);
+                }
+                CallChainNodeType::OperationRefT {
+                    operation_ref_expr_node,
+                } => {
+                    operation_ref_expr_node.accept(self);
+                }
+                CallChainNodeType::ActionCallT {
                     action_call_expr_node,
                 } => {
                     action_call_expr_node.accept(self);
                 }
-                CallChainLiteralNodeType::VariableNodeT { var_node } => {
+                CallChainNodeType::VariableNodeT { var_node } => {
                     self.visiting_call_chain_literal_variable = true;
                     var_node.accept(self);
                     self.visiting_call_chain_literal_variable = false;
@@ -2442,9 +2515,9 @@ impl AstVisitor for JavaScriptVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_chain_literal_expr_node_to_string(
+    fn visit_call_chain_expr_node_to_string(
         &mut self,
-        method_call_chain_expression_node: &CallChainLiteralExprNode,
+        method_call_chain_expression_node: &CallChainExprNode,
         output: &mut String,
     ) {
         let mut separator = "";
@@ -2452,23 +2525,33 @@ impl AstVisitor for JavaScriptVisitor {
         for node in &method_call_chain_expression_node.call_chain {
             output.push_str(separator);
             match &node {
-                CallChainLiteralNodeType::IdentifierNodeT { id_node } => {
+                CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                     id_node.accept_to_string(self, output);
                 }
-                CallChainLiteralNodeType::CallT { call } => {
+                CallChainNodeType::UndeclaredCallT { call } => {
                     call.accept_to_string(self, output);
                 }
-                CallChainLiteralNodeType::InterfaceMethodCallT {
+                CallChainNodeType::InterfaceMethodCallT {
                     interface_method_call_expr_node,
                 } => {
                     interface_method_call_expr_node.accept_to_string(self, output);
                 }
-                CallChainLiteralNodeType::ActionCallT {
+                CallChainNodeType::OperationCallT {
+                    operation_call_expr_node,
+                } => {
+                    operation_call_expr_node.accept_to_string(self, output);
+                }
+                CallChainNodeType::OperationRefT {
+                    operation_ref_expr_node,
+                } => {
+                    operation_ref_expr_node.accept(self);
+                }
+                CallChainNodeType::ActionCallT {
                     action_call_expr_node,
                 } => {
                     action_call_expr_node.accept_to_string(self, output);
                 }
-                CallChainLiteralNodeType::VariableNodeT { var_node } => {
+                CallChainNodeType::VariableNodeT { var_node } => {
                     var_node.accept_to_string(self, output);
                 }
             }
@@ -2567,7 +2650,7 @@ impl AstVisitor for JavaScriptVisitor {
                 ExprType::ActionCallExprT {
                     action_call_expr_node,
                 } => action_call_expr_node.accept(self),
-                ExprType::CallChainLiteralExprT {
+                ExprType::CallChainExprT {
                     call_chain_expr_node,
                 } => call_chain_expr_node.accept(self),
                 ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
@@ -2580,32 +2663,33 @@ impl AstVisitor for JavaScriptVisitor {
             // match_branch_node.string_match_pattern_node.accept(self);
             // self.add_code(&format!("\") {{"));
 
-            let mut first_match = true;
-            for match_string in &match_branch_node
-                .string_match_pattern_node
-                .match_pattern_strings
-            {
-                if first_match {
-                    self.add_code(&format!(" == \"{}\")", match_string));
-                    first_match = false;
-                } else {
-                    self.add_code(" || (");
-                    match &string_match_test_node.expr_t {
-                        ExprType::CallExprT {
-                            call_expr_node: method_call_expr_node,
-                        } => method_call_expr_node.accept(self),
-                        ExprType::ActionCallExprT {
-                            action_call_expr_node,
-                        } => action_call_expr_node.accept(self),
-                        ExprType::CallChainLiteralExprT {
-                            call_chain_expr_node,
-                        } => call_chain_expr_node.accept(self),
-                        ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
-                        _ => panic!("TODO"),
-                    }
-                    self.add_code(&format!(" == \"{}\")", match_string));
-                }
-            }
+            // let mut first_match = true;
+            // TODO: Fix this section to deal with empty strings and null strings
+            // for match_string in &match_branch_node
+            //     .string_match_pattern_node
+            //     .match_pattern_strings
+            // {
+            //     if first_match {
+            //         self.add_code(&format!(" == \"{}\")", match_string));
+            //         first_match = false;
+            //     } else {
+            //         self.add_code(" || (");
+            //         match &string_match_test_node.expr_t {
+            //             ExprType::CallExprT {
+            //                 call_expr_node: method_call_expr_node,
+            //             } => method_call_expr_node.accept(self),
+            //             ExprType::ActionCallExprT {
+            //                 action_call_expr_node,
+            //             } => action_call_expr_node.accept(self),
+            //             ExprType::CallChainExprT {
+            //                 call_chain_expr_node,
+            //             } => call_chain_expr_node.accept(self),
+            //             ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
+            //             _ => panic!("TODO"),
+            //         }
+            //         self.add_code(&format!(" == \"{}\")", match_string));
+            //     }
+            // }
             self.add_code(") {");
             self.indent();
 
@@ -2726,7 +2810,7 @@ impl AstVisitor for JavaScriptVisitor {
                 ExprType::ActionCallExprT {
                     action_call_expr_node,
                 } => action_call_expr_node.accept(self),
-                ExprType::CallChainLiteralExprT {
+                ExprType::CallChainExprT {
                     call_chain_expr_node,
                 } => call_chain_expr_node.accept(self),
                 ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
@@ -2747,7 +2831,7 @@ impl AstVisitor for JavaScriptVisitor {
                         ExprType::ActionCallExprT {
                             action_call_expr_node,
                         } => action_call_expr_node.accept(self),
-                        ExprType::CallChainLiteralExprT {
+                        ExprType::CallChainExprT {
                             call_chain_expr_node,
                         } => call_chain_expr_node.accept(self),
                         ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
@@ -3010,7 +3094,7 @@ impl AstVisitor for JavaScriptVisitor {
     }
     //* --------------------------------------------------------------------- *//
 
-    fn visit_state_context_node(&mut self, _state_context_node: &StateContextNode) {
+    fn visit_state_context_node(&mut self, _state_context_node: &TargetStateContextNode) {
         // TODO
         //        self.add_code(&format!("{}",identifier_node.name.lexeme));
     }
@@ -3069,7 +3153,7 @@ impl AstVisitor for JavaScriptVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_decl_node(&mut self, action_decl_node: &ActionNode) {
+    fn visit_action_node(&mut self, action_decl_node: &ActionNode) {
         let mut subclass_code = String::new();
 
         self.newline();
@@ -3137,15 +3221,15 @@ impl AstVisitor for JavaScriptVisitor {
 
     fn visit_variable_decl_node(&mut self, variable_decl_node: &VariableDeclNode) {
         let var_name = &variable_decl_node.name;
-        let var_init_expr = &variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
+        let var_init_expr = &variable_decl_node.value_rc;
         self.newline();
         let mut code = String::new();
         var_init_expr.accept_to_string(self, &mut code);
         match &variable_decl_node.identifier_decl_scope {
-            IdentifierDeclScope::DomainBlock => {
+            IdentifierDeclScope::DomainBlockScope => {
                 self.add_code(&format!("{} = {};", var_name, code));
             }
-            IdentifierDeclScope::EventHandlerVar => {
+            IdentifierDeclScope::EventHandlerVarScope => {
                 self.add_code(&format!("let {} = {};", var_name, code));
             }
             _ => panic!("Error - unexpected scope for variable declaration"),
@@ -3194,7 +3278,7 @@ impl AstVisitor for JavaScriptVisitor {
         self.newline();
         assignment_expr_node.l_value_box.accept(self);
         self.add_code(" = ");
-        assignment_expr_node.r_value_box.accept(self);
+        assignment_expr_node.r_value_rc.accept(self);
         self.add_code(";");
     }
 
@@ -3213,7 +3297,7 @@ impl AstVisitor for JavaScriptVisitor {
             .accept_to_string(self, output);
         output.push_str(" = ");
         assignment_expr_node
-            .r_value_box
+            .r_value_rc
             .accept_to_string(self, output);
         output.push(';');
     }

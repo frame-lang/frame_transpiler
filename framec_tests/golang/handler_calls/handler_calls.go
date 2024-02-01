@@ -1,8 +1,5 @@
-// emitted from framec_v0.10.0
+// emitted from framec_v0.11.0
 // get include files at https://github.com/frame-lang/frame-ancillary-files
-package handler_calls
-
-import "golang/framelang"
 
 
 func NewHandlerCalls() HandlerCalls {
@@ -134,21 +131,21 @@ func (m *handlerCallsStruct) _HandlerCallsState_Init_(e *framelang.FrameEvent) {
     switch e.Msg {
     case "NonRec":
         compartment := NewHandlerCallsCompartment(HandlerCallsState_NonRecursive)
-        compartment.StateVars["counter"] = 0
+        compartment.StateVars["counter"] = m._compartment_.StateVars["counter"].(int) + e.Params["arg"].(int)
         
         m._transition_(compartment)
         
         return
     case "SelfRec":
         compartment := NewHandlerCallsCompartment(HandlerCallsState_SelfRecursive)
-        compartment.StateVars["counter"] = 0
+        compartment.StateVars["counter"] = m._compartment_.StateVars["counter"].(int) + e.Params["arg"].(int)
         
         m._transition_(compartment)
         
         return
     case "MutRec":
         compartment := NewHandlerCallsCompartment(HandlerCallsState_MutuallyRecursive)
-        compartment.StateVars["counter"] = 0
+        compartment.StateVars["counter"] = m._compartment_.StateVars["counter"].(int) + e.Params["arg"].(int)
         
         m._transition_(compartment)
         
@@ -161,12 +158,18 @@ func (m *handlerCallsStruct) _HandlerCallsState_NonRecursive_(e *framelang.Frame
     case "Foo":
         m.log("Foo",e.Params["arg"].(int))
         m._compartment_.StateVars["counter"] = m._compartment_.StateVars["counter"].(int) + e.Params["arg"].(int)
-        m.Bar(e.Params["arg"].(int) * 2)
-        return
+        should
+        report
+        the
+        next
+        line
+        as
+        a
+        static
+        error
         m.log("Unreachable",0)
         
         return
-      //  the front-end should report the next line as a static error
     case "Bar":
         m.log("Bar",e.Params["arg"].(int))
         m._compartment_.StateVars["counter"] = m._compartment_.StateVars["counter"].(int) + e.Params["arg"].(int)
@@ -177,10 +180,10 @@ func (m *handlerCallsStruct) _HandlerCallsState_NonRecursive_(e *framelang.Frame
         
         return
     case "Call":
-        if e.Params["event"].(string) == "Foo" {
+        if e.Params["event"].(string) {
             m.Foo(e.Params["arg"].(int))
             return
-        } else if e.Params["event"].(string) == "Bar" {
+        } else if e.Params["event"].(string) {
             m.Bar(e.Params["arg"].(int))
             return
         } else {
@@ -219,10 +222,10 @@ func (m *handlerCallsStruct) _HandlerCallsState_SelfRecursive_(e *framelang.Fram
         
         return
     case "Call":
-        if e.Params["event"].(string) == "Foo" {
+        if e.Params["event"].(string) {
             m.Foo(e.Params["arg"].(int))
             return
-        } else if e.Params["event"].(string) == "Bar" {
+        } else if e.Params["event"].(string) {
             m.Bar(e.Params["arg"].(int))
             return
         } else {
@@ -265,10 +268,10 @@ func (m *handlerCallsStruct) _HandlerCallsState_MutuallyRecursive_(e *framelang.
         
         return
     case "Call":
-        if e.Params["event"].(string) == "Foo" {
+        if e.Params["event"].(string) {
             m.Foo(e.Params["arg"].(int))
             return
-        } else if e.Params["event"].(string) == "Bar" {
+        } else if e.Params["event"].(string) {
             m.Bar(e.Params["arg"].(int))
             return
         } else {

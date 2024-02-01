@@ -171,10 +171,10 @@ impl PlantUmlVisitor {
         let code = String::new();
 
         match variable_node.scope {
-            IdentifierDeclScope::DomainBlock => {
+            IdentifierDeclScope::DomainBlockScope => {
                 // code.push_str(&format!("this.{}",variable_node.id_node.name.lexeme));
             }
-            IdentifierDeclScope::StateParam => {
+            IdentifierDeclScope::StateParamScope => {
                 // let var_node = variable_node;
                 // let var_symbol_rcref_opt = &var_node.symbol_type_rcref_opt;
                 // let var_symbol_rcref = var_symbol_rcref_opt.as_ref().unwrap();
@@ -185,7 +185,7 @@ impl PlantUmlVisitor {
                 //                        ,var_type
                 //                        ,variable_node.id_node.name.lexeme));
             }
-            IdentifierDeclScope::StateVar => {
+            IdentifierDeclScope::StateVarScope => {
                 // let var_node = variable_node;
                 // let var_symbol_rcref_opt = &var_node.symbol_type_rcref_opt;
                 // let var_symbol_rcref = var_symbol_rcref_opt.as_ref().unwrap();
@@ -196,7 +196,7 @@ impl PlantUmlVisitor {
                 //                        ,var_type
                 //                        ,variable_node.id_node.name.lexeme));
             }
-            IdentifierDeclScope::EventHandlerParam => {
+            IdentifierDeclScope::EventHandlerParamScope => {
                 // let var_node = variable_node;
                 // let var_symbol_rcref_opt = &var_node.symbol_type_rcref_opt;
                 // let var_symbol_rcref = var_symbol_rcref_opt.as_ref().unwrap();
@@ -207,10 +207,10 @@ impl PlantUmlVisitor {
                 //                        ,var_type
                 //                        ,variable_node.id_node.name.lexeme));
             }
-            IdentifierDeclScope::EventHandlerVar => {
+            IdentifierDeclScope::EventHandlerVarScope => {
                 // code.push_str(&format!("{}",variable_node.id_node.name.lexeme));
             }
-            IdentifierDeclScope::None => {
+            IdentifierDeclScope::UnknownScope => {
                 // TODO: Explore labeling Variables as "extern" scope
                 // code.push_str(&format!("{}",variable_node.id_node.name.lexeme));
             } // Actions?
@@ -316,7 +316,7 @@ impl PlantUmlVisitor {
                             }
                         }
                         StatementType::TransitionStmt {
-                            transition_statement,
+                            transition_statement_node: transition_statement,
                         } => {
                             transition_statement.accept(self);
                         }
@@ -328,8 +328,25 @@ impl PlantUmlVisitor {
                         } => {
                             state_stack_operation_statement_node.accept(self);
                         }
-                        StatementType::ChangeStateStmt { change_state_stmt } => {
+                        StatementType::ChangeStateStmt {
+                            change_state_stmt_node: change_state_stmt,
+                        } => {
                             change_state_stmt.accept(self);
+                        }
+                        StatementType::LoopStmt { loop_stmt_node } => {
+                            loop_stmt_node.accept(self);
+                        }
+                        StatementType::BlockStmt { block_stmt_node } => {
+                            block_stmt_node.accept(self);
+                        }
+                        StatementType::ContinueStmt { .. } => {
+                            // continue_stmt_node.accept(self);
+                        }
+                        StatementType::BreakStmt { .. } => {
+                            // break_stmt_node.accept(self);
+                        }
+                        StatementType::SuperStringStmt { .. } => {
+                            // super_string_stmt_node.accept(self);
                         }
                         StatementType::NoStmt => {
                             // TODO
@@ -474,7 +491,7 @@ impl PlantUmlVisitor {
         change_state_stmt_node: &ChangeStateStatementNode,
     ) {
         let target_state_name = match &change_state_stmt_node.state_context_t {
-            StateContextType::StateRef { state_context_node } => {
+            TargetStateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_node.name
             }
             _ => panic!("TODO"),
@@ -509,8 +526,11 @@ impl PlantUmlVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn generate_state_ref_transition(&mut self, transition_statement: &TransitionStatementNode) {
-        let target_state_name = match &transition_statement.target_state_context_t {
-            StateContextType::StateRef { state_context_node } => {
+        let target_state_name = match &transition_statement
+            .transition_expr_node
+            .target_state_context_t
+        {
+            TargetStateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_node.name
             }
             _ => panic!("TODO"),
@@ -519,7 +539,7 @@ impl PlantUmlVisitor {
         let _state_ref_code = self.format_target_state_name(target_state_name);
 
         // self.newline();
-        match &transition_statement.label_opt {
+        match &transition_statement.transition_expr_node.label_opt {
             Some(_label) => {
                 // self.add_code(&format!("// {}", label));
                 // self.newline();
@@ -724,7 +744,7 @@ impl PlantUmlVisitor {
             current_state = state_name.clone();
         }
 
-        let label = match &transition_statement.label_opt {
+        let label = match &transition_statement.transition_expr_node.label_opt {
             Some(label) => {
                 let cleaned = str::replace(label, "|", "&#124;");
                 format!(" : {}", cleaned)
@@ -758,7 +778,7 @@ impl PlantUmlVisitor {
         transition_statement: &TransitionStatementNode,
     ) {
         self.newline();
-        match &transition_statement.label_opt {
+        match &transition_statement.transition_expr_node.label_opt {
             Some(_label) => {
                 // self.add_code(&format!("// {}", label));
                 // self.newline();
@@ -782,7 +802,7 @@ impl PlantUmlVisitor {
 
                 if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt)
                 {
-                    match &event_sym.borrow().params_opt {
+                    match &event_sym.borrow().event_symbol_params_opt {
                         Some(event_params) => {
                             if exit_args.exprs_t.len() != event_params.len() {
                                 panic!("Fatal error: misaligned parameters to arguments.")
@@ -822,7 +842,7 @@ impl PlantUmlVisitor {
         // self.add_code(&format!("StateContext stateContext = _stateStack_pop();"));
         // self.newline();
 
-        let label = match &transition_statement.label_opt {
+        let label = match &transition_statement.transition_expr_node.label_opt {
             Some(label) => {
                 let cleaned = str::replace(label, "|", "&#124;");
                 format!(" : {}", cleaned)
@@ -1358,11 +1378,14 @@ impl AstVisitor for PlantUmlVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_transition_statement_node(&mut self, transition_statement: &TransitionStatementNode) {
-        match &transition_statement.target_state_context_t {
-            StateContextType::StateRef { .. } => {
+        match &transition_statement
+            .transition_expr_node
+            .target_state_context_t
+        {
+            TargetStateContextType::StateRef { .. } => {
                 self.generate_state_ref_transition(transition_statement)
             }
-            StateContextType::StateStackPop {} => {
+            TargetStateContextType::StateStackPop {} => {
                 self.generate_state_stack_pop_transition(transition_statement)
             }
         };
@@ -1381,10 +1404,10 @@ impl AstVisitor for PlantUmlVisitor {
         change_state_stmt_node: &ChangeStateStatementNode,
     ) {
         match &change_state_stmt_node.state_context_t {
-            StateContextType::StateRef { .. } => {
+            TargetStateContextType::StateRef { .. } => {
                 self.generate_state_ref_change_state(change_state_stmt_node)
             }
-            StateContextType::StateStackPop {} => panic!("TODO - not implemented"),
+            TargetStateContextType::StateStackPop {} => panic!("TODO - not implemented"),
         };
     }
 
@@ -1420,6 +1443,11 @@ impl AstVisitor for PlantUmlVisitor {
                 number_match_test_node,
             } => {
                 number_match_test_node.accept(self);
+            }
+            TestType::EnumMatchTest {
+                enum_match_test_node,
+            } => {
+                enum_match_test_node.accept(self);
             }
         }
     }
@@ -1459,9 +1487,9 @@ impl AstVisitor for PlantUmlVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_chain_literal_statement_node(
+    fn visit_call_chain_statement_node(
         &mut self,
-        method_call_chain_literal_stmt_node: &CallChainLiteralStmtNode,
+        method_call_chain_literal_stmt_node: &CallChainStmtNode,
     ) {
         self.newline();
         method_call_chain_literal_stmt_node
@@ -1472,9 +1500,9 @@ impl AstVisitor for PlantUmlVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_chain_literal_expr_node(
+    fn visit_call_chain_expr_node(
         &mut self,
-        _method_call_chain_expression_node: &CallChainLiteralExprNode,
+        _method_call_chain_expression_node: &CallChainExprNode,
     ) {
         // TODO: maybe put this in an AST node
 
@@ -1496,9 +1524,9 @@ impl AstVisitor for PlantUmlVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_call_chain_literal_expr_node_to_string(
+    fn visit_call_chain_expr_node_to_string(
         &mut self,
-        _method_call_chain_expression_node: &CallChainLiteralExprNode,
+        _method_call_chain_expression_node: &CallChainExprNode,
         _output: &mut String,
     ) {
         panic!("TODO");
@@ -1597,7 +1625,7 @@ impl AstVisitor for PlantUmlVisitor {
                 ExprType::ActionCallExprT {
                     action_call_expr_node,
                 } => action_call_expr_node.accept(self),
-                ExprType::CallChainLiteralExprT {
+                ExprType::CallChainExprT {
                     call_chain_expr_node,
                 } => call_chain_expr_node.accept(self),
                 ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
@@ -1754,7 +1782,7 @@ impl AstVisitor for PlantUmlVisitor {
                 ExprType::ActionCallExprT {
                     action_call_expr_node,
                 } => action_call_expr_node.accept(self),
-                ExprType::CallChainLiteralExprT {
+                ExprType::CallChainExprT {
                     call_chain_expr_node,
                 } => call_chain_expr_node.accept(self),
                 ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
@@ -1775,7 +1803,7 @@ impl AstVisitor for PlantUmlVisitor {
                         ExprType::ActionCallExprT {
                             action_call_expr_node,
                         } => action_call_expr_node.accept(self),
-                        ExprType::CallChainLiteralExprT {
+                        ExprType::CallChainExprT {
                             call_chain_expr_node,
                         } => call_chain_expr_node.accept(self),
                         ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
@@ -2025,7 +2053,7 @@ impl AstVisitor for PlantUmlVisitor {
     }
     //* --------------------------------------------------------------------- *//
 
-    fn visit_state_context_node(&mut self, _state_context_node: &StateContextNode) {
+    fn visit_state_context_node(&mut self, _state_context_node: &TargetStateContextNode) {
         // TODO
         //        self.add_code(&format!("{}",identifier_node.name.lexeme));
     }
@@ -2085,7 +2113,7 @@ impl AstVisitor for PlantUmlVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_decl_node(&mut self, action_decl_node: &ActionNode) {
+    fn visit_action_node(&mut self, action_decl_node: &ActionNode) {
         self.newline();
         let action_ret_type: String = match &action_decl_node.type_opt {
             Some(ret_type) => ret_type.get_type_str(),
@@ -2125,7 +2153,7 @@ impl AstVisitor for PlantUmlVisitor {
             None => String::from("<?>"),
         };
         let var_name = &variable_decl_node.name;
-        let var_init_expr = &variable_decl_node.initializer_expr_t_opt.as_ref().unwrap();
+        let var_init_expr = &variable_decl_node.value_rc;
         self.newline();
         let mut code = String::new();
         var_init_expr.accept_to_string(self, &mut code);
@@ -2167,7 +2195,7 @@ impl AstVisitor for PlantUmlVisitor {
         self.newline();
         assignment_expr_node.l_value_box.accept(self);
         self.add_code(" = ");
-        assignment_expr_node.r_value_box.accept(self);
+        assignment_expr_node.r_value_rc.accept(self);
         self.add_code(";");
     }
 
@@ -2186,7 +2214,7 @@ impl AstVisitor for PlantUmlVisitor {
             .accept_to_string(self, output);
         output.push_str(" = ");
         assignment_expr_node
-            .r_value_box
+            .r_value_rc
             .accept_to_string(self, output);
         output.push(';');
     }

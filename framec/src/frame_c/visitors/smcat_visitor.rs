@@ -95,7 +95,7 @@ impl SmcatVisitor {
                         // TODO: do we need to worry about directly invoked handlers?
                         StatementType::ExpressionStmt { .. } => {}
                         StatementType::TransitionStmt {
-                            transition_statement,
+                            transition_statement_node: transition_statement,
                         } => {
                             transition_statement.accept(self);
                         }
@@ -107,8 +107,26 @@ impl SmcatVisitor {
                         } => {
                             state_stack_operation_statement_node.accept(self);
                         }
-                        StatementType::ChangeStateStmt { change_state_stmt } => {
+                        StatementType::ChangeStateStmt {
+                            change_state_stmt_node: change_state_stmt,
+                        } => {
                             change_state_stmt.accept(self);
+                        }
+                        StatementType::LoopStmt { .. } => {
+                            //loop_stmt_node.accept(self);
+                        }
+                        StatementType::BlockStmt { .. } => {
+                            //  block_stmt_node.accept(self);
+                        }
+                        StatementType::ContinueStmt { .. } => {
+                            // continue_stmt_node.accept(self);
+                        }
+                        StatementType::BreakStmt { .. } => {
+                            // break_stmt_node.accept(self);
+                        }
+                        StatementType::SuperStringStmt { .. } => {
+                            // TODO
+                            // super_string_stmt_node.accept(self);
                         }
                         StatementType::NoStmt => {}
                     }
@@ -141,10 +159,10 @@ impl SmcatVisitor {
     fn generate_state_ref_change_state(&mut self, change_state_stmt: &ChangeStateStatementNode) {
         let source_state = self.current_state.as_ref().unwrap().to_string();
         let target_state = match &change_state_stmt.state_context_t {
-            StateContextType::StateRef { state_context_node } => {
+            TargetStateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_node.name
             }
-            StateContextType::StateStackPop {} => {
+            TargetStateContextType::StateStackPop {} => {
                 panic!("TODO")
             }
         };
@@ -161,11 +179,11 @@ impl SmcatVisitor {
 
     fn generate_state_ref_transition(&mut self, transition_stmt: &TransitionStatementNode) {
         let source_state = self.current_state.as_ref().unwrap().clone();
-        let target_state = match &transition_stmt.target_state_context_t {
-            StateContextType::StateRef { state_context_node } => {
+        let target_state = match &transition_stmt.transition_expr_node.target_state_context_t {
+            TargetStateContextType::StateRef { state_context_node } => {
                 &state_context_node.state_ref_node.name
             }
-            StateContextType::StateStackPop {} => {
+            TargetStateContextType::StateStackPop {} => {
                 panic!("TODO")
             }
         };
@@ -176,7 +194,7 @@ impl SmcatVisitor {
             target_state,
             &style,
             &event,
-            transition_stmt.label_opt.as_ref(),
+            transition_stmt.transition_expr_node.label_opt.as_ref(),
         );
     }
 
@@ -188,7 +206,7 @@ impl SmcatVisitor {
         transition_statement: &TransitionStatementNode,
     ) {
         let event = self.current_handler.as_ref().unwrap().clone();
-        let label = match &transition_statement.label_opt {
+        let label = match &transition_statement.transition_expr_node.label_opt {
             Some(label) => label,
             None => &event,
         };
@@ -290,11 +308,14 @@ impl AstVisitor for SmcatVisitor {
     fn visit_action_call_statement_node(&mut self, _action_call_stmt_node: &ActionCallStmtNode) {}
 
     fn visit_transition_statement_node(&mut self, transition_statement: &TransitionStatementNode) {
-        match &transition_statement.target_state_context_t {
-            StateContextType::StateRef { .. } => {
+        match &transition_statement
+            .transition_expr_node
+            .target_state_context_t
+        {
+            TargetStateContextType::StateRef { .. } => {
                 self.generate_state_ref_transition(transition_statement)
             }
-            StateContextType::StateStackPop {} => {
+            TargetStateContextType::StateStackPop {} => {
                 self.generate_state_stack_pop_transition(transition_statement)
             }
         };
@@ -309,10 +330,10 @@ impl AstVisitor for SmcatVisitor {
         change_state_stmt_node: &ChangeStateStatementNode,
     ) {
         match &change_state_stmt_node.state_context_t {
-            StateContextType::StateRef { .. } => {
+            TargetStateContextType::StateRef { .. } => {
                 self.generate_state_ref_change_state(change_state_stmt_node)
             }
-            StateContextType::StateStackPop {} => {
+            TargetStateContextType::StateStackPop {} => {
                 // self.generate_state_stack_pop_change_state(transition_statement)
                 panic!("change-state to state-stack pop not implemented");
             }
@@ -334,6 +355,11 @@ impl AstVisitor for SmcatVisitor {
             } => {
                 number_match_test_node.accept(self);
             }
+            TestType::EnumMatchTest {
+                enum_match_test_node,
+            } => {
+                enum_match_test_node.accept(self);
+            }
         }
     }
 
@@ -349,9 +375,9 @@ impl AstVisitor for SmcatVisitor {
         }
     }
 
-    fn visit_call_chain_literal_expr_node_to_string(
+    fn visit_call_chain_expr_node_to_string(
         &mut self,
-        _method_call_chain_expression_node: &CallChainLiteralExprNode,
+        _method_call_chain_expression_node: &CallChainExprNode,
         _output: &mut String,
     ) {
         panic!("TODO");
@@ -382,7 +408,7 @@ impl AstVisitor for SmcatVisitor {
                 ExprType::ActionCallExprT {
                     action_call_expr_node,
                 } => action_call_expr_node.accept(self),
-                ExprType::CallChainLiteralExprT {
+                ExprType::CallChainExprT {
                     call_chain_expr_node,
                 } => call_chain_expr_node.accept(self),
                 ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
@@ -432,7 +458,7 @@ impl AstVisitor for SmcatVisitor {
                 ExprType::ActionCallExprT {
                     action_call_expr_node,
                 } => action_call_expr_node.accept(self),
-                ExprType::CallChainLiteralExprT {
+                ExprType::CallChainExprT {
                     call_chain_expr_node,
                 } => call_chain_expr_node.accept(self),
                 ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),
@@ -451,7 +477,7 @@ impl AstVisitor for SmcatVisitor {
                         ExprType::ActionCallExprT {
                             action_call_expr_node,
                         } => action_call_expr_node.accept(self),
-                        ExprType::CallChainLiteralExprT {
+                        ExprType::CallChainExprT {
                             call_chain_expr_node,
                         } => call_chain_expr_node.accept(self),
                         ExprType::VariableExprT { var_node: id_node } => id_node.accept(self),

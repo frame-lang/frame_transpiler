@@ -7,6 +7,7 @@ enum MatchType {
     Bool,
     String,
     Number,
+    Enum,
     //    None,
 }
 
@@ -39,9 +40,16 @@ impl Scanner {
             ("var".to_string(), TokenType::Var),
             ("const".to_string(), TokenType::Const),
             ("new".to_string(), TokenType::New),
+            ("loop".to_string(), TokenType::Loop),
+            ("in".to_string(), TokenType::In),
+            ("continue".to_string(), TokenType::Continue),
+            ("break".to_string(), TokenType::Break),
+            ("enum".to_string(), TokenType::Enum),
+            ("fn".to_string(), TokenType::Function),
             ("-interface-".to_string(), TokenType::InterfaceBlock),
             ("-machine-".to_string(), TokenType::MachineBlock),
             ("-actions-".to_string(), TokenType::ActionsBlock),
+            ("-operations-".to_string(), TokenType::OperationsBlock),
             ("-domain-".to_string(), TokenType::DomainBlock),
         ]
         .iter()
@@ -71,23 +79,23 @@ impl Scanner {
         while self.is_whitespace() {
             self.advance();
         }
-        if self.peek() == '`' {
-            self.sync_start();
-            if !self.match_first_header_token() {
-                return (self.has_errors, self.errors.clone(), self.tokens);
-            }
-            self.sync_start();
-            while !self.is_at_end() {
-                if self.peek() == '`' {
-                    self.add_string_token_literal(TokenType::SuperString, TokenLiteral::None);
-                    self.sync_start();
-                    if self.match_last_header_token() {
-                        break;
-                    }
-                }
-                self.advance();
-            }
-        }
+        // if self.peek() == '`' {
+        //     self.sync_start();
+        //     if !self.match_first_header_token() {
+        //         return (self.has_errors, self.errors.clone(), self.tokens);
+        //     }
+        //     self.sync_start();
+        //     while !self.is_at_end() {
+        //         if self.peek() == '`' {
+        //             self.add_string_token_literal(TokenType::SuperString, TokenLiteral::None);
+        //             self.sync_start();
+        //             if self.match_last_header_token() {
+        //                 break;
+        //             }
+        //         }
+        //         self.advance();
+        //     }
+        // }
 
         while !self.is_at_end() {
             self.sync_start();
@@ -114,28 +122,28 @@ impl Scanner {
         false
     }
 
-    fn match_first_header_token(&mut self) -> bool {
-        for _i in 0..3 {
-            if !self.match_char('`') {
-                self.error(self.line, "Malformed header token.");
-                return false;
-            }
-        }
-        self.add_string_token_literal(TokenType::ThreeTicks, TokenLiteral::None);
+    // fn match_first_header_token(&mut self) -> bool {
+    //     for _i in 0..3 {
+    //         if !self.match_char('`') {
+    //             self.error(self.line, "Malformed header token.");
+    //             return false;
+    //         }
+    //     }
+    //     self.add_string_token_literal(TokenType::ThreeTicks, TokenLiteral::None);
+    //
+    //     true
+    // }
 
-        true
-    }
-
-    fn match_last_header_token(&mut self) -> bool {
-        for _i in 0..3 {
-            if !self.match_char('`') {
-                return false;
-            }
-        }
-        self.add_string_token_literal(TokenType::ThreeTicks, TokenLiteral::None);
-
-        true
-    }
+    // fn match_last_header_token(&mut self) -> bool {
+    //     for _i in 0..3 {
+    //         if !self.match_char('`') {
+    //             return false;
+    //         }
+    //     }
+    //     self.add_string_token_literal(TokenType::ThreeTicks, TokenLiteral::None);
+    //
+    //     true
+    // }
 
     fn sync_start(&mut self) {
         self.start = self.current;
@@ -168,10 +176,20 @@ impl Scanner {
                 }
             }
             '*' => self.add_token(TokenType::Star),
-            '+' => self.add_token(TokenType::Plus),
+            '+' => {
+                if self.match_char('+') {
+                    self.add_token(TokenType::PlusPlus);
+                } else {
+                    self.add_token(TokenType::Plus);
+                }
+            }
             '!' => {
                 if self.match_char('=') {
                     self.add_token(TokenType::BangEqual);
+                } else if self.peek() == '/' && self.peek_next() == '/' {
+                    self.match_char('/');
+                    self.match_char('/');
+                    self.add_token(TokenType::MatchNull);
                 } else {
                     self.add_token(TokenType::Bang);
                 }
@@ -190,11 +208,11 @@ impl Scanner {
                         } else if self.match_char('-') {
                             st = StackType::Pop;
                         } else {
-                            self.error(self.line, "Unexpected character.");
+                            self.error(self.line, &format!("Unexpected character {}.", c));
                             return;
                         }
                         if !self.match_char(']') {
-                            self.error(self.line, "Unexpected character.");
+                            self.error(self.line, &format!("Unexpected character {}.", c));
                             return;
                         }
                         match st {
@@ -214,26 +232,14 @@ impl Scanner {
             }
             '^' => self.add_token(TokenType::Caret),
             '>' => {
-                if self.match_char('>') {
-                    if self.match_char('>') {
-                        self.add_token(TokenType::GTx3);
-                    } else {
-                        self.add_token(TokenType::GTx2);
-                    }
-                } else if self.match_char('=') {
+                if self.match_char('=') {
                     self.add_token(TokenType::GreaterEqual);
                 } else {
                     self.add_token(TokenType::GT);
                 }
             }
             '<' => {
-                if self.match_char('<') {
-                    if self.match_char('<') {
-                        self.add_token(TokenType::LTx3);
-                    } else {
-                        self.add_token(TokenType::LTx2);
-                    }
-                } else if self.match_char('=') {
+                if self.match_char('=') {
                     self.add_token(TokenType::LessEqual);
                 } else {
                     self.add_token(TokenType::LT);
@@ -245,7 +251,7 @@ impl Scanner {
                 } else if self.match_char('|') {
                     self.add_token(TokenType::LogicalXor)
                 } else {
-                    self.add_token(TokenType::And)
+                    self.add_token(TokenType::Ampersand)
                 }
             }
             '?' => {
@@ -261,10 +267,27 @@ impl Scanner {
                     self.add_token(TokenType::NumberTest);
                     // Store the context for the parse
                     self.test_t_stack.push(MatchType::Number);
+                } else if self.match_char(':') {
+                    self.add_token(TokenType::EnumTest);
+                    // Store the context for the parse
+                    self.test_t_stack.push(MatchType::Enum);
                 } else {
                     self.add_token(TokenType::BoolTestTrue);
                     // Store the context for the parse
                     self.test_t_stack.push(MatchType::Bool);
+                }
+            }
+            '~' => {
+                if self.match_char('/') {
+                    if self.match_char('/') {
+                        self.add_token(TokenType::MatchEmptyString);
+                    } else {
+                        self.add_token_sync_start(TokenType::StringMatchStart);
+                        self.scan_string_match();
+                    }
+                } else {
+                    self.error(self.line, &format!("Found unexpected character '{}'.", c));
+                    //self.add_token(TokenType::Error);
                 }
             }
             '@' => self.add_token(TokenType::At),
@@ -285,15 +308,8 @@ impl Scanner {
                             // ->
                             self.add_token(TokenType::Transition);
                         }
-                    } else if self.match_char('-') {
-                        // --- comment text
-                        if self.match_char('-') {
-                            self.single_line_comment();
-                        } else {
-                            self.add_token(TokenType::DashDash);
-                        }
                     } else if self.is_digit(self.peek()) {
-                        self.number();
+                        self.number(true);
                     } else {
                         self.add_token(TokenType::Dash);
                     }
@@ -314,11 +330,13 @@ impl Scanner {
                 self.add_token(TokenType::CloseBrace);
             }
             ':' => {
-                if self.match_char(':') {
-                    self.add_token(TokenType::TestTerminator);
+                if self.match_char('|') {
+                    self.add_token(TokenType::ColonBar);
                     self.test_t_stack.pop();
                 } else if self.match_char('>') {
                     self.add_token(TokenType::ElseContinue);
+                } else if self.match_char('/') {
+                    self.add_token(TokenType::EnumMatchStart);
                 } else {
                     self.add_token(TokenType::Colon);
                 }
@@ -330,14 +348,16 @@ impl Scanner {
                 if self.match_char('#') {
                     self.add_token(TokenType::SystemEnd);
                 } else if self.match_char('[') {
-                    self.add_token(TokenType::OuterAttribute) // #[
+                    self.add_token(TokenType::OuterAttributeOrDomainParams) // #[
                 } else if self.match_char('!') {
                     if self.match_char('[') {
                         // #![
                         self.add_token(TokenType::InnerAttribute);
                     } else {
-                        self.add_token(TokenType::Error); // #!
+                        self.error(self.line, &format!("Unexpected character {}.", c));
                     }
+                } else if self.match_char('/') {
+                    self.add_token(TokenType::NumberMatchStart);
                 } else {
                     self.add_token(TokenType::System);
                 }
@@ -353,28 +373,26 @@ impl Scanner {
             }
             '/' => {
                 if self.match_char('/') {
-                    if self.match_char('!') {
-                        self.add_token(TokenType::MatchNullString);
-                    } else {
-                        self.add_token(TokenType::MatchEmptyString);
-                    }
+                    self.single_line_comment();
                 } else {
-                    self.add_token_sync_start(TokenType::ForwardSlash);
-                    self.scan_match();
+                    self.add_token(TokenType::ForwardSlash);
                 }
             }
             '.' => {
-                self.add_token(TokenType::Dot);
+                if self.is_digit(self.peek()) {
+                    self.number(false);
+                } else {
+                    self.add_token(TokenType::Dot);
+                }
             }
-            ',' => self.add_token(TokenType::Colon),
+            ',' => self.add_token(TokenType::Comma),
             _ => {
                 if self.is_digit(c) {
-                    self.number();
+                    self.number(true);
                 } else if self.is_alpha(c) {
                     self.identifier();
                 } else {
                     self.error(self.line, &format!("Found unexpected character '{}'.", c));
-                    self.add_token(TokenType::Error);
                 }
             }
         }
@@ -425,20 +443,49 @@ impl Scanner {
         ('0'..='9').contains(&c)
     }
 
-    fn number(&mut self) {
+    fn number(&mut self, mut is_integer: bool) {
+        if is_integer {
+            // consume whole number
+            while self.is_digit(self.peek()) {
+                self.advance();
+            }
+
+            if self.peek() == '.' {
+                is_integer = false;
+                // consume the '.'
+                self.advance();
+            }
+        }
+
+        // consume mantissa, if present
         while self.is_digit(self.peek()) {
             self.advance();
         }
 
-        if self.peek() == '.' && self.is_digit(self.peek_next()) {
-            self.advance();
+        if is_integer {
+            let s = &self.source[self.start..self.current];
+            let result = s.parse::<i32>();
+            match result {
+                Ok(number) => {
+                    self.add_token_literal(TokenType::Number, TokenLiteral::Integer(number));
+                }
+                Err(err) => {
+                    self.error(self.line, &format!("Malformed integer number {}", err));
+                }
+            }
+        } else {
+            // is float
+            let s = &self.source[self.start..self.current];
+            let result = s.parse::<f32>();
+            match result {
+                Ok(number) => {
+                    self.add_token_literal(TokenType::Number, TokenLiteral::Float(number));
+                }
+                Err(err) => {
+                    self.error(self.line, &format!("Malformed float number: {}", err));
+                }
+            }
         }
-        while self.is_digit(self.peek()) {
-            self.advance();
-        }
-
-        let number: f32 = self.source[self.start..self.current].parse().unwrap();
-        self.add_token_literal(TokenType::Number, TokenLiteral::Float(number));
     }
 
     fn identifier(&mut self) {
@@ -468,6 +515,7 @@ impl Scanner {
     }
 
     // TODO: handle EOF w/ error
+    // TODO: Update/remove multiline comments.
     fn multi_line_comment(&mut self) {
         while !self.is_at_end() {
             while self.peek() != '-' {
@@ -485,15 +533,6 @@ impl Scanner {
 
             self.add_token(TokenType::MultiLineComment);
             return;
-        }
-    }
-
-    fn scan_match(&mut self) {
-        match self.test_t_stack.last() {
-            Some(MatchType::String) => self.scan_string_match(),
-            Some(MatchType::Number) => self.scan_number_match(),
-            Some(_) => {}
-            None => {}
         }
     }
 
@@ -515,27 +554,6 @@ impl Scanner {
         self.add_token_sync_start(TokenType::ForwardSlash);
     }
 
-    // match_number_test -> '/' match_number_pattern ('|' match_number_pattern)* '/'
-
-    fn scan_number_match(&mut self) {
-        while self.peek() != '/' {
-            if self.peek() == '|' {
-                self.number();
-                self.advance();
-                self.add_token_sync_start(TokenType::Pipe);
-            }
-            self.advance();
-        }
-        self.number();
-
-        self.sync_start();
-        if !self.match_char('/') {
-            // TODO
-            panic!("todo");
-        }
-        self.add_token_sync_start(TokenType::ForwardSlash);
-    }
-
     fn block_keyword(&mut self) -> bool {
         // TODO: handle this:
         // #M1
@@ -549,6 +567,7 @@ impl Scanner {
             ("interface-", TokenType::InterfaceBlock),
             ("machine-", TokenType::MachineBlock),
             ("actions-", TokenType::ActionsBlock),
+            ("operations-", TokenType::OperationsBlock),
             ("domain-", TokenType::DomainBlock),
         ];
 
@@ -610,6 +629,7 @@ impl Scanner {
         let error = &format!("Line {} : Error: {}\n", line, error_msg);
         self.has_errors = true;
         self.errors.push_str(error);
+        self.add_token(TokenType::Error);
     }
 
     fn string(&mut self) {
@@ -671,70 +691,84 @@ pub enum TokenType {
     Eof,
     Identifier,
     State,
-    GT,             // >
-    GTx2,           // >>
-    GTx3,           // >>
-    Plus,           // +
-    Dash,           // -
-    DashDash,       // --
-    Star,           // *
-    EqualEqual,     // ==
-    Bang,           // !
-    BangEqual,      // !=
-    GreaterEqual,   // >=
-    LessEqual,      // <=
-    LT,             // <
-    LTx2,           // <<
-    LTx3,           // <<<
-    And,            // &
-    Pipe,           // |
-    Caret,          // ^
-    LogicalAnd,     // &&
-    LogicalXor,     // &|
-    System,         // #
-    SystemEnd,      // ##
-    OuterAttribute, // #[
-    InnerAttribute, // #![
-    InterfaceBlock, // -interface-
-    MachineBlock,   // -machine-
-    ActionsBlock,   // -actions-
-    DomainBlock,    // -domain-
-    LParen,
-    RParen,
-    LBracket,
-    RBracket,
-    Transition,              // ->
-    ChangeState,             // ->>
-    String,                  // "foo"
-    ThreeTicks,              // ```
-    SuperString,             // `stuff + "stuff"`
-    Number,                  // 1, 1.01
-    Var,                     // let
-    Const,                   // const
-    New,                     // new
-    SingleLineComment,       // --- comment
-    MultiLineComment,        // {-- comments --}
-    OpenBrace,               // {
-    CloseBrace,              // }
-    True,                    // true
-    False,                   // false
-    Null,                    // null
-    Nil,                     // nil
-    Colon,                   // :
-    Semicolon,               // ;
-    Comma,                   // ,
-    Dispatch,                // =>
-    Equals,                  // =
-    BoolTestTrue,            // ?
-    BoolTestFalse,           // ?!
-    StringTest,              // ?~
-    NumberTest,              // ?#
+    GT, // >
+    // GTx2,                         // >>
+    // GTx3,                         // >>>
+    Plus,         // +
+    PlusPlus,     // ++
+    Dash,         // -
+    DashDash,     // --
+    Star,         // *
+    EqualEqual,   // ==
+    Bang,         // !
+    BangEqual,    // !=
+    GreaterEqual, // >=
+    LessEqual,    // <=
+    LT,           // <
+    // LTx2,                         // <<
+    // LTx3,                         // <<<
+    Ampersand,                    // &
+    Pipe,                         // |
+    Caret,                        // ^
+    LogicalAnd,                   // &&
+    LogicalXor,                   // &|
+    System,                       // #
+    SystemEnd,                    // ##
+    OuterAttributeOrDomainParams, // #[
+    InnerAttribute,               // #![
+    InterfaceBlock,               // -interface-
+    MachineBlock,                 // -machine-
+    ActionsBlock,                 // -actions-
+    OperationsBlock,              // -operations-
+    DomainBlock,                  // -domain-
+    LParen,                       // (
+    RParen,                       // )
+    LBracket,                     // [
+    RBracket,                     // ]
+    Transition,                   // ->
+    ChangeState,                  // ->>
+    String,                       // "foo"
+    ThreeTicks,                   // ```
+    SuperString,                  // `stuff + "stuff"`
+    Number,                       // 1, 1.01
+    Var,                          // var keyword
+    Const,                        // const keyword
+    New,                          // new keyword
+    Loop,                         // loop keyword
+    Continue,                     // continue keyword
+    Break,                        // break keyword
+    In,                           // 'in' keyword
+    Enum,                         // 'enum' keyword
+    Function,                     // 'fn' keyword
+    // SingleLineComment, // --- comment
+    MultiLineComment, // {-- comments --}
+    OpenBrace,        // {
+    CloseBrace,       // }
+    True,             // true
+    False,            // false
+    Null,             // null
+    Nil,              // nil
+    Colon,            // :
+    Semicolon,        // ;
+    Comma,            // ,
+    Dispatch,         // =>
+    Equals,           // =
+    //    DeclAssignment,          // ':='
+    BoolTestTrue,            // '?'
+    BoolTestFalse,           // '?!'
+    StringTest,              // '?~'
+    StringMatchStart,        // '~/'
+    NumberTest,              // '?#'
+    NumberMatchStart,        // '#/'
+    EnumTest,                // '?:'
+    EnumMatchStart,          // ':/'
     ElseContinue,            // :>
-    TestTerminator,          // ::
+    ColonBar,                // ::
     ForwardSlash,            // /
-    MatchString,             // /<string>/ - contains <string>
-    MatchNullString,         // //!
-    MatchEmptyString,        // //
+    MatchString,             // '/<any characters>/' - contains <string>
+    MatchEmptyString,        // '~//'
+    MatchNull,               // '!//'
+    SingleLineComment,       // '//'
     StateStackOperationPush, // $$[+]
     StateStackOperationPop,  // $$[-]
     Dot,                     // .
@@ -749,13 +783,17 @@ pub enum TokenType {
 impl Display for TokenType {
     #[allow(clippy::all)]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self)
+        //write!(f, "{}", self)
+        match self {
+            TokenType::Plus => write!(f, "+"),
+            _ => write!(f, "TODO"),
+        }
     }
 }
 
 #[derive(Debug, Clone)]
 pub enum TokenLiteral {
-    //Integer(i32),
+    Integer(i32),
     Float(f32),
     // Double(f64),
     None,
@@ -764,7 +802,8 @@ pub enum TokenLiteral {
 impl Display for TokenLiteral {
     #[allow(clippy::all)]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self)
+        //write!(f, "{}", self)
+        write!(f, "TODO")
     }
 }
 
@@ -772,7 +811,7 @@ impl Display for TokenLiteral {
 pub struct Token {
     pub token_type: TokenType,
     pub lexeme: String,
-    literal: TokenLiteral,
+    pub literal: TokenLiteral,
     pub line: usize,
     pub start: usize,
     pub length: usize,
