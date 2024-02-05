@@ -22,8 +22,8 @@ class VarScope:
         
          # Create and intialize start state compartment.
         
-        self.__compartment: 'VarScopeCompartment' = VarScopeCompartment('__varscope_state_Init')
-        self.__next_compartment: 'VarScopeCompartment' = None
+        self.__compartment = VarScopeCompartment('__varscope_state_Init')
+        self.__next_compartment = None
         
         # Initialize domain
         
@@ -368,7 +368,7 @@ class VarScope:
         elif self.__compartment.state == '__varscope_state_YY':
             self.__varscope_state_YY(__e)
         
-    def __transition(self, next_compartment: 'VarScopeCompartment'):
+    def __transition(self, next_compartment):
         self.__next_compartment = next_compartment
     
     def state_info(self):

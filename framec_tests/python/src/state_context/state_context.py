@@ -22,8 +22,8 @@ class StateContextSm:
         
          # Create and intialize start state compartment.
         
-        self.__compartment: 'StateContextSmCompartment' = StateContextSmCompartment('__statecontextsm_state_Init')
-        self.__next_compartment: 'StateContextSmCompartment' = None
+        self.__compartment = StateContextSmCompartment('__statecontextsm_state_Init')
+        self.__next_compartment = None
         self.__compartment.state_vars["w"] = 0
         
         # Initialize domain
@@ -191,7 +191,7 @@ class StateContextSm:
         elif self.__compartment.state == '__statecontextsm_state_Bar':
             self.__statecontextsm_state_Bar(__e)
         
-    def __transition(self, next_compartment: 'StateContextSmCompartment'):
+    def __transition(self, next_compartment):
         self.__next_compartment = next_compartment
     
     def state_info(self):

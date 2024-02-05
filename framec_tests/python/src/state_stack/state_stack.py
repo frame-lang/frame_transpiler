@@ -26,8 +26,8 @@ class StateStack:
         
          # Create and intialize start state compartment.
         
-        self.__compartment: 'StateStackCompartment' = StateStackCompartment('__statestack_state_A')
-        self.__next_compartment: 'StateStackCompartment' = None
+        self.__compartment = StateStackCompartment('__statestack_state_A')
+        self.__next_compartment = None
         
         # Initialize domain
         
@@ -197,10 +197,10 @@ class StateStack:
         elif self.__compartment.state == '__statestack_state_C':
             self.__statestack_state_C(__e)
         
-    def __transition(self, next_compartment: 'StateStackCompartment'):
+    def __transition(self, next_compartment):
         self.__next_compartment = next_compartment
     
-    def __state_stack_push(self, compartment: 'StateStackCompartment'):
+    def __state_stack_push(self, compartment):
         self.__state_stack.append(compartment)
     
     def __state_stack_pop(self):

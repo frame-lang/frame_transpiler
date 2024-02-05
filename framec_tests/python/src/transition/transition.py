@@ -22,8 +22,8 @@ class TransitionSm:
         
          # Create and intialize start state compartment.
         
-        self.__compartment: 'TransitionSmCompartment' = TransitionSmCompartment('__transitionsm_state_S0')
-        self.__next_compartment: 'TransitionSmCompartment' = None
+        self.__compartment = TransitionSmCompartment('__transitionsm_state_S0')
+        self.__next_compartment = None
         
         # Initialize domain
         
@@ -162,10 +162,10 @@ class TransitionSm:
         elif self.__compartment.state == '__transitionsm_state_S4':
             self.__transitionsm_state_S4(__e)
         
-    def __transition(self, next_compartment: 'TransitionSmCompartment'):
+    def __transition(self, next_compartment):
         self.__next_compartment = next_compartment
     
-    def __change_state(self, new_compartment: 'TransitionSmCompartment'):
+    def __change_state(self, new_compartment):
         self.__compartment = new_compartment
     
     

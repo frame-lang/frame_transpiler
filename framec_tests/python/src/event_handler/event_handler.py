@@ -22,8 +22,8 @@ class EventHandler:
         
          # Create and intialize start state compartment.
         
-        self.__compartment: 'EventHandlerCompartment' = EventHandlerCompartment('__eventhandler_state_S1')
-        self.__next_compartment: 'EventHandlerCompartment' = None
+        self.__compartment = EventHandlerCompartment('__eventhandler_state_S1')
+        self.__next_compartment = None
         
         # Initialize domain
         
@@ -160,7 +160,7 @@ class EventHandler:
         elif self.__compartment.state == '__eventhandler_state_S2':
             self.__eventhandler_state_S2(__e)
         
-    def __transition(self, next_compartment: 'EventHandlerCompartment'):
+    def __transition(self, next_compartment):
         self.__next_compartment = next_compartment
     
     def state_info(self):

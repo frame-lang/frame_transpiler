@@ -22,8 +22,8 @@ class Hierarchical:
         
          # Create and intialize start state compartment.
         
-        self.__compartment: 'HierarchicalCompartment' = HierarchicalCompartment('__hierarchical_state_I')
-        self.__next_compartment: 'HierarchicalCompartment' = None
+        self.__compartment = HierarchicalCompartment('__hierarchical_state_I')
+        self.__next_compartment = None
         
         # Initialize domain
         
@@ -256,7 +256,7 @@ class Hierarchical:
         elif self.__compartment.state == '__hierarchical_state_T':
             self.__hierarchical_state_T(__e)
         
-    def __transition(self, next_compartment: 'HierarchicalCompartment'):
+    def __transition(self, next_compartment):
         self.__next_compartment = next_compartment
     
     def state_info(self):

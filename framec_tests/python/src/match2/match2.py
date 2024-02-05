@@ -27,8 +27,8 @@ class MatchTests:
         
          # Create and intialize start state compartment.
         
-        self.__compartment: 'MatchTestsCompartment' = MatchTestsCompartment('__matchtests_state_A')
-        self.__next_compartment: 'MatchTestsCompartment' = None
+        self.__compartment = MatchTestsCompartment('__matchtests_state_A')
+        self.__next_compartment = None
         
         # Initialize domain
         
@@ -201,7 +201,7 @@ class MatchTests:
         if self.__compartment.state == '__matchtests_state_A':
             self.__matchtests_state_A(__e)
         
-    def __transition(self, next_compartment: 'MatchTestsCompartment'):
+    def __transition(self, next_compartment):
         self.__next_compartment = next_compartment
     
 

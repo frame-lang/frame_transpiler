@@ -26,8 +26,8 @@ class ForwardEvents:
         
          # Create and intialize start state compartment.
         
-        self.__compartment: 'ForwardEventsCompartment' = ForwardEventsCompartment('__forwardevents_state_S0')
-        self.__next_compartment: 'ForwardEventsCompartment' = None
+        self.__compartment = ForwardEventsCompartment('__forwardevents_state_S0')
+        self.__next_compartment = None
         
         # Initialize domain
         
@@ -164,10 +164,10 @@ class ForwardEvents:
         elif self.__compartment.state == '__forwardevents_state_S2':
             self.__forwardevents_state_S2(__e)
         
-    def __transition(self, next_compartment: 'ForwardEventsCompartment'):
+    def __transition(self, next_compartment):
         self.__next_compartment = next_compartment
     
-    def __state_stack_push(self, compartment: 'ForwardEventsCompartment'):
+    def __state_stack_push(self, compartment):
         self.__state_stack.append(compartment)
     
     def __state_stack_pop(self):

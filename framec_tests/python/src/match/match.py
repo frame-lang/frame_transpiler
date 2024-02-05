@@ -22,8 +22,8 @@ class Match:
         
          # Create and intialize start state compartment.
         
-        self.__compartment: 'MatchCompartment' = MatchCompartment('__match_state_Init')
-        self.__next_compartment: 'MatchCompartment' = None
+        self.__compartment = MatchCompartment('__match_state_Init')
+        self.__next_compartment = None
         
         # Initialize domain
         
@@ -333,7 +333,7 @@ class Match:
         elif self.__compartment.state == '__match_state_Final':
             self.__match_state_Final(__e)
         
-    def __transition(self, next_compartment: 'MatchCompartment'):
+    def __transition(self, next_compartment):
         self.__next_compartment = next_compartment
     
     def state_info(self):

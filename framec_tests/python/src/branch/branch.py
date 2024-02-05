@@ -22,8 +22,8 @@ class Branch:
         
          # Create and intialize start state compartment.
         
-        self.__compartment: 'BranchCompartment' = BranchCompartment('__branch_state_I')
-        self.__next_compartment: 'BranchCompartment' = None
+        self.__compartment = BranchCompartment('__branch_state_I')
+        self.__next_compartment = None
         
         # Initialize domain
         
@@ -402,7 +402,7 @@ class Branch:
         elif self.__compartment.state == '__branch_state_F3':
             self.__branch_state_F3(__e)
         
-    def __transition(self, next_compartment: 'BranchCompartment'):
+    def __transition(self, next_compartment):
         self.__next_compartment = next_compartment
     
     def state_info(self):

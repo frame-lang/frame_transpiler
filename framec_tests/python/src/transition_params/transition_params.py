@@ -22,8 +22,8 @@ class TransitParams:
         
          # Create and intialize start state compartment.
         
-        self.__compartment: 'TransitParamsCompartment' = TransitParamsCompartment('__transitparams_state_Init')
-        self.__next_compartment: 'TransitParamsCompartment' = None
+        self.__compartment = TransitParamsCompartment('__transitparams_state_Init')
+        self.__next_compartment = None
         
         # Initialize domain
         
@@ -134,7 +134,7 @@ class TransitParams:
         elif self.__compartment.state == '__transitparams_state_B':
             self.__transitparams_state_B(__e)
         
-    def __transition(self, next_compartment: 'TransitParamsCompartment'):
+    def __transition(self, next_compartment):
         self.__next_compartment = next_compartment
     
     def state_info(self):

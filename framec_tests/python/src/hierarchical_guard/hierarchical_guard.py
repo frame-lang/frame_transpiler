@@ -22,8 +22,8 @@ class HierarchicalGuard:
         
          # Create and intialize start state compartment.
         
-        self.__compartment: 'HierarchicalGuardCompartment' = HierarchicalGuardCompartment('__hierarchicalguard_state_I')
-        self.__next_compartment: 'HierarchicalGuardCompartment' = None
+        self.__compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_I')
+        self.__next_compartment = None
         
         # Initialize domain
         
@@ -251,7 +251,7 @@ class HierarchicalGuard:
         elif self.__compartment.state == '__hierarchicalguard_state_S4':
             self.__hierarchicalguard_state_S4(__e)
         
-    def __transition(self, next_compartment: 'HierarchicalGuardCompartment'):
+    def __transition(self, next_compartment):
         self.__next_compartment = next_compartment
     
     def state_info(self):

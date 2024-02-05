@@ -22,8 +22,8 @@ class Basic:
         
          # Create and intialize start state compartment.
         
-        self.__compartment: 'BasicCompartment' = BasicCompartment('__basic_state_S0')
-        self.__next_compartment: 'BasicCompartment' = None
+        self.__compartment = BasicCompartment('__basic_state_S0')
+        self.__next_compartment = None
         
         # Initialize domain
         
@@ -125,7 +125,7 @@ class Basic:
         elif self.__compartment.state == '__basic_state_S1':
             self.__basic_state_S1(__e)
         
-    def __transition(self, next_compartment: 'BasicCompartment'):
+    def __transition(self, next_compartment):
         self.__next_compartment = next_compartment
     
     def state_info(self):

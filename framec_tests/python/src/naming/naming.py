@@ -22,8 +22,8 @@ class Naming:
         
          # Create and intialize start state compartment.
         
-        self.__compartment: 'NamingCompartment' = NamingCompartment('__naming_state_Init')
-        self.__next_compartment: 'NamingCompartment' = None
+        self.__compartment = NamingCompartment('__naming_state_Init')
+        self.__next_compartment = None
         
         # Initialize domain
         
@@ -301,7 +301,7 @@ class Naming:
         elif self.__compartment.state == '__naming_state_Final':
             self.__naming_state_Final(__e)
         
-    def __transition(self, next_compartment: 'NamingCompartment'):
+    def __transition(self, next_compartment):
         self.__next_compartment = next_compartment
     
     def state_info(self):

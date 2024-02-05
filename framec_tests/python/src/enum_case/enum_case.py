@@ -32,8 +32,8 @@ class EnumTest:
         
          # Create and intialize start state compartment.
         
-        self.__compartment: 'EnumTestCompartment' = EnumTestCompartment('__enumtest_state_SUN')
-        self.__next_compartment: 'EnumTestCompartment' = None
+        self.__compartment = EnumTestCompartment('__enumtest_state_SUN')
+        self.__next_compartment = None
         
         # Initialize domain
         
@@ -188,7 +188,7 @@ class EnumTest:
         elif self.__compartment.state == '__enumtest_state_FRI':
             self.__enumtest_state_FRI(__e)
         
-    def __transition(self, next_compartment: 'EnumTestCompartment'):
+    def __transition(self, next_compartment):
         self.__next_compartment = next_compartment
     
     def state_info(self):

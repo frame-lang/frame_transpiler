@@ -22,8 +22,8 @@ class StateVars:
         
          # Create and intialize start state compartment.
         
-        self.__compartment: 'StateVarsCompartment' = StateVarsCompartment('__statevars_state_Init')
-        self.__next_compartment: 'StateVarsCompartment' = None
+        self.__compartment = StateVarsCompartment('__statevars_state_Init')
+        self.__next_compartment = None
         
         # Initialize domain
         
@@ -137,7 +137,7 @@ class StateVars:
         elif self.__compartment.state == '__statevars_state_B':
             self.__statevars_state_B(__e)
         
-    def __transition(self, next_compartment: 'StateVarsCompartment'):
+    def __transition(self, next_compartment):
         self.__next_compartment = next_compartment
     
     def state_info(self):

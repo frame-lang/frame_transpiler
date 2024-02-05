@@ -22,8 +22,8 @@ class HandlerCalls:
         
          # Create and intialize start state compartment.
         
-        self.__compartment: 'HandlerCallsCompartment' = HandlerCallsCompartment('__handlercalls_state_Init')
-        self.__next_compartment: 'HandlerCallsCompartment' = None
+        self.__compartment = HandlerCallsCompartment('__handlercalls_state_Init')
+        self.__next_compartment = None
         
         # Initialize domain
         
@@ -263,7 +263,7 @@ class HandlerCalls:
         elif self.__compartment.state == '__handlercalls_state_Final':
             self.__handlercalls_state_Final(__e)
         
-    def __transition(self, next_compartment: 'HandlerCallsCompartment'):
+    def __transition(self, next_compartment):
         self.__next_compartment = next_compartment
     
     def state_info(self):

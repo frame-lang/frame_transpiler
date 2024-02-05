@@ -22,8 +22,8 @@ class StateParams:
         
          # Create and intialize start state compartment.
         
-        self.__compartment: 'StateParamsCompartment' = StateParamsCompartment('__stateparams_state_Init')
-        self.__next_compartment: 'StateParamsCompartment' = None
+        self.__compartment = StateParamsCompartment('__stateparams_state_Init')
+        self.__next_compartment = None
         
         # Initialize domain
         
@@ -144,7 +144,7 @@ class StateParams:
         elif self.__compartment.state == '__stateparams_state_Merge':
             self.__stateparams_state_Merge(__e)
         
-    def __transition(self, next_compartment: 'StateParamsCompartment'):
+    def __transition(self, next_compartment):
         self.__next_compartment = next_compartment
     
     def state_info(self):

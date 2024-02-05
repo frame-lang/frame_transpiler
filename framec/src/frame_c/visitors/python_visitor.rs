@@ -700,9 +700,7 @@ impl PythonVisitor {
         if system_node.get_first_state().is_some() {
             self.newline();
             self.add_code(&format!(
-                "def __transition(self, next_compartment: '{}Compartment'):",
-                self.system_name
-            ));
+                "def __transition(self, next_compartment):"));
             self.indent();
             self.newline();
             self.add_code("self.__next_compartment = next_compartment");
@@ -712,9 +710,7 @@ impl PythonVisitor {
                 self.newline();
                 self.newline();
                 self.add_code(&format!(
-                    "def __state_stack_push(self, compartment: '{}Compartment'):",
-                    self.system_name
-                ));
+                    "def __state_stack_push(self, compartment):"));
                 self.indent();
                 self.newline();
                 self.add_code("self.__state_stack.append(compartment)");
@@ -731,9 +727,7 @@ impl PythonVisitor {
                 self.newline();
                 self.newline();
                 self.add_code(&format!(
-                    "def __change_state(self, new_compartment: '{}Compartment'):",
-                    self.system_name
-                ));
+                    "def __change_state(self, new_compartment):"));
                 self.indent();
                 self.newline();
                 self.add_code("self.__compartment = new_compartment");
@@ -1406,16 +1400,13 @@ impl PythonVisitor {
             self.newline();
             self.newline();
             self.add_code(&format!(
-                "self.__compartment: '{}Compartment' = {}Compartment('{}')",
-                system_node.name,
+                "self.__compartment = {}Compartment('{}')",
                 system_node.name,
                 self.format_target_state_name(&self.first_state_name)
             ));
             self.newline();
             self.add_code(&format!(
-                "self.__next_compartment: '{}Compartment' = None",
-                system_node.name
-            ));
+                "self.__next_compartment = None"));
         } else {
             // self.add_code(" # Create and intialize start state compartment.");
             self.newline();
