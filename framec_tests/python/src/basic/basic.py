@@ -24,8 +24,6 @@ class Basic:
         
         self.__compartment: 'BasicCompartment' = BasicCompartment('__basic_state_S0')
         self.__next_compartment: 'BasicCompartment' = None
-        self.__compartment: BasicCompartment = BasicCompartment(self.__state)
-        self.__next_compartment: BasicCompartment = None
         
         # Initialize domain
         

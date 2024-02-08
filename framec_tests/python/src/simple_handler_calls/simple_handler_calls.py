@@ -24,8 +24,6 @@ class SimpleHandlerCalls:
         
         self.__compartment: 'SimpleHandlerCallsCompartment' = SimpleHandlerCallsCompartment('__simplehandlercalls_state_Init')
         self.__next_compartment: 'SimpleHandlerCallsCompartment' = None
-        self.__compartment: SimpleHandlerCallsCompartment = SimpleHandlerCallsCompartment(self.__state)
-        self.__next_compartment: SimpleHandlerCallsCompartment = None
         
         # Initialize domain
         

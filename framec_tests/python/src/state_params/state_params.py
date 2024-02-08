@@ -24,8 +24,6 @@ class StateParams:
         
         self.__compartment: 'StateParamsCompartment' = StateParamsCompartment('__stateparams_state_Init')
         self.__next_compartment: 'StateParamsCompartment' = None
-        self.__compartment: StateParamsCompartment = StateParamsCompartment(self.__state)
-        self.__next_compartment: StateParamsCompartment = None
         
         # Initialize domain
         

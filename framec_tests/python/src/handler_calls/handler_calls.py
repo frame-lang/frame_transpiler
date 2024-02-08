@@ -24,8 +24,6 @@ class HandlerCalls:
         
         self.__compartment: 'HandlerCallsCompartment' = HandlerCallsCompartment('__handlercalls_state_Init')
         self.__next_compartment: 'HandlerCallsCompartment' = None
-        self.__compartment: HandlerCallsCompartment = HandlerCallsCompartment(self.__state)
-        self.__next_compartment: HandlerCallsCompartment = None
         
         # Initialize domain
         

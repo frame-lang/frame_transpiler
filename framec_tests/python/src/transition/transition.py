@@ -24,8 +24,6 @@ class TransitionSm:
         
         self.__compartment: 'TransitionSmCompartment' = TransitionSmCompartment('__transitionsm_state_S0')
         self.__next_compartment: 'TransitionSmCompartment' = None
-        self.__compartment: TransitionSmCompartment = TransitionSmCompartment(self.__state)
-        self.__next_compartment: TransitionSmCompartment = None
         
         # Initialize domain
         

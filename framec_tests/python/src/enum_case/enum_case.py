@@ -34,8 +34,6 @@ class EnumTest:
         
         self.__compartment: 'EnumTestCompartment' = EnumTestCompartment('__enumtest_state_SUN')
         self.__next_compartment: 'EnumTestCompartment' = None
-        self.__compartment: EnumTestCompartment = EnumTestCompartment(self.__state)
-        self.__next_compartment: EnumTestCompartment = None
         
         # Initialize domain
         

@@ -24,8 +24,6 @@ class VarScope:
         
         self.__compartment: 'VarScopeCompartment' = VarScopeCompartment('__varscope_state_Init')
         self.__next_compartment: 'VarScopeCompartment' = None
-        self.__compartment: VarScopeCompartment = VarScopeCompartment(self.__state)
-        self.__next_compartment: VarScopeCompartment = None
         
         # Initialize domain
         

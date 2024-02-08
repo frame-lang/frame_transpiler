@@ -24,8 +24,6 @@ class StateVars:
         
         self.__compartment: 'StateVarsCompartment' = StateVarsCompartment('__statevars_state_Init')
         self.__next_compartment: 'StateVarsCompartment' = None
-        self.__compartment: StateVarsCompartment = StateVarsCompartment(self.__state)
-        self.__next_compartment: StateVarsCompartment = None
         
         # Initialize domain
         

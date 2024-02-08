@@ -24,8 +24,6 @@ class TransitParams:
         
         self.__compartment: 'TransitParamsCompartment' = TransitParamsCompartment('__transitparams_state_Init')
         self.__next_compartment: 'TransitParamsCompartment' = None
-        self.__compartment: TransitParamsCompartment = TransitParamsCompartment(self.__state)
-        self.__next_compartment: TransitParamsCompartment = None
         
         # Initialize domain
         

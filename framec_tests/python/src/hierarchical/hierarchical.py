@@ -24,8 +24,6 @@ class Hierarchical:
         
         self.__compartment: 'HierarchicalCompartment' = HierarchicalCompartment('__hierarchical_state_I')
         self.__next_compartment: 'HierarchicalCompartment' = None
-        self.__compartment: HierarchicalCompartment = HierarchicalCompartment(self.__state)
-        self.__next_compartment: HierarchicalCompartment = None
         
         # Initialize domain
         

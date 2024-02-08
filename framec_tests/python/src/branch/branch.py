@@ -24,8 +24,6 @@ class Branch:
         
         self.__compartment: 'BranchCompartment' = BranchCompartment('__branch_state_I')
         self.__next_compartment: 'BranchCompartment' = None
-        self.__compartment: BranchCompartment = BranchCompartment(self.__state)
-        self.__next_compartment: BranchCompartment = None
         
         # Initialize domain
         

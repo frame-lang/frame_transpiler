@@ -24,8 +24,6 @@ class Naming:
         
         self.__compartment: 'NamingCompartment' = NamingCompartment('__naming_state_Init')
         self.__next_compartment: 'NamingCompartment' = None
-        self.__compartment: NamingCompartment = NamingCompartment(self.__state)
-        self.__next_compartment: NamingCompartment = None
         
         # Initialize domain
         

@@ -24,8 +24,6 @@ class HierarchicalGuard:
         
         self.__compartment: 'HierarchicalGuardCompartment' = HierarchicalGuardCompartment('__hierarchicalguard_state_I')
         self.__next_compartment: 'HierarchicalGuardCompartment' = None
-        self.__compartment: HierarchicalGuardCompartment = HierarchicalGuardCompartment(self.__state)
-        self.__next_compartment: HierarchicalGuardCompartment = None
         
         # Initialize domain
         

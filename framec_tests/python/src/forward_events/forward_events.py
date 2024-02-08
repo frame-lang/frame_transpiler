@@ -28,8 +28,6 @@ class ForwardEvents:
         
         self.__compartment: 'ForwardEventsCompartment' = ForwardEventsCompartment('__forwardevents_state_S0')
         self.__next_compartment: 'ForwardEventsCompartment' = None
-        self.__compartment: ForwardEventsCompartment = ForwardEventsCompartment(self.__state)
-        self.__next_compartment: ForwardEventsCompartment = None
         
         # Initialize domain
         

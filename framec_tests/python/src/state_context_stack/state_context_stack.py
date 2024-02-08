@@ -28,8 +28,6 @@ class StateContextStack:
         
         self.__compartment: 'StateContextStackCompartment' = StateContextStackCompartment('__statecontextstack_state_A')
         self.__next_compartment: 'StateContextStackCompartment' = None
-        self.__compartment: StateContextStackCompartment = StateContextStackCompartment(self.__state)
-        self.__next_compartment: StateContextStackCompartment = None
         self.__compartment.state_vars["x"] = 0
         
         # Initialize domain

@@ -19,8 +19,6 @@ class ChangeStateSm:
         
         self.__compartment: 'ChangeStateSmCompartment' = ChangeStateSmCompartment('__changestatesm_state_S0')
         self.__next_compartment: 'ChangeStateSmCompartment' = None
-        self.__compartment: ChangeStateSmCompartment = ChangeStateSmCompartment(self.__state)
-        self.__next_compartment: ChangeStateSmCompartment = None
         
         # Initialize domain
         

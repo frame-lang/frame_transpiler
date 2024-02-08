@@ -24,8 +24,6 @@ class StateContextSm:
         
         self.__compartment: 'StateContextSmCompartment' = StateContextSmCompartment('__statecontextsm_state_Init')
         self.__next_compartment: 'StateContextSmCompartment' = None
-        self.__compartment: StateContextSmCompartment = StateContextSmCompartment(self.__state)
-        self.__next_compartment: StateContextSmCompartment = None
         self.__compartment.state_vars["w"] = 0
         
         # Initialize domain

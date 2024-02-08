@@ -1423,21 +1423,10 @@ impl PythonVisitor {
             self.add_code("self.__compartment = None");
         }
 
-        if self.managed {
-            self.newline();
-            self.add_code("self._manager = manager");
-        }
-
-        self.newline();
-        self.add_code(&format!(
-            "self.__compartment: {}Compartment = {}Compartment(self.__state)",
-            system_node.name, system_node.name
-        ));
-        self.newline();
-        self.add_code(&format!(
-            "self.__next_compartment: {}Compartment = None",
-            system_node.name
-        ));
+        // if self.managed {
+        //     self.newline();
+        //     self.add_code("self._manager = manager");
+        // }
 
         // Initialize state arguments.
         match &system_node.start_state_state_params_opt {

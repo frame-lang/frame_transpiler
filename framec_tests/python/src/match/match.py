@@ -24,8 +24,6 @@ class Match:
         
         self.__compartment: 'MatchCompartment' = MatchCompartment('__match_state_Init')
         self.__next_compartment: 'MatchCompartment' = None
-        self.__compartment: MatchCompartment = MatchCompartment(self.__state)
-        self.__next_compartment: MatchCompartment = None
         
         # Initialize domain
         
