@@ -3376,26 +3376,6 @@ impl AstVisitor for PythonVisitor {
             //  self.newline();
         }
 
-        // all autoincdec code in loop control should be generated as the last statement
-        // in the loop
-        // for ..; ..; x++
-        // if let Some(expr_type_rcref) = &loop_for_expr_node.post_expr_rcref_opt {
-        //     let expr_t = expr_type_rcref.borrow();
-        //     // expr_t.auto_pre_inc_dec(self);
-        //     match *expr_t {
-        //         ExprType::CallChainExprT { .. } => {
-        //             // don't emit just a simple expression.
-        //         }
-        //         _ => expr_t.accept(self),
-        //     }
-        //     // expr_t.auto_post_inc_dec(self);
-        // }
-        // generate 'pass' after autoincdec if there are no statements
-        // if loop_for_expr_node.statements.len() == 0 {
-        //     self.newline();
-        //     self.add_code(&format!("pass"));
-        // }
-
         if let Some(post_expr) = self.continue_post_expr_vec.pop() {
             self.newline();
             self.add_code(post_expr.unwrap().clone().as_str());
@@ -3412,23 +3392,6 @@ impl AstVisitor for PythonVisitor {
     fn visit_loop_in_stmt_node(&mut self, loop_in_stmt_node: &LoopInStmtNode) {
         self.newline();
 
-        // TODO - this won't work properly for autoincdec.
-        // See https://www.w3schools.com/python/python_iterators.asp
-        // See https://www.w3schools.com/python/python_while_loops.asp
-        // Need to turn for in loop into a while statement that does something like
-        // this for non-function
-
-        // _frame_iterable_1_ = [1, 2, 3]
-        // _frame_iterator_1_ = iter(_frame_iterable_1_)
-        //
-        // while True:
-        //     try:
-        //     print(next(_frame_iterator_1_))
-        // except StopIteration as e:
-        //      break
-
-        // autoinc any arguments to the iterable expression
-        //  loop_in_stmt_node.iterable_expr.auto_pre_inc_dec(self);
         let mut output = String::new();
         loop_in_stmt_node
             .iterable_expr
@@ -3471,15 +3434,6 @@ impl AstVisitor for PythonVisitor {
             self.visit_decl_stmts(&loop_in_stmt_node.statements);
         }
 
-        // all autoincdec code in loop control should be generated as the last statement
-        // in the loop
-        // for var x in foo(++x,y--) {}
-        // if let Some(expr_type_rcref) = &loop_in_expr_node.inc_dec_expr_rcref_opt {
-        //     let expr_t = expr_type_rcref.borrow();
-        //     expr_t.auto_pre_inc_dec(self);
-        //     expr_t.auto_post_inc_dec(self);
-        // }
-        // generate 'pass' after autoincdec if there are no statements
         if loop_in_stmt_node.statements.len() == 0 {
             self.newline();
             self.add_code(&format!("pass"));
