@@ -301,13 +301,13 @@ impl Scanner {
                 if !self.block_keyword() {
                     if self.match_char('>') {
                         // -> or ->>
-                        if self.match_char('>') {
-                            // ->>
-                            self.add_token(TokenType::ChangeState);
-                        } else {
+                        // if self.match_char('>') {
+                        //     // ->>
+                        //     self.add_token(TokenType::ChangeState);
+                        // } else {
                             // ->
                             self.add_token(TokenType::Transition);
-                        }
+                        // }
                     } else if self.is_digit(self.peek()) {
                         self.number(true);
                     } else {
@@ -726,7 +726,7 @@ pub enum TokenType {
     LBracket,                     // [
     RBracket,                     // ]
     Transition,                   // ->
-    ChangeState,                  // ->>
+//    ChangeState,                  // ->>
     String,                       // "foo"
     ThreeTicks,                   // ```
     SuperString,                  // `stuff + "stuff"`

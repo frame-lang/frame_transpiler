@@ -328,11 +328,11 @@ impl PlantUmlVisitor {
                         } => {
                             state_stack_operation_statement_node.accept(self);
                         }
-                        StatementType::ChangeStateStmt {
-                            change_state_stmt_node: change_state_stmt,
-                        } => {
-                            change_state_stmt.accept(self);
-                        }
+                        // StatementType::ChangeStateStmt {
+                        //     change_state_stmt_node: change_state_stmt,
+                        // } => {
+                        //     change_state_stmt.accept(self);
+                        // }
                         StatementType::LoopStmt { loop_stmt_node } => {
                             loop_stmt_node.accept(self);
                         }
@@ -486,42 +486,42 @@ impl PlantUmlVisitor {
     //* --------------------------------------------------------------------- *//
 
     // TODO
-    fn generate_state_ref_change_state(
-        &mut self,
-        change_state_stmt_node: &ChangeStateStatementNode,
-    ) {
-        let target_state_name = match &change_state_stmt_node.state_context_t {
-            TargetStateContextType::StateRef { state_context_node } => {
-                &state_context_node.state_ref_node.name
-            }
-            _ => panic!("TODO"),
-        };
-
-        self.newline();
-        let mut current_state: String = "??".to_string();
-        if let Some(state_name) = &self.current_state_name_opt {
-            current_state = state_name.clone();
-        }
-
-        let label = match &change_state_stmt_node.label_opt {
-            Some(label) => {
-                let cleaned = str::replace(label, "|", "");
-                format!(" : {}", cleaned)
-            }
-            None => format!(" : {}", self.event_handler_msg.clone()),
-        };
-
-        let transition_code = &format!(
-            "{} -[dashed]-> {}{}\n",
-            current_state,
-            self.format_target_state_name(target_state_name),
-            label
-        );
-        //       println!("{}", &transition_code);
-        self.transitions.push_str(transition_code);
-        // self.add_code(&format!("_changeState_({});", self.format_target_state_name(target_state_name)));
-        // self.transitions.push_str(&format!("_changeState_({});", self.format_target_state_name(target_state_name)));
-    }
+    // fn generate_state_ref_change_state(
+    //     &mut self,
+    //     change_state_stmt_node: &ChangeStateStatementNode,
+    // ) {
+    //     let target_state_name = match &change_state_stmt_node.state_context_t {
+    //         TargetStateContextType::StateRef { state_context_node } => {
+    //             &state_context_node.state_ref_node.name
+    //         }
+    //         _ => panic!("TODO"),
+    //     };
+    //
+    //     self.newline();
+    //     let mut current_state: String = "??".to_string();
+    //     if let Some(state_name) = &self.current_state_name_opt {
+    //         current_state = state_name.clone();
+    //     }
+    //
+    //     let label = match &change_state_stmt_node.label_opt {
+    //         Some(label) => {
+    //             let cleaned = str::replace(label, "|", "");
+    //             format!(" : {}", cleaned)
+    //         }
+    //         None => format!(" : {}", self.event_handler_msg.clone()),
+    //     };
+    //
+    //     let transition_code = &format!(
+    //         "{} -[dashed]-> {}{}\n",
+    //         current_state,
+    //         self.format_target_state_name(target_state_name),
+    //         label
+    //     );
+    //     //       println!("{}", &transition_code);
+    //     self.transitions.push_str(transition_code);
+    //     // self.add_code(&format!("_changeState_({});", self.format_target_state_name(target_state_name)));
+    //     // self.transitions.push_str(&format!("_changeState_({});", self.format_target_state_name(target_state_name)));
+    // }
 
     //* --------------------------------------------------------------------- *//
 
@@ -1401,17 +1401,17 @@ impl AstVisitor for PlantUmlVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_change_state_statement_node(
-        &mut self,
-        change_state_stmt_node: &ChangeStateStatementNode,
-    ) {
-        match &change_state_stmt_node.state_context_t {
-            TargetStateContextType::StateRef { .. } => {
-                self.generate_state_ref_change_state(change_state_stmt_node)
-            }
-            TargetStateContextType::StateStackPop {} => panic!("TODO - not implemented"),
-        };
-    }
+    // fn visit_change_state_statement_node(
+    //     &mut self,
+    //     change_state_stmt_node: &ChangeStateStatementNode,
+    // ) {
+    //     match &change_state_stmt_node.state_context_t {
+    //         TargetStateContextType::StateRef { .. } => {
+    //             self.generate_state_ref_change_state(change_state_stmt_node)
+    //         }
+    //         TargetStateContextType::StateStackPop {} => panic!("TODO - not implemented"),
+    //     };
+    // }
 
     //* --------------------------------------------------------------------- *//
 

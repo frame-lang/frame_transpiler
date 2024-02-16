@@ -14,9 +14,10 @@ use super::symbol_table::*;
 use crate::frame_c::ast::ModuleElement::*;
 use crate::frame_c::utils::SystemHierarchy;
 use std::cell::RefCell;
+use std::rc::Rc;
 use std::collections::HashMap;
 use std::fmt;
-use std::rc::Rc;
+
 
 pub struct ParseError {
     // TODO:
@@ -3819,18 +3820,18 @@ impl<'a> Parser<'a> {
                                             statements.push(decl_or_statement);
                                         }
                                     }
-                                    StatementType::ChangeStateStmt { .. } => {
-                                        statements.push(decl_or_statement);
-                                        // state changes disallowed in actions
-                                        if self.is_action_scope {
-                                            self.error_at_current(
-                                                "Transitions disallowed in actions.",
-                                            );
-                                            // is_err = true;
-                                        }
-                                        // must be last statement so return
-                                        return statements;
-                                    }
+                                    // StatementType::ChangeStateStmt { .. } => {
+                                    //     statements.push(decl_or_statement);
+                                    //     // state changes disallowed in actions
+                                    //     if self.is_action_scope {
+                                    //         self.error_at_current(
+                                    //             "Transitions disallowed in actions.",
+                                    //         );
+                                    //         // is_err = true;
+                                    //     }
+                                    //     // must be last statement so return
+                                    //     return statements;
+                                    // }
                                     StatementType::LoopStmt { .. } => {
                                         statements.push(decl_or_statement);
                                     }
@@ -4202,13 +4203,13 @@ impl<'a> Parser<'a> {
             }
         }
 
-        if self.match_token(&[TokenType::ChangeState]) {
-            return match self.change_state() {
-                Ok(Some(state_context_t)) => Ok(Some(state_context_t)),
-                Ok(None) => Err(ParseError::new("TODO")),
-                Err(parse_error) => Err(parse_error),
-            };
-        }
+        // if self.match_token(&[TokenType::ChangeState]) {
+        //     return match self.change_state() {
+        //         Ok(Some(state_context_t)) => Ok(Some(state_context_t)),
+        //         Ok(None) => Err(ParseError::new("TODO")),
+        //         Err(parse_error) => Err(parse_error),
+        //     };
+        // }
 
         if self.match_token(&[TokenType::Loop]) {
             return match self.loop_statement_scope() {
@@ -7074,43 +7075,43 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     // change_state : '->>' change_state_label state_ref
-
-    fn change_state(&mut self) -> Result<Option<StatementType>, ParseError> {
-        self.generate_change_state = true;
-
-        let mut label_opt: Option<String> = None;
-
-        // change_state label string
-        if self.match_token(&[TokenType::String]) {
-            label_opt = Some(self.previous().lexeme.clone());
-        }
-
-        // check that we are not changing state out of a state with
-        // an exit event handler
-
-        let state_name = &self.state_name_opt.as_ref().unwrap().clone();
-        match &self.get_state_exit_eventhandler(state_name) {
-            Some(..) => {
-                let err_msg =
-                    &format!("State change disallowed out of states with exit eventhandler.");
-                self.error_at_current(err_msg.as_str());
-            }
-            None => {}
-        }
-        let state_context_t;
-        match self.target_state(None, "State change", false) {
-            Ok(Some(scn)) => state_context_t = scn,
-            Ok(None) => return Err(ParseError::new("TODO")),
-            Err(parse_error) => return Err(parse_error),
-        }
-
-        Ok(Some(StatementType::ChangeStateStmt {
-            change_state_stmt_node: ChangeStateStatementNode {
-                state_context_t,
-                label_opt,
-            },
-        }))
-    }
+    //
+    // fn change_state(&mut self) -> Result<Option<StatementType>, ParseError> {
+    //     self.generate_change_state = true;
+    //
+    //     let mut label_opt: Option<String> = None;
+    //
+    //     // change_state label string
+    //     if self.match_token(&[TokenType::String]) {
+    //         label_opt = Some(self.previous().lexeme.clone());
+    //     }
+    //
+    //     // check that we are not changing state out of a state with
+    //     // an exit event handler
+    //
+    //     let state_name = &self.state_name_opt.as_ref().unwrap().clone();
+    //     match &self.get_state_exit_eventhandler(state_name) {
+    //         Some(..) => {
+    //             let err_msg =
+    //                 &format!("State change disallowed out of states with exit eventhandler.");
+    //             self.error_at_current(err_msg.as_str());
+    //         }
+    //         None => {}
+    //     }
+    //     let state_context_t;
+    //     match self.target_state(None, "State change", false) {
+    //         Ok(Some(scn)) => state_context_t = scn,
+    //         Ok(None) => return Err(ParseError::new("TODO")),
+    //         Err(parse_error) => return Err(parse_error),
+    //     }
+    //
+    //     Ok(Some(StatementType::ChangeStateStmt {
+    //         change_state_stmt_node: ChangeStateStatementNode {
+    //             state_context_t,
+    //             label_opt,
+    //         },
+    //     }))
+    // }
 
     /* --------------------------------------------------------------------- */
 
@@ -7461,9 +7462,9 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    pub fn get_system_hierarchy(self) -> SystemHierarchy {
-        self.system_hierarchy_opt.unwrap()
-    }
+    // pub fn get_system_hierarchy(self) -> SystemHierarchy {
+    //     self.system_hierarchy_opt.unwrap()
+    // }
 
     /* --------------------------------------------------------------------- */
 
@@ -7685,26 +7686,26 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    fn get_state_exit_eventhandler(
-        &mut self,
-        state_name: &str,
-    ) -> Option<Rc<RefCell<EventHandlerNode>>> {
-        let state_rcref_opt = self.arcanum.get_state(state_name);
-        match state_rcref_opt {
-            Some(state_symbol) => match &state_symbol.borrow().state_node_opt {
-                Some(state_node_rcref) => {
-                    let state_node = state_node_rcref.borrow();
-                    if let Some(exit_event_handler_rcref) = &state_node.exit_event_handler_opt {
-                        Some(exit_event_handler_rcref.clone())
-                    } else {
-                        None
-                    }
-                }
-                None => None,
-            },
-            None => None,
-        }
-    }
+    // fn get_state_exit_eventhandler(
+    //     &mut self,
+    //     state_name: &str,
+    // ) -> Option<Rc<RefCell<EventHandlerNode>>> {
+    //     let state_rcref_opt = self.arcanum.get_state(state_name);
+    //     match state_rcref_opt {
+    //         Some(state_symbol) => match &state_symbol.borrow().state_node_opt {
+    //             Some(state_node_rcref) => {
+    //                 let state_node = state_node_rcref.borrow();
+    //                 if let Some(exit_event_handler_rcref) = &state_node.exit_event_handler_opt {
+    //                     Some(exit_event_handler_rcref.clone())
+    //                 } else {
+    //                     None
+    //                 }
+    //             }
+    //             None => None,
+    //         },
+    //         None => None,
+    //     }
+    // }
 
     /* --------------------------------------------------------------------- */
 

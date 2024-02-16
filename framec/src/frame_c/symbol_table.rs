@@ -1785,50 +1785,50 @@ impl Arcanum {
 
     /* --------------------------------------------------------------------- */
 
-    pub fn get_event_names(&self) -> Vec<String> {
-        let system_symbol_rcref = self.system_symbol_opt.as_ref().unwrap();
-        let system_symbol = system_symbol_rcref.borrow();
-        let mut ret = Vec::new();
-        for (k, _v) in system_symbol.events.iter() {
-            ret.push(k.clone());
-        }
-        ret
-    }
+    // pub fn get_event_names(&self) -> Vec<String> {
+    //     let system_symbol_rcref = self.system_symbol_opt.as_ref().unwrap();
+    //     let system_symbol = system_symbol_rcref.borrow();
+    //     let mut ret = Vec::new();
+    //     for (k, _v) in system_symbol.events.iter() {
+    //         ret.push(k.clone());
+    //     }
+    //     ret
+    // }
 
     /// Get all action names from the action block.
-    pub fn get_action_names(&self) -> Vec<String> {
-        let system_symbol_rcref = self.system_symbol_opt.as_ref().unwrap();
-        let system_symbol = system_symbol_rcref.borrow();
-        let mut result = Vec::new();
-        if let Some(action_block_rcref) = &system_symbol.actions_block_symbol_opt {
-            let action_block = action_block_rcref.borrow();
-            let action_symbol_table = action_block.symtab_rcref.borrow();
-            for action in action_symbol_table.symbols.keys() {
-                result.push(action.clone());
-            }
-        }
-        result
-    }
+    // pub fn get_action_names(&self) -> Vec<String> {
+    //     let system_symbol_rcref = self.system_symbol_opt.as_ref().unwrap();
+    //     let system_symbol = system_symbol_rcref.borrow();
+    //     let mut result = Vec::new();
+    //     if let Some(action_block_rcref) = &system_symbol.actions_block_symbol_opt {
+    //         let action_block = action_block_rcref.borrow();
+    //         let action_symbol_table = action_block.symtab_rcref.borrow();
+    //         for action in action_symbol_table.symbols.keys() {
+    //             result.push(action.clone());
+    //         }
+    //     }
+    //     result
+    // }
 
     /* --------------------------------------------------------------------- */
 
     // This method preferentially gets the interface name for a message if it
     // exists or returns the message name itself.
 
-    pub fn get_interface_or_msg_from_msg(&self, msg: &str) -> Option<String> {
-        let system_symbol_rcref = self.system_symbol_opt.as_ref().unwrap();
-        let system_symbol = system_symbol_rcref.borrow();
-        match system_symbol.events.get(&msg.to_string()) {
-            Some(event_symbol_rcref) => {
-                let event_symbol = event_symbol_rcref.borrow();
-                match &event_symbol.interface_name_opt {
-                    Some(interface_name) => Some(interface_name.clone()),
-                    None => Some(event_symbol.msg.clone()),
-                }
-            }
-            None => None,
-        }
-    }
+    // pub fn get_interface_or_msg_from_msg(&self, msg: &str) -> Option<String> {
+    //     let system_symbol_rcref = self.system_symbol_opt.as_ref().unwrap();
+    //     let system_symbol = system_symbol_rcref.borrow();
+    //     match system_symbol.events.get(&msg.to_string()) {
+    //         Some(event_symbol_rcref) => {
+    //             let event_symbol = event_symbol_rcref.borrow();
+    //             match &event_symbol.interface_name_opt {
+    //                 Some(interface_name) => Some(interface_name.clone()),
+    //                 None => Some(event_symbol.msg.clone()),
+    //             }
+    //         }
+    //         None => None,
+    //     }
+    // }
 
     /* --------------------------------------------------------------------- */
 

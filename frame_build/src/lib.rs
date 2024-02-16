@@ -125,7 +125,7 @@ impl FrameBuild {
             frame_config: None,
             input_dir: PathBuf::from("src"),
             output_dir: PathBuf::from(env::var("OUT_DIR").unwrap()),
-            targets: vec![TargetLanguage::Rust],
+            targets: vec![TargetLanguage::Python3],
             input_filter: Box::new(|_| true),
             max_depth: ::std::usize::MAX,
             min_depth: 0,
@@ -133,6 +133,19 @@ impl FrameBuild {
             continue_on_error: false,
         }
     }
+    // pub fn new() -> Self {
+    //     FrameBuild {
+    //         frame_config: None,
+    //         input_dir: PathBuf::from("src"),
+    //         output_dir: PathBuf::from(env::var("OUT_DIR").unwrap()),
+    //         targets: vec![TargetLanguage::Rust],
+    //         input_filter: Box::new(|_| true),
+    //         max_depth: ::std::usize::MAX,
+    //         min_depth: 0,
+    //         follow_links: false,
+    //         continue_on_error: false,
+    //     }
+    // }
 
     /// Add a Frame `config.yaml` file to pass to Framec.
     ///

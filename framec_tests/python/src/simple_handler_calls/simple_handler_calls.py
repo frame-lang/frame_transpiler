@@ -20,9 +20,11 @@ class SimpleHandlerCalls:
     
     def __init__(self):
         
-         # Create and intialize start state compartment.
+         # Create and initialize start state compartment.
         
-        self.__compartment = SimpleHandlerCallsCompartment('__simplehandlercalls_state_Init')
+        next_compartment = None
+        next_compartment = SimpleHandlerCallsCompartment('__simplehandlercalls_state_Init', next_compartment)
+        self.__compartment = next_compartment
         self.__next_compartment = None
         
         # Initialize domain
@@ -58,13 +60,17 @@ class SimpleHandlerCalls:
     # ----------------------------------------
     # $Init
     
-    def __simplehandlercalls_state_Init(self, __e):
+    def __simplehandlercalls_state_Init(self, __e, compartment):
         if __e._message == "A":
-            next_compartment = SimpleHandlerCallsCompartment('__simplehandlercalls_state_A')
+            next_compartment = None
+            next_compartment = SimpleHandlerCallsCompartment('__simplehandlercalls_state_A', next_compartment)
+            
             self.__transition(next_compartment)
             return
         elif __e._message == "B":
-            next_compartment = SimpleHandlerCallsCompartment('__simplehandlercalls_state_B')
+            next_compartment = None
+            next_compartment = SimpleHandlerCallsCompartment('__simplehandlercalls_state_B', next_compartment)
+            
             self.__transition(next_compartment)
             return
         elif __e._message == "C":
@@ -74,7 +80,9 @@ class SimpleHandlerCalls:
         elif __e._message == "D":
             self.B()
             return
-            next_compartment = SimpleHandlerCallsCompartment('__simplehandlercalls_state_A')
+            next_compartment = None
+            next_compartment = SimpleHandlerCallsCompartment('__simplehandlercalls_state_A', next_compartment)
+            
             self.__transition(next_compartment)
             return
         elif __e._message == "E":
@@ -87,14 +95,14 @@ class SimpleHandlerCalls:
     # ----------------------------------------
     # $A
     
-    def __simplehandlercalls_state_A(self, __e):
+    def __simplehandlercalls_state_A(self, __e, compartment):
         pass
         
     
     # ----------------------------------------
     # $B
     
-    def __simplehandlercalls_state_B(self, __e):
+    def __simplehandlercalls_state_B(self, __e, compartment):
         pass
         
     
@@ -134,11 +142,11 @@ class SimpleHandlerCalls:
     
     def __router(self, __e):
         if self.__compartment.state == '__simplehandlercalls_state_Init':
-            self.__simplehandlercalls_state_Init(__e)
+            self.__simplehandlercalls_state_Init(__e, self.__compartment)
         elif self.__compartment.state == '__simplehandlercalls_state_A':
-            self.__simplehandlercalls_state_A(__e)
+            self.__simplehandlercalls_state_A(__e, self.__compartment)
         elif self.__compartment.state == '__simplehandlercalls_state_B':
-            self.__simplehandlercalls_state_B(__e)
+            self.__simplehandlercalls_state_B(__e, self.__compartment)
         
     def __transition(self, next_compartment):
         self.__next_compartment = next_compartment
@@ -151,11 +159,12 @@ class SimpleHandlerCalls:
 
 class SimpleHandlerCallsCompartment:
 
-    def __init__(self,state):
+    def __init__(self,state,parent_compartment):
         self.state = state
         self.state_args = {}
         self.state_vars = {}
         self.enter_args = {}
         self.exit_args = {}
         self.forward_event = None
+        self.parent_compartment = parent_compartment
     

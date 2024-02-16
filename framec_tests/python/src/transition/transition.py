@@ -20,9 +20,11 @@ class TransitionSm:
     
     def __init__(self):
         
-         # Create and intialize start state compartment.
+         # Create and initialize start state compartment.
         
-        self.__compartment = TransitionSmCompartment('__transitionsm_state_S0')
+        next_compartment = None
+        next_compartment = TransitionSmCompartment('__transitionsm_state_S0', next_compartment)
+        self.__compartment = next_compartment
         self.__next_compartment = None
         
         # Initialize domain
@@ -49,44 +51,49 @@ class TransitionSm:
     # ----------------------------------------
     # $S0
     
-    def __transitionsm_state_S0(self, __e):
+    def __transitionsm_state_S0(self, __e, compartment):
         if __e._message == "<":
             self.exit_do("S0")
             return
         elif __e._message == "transit":
-            next_compartment = TransitionSmCompartment('__transitionsm_state_S1')
+            next_compartment = None
+            next_compartment = TransitionSmCompartment('__transitionsm_state_S1', next_compartment)
+            
             self.__transition(next_compartment)
             return
     
     # ----------------------------------------
     # $S1
     
-    def __transitionsm_state_S1(self, __e):
+    def __transitionsm_state_S1(self, __e, compartment):
         if __e._message == ">":
             self.enter_do("S1")
             return
         elif __e._message == "change":
-            compartment = TransitionSmCompartment('__transitionsm_state_S2')
+            next_compartment = None
+            next_compartment = TransitionSmCompartment('__transitionsm_state_S2', next_compartment)
             
-            self.__change_state(compartment)
+            self.__transition(next_compartment)
             return
     
     # ----------------------------------------
     # $S2
     
-    def __transitionsm_state_S2(self, __e):
+    def __transitionsm_state_S2(self, __e, compartment):
         if __e._message == "<":
             self.exit_do("S2")
             return
         elif __e._message == "transit":
-            next_compartment = TransitionSmCompartment('__transitionsm_state_S3')
+            next_compartment = None
+            next_compartment = TransitionSmCompartment('__transitionsm_state_S3', next_compartment)
+            
             self.__transition(next_compartment)
             return
     
     # ----------------------------------------
     # $S3
     
-    def __transitionsm_state_S3(self, __e):
+    def __transitionsm_state_S3(self, __e, compartment):
         if __e._message == ">":
             self.enter_do("S3")
             return
@@ -94,19 +101,22 @@ class TransitionSm:
             self.exit_do("S3")
             return
         elif __e._message == "transit":
-            next_compartment = TransitionSmCompartment('__transitionsm_state_S4')
+            next_compartment = None
+            next_compartment = TransitionSmCompartment('__transitionsm_state_S4', next_compartment)
+            
             self.__transition(next_compartment)
             return
     
     # ----------------------------------------
     # $S4
     
-    def __transitionsm_state_S4(self, __e):
+    def __transitionsm_state_S4(self, __e, compartment):
         if __e._message == ">":
             self.enter_do("S4")
-            compartment = TransitionSmCompartment('__transitionsm_state_S0')
+            next_compartment = None
+            next_compartment = TransitionSmCompartment('__transitionsm_state_S0', next_compartment)
             
-            self.__change_state(compartment)
+            self.__transition(next_compartment)
             return
     
     # ===================== Actions Block =================== #
@@ -152,22 +162,18 @@ class TransitionSm:
     
     def __router(self, __e):
         if self.__compartment.state == '__transitionsm_state_S0':
-            self.__transitionsm_state_S0(__e)
+            self.__transitionsm_state_S0(__e, self.__compartment)
         elif self.__compartment.state == '__transitionsm_state_S1':
-            self.__transitionsm_state_S1(__e)
+            self.__transitionsm_state_S1(__e, self.__compartment)
         elif self.__compartment.state == '__transitionsm_state_S2':
-            self.__transitionsm_state_S2(__e)
+            self.__transitionsm_state_S2(__e, self.__compartment)
         elif self.__compartment.state == '__transitionsm_state_S3':
-            self.__transitionsm_state_S3(__e)
+            self.__transitionsm_state_S3(__e, self.__compartment)
         elif self.__compartment.state == '__transitionsm_state_S4':
-            self.__transitionsm_state_S4(__e)
+            self.__transitionsm_state_S4(__e, self.__compartment)
         
     def __transition(self, next_compartment):
         self.__next_compartment = next_compartment
-    
-    def __change_state(self, new_compartment):
-        self.__compartment = new_compartment
-    
     
     def state_info(self):
         return self.__compartment.state
@@ -177,11 +183,12 @@ class TransitionSm:
 
 class TransitionSmCompartment:
 
-    def __init__(self,state):
+    def __init__(self,state,parent_compartment):
         self.state = state
         self.state_args = {}
         self.state_vars = {}
         self.enter_args = {}
         self.exit_args = {}
         self.forward_event = None
+        self.parent_compartment = parent_compartment
     

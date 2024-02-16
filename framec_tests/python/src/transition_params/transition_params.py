@@ -20,9 +20,11 @@ class TransitParams:
     
     def __init__(self):
         
-         # Create and intialize start state compartment.
+         # Create and initialize start state compartment.
         
-        self.__compartment = TransitParamsCompartment('__transitparams_state_Init')
+        next_compartment = None
+        next_compartment = TransitParamsCompartment('__transitparams_state_Init', next_compartment)
+        self.__compartment = next_compartment
         self.__next_compartment = None
         
         # Initialize domain
@@ -44,17 +46,19 @@ class TransitParams:
     # ----------------------------------------
     # $Init
     
-    def __transitparams_state_Init(self, __e):
+    def __transitparams_state_Init(self, __e, compartment):
         if __e._message == "Next":
-            next_compartment = TransitParamsCompartment('__transitparams_state_A')
+            next_compartment = None
+            next_compartment = TransitParamsCompartment('__transitparams_state_A', next_compartment)
             next_compartment.enter_args["msg"] = "hi A"
+            
             self.__transition(next_compartment)
             return
     
     # ----------------------------------------
     # $A
     
-    def __transitparams_state_A(self, __e):
+    def __transitparams_state_A(self, __e, compartment):
         if __e._message == ">":
             self.log_do(__e._parameters["msg"])
             return
@@ -62,16 +66,18 @@ class TransitParams:
             self.log_do("bye A")
             return
         elif __e._message == "Next":
-            next_compartment = TransitParamsCompartment('__transitparams_state_B')
+            next_compartment = None
+            next_compartment = TransitParamsCompartment('__transitparams_state_B', next_compartment)
             next_compartment.enter_args["msg"] = "hi B"
             next_compartment.enter_args["val"] = 42
+            
             self.__transition(next_compartment)
             return
     
     # ----------------------------------------
     # $B
     
-    def __transitparams_state_B(self, __e):
+    def __transitparams_state_B(self, __e, compartment):
         if __e._message == ">":
             self.log_do(__e._parameters["msg"])
             self.log_do(str(__e._parameters["val"]))
@@ -83,8 +89,10 @@ class TransitParams:
         elif __e._message == "Next":
             self.__compartment.exit_args["val"] = True
             self.__compartment.exit_args["msg"] = "bye B"
-            next_compartment = TransitParamsCompartment('__transitparams_state_A')
+            next_compartment = None
+            next_compartment = TransitParamsCompartment('__transitparams_state_A', next_compartment)
             next_compartment.enter_args["msg"] = "hi again A"
+            
             self.__transition(next_compartment)
             return
     
@@ -128,11 +136,11 @@ class TransitParams:
     
     def __router(self, __e):
         if self.__compartment.state == '__transitparams_state_Init':
-            self.__transitparams_state_Init(__e)
+            self.__transitparams_state_Init(__e, self.__compartment)
         elif self.__compartment.state == '__transitparams_state_A':
-            self.__transitparams_state_A(__e)
+            self.__transitparams_state_A(__e, self.__compartment)
         elif self.__compartment.state == '__transitparams_state_B':
-            self.__transitparams_state_B(__e)
+            self.__transitparams_state_B(__e, self.__compartment)
         
     def __transition(self, next_compartment):
         self.__next_compartment = next_compartment
@@ -145,11 +153,12 @@ class TransitParams:
 
 class TransitParamsCompartment:
 
-    def __init__(self,state):
+    def __init__(self,state,parent_compartment):
         self.state = state
         self.state_args = {}
         self.state_vars = {}
         self.enter_args = {}
         self.exit_args = {}
         self.forward_event = None
+        self.parent_compartment = parent_compartment
     
