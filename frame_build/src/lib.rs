@@ -59,7 +59,7 @@
 //! fn main() -> Result<()> {
 //!     FrameBuild::new()
 //!         .input_dir(PathBuf::from("tests").as_path())
-//!         .add_target(TargetLanguage::Smcat)
+//!         .add_target(TargetLanguage::Python3)
 //!         .include_only_if(|path| !path.to_str().unwrap().contains("stack"))
 //!         .run()?;
 //!     Ok(())
