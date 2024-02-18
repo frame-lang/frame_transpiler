@@ -1831,7 +1831,6 @@ impl Arcanum {
     // }
 
     /* --------------------------------------------------------------------- */
-
     // This method preferentially gets the interface name for a message if it
     // exists or returns the message name itself.
 

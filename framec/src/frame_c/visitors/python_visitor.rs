@@ -61,7 +61,7 @@ pub struct PythonVisitor {
     continue_post_expr_vec: Vec<Option<String>>,
     operation_scope_depth: i32,
     action_scope_depth: i32,
-    system_node_rcref_opt:Option<Rc<RefCell<SystemNode>>>,
+    system_node_rcref_opt: Option<Rc<RefCell<SystemNode>>>,
 }
 
 impl PythonVisitor {
@@ -120,7 +120,7 @@ impl PythonVisitor {
             continue_post_expr_vec: Vec::new(),
             operation_scope_depth: 0,
             action_scope_depth: 0,
-            system_node_rcref_opt:None,
+            system_node_rcref_opt: None,
         }
     }
 
@@ -157,24 +157,32 @@ impl PythonVisitor {
         false
     }
 
-
     //* --------------------------------------------------------------------- *//
 
-
-    pub fn format_compartment_hierarchy(&mut self, state_node_rcref: &Rc<RefCell<StateNode>>,  is_factory_context:bool, transition_expr_node_opt: Option<&TransitionExprNode> ) -> String {
+    pub fn format_compartment_hierarchy(
+        &mut self,
+        state_node_rcref: &Rc<RefCell<StateNode>>,
+        is_factory_context: bool,
+        transition_expr_node_opt: Option<&TransitionExprNode>,
+    ) -> String {
         let mut ret = String::new();
 
         // recurse to the highest parent in the chain and start generating in reverse order
         if let Some(dispatch_node) = &state_node_rcref.borrow().dispatch_opt {
-            let state_symbol_rcref_opt = self.arcanium.get_state(&dispatch_node.target_state_ref.name);
+            let state_symbol_rcref_opt = self
+                .arcanium
+                .get_state(&dispatch_node.target_state_ref.name);
             if let Some(state_symbol_rcref) = state_symbol_rcref_opt {
                 let state_symbol = state_symbol_rcref.borrow();
                 if let Some(parent_state_node_rcref) = &state_symbol.state_node_opt {
-                    ret.push_str(&*self.format_compartment_hierarchy(parent_state_node_rcref, is_factory_context, None));
+                    ret.push_str(&*self.format_compartment_hierarchy(
+                        parent_state_node_rcref,
+                        is_factory_context,
+                        None,
+                    ));
                 }
             }
         }
-
 
         // The code below is strictly for the factory system initializtion of
         // the start state.
@@ -189,7 +197,6 @@ impl PythonVisitor {
         //     compartment_name = "compartment";
         // }
 
-
         self.newline_to_string(&mut ret);
         ret.push_str(&format!(
             "next_compartment = {}Compartment('{}', next_compartment)",
@@ -200,7 +207,6 @@ impl PythonVisitor {
         let target_state_name = state_node_rcref.borrow().name.clone();
 
         if let Some(transition_expr_node) = transition_expr_node_opt {
-
             if transition_expr_node.forward_event {
                 self.newline_to_string(&mut ret);
                 ret.push_str("next_compartment.forward_event = __e");
@@ -215,7 +221,6 @@ impl PythonVisitor {
                 TargetStateContextType::StateStackPop {} => &None,
             };
 
-
             if let Some(enter_args) = enter_args_opt {
                 // Note - searching for event keyed with "State:>"
                 // e.g. "S1:>"
@@ -224,7 +229,8 @@ impl PythonVisitor {
                 msg.push(':');
                 msg.push_str(&self.symbol_config.enter_msg_symbol);
 
-                if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt) {
+                if let Some(event_sym) = self.arcanium.get_event(&msg, &self.current_state_name_opt)
+                {
                     match &event_sym.borrow().event_symbol_params_opt {
                         Some(event_params) => {
                             if enter_args.exprs_t.len() != event_params.len() {
@@ -254,19 +260,17 @@ impl PythonVisitor {
                                 }
                             }
                         }
-                        None => panic!("Invalid number of arguments for \"{}\" event handler.", msg),
+                        None => {
+                            panic!("Invalid number of arguments for \"{}\" event handler.", msg)
+                        }
                     }
                 } else {
                     self.warnings.push(format!("State {} does not have an enter event handler but is being passed parameters in a transition", target_state_name.clone()));
                 }
             }
-
         }
 
-
-
         if let Some(transition_expr_node) = transition_expr_node_opt {
-
             // let target_state_name = transition_expr_node.target_state_context_t.
             if transition_expr_node.forward_event {
                 self.newline_to_string(&mut ret);
@@ -349,7 +353,6 @@ impl PythonVisitor {
                 }
             } // -- State Arguments --
 
-
             // let state_node = state_node_rcref.borrow();
             // match &state_node.vars_opt {
             //     Some(vars) => {
@@ -373,8 +376,10 @@ impl PythonVisitor {
         // -- State Variables --
         // NOTE: State variable initialization now handled in format_compartment_hierarchy().
 
-
-        if let Some(state_symbol_rcref) = self.arcanium.get_state(state_node_rcref.borrow().name.as_str()) {
+        if let Some(state_symbol_rcref) = self
+            .arcanium
+            .get_state(state_node_rcref.borrow().name.as_str())
+        {
             // #STATE_NODE_UPDATE_BUG - search comments in parser for why this is here
             let state_symbol = state_symbol_rcref.borrow();
             let state_node = &state_symbol.state_node_opt.as_ref().unwrap().borrow();
@@ -683,7 +688,13 @@ impl PythonVisitor {
             self.indent();
             self.newline();
             let mut arg_cnt: usize = 0;
-            if let Some(functions) = &self.system_node_rcref_opt.as_ref().unwrap().borrow().functions_opt {
+            if let Some(functions) = &self
+                .system_node_rcref_opt
+                .as_ref()
+                .unwrap()
+                .borrow()
+                .functions_opt
+            {
                 for function_rcref in functions {
                     let function_node = function_rcref.borrow();
                     if function_node.name == "main" {
@@ -974,8 +985,7 @@ impl PythonVisitor {
 
         if system_node.get_first_state().is_some() {
             self.newline();
-            self.add_code(&format!(
-                "def __transition(self, next_compartment):"));
+            self.add_code(&format!("def __transition(self, next_compartment):"));
             self.indent();
             self.newline();
             self.add_code("self.__next_compartment = next_compartment");
@@ -984,8 +994,7 @@ impl PythonVisitor {
             if self.generate_state_stack {
                 self.newline();
                 self.newline();
-                self.add_code(&format!(
-                    "def __state_stack_push(self, compartment):"));
+                self.add_code(&format!("def __state_stack_push(self, compartment):"));
                 self.indent();
                 self.newline();
                 self.add_code("self.__state_stack.append(compartment)");
@@ -1001,8 +1010,7 @@ impl PythonVisitor {
             if self.generate_change_state {
                 self.newline();
                 self.newline();
-                self.add_code(&format!(
-                    "def __change_state(self, new_compartment):"));
+                self.add_code(&format!("def __change_state(self, new_compartment):"));
                 self.indent();
                 self.newline();
                 self.add_code("self.__compartment = new_compartment");
@@ -1291,7 +1299,6 @@ impl PythonVisitor {
     //     self.format_target_state_name(target_state_name)
     // }
 
-
     //* --------------------------------------------------------------------- *//
 
     fn generate_state_ref_transition(
@@ -1309,7 +1316,7 @@ impl PythonVisitor {
             }
         };
 
-       //  let state_ref_code = self.generate_state_ref_code(target_state_name);
+        //  let state_ref_code = self.generate_state_ref_code(target_state_name);
 
         // self.newline();
         match &transition_expr_node.label_opt {
@@ -1379,10 +1386,19 @@ impl PythonVisitor {
 
         self.newline();
         self.add_code("next_compartment = None");
-       //  self.newline();
-        let state_node_rcref_opt = self.system_node_rcref_opt.as_ref().unwrap().borrow().get_state_node(&target_state_name.to_string());
+        //  self.newline();
+        let state_node_rcref_opt = self
+            .system_node_rcref_opt
+            .as_ref()
+            .unwrap()
+            .borrow()
+            .get_state_node(&target_state_name.to_string());
         if let Some(state_node_rcref) = state_node_rcref_opt {
-            let code = self.format_compartment_hierarchy(&state_node_rcref,false, Some(transition_expr_node));
+            let code = self.format_compartment_hierarchy(
+                &state_node_rcref,
+                false,
+                Some(transition_expr_node),
+            );
             self.add_code(code.as_str());
             self.newline();
         } else {
@@ -1543,7 +1559,6 @@ impl PythonVisitor {
         //     }
         // }
 
-        self.newline();
         self.add_code("self.__transition(next_compartment)");
     }
 
@@ -1692,19 +1707,15 @@ impl PythonVisitor {
             self.newline();
             self.newline();
 
-
             self.add_code("next_compartment = None");
             let state_node_rcref = system_node.get_first_state().unwrap();
-            let code = self.format_compartment_hierarchy(state_node_rcref,true, None);
+            let code = self.format_compartment_hierarchy(state_node_rcref, true, None);
             self.add_code(code.as_str());
             self.newline();
-            self.add_code(&format!(
-                "self.__compartment = next_compartment"
-            ));
+            self.add_code(&format!("self.__compartment = next_compartment"));
 
             self.newline();
-            self.add_code(&format!(
-                "self.__next_compartment = None"));
+            self.add_code(&format!("self.__next_compartment = None"));
         } else {
             // self.add_code(" # Create and initialize start state compartment.");
             self.newline();
@@ -3251,6 +3262,9 @@ impl AstVisitor for PythonVisitor {
                     action_call_expr_node.accept(self);
                 }
                 CallChainNodeType::VariableNodeT { var_node } => {
+                    // TODO: figure out why this is necessary as sometimes it generates
+                    // unnecessary groups e.g.:
+                    // (compartment.state_vars["x"]) = compartment.state_vars["x"] + 1
                     self.visiting_call_chain_literal_variable = true;
                     var_node.accept(self);
                     self.visiting_call_chain_literal_variable = false;

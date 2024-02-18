@@ -14,10 +14,9 @@ use super::symbol_table::*;
 use crate::frame_c::ast::ModuleElement::*;
 use crate::frame_c::utils::SystemHierarchy;
 use std::cell::RefCell;
-use std::rc::Rc;
 use std::collections::HashMap;
 use std::fmt;
-
+use std::rc::Rc;
 
 pub struct ParseError {
     // TODO:

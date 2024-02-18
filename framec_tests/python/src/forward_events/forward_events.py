@@ -73,7 +73,6 @@ class ForwardEvents:
             self.log_do("Recieved |GotoS1|")
             next_compartment = None
             next_compartment = ForwardEventsCompartment('__forwardevents_state_S1', next_compartment)
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "GotoS2":
@@ -81,7 +80,6 @@ class ForwardEvents:
             self.__state_stack_push(self.__compartment)
             next_compartment = None
             next_compartment = ForwardEventsCompartment('__forwardevents_state_S2', next_compartment)
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "ReturnFromS1":
@@ -106,7 +104,6 @@ class ForwardEvents:
             next_compartment = ForwardEventsCompartment('__forwardevents_state_S0', next_compartment)
             next_compartment.forward_event = __e
             next_compartment.forward_event = __e
-            
             self.__transition(next_compartment)
             return
     

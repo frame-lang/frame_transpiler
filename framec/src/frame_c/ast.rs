@@ -290,7 +290,7 @@ impl SystemNode {
         }
     }
 
-    pub fn get_state_node(&self,state_name:&String) -> Option<Rc<RefCell<StateNode>>> {
+    pub fn get_state_node(&self, state_name: &String) -> Option<Rc<RefCell<StateNode>>> {
         match &self.machine_block_node_opt {
             Some(mb) => mb.get_state_node(state_name),
             None => None,
@@ -846,7 +846,7 @@ impl MachineBlockNode {
     pub fn get_first_state(&self) -> Option<&Rc<RefCell<StateNode>>> {
         self.states.get(0)
     }
-    pub fn get_state_node(&self, name:&String) -> Option<Rc<RefCell<StateNode>>> {
+    pub fn get_state_node(&self, name: &String) -> Option<Rc<RefCell<StateNode>>> {
         for state_node_rcref in &self.states {
             if state_node_rcref.borrow().name == *name {
                 return Some(state_node_rcref.clone());

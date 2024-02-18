@@ -305,8 +305,8 @@ impl Scanner {
                         //     // ->>
                         //     self.add_token(TokenType::ChangeState);
                         // } else {
-                            // ->
-                            self.add_token(TokenType::Transition);
+                        // ->
+                        self.add_token(TokenType::Transition);
                         // }
                     } else if self.is_digit(self.peek()) {
                         self.number(true);
@@ -726,20 +726,20 @@ pub enum TokenType {
     LBracket,                     // [
     RBracket,                     // ]
     Transition,                   // ->
-//    ChangeState,                  // ->>
-    String,                       // "foo"
-    ThreeTicks,                   // ```
-    SuperString,                  // `stuff + "stuff"`
-    Number,                       // 1, 1.01
-    Var,                          // var keyword
-    Const,                        // const keyword
-    New,                          // new keyword
-    Loop,                         // loop keyword
-    Continue,                     // continue keyword
-    Break,                        // break keyword
-    In,                           // 'in' keyword
-    Enum,                         // 'enum' keyword
-    Function,                     // 'fn' keyword
+    //    ChangeState,                  // ->>
+    String,      // "foo"
+    ThreeTicks,  // ```
+    SuperString, // `stuff + "stuff"`
+    Number,      // 1, 1.01
+    Var,         // var keyword
+    Const,       // const keyword
+    New,         // new keyword
+    Loop,        // loop keyword
+    Continue,    // continue keyword
+    Break,       // break keyword
+    In,          // 'in' keyword
+    Enum,        // 'enum' keyword
+    Function,    // 'fn' keyword
     // SingleLineComment, // --- comment
     MultiLineComment, // {-- comments --}
     OpenBrace,        // {

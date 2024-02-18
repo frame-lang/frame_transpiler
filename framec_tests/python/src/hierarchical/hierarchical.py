@@ -60,7 +60,6 @@ class Hierarchical:
         if __e._message == ">":
             next_compartment = None
             next_compartment = HierarchicalCompartment('__hierarchical_state_S', next_compartment)
-            
             self.__transition(next_compartment)
             return
     
@@ -79,7 +78,6 @@ class Hierarchical:
             next_compartment = None
             next_compartment = HierarchicalCompartment('__hierarchical_state_S', next_compartment)
             next_compartment = HierarchicalCompartment('__hierarchical_state_S0', next_compartment)
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "B":
@@ -87,7 +85,6 @@ class Hierarchical:
             next_compartment = None
             next_compartment = HierarchicalCompartment('__hierarchical_state_S', next_compartment)
             next_compartment = HierarchicalCompartment('__hierarchical_state_S1', next_compartment)
-            
             self.__transition(next_compartment)
             return
     
@@ -104,7 +101,6 @@ class Hierarchical:
             self.log_do("S0.A")
             next_compartment = None
             next_compartment = HierarchicalCompartment('__hierarchical_state_T', next_compartment)
-            
             self.__transition(next_compartment)
             return
           #  do this, then parent handler
@@ -117,7 +113,6 @@ class Hierarchical:
             next_compartment = HierarchicalCompartment('__hierarchical_state_S', next_compartment)
             next_compartment = HierarchicalCompartment('__hierarchical_state_S0', next_compartment)
             next_compartment = HierarchicalCompartment('__hierarchical_state_S2', next_compartment)
-            
             self.__transition(next_compartment)
             return
         
@@ -160,7 +155,6 @@ class Hierarchical:
             self.log_do("S2.C")
             next_compartment = None
             next_compartment = HierarchicalCompartment('__hierarchical_state_T', next_compartment)
-            
             self.__transition(next_compartment)
             return
         
@@ -185,7 +179,6 @@ class Hierarchical:
             next_compartment = HierarchicalCompartment('__hierarchical_state_S', next_compartment)
             next_compartment = HierarchicalCompartment('__hierarchical_state_S0', next_compartment)
             next_compartment = HierarchicalCompartment('__hierarchical_state_S2', next_compartment)
-            
             self.__transition(next_compartment)
             return
         
@@ -206,7 +199,6 @@ class Hierarchical:
             self.log_do("T.A")
             next_compartment = None
             next_compartment = HierarchicalCompartment('__hierarchical_state_S', next_compartment)
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "B":
@@ -215,7 +207,6 @@ class Hierarchical:
             next_compartment = HierarchicalCompartment('__hierarchical_state_S', next_compartment)
             next_compartment = HierarchicalCompartment('__hierarchical_state_S0', next_compartment)
             next_compartment = HierarchicalCompartment('__hierarchical_state_S2', next_compartment)
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "C":
@@ -224,7 +215,6 @@ class Hierarchical:
             next_compartment = HierarchicalCompartment('__hierarchical_state_S', next_compartment)
             next_compartment = HierarchicalCompartment('__hierarchical_state_S1', next_compartment)
             next_compartment = HierarchicalCompartment('__hierarchical_state_S3', next_compartment)
-            
             self.__transition(next_compartment)
             return
     

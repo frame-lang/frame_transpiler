@@ -79,7 +79,6 @@ class Naming:
             next_compartment = NamingCompartment('__naming_state_snake_state', next_compartment)
             next_compartment.state_args["snake_state_param"] = __e._parameters["snake_param"]
             next_compartment.state_vars["snake_state_var"] = self.snake_domain_var + self.CamelDomainVar + self.domainVar123 + 100
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "CamelEvent":
@@ -87,7 +86,6 @@ class Naming:
             next_compartment = NamingCompartment('__naming_state_CamelState', next_compartment)
             next_compartment.state_args["CamelStateParam"] = __e._parameters["CamelParam"]
             next_compartment.state_vars["CamelStateVar"] = self.snake_domain_var + self.CamelDomainVar + self.domainVar123 + 200
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "event123":
@@ -95,7 +93,6 @@ class Naming:
             next_compartment = NamingCompartment('__naming_state_state123', next_compartment)
             next_compartment.state_args["stateParam123"] = __e._parameters["param123"]
             next_compartment.state_vars["stateVar123"] = self.snake_domain_var + self.CamelDomainVar + self.domainVar123 + 300
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "call":
@@ -125,7 +122,6 @@ class Naming:
             next_compartment = None
             next_compartment = NamingCompartment('__naming_state_Final', next_compartment)
             next_compartment.state_args["result"] = snake_local_var
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "CamelEvent":
@@ -134,7 +130,6 @@ class Naming:
             next_compartment = None
             next_compartment = NamingCompartment('__naming_state_Final', next_compartment)
             next_compartment.state_args["result"] = CamelLocalVar
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "event123":
@@ -143,7 +138,6 @@ class Naming:
             next_compartment = None
             next_compartment = NamingCompartment('__naming_state_Final', next_compartment)
             next_compartment.state_args["result"] = localVar123
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "call":
@@ -173,7 +167,6 @@ class Naming:
             next_compartment = None
             next_compartment = NamingCompartment('__naming_state_Final', next_compartment)
             next_compartment.state_args["result"] = snake_local_var
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "CamelEvent":
@@ -182,7 +175,6 @@ class Naming:
             next_compartment = None
             next_compartment = NamingCompartment('__naming_state_Final', next_compartment)
             next_compartment.state_args["result"] = CamelLocalVar
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "event123":
@@ -191,7 +183,6 @@ class Naming:
             next_compartment = None
             next_compartment = NamingCompartment('__naming_state_Final', next_compartment)
             next_compartment.state_args["result"] = localVar123
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "call":
@@ -221,7 +212,6 @@ class Naming:
             next_compartment = None
             next_compartment = NamingCompartment('__naming_state_Final', next_compartment)
             next_compartment.state_args["result"] = snake_local_var
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "CamelEvent":
@@ -230,7 +220,6 @@ class Naming:
             next_compartment = None
             next_compartment = NamingCompartment('__naming_state_Final', next_compartment)
             next_compartment.state_args["result"] = CamelLocalVar
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "event123":
@@ -239,7 +228,6 @@ class Naming:
             next_compartment = None
             next_compartment = NamingCompartment('__naming_state_Final', next_compartment)
             next_compartment.state_args["result"] = localVar123
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "call":
@@ -266,7 +254,6 @@ class Naming:
             self.logFinal_do((compartment.state_args["result"]))
             next_compartment = None
             next_compartment = NamingCompartment('__naming_state_Init', next_compartment)
-            
             self.__transition(next_compartment)
             return
     

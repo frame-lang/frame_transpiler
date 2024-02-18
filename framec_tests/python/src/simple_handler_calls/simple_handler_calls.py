@@ -64,13 +64,11 @@ class SimpleHandlerCalls:
         if __e._message == "A":
             next_compartment = None
             next_compartment = SimpleHandlerCallsCompartment('__simplehandlercalls_state_A', next_compartment)
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "B":
             next_compartment = None
             next_compartment = SimpleHandlerCallsCompartment('__simplehandlercalls_state_B', next_compartment)
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "C":
@@ -82,7 +80,6 @@ class SimpleHandlerCalls:
             return
             next_compartment = None
             next_compartment = SimpleHandlerCallsCompartment('__simplehandlercalls_state_A', next_compartment)
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "E":

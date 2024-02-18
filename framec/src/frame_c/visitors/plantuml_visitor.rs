@@ -1534,7 +1534,6 @@ impl AstVisitor for PlantUmlVisitor {
         panic!("TODO");
     }
 
-
     //* --------------------------------------------------------------------- *//
 
     fn visit_loop_stmt_node(&mut self, loop_stmt_node: &LoopStmtNode) {
@@ -1554,7 +1553,6 @@ impl AstVisitor for PlantUmlVisitor {
             }
         }
     }
-
 
     //* --------------------------------------------------------------------- *//
 
@@ -1626,7 +1624,6 @@ impl AstVisitor for PlantUmlVisitor {
         // self.outdent();
         // //self.newline();
     }
-
 
     //* --------------------------------------------------------------------- *//
 

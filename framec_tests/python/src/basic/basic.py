@@ -62,7 +62,6 @@ class Basic:
             # ooh
             next_compartment = None
             next_compartment = BasicCompartment('__basic_state_S1', next_compartment)
-            
             self.__transition(next_compartment)
             return
     
@@ -80,7 +79,6 @@ class Basic:
             # aah
             next_compartment = None
             next_compartment = BasicCompartment('__basic_state_S0', next_compartment)
-            
             self.__transition(next_compartment)
             return
     

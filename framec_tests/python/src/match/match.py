@@ -78,32 +78,27 @@ class Match:
         if __e._message == "Empty":
             next_compartment = None
             next_compartment = MatchCompartment('__match_state_EmptyMatch', next_compartment)
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "Simple":
             next_compartment = None
             next_compartment = MatchCompartment('__match_state_SimpleMatch', next_compartment)
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "Multi":
             next_compartment = None
             next_compartment = MatchCompartment('__match_state_MultiMatch', next_compartment)
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "Nested":
             next_compartment = None
             next_compartment = MatchCompartment('__match_state_NestedMatch', next_compartment)
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "Child":
             next_compartment = None
             next_compartment = MatchCompartment('__match_state_SimpleMatch', next_compartment)
             next_compartment = MatchCompartment('__match_state_ChildMatch', next_compartment)
-            
             self.__transition(next_compartment)
             return
     
@@ -248,7 +243,6 @@ class Match:
             if (__e._parameters["i"] == 0):
                 next_compartment = None
                 next_compartment = MatchCompartment('__match_state_Final', next_compartment)
-                
                 self.__transition(next_compartment)
                 return
             elif (__e._parameters["i"] == 3):
@@ -263,7 +257,6 @@ class Match:
                 self.log_do("5")
                 next_compartment = None
                 next_compartment = MatchCompartment('__match_state_Final', next_compartment)
-                
                 self.__transition(next_compartment)
                 return
             
@@ -276,7 +269,6 @@ class Match:
             elif ((__e._parameters["s"] == "goodbye")):
                 next_compartment = None
                 next_compartment = MatchCompartment('__match_state_Final', next_compartment)
-                
                 self.__transition(next_compartment)
                 return
             elif ((__e._parameters["s"] == "Testing 1, 2, 3...")):

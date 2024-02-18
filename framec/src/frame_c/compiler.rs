@@ -16,11 +16,11 @@ use crate::frame_c::visitors::python_visitor::PythonVisitor;
 // use crate::frame_c::visitors::smcat_visitor::SmcatVisitor;
 use exitcode::USAGE;
 use sha2::{Digest, Sha256};
+use std::cell::RefCell;
 use std::fs;
 use std::io;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::cell::RefCell;
 use std::rc::Rc;
 
 // Re-export this enum here since it's part of the interface for the run functions. The definition

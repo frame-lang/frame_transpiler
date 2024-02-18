@@ -78,21 +78,18 @@ class HandlerCalls:
             next_compartment = None
             next_compartment = HandlerCallsCompartment('__handlercalls_state_NonRecursive', next_compartment)
             next_compartment.state_vars["counter"] = 0
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "SelfRec":
             next_compartment = None
             next_compartment = HandlerCallsCompartment('__handlercalls_state_SelfRecursive', next_compartment)
             next_compartment.state_vars["counter"] = 0
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "MutRec":
             next_compartment = None
             next_compartment = HandlerCallsCompartment('__handlercalls_state_MutuallyRecursive', next_compartment)
             next_compartment.state_vars["counter"] = 0
-            
             self.__transition(next_compartment)
             return
     
@@ -114,7 +111,6 @@ class HandlerCalls:
             next_compartment = None
             next_compartment = HandlerCallsCompartment('__handlercalls_state_Final', next_compartment)
             next_compartment.state_args["counter"] = compartment.state_vars["counter"]
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "Call":
@@ -145,7 +141,6 @@ class HandlerCalls:
                 next_compartment = None
                 next_compartment = HandlerCallsCompartment('__handlercalls_state_Final', next_compartment)
                 next_compartment.state_args["counter"] = compartment.state_vars["counter"]
-                
                 self.__transition(next_compartment)
                 return
             
@@ -156,7 +151,6 @@ class HandlerCalls:
             next_compartment = None
             next_compartment = HandlerCallsCompartment('__handlercalls_state_Final', next_compartment)
             next_compartment.state_args["counter"] = compartment.state_vars["counter"]
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "Call":
@@ -183,7 +177,6 @@ class HandlerCalls:
                 next_compartment = None
                 next_compartment = HandlerCallsCompartment('__handlercalls_state_Final', next_compartment)
                 next_compartment.state_args["counter"] = compartment.state_vars["counter"]
-                
                 self.__transition(next_compartment)
                 return
             else:
@@ -227,7 +220,6 @@ class HandlerCalls:
             self.log_do("Final",(compartment.state_args["counter"]))
             next_compartment = None
             next_compartment = HandlerCallsCompartment('__handlercalls_state_Init', next_compartment)
-            
             self.__transition(next_compartment)
             return
     

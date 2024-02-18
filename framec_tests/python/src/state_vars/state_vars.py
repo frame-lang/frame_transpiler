@@ -58,7 +58,6 @@ class StateVars:
             next_compartment = None
             next_compartment = StateVarsCompartment('__statevars_state_A', next_compartment)
             next_compartment.state_vars["x"] = 0
-            
             self.__transition(next_compartment)
             return
     
@@ -74,7 +73,6 @@ class StateVars:
             next_compartment = StateVarsCompartment('__statevars_state_B', next_compartment)
             next_compartment.state_vars["y"] = 10
             next_compartment.state_vars["z"] = 100
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "Z":
@@ -82,7 +80,6 @@ class StateVars:
             next_compartment = StateVarsCompartment('__statevars_state_B', next_compartment)
             next_compartment.state_vars["y"] = 10
             next_compartment.state_vars["z"] = 100
-            
             self.__transition(next_compartment)
             return
     
@@ -94,7 +91,6 @@ class StateVars:
             next_compartment = None
             next_compartment = StateVarsCompartment('__statevars_state_A', next_compartment)
             next_compartment.state_vars["x"] = 0
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "Y":

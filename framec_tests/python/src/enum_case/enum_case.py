@@ -68,7 +68,6 @@ class EnumTest:
             self.left_do("MONDAY",EnumTest_Days.MONDAY)
             next_compartment = None
             next_compartment = EnumTestCompartment('__enumtest_state_MON', next_compartment)
-            
             self.__transition(next_compartment)
             return
     
@@ -83,7 +82,6 @@ class EnumTest:
             self.left_do("TUESDAY",EnumTest_Days.TUESDAY)
             next_compartment = None
             next_compartment = EnumTestCompartment('__enumtest_state_TUE', next_compartment)
-            
             self.__transition(next_compartment)
             return
     
@@ -98,7 +96,6 @@ class EnumTest:
             self.left_do("WEDNESDAY",EnumTest_Days.WEDNESDAY)
             next_compartment = None
             next_compartment = EnumTestCompartment('__enumtest_state_WED', next_compartment)
-            
             self.__transition(next_compartment)
             return
     
@@ -113,7 +110,6 @@ class EnumTest:
             self.left_do("THURSDAY",EnumTest_Days.THURSDAY)
             next_compartment = None
             next_compartment = EnumTestCompartment('__enumtest_state_THR', next_compartment)
-            
             self.__transition(next_compartment)
             return
     
@@ -128,7 +124,6 @@ class EnumTest:
             self.left_do("FRIDAY",EnumTest_Days.FRIDAY)
             next_compartment = None
             next_compartment = EnumTestCompartment('__enumtest_state_FRI', next_compartment)
-            
             self.__transition(next_compartment)
             return
     
@@ -143,7 +138,6 @@ class EnumTest:
             self.left_do("SUNDAY",EnumTest_Days.SUNDAY)
             next_compartment = None
             next_compartment = EnumTestCompartment('__enumtest_state_SUN', next_compartment)
-            
             self.__transition(next_compartment)
             return
     

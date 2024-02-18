@@ -85,7 +85,6 @@ class StateContextSm:
             next_compartment.enter_args["a"] = 3
             next_compartment.enter_args["b"] = compartment.state_vars["w"]
             next_compartment.state_vars["x"] = 0
-            
             self.__transition(next_compartment)
             return
     
@@ -121,7 +120,6 @@ class StateContextSm:
             next_compartment.enter_args["a"] = tmp
             next_compartment.state_args["y"] = compartment.state_vars["x"]
             next_compartment.state_vars["z"] = 0
-            
             self.__transition(next_compartment)
             return
       #  FIXME: Swapping this to 10 * arg causes a parse error!

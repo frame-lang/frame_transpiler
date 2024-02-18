@@ -76,19 +76,16 @@ class StateStack:
         elif __e._message == "to_a":
             next_compartment = None
             next_compartment = StateStackCompartment('__statestack_state_A', next_compartment)
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "to_b":
             next_compartment = None
             next_compartment = StateStackCompartment('__statestack_state_B', next_compartment)
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "to_c":
             next_compartment = None
             next_compartment = StateStackCompartment('__statestack_state_C', next_compartment)
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "push":
@@ -112,19 +109,16 @@ class StateStack:
         elif __e._message == "to_a":
             next_compartment = None
             next_compartment = StateStackCompartment('__statestack_state_A', next_compartment)
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "to_b":
             next_compartment = None
             next_compartment = StateStackCompartment('__statestack_state_B', next_compartment)
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "to_c":
             next_compartment = None
             next_compartment = StateStackCompartment('__statestack_state_C', next_compartment)
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "push":
@@ -148,19 +142,16 @@ class StateStack:
         elif __e._message == "to_a":
             next_compartment = None
             next_compartment = StateStackCompartment('__statestack_state_A', next_compartment)
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "to_b":
             next_compartment = None
             next_compartment = StateStackCompartment('__statestack_state_B', next_compartment)
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "to_c":
             next_compartment = None
             next_compartment = StateStackCompartment('__statestack_state_C', next_compartment)
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "push":

@@ -59,7 +59,6 @@ class StateParams:
             next_compartment = None
             next_compartment = StateParamsCompartment('__stateparams_state_Split', next_compartment)
             next_compartment.state_args["val"] = 1
-            
             self.__transition(next_compartment)
             return
     
@@ -72,7 +71,6 @@ class StateParams:
             next_compartment = StateParamsCompartment('__stateparams_state_Merge', next_compartment)
             next_compartment.state_args["left"] = compartment.state_args["val"]
             next_compartment.state_args["right"] = compartment.state_args["val"] + 1
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "Prev":
@@ -80,7 +78,6 @@ class StateParams:
             next_compartment = StateParamsCompartment('__stateparams_state_Merge', next_compartment)
             next_compartment.state_args["left"] = compartment.state_args["val"] + 1
             next_compartment.state_args["right"] = compartment.state_args["val"]
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "Log":
@@ -95,14 +92,12 @@ class StateParams:
             next_compartment = None
             next_compartment = StateParamsCompartment('__stateparams_state_Split', next_compartment)
             next_compartment.state_args["val"] = compartment.state_args["left"] + compartment.state_args["right"]
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "Prev":
             next_compartment = None
             next_compartment = StateParamsCompartment('__stateparams_state_Split', next_compartment)
             next_compartment.state_args["val"] = compartment.state_args["left"] * compartment.state_args["right"]
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "Log":

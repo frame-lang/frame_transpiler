@@ -58,7 +58,6 @@ class TransitionSm:
         elif __e._message == "transit":
             next_compartment = None
             next_compartment = TransitionSmCompartment('__transitionsm_state_S1', next_compartment)
-            
             self.__transition(next_compartment)
             return
     
@@ -72,7 +71,6 @@ class TransitionSm:
         elif __e._message == "change":
             next_compartment = None
             next_compartment = TransitionSmCompartment('__transitionsm_state_S2', next_compartment)
-            
             self.__transition(next_compartment)
             return
     
@@ -86,7 +84,6 @@ class TransitionSm:
         elif __e._message == "transit":
             next_compartment = None
             next_compartment = TransitionSmCompartment('__transitionsm_state_S3', next_compartment)
-            
             self.__transition(next_compartment)
             return
     
@@ -103,7 +100,6 @@ class TransitionSm:
         elif __e._message == "transit":
             next_compartment = None
             next_compartment = TransitionSmCompartment('__transitionsm_state_S4', next_compartment)
-            
             self.__transition(next_compartment)
             return
     
@@ -115,7 +111,6 @@ class TransitionSm:
             self.enter_do("S4")
             next_compartment = None
             next_compartment = TransitionSmCompartment('__transitionsm_state_S0', next_compartment)
-            
             self.__transition(next_compartment)
             return
     

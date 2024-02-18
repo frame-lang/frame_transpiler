@@ -58,7 +58,6 @@ class HierarchicalGuard:
         if __e._message == ">":
             next_compartment = None
             next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S', next_compartment)
-            
             self.__transition(next_compartment)
             return
     
@@ -72,7 +71,6 @@ class HierarchicalGuard:
                 next_compartment = None
                 next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S', next_compartment)
                 next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S0', next_compartment)
-                
                 self.__transition(next_compartment)
                 return
             else:
@@ -80,7 +78,6 @@ class HierarchicalGuard:
                 next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S', next_compartment)
                 next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S0', next_compartment)
                 next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S1', next_compartment)
-                
                 self.__transition(next_compartment)
                 return
             
@@ -93,14 +90,12 @@ class HierarchicalGuard:
                 next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S0', next_compartment)
                 next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S1', next_compartment)
                 next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S2', next_compartment)
-                
                 self.__transition(next_compartment)
                 return
             else:
                 next_compartment = None
                 next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S', next_compartment)
                 next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S3', next_compartment)
-                
                 self.__transition(next_compartment)
                 return
             
@@ -118,7 +113,6 @@ class HierarchicalGuard:
                 next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S0', next_compartment)
                 next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S1', next_compartment)
                 next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S2', next_compartment)
-                
                 self.__transition(next_compartment)
                 return
             else:
@@ -134,7 +128,6 @@ class HierarchicalGuard:
                 next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S', next_compartment)
                 next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S0', next_compartment)
                 next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S1', next_compartment)
-                
                 self.__transition(next_compartment)
                 return
             
@@ -154,7 +147,6 @@ class HierarchicalGuard:
                 next_compartment = None
                 next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S', next_compartment)
                 next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S3', next_compartment)
-                
                 self.__transition(next_compartment)
                 return
             else:
@@ -175,7 +167,6 @@ class HierarchicalGuard:
             if  __e._parameters["i"] > 10:
                 next_compartment = None
                 next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S4', next_compartment)
-                
                 self.__transition(next_compartment)
                 return
             else:
@@ -189,7 +180,6 @@ class HierarchicalGuard:
             else:
                 next_compartment = None
                 next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S4', next_compartment)
-                
                 self.__transition(next_compartment)
                 return
             

@@ -98,7 +98,6 @@ class VarScope:
             next_compartment = VarScopeCompartment('__varscope_state_NN', next_compartment)
             next_compartment.state_args["b"] = "$NN[b]"
             next_compartment.state_vars["c"] = "$NN.c"
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "to_ny":
@@ -107,7 +106,6 @@ class VarScope:
             next_compartment.state_args["b"] = "$NY[b]"
             next_compartment.state_vars["c"] = "$NY.c"
             next_compartment.state_vars["x"] = "$NY.x"
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "to_yn":
@@ -116,7 +114,6 @@ class VarScope:
             next_compartment.state_args["b"] = "$YN[b]"
             next_compartment.state_args["x"] = "$YN[x]"
             next_compartment.state_vars["c"] = "$YN.c"
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "to_yy":
@@ -126,7 +123,6 @@ class VarScope:
             next_compartment.state_args["x"] = "$YY[x]"
             next_compartment.state_vars["c"] = "$YY.c"
             next_compartment.state_vars["x"] = "$YY.x"
-            
             self.__transition(next_compartment)
             return
     

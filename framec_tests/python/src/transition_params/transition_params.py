@@ -51,7 +51,6 @@ class TransitParams:
             next_compartment = None
             next_compartment = TransitParamsCompartment('__transitparams_state_A', next_compartment)
             next_compartment.enter_args["msg"] = "hi A"
-            
             self.__transition(next_compartment)
             return
     
@@ -70,7 +69,6 @@ class TransitParams:
             next_compartment = TransitParamsCompartment('__transitparams_state_B', next_compartment)
             next_compartment.enter_args["msg"] = "hi B"
             next_compartment.enter_args["val"] = 42
-            
             self.__transition(next_compartment)
             return
     
@@ -92,7 +90,6 @@ class TransitParams:
             next_compartment = None
             next_compartment = TransitParamsCompartment('__transitparams_state_A', next_compartment)
             next_compartment.enter_args["msg"] = "hi again A"
-            
             self.__transition(next_compartment)
             return
     

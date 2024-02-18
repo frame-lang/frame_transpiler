@@ -95,21 +95,18 @@ class StateContextStack:
             next_compartment = None
             next_compartment = StateContextStackCompartment('__statecontextstack_state_A', next_compartment)
             next_compartment.state_vars["x"] = 0
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "to_b":
             next_compartment = None
             next_compartment = StateContextStackCompartment('__statecontextstack_state_B', next_compartment)
             next_compartment.state_vars["y"] = 0
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "to_c":
             next_compartment = None
             next_compartment = StateContextStackCompartment('__statecontextstack_state_C', next_compartment)
             next_compartment.state_vars["z"] = 0
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "push":
@@ -141,21 +138,18 @@ class StateContextStack:
             next_compartment = None
             next_compartment = StateContextStackCompartment('__statecontextstack_state_A', next_compartment)
             next_compartment.state_vars["x"] = 0
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "to_b":
             next_compartment = None
             next_compartment = StateContextStackCompartment('__statecontextstack_state_B', next_compartment)
             next_compartment.state_vars["y"] = 0
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "to_c":
             next_compartment = None
             next_compartment = StateContextStackCompartment('__statecontextstack_state_C', next_compartment)
             next_compartment.state_vars["z"] = 0
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "push":
@@ -187,21 +181,18 @@ class StateContextStack:
             next_compartment = None
             next_compartment = StateContextStackCompartment('__statecontextstack_state_A', next_compartment)
             next_compartment.state_vars["x"] = 0
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "to_b":
             next_compartment = None
             next_compartment = StateContextStackCompartment('__statecontextstack_state_B', next_compartment)
             next_compartment.state_vars["y"] = 0
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "to_c":
             next_compartment = None
             next_compartment = StateContextStackCompartment('__statecontextstack_state_C', next_compartment)
             next_compartment.state_vars["z"] = 0
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "push":

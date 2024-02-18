@@ -99,7 +99,6 @@ class EventHandler:
             next_compartment = None
             next_compartment = EventHandlerCompartment('__eventhandler_state_S2', next_compartment)
             next_compartment.state_args["p"] = __e._parameters["a"] + __e._parameters["b"]
-            
             self.__transition(next_compartment)
             return
         elif __e._message == "PassReturn":
@@ -108,7 +107,6 @@ class EventHandler:
             next_compartment = None
             next_compartment = EventHandlerCompartment('__eventhandler_state_S2', next_compartment)
             next_compartment.state_args["p"] = r
-            
             self.__transition(next_compartment)
             __e._return = r
             return
