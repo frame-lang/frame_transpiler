@@ -3162,12 +3162,10 @@ impl<'a> Parser<'a> {
             }
 
             // TODO - figure out AnyMessage. Is it working?
-            if self.peek().token_type == TokenType::At
-                || self.peek().token_type == TokenType::Pipe
+            if self.peek().token_type == TokenType::Pipe
                 || self.peek().token_type == TokenType::AnyMessage
             {
-                while self.peek().token_type == TokenType::At
-                    || self.peek().token_type == TokenType::Pipe
+                while self.peek().token_type == TokenType::Pipe
                     || self.peek().token_type == TokenType::AnyMessage
                 {
                     match self.event_handler() {
@@ -3930,6 +3928,10 @@ impl<'a> Parser<'a> {
     fn statement(&mut self) -> Result<Option<StatementType>, ParseError> {
         let mut expr_t_opt: Option<ExprType> = None;
 
+        // Due to Frame test and transition syntax, we need to get the first expression
+        // and then see if it is an expression in the "first set" of expressions for tests
+        // and transitions.
+
         match self.expression() {
             Ok(Some(expr_t)) => {
                 match expr_t {
@@ -3956,6 +3958,8 @@ impl<'a> Parser<'a> {
                 self.synchronize(&sync_tokens);
             }
         }
+
+        // if there was an expression found, now see if it is valid to start a test.
 
         match expr_t_opt {
             Some(expr_t) => {
@@ -4039,6 +4043,8 @@ impl<'a> Parser<'a> {
                     };
                 }
 
+                // Not a test statement. Now see if we are at an expression statement.
+
                 match expr_t {
                     SystemInstanceExprT {
                         system_instance_expr_node,
@@ -4060,8 +4066,7 @@ impl<'a> Parser<'a> {
                         return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
                     }
                     ExprListT { expr_list_node } => {
-                        // path for transitions with an exit params group
-
+                        // path for transitions **with** an exit params group
                         if self.match_token(&[TokenType::Transition]) {
                             match self.transition(Some(expr_list_node)) {
                                 Ok(transition_statement_node) => {
@@ -4091,6 +4096,8 @@ impl<'a> Parser<'a> {
                         return Err(ParseError::new("TODO"));
                     }
                     VariableExprT { var_node } => {
+                        // @TODO this doesn't seem to ever be triggered.
+                        // The callChain seems to superseed it.
                         let variable_stmt_node = VariableStmtNode::new(var_node);
                         let expr_stmt_t: ExprStmtType =
                             ExprStmtType::VariableStmtT { variable_stmt_node };
@@ -4233,10 +4240,10 @@ impl<'a> Parser<'a> {
             let break_stmt_node = BreakStmtNode::new();
             return Ok(Some(StatementType::BreakStmt { break_stmt_node }));
         }
-        if self.match_token(&[TokenType::OpenBrace]) {
-            let break_stmt_node = BreakStmtNode::new();
-            return Ok(Some(StatementType::BreakStmt { break_stmt_node }));
-        }
+        // if self.match_token(&[TokenType::OpenBrace]) {
+        //     let break_stmt_node = BreakStmtNode::new();
+        //     return Ok(Some(StatementType::BreakStmt { break_stmt_node }));
+        // }
         if self.match_token(&[TokenType::SuperString]) {
             // TODO?
         }
@@ -4801,10 +4808,10 @@ impl<'a> Parser<'a> {
                 let err_msg = "lvalue expr is not a valid binary expression type.";
                 self.error_at_current(err_msg);
             }
-            if !r_value.is_valid_binary_expr_type() {
-                let err_msg = "rvalue expr is not a valid binary expression type.";
-                self.error_at_current(err_msg);
-            }
+            // if !r_value.is_valid_binary_expr_type() {
+            //     let err_msg = "rvalue expr is not a valid binary expression type.";
+            //     self.error_at_current(err_msg);
+            // }
 
             let binary_expr_node = BinaryExprNode::new(l_value, op_type, r_value);
             l_value = BinaryExprT { binary_expr_node };
@@ -5399,6 +5406,7 @@ impl<'a> Parser<'a> {
             let var_node = VariableNode::new(id_node, var_scope, symbol_type_rcref_opt);
             return Ok(Some(VariableExprT { var_node }));
         } else if self.match_token(&[TokenType::New]) {
+            // TODO: New should be removed.
             if self.match_token(&[TokenType::Identifier]) {
                 match self.call(IdentifierDeclScope::UnknownScope) {
                     Ok(Some(CallChainExprT {
