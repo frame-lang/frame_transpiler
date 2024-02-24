@@ -6,7 +6,7 @@ use super::ast::DeclOrStmtType;
 use super::ast::ExprStmtType::*;
 use super::ast::ExprType;
 use super::ast::ExprType::*;
-use super::ast::MessageType::{AnyMessage, CustomMessage};
+use super::ast::MessageType::{CustomMessage};
 use super::ast::TerminatorType::{Continue, Return};
 use super::ast::*;
 use super::scanner::*;
@@ -1460,18 +1460,6 @@ impl<'a> Parser<'a> {
 
             match self.message_alias() {
                 Ok(MessageType::CustomMessage { message_node }) => alias_opt = Some(message_node),
-                Ok(AnyMessage { .. }) => {
-                    self.error_at_previous("Expected message, found '||*");
-                    let sync_tokens = vec![
-                        TokenType::RParen,
-                        TokenType::MachineBlock,
-                        TokenType::ActionsBlock,
-                        TokenType::OperationsBlock,
-                        TokenType::DomainBlock,
-                        TokenType::SystemEnd,
-                    ];
-                    self.synchronize(&sync_tokens);
-                }
                 Ok(MessageType::None) => {
                     let err_msg = "Unknown message type.";
                     self.error_at_current(err_msg.clone());
@@ -1655,21 +1643,6 @@ impl<'a> Parser<'a> {
                 return Err(parse_error);
             }
         }
-        // TODO - review removing AnyMessage
-        if self.match_token(&[TokenType::AnyMessage]) {
-            let tok = self.previous();
-
-            return Ok(MessageType::AnyMessage { line: tok.line });
-        }
-        // if !self.match_token(&[TokenType::Pipe]) {
-        //     let token_str = self.peek().lexeme.clone();
-        //     let err_msg = &format!(
-        //         "Expected closing '|' in message selector. Found {}. ",
-        //         token_str
-        //     );
-        //     self.error_at_previous(err_msg);
-        //     return Err(ParseError::new(err_msg));
-        // }
 
         let tt = self.peek().token_type;
         match tt {
@@ -1717,12 +1690,6 @@ impl<'a> Parser<'a> {
             if let Err(parse_error) = self.consume(TokenType::At, "Expected '@'.") {
                 return Err(parse_error);
             }
-        }
-        // TODO - review removing AnyMessage
-        if self.match_token(&[TokenType::AnyMessage]) {
-            let tok = self.previous();
-
-            return Ok(MessageType::AnyMessage { line: tok.line });
         }
         if !self.match_token(&[TokenType::Pipe]) {
             let token_str = self.peek().lexeme.clone();
@@ -3161,12 +3128,9 @@ impl<'a> Parser<'a> {
                  */
             }
 
-            // TODO - figure out AnyMessage. Is it working?
             if self.peek().token_type == TokenType::Pipe
-                || self.peek().token_type == TokenType::AnyMessage
             {
                 while self.peek().token_type == TokenType::Pipe
-                    || self.peek().token_type == TokenType::AnyMessage
                 {
                     match self.event_handler() {
                         Ok(eh_opt) => {
@@ -3242,7 +3206,6 @@ impl<'a> Parser<'a> {
                     self.error_at_current("Unexpected token in event handler message");
                     let sync_tokens = vec![
                         TokenType::Pipe,
-                        TokenType::AnyMessage,
                         TokenType::State,
                         TokenType::ActionsBlock,
                         TokenType::DomainBlock,
@@ -3322,10 +3285,6 @@ impl<'a> Parser<'a> {
         //    let a = self.message();
 
         match self.message_selector() {
-            Ok(MessageType::AnyMessage { line }) => {
-                line_number = line;
-                message_type = AnyMessage { line }
-            }
             Ok(MessageType::CustomMessage { message_node }) => {
                 line_number = message_node.line;
                 msg = message_node.name.clone();

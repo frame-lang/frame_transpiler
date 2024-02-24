@@ -1116,7 +1116,6 @@ impl NodeElement for EventHandlerNode {
 // TODO: what is AnyMessge?
 pub enum MessageType {
     CustomMessage { message_node: MessageNode },
-    AnyMessage { line: usize },
     None,
 }
 //-----------------------------------------------------//

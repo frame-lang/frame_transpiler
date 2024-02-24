@@ -162,9 +162,7 @@ impl Scanner {
             ']' => self.add_token(TokenType::RBracket),
             '|' => {
                 if self.match_char('|') {
-                    if self.match_char('*') {
-                        self.add_token(TokenType::AnyMessage);
-                    } else if self.match_char('.') {
+                    if self.match_char('.') {
                         self.add_token(TokenType::PipePipeDot);
                     } else if self.match_char('[') {
                         self.add_token(TokenType::PipePipeLBracket);
@@ -776,7 +774,6 @@ pub enum TokenType {
     PipePipe,                // ||
     PipePipeDot,             // ||.
     PipePipeLBracket,        // ||[
-    AnyMessage,              // ||*
     Error,
 }
 
