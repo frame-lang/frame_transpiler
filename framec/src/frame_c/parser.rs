@@ -1462,7 +1462,7 @@ impl<'a> Parser<'a> {
                 Ok(MessageType::CustomMessage { message_node }) => alias_opt = Some(message_node),
                 Ok(MessageType::None) => {
                     let err_msg = "Unknown message type.";
-                    self.error_at_current(err_msg.clone());
+                    self.error_at_current(err_msg);
                     return Err(ParseError::new(err_msg));
                 }
                 Err(err) => return Err(err),
@@ -3293,7 +3293,7 @@ impl<'a> Parser<'a> {
             }
             Ok(MessageType::None) => {
                 let err_msg = "Unknown message type.";
-                self.error_at_current(err_msg.clone());
+                self.error_at_current(err_msg);
                 return Err(ParseError::new(err_msg));
             }
             Err(parse_error) => {
@@ -5364,26 +5364,26 @@ impl<'a> Parser<'a> {
             let symbol_type_rcref_opt = self.arcanum.lookup(&id_node.name.lexeme, &var_scope);
             let var_node = VariableNode::new(id_node, var_scope, symbol_type_rcref_opt);
             return Ok(Some(VariableExprT { var_node }));
-        } else if self.match_token(&[TokenType::New]) {
-            // TODO: New should be removed.
-            if self.match_token(&[TokenType::Identifier]) {
-                match self.call(IdentifierDeclScope::UnknownScope) {
-                    Ok(Some(CallChainExprT {
-                        mut call_chain_expr_node,
-                    })) => {
-                        call_chain_expr_node.is_new_expr = true;
-                        return Ok(Some(CallChainExprT {
-                            call_chain_expr_node,
-                        }));
-                    }
-                    Ok(Some(_)) => return Err(ParseError::new("TODO")),
-                    Err(parse_error) => return Err(parse_error),
-                    Ok(None) => {} // continue
-                }
-            } else {
-                self.error_at_current("Expected class.");
-                return Err(ParseError::new("TODO"));
-            }
+        // } else if self.match_token(&[TokenType::New]) {
+        //     // TODO: New should be removed.
+        //     if self.match_token(&[TokenType::Identifier]) {
+        //         match self.call(IdentifierDeclScope::UnknownScope) {
+        //             Ok(Some(CallChainExprT {
+        //                 mut call_chain_expr_node,
+        //             })) => {
+        //                 call_chain_expr_node.is_new_expr = true;
+        //                 return Ok(Some(CallChainExprT {
+        //                     call_chain_expr_node,
+        //                 }));
+        //             }
+        //             Ok(Some(_)) => return Err(ParseError::new("TODO")),
+        //             Err(parse_error) => return Err(parse_error),
+        //             Ok(None) => {} // continue
+        //         }
+        //     } else {
+        //         self.error_at_current("Expected class.");
+        //         return Err(ParseError::new("TODO"));
+        //     }
         } else {
             // self.error_at_current("Expected identifier.");
             // return Err(ParseError::new("TODO"));

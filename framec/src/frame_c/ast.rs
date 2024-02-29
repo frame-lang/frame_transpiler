@@ -736,8 +736,7 @@ impl VariableNode {
 
     pub fn get_value(&self) -> Rc<ExprType> {
         let m = &self.symbol_type_rcref_opt.as_ref().unwrap();
-        let x = m.clone();
-        let mut y = x.borrow_mut();
+        let mut y = m.borrow_mut();
         match y.get_ast_node() {
             Ok(Some(variable_decl_node_rcref)) => {
                 variable_decl_node_rcref.borrow().value_rc.clone()

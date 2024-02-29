@@ -39,7 +39,7 @@ impl Scanner {
             ("false".to_string(), TokenType::False),
             ("var".to_string(), TokenType::Var),
             ("const".to_string(), TokenType::Const),
-            ("new".to_string(), TokenType::New),
+//            ("new".to_string(), TokenType::New),
             ("loop".to_string(), TokenType::Loop),
             ("in".to_string(), TokenType::In),
             ("continue".to_string(), TokenType::Continue),
@@ -731,7 +731,7 @@ pub enum TokenType {
     Number,      // 1, 1.01
     Var,         // var keyword
     Const,       // const keyword
-    New,         // new keyword
+//    New,         // new keyword
     Loop,        // loop keyword
     Continue,    // continue keyword
     Break,       // break keyword
