@@ -14,7 +14,7 @@ pub enum TargetLanguage {
     Python3,
     // Rust,
     // Smcat,
-    // XState,
+    Graphviz, // XState,
 }
 
 impl TargetLanguage {
@@ -31,6 +31,7 @@ impl TargetLanguage {
             TargetLanguage::Python3 => "py",
             // TargetLanguage::Rust => "rs",
             // TargetLanguage::Smcat => "smcat",
+            TargetLanguage::Graphviz => "graphviz",
         }
     }
 }
@@ -63,6 +64,8 @@ impl TryFrom<&str> for TargetLanguage {
         //     Ok(TargetLanguage::Smcat)
         // } else if value == "xstate" {
         //     Ok(TargetLanguage::XState)
+        } else if value == "graphviz" {
+            Ok(TargetLanguage::Graphviz)
         } else {
             Err(format!("Unrecognized target language {}", value))
         }
@@ -83,10 +86,12 @@ impl TryFrom<String> for TargetLanguage {
 // pub mod golang_visitor;
 // pub mod java_8_visitor;
 // pub mod javascript_visitor;
+pub mod graphviz_visitor;
 pub mod plantuml_visitor;
 pub mod python_visitor;
 // pub mod rust_visitor;
 // pub mod smcat_visitor;
+
 //pub mod xtate_visitor;
 
 use super::ast::*;
