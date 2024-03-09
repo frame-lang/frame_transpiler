@@ -14,7 +14,8 @@ pub enum TargetLanguage {
     Python3,
     // Rust,
     // Smcat,
-    Graphviz, // XState,
+    Graphviz,
+    // XState,
 }
 
 impl TargetLanguage {

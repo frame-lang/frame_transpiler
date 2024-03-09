@@ -14,9 +14,7 @@ use indoc::indoc;
 
 enum TransitionLabelType {
     Solid,
-    Dashed,
     FromCluster,
-    DashedFromCluster,
 }
 
 pub struct GraphVizVisitor {
@@ -415,11 +413,6 @@ impl GraphVizVisitor {
                         } => {
                             state_stack_operation_statement_node.accept(self);
                         }
-                        StatementType::ChangeStateStmt {
-                            change_state_stmt_node: change_state_stmt,
-                        } => {
-                            change_state_stmt.accept(self);
-                        }
                         StatementType::LoopStmt { loop_stmt_node } => {
                             loop_stmt_node.accept(self);
                         }
@@ -572,59 +565,6 @@ impl GraphVizVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    // TODO
-    fn generate_state_ref_change_state(
-        &mut self,
-        change_state_stmt_node: &ChangeStateStatementNode,
-    ) {
-        let target_state_name = match &change_state_stmt_node.state_context_t {
-            TargetStateContextType::StateRef { state_context_node } => {
-                &state_context_node.state_ref_node.name
-            }
-            _ => panic!("TODO"),
-        };
-
-        self.newline();
-        let mut current_state: String = "??".to_string();
-        if let Some(state_name) = &self.current_state_name_opt {
-            current_state = state_name.clone();
-        }
-
-        let mut transition_type: TransitionLabelType = TransitionLabelType::Dashed;
-
-        if let Some(state_name) = &self.current_state_name_opt {
-            current_state = state_name.clone();
-        }
-
-        let node = self.system_hierarchy.get_node(&current_state).unwrap();
-        if node.children.len() > 0 {
-            transition_type = TransitionLabelType::DashedFromCluster;
-        }
-
-        let label = match &change_state_stmt_node.label_opt {
-            Some(label) => {
-                let cleaned: String = str::replace(label, "|", "&#124;");
-                self.format_transition_label(&cleaned, transition_type, Some(current_state.clone()))
-            }
-            None => self.format_transition_label(
-                &self.event_handler_msg,
-                transition_type,
-                Some(current_state.clone()),
-            ),
-        };
-
-        let transition_code = &format!(
-            "{}{} -> {} {}\n",
-            self.dent(),
-            current_state,
-            self.format_target_state_name(target_state_name),
-            label
-        );
-        self.transitions.push_str(transition_code);
-    }
-
-    //* --------------------------------------------------------------------- *//
-
     fn generate_state_ref_transition(&mut self, transition_statement: &TransitionStatementNode) {
         let target_state_name = match &transition_statement
             .transition_expr_node
@@ -688,19 +628,9 @@ impl GraphVizVisitor {
             TransitionLabelType::Solid => {
                 format!(r#"[label=" {} "]"#, label)
             }
-            TransitionLabelType::Dashed => {
-                format!(r#"[label=" {} " style="dashed"]"#, label)
-            }
             TransitionLabelType::FromCluster => {
                 format!(
                     r#"[label=" {} " ltail="cluster_{}"]"#,
-                    label,
-                    current_state.unwrap()
-                )
-            }
-            TransitionLabelType::DashedFromCluster => {
-                format!(
-                    r#"[label=" {} " style="dashed" ltail="cluster_{}"]"#,
                     label,
                     current_state.unwrap()
                 )
@@ -976,7 +906,7 @@ impl AstVisitor for GraphVizVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_interface_method_node(&mut self, interface_method_node: &InterfaceMethodNode) {
+    fn visit_interface_method_node(&mut self, _interface_method_node: &InterfaceMethodNode) {
         todo!()
         // self.newline();
         // let return_type = match &interface_method_node.return_type_opt {
@@ -1170,10 +1100,7 @@ impl AstVisitor for GraphVizVisitor {
         //         self.generate_comment(evt_handler_node.line);
         // //        let mut generate_final_close_paren = true;
         if let MessageType::CustomMessage { message_node } = &evt_handler_node.msg_t {
-            self.event_handler_msg = format!("&#124;{}&#124;", message_node.name);
-        } else {
-            // AnyMessage ( ||* )
-            self.event_handler_msg = "&#124;&#124;*".to_string();
+            self.event_handler_msg = format!("{}", message_node.name);
         }
         //         self.generate_comment(evt_handler_node.line);
         //
@@ -1367,20 +1294,6 @@ impl AstVisitor for GraphVizVisitor {
 
     fn visit_state_ref_node(&mut self, state_ref: &StateRefNode) {
         self.add_code(&state_ref.name.to_string());
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_change_state_statement_node(
-        &mut self,
-        change_state_stmt_node: &ChangeStateStatementNode,
-    ) {
-        match &change_state_stmt_node.state_context_t {
-            TargetStateContextType::StateRef { .. } => {
-                self.generate_state_ref_change_state(change_state_stmt_node)
-            }
-            TargetStateContextType::StateStackPop {} => panic!("TODO - not implemented"),
-        };
     }
 
     //* --------------------------------------------------------------------- *//

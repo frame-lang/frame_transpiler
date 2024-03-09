@@ -186,6 +186,7 @@ dependencies = [
  "downcast-rs",
  "exitcode",
  "figment",
+ "indoc",
  "serde",
  "serde_yaml",
  "sha2",
