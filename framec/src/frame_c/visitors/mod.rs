@@ -10,7 +10,7 @@ pub enum TargetLanguage {
     // GoLang,
     // Java8,
     // JavaScript,
-    PlantUml,
+    // PlantUml,
     Python3,
     // Rust,
     // Smcat,
@@ -28,7 +28,7 @@ impl TargetLanguage {
             // TargetLanguage::GoLang => "go",
             // TargetLanguage::Java8 => "java",
             // TargetLanguage::JavaScript => "js",
-            TargetLanguage::PlantUml => "puml",
+            // TargetLanguage::PlantUml => "puml",
             TargetLanguage::Python3 => "py",
             // TargetLanguage::Rust => "rs",
             // TargetLanguage::Smcat => "smcat",
@@ -55,9 +55,10 @@ impl TryFrom<&str> for TargetLanguage {
         // } else if value == "javascript" {
         //     Ok(TargetLanguage::JavaScript)
         // } else
-        if value == "plantuml" {
-            Ok(TargetLanguage::PlantUml)
-        } else if value == "python_3" {
+        // if value == "plantuml" {
+        //     Ok(TargetLanguage::PlantUml)
+        // } else
+        if value == "python_3" {
             Ok(TargetLanguage::Python3)
         // } else if value == "rust" {
         //     Ok(TargetLanguage::Rust)

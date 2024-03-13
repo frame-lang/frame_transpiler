@@ -6,7 +6,7 @@ use super::ast::DeclOrStmtType;
 use super::ast::ExprStmtType::*;
 use super::ast::ExprType;
 use super::ast::ExprType::*;
-use super::ast::MessageType::{CustomMessage};
+use super::ast::MessageType::CustomMessage;
 use super::ast::TerminatorType::{Continue, Return};
 use super::ast::*;
 use super::scanner::*;
@@ -3128,10 +3128,8 @@ impl<'a> Parser<'a> {
                  */
             }
 
-            if self.peek().token_type == TokenType::Pipe
-            {
-                while self.peek().token_type == TokenType::Pipe
-                {
+            if self.peek().token_type == TokenType::Pipe {
+                while self.peek().token_type == TokenType::Pipe {
                     match self.event_handler() {
                         Ok(eh_opt) => {
                             if let Some(eh) = eh_opt {

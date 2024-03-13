@@ -335,21 +335,21 @@ impl Exe {
                 //                  visitor.run(&system_node);
                 //                  output = visitor.get_code();
                 //              }
-                TargetLanguage::PlantUml => {
-                    let (arcanum, system_hierarchy) = semantic_parser.get_all();
-                    let mut visitor = PlantUmlVisitor::new(
-                        arcanum,
-                        system_hierarchy,
-                        generate_state_context,
-                        generate_state_stack,
-                        generate_change_state,
-                        generate_transition_state,
-                        FRAMEC_VERSION,
-                        comments,
-                    );
-                    visitor.run(&system_node);
-                    output = visitor.get_code();
-                }
+                // TargetLanguage::PlantUml => {
+                //     let (arcanum, system_hierarchy) = semantic_parser.get_all();
+                //     let mut visitor = PlantUmlVisitor::new(
+                //         arcanum,
+                //         system_hierarchy,
+                //         generate_state_context,
+                //         generate_state_stack,
+                //         generate_change_state,
+                //         generate_transition_state,
+                //         FRAMEC_VERSION,
+                //         comments,
+                //     );
+                //     visitor.run(&system_node);
+                //     output = visitor.get_code();
+                // }
                 TargetLanguage::Graphviz => {
                     let (arcanum, system_hierarchy) = semantic_parser.get_all();
                     let mut visitor = GraphVizVisitor::new(

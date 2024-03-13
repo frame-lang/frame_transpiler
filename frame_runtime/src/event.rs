@@ -656,7 +656,7 @@ mod tests {
         assert_eq!(em.transition_history().len(), 2);
 
         let last = em.transition_history().newest().unwrap();
-        let first = em.transition_history().as_deque().get(0).unwrap();
+        let first = em.transition_history().as_deque().front().unwrap();
         assert_eq!(last.info.id, 1);
         assert_eq!(last.old_state.info().name, "B");
         assert_eq!(last.new_state.info().name, "A");
@@ -673,7 +673,7 @@ mod tests {
             1
         );
         assert_eq!(
-            em.transition_history().as_deque().get(0).unwrap().info.id,
+            em.transition_history().as_deque().front().unwrap().info.id,
             1
         );
 
@@ -708,7 +708,7 @@ mod tests {
         assert_eq!(em.transition_history().len(), 2);
 
         let last = em.transition_history().newest().unwrap();
-        let first = em.transition_history().as_deque().get(0).unwrap();
+        let first = em.transition_history().as_deque().front().unwrap();
         assert_eq!(last.info.id, 1);
         assert_eq!(last.old_state.info().name, "B");
         assert_eq!(last.new_state.info().name, "A");
@@ -729,7 +729,7 @@ mod tests {
             1
         );
         assert_eq!(
-            em.transition_history().as_deque().get(0).unwrap().info.id,
+            em.transition_history().as_deque().front().unwrap().info.id,
             0
         );
 
