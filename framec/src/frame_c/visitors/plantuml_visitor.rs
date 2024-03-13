@@ -328,11 +328,11 @@ impl PlantUmlVisitor {
                         } => {
                             state_stack_operation_statement_node.accept(self);
                         }
-                        StatementType::ChangeStateStmt {
-                            change_state_stmt_node: change_state_stmt,
-                        } => {
-                            change_state_stmt.accept(self);
-                        }
+                        // StatementType::ChangeStateStmt {
+                        //     change_state_stmt_node: change_state_stmt,
+                        // } => {
+                        //     change_state_stmt.accept(self);
+                        // }
                         StatementType::LoopStmt { loop_stmt_node } => {
                             loop_stmt_node.accept(self);
                         }
@@ -486,42 +486,42 @@ impl PlantUmlVisitor {
     //* --------------------------------------------------------------------- *//
 
     // TODO
-    fn generate_state_ref_change_state(
-        &mut self,
-        change_state_stmt_node: &ChangeStateStatementNode,
-    ) {
-        let target_state_name = match &change_state_stmt_node.state_context_t {
-            TargetStateContextType::StateRef { state_context_node } => {
-                &state_context_node.state_ref_node.name
-            }
-            _ => panic!("TODO"),
-        };
-
-        self.newline();
-        let mut current_state: String = "??".to_string();
-        if let Some(state_name) = &self.current_state_name_opt {
-            current_state = state_name.clone();
-        }
-
-        let label = match &change_state_stmt_node.label_opt {
-            Some(label) => {
-                let cleaned = str::replace(label, "|", "&#124;");
-                format!(" : {}", cleaned)
-            }
-            None => format!(" : {}", self.event_handler_msg.clone()),
-        };
-
-        let transition_code = &format!(
-            "{} -[dashed]-> {}{}\n",
-            current_state,
-            self.format_target_state_name(target_state_name),
-            label
-        );
-        //       println!("{}", &transition_code);
-        self.transitions.push_str(transition_code);
-        // self.add_code(&format!("_changeState_({});", self.format_target_state_name(target_state_name)));
-        // self.transitions.push_str(&format!("_changeState_({});", self.format_target_state_name(target_state_name)));
-    }
+    // fn generate_state_ref_change_state(
+    //     &mut self,
+    //     change_state_stmt_node: &ChangeStateStatementNode,
+    // ) {
+    //     let target_state_name = match &change_state_stmt_node.state_context_t {
+    //         TargetStateContextType::StateRef { state_context_node } => {
+    //             &state_context_node.state_ref_node.name
+    //         }
+    //         _ => panic!("TODO"),
+    //     };
+    //
+    //     self.newline();
+    //     let mut current_state: String = "??".to_string();
+    //     if let Some(state_name) = &self.current_state_name_opt {
+    //         current_state = state_name.clone();
+    //     }
+    //
+    //     let label = match &change_state_stmt_node.label_opt {
+    //         Some(label) => {
+    //             let cleaned = str::replace(label, "|", "");
+    //             format!(" : {}", cleaned)
+    //         }
+    //         None => format!(" : {}", self.event_handler_msg.clone()),
+    //     };
+    //
+    //     let transition_code = &format!(
+    //         "{} -[dashed]-> {}{}\n",
+    //         current_state,
+    //         self.format_target_state_name(target_state_name),
+    //         label
+    //     );
+    //     //       println!("{}", &transition_code);
+    //     self.transitions.push_str(transition_code);
+    //     // self.add_code(&format!("_changeState_({});", self.format_target_state_name(target_state_name)));
+    //     // self.transitions.push_str(&format!("_changeState_({});", self.format_target_state_name(target_state_name)));
+    // }
 
     //* --------------------------------------------------------------------- *//
 
@@ -746,7 +746,7 @@ impl PlantUmlVisitor {
 
         let label = match &transition_statement.transition_expr_node.label_opt {
             Some(label) => {
-                let cleaned = str::replace(label, "|", "&#124;");
+                let cleaned = str::replace(label, "|", "");
                 format!(" : {}", cleaned)
             }
             None => format!(" : {}", self.event_handler_msg.clone()),
@@ -844,7 +844,7 @@ impl PlantUmlVisitor {
 
         let label = match &transition_statement.transition_expr_node.label_opt {
             Some(label) => {
-                let cleaned = str::replace(label, "|", "&#124;");
+                let cleaned = str::replace(label, "|", "");
                 format!(" : {}", cleaned)
             }
             None => format!(" : {}", self.event_handler_msg.clone()),
@@ -1198,10 +1198,10 @@ impl AstVisitor for PlantUmlVisitor {
         //         self.generate_comment(evt_handler_node.line);
         // //        let mut generate_final_close_paren = true;
         if let MessageType::CustomMessage { message_node } = &evt_handler_node.msg_t {
-            self.event_handler_msg = format!("&#124;{}&#124;", message_node.name);
+            self.event_handler_msg = format!("{}", message_node.name);
         } else {
             // AnyMessage ( ||* )
-            self.event_handler_msg = "&#124;&#124;*".to_string();
+            self.event_handler_msg = "*".to_string();
         }
         //         self.generate_comment(evt_handler_node.line);
         //
@@ -1226,7 +1226,9 @@ impl AstVisitor for PlantUmlVisitor {
         }
 
         // Generate statements
-        self.visit_decl_stmts(&evt_handler_node.statements);
+        if !evt_handler_node.statements.is_empty() {
+            self.visit_decl_stmts(&evt_handler_node.statements);
+        }
 
         let terminator_node = &evt_handler_node.terminator_node;
         terminator_node.accept(self);
@@ -1399,17 +1401,17 @@ impl AstVisitor for PlantUmlVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_change_state_statement_node(
-        &mut self,
-        change_state_stmt_node: &ChangeStateStatementNode,
-    ) {
-        match &change_state_stmt_node.state_context_t {
-            TargetStateContextType::StateRef { .. } => {
-                self.generate_state_ref_change_state(change_state_stmt_node)
-            }
-            TargetStateContextType::StateStackPop {} => panic!("TODO - not implemented"),
-        };
-    }
+    // fn visit_change_state_statement_node(
+    //     &mut self,
+    //     change_state_stmt_node: &ChangeStateStatementNode,
+    // ) {
+    //     match &change_state_stmt_node.state_context_t {
+    //         TargetStateContextType::StateRef { .. } => {
+    //             self.generate_state_ref_change_state(change_state_stmt_node)
+    //         }
+    //         TargetStateContextType::StateStackPop {} => panic!("TODO - not implemented"),
+    //     };
+    // }
 
     //* --------------------------------------------------------------------- *//
 
@@ -1530,6 +1532,178 @@ impl AstVisitor for PlantUmlVisitor {
         _output: &mut String,
     ) {
         panic!("TODO");
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_loop_stmt_node(&mut self, loop_stmt_node: &LoopStmtNode) {
+        match &loop_stmt_node.loop_types {
+            LoopStmtTypes::LoopForStmt {
+                loop_for_stmt_node: loop_for_expr_node,
+            } => {
+                loop_for_expr_node.accept(self);
+            }
+            LoopStmtTypes::LoopInStmt { loop_in_stmt_node } => {
+                loop_in_stmt_node.accept(self);
+            }
+            LoopStmtTypes::LoopInfiniteStmt {
+                loop_infinite_stmt_node,
+            } => {
+                loop_infinite_stmt_node.accept(self);
+            }
+        }
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_loop_for_stmt_node(&mut self, loop_for_expr_node: &LoopForStmtNode) {
+        // // self.loop_for_inc_dec_expr_rcref_opt = loop_for_expr_node.post_expr_rcref_opt.clone();
+        // // self.loop_for_inc_dec_expr_rcref_opt = ;
+        //
+        // if let Some(expr_type_rcref) = &loop_for_expr_node.loop_init_expr_rcref_opt {
+        //     let lfs = expr_type_rcref.borrow();
+        //     lfs.accept(self);
+        //     self.newline();
+        // } else {
+        //     self.newline();
+        // }
+        //
+        // // all autoincdec code in loop control should be generated as the last statement
+        // // in the loop
+        // // for ..; ..; x++
+        //
+        // let mut post_expr = String::new();
+        //
+        // if let Some(expr_type_rcref) = &loop_for_expr_node.post_expr_rcref_opt {
+        //     let expr_t = expr_type_rcref.borrow();
+        //     // expr_t.auto_pre_inc_dec(self);
+        //     match *expr_t {
+        //         ExprType::CallChainExprT { .. } => {
+        //             // don't emit just a simple expression.
+        //         }
+        //         _ => expr_t.accept_to_string(self, &mut post_expr),
+        //     }
+        //     // expr_t.auto_post_inc_dec(self);
+        // }
+        //
+        // self.continue_post_expr_vec.push(Some(post_expr));
+        //
+        // self.add_code(&format!("while True:"));
+        // self.indent();
+        // self.newline();
+        // if let Some(test_expr_rcref) = &loop_for_expr_node.test_expr_rcref_opt {
+        //     let mut output = String::new();
+        //     test_expr_rcref.borrow().accept_to_string(self, &mut output);
+        //
+        //     // let test_expr = test_expr_rcref.borrow();
+        //     // test_expr.auto_pre_inc_dec(self);
+        //
+        //     //            self.newline();
+        //     self.add_code(&format!("if not({}):", output));
+        //     self.indent();
+        //     self.newline();
+        //     self.add_code("break");
+        //     self.outdent();
+        //     // self.newline();
+        //     // test_expr.auto_post_inc_dec(self);
+        // }
+
+        // only call if there are statements
+        if loop_for_expr_node.statements.len() != 0 {
+            self.visit_decl_stmts(&loop_for_expr_node.statements);
+            //  self.newline();
+        }
+        //
+        // if let Some(post_expr) = self.continue_post_expr_vec.pop() {
+        //     self.newline();
+        //     self.add_code(post_expr.unwrap().clone().as_str());
+        // } else {
+        //     self.newline();
+        // }
+        //
+        // self.outdent();
+        // //self.newline();
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_loop_in_stmt_node(&mut self, loop_in_stmt_node: &LoopInStmtNode) {
+        self.newline();
+
+        let mut output = String::new();
+        loop_in_stmt_node
+            .iterable_expr
+            .accept_to_string(self, &mut output);
+
+        match &loop_in_stmt_node.loop_first_stmt {
+            LoopFirstStmt::Var { var_node } => {
+                self.add_code(&format!("for {} in {}:", var_node.id_node.name, output));
+            }
+            LoopFirstStmt::CallChain {
+                call_chain_expr_node,
+            } => {
+                let mut output_first_stmt = String::new();
+                call_chain_expr_node.accept_to_string(self, &mut output_first_stmt);
+                self.add_code(&format!("for {} in {}:", output_first_stmt, output));
+            }
+            LoopFirstStmt::VarDecl {
+                var_decl_node_rcref,
+            } => {
+                self.add_code(&format!(
+                    "for {} in {}:",
+                    var_decl_node_rcref.borrow().name,
+                    output
+                ));
+            }
+            // LoopFirstStmt::VarDeclAssign {var_decl_node_rcref} => {
+            //     self.add_code(&format!("for {} in {}:"
+            //                            , var_decl_node_rcref.borrow().name
+            //                            , output));
+            // }
+            // TODO
+            _ => panic!("Error - unexpected target expression in 'in' loop."),
+        };
+
+        self.indent();
+        // self.newline();
+
+        // only call if there are statements
+        if loop_in_stmt_node.statements.len() != 0 {
+            self.visit_decl_stmts(&loop_in_stmt_node.statements);
+        }
+
+        // all autoincdec code in loop control should be generated as the last statement
+        // in the loop
+        // for var x in foo(++x,y--) {}
+        // if let Some(expr_type_rcref) = &loop_in_expr_node.inc_dec_expr_rcref_opt {
+        //     let expr_t = expr_type_rcref.borrow();
+        //     expr_t.auto_pre_inc_dec(self);
+        //     expr_t.auto_post_inc_dec(self);
+        // }
+        // generate 'pass' after autoincdec if there are no statements
+        if loop_in_stmt_node.statements.len() == 0 {
+            self.newline();
+            self.add_code(&format!("pass"));
+        }
+
+        self.outdent();
+        self.newline();
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_loop_infinite_stmt_node(&mut self, loop_in_expr_node: &LoopInfiniteStmtNode) {
+        // self.continue_post_expr_vec.push(None);
+        // self.newline();
+        //
+        // self.add_code(&format!("while True:"));
+        //
+        // self.indent();
+        // // self.newline();
+        self.visit_decl_stmts(&loop_in_expr_node.statements);
+        // self.outdent();
+        // self.newline();
+        // self.continue_post_expr_vec.pop();
     }
 
     //* --------------------------------------------------------------------- *//

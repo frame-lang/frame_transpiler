@@ -39,7 +39,7 @@ impl Scanner {
             ("false".to_string(), TokenType::False),
             ("var".to_string(), TokenType::Var),
             ("const".to_string(), TokenType::Const),
-            ("new".to_string(), TokenType::New),
+            //            ("new".to_string(), TokenType::New),
             ("loop".to_string(), TokenType::Loop),
             ("in".to_string(), TokenType::In),
             ("continue".to_string(), TokenType::Continue),
@@ -162,9 +162,7 @@ impl Scanner {
             ']' => self.add_token(TokenType::RBracket),
             '|' => {
                 if self.match_char('|') {
-                    if self.match_char('*') {
-                        self.add_token(TokenType::AnyMessage);
-                    } else if self.match_char('.') {
+                    if self.match_char('.') {
                         self.add_token(TokenType::PipePipeDot);
                     } else if self.match_char('[') {
                         self.add_token(TokenType::PipePipeLBracket);
@@ -301,13 +299,13 @@ impl Scanner {
                 if !self.block_keyword() {
                     if self.match_char('>') {
                         // -> or ->>
-                        if self.match_char('>') {
-                            // ->>
-                            self.add_token(TokenType::ChangeState);
-                        } else {
-                            // ->
-                            self.add_token(TokenType::Transition);
-                        }
+                        // if self.match_char('>') {
+                        //     // ->>
+                        //     self.add_token(TokenType::ChangeState);
+                        // } else {
+                        // ->
+                        self.add_token(TokenType::Transition);
+                        // }
                     } else if self.is_digit(self.peek()) {
                         self.number(true);
                     } else {
@@ -726,20 +724,20 @@ pub enum TokenType {
     LBracket,                     // [
     RBracket,                     // ]
     Transition,                   // ->
-    ChangeState,                  // ->>
-    String,                       // "foo"
-    ThreeTicks,                   // ```
-    SuperString,                  // `stuff + "stuff"`
-    Number,                       // 1, 1.01
-    Var,                          // var keyword
-    Const,                        // const keyword
-    New,                          // new keyword
-    Loop,                         // loop keyword
-    Continue,                     // continue keyword
-    Break,                        // break keyword
-    In,                           // 'in' keyword
-    Enum,                         // 'enum' keyword
-    Function,                     // 'fn' keyword
+    //    ChangeState,                  // ->>
+    String,      // "foo"
+    ThreeTicks,  // ```
+    SuperString, // `stuff + "stuff"`
+    Number,      // 1, 1.01
+    Var,         // var keyword
+    Const,       // const keyword
+    //    New,         // new keyword
+    Loop,     // loop keyword
+    Continue, // continue keyword
+    Break,    // break keyword
+    In,       // 'in' keyword
+    Enum,     // 'enum' keyword
+    Function, // 'fn' keyword
     // SingleLineComment, // --- comment
     MultiLineComment, // {-- comments --}
     OpenBrace,        // {
@@ -776,7 +774,6 @@ pub enum TokenType {
     PipePipe,                // ||
     PipePipeDot,             // ||.
     PipePipeLBracket,        // ||[
-    AnyMessage,              // ||*
     Error,
 }
 

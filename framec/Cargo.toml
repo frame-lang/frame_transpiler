@@ -19,6 +19,8 @@ serde_yaml = "0.8"
 sha2 = "0.10"
 structopt = "0.3.21"
 wasm-bindgen = "0.2"
+indoc = "1.0"
+
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = false

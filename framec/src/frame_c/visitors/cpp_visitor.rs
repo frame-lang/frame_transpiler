@@ -637,11 +637,11 @@ impl CppVisitor {
                         } => {
                             state_stack_operation_statement_node.accept(self);
                         }
-                        StatementType::ChangeStateStmt {
-                            change_state_stmt_node: change_state_stmt,
-                        } => {
-                            change_state_stmt.accept(self);
-                        }
+                        // StatementType::ChangeStateStmt {
+                        //     change_state_stmt_node: change_state_stmt,
+                        // } => {
+                        //     change_state_stmt.accept(self);
+                        // }
                         StatementType::LoopStmt { loop_stmt_node } => {
                             loop_stmt_node.accept(self);
                         }
@@ -1163,26 +1163,26 @@ impl CppVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn generate_state_stack_pop_change_state(
-        &mut self,
-        change_state_stmt_node: &ChangeStateStatementNode,
-    ) {
-        self.newline();
-        match &change_state_stmt_node.label_opt {
-            Some(label) => {
-                self.add_code(&format!("# {}", label));
-                self.newline();
-            }
-            None => {}
-        }
-        self.add_code(&format!(
-            "{}Compartment *compartment = this->_stateStack_pop_();",
-            self.system_name
-        ));
-        //self.add_code("compartment = self.__state_stack_pop()");
-        self.newline();
-        self.add_code("this._changeState_(compartment);");
-    }
+    // fn generate_state_stack_pop_change_state(
+    //     &mut self,
+    //     change_state_stmt_node: &ChangeStateStatementNode,
+    // ) {
+    //     self.newline();
+    //     match &change_state_stmt_node.label_opt {
+    //         Some(label) => {
+    //             self.add_code(&format!("# {}", label));
+    //             self.newline();
+    //         }
+    //         None => {}
+    //     }
+    //     self.add_code(&format!(
+    //         "{}Compartment *compartment = this->_stateStack_pop_();",
+    //         self.system_name
+    //     ));
+    //     //self.add_code("compartment = self.__state_stack_pop()");
+    //     self.newline();
+    //     self.add_code("this._changeState_(compartment);");
+    // }
     //* --------------------------------------------------------------------- *//
 
     fn generate_state_ref_code(&self, target_state_name: &str) -> String {
@@ -2745,19 +2745,19 @@ impl AstVisitor for CppVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_change_state_statement_node(
-        &mut self,
-        change_state_stmt_node: &ChangeStateStatementNode,
-    ) {
-        match &change_state_stmt_node.state_context_t {
-            TargetStateContextType::StateRef { .. } => {
-                self.generate_state_ref_change_state(change_state_stmt_node)
-            }
-            TargetStateContextType::StateStackPop { .. } => {
-                self.generate_state_stack_pop_change_state(change_state_stmt_node)
-            }
-        };
-    }
+    // fn visit_change_state_statement_node(
+    //     &mut self,
+    //     change_state_stmt_node: &ChangeStateStatementNode,
+    // ) {
+    //     match &change_state_stmt_node.state_context_t {
+    //         TargetStateContextType::StateRef { .. } => {
+    //             self.generate_state_ref_change_state(change_state_stmt_node)
+    //         }
+    //         TargetStateContextType::StateStackPop { .. } => {
+    //             self.generate_state_stack_pop_change_state(change_state_stmt_node)
+    //         }
+    //     };
+    // }
 
     //* --------------------------------------------------------------------- *//
 

@@ -379,7 +379,7 @@ pub struct CommonAttributes {
 impl Default for CommonAttributes {
     fn default() -> Self {
         CommonAttributes {
-            /// Throw error if event hander/interface signatures aren't identical for a message.
+            // Throw error if event hander/interface signatures aren't identical for a message.
             allow_relaxed_event_signatures: false,
         }
     }

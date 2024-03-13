@@ -17,7 +17,7 @@ from framelang.framelang import FrameEvent
     $S1
         |>| enter("S1") ^
         |change|
-            ->> $S2
+            -> $S2
             ^
 
     $S2
@@ -34,7 +34,7 @@ from framelang.framelang import FrameEvent
 
     $S4
         |>| enter("S4")
-            ->> $S0
+            -> $S0
             ^
 
 

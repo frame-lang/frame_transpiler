@@ -6,7 +6,7 @@ use super::ast::DeclOrStmtType;
 use super::ast::ExprStmtType::*;
 use super::ast::ExprType;
 use super::ast::ExprType::*;
-use super::ast::MessageType::{AnyMessage, CustomMessage};
+use super::ast::MessageType::CustomMessage;
 use super::ast::TerminatorType::{Continue, Return};
 use super::ast::*;
 use super::scanner::*;
@@ -1460,21 +1460,9 @@ impl<'a> Parser<'a> {
 
             match self.message_alias() {
                 Ok(MessageType::CustomMessage { message_node }) => alias_opt = Some(message_node),
-                Ok(AnyMessage { .. }) => {
-                    self.error_at_previous("Expected message, found '||*");
-                    let sync_tokens = vec![
-                        TokenType::RParen,
-                        TokenType::MachineBlock,
-                        TokenType::ActionsBlock,
-                        TokenType::OperationsBlock,
-                        TokenType::DomainBlock,
-                        TokenType::SystemEnd,
-                    ];
-                    self.synchronize(&sync_tokens);
-                }
                 Ok(MessageType::None) => {
                     let err_msg = "Unknown message type.";
-                    self.error_at_current(err_msg.clone());
+                    self.error_at_current(err_msg);
                     return Err(ParseError::new(err_msg));
                 }
                 Err(err) => return Err(err),
@@ -1655,21 +1643,6 @@ impl<'a> Parser<'a> {
                 return Err(parse_error);
             }
         }
-        // TODO - review removing AnyMessage
-        if self.match_token(&[TokenType::AnyMessage]) {
-            let tok = self.previous();
-
-            return Ok(MessageType::AnyMessage { line: tok.line });
-        }
-        // if !self.match_token(&[TokenType::Pipe]) {
-        //     let token_str = self.peek().lexeme.clone();
-        //     let err_msg = &format!(
-        //         "Expected closing '|' in message selector. Found {}. ",
-        //         token_str
-        //     );
-        //     self.error_at_previous(err_msg);
-        //     return Err(ParseError::new(err_msg));
-        // }
 
         let tt = self.peek().token_type;
         match tt {
@@ -1717,12 +1690,6 @@ impl<'a> Parser<'a> {
             if let Err(parse_error) = self.consume(TokenType::At, "Expected '@'.") {
                 return Err(parse_error);
             }
-        }
-        // TODO - review removing AnyMessage
-        if self.match_token(&[TokenType::AnyMessage]) {
-            let tok = self.previous();
-
-            return Ok(MessageType::AnyMessage { line: tok.line });
         }
         if !self.match_token(&[TokenType::Pipe]) {
             let token_str = self.peek().lexeme.clone();
@@ -3161,15 +3128,8 @@ impl<'a> Parser<'a> {
                  */
             }
 
-            // TODO - figure out AnyMessage. Is it working?
-            if self.peek().token_type == TokenType::At
-                || self.peek().token_type == TokenType::Pipe
-                || self.peek().token_type == TokenType::AnyMessage
-            {
-                while self.peek().token_type == TokenType::At
-                    || self.peek().token_type == TokenType::Pipe
-                    || self.peek().token_type == TokenType::AnyMessage
-                {
+            if self.peek().token_type == TokenType::Pipe {
+                while self.peek().token_type == TokenType::Pipe {
                     match self.event_handler() {
                         Ok(eh_opt) => {
                             if let Some(eh) = eh_opt {
@@ -3244,7 +3204,6 @@ impl<'a> Parser<'a> {
                     self.error_at_current("Unexpected token in event handler message");
                     let sync_tokens = vec![
                         TokenType::Pipe,
-                        TokenType::AnyMessage,
                         TokenType::State,
                         TokenType::ActionsBlock,
                         TokenType::DomainBlock,
@@ -3324,10 +3283,6 @@ impl<'a> Parser<'a> {
         //    let a = self.message();
 
         match self.message_selector() {
-            Ok(MessageType::AnyMessage { line }) => {
-                line_number = line;
-                message_type = AnyMessage { line }
-            }
             Ok(MessageType::CustomMessage { message_node }) => {
                 line_number = message_node.line;
                 msg = message_node.name.clone();
@@ -3336,7 +3291,7 @@ impl<'a> Parser<'a> {
             }
             Ok(MessageType::None) => {
                 let err_msg = "Unknown message type.";
-                self.error_at_current(err_msg.clone());
+                self.error_at_current(err_msg);
                 return Err(ParseError::new(err_msg));
             }
             Err(parse_error) => {
@@ -3819,18 +3774,18 @@ impl<'a> Parser<'a> {
                                             statements.push(decl_or_statement);
                                         }
                                     }
-                                    StatementType::ChangeStateStmt { .. } => {
-                                        statements.push(decl_or_statement);
-                                        // state changes disallowed in actions
-                                        if self.is_action_scope {
-                                            self.error_at_current(
-                                                "Transitions disallowed in actions.",
-                                            );
-                                            // is_err = true;
-                                        }
-                                        // must be last statement so return
-                                        return statements;
-                                    }
+                                    // StatementType::ChangeStateStmt { .. } => {
+                                    //     statements.push(decl_or_statement);
+                                    //     // state changes disallowed in actions
+                                    //     if self.is_action_scope {
+                                    //         self.error_at_current(
+                                    //             "Transitions disallowed in actions.",
+                                    //         );
+                                    //         // is_err = true;
+                                    //     }
+                                    //     // must be last statement so return
+                                    //     return statements;
+                                    // }
                                     StatementType::LoopStmt { .. } => {
                                         statements.push(decl_or_statement);
                                     }
@@ -3930,6 +3885,10 @@ impl<'a> Parser<'a> {
     fn statement(&mut self) -> Result<Option<StatementType>, ParseError> {
         let mut expr_t_opt: Option<ExprType> = None;
 
+        // Due to Frame test and transition syntax, we need to get the first expression
+        // and then see if it is an expression in the "first set" of expressions for tests
+        // and transitions.
+
         match self.expression() {
             Ok(Some(expr_t)) => {
                 match expr_t {
@@ -3956,6 +3915,8 @@ impl<'a> Parser<'a> {
                 self.synchronize(&sync_tokens);
             }
         }
+
+        // if there was an expression found, now see if it is valid to start a test.
 
         match expr_t_opt {
             Some(expr_t) => {
@@ -4039,6 +4000,8 @@ impl<'a> Parser<'a> {
                     };
                 }
 
+                // Not a test statement. Now see if we are at an expression statement.
+
                 match expr_t {
                     SystemInstanceExprT {
                         system_instance_expr_node,
@@ -4060,8 +4023,7 @@ impl<'a> Parser<'a> {
                         return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
                     }
                     ExprListT { expr_list_node } => {
-                        // path for transitions with an exit params group
-
+                        // path for transitions **with** an exit params group
                         if self.match_token(&[TokenType::Transition]) {
                             match self.transition(Some(expr_list_node)) {
                                 Ok(transition_statement_node) => {
@@ -4091,6 +4053,8 @@ impl<'a> Parser<'a> {
                         return Err(ParseError::new("TODO"));
                     }
                     VariableExprT { var_node } => {
+                        // @TODO this doesn't seem to ever be triggered.
+                        // The callChain seems to superseed it.
                         let variable_stmt_node = VariableStmtNode::new(var_node);
                         let expr_stmt_t: ExprStmtType =
                             ExprStmtType::VariableStmtT { variable_stmt_node };
@@ -4202,13 +4166,13 @@ impl<'a> Parser<'a> {
             }
         }
 
-        if self.match_token(&[TokenType::ChangeState]) {
-            return match self.change_state() {
-                Ok(Some(state_context_t)) => Ok(Some(state_context_t)),
-                Ok(None) => Err(ParseError::new("TODO")),
-                Err(parse_error) => Err(parse_error),
-            };
-        }
+        // if self.match_token(&[TokenType::ChangeState]) {
+        //     return match self.change_state() {
+        //         Ok(Some(state_context_t)) => Ok(Some(state_context_t)),
+        //         Ok(None) => Err(ParseError::new("TODO")),
+        //         Err(parse_error) => Err(parse_error),
+        //     };
+        // }
 
         if self.match_token(&[TokenType::Loop]) {
             return match self.loop_statement_scope() {
@@ -4233,10 +4197,10 @@ impl<'a> Parser<'a> {
             let break_stmt_node = BreakStmtNode::new();
             return Ok(Some(StatementType::BreakStmt { break_stmt_node }));
         }
-        if self.match_token(&[TokenType::OpenBrace]) {
-            let break_stmt_node = BreakStmtNode::new();
-            return Ok(Some(StatementType::BreakStmt { break_stmt_node }));
-        }
+        // if self.match_token(&[TokenType::OpenBrace]) {
+        //     let break_stmt_node = BreakStmtNode::new();
+        //     return Ok(Some(StatementType::BreakStmt { break_stmt_node }));
+        // }
         if self.match_token(&[TokenType::SuperString]) {
             // TODO?
         }
@@ -4801,10 +4765,10 @@ impl<'a> Parser<'a> {
                 let err_msg = "lvalue expr is not a valid binary expression type.";
                 self.error_at_current(err_msg);
             }
-            if !r_value.is_valid_binary_expr_type() {
-                let err_msg = "rvalue expr is not a valid binary expression type.";
-                self.error_at_current(err_msg);
-            }
+            // if !r_value.is_valid_binary_expr_type() {
+            //     let err_msg = "rvalue expr is not a valid binary expression type.";
+            //     self.error_at_current(err_msg);
+            // }
 
             let binary_expr_node = BinaryExprNode::new(l_value, op_type, r_value);
             l_value = BinaryExprT { binary_expr_node };
@@ -5398,25 +5362,26 @@ impl<'a> Parser<'a> {
             let symbol_type_rcref_opt = self.arcanum.lookup(&id_node.name.lexeme, &var_scope);
             let var_node = VariableNode::new(id_node, var_scope, symbol_type_rcref_opt);
             return Ok(Some(VariableExprT { var_node }));
-        } else if self.match_token(&[TokenType::New]) {
-            if self.match_token(&[TokenType::Identifier]) {
-                match self.call(IdentifierDeclScope::UnknownScope) {
-                    Ok(Some(CallChainExprT {
-                        mut call_chain_expr_node,
-                    })) => {
-                        call_chain_expr_node.is_new_expr = true;
-                        return Ok(Some(CallChainExprT {
-                            call_chain_expr_node,
-                        }));
-                    }
-                    Ok(Some(_)) => return Err(ParseError::new("TODO")),
-                    Err(parse_error) => return Err(parse_error),
-                    Ok(None) => {} // continue
-                }
-            } else {
-                self.error_at_current("Expected class.");
-                return Err(ParseError::new("TODO"));
-            }
+        // } else if self.match_token(&[TokenType::New]) {
+        //     // TODO: New should be removed.
+        //     if self.match_token(&[TokenType::Identifier]) {
+        //         match self.call(IdentifierDeclScope::UnknownScope) {
+        //             Ok(Some(CallChainExprT {
+        //                 mut call_chain_expr_node,
+        //             })) => {
+        //                 call_chain_expr_node.is_new_expr = true;
+        //                 return Ok(Some(CallChainExprT {
+        //                     call_chain_expr_node,
+        //                 }));
+        //             }
+        //             Ok(Some(_)) => return Err(ParseError::new("TODO")),
+        //             Err(parse_error) => return Err(parse_error),
+        //             Ok(None) => {} // continue
+        //         }
+        //     } else {
+        //         self.error_at_current("Expected class.");
+        //         return Err(ParseError::new("TODO"));
+        //     }
         } else {
             // self.error_at_current("Expected identifier.");
             // return Err(ParseError::new("TODO"));
@@ -7074,43 +7039,43 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     // change_state : '->>' change_state_label state_ref
-
-    fn change_state(&mut self) -> Result<Option<StatementType>, ParseError> {
-        self.generate_change_state = true;
-
-        let mut label_opt: Option<String> = None;
-
-        // change_state label string
-        if self.match_token(&[TokenType::String]) {
-            label_opt = Some(self.previous().lexeme.clone());
-        }
-
-        // check that we are not changing state out of a state with
-        // an exit event handler
-
-        let state_name = &self.state_name_opt.as_ref().unwrap().clone();
-        match &self.get_state_exit_eventhandler(state_name) {
-            Some(..) => {
-                let err_msg =
-                    &format!("State change disallowed out of states with exit eventhandler.");
-                self.error_at_current(err_msg.as_str());
-            }
-            None => {}
-        }
-        let state_context_t;
-        match self.target_state(None, "State change", false) {
-            Ok(Some(scn)) => state_context_t = scn,
-            Ok(None) => return Err(ParseError::new("TODO")),
-            Err(parse_error) => return Err(parse_error),
-        }
-
-        Ok(Some(StatementType::ChangeStateStmt {
-            change_state_stmt_node: ChangeStateStatementNode {
-                state_context_t,
-                label_opt,
-            },
-        }))
-    }
+    //
+    // fn change_state(&mut self) -> Result<Option<StatementType>, ParseError> {
+    //     self.generate_change_state = true;
+    //
+    //     let mut label_opt: Option<String> = None;
+    //
+    //     // change_state label string
+    //     if self.match_token(&[TokenType::String]) {
+    //         label_opt = Some(self.previous().lexeme.clone());
+    //     }
+    //
+    //     // check that we are not changing state out of a state with
+    //     // an exit event handler
+    //
+    //     let state_name = &self.state_name_opt.as_ref().unwrap().clone();
+    //     match &self.get_state_exit_eventhandler(state_name) {
+    //         Some(..) => {
+    //             let err_msg =
+    //                 &format!("State change disallowed out of states with exit eventhandler.");
+    //             self.error_at_current(err_msg.as_str());
+    //         }
+    //         None => {}
+    //     }
+    //     let state_context_t;
+    //     match self.target_state(None, "State change", false) {
+    //         Ok(Some(scn)) => state_context_t = scn,
+    //         Ok(None) => return Err(ParseError::new("TODO")),
+    //         Err(parse_error) => return Err(parse_error),
+    //     }
+    //
+    //     Ok(Some(StatementType::ChangeStateStmt {
+    //         change_state_stmt_node: ChangeStateStatementNode {
+    //             state_context_t,
+    //             label_opt,
+    //         },
+    //     }))
+    // }
 
     /* --------------------------------------------------------------------- */
 
@@ -7461,9 +7426,9 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    pub fn get_system_hierarchy(self) -> SystemHierarchy {
-        self.system_hierarchy_opt.unwrap()
-    }
+    // pub fn get_system_hierarchy(self) -> SystemHierarchy {
+    //     self.system_hierarchy_opt.unwrap()
+    // }
 
     /* --------------------------------------------------------------------- */
 
@@ -7685,26 +7650,26 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    fn get_state_exit_eventhandler(
-        &mut self,
-        state_name: &str,
-    ) -> Option<Rc<RefCell<EventHandlerNode>>> {
-        let state_rcref_opt = self.arcanum.get_state(state_name);
-        match state_rcref_opt {
-            Some(state_symbol) => match &state_symbol.borrow().state_node_opt {
-                Some(state_node_rcref) => {
-                    let state_node = state_node_rcref.borrow();
-                    if let Some(exit_event_handler_rcref) = &state_node.exit_event_handler_opt {
-                        Some(exit_event_handler_rcref.clone())
-                    } else {
-                        None
-                    }
-                }
-                None => None,
-            },
-            None => None,
-        }
-    }
+    // fn get_state_exit_eventhandler(
+    //     &mut self,
+    //     state_name: &str,
+    // ) -> Option<Rc<RefCell<EventHandlerNode>>> {
+    //     let state_rcref_opt = self.arcanum.get_state(state_name);
+    //     match state_rcref_opt {
+    //         Some(state_symbol) => match &state_symbol.borrow().state_node_opt {
+    //             Some(state_node_rcref) => {
+    //                 let state_node = state_node_rcref.borrow();
+    //                 if let Some(exit_event_handler_rcref) = &state_node.exit_event_handler_opt {
+    //                     Some(exit_event_handler_rcref.clone())
+    //                 } else {
+    //                     None
+    //                 }
+    //             }
+    //             None => None,
+    //         },
+    //         None => None,
+    //     }
+    // }
 
     /* --------------------------------------------------------------------- */
 

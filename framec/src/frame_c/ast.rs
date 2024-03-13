@@ -289,6 +289,13 @@ impl SystemNode {
             None => None,
         }
     }
+
+    pub fn get_state_node(&self, state_name: &String) -> Option<Rc<RefCell<StateNode>>> {
+        match &self.machine_block_node_opt {
+            Some(mb) => mb.get_state_node(state_name),
+            None => None,
+        }
+    }
 }
 
 impl NodeElement for SystemNode {
@@ -729,8 +736,7 @@ impl VariableNode {
 
     pub fn get_value(&self) -> Rc<ExprType> {
         let m = &self.symbol_type_rcref_opt.as_ref().unwrap();
-        let x = m.clone();
-        let mut y = x.borrow_mut();
+        let mut y = m.borrow_mut();
         match y.get_ast_node() {
             Ok(Some(variable_decl_node_rcref)) => {
                 variable_decl_node_rcref.borrow().value_rc.clone()
@@ -838,6 +844,15 @@ impl MachineBlockNode {
 
     pub fn get_first_state(&self) -> Option<&Rc<RefCell<StateNode>>> {
         self.states.get(0)
+    }
+    pub fn get_state_node(&self, name: &String) -> Option<Rc<RefCell<StateNode>>> {
+        for state_node_rcref in &self.states {
+            if state_node_rcref.borrow().name == *name {
+                return Some(state_node_rcref.clone());
+            }
+        }
+
+        None
     }
 }
 
@@ -1100,7 +1115,6 @@ impl NodeElement for EventHandlerNode {
 // TODO: what is AnyMessge?
 pub enum MessageType {
     CustomMessage { message_node: MessageNode },
-    AnyMessage { line: usize },
     None,
 }
 //-----------------------------------------------------//
@@ -1788,9 +1802,9 @@ pub enum StatementType {
     TransitionStmt {
         transition_statement_node: TransitionStatementNode,
     },
-    ChangeStateStmt {
-        change_state_stmt_node: ChangeStateStatementNode,
-    },
+    // ChangeStateStmt {
+    //     change_state_stmt_node: ChangeStateStatementNode,
+    // },
     TestStmt {
         test_stmt_node: TestStatementNode,
     },
@@ -2203,19 +2217,19 @@ impl NodeElement for TransitionStatementNode {
 }
 
 //-----------------------------------------------------//
-
-pub struct ChangeStateStatementNode {
-    pub state_context_t: TargetStateContextType,
-    pub label_opt: Option<String>,
-}
-
-impl ChangeStateStatementNode {}
-
-impl NodeElement for ChangeStateStatementNode {
-    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
-        ast_visitor.visit_change_state_statement_node(self);
-    }
-}
+//
+// pub struct ChangeStateStatementNode {
+//     pub state_context_t: TargetStateContextType,
+//     pub label_opt: Option<String>,
+// }
+//
+// impl ChangeStateStatementNode {}
+//
+// impl NodeElement for ChangeStateStatementNode {
+//     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+//         ast_visitor.visit_change_state_statement_node(self);
+//     }
+// }
 
 //-----------------------------------------------------//
 
