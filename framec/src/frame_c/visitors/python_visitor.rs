@@ -30,8 +30,8 @@ pub struct PythonVisitor {
     first_event_handler: bool,
     system_name: String,
     first_state_name: String,
-    serialize: Vec<String>,
-    deserialize: Vec<String>,
+    // serialize: Vec<String>,
+    // deserialize: Vec<String>,
     subclass_code: Vec<String>,
     warnings: Vec<String>,
     has_states: bool,
@@ -92,8 +92,8 @@ impl PythonVisitor {
             first_event_handler: true,
             system_name: String::new(),
             first_state_name: String::new(),
-            serialize: Vec::new(),
-            deserialize: Vec::new(),
+            // serialize: Vec::new(),
+            // deserialize: Vec::new(),
             has_states: false,
             errors: Vec::new(),
             subclass_code: Vec::new(),
@@ -1020,17 +1020,17 @@ impl PythonVisitor {
 
             self.newline();
 
-            if self.arcanium.is_serializable() {
-                for line in self.serialize.iter() {
-                    self.code.push_str(&*line.to_string());
-                    self.code.push_str(&*format!("\n{}", self.dent()));
-                }
-
-                for line in self.deserialize.iter() {
-                    self.code.push_str(&*line.to_string());
-                    self.code.push_str(&*format!("\n{}", self.dent()));
-                }
-            }
+            // if self.arcanium.is_serializable() {
+            //     for line in self.serialize.iter() {
+            //         self.code.push_str(&*line.to_string());
+            //         self.code.push_str(&*format!("\n{}", self.dent()));
+            //     }
+            //
+            //     for line in self.deserialize.iter() {
+            //         self.code.push_str(&*line.to_string());
+            //         self.code.push_str(&*format!("\n{}", self.dent()));
+            //     }
+            // }
         }
     }
 
@@ -1723,6 +1723,9 @@ impl PythonVisitor {
             self.add_code("self.__compartment = None");
         }
 
+        self.newline();
+        self.add_code(&format!("self.return_stack = []"));
+
         // Initialize state arguments.
         match &system_node.start_state_state_params_opt {
             Some(params) => {
@@ -2058,14 +2061,14 @@ impl AstVisitor for PythonVisitor {
 
         // end of generate constructor
 
-        self.serialize.push("".to_string());
-        self.serialize.push("Bag _serialize__do() {".to_string());
-
-        self.deserialize.push("".to_string());
-
-        // @TODO: _do needs to be configurable.
-        self.deserialize
-            .push("void _deserialize__do(Bag data) {".to_string());
+        // self.serialize.push("".to_string());
+        // self.serialize.push("Bag _serialize__do() {".to_string());
+        //
+        // self.deserialize.push("".to_string());
+        //
+        // // @TODO: _do needs to be configurable.
+        // self.deserialize
+        //     .push("void _deserialize__do(Bag data) {".to_string());
 
         self.subclass_code.push("".to_string());
         self.subclass_code
@@ -2112,14 +2115,14 @@ impl AstVisitor for PythonVisitor {
         self.subclass_code
             .push("\n# ********************\n".to_string());
 
-        self.serialize.push("".to_string());
-        self.serialize
-            .push("\treturn JSON.stringify(bag)".to_string());
-        self.serialize.push("}".to_string());
-        self.serialize.push("".to_string());
-
-        self.deserialize.push("".to_string());
-        self.deserialize.push("}".to_string());
+        // self.serialize.push("".to_string());
+        // self.serialize
+        //     .push("\treturn JSON.stringify(bag)".to_string());
+        // self.serialize.push("}".to_string());
+        // self.serialize.push("".to_string());
+        //
+        // self.deserialize.push("".to_string());
+        // self.deserialize.push("}".to_string());
 
         self.generate_machinery(system_node);
 
@@ -2498,6 +2501,19 @@ impl AstVisitor for PythonVisitor {
         }
 
         self.newline();
+        match &interface_method_node.return_init_expr_opt {
+            Some(x) =>  {
+                let mut output= String::new();
+                x.accept_to_string(self, &mut output);
+                self.add_code(&format!("self.return_stack.append({})", output));
+            }
+            _ => {
+                self.add_code("self.return_stack.append(None)");
+            }
+        }
+
+
+        self.newline();
         self.add_code(&format!(
             "__e = FrameEvent(\"{}\",{})",
             method_name_or_alias, params_param_code
@@ -2510,9 +2526,25 @@ impl AstVisitor for PythonVisitor {
         match &interface_method_node.return_type_opt {
             Some(_) => {
                 self.newline();
-                self.add_code("return __e._return");
+                self.add_code("return self.return_stack.pop(-1)");
             }
-            None => {}
+            None => {
+
+                // If there was no type decl but there is an expression
+                // evaluated to return then also generate code
+                // to return that value.
+                match &interface_method_node.return_init_expr_opt {
+                    Some(_) => {
+                        self.newline();
+                        self.add_code("return self.return_stack.pop(-1)");
+                    }
+                    None => {
+                        // always pop the return stack as a default Nil is addes
+                        self.newline();
+                        self.add_code("self.return_stack.pop(-1)");
+                    }
+                }
+            }
         }
 
         self.outdent();
@@ -2668,28 +2700,28 @@ impl AstVisitor for PythonVisitor {
         self.add_code("# ===================== Machine Block =================== #");
         self.newline();
 
-        self.serialize.push("".to_string());
-        self.serialize.push("\tvar stateName = null".to_string());
-
-        self.deserialize.push("".to_string());
-        self.deserialize
-            .push("\tbag = JSON.parse(data)".to_string());
-        self.deserialize.push("".to_string());
-        self.deserialize.push("\tswitch (bag.state) {".to_string());
+        // self.serialize.push("".to_string());
+        // self.serialize.push("\tvar stateName = null".to_string());
+        //
+        // self.deserialize.push("".to_string());
+        // self.deserialize
+        //     .push("\tbag = JSON.parse(data)".to_string());
+        // self.deserialize.push("".to_string());
+        // self.deserialize.push("\tswitch (bag.state) {".to_string());
 
         for state_node_rcref in &machine_block_node.states {
             state_node_rcref.borrow().accept(self);
         }
 
-        self.serialize.push("".to_string());
-        self.serialize.push("\tbag = {".to_string());
-        self.serialize.push("\t\tstate : stateName,".to_string());
-        self.serialize.push("\t\tdomain : {}".to_string());
-        self.serialize.push("\t}".to_string());
-        self.serialize.push("".to_string());
-
-        self.deserialize.push("\t}".to_string());
-        self.deserialize.push("".to_string());
+        // self.serialize.push("".to_string());
+        // self.serialize.push("\tbag = {".to_string());
+        // self.serialize.push("\t\tstate : stateName,".to_string());
+        // self.serialize.push("\t\tdomain : {}".to_string());
+        // self.serialize.push("\t}".to_string());
+        // self.serialize.push("".to_string());
+        //
+        // self.deserialize.push("\t}".to_string());
+        // self.deserialize.push("".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2768,15 +2800,15 @@ impl AstVisitor for PythonVisitor {
         ));
         self.indent();
 
-        self.serialize.push(format!(
-            "\tif (self._state_ == _s{}_) stateName = \"{}\"",
-            state_node.name, state_node.name
-        ));
-
-        self.deserialize.push(format!(
-            "\t\tcase \"{}\": _state_ = _s{}_; break;",
-            state_node.name, state_node.name
-        ));
+        // self.serialize.push(format!(
+        //     "\tif (self._state_ == _s{}_) stateName = \"{}\"",
+        //     state_node.name, state_node.name
+        // ));
+        //
+        // self.deserialize.push(format!(
+        //     "\t\tcase \"{}\": _state_ = _s{}_; break;",
+        //     state_node.name, state_node.name
+        // ));
 
         let mut generate_pass = true;
 
@@ -2903,7 +2935,7 @@ impl AstVisitor for PythonVisitor {
                     if self.is_in_action_or_operation() {
                         self.add_code("return = ");
                     } else {
-                        self.add_code("__e._return = ");
+                        self.add_code("self.return_stack[-1] = ");
                     }
                     expr_t.accept(self);
                     // expr_t.auto_post_inc_dec(self);
@@ -3801,7 +3833,7 @@ impl AstVisitor for PythonVisitor {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
-                                self.add_code("__e._return = ");
+                                self.add_code("self.return_stack[-1] = ");
                                 expr_t.accept(self);
                                 self.generate_return();
                             }
@@ -3867,7 +3899,7 @@ impl AstVisitor for PythonVisitor {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
-                                self.add_code("__e._return = ");
+                                self.add_code("self.return_stack[-1] = ");
                                 expr_t.accept(self);
                                 self.generate_return();
                             }
@@ -4015,7 +4047,7 @@ impl AstVisitor for PythonVisitor {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
-                                self.add_code("__e._return = ");
+                                self.add_code("self.return_stack[-1] = ");
                                 expr_t.accept(self);
                                 self.generate_return();
                             }
@@ -4083,7 +4115,7 @@ impl AstVisitor for PythonVisitor {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
-                                self.add_code("__e._return = ");
+                                self.add_code("self.return_stack[-1] = ");
                                 expr_t.accept(self);
                                 self.generate_return();
                             }
@@ -4207,7 +4239,7 @@ impl AstVisitor for PythonVisitor {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
-                                self.add_code("__e._return = ");
+                                self.add_code("self.return_stack[-1] = ");
                                 expr_t.accept(self);
                                 self.generate_return();
                             }
@@ -4248,7 +4280,7 @@ impl AstVisitor for PythonVisitor {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
-                                self.add_code("__e._return = ");
+                                self.add_code("self.return_stack[-1] = ");
                                 expr_t.accept(self);
                                 self.generate_return();
                             }
@@ -4401,7 +4433,7 @@ impl AstVisitor for PythonVisitor {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
-                                self.add_code("__e._return = ");
+                                self.add_code("self.return_stack[-1] = ");
                                 expr_t.accept(self);
                                 self.generate_return();
                             }
@@ -4465,7 +4497,7 @@ impl AstVisitor for PythonVisitor {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
-                                self.add_code("__e._return = ");
+                                self.add_code("self.return_stack[-1] = ");
                                 expr_t.accept(self);
                                 self.generate_return();
                             }
@@ -4682,7 +4714,7 @@ impl AstVisitor for PythonVisitor {
             )),
             FrameEventPart::Return {
                 is_reference: _is_reference,
-            } => self.add_code("__e._return"),
+            } => self.add_code("self.return_stack[-1]"),
         }
     }
 
@@ -4711,7 +4743,7 @@ impl AstVisitor for PythonVisitor {
             )),
             FrameEventPart::Return {
                 is_reference: _is_reference,
-            } => output.push_str("__e._return"),
+            } => output.push_str("self.return_stack[-1]"),
         }
     }
 
@@ -4931,10 +4963,10 @@ impl AstVisitor for PythonVisitor {
             _ => panic!("Error - unexpected scope for variable declaration"),
         }
 
-        self.serialize
-            .push(format!("\tbag.domain[\"{}\"] = {}", var_name, var_name));
-        self.deserialize
-            .push(format!("\t{} = bag.domain[\"{}\"]", var_name, var_name));
+        // self.serialize
+        //     .push(format!("\tbag.domain[\"{}\"] = {}", var_name, var_name));
+        // self.deserialize
+        //     .push(format!("\t{} = bag.domain[\"{}\"]", var_name, var_name));
     }
 
     //* --------------------------------------------------------------------- *//

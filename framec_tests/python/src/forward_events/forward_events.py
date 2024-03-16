@@ -1,4 +1,4 @@
-#Emitted from framec_v0.11.0
+#Emitted from framec_v0.11.2
 
 
 
@@ -24,10 +24,13 @@ class ForwardEvents:
         
         self.__state_stack = []
         
-         # Create and intialize start state compartment.
+         # Create and initialize start state compartment.
         
-        self.__compartment: 'ForwardEventsCompartment' = ForwardEventsCompartment('__forwardevents_state_S0')
-        self.__next_compartment: 'ForwardEventsCompartment' = None
+        next_compartment = None
+        next_compartment = ForwardEventsCompartment('__forwardevents_state_S0', next_compartment)
+        self.__compartment = next_compartment
+        self.__next_compartment = None
+        self.return_stack = []
         
         # Initialize domain
         
@@ -40,27 +43,35 @@ class ForwardEvents:
     # ==================== Interface Block ================== #
     
     def GotoS1(self,):
+        self.return_stack.append(None)
         __e = FrameEvent("GotoS1",None)
         self.__kernel(__e)
+        self.return_stack.pop(-1)
     
     def GotoS2(self,):
+        self.return_stack.append(None)
         __e = FrameEvent("GotoS2",None)
         self.__kernel(__e)
+        self.return_stack.pop(-1)
     
     def ReturnFromS1(self,):
+        self.return_stack.append(None)
         __e = FrameEvent("ReturnFromS1",None)
         self.__kernel(__e)
+        self.return_stack.pop(-1)
     
     def ReturnFromS2(self,):
+        self.return_stack.append(None)
         __e = FrameEvent("ReturnFromS2",None)
         self.__kernel(__e)
+        self.return_stack.pop(-1)
     
     # ===================== Machine Block =================== #
     
     # ----------------------------------------
     # $S0
     
-    def __forwardevents_state_S0(self, __e):
+    def __forwardevents_state_S0(self, __e, compartment):
         if __e._message == ">":
             self.log_do("Enter $S0")
             return
@@ -69,13 +80,15 @@ class ForwardEvents:
             return
         elif __e._message == "GotoS1":
             self.log_do("Recieved |GotoS1|")
-            next_compartment = ForwardEventsCompartment('__forwardevents_state_S1')
+            next_compartment = None
+            next_compartment = ForwardEventsCompartment('__forwardevents_state_S1', next_compartment)
             self.__transition(next_compartment)
             return
         elif __e._message == "GotoS2":
             self.log_do("Recieved |GotoS2|")
             self.__state_stack_push(self.__compartment)
-            next_compartment = ForwardEventsCompartment('__forwardevents_state_S2')
+            next_compartment = None
+            next_compartment = ForwardEventsCompartment('__forwardevents_state_S2', next_compartment)
             self.__transition(next_compartment)
             return
         elif __e._message == "ReturnFromS1":
@@ -88,7 +101,7 @@ class ForwardEvents:
     # ----------------------------------------
     # $S1
     
-    def __forwardevents_state_S1(self, __e):
+    def __forwardevents_state_S1(self, __e, compartment):
         if __e._message == ">":
             self.log_do("Enter $S1")
             return
@@ -96,7 +109,9 @@ class ForwardEvents:
             self.log_do("Exit $S1")
             return
         elif __e._message == "ReturnFromS1":
-            next_compartment = ForwardEventsCompartment('__forwardevents_state_S0')
+            next_compartment = None
+            next_compartment = ForwardEventsCompartment('__forwardevents_state_S0', next_compartment)
+            next_compartment.forward_event = __e
             next_compartment.forward_event = __e
             self.__transition(next_compartment)
             return
@@ -104,7 +119,7 @@ class ForwardEvents:
     # ----------------------------------------
     # $S2
     
-    def __forwardevents_state_S2(self, __e):
+    def __forwardevents_state_S2(self, __e, compartment):
         if __e._message == ">":
             self.log_do("Enter $S2")
             return
@@ -158,16 +173,16 @@ class ForwardEvents:
     
     def __router(self, __e):
         if self.__compartment.state == '__forwardevents_state_S0':
-            self.__forwardevents_state_S0(__e)
+            self.__forwardevents_state_S0(__e, self.__compartment)
         elif self.__compartment.state == '__forwardevents_state_S1':
-            self.__forwardevents_state_S1(__e)
+            self.__forwardevents_state_S1(__e, self.__compartment)
         elif self.__compartment.state == '__forwardevents_state_S2':
-            self.__forwardevents_state_S2(__e)
+            self.__forwardevents_state_S2(__e, self.__compartment)
         
-    def __transition(self, next_compartment: 'ForwardEventsCompartment'):
+    def __transition(self, next_compartment):
         self.__next_compartment = next_compartment
     
-    def __state_stack_push(self, compartment: 'ForwardEventsCompartment'):
+    def __state_stack_push(self, compartment):
         self.__state_stack.append(compartment)
     
     def __state_stack_pop(self):
@@ -181,11 +196,12 @@ class ForwardEvents:
 
 class ForwardEventsCompartment:
 
-    def __init__(self,state):
+    def __init__(self,state,parent_compartment):
         self.state = state
         self.state_args = {}
         self.state_vars = {}
         self.enter_args = {}
         self.exit_args = {}
         self.forward_event = None
+        self.parent_compartment = parent_compartment
     

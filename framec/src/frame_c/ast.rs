@@ -411,6 +411,7 @@ pub struct InterfaceMethodNode {
     pub name: String,
     pub params: Option<Vec<ParameterNode>>,
     pub return_type_opt: Option<TypeNode>,
+    pub return_init_expr_opt: Option<ExprType>,
     pub alias: Option<MessageNode>,
 }
 
@@ -419,12 +420,14 @@ impl InterfaceMethodNode {
         name: String,
         params: Option<Vec<ParameterNode>>,
         return_type: Option<TypeNode>,
+        return_init_expr_opt: Option<ExprType>,
         alias: Option<MessageNode>,
     ) -> InterfaceMethodNode {
         InterfaceMethodNode {
             name,
             params,
             return_type_opt: return_type,
+            return_init_expr_opt,
             alias,
         }
     }

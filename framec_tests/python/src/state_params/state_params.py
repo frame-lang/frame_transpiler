@@ -1,4 +1,4 @@
-#Emitted from framec_v0.11.0
+#Emitted from framec_v0.11.2
 
 
 
@@ -20,10 +20,13 @@ class StateParams:
     
     def __init__(self):
         
-         # Create and intialize start state compartment.
+         # Create and initialize start state compartment.
         
-        self.__compartment: 'StateParamsCompartment' = StateParamsCompartment('__stateparams_state_Init')
-        self.__next_compartment: 'StateParamsCompartment' = None
+        next_compartment = None
+        next_compartment = StateParamsCompartment('__stateparams_state_Init', next_compartment)
+        self.__compartment = next_compartment
+        self.__next_compartment = None
+        self.return_stack = []
         
         # Initialize domain
         
@@ -36,25 +39,32 @@ class StateParams:
     # ==================== Interface Block ================== #
     
     def Next(self,):
+        self.return_stack.append(None)
         __e = FrameEvent("Next",None)
         self.__kernel(__e)
+        self.return_stack.pop(-1)
     
     def Prev(self,):
+        self.return_stack.append(None)
         __e = FrameEvent("Prev",None)
         self.__kernel(__e)
+        self.return_stack.pop(-1)
     
     def Log(self,):
+        self.return_stack.append(None)
         __e = FrameEvent("Log",None)
         self.__kernel(__e)
+        self.return_stack.pop(-1)
     
     # ===================== Machine Block =================== #
     
     # ----------------------------------------
     # $Init
     
-    def __stateparams_state_Init(self, __e):
+    def __stateparams_state_Init(self, __e, compartment):
         if __e._message == "Next":
-            next_compartment = StateParamsCompartment('__stateparams_state_Split')
+            next_compartment = None
+            next_compartment = StateParamsCompartment('__stateparams_state_Split', next_compartment)
             next_compartment.state_args["val"] = 1
             self.__transition(next_compartment)
             return
@@ -62,40 +72,44 @@ class StateParams:
     # ----------------------------------------
     # $Split
     
-    def __stateparams_state_Split(self, __e):
+    def __stateparams_state_Split(self, __e, compartment):
         if __e._message == "Next":
-            next_compartment = StateParamsCompartment('__stateparams_state_Merge')
-            next_compartment.state_args["left"] = self.__compartment.state_args["val"]
-            next_compartment.state_args["right"] = self.__compartment.state_args["val"] + 1
+            next_compartment = None
+            next_compartment = StateParamsCompartment('__stateparams_state_Merge', next_compartment)
+            next_compartment.state_args["left"] = compartment.state_args["val"]
+            next_compartment.state_args["right"] = compartment.state_args["val"] + 1
             self.__transition(next_compartment)
             return
         elif __e._message == "Prev":
-            next_compartment = StateParamsCompartment('__stateparams_state_Merge')
-            next_compartment.state_args["left"] = self.__compartment.state_args["val"] + 1
-            next_compartment.state_args["right"] = self.__compartment.state_args["val"]
+            next_compartment = None
+            next_compartment = StateParamsCompartment('__stateparams_state_Merge', next_compartment)
+            next_compartment.state_args["left"] = compartment.state_args["val"] + 1
+            next_compartment.state_args["right"] = compartment.state_args["val"]
             self.__transition(next_compartment)
             return
         elif __e._message == "Log":
-            self.got_param_do("val",(self.__compartment.state_args["val"]))
+            self.got_param_do("val",(compartment.state_args["val"]))
             return
     
     # ----------------------------------------
     # $Merge
     
-    def __stateparams_state_Merge(self, __e):
+    def __stateparams_state_Merge(self, __e, compartment):
         if __e._message == "Next":
-            next_compartment = StateParamsCompartment('__stateparams_state_Split')
-            next_compartment.state_args["val"] = self.__compartment.state_args["left"] + self.__compartment.state_args["right"]
+            next_compartment = None
+            next_compartment = StateParamsCompartment('__stateparams_state_Split', next_compartment)
+            next_compartment.state_args["val"] = compartment.state_args["left"] + compartment.state_args["right"]
             self.__transition(next_compartment)
             return
         elif __e._message == "Prev":
-            next_compartment = StateParamsCompartment('__stateparams_state_Split')
-            next_compartment.state_args["val"] = self.__compartment.state_args["left"] * self.__compartment.state_args["right"]
+            next_compartment = None
+            next_compartment = StateParamsCompartment('__stateparams_state_Split', next_compartment)
+            next_compartment.state_args["val"] = compartment.state_args["left"] * compartment.state_args["right"]
             self.__transition(next_compartment)
             return
         elif __e._message == "Log":
-            self.got_param_do("left",(self.__compartment.state_args["left"]))
-            self.got_param_do("right",(self.__compartment.state_args["right"]))
+            self.got_param_do("left",(compartment.state_args["left"]))
+            self.got_param_do("right",(compartment.state_args["right"]))
             return
     
     # ===================== Actions Block =================== #
@@ -138,13 +152,13 @@ class StateParams:
     
     def __router(self, __e):
         if self.__compartment.state == '__stateparams_state_Init':
-            self.__stateparams_state_Init(__e)
+            self.__stateparams_state_Init(__e, self.__compartment)
         elif self.__compartment.state == '__stateparams_state_Split':
-            self.__stateparams_state_Split(__e)
+            self.__stateparams_state_Split(__e, self.__compartment)
         elif self.__compartment.state == '__stateparams_state_Merge':
-            self.__stateparams_state_Merge(__e)
+            self.__stateparams_state_Merge(__e, self.__compartment)
         
-    def __transition(self, next_compartment: 'StateParamsCompartment'):
+    def __transition(self, next_compartment):
         self.__next_compartment = next_compartment
     
     def state_info(self):
@@ -155,11 +169,12 @@ class StateParams:
 
 class StateParamsCompartment:
 
-    def __init__(self,state):
+    def __init__(self,state,parent_compartment):
         self.state = state
         self.state_args = {}
         self.state_vars = {}
         self.enter_args = {}
         self.exit_args = {}
         self.forward_event = None
+        self.parent_compartment = parent_compartment
     

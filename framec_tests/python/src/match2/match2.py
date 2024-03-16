@@ -1,4 +1,4 @@
-#Emitted from framec_v0.11.0
+#Emitted from framec_v0.11.2
 
 import sys
 from enum import Enum
@@ -25,10 +25,13 @@ class MatchTests:
     
     def __init__(self):
         
-         # Create and intialize start state compartment.
+         # Create and initialize start state compartment.
         
-        self.__compartment: 'MatchTestsCompartment' = MatchTestsCompartment('__matchtests_state_A')
-        self.__next_compartment: 'MatchTestsCompartment' = None
+        next_compartment = None
+        next_compartment = MatchTestsCompartment('__matchtests_state_A', next_compartment)
+        self.__compartment = next_compartment
+        self.__next_compartment = None
+        self.return_stack = []
         
         # Initialize domain
         
@@ -43,7 +46,7 @@ class MatchTests:
     # ----------------------------------------
     # $A
     
-    def __matchtests_state_A(self, __e):
+    def __matchtests_state_A(self, __e, compartment):
         if __e._message == ">":
             self.matchFruit_do(MatchTests_Fruit.PEACH)
             self.matchFruit_do(MatchTests_Fruit.pear)
@@ -199,9 +202,9 @@ class MatchTests:
     
     def __router(self, __e):
         if self.__compartment.state == '__matchtests_state_A':
-            self.__matchtests_state_A(__e)
+            self.__matchtests_state_A(__e, self.__compartment)
         
-    def __transition(self, next_compartment: 'MatchTestsCompartment'):
+    def __transition(self, next_compartment):
         self.__next_compartment = next_compartment
     
 
@@ -209,11 +212,12 @@ class MatchTests:
 
 class MatchTestsCompartment:
 
-    def __init__(self,state):
+    def __init__(self,state,parent_compartment):
         self.state = state
         self.state_args = {}
         self.state_vars = {}
         self.enter_args = {}
         self.exit_args = {}
         self.forward_event = None
+        self.parent_compartment = parent_compartment
     

@@ -1442,12 +1442,51 @@ impl<'a> Parser<'a> {
             }
         }
 
+        let mut return_init_expr_opt = Option::None;
+
         // Parse return type
         if self.match_token(&[TokenType::Colon]) {
-            match self.type_decl() {
-                Ok(type_node) => return_type_opt = Some(type_node),
-                Err(parse_error) => return Err(parse_error),
+            if self.match_token(&[TokenType::LParen]) {
+                // Parse initializer expression group
+                // if self.match_token(&[TokenType::LParen]) {
+                    let return_expr_result = self.expression();
+                    match return_expr_result {
+                        Ok(Some(expr_type)) => {
+                            return_init_expr_opt = Some(expr_type);
+                        }
+                        Ok(None) => {}
+                        Err(err) => {
+                            return Err(err);
+                        }
+                    }
+                    if let Err(parse_error) = self.consume(TokenType::RParen, "Expected ')'.") {
+                        return Err(parse_error);
+                    }
+                // }
+            } else {
+                match self.type_decl() {
+                    Ok(type_node) => return_type_opt = Some(type_node),
+                    Err(parse_error) => return Err(parse_error),
+                }
+
+                // Parse initializer expression group
+                if self.match_token(&[TokenType::LParen]) {
+                    let return_expr_result = self.expression();
+                    match return_expr_result {
+                        Ok(Some(expr_type)) => {
+                            return_init_expr_opt = Some(expr_type);
+                        }
+                        Ok(None) => {}
+                        Err(err) => {
+                            return Err(err);
+                        }
+                    }
+                    if let Err(parse_error) = self.consume(TokenType::RParen, "Expected ')'.") {
+                        return Err(parse_error);
+                    }
+                }
             }
+
         }
 
         // Parse alias
@@ -1533,7 +1572,7 @@ impl<'a> Parser<'a> {
         }
 
         let interface_method_node =
-            InterfaceMethodNode::new(name.clone(), params_opt, return_type_opt, alias_opt);
+            InterfaceMethodNode::new(name.clone(), params_opt, return_type_opt, return_init_expr_opt, alias_opt);
         let interface_method_rcref = Rc::new(RefCell::new(interface_method_node));
 
         if self.is_building_symbol_table {

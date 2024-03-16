@@ -1,4 +1,4 @@
-#Emitted from framec_v0.11.0
+#Emitted from framec_v0.11.2
 
 
 
@@ -20,10 +20,13 @@ class Basic:
     
     def __init__(self):
         
-         # Create and intialize start state compartment.
+         # Create and initialize start state compartment.
         
-        self.__compartment: 'BasicCompartment' = BasicCompartment('__basic_state_S0')
-        self.__next_compartment: 'BasicCompartment' = None
+        next_compartment = None
+        next_compartment = BasicCompartment('__basic_state_S0', next_compartment)
+        self.__compartment = next_compartment
+        self.__next_compartment = None
+        self.return_stack = []
         
         # Initialize domain
         
@@ -37,19 +40,23 @@ class Basic:
     # ==================== Interface Block ================== #
     
     def A(self,):
+        self.return_stack.append(None)
         __e = FrameEvent("A",None)
         self.__kernel(__e)
+        self.return_stack.pop(-1)
     
     def B(self,):
+        self.return_stack.append(None)
         __e = FrameEvent("B",None)
         self.__kernel(__e)
+        self.return_stack.pop(-1)
     
     # ===================== Machine Block =================== #
     
     # ----------------------------------------
     # $S0
     
-    def __basic_state_S0(self, __e):
+    def __basic_state_S0(self, __e, compartment):
         if __e._message == ">":
             self.entered_do("S0")
             return
@@ -58,14 +65,15 @@ class Basic:
             return
         elif __e._message == "A":
             # ooh
-            next_compartment = BasicCompartment('__basic_state_S1')
+            next_compartment = None
+            next_compartment = BasicCompartment('__basic_state_S1', next_compartment)
             self.__transition(next_compartment)
             return
     
     # ----------------------------------------
     # $S1
     
-    def __basic_state_S1(self, __e):
+    def __basic_state_S1(self, __e, compartment):
         if __e._message == ">":
             self.entered_do("S1")
             return
@@ -74,7 +82,8 @@ class Basic:
             return
         elif __e._message == "B":
             # aah
-            next_compartment = BasicCompartment('__basic_state_S0')
+            next_compartment = None
+            next_compartment = BasicCompartment('__basic_state_S0', next_compartment)
             self.__transition(next_compartment)
             return
     
@@ -121,11 +130,11 @@ class Basic:
     
     def __router(self, __e):
         if self.__compartment.state == '__basic_state_S0':
-            self.__basic_state_S0(__e)
+            self.__basic_state_S0(__e, self.__compartment)
         elif self.__compartment.state == '__basic_state_S1':
-            self.__basic_state_S1(__e)
+            self.__basic_state_S1(__e, self.__compartment)
         
-    def __transition(self, next_compartment: 'BasicCompartment'):
+    def __transition(self, next_compartment):
         self.__next_compartment = next_compartment
     
     def state_info(self):
@@ -136,11 +145,12 @@ class Basic:
 
 class BasicCompartment:
 
-    def __init__(self,state):
+    def __init__(self,state,parent_compartment):
         self.state = state
         self.state_args = {}
         self.state_vars = {}
         self.enter_args = {}
         self.exit_args = {}
         self.forward_event = None
+        self.parent_compartment = parent_compartment
     

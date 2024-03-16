@@ -1,4 +1,4 @@
-#Emitted from framec_v0.11.0
+#Emitted from framec_v0.11.2
 
 
 
@@ -20,10 +20,13 @@ class StateVars:
     
     def __init__(self):
         
-         # Create and intialize start state compartment.
+         # Create and initialize start state compartment.
         
-        self.__compartment: 'StateVarsCompartment' = StateVarsCompartment('__statevars_state_Init')
-        self.__next_compartment: 'StateVarsCompartment' = None
+        next_compartment = None
+        next_compartment = StateVarsCompartment('__statevars_state_Init', next_compartment)
+        self.__compartment = next_compartment
+        self.__next_compartment = None
+        self.return_stack = []
         
         # Initialize domain
         
@@ -35,25 +38,32 @@ class StateVars:
     # ==================== Interface Block ================== #
     
     def X(self,):
+        self.return_stack.append(None)
         __e = FrameEvent("X",None)
         self.__kernel(__e)
+        self.return_stack.pop(-1)
     
     def Y(self,):
+        self.return_stack.append(None)
         __e = FrameEvent("Y",None)
         self.__kernel(__e)
+        self.return_stack.pop(-1)
     
     def Z(self,):
+        self.return_stack.append(None)
         __e = FrameEvent("Z",None)
         self.__kernel(__e)
+        self.return_stack.pop(-1)
     
     # ===================== Machine Block =================== #
     
     # ----------------------------------------
     # $Init
     
-    def __statevars_state_Init(self, __e):
+    def __statevars_state_Init(self, __e, compartment):
         if __e._message == ">":
-            next_compartment = StateVarsCompartment('__statevars_state_A')
+            next_compartment = None
+            next_compartment = StateVarsCompartment('__statevars_state_A', next_compartment)
             next_compartment.state_vars["x"] = 0
             self.__transition(next_compartment)
             return
@@ -61,18 +71,20 @@ class StateVars:
     # ----------------------------------------
     # $A
     
-    def __statevars_state_A(self, __e):
+    def __statevars_state_A(self, __e, compartment):
         if __e._message == "X":
-            (self.__compartment.state_vars["x"]) = self.__compartment.state_vars["x"] + 1
+            (compartment.state_vars["x"]) = compartment.state_vars["x"] + 1
             return
         elif __e._message == "Y":
-            next_compartment = StateVarsCompartment('__statevars_state_B')
+            next_compartment = None
+            next_compartment = StateVarsCompartment('__statevars_state_B', next_compartment)
             next_compartment.state_vars["y"] = 10
             next_compartment.state_vars["z"] = 100
             self.__transition(next_compartment)
             return
         elif __e._message == "Z":
-            next_compartment = StateVarsCompartment('__statevars_state_B')
+            next_compartment = None
+            next_compartment = StateVarsCompartment('__statevars_state_B', next_compartment)
             next_compartment.state_vars["y"] = 10
             next_compartment.state_vars["z"] = 100
             self.__transition(next_compartment)
@@ -81,17 +93,18 @@ class StateVars:
     # ----------------------------------------
     # $B
     
-    def __statevars_state_B(self, __e):
+    def __statevars_state_B(self, __e, compartment):
         if __e._message == "X":
-            next_compartment = StateVarsCompartment('__statevars_state_A')
+            next_compartment = None
+            next_compartment = StateVarsCompartment('__statevars_state_A', next_compartment)
             next_compartment.state_vars["x"] = 0
             self.__transition(next_compartment)
             return
         elif __e._message == "Y":
-            (self.__compartment.state_vars["y"]) = self.__compartment.state_vars["y"] + 1
+            (compartment.state_vars["y"]) = compartment.state_vars["y"] + 1
             return
         elif __e._message == "Z":
-            (self.__compartment.state_vars["z"]) = self.__compartment.state_vars["z"] + 1
+            (compartment.state_vars["z"]) = compartment.state_vars["z"] + 1
             return
     
     # ===================== Actions Block =================== #
@@ -131,13 +144,13 @@ class StateVars:
     
     def __router(self, __e):
         if self.__compartment.state == '__statevars_state_Init':
-            self.__statevars_state_Init(__e)
+            self.__statevars_state_Init(__e, self.__compartment)
         elif self.__compartment.state == '__statevars_state_A':
-            self.__statevars_state_A(__e)
+            self.__statevars_state_A(__e, self.__compartment)
         elif self.__compartment.state == '__statevars_state_B':
-            self.__statevars_state_B(__e)
+            self.__statevars_state_B(__e, self.__compartment)
         
-    def __transition(self, next_compartment: 'StateVarsCompartment'):
+    def __transition(self, next_compartment):
         self.__next_compartment = next_compartment
     
     def state_info(self):
@@ -151,11 +164,12 @@ class StateVars:
 
 class StateVarsCompartment:
 
-    def __init__(self,state):
+    def __init__(self,state,parent_compartment):
         self.state = state
         self.state_args = {}
         self.state_vars = {}
         self.enter_args = {}
         self.exit_args = {}
         self.forward_event = None
+        self.parent_compartment = parent_compartment
     

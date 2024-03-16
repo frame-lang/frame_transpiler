@@ -1,4 +1,4 @@
-#Emitted from framec_v0.11.0
+#Emitted from framec_v0.11.2
 
 
 
@@ -24,11 +24,15 @@ class StateContextStack:
         
         self.__state_stack = []
         
-         # Create and intialize start state compartment.
+         # Create and initialize start state compartment.
         
-        self.__compartment: 'StateContextStackCompartment' = StateContextStackCompartment('__statecontextstack_state_A')
-        self.__next_compartment: 'StateContextStackCompartment' = None
-        self.__compartment.state_vars["x"] = 0
+        next_compartment = None
+        next_compartment = StateContextStackCompartment('__statecontextstack_state_A', next_compartment)
+        next_compartment.state_vars["x"] = 0
+        self.__compartment = next_compartment
+        self.__next_compartment = None
+        self.return_stack = []
+        next_compartment.state_vars["x"] = 0
         
         # Initialize domain
         
@@ -41,40 +45,53 @@ class StateContextStack:
     # ==================== Interface Block ================== #
     
     def to_a(self,):
+        self.return_stack.append(None)
         __e = FrameEvent("to_a",None)
         self.__kernel(__e)
+        self.return_stack.pop(-1)
     
     def to_b(self,):
+        self.return_stack.append(None)
         __e = FrameEvent("to_b",None)
         self.__kernel(__e)
+        self.return_stack.pop(-1)
     
     def to_c(self,):
+        self.return_stack.append(None)
         __e = FrameEvent("to_c",None)
         self.__kernel(__e)
+        self.return_stack.pop(-1)
     
     def inc(self,):
+        self.return_stack.append(None)
         __e = FrameEvent("inc",None)
         self.__kernel(__e)
+        self.return_stack.pop(-1)
     
     def value(self,):
+        self.return_stack.append(None)
         __e = FrameEvent("value",None)
         self.__kernel(__e)
-        return __e._return
+        return self.return_stack.pop(-1)
     
     def push(self,):
+        self.return_stack.append(None)
         __e = FrameEvent("push",None)
         self.__kernel(__e)
+        self.return_stack.pop(-1)
     
     def pop(self,):
+        self.return_stack.append(None)
         __e = FrameEvent("pop",None)
         self.__kernel(__e)
+        self.return_stack.pop(-1)
     
     # ===================== Machine Block =================== #
     
     # ----------------------------------------
     # $A
     
-    def __statecontextstack_state_A(self, __e):
+    def __statecontextstack_state_A(self, __e, compartment):
         if __e._message == ">":
             self.log_do("A:>")
             return
@@ -82,24 +99,27 @@ class StateContextStack:
             self.log_do("A:<")
             return
         elif __e._message == "inc":
-            (self.__compartment.state_vars["x"]) = self.__compartment.state_vars["x"] + 1
+            (compartment.state_vars["x"]) = compartment.state_vars["x"] + 1
             return
         elif __e._message == "value":
-            __e._return = (self.__compartment.state_vars["x"])
+            self.return_stack[-1] = (compartment.state_vars["x"])
             return
             
         elif __e._message == "to_a":
-            next_compartment = StateContextStackCompartment('__statecontextstack_state_A')
+            next_compartment = None
+            next_compartment = StateContextStackCompartment('__statecontextstack_state_A', next_compartment)
             next_compartment.state_vars["x"] = 0
             self.__transition(next_compartment)
             return
         elif __e._message == "to_b":
-            next_compartment = StateContextStackCompartment('__statecontextstack_state_B')
+            next_compartment = None
+            next_compartment = StateContextStackCompartment('__statecontextstack_state_B', next_compartment)
             next_compartment.state_vars["y"] = 0
             self.__transition(next_compartment)
             return
         elif __e._message == "to_c":
-            next_compartment = StateContextStackCompartment('__statecontextstack_state_C')
+            next_compartment = None
+            next_compartment = StateContextStackCompartment('__statecontextstack_state_C', next_compartment)
             next_compartment.state_vars["z"] = 0
             self.__transition(next_compartment)
             return
@@ -114,7 +134,7 @@ class StateContextStack:
     # ----------------------------------------
     # $B
     
-    def __statecontextstack_state_B(self, __e):
+    def __statecontextstack_state_B(self, __e, compartment):
         if __e._message == ">":
             self.log_do("B:>")
             return
@@ -122,24 +142,27 @@ class StateContextStack:
             self.log_do("B:<")
             return
         elif __e._message == "inc":
-            (self.__compartment.state_vars["y"]) = self.__compartment.state_vars["y"] + 5
+            (compartment.state_vars["y"]) = compartment.state_vars["y"] + 5
             return
         elif __e._message == "value":
-            __e._return = (self.__compartment.state_vars["y"])
+            self.return_stack[-1] = (compartment.state_vars["y"])
             return
             
         elif __e._message == "to_a":
-            next_compartment = StateContextStackCompartment('__statecontextstack_state_A')
+            next_compartment = None
+            next_compartment = StateContextStackCompartment('__statecontextstack_state_A', next_compartment)
             next_compartment.state_vars["x"] = 0
             self.__transition(next_compartment)
             return
         elif __e._message == "to_b":
-            next_compartment = StateContextStackCompartment('__statecontextstack_state_B')
+            next_compartment = None
+            next_compartment = StateContextStackCompartment('__statecontextstack_state_B', next_compartment)
             next_compartment.state_vars["y"] = 0
             self.__transition(next_compartment)
             return
         elif __e._message == "to_c":
-            next_compartment = StateContextStackCompartment('__statecontextstack_state_C')
+            next_compartment = None
+            next_compartment = StateContextStackCompartment('__statecontextstack_state_C', next_compartment)
             next_compartment.state_vars["z"] = 0
             self.__transition(next_compartment)
             return
@@ -154,7 +177,7 @@ class StateContextStack:
     # ----------------------------------------
     # $C
     
-    def __statecontextstack_state_C(self, __e):
+    def __statecontextstack_state_C(self, __e, compartment):
         if __e._message == ">":
             self.log_do("C:>")
             return
@@ -162,24 +185,27 @@ class StateContextStack:
             self.log_do("C:<")
             return
         elif __e._message == "inc":
-            (self.__compartment.state_vars["z"]) = self.__compartment.state_vars["z"] + 10
+            (compartment.state_vars["z"]) = compartment.state_vars["z"] + 10
             return
         elif __e._message == "value":
-            __e._return = (self.__compartment.state_vars["z"])
+            self.return_stack[-1] = (compartment.state_vars["z"])
             return
             
         elif __e._message == "to_a":
-            next_compartment = StateContextStackCompartment('__statecontextstack_state_A')
+            next_compartment = None
+            next_compartment = StateContextStackCompartment('__statecontextstack_state_A', next_compartment)
             next_compartment.state_vars["x"] = 0
             self.__transition(next_compartment)
             return
         elif __e._message == "to_b":
-            next_compartment = StateContextStackCompartment('__statecontextstack_state_B')
+            next_compartment = None
+            next_compartment = StateContextStackCompartment('__statecontextstack_state_B', next_compartment)
             next_compartment.state_vars["y"] = 0
             self.__transition(next_compartment)
             return
         elif __e._message == "to_c":
-            next_compartment = StateContextStackCompartment('__statecontextstack_state_C')
+            next_compartment = None
+            next_compartment = StateContextStackCompartment('__statecontextstack_state_C', next_compartment)
             next_compartment.state_vars["z"] = 0
             self.__transition(next_compartment)
             return
@@ -231,16 +257,16 @@ class StateContextStack:
     
     def __router(self, __e):
         if self.__compartment.state == '__statecontextstack_state_A':
-            self.__statecontextstack_state_A(__e)
+            self.__statecontextstack_state_A(__e, self.__compartment)
         elif self.__compartment.state == '__statecontextstack_state_B':
-            self.__statecontextstack_state_B(__e)
+            self.__statecontextstack_state_B(__e, self.__compartment)
         elif self.__compartment.state == '__statecontextstack_state_C':
-            self.__statecontextstack_state_C(__e)
+            self.__statecontextstack_state_C(__e, self.__compartment)
         
-    def __transition(self, next_compartment: 'StateContextStackCompartment'):
+    def __transition(self, next_compartment):
         self.__next_compartment = next_compartment
     
-    def __state_stack_push(self, compartment: 'StateContextStackCompartment'):
+    def __state_stack_push(self, compartment):
         self.__state_stack.append(compartment)
     
     def __state_stack_pop(self):
@@ -254,11 +280,12 @@ class StateContextStack:
 
 class StateContextStackCompartment:
 
-    def __init__(self,state):
+    def __init__(self,state,parent_compartment):
         self.state = state
         self.state_args = {}
         self.state_vars = {}
         self.enter_args = {}
         self.exit_args = {}
         self.forward_event = None
+        self.parent_compartment = parent_compartment
     

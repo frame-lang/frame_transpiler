@@ -1,4 +1,4 @@
-#Emitted from framec_v0.11.0
+#Emitted from framec_v0.11.2
 
 
 
@@ -20,10 +20,13 @@ class EventHandler:
     
     def __init__(self):
         
-         # Create and intialize start state compartment.
+         # Create and initialize start state compartment.
         
-        self.__compartment: 'EventHandlerCompartment' = EventHandlerCompartment('__eventhandler_state_S1')
-        self.__next_compartment: 'EventHandlerCompartment' = None
+        next_compartment = None
+        next_compartment = EventHandlerCompartment('__eventhandler_state_S1', next_compartment)
+        self.__compartment = next_compartment
+        self.__next_compartment = None
+        self.return_stack = []
         
         # Initialize domain
         
@@ -38,45 +41,53 @@ class EventHandler:
     def LogIt(self,x: int):
         parameters = {}
         parameters["x"] = x
+        self.return_stack.append(None)
         __e = FrameEvent("LogIt",parameters)
         self.__kernel(__e)
+        self.return_stack.pop(-1)
     
     def LogAdd(self,a: int,b: int):
         parameters = {}
         parameters["a"] = a
         parameters["b"] = b
+        self.return_stack.append(None)
         __e = FrameEvent("LogAdd",parameters)
         self.__kernel(__e)
+        self.return_stack.pop(-1)
     
     def LogReturn(self,a: int,b: int):
         parameters = {}
         parameters["a"] = a
         parameters["b"] = b
+        self.return_stack.append(None)
         __e = FrameEvent("LogReturn",parameters)
         self.__kernel(__e)
-        return __e._return
+        return self.return_stack.pop(-1)
     
     def PassAdd(self,a: int,b: int):
         parameters = {}
         parameters["a"] = a
         parameters["b"] = b
+        self.return_stack.append(None)
         __e = FrameEvent("PassAdd",parameters)
         self.__kernel(__e)
+        self.return_stack.pop(-1)
     
     def PassReturn(self,a: int,b: int):
         parameters = {}
         parameters["a"] = a
         parameters["b"] = b
+        self.return_stack.append(None)
         __e = FrameEvent("PassReturn",parameters)
         self.__kernel(__e)
-        return __e._return
+        return self.return_stack.pop(-1)
     
     # ===================== Machine Block =================== #
     
     # ----------------------------------------
     # $S1
     
-    def __eventhandler_state_S1(self, __e):
+    def __eventhandler_state_S1(self, __e, compartment):
         if __e._message == "LogIt":
             self.log_do("x",__e._parameters["x"])
             return
@@ -90,30 +101,32 @@ class EventHandler:
             self.log_do("b",__e._parameters["b"])
             r = __e._parameters["a"] + __e._parameters["b"]
             self.log_do("r",r)
-            __e._return = r
+            self.return_stack[-1] = r
             return
             
         elif __e._message == "PassAdd":
-            next_compartment = EventHandlerCompartment('__eventhandler_state_S2')
+            next_compartment = None
+            next_compartment = EventHandlerCompartment('__eventhandler_state_S2', next_compartment)
             next_compartment.state_args["p"] = __e._parameters["a"] + __e._parameters["b"]
             self.__transition(next_compartment)
             return
         elif __e._message == "PassReturn":
             r = __e._parameters["a"] + __e._parameters["b"]
             self.log_do("r",r)
-            next_compartment = EventHandlerCompartment('__eventhandler_state_S2')
+            next_compartment = None
+            next_compartment = EventHandlerCompartment('__eventhandler_state_S2', next_compartment)
             next_compartment.state_args["p"] = r
             self.__transition(next_compartment)
-            __e._return = r
+            self.return_stack[-1] = r
             return
             
     
     # ----------------------------------------
     # $S2
     
-    def __eventhandler_state_S2(self, __e):
+    def __eventhandler_state_S2(self, __e, compartment):
         if __e._message == ">":
-            self.log_do("p",(self.__compartment.state_args["p"]))
+            self.log_do("p",(compartment.state_args["p"]))
             return
     
     # ===================== Actions Block =================== #
@@ -156,11 +169,11 @@ class EventHandler:
     
     def __router(self, __e):
         if self.__compartment.state == '__eventhandler_state_S1':
-            self.__eventhandler_state_S1(__e)
+            self.__eventhandler_state_S1(__e, self.__compartment)
         elif self.__compartment.state == '__eventhandler_state_S2':
-            self.__eventhandler_state_S2(__e)
+            self.__eventhandler_state_S2(__e, self.__compartment)
         
-    def __transition(self, next_compartment: 'EventHandlerCompartment'):
+    def __transition(self, next_compartment):
         self.__next_compartment = next_compartment
     
     def state_info(self):
@@ -171,11 +184,12 @@ class EventHandler:
 
 class EventHandlerCompartment:
 
-    def __init__(self,state):
+    def __init__(self,state,parent_compartment):
         self.state = state
         self.state_args = {}
         self.state_vars = {}
         self.enter_args = {}
         self.exit_args = {}
         self.forward_event = None
+        self.parent_compartment = parent_compartment
     
