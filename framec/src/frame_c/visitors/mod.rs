@@ -159,9 +159,17 @@ pub trait AstVisitor {
 
     fn visit_expression_list_node(&mut self, _expr_list: &ExprListNode) {}
     fn visit_expression_list_node_to_string(&mut self, _expr_list: &ExprListNode, _output: &mut String) {}
-    fn visit_auto_pre_inc_dec_expr_node(&mut self, _expr_list: &RefExprType) {}
-    fn visit_auto_post_inc_dec_expr_node(&mut self, _expr_list: &RefExprType) {}
+
+    fn visit_list_node(&mut self, _list: &ListNode) {}
+    fn visit_list_node_to_string(&mut self, _list: &ListNode, _output: &mut String) {}
+
+    fn visit_list_elem_node(&mut self, _list_elem: &ListElementNode) {}
+    fn visit_list_elem_node_to_string(&mut self, _list_elem: &ListElementNode, _output: &mut String) {}
+    // fn visit_auto_pre_inc_dec_expr_node(&mut self, _expr_list: &RefExprType) {}
+    // fn visit_auto_post_inc_dec_expr_node(&mut self, _expr_list: &RefExprType) {}
  //   fn auto_post_inc_dec_expression_list_node(&mut self, _expr_list: &ExprListNode) {}
+
+    fn visit_list_stmt_node(&mut self, _list: &ListStmtNode) {}
 
     fn visit_expr_list_stmt_node(&mut self, _expr_list: &ExprListStmtNode) {}
 

@@ -523,6 +523,67 @@ impl PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    fn format_list_element_expr(&mut self, list_element_node: &ListElementNode) -> String {
+        let mut code = String::new();
+
+        match list_element_node.scope {
+            IdentifierDeclScope::SystemScope => {
+                code.push_str("self");
+            }
+            IdentifierDeclScope::DomainBlockScope => {
+                code.push_str(&format!("self.{}", list_element_node.identifier.name.lexeme));
+            }
+            IdentifierDeclScope::StateParamScope => {
+                if self.visiting_call_chain_literal_variable {
+                    code.push('(');
+                }
+                code.push_str(&format!(
+                    "compartment.state_args[\"{}\"]",
+                    list_element_node.identifier.name.lexeme
+                ));
+                if self.visiting_call_chain_literal_variable {
+                    code.push(')');
+                }
+            }
+            IdentifierDeclScope::StateVarScope => {
+                if self.visiting_call_chain_literal_variable {
+                    code.push('(');
+                }
+                code.push_str(&format!(
+                    "compartment.state_vars[\"{}\"]",
+                    list_element_node.identifier.name.lexeme
+                ));
+                if self.visiting_call_chain_literal_variable {
+                    code.push(')');
+                }
+            }
+            IdentifierDeclScope::EventHandlerParamScope => {
+                // if self.visiting_call_chain_literal_variable {
+                //     code.push_str("(");
+                // }
+                code.push_str(&format!(
+                    "__e._parameters[\"{}\"]",
+                    list_element_node.identifier.name.lexeme
+                ));
+                // if self.visiting_call_chain_literal_variable {
+                //     code.push_str(")");
+                // }
+            }
+            IdentifierDeclScope::EventHandlerVarScope => {
+                code.push_str(&list_element_node.identifier.name.lexeme.to_string());
+            }
+            IdentifierDeclScope::UnknownScope => {
+                // TODO: Explore labeling Variables as "extern" scope
+                code.push_str(&list_element_node.identifier.name.lexeme.to_string());
+            } // Actions?
+            _ => self.errors.push("Illegal scope.".to_string()),
+        }
+
+        code
+    }
+    
+    //* --------------------------------------------------------------------- *//
+
     fn format_parameter_list(&mut self, params_in: &Option<Vec<ParameterNode>>) {
         if params_in.is_none() {
             return;
@@ -810,6 +871,9 @@ impl PythonVisitor {
                                 ExprStmtType::VariableStmtT { variable_stmt_node } => {
                                     variable_stmt_node.accept(self)
                                 }
+                                ExprStmtType::ListStmtT {
+                                    list_stmt_node,
+                                } => list_stmt_node.accept(self),
                                 ExprStmtType::ExprListStmtT {
                                     expr_list_stmt_node,
                                 } => expr_list_stmt_node.accept(self),
@@ -3270,7 +3334,7 @@ impl AstVisitor for PythonVisitor {
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                     id_node.accept(self);
                 }
-                CallChainNodeType::UndeclaredCallT { call } => {
+                CallChainNodeType::UndeclaredCallT { call_node: call } => {
                     call.accept(self);
                 }
                 CallChainNodeType::InterfaceMethodCallT {
@@ -3300,6 +3364,12 @@ impl AstVisitor for PythonVisitor {
                     self.visiting_call_chain_literal_variable = true;
                     var_node.accept(self);
                     self.visiting_call_chain_literal_variable = false;
+                }
+                CallChainNodeType::ListElementNodeT {list_elem_node} => {
+                    list_elem_node.accept(self);
+                }
+                CallChainNodeType::UndeclaredListElementT {list_elem_node} => {
+                    list_elem_node.accept(self);
                 }
             }
         }
@@ -3542,7 +3612,7 @@ impl AstVisitor for PythonVisitor {
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                     id_node.accept_to_string(self, output);
                 }
-                CallChainNodeType::UndeclaredCallT { call } => {
+                CallChainNodeType::UndeclaredCallT { call_node: call } => {
                     call.accept_to_string(self, output);
                 }
                 CallChainNodeType::InterfaceMethodCallT {
@@ -3567,6 +3637,12 @@ impl AstVisitor for PythonVisitor {
                 }
                 CallChainNodeType::VariableNodeT { var_node } => {
                     var_node.accept_to_string(self, output);
+                }
+                CallChainNodeType::ListElementNodeT { list_elem_node } => {
+                    list_elem_node.accept_to_string(self, output);
+                }
+                CallChainNodeType::UndeclaredListElementT { list_elem_node } => {
+                    list_elem_node.accept_to_string(self, output);
                 }
             }
             separator = ".";
@@ -4531,7 +4607,7 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_expression_list_node(&mut self, expr_list: &ExprListNode) {
-        //  self.in_expr_list = true;
+
         let mut generate_parens = true;
         if expr_list.exprs_t.len() == 1 {
             if let Some(ExprType::TransitionExprT { .. }) = expr_list.exprs_t.get(0) {
@@ -4552,7 +4628,6 @@ impl AstVisitor for PythonVisitor {
         if generate_parens {
             self.add_code(")");
         }
-        //  self.in_expr_list = false;
     }
 
     //* --------------------------------------------------------------------- *//
@@ -4572,6 +4647,78 @@ impl AstVisitor for PythonVisitor {
             separator = ",";
         }
         output.push(')');
+    }
+
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_list_stmt_node(&mut self, list_stmt_node: &ListStmtNode) {
+        let ref list_node = list_stmt_node.list_node;
+        // self.test_skip_newline();
+        list_node.accept(self);
+    }
+
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_list_node(&mut self, list: &ListNode) {
+
+        let mut separator = "";
+        self.add_code("[");
+
+        for expr in &list.exprs_t {
+            self.add_code(separator);
+            expr.accept(self);
+            separator = ",";
+        }
+
+        self.add_code("]");
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_list_node_to_string(
+        &mut self,
+        list: &ListNode,
+        output: &mut String,
+    ) {
+
+        let mut separator = "";
+        output.push('[');
+        for expr in &list.exprs_t {
+            output.push_str(separator);
+            expr.accept_to_string(self, output);
+            separator = ",";
+        }
+        output.push(']');
+    }
+
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_list_elem_node(&mut self, list_elem: &ListElementNode) {
+
+        let str = self.format_list_element_expr(list_elem);
+        self.add_code(str.as_str());
+        // list_elem.identifier.accept(self);
+        self.add_code("[");
+        list_elem.expr_t.accept(self);
+        self.add_code("]");
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_list_elem_node_to_string(
+        &mut self,
+        list_elem: &ListElementNode,
+        output: &mut String,
+    ) {
+        let str = self.format_list_element_expr(list_elem);
+        output.push_str(str.as_str());
+       //  list_elem.identifier.accept_to_string(self,output);
+        output.push('[');
+        list_elem.expr_t.accept_to_string(self,output);
+        output.push(']');
     }
 
     //* --------------------------------------------------------------------- *//
