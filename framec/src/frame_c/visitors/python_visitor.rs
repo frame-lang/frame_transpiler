@@ -511,6 +511,9 @@ impl PythonVisitor {
             IdentifierDeclScope::EventHandlerVarScope => {
                 code.push_str(&variable_node.id_node.name.lexeme.to_string());
             }
+            IdentifierDeclScope::BlockVarScope => {
+                code.push_str(&variable_node.id_node.name.lexeme.to_string());
+            }
             IdentifierDeclScope::UnknownScope => {
                 // TODO: Explore labeling Variables as "extern" scope
                 code.push_str(&variable_node.id_node.name.lexeme.to_string());
@@ -570,6 +573,9 @@ impl PythonVisitor {
                 // }
             }
             IdentifierDeclScope::EventHandlerVarScope => {
+                code.push_str(&list_element_node.identifier.name.lexeme.to_string());
+            }
+            IdentifierDeclScope::BlockVarScope => {
                 code.push_str(&list_element_node.identifier.name.lexeme.to_string());
             }
             IdentifierDeclScope::UnknownScope => {
