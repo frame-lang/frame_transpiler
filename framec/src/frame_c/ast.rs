@@ -1590,50 +1590,50 @@ impl NodeElement for ExprType {
 //     // - FunctionAssignment
 // }
 
-pub enum RefExprType<'a> {
-    AssignmentExprT {
-        assignment_expr_node: &'a AssignmentExprNode,
-    },
-    // #[allow(dead_code)] // is used, don't know why I need this
-    // ActionCallExprT {
-    //     action_call_expr_node: ActionCallExprNode,
-    // },
-    CallChainLiteralExprT {
-        call_chain_expr_node: &'a CallChainExprNode,
-    },
-    // #[allow(dead_code)] // is used, don't know why I need this
-    CallExprT {
-        call_expr_node: &'a CallExprNode,
-    },
-    // #[allow(dead_code)] // is used, don't know why I need this
-    // CallExprListT {
-    //     call_expr_list_node: CallExprListNode,
-    // },
-    ExprListT {
-        expr_list_node: &'a ExprListNode,
-    },
-    // VariableExprT {
-    //     var_node: VariableNode,
-    // },
-    // LiteralExprT {
-    //     literal_expr_node: LiteralExprNode,
-    // },
-    // StateStackOperationExprT {
-    //     state_stack_op_node: StateStackOperationNode,
-    // },
-    // FrameEventExprT {
-    //     frame_event_part: FrameEventPart,
-    // },
-    // UnaryExprT {
-    //     unary_expr_node: UnaryExprNode,
-    // },
-    BinaryExprT {
-        binary_expr_node: &'a BinaryExprNode,
-    },
-    LoopStmtT {
-        loop_types: &'a LoopStmtTypes,
-    },
-}
+// pub enum RefExprType<'a> {
+//     AssignmentExprT {
+//         assignment_expr_node: &'a AssignmentExprNode,
+//     },
+//     // #[allow(dead_code)] // is used, don't know why I need this
+//     // ActionCallExprT {
+//     //     action_call_expr_node: ActionCallExprNode,
+//     // },
+//     CallChainLiteralExprT {
+//         call_chain_expr_node: &'a CallChainExprNode,
+//     },
+//     // #[allow(dead_code)] // is used, don't know why I need this
+//     CallExprT {
+//         call_expr_node: &'a CallExprNode,
+//     },
+//     // #[allow(dead_code)] // is used, don't know why I need this
+//     // CallExprListT {
+//     //     call_expr_list_node: CallExprListNode,
+//     // },
+//     ExprListT {
+//         expr_list_node: &'a ExprListNode,
+//     },
+//     // VariableExprT {
+//     //     var_node: VariableNode,
+//     // },
+//     // LiteralExprT {
+//     //     literal_expr_node: LiteralExprNode,
+//     // },
+//     // StateStackOperationExprT {
+//     //     state_stack_op_node: StateStackOperationNode,
+//     // },
+//     // FrameEventExprT {
+//     //     frame_event_part: FrameEventPart,
+//     // },
+//     // UnaryExprT {
+//     //     unary_expr_node: UnaryExprNode,
+//     // },
+//     BinaryExprT {
+//         binary_expr_node: &'a BinaryExprNode,
+//     },
+//     LoopStmtT {
+//         loop_types: &'a LoopStmtTypes,
+//     },
+// }
 
 //-----------------------------------------------------//
 //                  -Statements-
@@ -2699,10 +2699,10 @@ impl fmt::Display for CallChainExprNode {
                 CallChainNodeType::VariableNodeT { var_node } => {
                     output.push_str(&*var_node.to_string());
                 }
-                CallChainNodeType::ListElementNodeT { list_elem_node } => {
+                CallChainNodeType::ListElementNodeT { .. } => {
                     // output.push_str(&*var_node.to_string());
                 }
-                CallChainNodeType::UndeclaredListElementT { list_elem_node } => {
+                CallChainNodeType::UndeclaredListElementT { .. } => {
                     // output.push_str(&*var_node.to_string());
                 }
             }

@@ -10,7 +10,7 @@ use crate::frame_c::utils::{frame_exitcode, RunError};
 // use crate::frame_c::visitors::golang_visitor::GolangVisitor;
 // use crate::frame_c::visitors::java_8_visitor::Java8Visitor;
 // use crate::frame_c::visitors::javascript_visitor::JavaScriptVisitor;
-use crate::frame_c::visitors::plantuml_visitor::PlantUmlVisitor;
+// use crate::frame_c::visitors::plantuml_visitor::PlantUmlVisitor;
 use crate::frame_c::visitors::python_visitor::PythonVisitor;
 // use crate::frame_c::visitors::rust_visitor::RustVisitor;
 // use crate::frame_c::visitors::smcat_visitor::SmcatVisitor;

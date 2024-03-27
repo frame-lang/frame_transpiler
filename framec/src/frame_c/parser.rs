@@ -17,7 +17,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
-use sha2::digest::typenum::Exp;
+
 
 pub struct ParseError {
     // TODO:
@@ -5591,16 +5591,14 @@ impl<'a> Parser<'a> {
 
         if self.match_token(&[TokenType::LBracket]) {
             match self.list() {
-                Ok(Some(ListT {
-                            list_node: expr_node,
-                        })) => {
+                Ok(list_node) => {
                     return Ok(Some(ListT {
-                        list_node: expr_node,
+                        list_node,
                     }))
                 }
-                Ok(Some(_)) => return Err(ParseError::new("TODO")), // TODO
+//                Ok(None) => self.error_at_current("Empty list '()' not allowed "), // continue
+//                Ok(Some(_)) => return Err(ParseError::new("TODO")), // TODO
                 Err(parse_error) => return Err(parse_error),
-                Ok(None) => self.error_at_current("Empty expression list '()' not allowed "), // continue
             }
         }
 
@@ -5986,7 +5984,7 @@ impl<'a> Parser<'a> {
 
     // list -> '[' expression* ']'
 
-    fn list(&mut self) -> Result<Option<ExprType>, ParseError> {
+    fn list(&mut self) -> Result<ListNode, ParseError> {
         let mut expressions: Vec<ExprType> = Vec::new();
 
         loop {
@@ -5997,8 +5995,7 @@ impl<'a> Parser<'a> {
                 Ok(Some(expression)) => {
                     expressions.push(expression);
                 }
-                // should see a list of valid expressions until ')'
-                Ok(None) => return Ok(None),
+                Ok(None) => break,
                 Err(parse_error) => return Err(parse_error),
             }
             if self.peek().token_type == TokenType::RBracket {
@@ -6009,14 +6006,17 @@ impl<'a> Parser<'a> {
             }
         }
 
-        if expressions.is_empty() {
-            Ok(None)
-        } else {
-            let expr_list = ListT {
-                list_node: ListNode::new(expressions),
-            };
-            Ok(Some(expr_list))
-        }
+
+        Ok(ListNode::new(expressions))
+
+        // if expressions.is_empty() {
+        //     Ok(None)
+        // } else {
+        //     let expr_list = ListT {
+        //         list_node: ListNode::new(expressions),
+        //     };
+        //     Ok(Some(expr_list))
+        // }
     }
 
     /* --------------------------------------------------------------------- */

@@ -1886,9 +1886,9 @@ impl Arcanum {
 
     /* --------------------------------------------------------------------- */
 
-    pub fn is_serializable(&self) -> bool {
-        self.serializable
-    }
+    // pub fn is_serializable(&self) -> bool {
+    //     self.serializable
+    // }
 
     /* --------------------------------------------------------------------- */
 

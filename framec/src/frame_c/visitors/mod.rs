@@ -89,7 +89,7 @@ impl TryFrom<String> for TargetLanguage {
 // pub mod java_8_visitor;
 // pub mod javascript_visitor;
 pub mod graphviz_visitor;
-pub mod plantuml_visitor;
+// pub mod plantuml_visitor;
 pub mod python_visitor;
 // pub mod rust_visitor;
 // pub mod smcat_visitor;
