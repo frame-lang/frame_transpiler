@@ -1347,7 +1347,6 @@ impl ExprType {
             _ => {}
         }
     }
-
 }
 
 impl NodeElement for ExprType {
@@ -1711,6 +1710,9 @@ pub enum StatementType {
     },
     BlockStmt {
         block_stmt_node: BlockStmtNode,
+    },
+    ReturnAssignStmt {
+        return_assign_stmt_node: ReturnAssignStmtNode,
     },
     #[allow(dead_code)] // is used, don't know why I need this
     NoStmt,
@@ -2894,7 +2896,6 @@ impl NodeElement for CallExprListNode {
     }
 }
 
-
 //-----------------------------------------------------//
 
 // #[derive(Clone)]
@@ -3606,7 +3607,6 @@ impl fmt::Display for SystemTypeExprNode {
     }
 }
 
-
 //-----------------------------------------------------//
 
 // #[derive(Clone)]
@@ -3617,9 +3617,7 @@ pub struct ListNode {
 
 impl ListNode {
     pub fn new(exprs_t: Vec<ExprType>) -> ListNode {
-        ListNode {
-            exprs_t,
-        }
+        ListNode { exprs_t }
     }
 }
 
@@ -3633,7 +3631,6 @@ impl NodeElement for ListNode {
     }
 }
 
-
 //-----------------------------------------------------//
 
 // ListElementNode captures list elements such as
@@ -3646,9 +3643,10 @@ pub struct ListElementNode {
 
 impl ListElementNode {
     pub fn new(
-        identifier:IdentifierNode,
-        scope:IdentifierDeclScope,
-        expr_t:ExprType) -> ListElementNode {
+        identifier: IdentifierNode,
+        scope: IdentifierDeclScope,
+        expr_t: ExprType,
+    ) -> ListElementNode {
         ListElementNode {
             identifier,
             scope,
@@ -3665,6 +3663,30 @@ impl NodeElement for ListElementNode {
     fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
         ast_visitor.visit_list_elem_node_to_string(self, output);
     }
+}
+
+//-----------------------------------------------------//
+
+// ReturnAssignExprNode captures "^= expr" statements.
+
+pub struct ReturnAssignStmtNode {
+    pub expr_t: ExprType,
+}
+
+impl ReturnAssignStmtNode {
+    pub fn new(expr_t: ExprType) -> ReturnAssignStmtNode {
+        ReturnAssignStmtNode { expr_t }
+    }
+}
+
+impl NodeElement for ReturnAssignStmtNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_return_assign_stmt_node(self);
+    }
+
+    // fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
+    //     ast_visitor.visit_return_assign_stmt_node_to_string(self, output);
+    // }
 }
 
 //
@@ -3686,5 +3708,3 @@ impl NodeElement for ListElementNode {
 //         literal_expr_node: LiteralExprNode,
 //     },
 // }
-
-

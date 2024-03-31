@@ -26,7 +26,7 @@ class Match:
         next_compartment = MatchCompartment('__match_state_Init', next_compartment)
         self.__compartment = next_compartment
         self.__next_compartment = None
-        self.return_stack = []
+        self.return_stack = [None]
         
         # Initialize domain
         

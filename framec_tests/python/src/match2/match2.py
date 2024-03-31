@@ -31,7 +31,7 @@ class MatchTests:
         next_compartment = MatchTestsCompartment('__matchtests_state_A', next_compartment)
         self.__compartment = next_compartment
         self.__next_compartment = None
-        self.return_stack = []
+        self.return_stack = [None]
         
         # Initialize domain
         

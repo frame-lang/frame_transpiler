@@ -31,7 +31,7 @@ class StateContextStack:
         next_compartment.state_vars["x"] = 0
         self.__compartment = next_compartment
         self.__next_compartment = None
-        self.return_stack = []
+        self.return_stack = [None]
         next_compartment.state_vars["x"] = 0
         
         # Initialize domain

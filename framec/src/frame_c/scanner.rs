@@ -39,7 +39,6 @@ impl Scanner {
             ("false".to_string(), TokenType::False),
             ("var".to_string(), TokenType::Var),
             ("const".to_string(), TokenType::Const),
-            //            ("new".to_string(), TokenType::New),
             ("loop".to_string(), TokenType::Loop),
             ("in".to_string(), TokenType::In),
             ("continue".to_string(), TokenType::Continue),
@@ -228,7 +227,13 @@ impl Scanner {
 
                 self.add_token(TokenType::State)
             }
-            '^' => self.add_token(TokenType::Caret),
+            '^' => {
+                if self.match_char('=') {
+                    self.add_token(TokenType::ReturnAssign)
+                } else {
+                    self.add_token(TokenType::Caret)
+                }
+            }
             '>' => {
                 if self.match_char('=') {
                     self.add_token(TokenType::GreaterEqual);
@@ -708,6 +713,7 @@ pub enum TokenType {
     Ampersand,                    // &
     Pipe,                         // |
     Caret,                        // ^
+    ReturnAssign,                 // ^=
     LogicalAnd,                   // &&
     LogicalXor,                   // &|
     System,                       // #

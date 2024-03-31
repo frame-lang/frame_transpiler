@@ -18,7 +18,6 @@ use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
 
-
 pub struct ParseError {
     // TODO:
     pub error: String,
@@ -1447,47 +1446,30 @@ impl<'a> Parser<'a> {
 
         // Parse return type
         if self.match_token(&[TokenType::Colon]) {
-            if self.match_token(&[TokenType::LParen]) {
-                // Parse initializer expression group
-                // if self.match_token(&[TokenType::LParen]) {
-                    let return_expr_result = self.expression();
-                    match return_expr_result {
-                        Ok(Some(expr_type)) => {
-                            return_init_expr_opt = Some(expr_type);
-                        }
-                        Ok(None) => {}
-                        Err(err) => {
-                            return Err(err);
-                        }
-                    }
-                    if let Err(parse_error) = self.consume(TokenType::RParen, "Expected ')'.") {
-                        return Err(parse_error);
-                    }
-                // }
-            } else {
-                match self.type_decl() {
-                    Ok(type_node) => return_type_opt = Some(type_node),
-                    Err(parse_error) => return Err(parse_error),
-                }
+            match self.type_decl() {
+                Ok(type_node) => return_type_opt = Some(type_node),
+                Err(parse_error) => return Err(parse_error),
+            }
+        }
 
-                // Parse initializer expression group
-                if self.match_token(&[TokenType::LParen]) {
-                    let return_expr_result = self.expression();
-                    match return_expr_result {
-                        Ok(Some(expr_type)) => {
-                            return_init_expr_opt = Some(expr_type);
-                        }
-                        Ok(None) => {}
-                        Err(err) => {
-                            return Err(err);
-                        }
-                    }
-                    if let Err(parse_error) = self.consume(TokenType::RParen, "Expected ')'.") {
-                        return Err(parse_error);
-                    }
+        // Parse initializer expression group ^("foo")
+        if self.match_token(&[TokenType::Caret]) {
+            if let Err(parse_error) = self.consume(TokenType::LParen, "Expected '('.") {
+                return Err(parse_error);
+            }
+            let return_expr_result = self.expression();
+            match return_expr_result {
+                Ok(Some(expr_type)) => {
+                    return_init_expr_opt = Some(expr_type);
+                }
+                Ok(None) => {}
+                Err(err) => {
+                    return Err(err);
                 }
             }
-
+            if let Err(parse_error) = self.consume(TokenType::RParen, "Expected ')'.") {
+                return Err(parse_error);
+            }
         }
 
         // Parse alias
@@ -1572,8 +1554,13 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let interface_method_node =
-            InterfaceMethodNode::new(name.clone(), params_opt, return_type_opt, return_init_expr_opt, alias_opt);
+        let interface_method_node = InterfaceMethodNode::new(
+            name.clone(),
+            params_opt,
+            return_type_opt,
+            return_init_expr_opt,
+            alias_opt,
+        );
         let interface_method_rcref = Rc::new(RefCell::new(interface_method_node));
 
         if self.is_building_symbol_table {
@@ -2725,9 +2712,7 @@ impl<'a> Parser<'a> {
                     value = Rc::new(DefaultLiteralValueForTypeExprT)
                 }
                 Ok(Some(NilExprT)) => value = Rc::new(NilExprT),
-                Ok(Some(ListT { list_node })) => {
-                    value = Rc::new(ListT { list_node })
-                }
+                Ok(Some(ListT { list_node })) => value = Rc::new(ListT { list_node }),
                 Ok(Some(ExprListT { expr_list_node })) => {
                     let err_msg =
                         &format!("Expr type 'ExprList' is not a valid rvalue assignment type.");
@@ -4066,27 +4051,13 @@ impl<'a> Parser<'a> {
                         return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
                     }
                     ListT { list_node } => {
-                        // path for transitions **with** an exit params group
-                        // if self.match_token(&[TokenType::Transition]) {
-                        //     match self.transition(Some(list_node)) {
-                        //         Ok(transition_statement_node) => {
-                        //             let statement_type = StatementType::TransitionStmt {
-                        //                 transition_statement_node,
-                        //             };
-                        //             return Ok(Some(statement_type));
-                        //         }
-                        //         Err(parse_err) => return Err(parse_err),
-                        //     }
-                        // } else {
-                            // Just a group not associated with a transition.
-                            let list_stmt_node = ListStmtNode::new(list_node);
-                            let expr_stmt_t = ListStmtT {
-                                list_stmt_node,
-                            };
-                            return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
+                        // Just a group not associated with a transition.
+                        let list_stmt_node = ListStmtNode::new(list_node);
+                        let expr_stmt_t = ListStmtT { list_stmt_node };
+                        return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
                         // }
                     }
-                     ExprListT { expr_list_node } => {
+                    ExprListT { expr_list_node } => {
                         // path for transitions **with** an exit params group
                         if self.match_token(&[TokenType::Transition]) {
                             match self.transition(Some(expr_list_node)) {
@@ -4237,6 +4208,26 @@ impl<'a> Parser<'a> {
         //         Err(parse_error) => Err(parse_error),
         //     };
         // }
+
+        // ^= expr
+        if self.match_token(&[TokenType::ReturnAssign]) {
+            match self.return_assign_expression() {
+                Ok(Some(expr_type)) => {
+                    let return_assign_stmt_node = ReturnAssignStmtNode::new(expr_type);
+                    return Ok(Some(StatementType::ReturnAssignStmt {
+                        return_assign_stmt_node,
+                    }));
+                }
+                Ok(None) => {
+                    // TODO: continue parse rather than return an error.
+                    let err_msg = &format!("Error - invalid return expression type.");
+                    self.error_at_previous(err_msg);
+                    let parse_error = ParseError::new(err_msg.as_str());
+                    return Err(parse_error);
+                }
+                Err(err) => return Err(err),
+            }
+        }
 
         if self.match_token(&[TokenType::Loop]) {
             return match self.loop_statement_scope() {
@@ -4745,46 +4736,103 @@ impl<'a> Parser<'a> {
     // Filter and repackage expressions for the correct types in the context of
     // a list element e.g. x[0], zoo["lion"], bar[foo()] etc.
 
+    fn return_assign_expression(&mut self) -> Result<Option<ExprType>, ParseError> {
+        match self.expression() {
+            Ok(Some(expr_t)) => {
+                match expr_t {
+                    // Matches a valid expression for list element e.g x[0]
+                    ExprType::LiteralExprT { literal_expr_node } => {
+                        Ok(Some(ExprType::LiteralExprT { literal_expr_node }))
+                    }
+                    ExprType::CallChainExprT {
+                        call_chain_expr_node,
+                    } => Ok(Some(ExprType::CallChainExprT {
+                        call_chain_expr_node,
+                    })),
+                    ExprType::BinaryExprT { binary_expr_node } => {
+                        Ok(Some(ExprType::BinaryExprT { binary_expr_node }))
+                    }
+                    ExprType::ActionCallExprT {
+                        action_call_expr_node,
+                    } => Ok(Some(ExprType::ActionCallExprT {
+                        action_call_expr_node,
+                    })),
+                    ExprType::CallExprT { call_expr_node } => {
+                        Ok(Some(ExprType::CallExprT { call_expr_node }))
+                    }
+                    ExprType::VariableExprT { var_node } => {
+                        Ok(Some(ExprType::VariableExprT { var_node }))
+                    }
+                    ExprType::FrameEventExprT { frame_event_part } => {
+                        Ok(Some(ExprType::FrameEventExprT { frame_event_part }))
+                    }
+                    ExprType::ExprListT { expr_list_node } => {
+                        Ok(Some(ExprType::ExprListT { expr_list_node }))
+                    }
+                    _ => {
+                        // Log error but pass expression through to complete parse.
+                        // TODO: be more specific about the id of the list identifier.
+                        let msg = &format!("Error - invalid expression type for return assigment.");
+                        self.error_at_current(msg);
+                        Ok(Some(expr_t))
+                    }
+                }
+            }
+            Ok(None) => {
+                return Ok(None);
+            }
+            Err(err) => return Err(err),
+        }
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    // Filter and repackage expressions for the correct types in the context of
+    // a list element e.g. x[0], zoo["lion"], bar[foo()] etc.
+
     fn list_elem_expression(&mut self) -> Result<Option<ExprType>, ParseError> {
         match self.expression() {
             Ok(Some(expr_t)) => {
                 match expr_t {
                     // Matches a valid expression for list element e.g x[0]
-                    ExprType::LiteralExprT {literal_expr_node} => {
-                        Ok(Some(ExprType::LiteralExprT {literal_expr_node}))
-                    },
-                    ExprType::CallChainExprT {call_chain_expr_node} => {
-                        Ok(Some(ExprType::CallChainExprT {call_chain_expr_node}))
-                    },
-                    ExprType::BinaryExprT {binary_expr_node} => {
-                        Ok(Some(ExprType::BinaryExprT {binary_expr_node}))
-                    },
-                    ExprType::ActionCallExprT {action_call_expr_node} => {
-                        Ok(Some(ExprType::ActionCallExprT {action_call_expr_node}))
-                    },
-                    ExprType::CallExprT {call_expr_node} => {
-                        Ok(Some(ExprType::CallExprT {call_expr_node}))
-                    },
-                    ExprType::VariableExprT {var_node} => {
-                        Ok(Some(ExprType::VariableExprT {var_node}))
-                    },
-                    ExprType::FrameEventExprT {frame_event_part} => {
-                        Ok(Some(ExprType::FrameEventExprT {frame_event_part}))
-                    },
+                    ExprType::LiteralExprT { literal_expr_node } => {
+                        Ok(Some(ExprType::LiteralExprT { literal_expr_node }))
+                    }
+                    ExprType::CallChainExprT {
+                        call_chain_expr_node,
+                    } => Ok(Some(ExprType::CallChainExprT {
+                        call_chain_expr_node,
+                    })),
+                    ExprType::BinaryExprT { binary_expr_node } => {
+                        Ok(Some(ExprType::BinaryExprT { binary_expr_node }))
+                    }
+                    ExprType::ActionCallExprT {
+                        action_call_expr_node,
+                    } => Ok(Some(ExprType::ActionCallExprT {
+                        action_call_expr_node,
+                    })),
+                    ExprType::CallExprT { call_expr_node } => {
+                        Ok(Some(ExprType::CallExprT { call_expr_node }))
+                    }
+                    ExprType::VariableExprT { var_node } => {
+                        Ok(Some(ExprType::VariableExprT { var_node }))
+                    }
+                    ExprType::FrameEventExprT { frame_event_part } => {
+                        Ok(Some(ExprType::FrameEventExprT { frame_event_part }))
+                    }
                     _ => {
                         // Log error but pass expression through to complete parse.
                         // TODO: be more specific about the id of the list identifier.
-                        let msg =
-                            &format!("Error - invalid expression type for list element.");
+                        let msg = &format!("Error - invalid expression type for list element.");
                         self.error_at_current(msg);
                         Ok(Some(expr_t))
                     }
                 }
-            },
+            }
             Ok(None) => {
                 return Ok(None);
             }
-            Err (err) => return Err(err),
+            Err(err) => return Err(err),
         }
     }
 
@@ -5591,13 +5639,9 @@ impl<'a> Parser<'a> {
 
         if self.match_token(&[TokenType::LBracket]) {
             match self.list() {
-                Ok(list_node) => {
-                    return Ok(Some(ListT {
-                        list_node,
-                    }))
-                }
-//                Ok(None) => self.error_at_current("Empty list '()' not allowed "), // continue
-//                Ok(Some(_)) => return Err(ParseError::new("TODO")), // TODO
+                Ok(list_node) => return Ok(Some(ListT { list_node })),
+                //                Ok(None) => self.error_at_current("Empty list '()' not allowed "), // continue
+                //                Ok(Some(_)) => return Err(ParseError::new("TODO")), // TODO
                 Err(parse_error) => return Err(parse_error),
             }
         }
@@ -5979,7 +6023,6 @@ impl<'a> Parser<'a> {
         }
     }
 
-
     /* --------------------------------------------------------------------- */
 
     // list -> '[' expression* ']'
@@ -6005,7 +6048,6 @@ impl<'a> Parser<'a> {
                 return Err(parse_error);
             }
         }
-
 
         Ok(ListNode::new(expressions))
 
@@ -6140,7 +6182,6 @@ impl<'a> Parser<'a> {
             false,
             self.previous().line,
         );
-
 
         let mut call_chain: std::collections::VecDeque<CallChainNodeType> =
             std::collections::VecDeque::new();
@@ -6708,25 +6749,34 @@ impl<'a> Parser<'a> {
                                     | SymbolType::StateParam { .. }
                                     | SymbolType::EventHandlerParam { .. } => {
                                         if self.match_token(&[TokenType::LBracket]) {
-                                            let list_elem_expr_opt_result = self.list_elem_expression();
-                                            if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
+                                            let list_elem_expr_opt_result =
+                                                self.list_elem_expression();
+                                            if let Err(parse_error) =
+                                                self.consume(TokenType::RBracket, "Expected ']'.")
+                                            {
                                                 return Err(parse_error);
                                             }
                                             match list_elem_expr_opt_result {
                                                 Ok(Some(list_elem_node)) => {
-                                                    let list_elem_node = ListElementNode::new(id_node,scope,list_elem_node);
-                                                    CallChainNodeType::ListElementNodeT { list_elem_node }
+                                                    let list_elem_node = ListElementNode::new(
+                                                        id_node,
+                                                        scope,
+                                                        list_elem_node,
+                                                    );
+                                                    CallChainNodeType::ListElementNodeT {
+                                                        list_elem_node,
+                                                    }
                                                 }
                                                 Ok(None) => {
                                                     // TODO: continue parse rather than return an error. Need a proper return type.
                                                     let err_msg =
                                                         &format!("Error - missing expression for list element.");
                                                     self.error_at_previous(err_msg);
-                                                    let parse_error = ParseError::new(err_msg.as_str());
+                                                    let parse_error =
+                                                        ParseError::new(err_msg.as_str());
                                                     return Err(parse_error);
                                                 }
                                                 Err(err) => return Err(err),
-
                                             }
                                         } else {
                                             let var_node = VariableNode::new(
@@ -6750,30 +6800,35 @@ impl<'a> Parser<'a> {
                             None => {
                                 if self.match_token(&[TokenType::LBracket]) {
                                     let list_elem_expr_opt_result = self.list_elem_expression();
-                                    if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
+                                    if let Err(parse_error) =
+                                        self.consume(TokenType::RBracket, "Expected ']'.")
+                                    {
                                         return Err(parse_error);
                                     }
                                     match list_elem_expr_opt_result {
                                         Ok(Some(list_elem_node)) => {
-                                            let list_elem_node = ListElementNode::new(id_node,scope,list_elem_node);
+                                            let list_elem_node = ListElementNode::new(
+                                                id_node,
+                                                scope,
+                                                list_elem_node,
+                                            );
                                             CallChainNodeType::ListElementNodeT { list_elem_node }
                                         }
                                         Ok(None) => {
                                             // TODO: continue parse rather than return an error. Need a proper return type.
-                                            let err_msg =
-                                                &format!("Error - missing expression for list element.");
+                                            let err_msg = &format!(
+                                                "Error - missing expression for list element."
+                                            );
                                             self.error_at_previous(err_msg);
                                             let parse_error = ParseError::new(err_msg.as_str());
                                             return Err(parse_error);
                                         }
                                         Err(err) => return Err(err),
-
                                     }
                                 } else {
                                     CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
                                 }
-
-                            },
+                            }
                         };
 
                         call_chain_node_t
@@ -6781,12 +6836,14 @@ impl<'a> Parser<'a> {
                 } else {
                     if self.match_token(&[TokenType::LBracket]) {
                         let list_elem_expr_opt_result = self.list_elem_expression();
-                        if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
+                        if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.")
+                        {
                             return Err(parse_error);
                         }
                         match list_elem_expr_opt_result {
                             Ok(Some(list_elem_node)) => {
-                                let list_elem_node = ListElementNode::new(id_node,scope,list_elem_node);
+                                let list_elem_node =
+                                    ListElementNode::new(id_node, scope, list_elem_node);
                                 CallChainNodeType::UndeclaredListElementT { list_elem_node }
                             }
                             Ok(None) => {
@@ -6798,7 +6855,6 @@ impl<'a> Parser<'a> {
                                 return Err(parse_error);
                             }
                             Err(err) => return Err(err),
-
                         }
                     } else {
                         CallChainNodeType::UndeclaredIdentifierNodeT { id_node }

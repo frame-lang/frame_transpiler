@@ -26,7 +26,7 @@ class TransitionSm:
         next_compartment = TransitionSmCompartment('__transitionsm_state_S0', next_compartment)
         self.__compartment = next_compartment
         self.__next_compartment = None
-        self.return_stack = []
+        self.return_stack = [None]
         
         # Initialize domain
         

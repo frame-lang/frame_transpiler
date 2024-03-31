@@ -26,7 +26,7 @@ class HierarchicalGuard:
         next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_I', next_compartment)
         self.__compartment = next_compartment
         self.__next_compartment = None
-        self.return_stack = []
+        self.return_stack = [None]
         
         # Initialize domain
         

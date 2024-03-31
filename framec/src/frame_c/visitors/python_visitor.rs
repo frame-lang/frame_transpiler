@@ -534,7 +534,10 @@ impl PythonVisitor {
                 code.push_str("self");
             }
             IdentifierDeclScope::DomainBlockScope => {
-                code.push_str(&format!("self.{}", list_element_node.identifier.name.lexeme));
+                code.push_str(&format!(
+                    "self.{}",
+                    list_element_node.identifier.name.lexeme
+                ));
             }
             IdentifierDeclScope::StateParamScope => {
                 if self.visiting_call_chain_literal_variable {
@@ -587,7 +590,7 @@ impl PythonVisitor {
 
         code
     }
-    
+
     //* --------------------------------------------------------------------- *//
 
     fn format_parameter_list(&mut self, params_in: &Option<Vec<ParameterNode>>) {
@@ -877,9 +880,9 @@ impl PythonVisitor {
                                 ExprStmtType::VariableStmtT { variable_stmt_node } => {
                                     variable_stmt_node.accept(self)
                                 }
-                                ExprStmtType::ListStmtT {
-                                    list_stmt_node,
-                                } => list_stmt_node.accept(self),
+                                ExprStmtType::ListStmtT { list_stmt_node } => {
+                                    list_stmt_node.accept(self)
+                                }
                                 ExprStmtType::ExprListStmtT {
                                     expr_list_stmt_node,
                                 } => expr_list_stmt_node.accept(self),
@@ -914,6 +917,11 @@ impl PythonVisitor {
                         }
                         StatementType::BlockStmt { block_stmt_node } => {
                             block_stmt_node.accept(self);
+                        }
+                        StatementType::ReturnAssignStmt {
+                            return_assign_stmt_node,
+                        } => {
+                            return_assign_stmt_node.accept(self);
                         }
                         StatementType::ContinueStmt { continue_stmt_node } => {
                             continue_stmt_node.accept(self);
@@ -1794,7 +1802,14 @@ impl PythonVisitor {
         }
 
         self.newline();
-        self.add_code(&format!("self.return_stack = []"));
+        // Note - the initialization to  [None]  is to support
+        // situations where the return is set during start state
+        // entry event handler. As there is no call to the interface, a return
+        // element is not yet pushed on the return stack so the program will just crash
+        // if not initialized this way. This [None] will never be returned to a caller
+        // as there is no caller during start state initialization but prevents
+        // the crash from happening.
+        self.add_code(&format!("self.return_stack = [None]"));
 
         // Initialize state arguments.
         match &system_node.start_state_state_params_opt {
@@ -2572,8 +2587,8 @@ impl AstVisitor for PythonVisitor {
 
         self.newline();
         match &interface_method_node.return_init_expr_opt {
-            Some(x) =>  {
-                let mut output= String::new();
+            Some(x) => {
+                let mut output = String::new();
                 x.accept_to_string(self, &mut output);
                 self.add_code(&format!("self.return_stack.append({})", output));
             }
@@ -2581,7 +2596,6 @@ impl AstVisitor for PythonVisitor {
                 self.add_code("self.return_stack.append(None)");
             }
         }
-
 
         self.newline();
         self.add_code(&format!(
@@ -2599,7 +2613,6 @@ impl AstVisitor for PythonVisitor {
                 self.add_code("return self.return_stack.pop(-1)");
             }
             None => {
-
                 // If there was no type decl but there is an expression
                 // evaluated to return then also generate code
                 // to return that value.
@@ -3371,10 +3384,10 @@ impl AstVisitor for PythonVisitor {
                     var_node.accept(self);
                     self.visiting_call_chain_literal_variable = false;
                 }
-                CallChainNodeType::ListElementNodeT {list_elem_node} => {
+                CallChainNodeType::ListElementNodeT { list_elem_node } => {
                     list_elem_node.accept(self);
                 }
-                CallChainNodeType::UndeclaredListElementT {list_elem_node} => {
+                CallChainNodeType::UndeclaredListElementT { list_elem_node } => {
                     list_elem_node.accept(self);
                 }
             }
@@ -4602,6 +4615,18 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    fn visit_return_assign_stmt_node(&mut self, return_assign_stmt_node: &ReturnAssignStmtNode) {
+        let mut output = String::new();
+
+        return_assign_stmt_node
+            .expr_t
+            .accept_to_string(self, &mut output);
+
+        self.newline();
+        self.add_code(&format!("self.return_stack[-1] = {}", output));
+    }
+    //* --------------------------------------------------------------------- *//
+
     fn visit_enum_match_test_pattern_node(
         &mut self,
         _enum_match_test_pattern_node: &EnumMatchTestPatternNode,
@@ -4613,7 +4638,6 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_expression_list_node(&mut self, expr_list: &ExprListNode) {
-
         let mut generate_parens = true;
         if expr_list.exprs_t.len() == 1 {
             if let Some(ExprType::TransitionExprT { .. }) = expr_list.exprs_t.get(0) {
@@ -4655,7 +4679,6 @@ impl AstVisitor for PythonVisitor {
         output.push(')');
     }
 
-
     //* --------------------------------------------------------------------- *//
 
     fn visit_list_stmt_node(&mut self, list_stmt_node: &ListStmtNode) {
@@ -4664,11 +4687,9 @@ impl AstVisitor for PythonVisitor {
         list_node.accept(self);
     }
 
-
     //* --------------------------------------------------------------------- *//
 
     fn visit_list_node(&mut self, list: &ListNode) {
-
         let mut separator = "";
         self.add_code("[");
 
@@ -4683,12 +4704,7 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_list_node_to_string(
-        &mut self,
-        list: &ListNode,
-        output: &mut String,
-    ) {
-
+    fn visit_list_node_to_string(&mut self, list: &ListNode, output: &mut String) {
         let mut separator = "";
         output.push('[');
         for expr in &list.exprs_t {
@@ -4699,11 +4715,9 @@ impl AstVisitor for PythonVisitor {
         output.push(']');
     }
 
-
     //* --------------------------------------------------------------------- *//
 
     fn visit_list_elem_node(&mut self, list_elem: &ListElementNode) {
-
         let str = self.format_list_element_expr(list_elem);
         self.add_code(str.as_str());
         // list_elem.identifier.accept(self);
@@ -4714,16 +4728,12 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_list_elem_node_to_string(
-        &mut self,
-        list_elem: &ListElementNode,
-        output: &mut String,
-    ) {
+    fn visit_list_elem_node_to_string(&mut self, list_elem: &ListElementNode, output: &mut String) {
         let str = self.format_list_element_expr(list_elem);
         output.push_str(str.as_str());
-       //  list_elem.identifier.accept_to_string(self,output);
+        //  list_elem.identifier.accept_to_string(self,output);
         output.push('[');
-        list_elem.expr_t.accept_to_string(self,output);
+        list_elem.expr_t.accept_to_string(self, output);
         output.push(']');
     }
 

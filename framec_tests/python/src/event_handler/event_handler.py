@@ -26,7 +26,7 @@ class EventHandler:
         next_compartment = EventHandlerCompartment('__eventhandler_state_S1', next_compartment)
         self.__compartment = next_compartment
         self.__next_compartment = None
-        self.return_stack = []
+        self.return_stack = [None]
         
         # Initialize domain
         
