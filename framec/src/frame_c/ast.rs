@@ -109,12 +109,18 @@ pub enum CallChainNodeType {
     ActionCallT {
         action_call_expr_node: ActionCallExprNode,
     },
+    ListElementNodeT {
+        list_elem_node: ListElementNode,
+    },
     // Undeclared identifier types
     UndeclaredIdentifierNodeT {
         id_node: IdentifierNode,
     },
     UndeclaredCallT {
-        call: CallExprNode,
+        call_node: CallExprNode,
+    },
+    UndeclaredListElementT {
+        list_elem_node: ListElementNode,
     },
 }
 
@@ -306,82 +312,6 @@ impl NodeElement for SystemNode {
 
 //-----------------------------------------------------//
 
-pub struct SystemInstanceExprNode {
-    pub identifier: IdentifierNode,
-    pub start_state_state_args_opt: Option<ExprListNode>,
-    pub start_state_enter_args_opt: Option<ExprListNode>,
-    pub domain_args_opt: Option<ExprListNode>,
-}
-
-impl SystemInstanceExprNode {
-    pub fn new(
-        identifier: IdentifierNode,
-        start_state_state_args_opt: Option<ExprListNode>,
-        start_state_enter_args_opt: Option<ExprListNode>,
-        domain_args_opt: Option<ExprListNode>,
-    ) -> SystemInstanceExprNode {
-        SystemInstanceExprNode {
-            identifier,
-            start_state_state_args_opt,
-            start_state_enter_args_opt,
-            domain_args_opt,
-        }
-    }
-}
-
-impl NodeElement for SystemInstanceExprNode {
-    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
-        ast_visitor.visit_system_instance_expr_node(self);
-    }
-
-    fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
-        ast_visitor.visit_system_instance_expr_node_to_string(self, output);
-    }
-}
-
-impl fmt::Display for SystemInstanceExprNode {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.identifier)
-    }
-}
-
-//-----------------------------------------------------//
-
-pub struct SystemTypeExprNode {
-    pub identifier: IdentifierNode,
-    pub call_chain_opt: Box<Option<ExprType>>,
-}
-
-impl SystemTypeExprNode {
-    pub fn new(
-        identifier: IdentifierNode,
-        call_chain_opt: Box<Option<ExprType>>,
-    ) -> SystemTypeExprNode {
-        SystemTypeExprNode {
-            identifier,
-            call_chain_opt,
-        }
-    }
-}
-
-impl NodeElement for SystemTypeExprNode {
-    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
-        ast_visitor.visit_system_type_expr_node(self);
-    }
-
-    fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
-        ast_visitor.visit_system_type_expr_node_to_string(self, output);
-    }
-}
-
-impl fmt::Display for SystemTypeExprNode {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.identifier)
-    }
-}
-
-//-----------------------------------------------------//
-
 pub struct InterfaceBlockNode {
     // pub interface_methods:Vec<InterfaceMethodNode>,
     pub interface_methods: Vec<Rc<RefCell<InterfaceMethodNode>>>,
@@ -411,6 +341,7 @@ pub struct InterfaceMethodNode {
     pub name: String,
     pub params: Option<Vec<ParameterNode>>,
     pub return_type_opt: Option<TypeNode>,
+    pub return_init_expr_opt: Option<ExprType>,
     pub alias: Option<MessageNode>,
 }
 
@@ -419,12 +350,14 @@ impl InterfaceMethodNode {
         name: String,
         params: Option<Vec<ParameterNode>>,
         return_type: Option<TypeNode>,
+        return_init_expr_opt: Option<ExprType>,
         alias: Option<MessageNode>,
     ) -> InterfaceMethodNode {
         InterfaceMethodNode {
             name,
             params,
             return_type_opt: return_type,
+            return_init_expr_opt,
             alias,
         }
     }
@@ -1252,6 +1185,9 @@ pub enum ExprType {
     CallExprListT {
         call_expr_list_node: CallExprListNode,
     },
+    ListT {
+        list_node: ListNode,
+    },
     ExprListT {
         expr_list_node: ExprListNode,
     },
@@ -1364,6 +1300,7 @@ impl ExprType {
             ExprType::CallChainExprT { .. } => "CallChainExprT",
             ExprType::CallExprT { .. } => "CallExprT",
             ExprType::CallExprListT { .. } => "CallExprListT",
+            ExprType::ListT { .. } => "ListT",
             ExprType::ExprListT { .. } => "ExprListT",
             ExprType::VariableExprT { .. } => "VariableExprT",
             ExprType::LiteralExprT { .. } => "LiteralExprT",
@@ -1410,67 +1347,6 @@ impl ExprType {
             _ => {}
         }
     }
-    // pub fn auto_pre_inc_dec(&self, ast_visitor: &mut dyn AstVisitor) {
-    //     match self {
-    //         ExprType::CallChainLiteralExprT {
-    //             call_chain_expr_node,
-    //         } => {
-    //             let ref ref_expr_type = RefExprType::CallChainLiteralExprT {
-    //                 call_chain_expr_node,
-    //             };
-    //             ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
-    //         }
-    //         ExprType::ExprListT { expr_list_node } => {
-    //             let ref ref_expr_type = RefExprType::ExprListT { expr_list_node };
-    //             ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
-    //         }
-    //         ExprType::CallExprT { call_expr_node } => {
-    //             let ref ref_expr_type = RefExprType::CallExprT { call_expr_node };
-    //             ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
-    //         }
-    //         ExprType::BinaryExprT { binary_expr_node } => {
-    //             binary_expr_node
-    //                 .left_rcref
-    //                 .borrow()
-    //                 .auto_pre_inc_dec(ast_visitor);
-    //             binary_expr_node
-    //                 .right_rcref
-    //                 .borrow()
-    //                 .auto_pre_inc_dec(ast_visitor);
-    //         }
-    //         _ => {
-    //             // let debug = 1;
-    //         }
-    //     }
-    // }
-
-    // pub fn auto_post_inc_dec(&self, ast_visitor: &mut dyn AstVisitor) {
-    //     match self {
-    //         ExprType::CallChainLiteralExprT {
-    //             call_chain_expr_node,
-    //         } => {
-    //             let ref ref_expr_type = RefExprType::CallChainLiteralExprT {
-    //                 call_chain_expr_node,
-    //             };
-    //             ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
-    //         }
-    //         ExprType::ExprListT { expr_list_node } => {
-    //             let ref ref_expr_type = RefExprType::ExprListT { expr_list_node };
-    //             ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
-    //         }
-    //         ExprType::BinaryExprT { binary_expr_node } => {
-    //             binary_expr_node
-    //                 .left_rcref
-    //                 .borrow()
-    //                 .auto_post_inc_dec(ast_visitor);
-    //             binary_expr_node
-    //                 .right_rcref
-    //                 .borrow()
-    //                 .auto_post_inc_dec(ast_visitor);
-    //         }
-    //         _ => {}
-    //     }
-    // }
 }
 
 impl NodeElement for ExprType {
@@ -1503,6 +1379,9 @@ impl NodeElement for ExprType {
                 call_expr_list_node,
             } => {
                 ast_visitor.visit_call_expr_list_node(call_expr_list_node);
+            }
+            ExprType::ListT { list_node } => {
+                ast_visitor.visit_list_node(list_node);
             }
             ExprType::ExprListT { expr_list_node } => {
                 ast_visitor.visit_expression_list_node(expr_list_node);
@@ -1580,6 +1459,9 @@ impl NodeElement for ExprType {
                 call_expr_list_node,
             } => {
                 ast_visitor.visit_call_expr_list_node_to_string(call_expr_list_node, output);
+            }
+            ExprType::ListT { list_node } => {
+                ast_visitor.visit_list_node_to_string(list_node, output);
             }
             ExprType::ExprListT { expr_list_node } => {
                 ast_visitor.visit_expression_list_node_to_string(expr_list_node, output);
@@ -1707,50 +1589,50 @@ impl NodeElement for ExprType {
 //     // - FunctionAssignment
 // }
 
-pub enum RefExprType<'a> {
-    AssignmentExprT {
-        assignment_expr_node: &'a AssignmentExprNode,
-    },
-    // #[allow(dead_code)] // is used, don't know why I need this
-    // ActionCallExprT {
-    //     action_call_expr_node: ActionCallExprNode,
-    // },
-    CallChainLiteralExprT {
-        call_chain_expr_node: &'a CallChainExprNode,
-    },
-    // #[allow(dead_code)] // is used, don't know why I need this
-    CallExprT {
-        call_expr_node: &'a CallExprNode,
-    },
-    // #[allow(dead_code)] // is used, don't know why I need this
-    // CallExprListT {
-    //     call_expr_list_node: CallExprListNode,
-    // },
-    ExprListT {
-        expr_list_node: &'a ExprListNode,
-    },
-    // VariableExprT {
-    //     var_node: VariableNode,
-    // },
-    // LiteralExprT {
-    //     literal_expr_node: LiteralExprNode,
-    // },
-    // StateStackOperationExprT {
-    //     state_stack_op_node: StateStackOperationNode,
-    // },
-    // FrameEventExprT {
-    //     frame_event_part: FrameEventPart,
-    // },
-    // UnaryExprT {
-    //     unary_expr_node: UnaryExprNode,
-    // },
-    BinaryExprT {
-        binary_expr_node: &'a BinaryExprNode,
-    },
-    LoopStmtT {
-        loop_types: &'a LoopStmtTypes,
-    },
-}
+// pub enum RefExprType<'a> {
+//     AssignmentExprT {
+//         assignment_expr_node: &'a AssignmentExprNode,
+//     },
+//     // #[allow(dead_code)] // is used, don't know why I need this
+//     // ActionCallExprT {
+//     //     action_call_expr_node: ActionCallExprNode,
+//     // },
+//     CallChainLiteralExprT {
+//         call_chain_expr_node: &'a CallChainExprNode,
+//     },
+//     // #[allow(dead_code)] // is used, don't know why I need this
+//     CallExprT {
+//         call_expr_node: &'a CallExprNode,
+//     },
+//     // #[allow(dead_code)] // is used, don't know why I need this
+//     // CallExprListT {
+//     //     call_expr_list_node: CallExprListNode,
+//     // },
+//     ExprListT {
+//         expr_list_node: &'a ExprListNode,
+//     },
+//     // VariableExprT {
+//     //     var_node: VariableNode,
+//     // },
+//     // LiteralExprT {
+//     //     literal_expr_node: LiteralExprNode,
+//     // },
+//     // StateStackOperationExprT {
+//     //     state_stack_op_node: StateStackOperationNode,
+//     // },
+//     // FrameEventExprT {
+//     //     frame_event_part: FrameEventPart,
+//     // },
+//     // UnaryExprT {
+//     //     unary_expr_node: UnaryExprNode,
+//     // },
+//     BinaryExprT {
+//         binary_expr_node: &'a BinaryExprNode,
+//     },
+//     LoopStmtT {
+//         loop_types: &'a LoopStmtTypes,
+//     },
+// }
 
 //-----------------------------------------------------//
 //                  -Statements-
@@ -1776,6 +1658,9 @@ pub enum ExprStmtType {
     },
     VariableStmtT {
         variable_stmt_node: VariableStmtNode,
+    },
+    ListStmtT {
+        list_stmt_node: ListStmtNode,
     },
     ExprListStmtT {
         expr_list_stmt_node: ExprListStmtNode,
@@ -1825,6 +1710,9 @@ pub enum StatementType {
     },
     BlockStmt {
         block_stmt_node: BlockStmtNode,
+    },
+    ReturnAssignStmt {
+        return_assign_stmt_node: ReturnAssignStmtNode,
     },
     #[allow(dead_code)] // is used, don't know why I need this
     NoStmt,
@@ -2044,6 +1932,28 @@ impl NodeElement for VariableStmtNode {
 
 //-----------------------------------------------------//
 
+pub struct ListStmtNode {
+    pub list_node: ListNode,
+}
+
+impl ListStmtNode {
+    pub fn new(list_node: ListNode) -> ListStmtNode {
+        ListStmtNode { list_node }
+    }
+
+    // TODO
+    // pub fn get_line(&self) -> usize {
+    //     self.expr_list_node.id_node.line
+    // }
+}
+
+impl NodeElement for ListStmtNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_list_stmt_node(self);
+    }
+}
+//-----------------------------------------------------//
+
 pub struct ExprListStmtNode {
     pub expr_list_node: ExprListNode,
 }
@@ -2061,22 +1971,8 @@ impl ExprListStmtNode {
 
 impl NodeElement for ExprListStmtNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
-        // let ref ref_expr_type = RefExprType::ExprListT {
-        //     expr_list_node: &self.expr_list_node,
-        // };
-        // ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
         ast_visitor.visit_expr_list_stmt_node(self);
-        // ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
     }
-
-    // fn accept_mut(&mut self, ast_visitor: &mut dyn AstVisitor) {
-    //     let ref mut  ref_expr_type = RefExprType::ExprListT {
-    //         expr_list_node: &mut self.expr_list_node,
-    //     };
-    //     ast_visitor.visit_auto_pre_inc_dec_expr_node(ref_expr_type);
-    //     ast_visitor.visit_expr_list_stmt_node(self);
-    //     ast_visitor.visit_auto_post_inc_dec_expr_node(ref_expr_type);
-    // }
 }
 
 //-----------------------------------------------------//
@@ -2779,7 +2675,7 @@ impl fmt::Display for CallChainExprNode {
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                     output.push_str(&*id_node.to_string());
                 }
-                CallChainNodeType::UndeclaredCallT { call } => {
+                CallChainNodeType::UndeclaredCallT { call_node: call } => {
                     output.push_str(&*call.to_string());
                 }
                 CallChainNodeType::InterfaceMethodCallT {
@@ -2804,6 +2700,12 @@ impl fmt::Display for CallChainExprNode {
                 }
                 CallChainNodeType::VariableNodeT { var_node } => {
                     output.push_str(&*var_node.to_string());
+                }
+                CallChainNodeType::ListElementNodeT { .. } => {
+                    // output.push_str(&*var_node.to_string());
+                }
+                CallChainNodeType::UndeclaredListElementT { .. } => {
+                    // output.push_str(&*var_node.to_string());
                 }
             }
             separator = ".";
@@ -3624,3 +3526,185 @@ impl NodeElement for EnumMatchTestPatternNode {
         ast_visitor.visit_enum_match_test_pattern_node(self);
     }
 }
+
+//-----------------------------------------------------//
+
+// Built-in Types
+
+//-----------------------------------------------------//
+
+pub struct SystemInstanceExprNode {
+    pub identifier: IdentifierNode,
+    pub start_state_state_args_opt: Option<ExprListNode>,
+    pub start_state_enter_args_opt: Option<ExprListNode>,
+    pub domain_args_opt: Option<ExprListNode>,
+}
+
+impl SystemInstanceExprNode {
+    pub fn new(
+        identifier: IdentifierNode,
+        start_state_state_args_opt: Option<ExprListNode>,
+        start_state_enter_args_opt: Option<ExprListNode>,
+        domain_args_opt: Option<ExprListNode>,
+    ) -> SystemInstanceExprNode {
+        SystemInstanceExprNode {
+            identifier,
+            start_state_state_args_opt,
+            start_state_enter_args_opt,
+            domain_args_opt,
+        }
+    }
+}
+
+impl NodeElement for SystemInstanceExprNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_system_instance_expr_node(self);
+    }
+
+    fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
+        ast_visitor.visit_system_instance_expr_node_to_string(self, output);
+    }
+}
+
+impl fmt::Display for SystemInstanceExprNode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.identifier)
+    }
+}
+
+//-----------------------------------------------------//
+
+pub struct SystemTypeExprNode {
+    pub identifier: IdentifierNode,
+    pub call_chain_opt: Box<Option<ExprType>>,
+}
+
+impl SystemTypeExprNode {
+    pub fn new(
+        identifier: IdentifierNode,
+        call_chain_opt: Box<Option<ExprType>>,
+    ) -> SystemTypeExprNode {
+        SystemTypeExprNode {
+            identifier,
+            call_chain_opt,
+        }
+    }
+}
+
+impl NodeElement for SystemTypeExprNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_system_type_expr_node(self);
+    }
+
+    fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
+        ast_visitor.visit_system_type_expr_node_to_string(self, output);
+    }
+}
+
+impl fmt::Display for SystemTypeExprNode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.identifier)
+    }
+}
+
+//-----------------------------------------------------//
+
+// #[derive(Clone)]
+pub struct ListNode {
+    pub exprs_t: Vec<ExprType>,
+    //    pub inc_dec: IncDecExpr,
+}
+
+impl ListNode {
+    pub fn new(exprs_t: Vec<ExprType>) -> ListNode {
+        ListNode { exprs_t }
+    }
+}
+
+impl NodeElement for ListNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_list_node(self);
+    }
+
+    fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
+        ast_visitor.visit_list_node_to_string(self, output);
+    }
+}
+
+//-----------------------------------------------------//
+
+// ListElementNode captures list elements such as
+// x[0], zoo["lion"], bar[foo()] etc.
+pub struct ListElementNode {
+    pub identifier: IdentifierNode,
+    pub scope: IdentifierDeclScope,
+    pub expr_t: ExprType,
+}
+
+impl ListElementNode {
+    pub fn new(
+        identifier: IdentifierNode,
+        scope: IdentifierDeclScope,
+        expr_t: ExprType,
+    ) -> ListElementNode {
+        ListElementNode {
+            identifier,
+            scope,
+            expr_t,
+        }
+    }
+}
+
+impl NodeElement for ListElementNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_list_elem_node(self);
+    }
+
+    fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
+        ast_visitor.visit_list_elem_node_to_string(self, output);
+    }
+}
+
+//-----------------------------------------------------//
+
+// ReturnAssignExprNode captures "^= expr" statements.
+
+pub struct ReturnAssignStmtNode {
+    pub expr_t: ExprType,
+}
+
+impl ReturnAssignStmtNode {
+    pub fn new(expr_t: ExprType) -> ReturnAssignStmtNode {
+        ReturnAssignStmtNode { expr_t }
+    }
+}
+
+impl NodeElement for ReturnAssignStmtNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_return_assign_stmt_node(self);
+    }
+
+    // fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
+    //     ast_visitor.visit_return_assign_stmt_node_to_string(self, output);
+    // }
+}
+
+//
+// pub enum ListElementExprType {
+//     ActionCallExprT {
+//         action_call_expr_node: ActionCallExprNode,
+//     },
+//     CallChainExprT {
+//         call_chain_expr_node: CallChainExprNode,
+//     },
+//     #[allow(dead_code)] // is used, don't know why I need this
+//     CallExprT {
+//         call_expr_node: CallExprNode,
+//     },
+//     VariableExprT {
+//         var_node: VariableNode,
+//     },
+//     LiteralExprT {
+//         literal_expr_node: LiteralExprNode,
+//     },
+// }

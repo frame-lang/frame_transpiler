@@ -1,4 +1,4 @@
-#Emitted from framec_v0.11.0
+#Emitted from framec_v0.11.2
 
 
 
@@ -20,10 +20,13 @@ class HierarchicalGuard:
     
     def __init__(self):
         
-         # Create and intialize start state compartment.
+         # Create and initialize start state compartment.
         
-        self.__compartment: 'HierarchicalGuardCompartment' = HierarchicalGuardCompartment('__hierarchicalguard_state_I')
-        self.__next_compartment: 'HierarchicalGuardCompartment' = None
+        next_compartment = None
+        next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_I', next_compartment)
+        self.__compartment = next_compartment
+        self.__next_compartment = None
+        self.return_stack = [None]
         
         # Initialize domain
         
@@ -38,38 +41,48 @@ class HierarchicalGuard:
     def A(self,i: int):
         parameters = {}
         parameters["i"] = i
+        self.return_stack.append(None)
         __e = FrameEvent("A",parameters)
         self.__kernel(__e)
+        self.return_stack.pop(-1)
     
     def B(self,i: int):
         parameters = {}
         parameters["i"] = i
+        self.return_stack.append(None)
         __e = FrameEvent("B",parameters)
         self.__kernel(__e)
+        self.return_stack.pop(-1)
     
     # ===================== Machine Block =================== #
     
     # ----------------------------------------
     # $I
     
-    def __hierarchicalguard_state_I(self, __e):
+    def __hierarchicalguard_state_I(self, __e, compartment):
         if __e._message == ">":
-            next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S')
+            next_compartment = None
+            next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S', next_compartment)
             self.__transition(next_compartment)
             return
     
     # ----------------------------------------
     # $S
     
-    def __hierarchicalguard_state_S(self, __e):
+    def __hierarchicalguard_state_S(self, __e, compartment):
         if __e._message == "A":
             self.log_do("S.A")
             if  __e._parameters["i"] < 10:
-                next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S0')
+                next_compartment = None
+                next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S', next_compartment)
+                next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S0', next_compartment)
                 self.__transition(next_compartment)
                 return
             else:
-                next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S1')
+                next_compartment = None
+                next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S', next_compartment)
+                next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S0', next_compartment)
+                next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S1', next_compartment)
                 self.__transition(next_compartment)
                 return
             
@@ -77,11 +90,17 @@ class HierarchicalGuard:
         elif __e._message == "B":
             self.log_do("S.B")
             if  __e._parameters["i"] < 10:
-                next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S2')
+                next_compartment = None
+                next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S', next_compartment)
+                next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S0', next_compartment)
+                next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S1', next_compartment)
+                next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S2', next_compartment)
                 self.__transition(next_compartment)
                 return
             else:
-                next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S3')
+                next_compartment = None
+                next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S', next_compartment)
+                next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S3', next_compartment)
                 self.__transition(next_compartment)
                 return
             
@@ -90,11 +109,15 @@ class HierarchicalGuard:
     # ----------------------------------------
     # $S0
     
-    def __hierarchicalguard_state_S0(self, __e):
+    def __hierarchicalguard_state_S0(self, __e, compartment):
         if __e._message == "A":
             self.log_do("S0.A")
             if  __e._parameters["i"] > 0:
-                next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S2')
+                next_compartment = None
+                next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S', next_compartment)
+                next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S0', next_compartment)
+                next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S1', next_compartment)
+                next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S2', next_compartment)
                 self.__transition(next_compartment)
                 return
             else:
@@ -106,12 +129,15 @@ class HierarchicalGuard:
             if  __e._parameters["i"] > 0:
                 pass
             else:
-                next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S1')
+                next_compartment = None
+                next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S', next_compartment)
+                next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S0', next_compartment)
+                next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S1', next_compartment)
                 self.__transition(next_compartment)
                 return
             
         
-        self.__hierarchicalguard_state_S(__e)
+        self.__hierarchicalguard_state_S(__e, compartment.parent_compartment)
         
       #  fall through then branch
     
@@ -119,18 +145,20 @@ class HierarchicalGuard:
     # ----------------------------------------
     # $S1
     
-    def __hierarchicalguard_state_S1(self, __e):
+    def __hierarchicalguard_state_S1(self, __e, compartment):
         if __e._message == "A":
             self.log_do("S1.A")
             if  __e._parameters["i"] > 5:
-                next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S3')
+                next_compartment = None
+                next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S', next_compartment)
+                next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S3', next_compartment)
                 self.__transition(next_compartment)
                 return
             else:
                 pass
             
         
-        self.__hierarchicalguard_state_S0(__e)
+        self.__hierarchicalguard_state_S0(__e, compartment.parent_compartment)
         
       #  fall through else branch
     
@@ -138,11 +166,12 @@ class HierarchicalGuard:
     # ----------------------------------------
     # $S2
     
-    def __hierarchicalguard_state_S2(self, __e):
+    def __hierarchicalguard_state_S2(self, __e, compartment):
         if __e._message == "A":
             self.log_do("S2.A")
             if  __e._parameters["i"] > 10:
-                next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S4')
+                next_compartment = None
+                next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S4', next_compartment)
                 self.__transition(next_compartment)
                 return
             else:
@@ -154,12 +183,13 @@ class HierarchicalGuard:
             if  not (__e._parameters["i"] > 10):
                 pass
             else:
-                next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S4')
+                next_compartment = None
+                next_compartment = HierarchicalGuardCompartment('__hierarchicalguard_state_S4', next_compartment)
                 self.__transition(next_compartment)
                 return
             
         
-        self.__hierarchicalguard_state_S1(__e)
+        self.__hierarchicalguard_state_S1(__e, compartment.parent_compartment)
         
       #  fall through then branch
     
@@ -167,7 +197,7 @@ class HierarchicalGuard:
     # ----------------------------------------
     # $S3
     
-    def __hierarchicalguard_state_S3(self, __e):
+    def __hierarchicalguard_state_S3(self, __e, compartment):
         if __e._message == "A":
             self.log_do("S3.A")
             if  __e._parameters["i"] > 0:
@@ -187,13 +217,13 @@ class HierarchicalGuard:
                 return
             
         
-        self.__hierarchicalguard_state_S(__e)
+        self.__hierarchicalguard_state_S(__e, compartment.parent_compartment)
         
     
     # ----------------------------------------
     # $S4
     
-    def __hierarchicalguard_state_S4(self, __e):
+    def __hierarchicalguard_state_S4(self, __e, compartment):
         pass
         
     
@@ -237,21 +267,21 @@ class HierarchicalGuard:
     
     def __router(self, __e):
         if self.__compartment.state == '__hierarchicalguard_state_I':
-            self.__hierarchicalguard_state_I(__e)
+            self.__hierarchicalguard_state_I(__e, self.__compartment)
         elif self.__compartment.state == '__hierarchicalguard_state_S':
-            self.__hierarchicalguard_state_S(__e)
+            self.__hierarchicalguard_state_S(__e, self.__compartment)
         elif self.__compartment.state == '__hierarchicalguard_state_S0':
-            self.__hierarchicalguard_state_S0(__e)
+            self.__hierarchicalguard_state_S0(__e, self.__compartment)
         elif self.__compartment.state == '__hierarchicalguard_state_S1':
-            self.__hierarchicalguard_state_S1(__e)
+            self.__hierarchicalguard_state_S1(__e, self.__compartment)
         elif self.__compartment.state == '__hierarchicalguard_state_S2':
-            self.__hierarchicalguard_state_S2(__e)
+            self.__hierarchicalguard_state_S2(__e, self.__compartment)
         elif self.__compartment.state == '__hierarchicalguard_state_S3':
-            self.__hierarchicalguard_state_S3(__e)
+            self.__hierarchicalguard_state_S3(__e, self.__compartment)
         elif self.__compartment.state == '__hierarchicalguard_state_S4':
-            self.__hierarchicalguard_state_S4(__e)
+            self.__hierarchicalguard_state_S4(__e, self.__compartment)
         
-    def __transition(self, next_compartment: 'HierarchicalGuardCompartment'):
+    def __transition(self, next_compartment):
         self.__next_compartment = next_compartment
     
     def state_info(self):
@@ -262,11 +292,12 @@ class HierarchicalGuard:
 
 class HierarchicalGuardCompartment:
 
-    def __init__(self,state):
+    def __init__(self,state,parent_compartment):
         self.state = state
         self.state_args = {}
         self.state_vars = {}
         self.enter_args = {}
         self.exit_args = {}
         self.forward_event = None
+        self.parent_compartment = parent_compartment
     

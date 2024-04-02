@@ -89,7 +89,7 @@ impl TryFrom<String> for TargetLanguage {
 // pub mod java_8_visitor;
 // pub mod javascript_visitor;
 pub mod graphviz_visitor;
-pub mod plantuml_visitor;
+// pub mod plantuml_visitor;
 pub mod python_visitor;
 // pub mod rust_visitor;
 // pub mod smcat_visitor;
@@ -129,8 +129,8 @@ pub trait AstVisitor {
     fn visit_call_expr_list_node_to_string(&mut self, _node: &CallExprListNode, _output: &mut String) {}
 
     fn visit_call_chain_expr_node(&mut self, _node: &CallChainExprNode) {}
-   // fn auto_inc_dec_call_chain_literal_expr_node(&mut self, _node: &CallChainLiteralExprNode) {}
-   // fn auto_post_inc_dec_call_chain_literal_expr_node(&mut self, _node: &CallChainLiteralExprNode) {}
+    // fn auto_inc_dec_call_chain_literal_expr_node(&mut self, _node: &CallChainLiteralExprNode) {}
+    // fn auto_post_inc_dec_call_chain_literal_expr_node(&mut self, _node: &CallChainLiteralExprNode) {}
     fn visit_call_chain_expr_node_to_string(&mut self, _node: &CallChainExprNode, _output: &mut String) {}
 
     fn visit_call_chain_statement_node(&mut self, _node: &CallChainStmtNode) {}
@@ -159,9 +159,17 @@ pub trait AstVisitor {
 
     fn visit_expression_list_node(&mut self, _expr_list: &ExprListNode) {}
     fn visit_expression_list_node_to_string(&mut self, _expr_list: &ExprListNode, _output: &mut String) {}
-    fn visit_auto_pre_inc_dec_expr_node(&mut self, _expr_list: &RefExprType) {}
-    fn visit_auto_post_inc_dec_expr_node(&mut self, _expr_list: &RefExprType) {}
- //   fn auto_post_inc_dec_expression_list_node(&mut self, _expr_list: &ExprListNode) {}
+
+    fn visit_list_node(&mut self, _list: &ListNode) {}
+    fn visit_list_node_to_string(&mut self, _list: &ListNode, _output: &mut String) {}
+
+    fn visit_list_elem_node(&mut self, _list_elem: &ListElementNode) {}
+    fn visit_list_elem_node_to_string(&mut self, _list_elem: &ListElementNode, _output: &mut String) {}
+    // fn visit_auto_pre_inc_dec_expr_node(&mut self, _expr_list: &RefExprType) {}
+    // fn visit_auto_post_inc_dec_expr_node(&mut self, _expr_list: &RefExprType) {}
+    //   fn auto_post_inc_dec_expression_list_node(&mut self, _expr_list: &ExprListNode) {}
+
+    fn visit_list_stmt_node(&mut self, _list: &ListStmtNode) {}
 
     fn visit_expr_list_stmt_node(&mut self, _expr_list: &ExprListStmtNode) {}
 
@@ -175,9 +183,6 @@ pub trait AstVisitor {
     fn visit_block_stmt_node(&mut self, _block_stmt_node: &BlockStmtNode) {}
     // fn visit_loop_expr_node(&mut self, _loop_types: &LoopTypes) {}
     // fn visit_loop_expr_node_to_string(&mut self, _loop_types: &LoopTypes, _output: &mut String) {}
-
-
-
     fn visit_literal_expression_node(&mut self, _node: &LiteralExprNode) {}
     fn visit_literal_expression_node_to_string(&mut self, _node: &LiteralExprNode, _output: &mut String) {}
     fn visit_identifier_node(&mut self, _node: &IdentifierNode) {}
@@ -199,7 +204,6 @@ pub trait AstVisitor {
     fn visit_action_call_expression_node(&mut self, _node: &ActionCallExprNode) {}
     fn visit_action_call_expression_node_to_string(&mut self, _node: &ActionCallExprNode, _output: &mut String) {}
     fn visit_action_call_statement_node(&mut self, _node: &ActionCallStmtNode) {}
-
 
 
     // ---
@@ -251,4 +255,6 @@ pub trait AstVisitor {
 
     fn visit_operator_type(&mut self, _operator_type: &OperatorType) {}
     fn visit_operator_type_to_string(&mut self, _operator_type: &OperatorType, _output: &mut String) {}
+
+    fn visit_return_assign_stmt_node(&mut self, _return_assign_stmt_node: &ReturnAssignStmtNode) {}
 }

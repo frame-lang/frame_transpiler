@@ -162,7 +162,7 @@ dependencies = [
 
 [[package]]
 name = "frame_build"
-version = "0.11.0"
+version = "0.11.2"
 dependencies = [
  "anyhow",
  "framec",
@@ -171,7 +171,7 @@ dependencies = [
 
 [[package]]
 name = "frame_runtime"
-version = "0.11.0"
+version = "0.11.2"
 dependencies = [
  "indoc",
  "once_cell",
@@ -179,13 +179,14 @@ dependencies = [
 
 [[package]]
 name = "framec"
-version = "0.11.0"
+version = "0.11.2"
 dependencies = [
  "clap 3.1.1",
  "convert_case",
  "downcast-rs",
  "exitcode",
  "figment",
+ "indoc",
  "serde",
  "serde_yaml",
  "sha2",
@@ -195,7 +196,7 @@ dependencies = [
 
 [[package]]
 name = "framec_tests"
-version = "0.11.0"
+version = "0.11.2"
 dependencies = [
  "anyhow",
  "frame_build",

@@ -30,8 +30,8 @@ pub struct PythonVisitor {
     first_event_handler: bool,
     system_name: String,
     first_state_name: String,
-    serialize: Vec<String>,
-    deserialize: Vec<String>,
+    // serialize: Vec<String>,
+    // deserialize: Vec<String>,
     subclass_code: Vec<String>,
     warnings: Vec<String>,
     has_states: bool,
@@ -92,8 +92,8 @@ impl PythonVisitor {
             first_event_handler: true,
             system_name: String::new(),
             first_state_name: String::new(),
-            serialize: Vec::new(),
-            deserialize: Vec::new(),
+            // serialize: Vec::new(),
+            // deserialize: Vec::new(),
             has_states: false,
             errors: Vec::new(),
             subclass_code: Vec::new(),
@@ -511,9 +511,79 @@ impl PythonVisitor {
             IdentifierDeclScope::EventHandlerVarScope => {
                 code.push_str(&variable_node.id_node.name.lexeme.to_string());
             }
+            IdentifierDeclScope::BlockVarScope => {
+                code.push_str(&variable_node.id_node.name.lexeme.to_string());
+            }
             IdentifierDeclScope::UnknownScope => {
                 // TODO: Explore labeling Variables as "extern" scope
                 code.push_str(&variable_node.id_node.name.lexeme.to_string());
+            } // Actions?
+            _ => self.errors.push("Illegal scope.".to_string()),
+        }
+
+        code
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn format_list_element_expr(&mut self, list_element_node: &ListElementNode) -> String {
+        let mut code = String::new();
+
+        match list_element_node.scope {
+            IdentifierDeclScope::SystemScope => {
+                code.push_str("self");
+            }
+            IdentifierDeclScope::DomainBlockScope => {
+                code.push_str(&format!(
+                    "self.{}",
+                    list_element_node.identifier.name.lexeme
+                ));
+            }
+            IdentifierDeclScope::StateParamScope => {
+                if self.visiting_call_chain_literal_variable {
+                    code.push('(');
+                }
+                code.push_str(&format!(
+                    "compartment.state_args[\"{}\"]",
+                    list_element_node.identifier.name.lexeme
+                ));
+                if self.visiting_call_chain_literal_variable {
+                    code.push(')');
+                }
+            }
+            IdentifierDeclScope::StateVarScope => {
+                if self.visiting_call_chain_literal_variable {
+                    code.push('(');
+                }
+                code.push_str(&format!(
+                    "compartment.state_vars[\"{}\"]",
+                    list_element_node.identifier.name.lexeme
+                ));
+                if self.visiting_call_chain_literal_variable {
+                    code.push(')');
+                }
+            }
+            IdentifierDeclScope::EventHandlerParamScope => {
+                // if self.visiting_call_chain_literal_variable {
+                //     code.push_str("(");
+                // }
+                code.push_str(&format!(
+                    "__e._parameters[\"{}\"]",
+                    list_element_node.identifier.name.lexeme
+                ));
+                // if self.visiting_call_chain_literal_variable {
+                //     code.push_str(")");
+                // }
+            }
+            IdentifierDeclScope::EventHandlerVarScope => {
+                code.push_str(&list_element_node.identifier.name.lexeme.to_string());
+            }
+            IdentifierDeclScope::BlockVarScope => {
+                code.push_str(&list_element_node.identifier.name.lexeme.to_string());
+            }
+            IdentifierDeclScope::UnknownScope => {
+                // TODO: Explore labeling Variables as "extern" scope
+                code.push_str(&list_element_node.identifier.name.lexeme.to_string());
             } // Actions?
             _ => self.errors.push("Illegal scope.".to_string()),
         }
@@ -810,6 +880,9 @@ impl PythonVisitor {
                                 ExprStmtType::VariableStmtT { variable_stmt_node } => {
                                     variable_stmt_node.accept(self)
                                 }
+                                ExprStmtType::ListStmtT { list_stmt_node } => {
+                                    list_stmt_node.accept(self)
+                                }
                                 ExprStmtType::ExprListStmtT {
                                     expr_list_stmt_node,
                                 } => expr_list_stmt_node.accept(self),
@@ -844,6 +917,11 @@ impl PythonVisitor {
                         }
                         StatementType::BlockStmt { block_stmt_node } => {
                             block_stmt_node.accept(self);
+                        }
+                        StatementType::ReturnAssignStmt {
+                            return_assign_stmt_node,
+                        } => {
+                            return_assign_stmt_node.accept(self);
                         }
                         StatementType::ContinueStmt { continue_stmt_node } => {
                             continue_stmt_node.accept(self);
@@ -1020,17 +1098,17 @@ impl PythonVisitor {
 
             self.newline();
 
-            if self.arcanium.is_serializable() {
-                for line in self.serialize.iter() {
-                    self.code.push_str(&*line.to_string());
-                    self.code.push_str(&*format!("\n{}", self.dent()));
-                }
-
-                for line in self.deserialize.iter() {
-                    self.code.push_str(&*line.to_string());
-                    self.code.push_str(&*format!("\n{}", self.dent()));
-                }
-            }
+            // if self.arcanium.is_serializable() {
+            //     for line in self.serialize.iter() {
+            //         self.code.push_str(&*line.to_string());
+            //         self.code.push_str(&*format!("\n{}", self.dent()));
+            //     }
+            //
+            //     for line in self.deserialize.iter() {
+            //         self.code.push_str(&*line.to_string());
+            //         self.code.push_str(&*format!("\n{}", self.dent()));
+            //     }
+            // }
         }
     }
 
@@ -1723,6 +1801,16 @@ impl PythonVisitor {
             self.add_code("self.__compartment = None");
         }
 
+        self.newline();
+        // Note - the initialization to  [None]  is to support
+        // situations where the return is set during start state
+        // entry event handler. As there is no call to the interface, a return
+        // element is not yet pushed on the return stack so the program will just crash
+        // if not initialized this way. This [None] will never be returned to a caller
+        // as there is no caller during start state initialization but prevents
+        // the crash from happening.
+        self.add_code(&format!("self.return_stack = [None]"));
+
         // Initialize state arguments.
         match &system_node.start_state_state_params_opt {
             Some(params) => {
@@ -2058,14 +2146,14 @@ impl AstVisitor for PythonVisitor {
 
         // end of generate constructor
 
-        self.serialize.push("".to_string());
-        self.serialize.push("Bag _serialize__do() {".to_string());
-
-        self.deserialize.push("".to_string());
-
-        // @TODO: _do needs to be configurable.
-        self.deserialize
-            .push("void _deserialize__do(Bag data) {".to_string());
+        // self.serialize.push("".to_string());
+        // self.serialize.push("Bag _serialize__do() {".to_string());
+        //
+        // self.deserialize.push("".to_string());
+        //
+        // // @TODO: _do needs to be configurable.
+        // self.deserialize
+        //     .push("void _deserialize__do(Bag data) {".to_string());
 
         self.subclass_code.push("".to_string());
         self.subclass_code
@@ -2112,14 +2200,14 @@ impl AstVisitor for PythonVisitor {
         self.subclass_code
             .push("\n# ********************\n".to_string());
 
-        self.serialize.push("".to_string());
-        self.serialize
-            .push("\treturn JSON.stringify(bag)".to_string());
-        self.serialize.push("}".to_string());
-        self.serialize.push("".to_string());
-
-        self.deserialize.push("".to_string());
-        self.deserialize.push("}".to_string());
+        // self.serialize.push("".to_string());
+        // self.serialize
+        //     .push("\treturn JSON.stringify(bag)".to_string());
+        // self.serialize.push("}".to_string());
+        // self.serialize.push("".to_string());
+        //
+        // self.deserialize.push("".to_string());
+        // self.deserialize.push("}".to_string());
 
         self.generate_machinery(system_node);
 
@@ -2498,6 +2586,18 @@ impl AstVisitor for PythonVisitor {
         }
 
         self.newline();
+        match &interface_method_node.return_init_expr_opt {
+            Some(x) => {
+                let mut output = String::new();
+                x.accept_to_string(self, &mut output);
+                self.add_code(&format!("self.return_stack.append({})", output));
+            }
+            _ => {
+                self.add_code("self.return_stack.append(None)");
+            }
+        }
+
+        self.newline();
         self.add_code(&format!(
             "__e = FrameEvent(\"{}\",{})",
             method_name_or_alias, params_param_code
@@ -2510,9 +2610,24 @@ impl AstVisitor for PythonVisitor {
         match &interface_method_node.return_type_opt {
             Some(_) => {
                 self.newline();
-                self.add_code("return __e._return");
+                self.add_code("return self.return_stack.pop(-1)");
             }
-            None => {}
+            None => {
+                // If there was no type decl but there is an expression
+                // evaluated to return then also generate code
+                // to return that value.
+                match &interface_method_node.return_init_expr_opt {
+                    Some(_) => {
+                        self.newline();
+                        self.add_code("return self.return_stack.pop(-1)");
+                    }
+                    None => {
+                        // always pop the return stack as a default Nil is addes
+                        self.newline();
+                        self.add_code("self.return_stack.pop(-1)");
+                    }
+                }
+            }
         }
 
         self.outdent();
@@ -2668,28 +2783,28 @@ impl AstVisitor for PythonVisitor {
         self.add_code("# ===================== Machine Block =================== #");
         self.newline();
 
-        self.serialize.push("".to_string());
-        self.serialize.push("\tvar stateName = null".to_string());
-
-        self.deserialize.push("".to_string());
-        self.deserialize
-            .push("\tbag = JSON.parse(data)".to_string());
-        self.deserialize.push("".to_string());
-        self.deserialize.push("\tswitch (bag.state) {".to_string());
+        // self.serialize.push("".to_string());
+        // self.serialize.push("\tvar stateName = null".to_string());
+        //
+        // self.deserialize.push("".to_string());
+        // self.deserialize
+        //     .push("\tbag = JSON.parse(data)".to_string());
+        // self.deserialize.push("".to_string());
+        // self.deserialize.push("\tswitch (bag.state) {".to_string());
 
         for state_node_rcref in &machine_block_node.states {
             state_node_rcref.borrow().accept(self);
         }
 
-        self.serialize.push("".to_string());
-        self.serialize.push("\tbag = {".to_string());
-        self.serialize.push("\t\tstate : stateName,".to_string());
-        self.serialize.push("\t\tdomain : {}".to_string());
-        self.serialize.push("\t}".to_string());
-        self.serialize.push("".to_string());
-
-        self.deserialize.push("\t}".to_string());
-        self.deserialize.push("".to_string());
+        // self.serialize.push("".to_string());
+        // self.serialize.push("\tbag = {".to_string());
+        // self.serialize.push("\t\tstate : stateName,".to_string());
+        // self.serialize.push("\t\tdomain : {}".to_string());
+        // self.serialize.push("\t}".to_string());
+        // self.serialize.push("".to_string());
+        //
+        // self.deserialize.push("\t}".to_string());
+        // self.deserialize.push("".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -2768,15 +2883,15 @@ impl AstVisitor for PythonVisitor {
         ));
         self.indent();
 
-        self.serialize.push(format!(
-            "\tif (self._state_ == _s{}_) stateName = \"{}\"",
-            state_node.name, state_node.name
-        ));
-
-        self.deserialize.push(format!(
-            "\t\tcase \"{}\": _state_ = _s{}_; break;",
-            state_node.name, state_node.name
-        ));
+        // self.serialize.push(format!(
+        //     "\tif (self._state_ == _s{}_) stateName = \"{}\"",
+        //     state_node.name, state_node.name
+        // ));
+        //
+        // self.deserialize.push(format!(
+        //     "\t\tcase \"{}\": _state_ = _s{}_; break;",
+        //     state_node.name, state_node.name
+        // ));
 
         let mut generate_pass = true;
 
@@ -2903,7 +3018,7 @@ impl AstVisitor for PythonVisitor {
                     if self.is_in_action_or_operation() {
                         self.add_code("return = ");
                     } else {
-                        self.add_code("__e._return = ");
+                        self.add_code("self.return_stack[-1] = ");
                     }
                     expr_t.accept(self);
                     // expr_t.auto_post_inc_dec(self);
@@ -3238,7 +3353,7 @@ impl AstVisitor for PythonVisitor {
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                     id_node.accept(self);
                 }
-                CallChainNodeType::UndeclaredCallT { call } => {
+                CallChainNodeType::UndeclaredCallT { call_node: call } => {
                     call.accept(self);
                 }
                 CallChainNodeType::InterfaceMethodCallT {
@@ -3268,6 +3383,12 @@ impl AstVisitor for PythonVisitor {
                     self.visiting_call_chain_literal_variable = true;
                     var_node.accept(self);
                     self.visiting_call_chain_literal_variable = false;
+                }
+                CallChainNodeType::ListElementNodeT { list_elem_node } => {
+                    list_elem_node.accept(self);
+                }
+                CallChainNodeType::UndeclaredListElementT { list_elem_node } => {
+                    list_elem_node.accept(self);
                 }
             }
         }
@@ -3510,7 +3631,7 @@ impl AstVisitor for PythonVisitor {
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                     id_node.accept_to_string(self, output);
                 }
-                CallChainNodeType::UndeclaredCallT { call } => {
+                CallChainNodeType::UndeclaredCallT { call_node: call } => {
                     call.accept_to_string(self, output);
                 }
                 CallChainNodeType::InterfaceMethodCallT {
@@ -3535,6 +3656,12 @@ impl AstVisitor for PythonVisitor {
                 }
                 CallChainNodeType::VariableNodeT { var_node } => {
                     var_node.accept_to_string(self, output);
+                }
+                CallChainNodeType::ListElementNodeT { list_elem_node } => {
+                    list_elem_node.accept_to_string(self, output);
+                }
+                CallChainNodeType::UndeclaredListElementT { list_elem_node } => {
+                    list_elem_node.accept_to_string(self, output);
                 }
             }
             separator = ".";
@@ -3801,7 +3928,7 @@ impl AstVisitor for PythonVisitor {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
-                                self.add_code("__e._return = ");
+                                self.add_code("self.return_stack[-1] = ");
                                 expr_t.accept(self);
                                 self.generate_return();
                             }
@@ -3867,7 +3994,7 @@ impl AstVisitor for PythonVisitor {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
-                                self.add_code("__e._return = ");
+                                self.add_code("self.return_stack[-1] = ");
                                 expr_t.accept(self);
                                 self.generate_return();
                             }
@@ -4015,7 +4142,7 @@ impl AstVisitor for PythonVisitor {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
-                                self.add_code("__e._return = ");
+                                self.add_code("self.return_stack[-1] = ");
                                 expr_t.accept(self);
                                 self.generate_return();
                             }
@@ -4083,7 +4210,7 @@ impl AstVisitor for PythonVisitor {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
-                                self.add_code("__e._return = ");
+                                self.add_code("self.return_stack[-1] = ");
                                 expr_t.accept(self);
                                 self.generate_return();
                             }
@@ -4207,7 +4334,7 @@ impl AstVisitor for PythonVisitor {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
-                                self.add_code("__e._return = ");
+                                self.add_code("self.return_stack[-1] = ");
                                 expr_t.accept(self);
                                 self.generate_return();
                             }
@@ -4248,7 +4375,7 @@ impl AstVisitor for PythonVisitor {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
-                                self.add_code("__e._return = ");
+                                self.add_code("self.return_stack[-1] = ");
                                 expr_t.accept(self);
                                 self.generate_return();
                             }
@@ -4401,7 +4528,7 @@ impl AstVisitor for PythonVisitor {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
-                                self.add_code("__e._return = ");
+                                self.add_code("self.return_stack[-1] = ");
                                 expr_t.accept(self);
                                 self.generate_return();
                             }
@@ -4465,7 +4592,7 @@ impl AstVisitor for PythonVisitor {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
-                                self.add_code("__e._return = ");
+                                self.add_code("self.return_stack[-1] = ");
                                 expr_t.accept(self);
                                 self.generate_return();
                             }
@@ -4488,6 +4615,18 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    fn visit_return_assign_stmt_node(&mut self, return_assign_stmt_node: &ReturnAssignStmtNode) {
+        let mut output = String::new();
+
+        return_assign_stmt_node
+            .expr_t
+            .accept_to_string(self, &mut output);
+
+        self.newline();
+        self.add_code(&format!("self.return_stack[-1] = {}", output));
+    }
+    //* --------------------------------------------------------------------- *//
+
     fn visit_enum_match_test_pattern_node(
         &mut self,
         _enum_match_test_pattern_node: &EnumMatchTestPatternNode,
@@ -4499,7 +4638,6 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_expression_list_node(&mut self, expr_list: &ExprListNode) {
-        //  self.in_expr_list = true;
         let mut generate_parens = true;
         if expr_list.exprs_t.len() == 1 {
             if let Some(ExprType::TransitionExprT { .. }) = expr_list.exprs_t.get(0) {
@@ -4520,7 +4658,6 @@ impl AstVisitor for PythonVisitor {
         if generate_parens {
             self.add_code(")");
         }
-        //  self.in_expr_list = false;
     }
 
     //* --------------------------------------------------------------------- *//
@@ -4540,6 +4677,64 @@ impl AstVisitor for PythonVisitor {
             separator = ",";
         }
         output.push(')');
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_list_stmt_node(&mut self, list_stmt_node: &ListStmtNode) {
+        let ref list_node = list_stmt_node.list_node;
+        // self.test_skip_newline();
+        list_node.accept(self);
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_list_node(&mut self, list: &ListNode) {
+        let mut separator = "";
+        self.add_code("[");
+
+        for expr in &list.exprs_t {
+            self.add_code(separator);
+            expr.accept(self);
+            separator = ",";
+        }
+
+        self.add_code("]");
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_list_node_to_string(&mut self, list: &ListNode, output: &mut String) {
+        let mut separator = "";
+        output.push('[');
+        for expr in &list.exprs_t {
+            output.push_str(separator);
+            expr.accept_to_string(self, output);
+            separator = ",";
+        }
+        output.push(']');
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_list_elem_node(&mut self, list_elem: &ListElementNode) {
+        let str = self.format_list_element_expr(list_elem);
+        self.add_code(str.as_str());
+        // list_elem.identifier.accept(self);
+        self.add_code("[");
+        list_elem.expr_t.accept(self);
+        self.add_code("]");
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_list_elem_node_to_string(&mut self, list_elem: &ListElementNode, output: &mut String) {
+        let str = self.format_list_element_expr(list_elem);
+        output.push_str(str.as_str());
+        //  list_elem.identifier.accept_to_string(self,output);
+        output.push('[');
+        list_elem.expr_t.accept_to_string(self, output);
+        output.push(']');
     }
 
     //* --------------------------------------------------------------------- *//
@@ -4682,7 +4877,7 @@ impl AstVisitor for PythonVisitor {
             )),
             FrameEventPart::Return {
                 is_reference: _is_reference,
-            } => self.add_code("__e._return"),
+            } => self.add_code("self.return_stack[-1]"),
         }
     }
 
@@ -4711,7 +4906,7 @@ impl AstVisitor for PythonVisitor {
             )),
             FrameEventPart::Return {
                 is_reference: _is_reference,
-            } => output.push_str("__e._return"),
+            } => output.push_str("self.return_stack[-1]"),
         }
     }
 
@@ -4931,10 +5126,10 @@ impl AstVisitor for PythonVisitor {
             _ => panic!("Error - unexpected scope for variable declaration"),
         }
 
-        self.serialize
-            .push(format!("\tbag.domain[\"{}\"] = {}", var_name, var_name));
-        self.deserialize
-            .push(format!("\t{} = bag.domain[\"{}\"]", var_name, var_name));
+        // self.serialize
+        //     .push(format!("\tbag.domain[\"{}\"] = {}", var_name, var_name));
+        // self.deserialize
+        //     .push(format!("\t{} = bag.domain[\"{}\"]", var_name, var_name));
     }
 
     //* --------------------------------------------------------------------- *//

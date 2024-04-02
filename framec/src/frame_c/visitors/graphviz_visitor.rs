@@ -419,6 +419,11 @@ impl GraphVizVisitor {
                         StatementType::BlockStmt { block_stmt_node } => {
                             block_stmt_node.accept(self);
                         }
+                        StatementType::ReturnAssignStmt {
+                            return_assign_stmt_node,
+                        } => {
+                            return_assign_stmt_node.accept(self);
+                        }
                         StatementType::ContinueStmt { .. } => {
                             // continue_stmt_node.accept(self);
                         }
