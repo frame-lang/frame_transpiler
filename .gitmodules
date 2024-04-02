@@ -1,0 +1,3 @@
+[submodule "framec/frame-node"]
+	path = framec/frame-node
+	url = https://github.com/frame-lang/vscode_framepiler
