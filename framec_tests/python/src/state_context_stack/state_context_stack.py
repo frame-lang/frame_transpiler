@@ -48,25 +48,25 @@ class StateContextStack:
         self.return_stack.append(None)
         __e = FrameEvent("to_a",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def to_b(self,):
         self.return_stack.append(None)
         __e = FrameEvent("to_b",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def to_c(self,):
         self.return_stack.append(None)
         __e = FrameEvent("to_c",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def inc(self,):
         self.return_stack.append(None)
         __e = FrameEvent("inc",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def value(self,):
         self.return_stack.append(None)
@@ -78,13 +78,13 @@ class StateContextStack:
         self.return_stack.append(None)
         __e = FrameEvent("push",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def pop(self,):
         self.return_stack.append(None)
         __e = FrameEvent("pop",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     # ===================== Machine Block =================== #
     

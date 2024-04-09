@@ -43,13 +43,13 @@ class TransitionSm:
         self.return_stack.append(None)
         __e = FrameEvent("transit",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def change(self,):
         self.return_stack.append(None)
         __e = FrameEvent("change",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     # ===================== Machine Block =================== #
     

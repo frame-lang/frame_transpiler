@@ -42,37 +42,37 @@ class Branch:
         self.return_stack.append(None)
         __e = FrameEvent("A",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def B(self,):
         self.return_stack.append(None)
         __e = FrameEvent("B",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def C(self,):
         self.return_stack.append(None)
         __e = FrameEvent("C",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def D(self,):
         self.return_stack.append(None)
         __e = FrameEvent("D",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def E(self,):
         self.return_stack.append(None)
         __e = FrameEvent("E",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def F(self,):
         self.return_stack.append(None)
         __e = FrameEvent("F",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def OnBool(self,b: bool):
         parameters = {}
@@ -80,7 +80,7 @@ class Branch:
         self.return_stack.append(None)
         __e = FrameEvent("OnBool",parameters)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def OnInt(self,i: int):
         parameters = {}
@@ -88,7 +88,7 @@ class Branch:
         self.return_stack.append(None)
         __e = FrameEvent("OnInt",parameters)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     # ===================== Machine Block =================== #
     

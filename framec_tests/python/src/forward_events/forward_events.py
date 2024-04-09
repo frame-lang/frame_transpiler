@@ -46,25 +46,25 @@ class ForwardEvents:
         self.return_stack.append(None)
         __e = FrameEvent("GotoS1",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def GotoS2(self,):
         self.return_stack.append(None)
         __e = FrameEvent("GotoS2",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def ReturnFromS1(self,):
         self.return_stack.append(None)
         __e = FrameEvent("ReturnFromS1",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def ReturnFromS2(self,):
         self.return_stack.append(None)
         __e = FrameEvent("ReturnFromS2",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     # ===================== Machine Block =================== #
     

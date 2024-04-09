@@ -44,7 +44,7 @@ class EventHandler:
         self.return_stack.append(None)
         __e = FrameEvent("LogIt",parameters)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def LogAdd(self,a: int,b: int):
         parameters = {}
@@ -53,7 +53,7 @@ class EventHandler:
         self.return_stack.append(None)
         __e = FrameEvent("LogAdd",parameters)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def LogReturn(self,a: int,b: int):
         parameters = {}
@@ -71,7 +71,7 @@ class EventHandler:
         self.return_stack.append(None)
         __e = FrameEvent("PassAdd",parameters)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def PassReturn(self,a: int,b: int):
         parameters = {}

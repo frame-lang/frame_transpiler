@@ -43,13 +43,13 @@ class Basic:
         self.return_stack.append(None)
         __e = FrameEvent("A",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def B(self,):
         self.return_stack.append(None)
         __e = FrameEvent("B",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     # ===================== Machine Block =================== #
     

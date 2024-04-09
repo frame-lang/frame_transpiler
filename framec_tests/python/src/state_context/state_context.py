@@ -44,13 +44,13 @@ class StateContextSm:
         self.return_stack.append(None)
         __e = FrameEvent("Start",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def LogState(self,):
         self.return_stack.append(None)
         __e = FrameEvent("LogState",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def Inc(self,):
         self.return_stack.append(None)
@@ -64,7 +64,7 @@ class StateContextSm:
         self.return_stack.append(None)
         __e = FrameEvent("Next",parameters)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     # ===================== Machine Block =================== #
       #  Change [arg:int]

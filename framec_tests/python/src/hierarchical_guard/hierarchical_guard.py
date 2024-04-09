@@ -44,7 +44,7 @@ class HierarchicalGuard:
         self.return_stack.append(None)
         __e = FrameEvent("A",parameters)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def B(self,i: int):
         parameters = {}
@@ -52,7 +52,7 @@ class HierarchicalGuard:
         self.return_stack.append(None)
         __e = FrameEvent("B",parameters)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     # ===================== Machine Block =================== #
     

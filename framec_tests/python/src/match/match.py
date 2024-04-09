@@ -42,31 +42,31 @@ class Match:
         self.return_stack.append(None)
         __e = FrameEvent("Empty",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def Simple(self,):
         self.return_stack.append(None)
         __e = FrameEvent("Simple",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def Multi(self,):
         self.return_stack.append(None)
         __e = FrameEvent("Multi",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def Nested(self,):
         self.return_stack.append(None)
         __e = FrameEvent("Nested",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def Child(self,):
         self.return_stack.append(None)
         __e = FrameEvent("Child",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def OnInt(self,i: int):
         parameters = {}
@@ -74,7 +74,7 @@ class Match:
         self.return_stack.append(None)
         __e = FrameEvent("OnInt",parameters)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def Onstring(self,s: str):
         parameters = {}
@@ -82,7 +82,7 @@ class Match:
         self.return_stack.append(None)
         __e = FrameEvent("Onstring",parameters)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     # ===================== Machine Block =================== #
     

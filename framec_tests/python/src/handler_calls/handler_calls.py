@@ -42,19 +42,19 @@ class HandlerCalls:
         self.return_stack.append(None)
         __e = FrameEvent("NonRec",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def SelfRec(self,):
         self.return_stack.append(None)
         __e = FrameEvent("SelfRec",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def MutRec(self,):
         self.return_stack.append(None)
         __e = FrameEvent("MutRec",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def Call(self,event: str,arg: int):
         parameters = {}
@@ -63,7 +63,7 @@ class HandlerCalls:
         self.return_stack.append(None)
         __e = FrameEvent("Call",parameters)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def Foo(self,arg: int):
         parameters = {}
@@ -71,7 +71,7 @@ class HandlerCalls:
         self.return_stack.append(None)
         __e = FrameEvent("Foo",parameters)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def Bar(self,arg: int):
         parameters = {}
@@ -79,7 +79,7 @@ class HandlerCalls:
         self.return_stack.append(None)
         __e = FrameEvent("Bar",parameters)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     # ===================== Machine Block =================== #
     

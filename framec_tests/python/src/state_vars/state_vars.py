@@ -41,19 +41,19 @@ class StateVars:
         self.return_stack.append(None)
         __e = FrameEvent("X",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def Y(self,):
         self.return_stack.append(None)
         __e = FrameEvent("Y",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def Z(self,):
         self.return_stack.append(None)
         __e = FrameEvent("Z",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     # ===================== Machine Block =================== #
     

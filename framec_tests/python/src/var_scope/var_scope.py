@@ -44,25 +44,25 @@ class VarScope:
         self.return_stack.append(None)
         __e = FrameEvent("to_nn",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def to_ny(self,):
         self.return_stack.append(None)
         __e = FrameEvent("to_ny",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def to_yn(self,):
         self.return_stack.append(None)
         __e = FrameEvent("to_yn",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def to_yy(self,):
         self.return_stack.append(None)
         __e = FrameEvent("to_yy",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def nn(self,d: str):
         parameters = {}
@@ -70,7 +70,7 @@ class VarScope:
         self.return_stack.append(None)
         __e = FrameEvent("nn",parameters)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def ny(self,d: str):
         parameters = {}
@@ -78,7 +78,7 @@ class VarScope:
         self.return_stack.append(None)
         __e = FrameEvent("ny",parameters)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def yn(self,d: str,x: str):
         parameters = {}
@@ -87,7 +87,7 @@ class VarScope:
         self.return_stack.append(None)
         __e = FrameEvent("yn",parameters)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def yy(self,d: str,x: str):
         parameters = {}
@@ -96,7 +96,7 @@ class VarScope:
         self.return_stack.append(None)
         __e = FrameEvent("yy",parameters)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def sigils(self,x: str):
         parameters = {}
@@ -104,7 +104,7 @@ class VarScope:
         self.return_stack.append(None)
         __e = FrameEvent("sigils",parameters)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     # ===================== Machine Block =================== #
     

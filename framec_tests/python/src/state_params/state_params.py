@@ -42,19 +42,19 @@ class StateParams:
         self.return_stack.append(None)
         __e = FrameEvent("Next",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def Prev(self,):
         self.return_stack.append(None)
         __e = FrameEvent("Prev",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def Log(self,):
         self.return_stack.append(None)
         __e = FrameEvent("Log",None)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     # ===================== Machine Block =================== #
     

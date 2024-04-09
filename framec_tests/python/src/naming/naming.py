@@ -50,7 +50,7 @@ class Naming:
         self.return_stack.append(None)
         __e = FrameEvent("snake_event",parameters)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def CamelEvent(self,CamelParam: int):
         parameters = {}
@@ -58,7 +58,7 @@ class Naming:
         self.return_stack.append(None)
         __e = FrameEvent("CamelEvent",parameters)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def event123(self,param123: int):
         parameters = {}
@@ -66,7 +66,7 @@ class Naming:
         self.return_stack.append(None)
         __e = FrameEvent("event123",parameters)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     def call(self,event: str,param: int):
         parameters = {}
@@ -75,7 +75,7 @@ class Naming:
         self.return_stack.append(None)
         __e = FrameEvent("call",parameters)
         self.__kernel(__e)
-        self.return_stack.pop(-1)
+        return self.return_stack.pop(-1)
     
     # ===================== Machine Block =================== #
     
