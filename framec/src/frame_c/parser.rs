@@ -217,7 +217,11 @@ impl<'a> Parser<'a> {
                 },
             };
 
-            let line = self.previous().line;
+            let line = if self.current == 0 {
+                1
+            } else {
+                self.previous().line
+            };
 
             SystemNode::new(
                 String::new(),

@@ -654,9 +654,11 @@ impl Scanner {
         // Unterminated string.
         if self.is_at_end() {
             self.error(self.line, "Unterminated string.");
+            return;
         }
 
         self.advance();
+
         self.add_string_token_literal(TokenType::String, TokenLiteral::None);
     }
 

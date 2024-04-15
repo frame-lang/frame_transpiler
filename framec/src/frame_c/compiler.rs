@@ -22,6 +22,7 @@ use std::cell::RefCell;
 use std::fs;
 use std::io;
 use std::io::Read;
+use std::panic::{self, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
@@ -166,7 +167,16 @@ impl Exe {
         // NOTE: This block is to remove references to symbol_table and comments
         {
             let mut syntactic_parser = Parser::new(&tokens, &mut comments, true, arcanum);
-            syntactic_parser.parse();
+
+
+            panic::set_hook(Box::new(|_info| {
+                // prevent std output from panics.
+            }));
+            // catch and supress panics
+            let _result = panic::catch_unwind(AssertUnwindSafe(|| {
+                syntactic_parser.parse();
+            }));
+
             if syntactic_parser.had_error() {
                 let mut errors = "Terminating with errors.\n".to_string();
                 errors.push_str(&syntactic_parser.get_errors());
