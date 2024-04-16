@@ -168,7 +168,6 @@ impl Exe {
         {
             let mut syntactic_parser = Parser::new(&tokens, &mut comments, true, arcanum);
 
-
             panic::set_hook(Box::new(|_info| {
                 // prevent std output from panics.
             }));

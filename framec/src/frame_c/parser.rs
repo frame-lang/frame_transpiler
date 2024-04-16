@@ -211,10 +211,18 @@ impl<'a> Parser<'a> {
         } else {
             // TODO: For now we always need to have one (and only one) system.
             let module = match module_elements_opt {
-                Some(module_elements) => Module { module_elements },
-                None => Module {
-                    module_elements: vec![],
-                },
+                Some(module_elements) => {
+                    if module_elements.len() == 0 {
+                        self.error_at_current("Program must have a main function or system.");
+                    }
+                    Module { module_elements }
+                }
+                None => {
+                    self.error_at_current("Program must have a main function or system.");
+                    Module {
+                        module_elements: vec![],
+                    }
+                }
             };
 
             let line = if self.current == 0 {

@@ -147,7 +147,7 @@ pub(crate) mod frame_exitcode {
 }
 
 pub struct RunError {
-    pub code: frame_exitcode::FrameExitCeode,
+    pub code: frame_exitcode::FrameExitCode,
     pub error: String,
 }
 
