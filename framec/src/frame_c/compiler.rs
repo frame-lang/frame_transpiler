@@ -171,7 +171,7 @@ impl Exe {
             panic::set_hook(Box::new(|_info| {
                 // prevent std output from panics.
             }));
-            // catch and supress panics
+            // catch and suppress panics
             let _result = panic::catch_unwind(AssertUnwindSafe(|| {
                 syntactic_parser.parse();
             }));
@@ -187,6 +187,9 @@ impl Exe {
 
         let mut comments2 = comments.clone();
         let mut semantic_parser = Parser::new(&tokens, &mut comments2, false, arcanum);
+
+        // TODO: this doesn't capture any panics like syntactic_parser above.
+        // Need to figure how to implement.
         let system_node = semantic_parser.parse();
         if semantic_parser.had_error() {
             let mut errors = "Terminating with errors.\n".to_string();

@@ -1982,8 +1982,6 @@ impl AstVisitor for PythonVisitor {
             self.add_code("self._message = message");
             self.newline();
             self.add_code("self._parameters = parameters");
-            self.newline();
-            self.add_code("self._return = None");
             self.outdent();
             self.outdent();
             self.newline();
