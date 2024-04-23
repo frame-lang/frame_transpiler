@@ -200,6 +200,21 @@ impl<'a> Parser<'a> {
             Err(_parse_error) => None,
         };
 
+        if let Some(ref function_vec) = functions_opt {
+            // If there is a function, there can be only one and it must be named 'main'.
+            if function_vec.len() > 1 {
+                self.error_at_current("Frame can have at most one function which must be 'main'.");
+            } else if function_vec.len() == 1 {
+                let function_opt = function_vec.get(0);
+                let function_node = function_opt.unwrap().borrow();
+                if function_node.name != "main" {
+                    self.error_at_current(
+                        "Frame can have at most one function which must be 'main'.",
+                    );
+                }
+            }
+        }
+
         // #[system_attribute]
         let system_attributes_opt = match self.entity_attributes() {
             Ok(attributes_opt) => attributes_opt,
@@ -209,7 +224,15 @@ impl<'a> Parser<'a> {
         if self.match_token(&[TokenType::System]) {
             self.system(module_elements_opt, system_attributes_opt, functions_opt)
         } else {
-            // TODO: For now we always need to have one (and only one) system.
+            // TODO: This path is taken when there isn't a declared system.
+            // For now, the rule is there must be a function and/or a system declared.
+
+            // The semantics for any existing functions are validated above.
+            // If we don't have a system then we must have a main so none is an error here.
+            if functions_opt.is_none() {
+                self.error_at_current("Frame modules must have a 'main' function or a system.");
+            }
+
             let module = match module_elements_opt {
                 Some(module_elements) => Module { module_elements },
                 None => Module {
@@ -217,7 +240,12 @@ impl<'a> Parser<'a> {
                 },
             };
 
-            let line = self.previous().line;
+            // Hack to prevent referencing -1 index in previous().
+            let line = if self.current == 0 {
+                1
+            } else {
+                self.previous().line
+            };
 
             SystemNode::new(
                 String::new(),
@@ -5994,9 +6022,9 @@ impl<'a> Parser<'a> {
         }
 
         // '@' '^'
-        if self.match_token(&[TokenType::Caret]) {
-            return Ok(Some(FrameEventPart::Return { is_reference }));
-        }
+        // if self.match_token(&[TokenType::Caret]) {
+        //     return Ok(Some(FrameEventPart::Return { is_reference }));
+        // }
 
         // @
         Ok(Some(FrameEventPart::Event { is_reference }))
