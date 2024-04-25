@@ -1,5 +1,4 @@
 ```
-from framelang.framelang import FrameEvent
 from enum import Enum
 ```
 #[codegen.python.code.public_state_info:bool="true"]

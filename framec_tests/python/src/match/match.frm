@@ -1,6 +1,4 @@
-```
-from framelang.framelang import FrameEvent
-```
+
 #[codegen.python.code.public_state_info:bool="true"]
 
 #Match

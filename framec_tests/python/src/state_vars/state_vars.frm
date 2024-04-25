@@ -1,6 +1,4 @@
-```
-from framelang.framelang import FrameEvent
-```
+
 #[codegen.python.code.public_state_info:bool="true"]
 #[codegen.python.code.public_compartment:bool="true"]
 

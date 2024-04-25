@@ -1424,6 +1424,50 @@ impl AstVisitor for GraphVizVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    fn visit_loop_stmt_node(&mut self, loop_stmt_node: &LoopStmtNode) {
+        match &loop_stmt_node.loop_types {
+            LoopStmtTypes::LoopForStmt {
+                loop_for_stmt_node: loop_for_expr_node,
+            } => {
+                loop_for_expr_node.accept(self);
+            }
+            LoopStmtTypes::LoopInStmt { loop_in_stmt_node } => {
+                loop_in_stmt_node.accept(self);
+            }
+            LoopStmtTypes::LoopInfiniteStmt {
+                loop_infinite_stmt_node,
+            } => {
+                loop_infinite_stmt_node.accept(self);
+            }
+        }
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_loop_for_stmt_node(&mut self, loop_for_expr_node: &LoopForStmtNode) {
+        // only call if there are statements
+        if loop_for_expr_node.statements.len() != 0 {
+            self.visit_decl_stmts(&loop_for_expr_node.statements);
+        }
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_loop_in_stmt_node(&mut self, loop_in_stmt_node: &LoopInStmtNode) {
+        // only call if there are statements
+        if loop_in_stmt_node.statements.len() != 0 {
+            self.visit_decl_stmts(&loop_in_stmt_node.statements);
+        }
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_loop_infinite_stmt_node(&mut self, loop_in_expr_node: &LoopInfiniteStmtNode) {
+        self.visit_decl_stmts(&loop_in_expr_node.statements);
+    }
+
+    //* --------------------------------------------------------------------- *//
+
     fn visit_bool_test_conditional_branch_node(
         &mut self,
         bool_test_true_branch_node: &BoolTestConditionalBranchNode,
