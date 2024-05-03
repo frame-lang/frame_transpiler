@@ -1,87 +1,45 @@
 
-# Frame Language Transpiler v0.11.0
+# Frame Language Transpiler v0.11.5
 
-This project contains the code for building the Frame Language Transpiler - the **Framepiler**.  The Framepiler is written in Rust and transpiles Frame specification documents into Python (more languages to come) as well as
-UML diagrams.
+This project contains the code for building the Frame Language Transpiler - the **Framepiler**.  The Framepiler is written in Rust and transpiles Frame specification documents into Python (with more languages to come) as well as UML Statechart diagrams.
 
-## Frame Language Documentation
+## Frame v0.11.5
 
-To learn more about the Frame language, please find Frame's official documentation on [Read the Docs](https://docs.frame-lang.org).
+Frame v0.11.5 has focused on stability, error handling and bug fixing. For details, see the [Release Notes](https://github.com/frame-lang/frame_transpiler/releases).
 
-## New in Recent Releases
+## Explore Frame
 
-For details, see the [Release Notes](https://github.com/frame-lang/frame_transpiler/releases).
+To learn more about the Frame language, please find Frame's official documentation on [Read the Docs](https://docs.frame-lang.org). 
 
-### Frame v0.11.0
-
-Frame v0.11.0 brings a lot of exciting additions to the Frame language, adding both power and standardization to the notation. In addition, the transpiler now can read from stdin as well as still accepting file paths as in the past. This enables improved CI/CD processes involving Frame.
-
-#### New Language Features and Updates
-
-**Functions** - 
-
-With the introduction of functions to the Frame syntax, developers can now easily build simple Frame programs.
-Currently the syntax only permits a single **main()** function. The **v0.12** will permit general 
-use of an unlimited number of functions. 
-
-See [Frame Functions](https://docs.frame-lang.org/en/latest/intermediate_frame/functions.html) for more information. 
-
-**System Controller Instantiation** - 
-
-With the introduction of Frame functions, developers can now create real Frame programs and instantiate 
-and control Frame systems. This capability allows for full control over system initialization of state
-parameters, start state parameters and domain variables.
-
-See [Frame Systems](https://docs.frame-lang.org/en/latest/intermediate_frame/systems.html#system-with-no-parameters).
-
-**Operations** - 
-
-Frame operations are publicly accessible methods that bypass the state machine and allow privileged access to the 
-system domain data. In addition, operations can optionally be designated as **static**, enabling 
-systems to provide libraries of associated functionality for complex or repetitive system management routines.
-
-See [Frame Operations](https://docs.frame-lang.org/en/latest/advanced_frame/operations.html)
-
-**Enums** - 
-
-Frame now supports system enumerated types. 
-
-See [Frame Enumerated Types](https://docs.frame-lang.org/en/latest/intermediate_frame/enums.html).
-
-**Loops** - 
-
-Frame now supports two types of loops: 
-
-1. For-like loops
-2. Infinite loops
-
-See [Frame Loops](https://docs.frame-lang.org/en/latest/intermediate_frame/loops.html). 
-
-
-## Resources
+## Tools and Resources
 
 The Frame project is still early days but there are some resources and communities to help. You can download the [VSCode](https://marketplace.visualstudio.com/items?itemName=frame-lang-org.frame-machine-maker) extension to develop 
-Frame programs on your desktop or experiment with Frame online at the [Frame Playground](https://playground.frame-lang.org). You can learn more about the Frame language using the  [online documentation ](https://docs.frame-lang.org) as well as find general resources about programming with automata at Reddit ![re](https://www.google.com/s2/favicons?domain_url=https://reddit.com) on the [r/statemachines](https://www.reddit.com/r/statemachines/) subreddit.
+Frame programs on your desktop or experiment with Frame online at the [Frame Playground](https://playground.frame-lang.org). 
 
-There is also a [Discord](https://discord.com/invite/CfbU4QCbSD) channel to connect with other Frame enthusiasts.
+You can also learn more about programming with automata at Reddit ![re](https://www.google.com/s2/favicons?domain_url=https://reddit.com) on the [r/statemachines](https://www.reddit.com/r/statemachines/) subreddit (I'm the mod).
 
-### Frame Examples
+## Frame Community
+
+Connect with me and other Frame enthusists on the Frame **Discord channel** -  [The Art of the State](https://discord.com/invite/CfbU4QCbSD). You can also connect with me directly on [LinkedIn](https://www.linkedin.com/in/marktruluck/).
+
+## Frame Examples
 
 The [Frame Solution Depot](https://github.com/frame-lang/frame_solution_depot) is a Github repo and contains a growing body of examples and test specifications. 
 
 ## Reporting Bugs and Problems 
 
-For now please report issues to the [Gitter Bug Channel](https://gitter.im/frame-language/bug-reports) while we get a better system in place. If you have a recommendation please let me know there!
+For now send issues to <bugs@frame-lang.org> while we get a better system in place. If you have a recommendation for a free bug tracker for open source communities please let me know!
+
 
 ## Getting Started
 
 These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
 
-
 ### Installing
 
 
 #### MacOS
+
 1. Install [Rust](https://www.rust-lang.org/tools/install).
 2. Navigate to the framepiler/framec directory.
 3. Type `cargo build`.
@@ -102,9 +60,9 @@ These instructions will get you a copy of the project up and running on your loc
 2. Probably the same as MacOS but guessing you can figure it out if you know Linux and Rust. Still - please send me instructions on [Gitter Bug Channel](https://gitter.im/frame-language/bug-reports)  and I will add to next release notes. Thanks!
 
 #### Windows
+
 1. Install  [Rust](https://www.rust-lang.org/tools/install).
 2. Help needed. Please send me instructions on [Gitter Bug Channel](https://gitter.im/frame-language/bug-reports)  and I will add to next release notes. Thanks!
-
 
 ## Built With
 
@@ -120,7 +78,7 @@ We use [SemVer](http://semver.org/) for versioning. For the versions available, 
 
 ## Author
 
-* **Mark Truluck** - *Creator of Frame* - [LinkedIn](https://www.linkedin.com/in/marktruluck/)
+**Mark Truluck** - *Creator of Frame* - [LinkedIn](https://www.linkedin.com/in/marktruluck/)
 
 ## License
 
