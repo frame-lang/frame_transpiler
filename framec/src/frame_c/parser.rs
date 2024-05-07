@@ -346,6 +346,7 @@ impl<'a> Parser<'a> {
         let id = self.previous();
         let system_name = id.lexeme.clone();
 
+        // SystemHierarchy is used in the GraphViz visitor rather than the AST
         self.system_hierarchy_opt = Some(SystemHierarchy::new(system_name.clone()));
 
         let system_start_state_state_params_opt;
@@ -7758,8 +7759,8 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    pub fn get_all(self) -> (Arcanum, SystemHierarchy) {
-        (self.arcanum, self.system_hierarchy_opt.unwrap())
+    pub fn get_all(self) -> (Arcanum, Option<SystemHierarchy>) {
+        (self.arcanum, self.system_hierarchy_opt)
     }
 
     /* --------------------------------------------------------------------- */

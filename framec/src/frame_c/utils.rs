@@ -34,6 +34,7 @@ impl Node {
     }
 }
 
+// SystemHierarchy is used in the GraphViz visitor rather than the AST.
 pub struct SystemHierarchy {
     pub index: HashMap<String, Node>,
     pub system_name: String,

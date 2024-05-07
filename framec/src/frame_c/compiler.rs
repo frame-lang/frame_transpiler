@@ -35,7 +35,7 @@ use std::convert::TryFrom;
 /* --------------------------------------------------------------------- */
 
 static IS_DEBUG: bool = false;
-static FRAMEC_VERSION: &str = "Emitted from framec_v0.11.5";
+static FRAMEC_VERSION: &str = "Emitted from framec_v0.11.6";
 
 /* --------------------------------------------------------------------- */
 
@@ -363,19 +363,28 @@ impl Exe {
                 //     output = visitor.get_code();
                 // }
                 TargetLanguage::Graphviz => {
-                    let (arcanum, system_hierarchy) = semantic_parser.get_all();
-                    let mut visitor = GraphVizVisitor::new(
-                        arcanum,
-                        system_hierarchy,
-                        generate_state_context,
-                        generate_state_stack,
-                        generate_change_state,
-                        generate_transition_state,
-                        FRAMEC_VERSION,
-                        comments,
-                    );
-                    visitor.run(&system_node);
-                    output = visitor.get_code();
+                    let (arcanum, system_hierarchy_opt) = semantic_parser.get_all();
+                    // If there was no system in the spec then don't run the visitor.
+                    if let Some(system_hierarchy) = system_hierarchy_opt {
+                        let mut visitor = GraphVizVisitor::new(
+                            arcanum,
+                            system_hierarchy,
+                            generate_state_context,
+                            generate_state_stack,
+                            generate_change_state,
+                            generate_transition_state,
+                            FRAMEC_VERSION,
+                            comments,
+                        );
+                        visitor.run(&system_node);
+                        output = visitor.get_code();
+                    } else {
+                        output = String::from(
+                            "digraph structs { node [shape=plaintext] \
+                                                    struct1 [label=\"No System\"]; \
+                                                  }",
+                        );
+                    }
                 }
                 TargetLanguage::Python3 => {
                     let mut visitor = PythonVisitor::new(

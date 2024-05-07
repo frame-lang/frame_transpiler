@@ -1,11 +1,11 @@
 
-# Frame Language Transpiler v0.11.5
+# Frame Language Transpiler v0.11.6
 
 This project contains the code for building the Frame Language Transpiler - the **Framepiler**.  The Framepiler is written in Rust and transpiles Frame specification documents into Python (with more languages to come) as well as UML Statechart diagrams.
 
-## Frame v0.11.5
+## Frame v0.11.6
 
-Frame v0.11.5 has focused on stability, error handling and bug fixing. For details, see the [Release Notes](https://github.com/frame-lang/frame_transpiler/releases).
+Frame v0.11.6 has focused on stability, error handling and bug fixing. For details, see the [Release Notes](https://github.com/frame-lang/frame_transpiler/releases).
 
 ## Explore Frame
 
