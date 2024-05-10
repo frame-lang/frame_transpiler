@@ -2622,7 +2622,7 @@ impl AstVisitor for PythonVisitor {
                     None => {
                         // always pop the return stack as a default Nil is addes
                         self.newline();
-                        self.add_code("self.return_stack.pop(-1)");
+                        self.add_code("return self.return_stack.pop(-1)");
                     }
                 }
             }
