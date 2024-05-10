@@ -25,8 +25,8 @@ pub struct PythonVisitor {
     current_event_ret_type: String,
     arcanium: Arcanum,
     symbol_config: SymbolConfig,
-    comments: Vec<Token>,
-    current_comment_idx: usize,
+    // _comments: Vec<Token>,
+    // current_comment_idx: usize,
     first_event_handler: bool,
     system_name: String,
     first_state_name: String,
@@ -75,7 +75,7 @@ impl PythonVisitor {
         generate_change_state: bool,
         // generate_transition_state: bool,
         compiler_version: &str,
-        comments: Vec<Token>,
+        _comments: Vec<Token>,
         config: FrameConfig,
     ) -> PythonVisitor {
         let python_config = config.codegen.python;
@@ -87,8 +87,8 @@ impl PythonVisitor {
             current_event_ret_type: String::new(),
             arcanium,
             symbol_config: SymbolConfig::new(),
-            comments,
-            current_comment_idx: 0,
+            // _comments,
+            // current_comment_idx: 0,
             first_event_handler: true,
             system_name: String::new(),
             first_state_name: String::new(),
@@ -1149,32 +1149,39 @@ impl PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn generate_comment(&mut self, line: usize) -> bool {
+    fn generate_comment(&mut self, _line: usize) -> bool {
         // can't use self.newline() or self.add_code() due to double borrow.
-        let mut generated_comment = false;
-        while self.current_comment_idx < self.comments.len()
-            && line >= self.comments[self.current_comment_idx].line
-        {
-            let comment = &self.comments[self.current_comment_idx];
-            if comment.token_type == TokenType::SingleLineComment {
-                self.code
-                    .push_str(&*format!("  # {}", &comment.lexeme[2..]));
-                self.code.push_str(&*format!(
-                    "\n{}",
-                    (0..self.dent).map(|_| "    ").collect::<String>()
-                ));
-            } else {
-                let len = &comment.lexeme.len() - 3;
-                self.code
-                    .push_str(&*format!("/* {}", &comment.lexeme[3..len]));
-                self.code.push_str(&*"*/".to_string());
-            }
 
-            self.current_comment_idx += 1;
-            generated_comment = true;
-        }
+        // TODO: There is no alignment between the line numbers from the source and the
+        // position that the comments should be generated in in the target.
+        // Need to explore how to associate comments with a node.
+        // This includes dealing properly with header and footer sections.
 
-        generated_comment
+        return true;
+        // let mut generated_comment = false;
+        // while self.current_comment_idx < self.comments.len()
+        //     && line >= self.comments[self.current_comment_idx].line
+        // {
+        //     let comment = &self.comments[self.current_comment_idx];
+        //     if comment.token_type == TokenType::SingleLineComment {
+        //         self.code
+        //             .push_str(&*format!("  # {}", &comment.lexeme[2..]));
+        //         self.code.push_str(&*format!(
+        //             "\n{}",
+        //             (0..self.dent).map(|_| "    ").collect::<String>()
+        //         ));
+        //     } else {
+        //         let len = &comment.lexeme.len() - 3;
+        //         self.code
+        //             .push_str(&*format!("/* {}", &comment.lexeme[3..len]));
+        //         self.code.push_str(&*"*/".to_string());
+        //     }
+        //
+        //     self.current_comment_idx += 1;
+        //     generated_comment = true;
+        // }
+        //
+        // generated_comment
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1942,9 +1949,6 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_module(&mut self, module: &Module) {
-        self.add_code(&format!("#{}", self.compiler_version));
-        self.newline();
-        self.newline();
 
         let mut generate_frame_event = true;
 
@@ -1991,6 +1995,15 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_system_node(&mut self, system_node: &SystemNode) {
+
+        self.add_code(&format!("#{}", self.compiler_version));
+        self.newline();
+        self.newline();
+
+        if self.generate_comment(system_node.line) {
+            self.newline();
+        }
+
         // domain variable vector
         let mut domain_vec: Vec<(String, String)> = Vec::new();
         if let Some(domain_block_node) = &system_node.domain_block_node_opt {

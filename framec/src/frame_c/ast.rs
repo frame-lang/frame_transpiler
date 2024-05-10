@@ -418,6 +418,7 @@ pub struct FunctionNode {
     pub statements: Vec<DeclOrStmtType>,
     pub terminator_node_opt: Option<TerminatorExpr>,
     pub type_opt: Option<TypeNode>,
+    pub line: usize,
 }
 
 impl FunctionNode {
@@ -428,6 +429,7 @@ impl FunctionNode {
         statements: Vec<DeclOrStmtType>,
         terminator_node_opt: Option<TerminatorExpr>,
         type_opt: Option<TypeNode>,
+        line: usize,
     ) -> FunctionNode {
         FunctionNode {
             name,
@@ -436,6 +438,7 @@ impl FunctionNode {
             statements,
             terminator_node_opt,
             type_opt,
+            line,
         }
     }
 }

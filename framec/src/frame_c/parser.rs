@@ -1129,6 +1129,7 @@ impl<'a> Parser<'a> {
             return Err(ParseError::new(err_msg));
         }
 
+        let line = self.previous().line;
         let function_name = self.previous().lexeme.clone();
 
         // The 'is_function_context' flag is used to determine which statements are valid
@@ -1162,7 +1163,7 @@ impl<'a> Parser<'a> {
             self.arcanum.set_parse_scope(&function_name);
         }
 
-        let ret = self.function(function_name.clone());
+        let ret = self.function(function_name.clone(), line);
 
         if self.is_building_symbol_table {
             match &ret {
@@ -1188,7 +1189,7 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    fn function(&mut self, function_name: String) -> Result<Rc<RefCell<FunctionNode>>, ParseError> {
+    fn function(&mut self, function_name: String, line: usize) -> Result<Rc<RefCell<FunctionNode>>, ParseError> {
         let mut params: Option<Vec<ParameterNode>> = Option::None;
 
         if self.match_token(&[TokenType::LBracket]) {
@@ -1262,6 +1263,7 @@ impl<'a> Parser<'a> {
             statements,
             terminator_node_opt,
             type_opt,
+            line,
         );
         // let action_node_rcref = Rc::new(RefCell::new(action_node));
         //
@@ -7782,7 +7784,8 @@ impl<'a> Parser<'a> {
     fn match_token(&mut self, token_types: &[TokenType]) -> bool {
         // cache off comments
         while self.check(TokenType::SingleLineComment) || self.check(TokenType::MultiLineComment) {
-            self.comments.push(self.peek().clone());
+            let comment = self.peek().clone();
+            self.comments.push(comment);
             self.advance();
         }
 
