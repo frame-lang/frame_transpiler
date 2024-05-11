@@ -1949,7 +1949,6 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_module(&mut self, module: &Module) {
-
         let mut generate_frame_event = true;
 
         for module_element in &module.module_elements {
@@ -1995,7 +1994,6 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_system_node(&mut self, system_node: &SystemNode) {
-
         self.add_code(&format!("#{}", self.compiler_version));
         self.newline();
         self.newline();

@@ -1189,7 +1189,11 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    fn function(&mut self, function_name: String, line: usize) -> Result<Rc<RefCell<FunctionNode>>, ParseError> {
+    fn function(
+        &mut self,
+        function_name: String,
+        line: usize,
+    ) -> Result<Rc<RefCell<FunctionNode>>, ParseError> {
         let mut params: Option<Vec<ParameterNode>> = Option::None;
 
         if self.match_token(&[TokenType::LBracket]) {
