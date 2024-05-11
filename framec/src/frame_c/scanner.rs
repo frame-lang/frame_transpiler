@@ -509,12 +509,10 @@ impl Scanner {
 
     // TODO: handle EOF w/ error
     fn single_line_comment(&mut self) {
-        if !self.is_at_end() {
-            while self.peek() != '\n' {
-                self.advance();
-            }
-            self.add_token(TokenType::SingleLineComment);
+        while !self.is_at_end() && self.peek() != '\n' {
+            self.advance();
         }
+        self.add_token(TokenType::SingleLineComment);
     }
 
     // TODO: handle EOF w/ error
