@@ -1,5 +1,5 @@
 
-# Frame Language Transpiler v0.11.7
+# Frame Language Transpiler
 
 This project contains the code for building the Frame Language Transpiler - the **Framepiler**.  The Framepiler is written in Rust and transpiles Frame specification documents into Python (with more languages to come) as well as UML Statechart diagrams.
 
@@ -85,11 +85,3 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 * [Alan Turning](https://en.wikipedia.org/wiki/Alan_Turing) - For inventing automata theory and helping end WWII. See [The Imitation Game](https://www.imdb.com/title/tt2084970/)
 * [Dr. David Harel](http://www.wisdom.weizmann.ac.il/~harel/papers.html) - Who invented [Statecharts](https://www.sciencedirect.com/science/article/pii/0167642387900359) from which came Frame.
 
-# Release Notes
-
-## Frame v0.11.7
-
-* Fixed bug with return syntax ^(foo) not generating a return from the interace method.
-## Frame v0.11.6
-
-Frame v0.11.6 has focused on stability, error handling and bug fixing. For details, see the [Release Notes](https://github.com/frame-lang/frame_transpiler/releases).
