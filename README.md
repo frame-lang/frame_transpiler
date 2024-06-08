@@ -53,12 +53,12 @@ These instructions will get you a copy of the project up and running on your loc
 #### Linux
 
 1. Install  [Rust](https://www.rust-lang.org/tools/install).
-2. Probably the same as MacOS but guessing you can figure it out if you know Linux and Rust. Still - please send me instructions on [Gitter Bug Channel](https://gitter.im/frame-language/bug-reports)  and I will add to next release notes. Thanks!
+2. Probably the same as MacOS but guessing you can figure it out if you know Linux and Rust. Still - please send me instructions on [Discord](https://discord.com/invite/CfbU4QCbSD)  and I will add to next release notes. Thanks!
 
 #### Windows
 
 1. Install  [Rust](https://www.rust-lang.org/tools/install).
-2. Help needed. Please send me instructions on [Gitter Bug Channel](https://gitter.im/frame-language/bug-reports)  and I will add to next release notes. Thanks!
+2. Help needed. Please send me instructions on [Discord](https://discord.com/invite/CfbU4QCbSD)  and I will add to next release notes. Thanks!
 
 ## Built With
 
