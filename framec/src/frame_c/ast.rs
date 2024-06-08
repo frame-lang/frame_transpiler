@@ -2734,6 +2734,8 @@ pub enum OperatorType {
     LogicalOr,
     LogicalXor,
     Negated,
+    Percent,
+    Unknown,
 }
 
 impl NodeElement for OperatorType {
@@ -2764,7 +2766,8 @@ impl OperatorType {
             TokenType::LogicalAnd => OperatorType::LogicalAnd,
             TokenType::PipePipe => OperatorType::LogicalOr,
             TokenType::LogicalXor => OperatorType::LogicalXor,
-            _ => panic!("Invalid token for operator."),
+            TokenType::Percent => OperatorType::Percent,
+            _ => OperatorType::Unknown,
         }
     }
 }

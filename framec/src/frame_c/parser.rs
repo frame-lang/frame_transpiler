@@ -4949,7 +4949,7 @@ impl<'a> Parser<'a> {
         while self.match_token(&[TokenType::BangEqual, TokenType::EqualEqual]) {
             //           let line = self.previous().line;
             let operator_token = self.previous();
-            let op_type = OperatorType::get_operator_type(&operator_token.token_type);
+            let op_type = self.get_operator_type(&operator_token.clone());
             let r_value = match self.comparison() {
                 Ok(Some(expr_type)) => expr_type,
                 Ok(None) => return Ok(None),
@@ -4988,7 +4988,7 @@ impl<'a> Parser<'a> {
             TokenType::LessEqual,
         ]) {
             let operator_token = self.previous();
-            let op_type = OperatorType::get_operator_type(&operator_token.token_type);
+            let op_type = self.get_operator_type(&operator_token.clone());
             let r_value = match self.term() {
                 Ok(Some(expr_type)) => expr_type,
                 Ok(None) => return Ok(None),
@@ -5020,9 +5020,9 @@ impl<'a> Parser<'a> {
             Err(parse_error) => return Err(parse_error),
         };
 
-        while self.match_token(&[TokenType::Dash, TokenType::Plus]) {
+        while self.match_token(&[TokenType::Dash, TokenType::Plus, TokenType::Percent]) {
             let operator_token = self.previous().clone();
-            let op_type = OperatorType::get_operator_type(&operator_token.token_type);
+            let op_type = self.get_operator_type(&operator_token.clone());
             let r_value = match self.factor() {
                 Ok(Some(expr_type)) => expr_type,
                 Ok(None) => {
@@ -5065,7 +5065,7 @@ impl<'a> Parser<'a> {
 
         while self.match_token(&[TokenType::ForwardSlash, TokenType::Star]) {
             let operator_token = self.previous();
-            let op_type = OperatorType::get_operator_type(&operator_token.token_type);
+            let op_type = self.get_operator_type(&operator_token.clone());
             let r_value = match self.logical_xor() {
                 Ok(Some(expr_type)) => expr_type,
                 Ok(None) => return Ok(None),
@@ -5090,7 +5090,7 @@ impl<'a> Parser<'a> {
 
         while self.match_token(&[TokenType::LogicalXor]) {
             let operator_token = self.previous();
-            let op_type = OperatorType::get_operator_type(&operator_token.token_type);
+            let op_type = self.get_operator_type(&operator_token.clone());
             let r_value = match self.logical_or() {
                 Ok(Some(expr_type)) => expr_type,
                 Ok(None) => return Ok(None),
@@ -5124,7 +5124,7 @@ impl<'a> Parser<'a> {
 
         while self.match_token(&[TokenType::PipePipe]) {
             let operator_token = self.previous();
-            let op_type = OperatorType::get_operator_type(&operator_token.token_type);
+            let op_type = self.get_operator_type(&operator_token.clone());
             let r_value = match self.logical_and() {
                 Ok(Some(expr_type)) => expr_type,
                 Ok(None) => return Ok(None),
@@ -5158,7 +5158,7 @@ impl<'a> Parser<'a> {
 
         while self.match_token(&[TokenType::LogicalAnd]) {
             let operator_token = self.previous();
-            let op_type = OperatorType::get_operator_type(&operator_token.token_type);
+            let op_type = self.get_operator_type(&operator_token.clone());
             let r_value = match self.unary_expression() {
                 Ok(Some(expr_type)) => expr_type,
                 Ok(None) => return Ok(None),
@@ -5331,7 +5331,7 @@ impl<'a> Parser<'a> {
     fn unary_expression(&mut self) -> Result<Option<ExprType>, ParseError> {
         if self.match_token(&[TokenType::Bang, TokenType::Dash]) {
             let token = self.previous();
-            let mut operator_type = OperatorType::get_operator_type(&token.token_type);
+            let mut operator_type = self.get_operator_type(&token.clone());
             if operator_type == OperatorType::Minus {
                 // change this so the code gen doesn't have a space between the - and ID
                 // -x rather than - x
@@ -8071,5 +8071,16 @@ impl<'a> Parser<'a> {
         } else {
             Ok(())
         }
+    }
+
+    // ------------------------------------------------------------------ */
+    pub fn get_operator_type(&mut self, operator_token: &Token) -> OperatorType {
+        let op_type = OperatorType::get_operator_type(&operator_token.token_type);
+        if op_type == OperatorType::Unknown {
+            let err_msg = &format!("Unknown operator {}", operator_token.lexeme);
+            self.error_at_current(err_msg);
+        }
+
+        op_type
     }
 }

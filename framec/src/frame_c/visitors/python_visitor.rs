@@ -5380,6 +5380,8 @@ impl AstVisitor for PythonVisitor {
             OperatorType::LogicalAnd => self.add_code(" and "),
             OperatorType::LogicalOr => self.add_code(" or "),
             OperatorType::LogicalXor => self.add_code(" ^ "),
+            OperatorType::Percent => self.add_code(" % "),
+            OperatorType::Unknown => self.add_code(" <Unknown> "),
         }
     }
 
@@ -5402,6 +5404,8 @@ impl AstVisitor for PythonVisitor {
             OperatorType::LogicalAnd => output.push_str(" and "),
             OperatorType::LogicalOr => output.push_str(" or "),
             OperatorType::LogicalXor => output.push_str(" ^ "),
+            OperatorType::Percent => output.push_str(" % "),
+            OperatorType::Unknown => output.push_str(" <Unknown> "),
         }
     }
 }

@@ -388,6 +388,7 @@ impl Scanner {
                     self.add_token(TokenType::Dot);
                 }
             }
+            '%' => self.add_token(TokenType::Percent),
             ',' => self.add_token(TokenType::Comma),
             _ => {
                 if self.is_digit(c) {
@@ -708,6 +709,7 @@ pub enum TokenType {
     GreaterEqual, // >=
     LessEqual,    // <=
     LT,           // <
+    Percent,      // %
     // LTx2,                         // <<
     // LTx3,                         // <<<
     Ampersand,                    // &
