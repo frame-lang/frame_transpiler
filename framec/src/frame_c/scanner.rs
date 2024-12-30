@@ -45,11 +45,12 @@ impl Scanner {
             ("break".to_string(), TokenType::Break),
             ("enum".to_string(), TokenType::Enum),
             ("fn".to_string(), TokenType::Function),
-            ("-interface-".to_string(), TokenType::InterfaceBlock),
-            ("-machine-".to_string(), TokenType::MachineBlock),
-            ("-actions-".to_string(), TokenType::ActionsBlock),
-            ("-operations-".to_string(), TokenType::OperationsBlock),
-            ("-domain-".to_string(), TokenType::DomainBlock),
+            ("system".to_string(), TokenType::System),
+            ("interface:".to_string(), TokenType::InterfaceBlock),
+            ("machine:".to_string(), TokenType::MachineBlock),
+            ("actions:".to_string(), TokenType::ActionsBlock),
+            ("operations:".to_string(), TokenType::OperationsBlock),
+            ("domain:".to_string(), TokenType::DomainBlock),
         ]
         .iter()
         .cloned()
@@ -301,21 +302,12 @@ impl Scanner {
                 //    self.line += 1;
             }
             '-' => {
-                if !self.block_keyword() {
-                    if self.match_char('>') {
-                        // -> or ->>
-                        // if self.match_char('>') {
-                        //     // ->>
-                        //     self.add_token(TokenType::ChangeState);
-                        // } else {
-                        // ->
-                        self.add_token(TokenType::Transition);
-                        // }
-                    } else if self.is_digit(self.peek()) {
-                        self.number(true);
-                    } else {
-                        self.add_token(TokenType::Dash);
-                    }
+                if self.match_char('>') {
+                    self.add_token(TokenType::Transition);
+                } else if self.is_digit(self.peek()) {
+                    self.number(true);
+                } else {
+                    self.add_token(TokenType::Dash);
                 }
             }
             '{' => {
@@ -348,9 +340,9 @@ impl Scanner {
             '"' => self.string(),
             '`' => self.super_string(),
             '#' => {
-                if self.match_char('#') {
-                    self.add_token(TokenType::SystemEnd);
-                } else if self.match_char('[') {
+                // if self.match_char('#') {
+                //     self.add_token(TokenType::SystemEnd);
+                if self.match_char('[') {
                     self.add_token(TokenType::OuterAttributeOrDomainParams) // #[
                 } else if self.match_char('!') {
                     if self.match_char('[') {
@@ -361,9 +353,10 @@ impl Scanner {
                     }
                 } else if self.match_char('/') {
                     self.add_token(TokenType::NumberMatchStart);
-                } else {
-                    self.add_token(TokenType::System);
                 }
+                // else {
+                //     self.add_token(TokenType::System);
+                // }
             }
             '=' => {
                 if self.match_char('>') {
@@ -391,12 +384,14 @@ impl Scanner {
             '%' => self.add_token(TokenType::Percent),
             ',' => self.add_token(TokenType::Comma),
             _ => {
-                if self.is_digit(c) {
-                    self.number(true);
-                } else if self.is_alpha(c) {
-                    self.identifier();
-                } else {
-                    self.error(self.line, &format!("Found unexpected character '{}'.", c));
+                if !self.block_keyword(c) {
+                    if self.is_digit(c) {
+                        self.number(true);
+                    } else if self.is_alpha(c) {
+                        self.identifier();
+                    } else {
+                        self.error(self.line, &format!("Found unexpected character '{}'.", c));
+                    }
                 }
             }
         }
@@ -407,6 +402,9 @@ impl Scanner {
             return false;
         }
         let c = self.source.as_bytes()[self.current] as char;
+        if c == 'i' {
+            let debug = 1;
+        }
         if c != expected {
             return false;
         }
@@ -556,7 +554,7 @@ impl Scanner {
         self.add_token_sync_start(TokenType::ForwardSlash);
     }
 
-    fn block_keyword(&mut self) -> bool {
+    fn block_keyword(&mut self, first_char:char) -> bool {
         // TODO: handle this:
         // #M1
         //     -in-
@@ -566,18 +564,23 @@ impl Scanner {
         // let mut block_name:&str;
 
         let block_sections = [
-            ("interface-", TokenType::InterfaceBlock),
-            ("machine-", TokenType::MachineBlock),
-            ("actions-", TokenType::ActionsBlock),
-            ("operations-", TokenType::OperationsBlock),
-            ("domain-", TokenType::DomainBlock),
+            ("interface:", TokenType::InterfaceBlock),
+            ("machine:", TokenType::MachineBlock),
+            ("actions:", TokenType::ActionsBlock),
+            ("operations:", TokenType::OperationsBlock),
+            ("domain:", TokenType::DomainBlock),
         ];
 
-        // TODO: this is **horribly** ineffcient.
+        // TODO: this is **horribly** inefficient.
 
         for (block_name, token_type) in block_sections.iter() {
+
             for (i, c) in block_name.chars().enumerate() {
-                if !self.match_char(c) {
+                if i == 0 {
+                    if !block_name.starts_with(first_char) {
+                        break;
+                    }
+                } else if !self.match_char(c) {
                     break;
                 }
                 if i == block_name.len() - 1 {

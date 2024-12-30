@@ -386,6 +386,10 @@ impl<'a> Parser<'a> {
             ) = self.system_params();
         }
 
+        if self.consume(TokenType::OpenBrace, "Expected '{'").is_err() {
+            self.error_at_current("Expected '{'.");
+        }
+
         if self.match_token(&[TokenType::OperationsBlock]) {
             operations_block_node_opt = Option::Some(self.operations_block());
         }
@@ -572,12 +576,12 @@ impl<'a> Parser<'a> {
                 .debug_print_current_symbols(self.arcanum.get_current_symtab());
         }
 
-        if !self.match_token(&[TokenType::SystemEnd]) {
+        if !self.match_token(&[TokenType::CloseBrace]) {
             if self.peek().lexeme == "$" {
-                let err_msg = &format!("Found {} token. Possible missing -machine- block.", self.peek().lexeme);
+                let err_msg = &format!("Found {} token. Possible missing machine block.", self.peek().lexeme);
                 self.error_at_current(err_msg);
             } else {
-                let err_msg = &format!("Expected ## - found {}.", self.peek().lexeme);
+                let err_msg = &format!("Expected '}}' - found {}.", self.peek().lexeme);
                 self.error_at_current(err_msg);
             }
 
@@ -860,21 +864,21 @@ impl<'a> Parser<'a> {
         let mut system_enter_params_opt: Option<Vec<ParameterNode>> = Option::None;
         let mut domain_params_opt: Option<Vec<ParameterNode>> = Option::None;
 
-        if self.match_token(&[TokenType::LBracket]) {
+        if self.match_token(&[TokenType::LParen]) {
             system_start_state_state_params_opt = self.system_start_state_params();
             if system_start_state_state_params_opt.is_some() {
                 if self.match_token(&[TokenType::Comma]) {
                     (system_enter_params_opt, domain_params_opt) =
                         self.system_enter_or_domain_params();
                     if system_enter_params_opt.is_none() && domain_params_opt.is_none() {
-                        self.error_at_current("Expected ], found ','")
+                        self.error_at_current("Expected ), found ','")
                     }
                 }
             } else {
                 (system_enter_params_opt, domain_params_opt) = self.system_enter_or_domain_params();
             }
 
-            if let Err(_parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
+            if let Err(_parse_error) = self.consume(TokenType::RParen, "Expected ']'.") {
                 let sync_tokens = vec![
                     TokenType::Identifier,
                     TokenType::MachineBlock,
@@ -929,7 +933,7 @@ impl<'a> Parser<'a> {
         let mut system_start_state_state_params_opt: Option<Vec<ParameterNode>> = Option::None;
 
         if self.match_token(&[TokenType::State]) {
-            if self.consume(TokenType::LBracket, "Expected '['").is_err() {
+            if self.consume(TokenType::LParen, "Expected '('").is_err() {
                 let sync_tokens = vec![
                     TokenType::GT,
                     TokenType::System,
@@ -945,6 +949,12 @@ impl<'a> Parser<'a> {
                 Ok(Some(parameters)) => system_start_state_state_params_opt = Some(parameters),
                 Ok(None) => {}
                 Err(_) => {}
+            }
+            if self.consume(TokenType::RParen, "Expected ')'").is_err() {
+                let sync_tokens = vec![
+                    TokenType::OpenBrace,
+                ];
+                self.synchronize(&sync_tokens);
             }
         }
 
@@ -964,7 +974,7 @@ impl<'a> Parser<'a> {
             if self.match_token(&[TokenType::Comma]) {
                 domain_params_opt = self.system_domain_params();
                 if domain_params_opt.is_none() {
-                    self.error_at_current("Expected ], found ','")
+                    self.error_at_current("Expected ), found ','")
                 }
             }
         } else {
@@ -980,7 +990,7 @@ impl<'a> Parser<'a> {
         let mut system_enter_params_opt: Option<Vec<ParameterNode>> = Option::None;
 
         if self.match_token(&[TokenType::GT]) {
-            if self.consume(TokenType::LBracket, "Expected '['").is_err() {
+            if self.consume(TokenType::LParen, "Expected '['").is_err() {
                 let sync_tokens = vec![
                     TokenType::System,
                     TokenType::InterfaceBlock,
@@ -1938,13 +1948,9 @@ impl<'a> Parser<'a> {
                 },
                 Err(_parse_error) => {
                     let sync_tokens = vec![
-                        TokenType::Identifier,
+                        TokenType::RParen,
                         TokenType::Colon,
                         TokenType::RBracket,
-                        TokenType::MachineBlock,
-                        TokenType::ActionsBlock,
-                        TokenType::DomainBlock,
-                        TokenType::SystemEnd,
                     ];
                     self.synchronize(&sync_tokens);
                     if !self.follows(
@@ -1955,19 +1961,27 @@ impl<'a> Parser<'a> {
                     }
                 }
             }
-            if self.match_token(&[TokenType::RBracket]) {
+            // if self.match_token(&[TokenType::RParen]) {
+            //     break;
+            // } else if let Err(parse_error) = self.consume(TokenType::Comma, "Expected comma.") {
+            //     return Err(parse_error);
+            // }
+
+            if !self.match_token(&[TokenType::Comma]) {
                 break;
-            } else if let Err(parse_error) = self.consume(TokenType::Comma, "Expected comma.") {
-                return Err(parse_error);
             }
         }
 
         if !parameters.is_empty() {
-            Ok(Some(parameters))
-        } else {
-            self.error_at_current("Error - empty list declaration.");
-            Err(ParseError::new("Error - empty list declaration."))
+            return Ok(Some(parameters))
         }
+
+        Ok(None)
+
+        // else {
+        //     self.error_at_current("Error - empty list declaration.");
+        //     Err(ParseError::new("Error - empty list declaration."))
+        // }
     }
 
     /* --------------------------------------------------------------------- */
@@ -1976,8 +1990,9 @@ impl<'a> Parser<'a> {
 
     fn parameter(&mut self) -> Result<Option<ParameterNode>, ParseError> {
         if !self.match_token(&[TokenType::Identifier]) {
-            self.error_at_current("Expected parameter name.");
-            return Err(ParseError::new("TODO"));
+            // self.error_at_current("Expected parameter name.");
+            // return Err(ParseError::new("TODO"));
+            return Ok(None);
         }
 
         let id = self.previous();
@@ -2999,11 +3014,10 @@ impl<'a> Parser<'a> {
             state_symbol_rcref = self.arcanum.get_state(&state_name).unwrap();
         }
 
-        // parse state parameters e.g. $S1[x]
-        //   let params:Option<Vec<ParameterNode>>
         let mut pop_state_params_scope = false;
         let mut params_opt = None;
-        if self.match_token(&[TokenType::LBracket]) {
+
+        if self.match_token(&[TokenType::LParen]) {
             // generate StateContext mechanism for state parameter support
             self.generate_state_context = true;
             match self.parameters() {
@@ -3051,7 +3065,26 @@ impl<'a> Parser<'a> {
                 Err(parse_error) => return Err(parse_error),
                 Ok(None) => {}
             }
+
+            if self.consume(TokenType::RParen, "Expected ')'").is_err() {
+                let sync_tokens = vec![
+                    TokenType::Colon,
+                    TokenType::Dispatch,
+                    TokenType::OpenBrace,
+                ];
+                self.synchronize(&sync_tokens);
+                if !self.follows(
+                    self.peek(),
+                    &[
+                        TokenType::Colon,
+                        TokenType::Dispatch,
+                        TokenType::OpenBrace,],
+                ) {
+                    return Err(ParseError::new(&format!("Unparseable state {}",state_name)));
+                }
+            }
         }
+
 
         let mut dispatch_opt: Option<DispatchNode> = None;
 
@@ -3113,6 +3146,8 @@ impl<'a> Parser<'a> {
                 }
             },
         }
+
+        self.consume(TokenType::OpenBrace, "Expected '{'");
 
         // state local variables
         let mut vars_opt = None;
@@ -3259,30 +3294,33 @@ impl<'a> Parser<'a> {
                     }
                 }
             } else {
-                let follows_vec = &vec![
-                    TokenType::State,
-                    TokenType::ActionsBlock,
-                    TokenType::OperationsBlock,
-                    TokenType::DomainBlock,
-                    TokenType::SystemEnd,
-                ];
-                if self.follows(self.peek(), follows_vec) {
-                    // next token is expected
-                    break;
-                } else {
-                    self.error_at_current("Unexpected token in event handler message");
-                    let sync_tokens = vec![
-                        TokenType::Pipe,
-                        TokenType::State,
-                        TokenType::ActionsBlock,
-                        TokenType::DomainBlock,
-                    ];
-                    if !self.synchronize(&sync_tokens) {
-                        return Err(ParseError::new("TODO"));
-                    }
-                }
+                break;
+            //     let follows_vec = &vec![
+            //         TokenType::State,
+            //         TokenType::ActionsBlock,
+            //         TokenType::OperationsBlock,
+            //         TokenType::DomainBlock,
+            //         TokenType::SystemEnd,
+            //     ];
+            //     if self.follows(self.peek(), follows_vec) {
+            //         // next token is expected
+            //         break;
+            //     } else {
+            //         self.error_at_current("Unexpected token in event handler message");
+            //         let sync_tokens = vec![
+            //             TokenType::Pipe,
+            //             TokenType::State,
+            //             TokenType::ActionsBlock,
+            //             TokenType::DomainBlock,
+            //         ];
+            //         if !self.synchronize(&sync_tokens) {
+            //             return Err(ParseError::new("TODO"));
+            //         }
+            //     }
             }
         }
+
+        self.consume(TokenType::CloseBrace, "Expected '}'");
 
         // TODO: Moved this down here as I think is a bug to hve it above but not sure.
         self.arcanum.exit_scope(); // state block scope (StateBlockScopeSymbol)
