@@ -3266,7 +3266,7 @@ impl<'a> Parser<'a> {
         // Event handler syntax:
         // a(x:int,y:string) : bool(True) { }
 
-        if self.match_token(&[TokenType::Identifier]) {
+        if self.match_token(&[TokenType::Identifier,TokenType::GT,TokenType::LT]) {
             match self.event_handlers(&state_name) {
                 Ok(seh) => {
                     state_event_handlers = seh;
@@ -3430,7 +3430,7 @@ impl<'a> Parser<'a> {
                     self.synchronize(&sync_tokens);
                 }
             }
-            if !self.match_token(&[TokenType::Identifier]) {
+            if !self.match_token(&[TokenType::Identifier,TokenType::GT,TokenType::LT]) {
                 break;
             }
         }
