@@ -18,11 +18,29 @@ use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
 
+
 pub struct ParseError {
     // TODO:
     pub error: String,
 }
 
+struct StateEventHandlers {
+    pub enter_event_handler_opt: Option<Rc<RefCell<EventHandlerNode>>>,
+    pub exit_event_handler_opt: Option<Rc<RefCell<EventHandlerNode>>>,
+    pub event_handlers: Vec<Rc<RefCell<EventHandlerNode>>>
+}
+
+impl StateEventHandlers {
+    pub fn new(    enter_event_handler_opt: Option<Rc<RefCell<EventHandlerNode>>>,
+               exit_event_handler_opt: Option<Rc<RefCell<EventHandlerNode>>>,
+               event_handlers: Vec<Rc<RefCell<EventHandlerNode>>>) -> StateEventHandlers {
+        StateEventHandlers {
+            enter_event_handler_opt,
+            exit_event_handler_opt,
+            event_handlers,
+        }
+    }
+}
 impl ParseError {
     fn new(msg: &str) -> ParseError {
         ParseError {
@@ -887,14 +905,15 @@ impl<'a> Parser<'a> {
                     TokenType::SystemEnd,
                 ];
                 self.synchronize(&sync_tokens);
-            } else {
-                if system_start_state_state_params_opt.is_none()
-                    && system_enter_params_opt.is_none()
-                    && domain_params_opt.is_none()
-                {
-                    self.error_at_current("Empty system parameter list.")
-                }
             }
+            // else {
+            //     if system_start_state_state_params_opt.is_none()
+            //         && system_enter_params_opt.is_none()
+            //         && domain_params_opt.is_none()
+            //     {
+            //        // self.error_at_current("Empty system parameter list.")
+            //     }
+            // }
         }
 
         (
@@ -990,7 +1009,7 @@ impl<'a> Parser<'a> {
         let mut system_enter_params_opt: Option<Vec<ParameterNode>> = Option::None;
 
         if self.match_token(&[TokenType::GT]) {
-            if self.consume(TokenType::LParen, "Expected '['").is_err() {
+            if self.consume(TokenType::LParen, "Expected '('").is_err() {
                 let sync_tokens = vec![
                     TokenType::System,
                     TokenType::InterfaceBlock,
@@ -1485,12 +1504,47 @@ impl<'a> Parser<'a> {
         let mut return_type_opt: Option<TypeNode> = Option::None;
         let mut alias_opt: Option<MessageNode> = Option::None;
 
-        if self.match_token(&[TokenType::LBracket]) {
-            match self.parameters() {
-                Ok(Some(parameters)) => params_opt = Some(parameters),
-                Ok(None) => return Err(ParseError::new("TODO")),
-                Err(parse_error) => return Err(parse_error),
-            }
+        if self.consume(TokenType::LParen, "Expected '('").is_err() {
+            let sync_tokens = vec![
+                TokenType::Colon,
+                TokenType::RParen,
+                TokenType::Caret,
+                TokenType::At,
+                TokenType::LBracket,
+            ];
+            self.synchronize(&sync_tokens);
+            // if !self.follows(
+            //     self.peek(),
+            //     &[
+            //         TokenType::Colon,
+            //         TokenType::OpenBrace,],
+            // ) {
+            //     return Err(ParseError::new(&format!("Unparseable state {}",state_name)));
+            // }
+        }
+
+        match self.parameters() {
+            Ok(Some(parameters)) => params_opt = Some(parameters),
+            Ok(None) => {},
+            Err(parse_error) => return Err(parse_error),
+        }
+
+        if self.consume(TokenType::RParen, "Expected ')'").is_err() {
+            let sync_tokens = vec![
+                TokenType::Colon,
+                TokenType::Caret,
+                TokenType::At,
+                TokenType::LBracket,
+            ];
+            self.synchronize(&sync_tokens);
+            // if !self.follows(
+            //     self.peek(),
+            //     &[
+            //         TokenType::Colon,
+            //         TokenType::OpenBrace,],
+            // ) {
+            //     return Err(ParseError::new(&format!("Unparseable state {}",state_name)));
+            // }
         }
 
         let mut return_init_expr_opt = Option::None;
@@ -1764,20 +1818,20 @@ impl<'a> Parser<'a> {
     fn message_selector(&mut self) -> Result<MessageType, ParseError> {
         let message_node;
 
-        if self.peek().token_type == TokenType::At {
-            if let Err(parse_error) = self.consume(TokenType::At, "Expected '@'.") {
-                return Err(parse_error);
-            }
-        }
-        if !self.match_token(&[TokenType::Pipe]) {
-            let token_str = self.peek().lexeme.clone();
-            let err_msg = &format!(
-                "Expected closing '|' in message selector. Found {}. ",
-                token_str
-            );
-            self.error_at_previous(err_msg);
-            return Err(ParseError::new(err_msg));
-        }
+        // if self.peek().token_type == TokenType::At {
+        //     if let Err(parse_error) = self.consume(TokenType::At, "Expected '@'.") {
+        //         return Err(parse_error);
+        //     }
+        // }
+        // if !self.match_token(&[TokenType::Pipe]) {
+        //     let token_str = self.peek().lexeme.clone();
+        //     let err_msg = &format!(
+        //         "Expected closing '|' in message selector. Found {}. ",
+        //         token_str
+        //     );
+        //     self.error_at_previous(err_msg);
+        //     return Err(ParseError::new(err_msg));
+        // }
 
         let tt = self.peek().token_type;
         match tt {
@@ -1807,6 +1861,7 @@ impl<'a> Parser<'a> {
             "Expected closing '|' in message selector. Found {}. ",
             token_str
         );
+
         if let Err(parse_error) = self.consume(TokenType::Pipe, err_msg) {
             return Err(parse_error);
         }
@@ -3149,10 +3204,6 @@ impl<'a> Parser<'a> {
 
         self.consume(TokenType::OpenBrace, "Expected '{'");
 
-        // state local variables
-        let mut vars_opt = None;
-        let mut vars = Vec::new();
-
         if self.is_building_symbol_table {
             let state_local_scope_struct = StateLocalScopeSymbol::new();
             let state_local_scope_symbol_rcref = Rc::new(RefCell::new(state_local_scope_struct));
@@ -3165,160 +3216,66 @@ impl<'a> Parser<'a> {
                 .set_parse_scope(StateLocalScopeSymbol::scope_name());
         }
 
-        // variable decl
-        // let v     (mutable)
-        // const c   (immutable)
-        while self.match_token(&[TokenType::Var, TokenType::Const]) {
-            self.generate_state_context = true;
-            match self.var_declaration(IdentifierDeclScope::StateVarScope) {
-                Ok(variable_node) => {
-                    vars.push(variable_node);
-                }
-                Err(err) => {
-                    // TODO - The main sync logic is in statements().
-                    // TODO - Need to add here as well to continue parse.
-                    return Err(err);
-                }
+        // state local variables
+        // $S1 {
+        //    var a = 1
+        // }
+
+        let mut vars_opt = None;
+
+        match self.state_variables() {
+            Ok(Some(variables)) => {
+                vars_opt = Some(variables);
             }
+            Ok(None) => {}
+            Err(parse_error) => return Err(parse_error),
         }
 
-        if !vars.is_empty() {
-            vars_opt = Some(vars);
-        }
-
+        // TODO: I don't know what state calls are.
         // State Calls
         let mut calls_opt = None;
         let mut calls = Vec::new();
-
-        // @TODO - add reference syntax
-        while self.match_token(&[TokenType::Identifier]) {
-            match self.call(IdentifierDeclScope::UnknownScope) {
-                Ok(Some(CallChainExprT {
-                    call_chain_expr_node,
-                })) => calls.push(call_chain_expr_node),
-                Ok(Some(_)) => return Err(ParseError::new("TODO")),
-                Err(parse_error) => return Err(parse_error),
-                Ok(None) => {} // continue
-            }
-        }
+        //
+        // // @TODO - add reference syntax
+        // while self.match_token(&[TokenType::Identifier]) {
+        //     match self.call(IdentifierDeclScope::UnknownScope) {
+        //         Ok(Some(CallChainExprT {
+        //             call_chain_expr_node,
+        //         })) => calls.push(call_chain_expr_node),
+        //         Ok(Some(_)) => return Err(ParseError::new("TODO")),
+        //         Err(parse_error) => return Err(parse_error),
+        //         Ok(None) => {} // continue
+        //     }
+        // }
 
         if !calls.is_empty() {
             calls_opt = Some(calls);
         }
 
-        // Parse any event handlers.
+        // Parse event handlers.
 
         // TODO: make this Option?
         let mut evt_handlers: Vec<Rc<RefCell<EventHandlerNode>>> = Vec::new();
-        let mut enter_event_handler = Option::None;
-        let mut exit_event_handler = Option::None;
 
-        let mut event_names = HashMap::new();
+        let mut state_event_handlers = StateEventHandlers {
+            enter_event_handler_opt: None,
+            exit_event_handler_opt: None,
+            event_handlers: vec![],
+        };
 
-        loop {
-            while self.match_token(&[TokenType::SingleLineComment]) {
-                // consume
-                // @TODO: fix this. see https://app.asana.com/0/1199651557660024/1199953268166075/f
-                // this is a hack because we don't use
-                // match on the next tests but instead use peek().
-                // this causes an error for this situation:
-                /*
-                $State
-                    |continueEvent|
-                    >       --- continue terminator
-                    |returnEvent|
-                    ^       --- return terminator
+        // Event handler syntax:
+        // a(x:int,y:string) : bool(True) { }
 
-                 */
-            }
+        if self.match_token(&[TokenType::Identifier]) {
+            match self.event_handlers(&state_name) {
+                Ok(seh) => {
+                    state_event_handlers = seh;
+                },
+                Err(parse_error) => return Err(parse_error),
 
-            if self.peek().token_type == TokenType::Pipe {
-                while self.peek().token_type == TokenType::Pipe {
-                    match self.event_handler() {
-                        Ok(eh_opt) => {
-                            if let Some(eh) = eh_opt {
-                                let eh_rcref = Rc::new(RefCell::new(eh));
-
-                                // find enter/exit event handlers
-                                {
-                                    // new scope to make BC happy
-                                    let eh_ref = eh_rcref.as_ref().borrow();
-                                    let evt = eh_ref.event_symbol_rcref.as_ref().borrow();
-
-                                    if evt.is_enter_msg {
-                                        if enter_event_handler.is_some() {
-                                            self.error_at_current(&format!(
-                                                "State ${} has more than one enter event handler.",
-                                                &state_name
-                                            ));
-                                        } else {
-                                            enter_event_handler = Some(eh_rcref.clone());
-                                        }
-                                    } else if evt.is_exit_msg {
-                                        if exit_event_handler.is_some() {
-                                            self.error_at_current(&format!(
-                                                "State ${} has more than one exit event handler.",
-                                                &state_name
-                                            ));
-                                        } else {
-                                            exit_event_handler = Some(eh_rcref.clone());
-                                        }
-                                    } else {
-                                        if event_names.contains_key(&evt.msg) {
-                                            let err_msg = &format!(
-                                                "Event handler {} already exists.",
-                                                evt.msg
-                                            );
-                                            self.error_at_previous(&err_msg);
-                                            //                                            return Err(ParseError::new(err_msg));
-                                        } else {
-                                            event_names.insert(evt.msg.clone(), evt.msg.clone());
-                                        }
-                                    }
-                                }
-
-                                self.current_event_symbol_opt = None;
-                                evt_handlers.push(eh_rcref);
-                            }
-                        }
-                        Err(_) => {
-                            let sync_tokens = vec![
-                                TokenType::Pipe,
-                                TokenType::State,
-                                TokenType::ActionsBlock,
-                                TokenType::DomainBlock,
-                                TokenType::SystemEnd,
-                            ];
-                            self.synchronize(&sync_tokens);
-                        }
-                    }
-                }
-            } else {
-                break;
-            //     let follows_vec = &vec![
-            //         TokenType::State,
-            //         TokenType::ActionsBlock,
-            //         TokenType::OperationsBlock,
-            //         TokenType::DomainBlock,
-            //         TokenType::SystemEnd,
-            //     ];
-            //     if self.follows(self.peek(), follows_vec) {
-            //         // next token is expected
-            //         break;
-            //     } else {
-            //         self.error_at_current("Unexpected token in event handler message");
-            //         let sync_tokens = vec![
-            //             TokenType::Pipe,
-            //             TokenType::State,
-            //             TokenType::ActionsBlock,
-            //             TokenType::DomainBlock,
-            //         ];
-            //         if !self.synchronize(&sync_tokens) {
-            //             return Err(ParseError::new("TODO"));
-            //         }
-            //     }
             }
         }
+
 
         self.consume(TokenType::CloseBrace, "Expected '}'");
 
@@ -3330,9 +3287,9 @@ impl<'a> Parser<'a> {
             params_opt,
             vars_opt,
             calls_opt,
-            evt_handlers,
-            enter_event_handler,
-            exit_event_handler,
+            state_event_handlers.event_handlers,
+            state_event_handlers.enter_event_handler_opt,
+            state_event_handlers.exit_event_handler_opt,
             dispatch_opt,
             line,
         );
@@ -3376,6 +3333,117 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
+    fn state_variables(&mut self) -> Result<Option<Vec<Rc<RefCell<VariableDeclNode>>>>, ParseError> {
+        // variable decl
+        // let v     (mutable)
+        // const c   (immutable)
+
+        let mut vars = Vec::new();
+
+        while self.match_token(&[TokenType::Var, TokenType::Const]) {
+            self.generate_state_context = true;
+            match self.var_declaration(IdentifierDeclScope::StateVarScope) {
+                Ok(variable_node) => {
+                    vars.push(variable_node);
+                }
+                Err(err) => {
+                    // TODO - The main sync logic is in statements().
+                    // TODO - Need to add here as well to continue parse.
+                    return Err(err);
+                }
+            }
+        }
+
+        if !vars.is_empty() {
+            Ok(Some(vars))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn event_handlers(&mut self,state_name:&String) -> Result<StateEventHandlers, ParseError> {
+
+        let mut evt_handlers: Vec<Rc<RefCell<EventHandlerNode>>> = Vec::new();
+        let mut enter_event_handler = Option::None;
+        let mut exit_event_handler = Option::None;
+
+        let mut event_names = HashMap::new();
+
+        loop {
+            match self.event_handler() {
+                Ok(eh_opt) => {
+                    if let Some(eh) = eh_opt {
+                        let eh_rcref = Rc::new(RefCell::new(eh));
+
+                        // find enter/exit event handlers
+                        {
+                            // new scope to make BC happy
+                            let eh_ref = eh_rcref.as_ref().borrow();
+                            let evt = eh_ref.event_symbol_rcref.as_ref().borrow();
+
+                            if evt.is_enter_msg {
+                                if enter_event_handler.is_some() {
+                                    self.error_at_current(&format!(
+                                        "State ${} has more than one enter event handler.",
+                                        &state_name
+                                    ));
+                                } else {
+                                    enter_event_handler = Some(eh_rcref.clone());
+                                }
+                            } else if evt.is_exit_msg {
+                                if exit_event_handler.is_some() {
+                                    self.error_at_current(&format!(
+                                        "State ${} has more than one exit event handler.",
+                                        &state_name
+                                    ));
+                                } else {
+                                    exit_event_handler = Some(eh_rcref.clone());
+                                }
+                            } else {
+                                if event_names.contains_key(&evt.msg) {
+                                    let err_msg = &format!(
+                                        "Event handler {} already exists.",
+                                        evt.msg
+                                    );
+                                    self.error_at_previous(&err_msg);
+                                    //                                            return Err(ParseError::new(err_msg));
+                                } else {
+                                    event_names.insert(evt.msg.clone(), evt.msg.clone());
+                                }
+                            }
+                        }
+
+                        self.current_event_symbol_opt = None;
+                        evt_handlers.push(eh_rcref);
+                    }
+                }
+                Err(_) => {
+                    let sync_tokens = vec![
+                        TokenType::Pipe,
+                        TokenType::State,
+                        TokenType::ActionsBlock,
+                        TokenType::DomainBlock,
+                        TokenType::SystemEnd,
+                    ];
+                    self.synchronize(&sync_tokens);
+                }
+            }
+            if !self.match_token(&[TokenType::Identifier]) {
+                break;
+            }
+        }
+
+        let state_event_handlers = StateEventHandlers::new(
+            enter_event_handler,
+            exit_event_handler,
+            evt_handlers);
+        Ok(state_event_handlers)
+    }
+
+    /* --------------------------------------------------------------------- */
+
     // event_handler -> '|' Identifier '|' event_handler_terminator
 
     fn event_handler(&mut self) -> Result<Option<EventHandlerNode>, ParseError> {
@@ -3387,31 +3455,81 @@ impl<'a> Parser<'a> {
         self.interface_method_called = false;
 
         self.event_handler_has_transition = false;
-        //    let a = self.message();
 
-        match self.message_selector() {
-            Ok(MessageType::CustomMessage { message_node }) => {
-                line_number = message_node.line;
-                msg = message_node.name.clone();
+        // consume single line comments
+        while self.match_token(&[TokenType::SingleLineComment]) {
+            // consume
+            // @TODO: fix this. see https://app.asana.com/0/1199651557660024/1199953268166075/f
+            // this is a hack because we don't use
+            // match on the next tests but instead use peek().
+            // this causes an error for this situation:
+            /*
+            $State
+                |continueEvent|
+                >       --- continue terminator
+                |returnEvent|
+                ^       --- return terminator
 
-                message_type = CustomMessage { message_node };
-            }
-            Ok(MessageType::None) => {
-                let err_msg = "Unknown message type.";
-                self.error_at_current(err_msg);
-                return Err(ParseError::new(err_msg));
-            }
-            Err(parse_error) => {
-                // I don't think I need this:
-                // self.error_at_current("Error parsing event handler message.");
-                //return Err(parse_error);
-                let sync_tokens = vec![TokenType::Caret];
-                if !self.synchronize(&sync_tokens) {
-                    return Err(parse_error);
-                }
-            }
+             */
         }
 
+        //    let a = self.message();
+
+
+ //        let message_node;
+ //        let tt = self.previous().token_type;
+ //        match tt {
+ //            TokenType::Identifier
+ //  //          | TokenType::String
+ //            | TokenType::GT
+ //            | TokenType::LT
+ //  //          | TokenType::SuperString
+ //            // | TokenType::GTx2
+ //            // | TokenType::GTx3
+ //            // | TokenType::LTx2
+ //            // | TokenType::LTx3
+ //
+ //            => {
+ // //               message_node = self.create_message_node(tt)
+ //                let id = self.previous();
+ //                msg = id.lexeme.clone();
+ //
+ //            },
+ //            _ => {
+ //                let token_str = self.peek().lexeme.clone();
+ //                let err_msg = &format!("Invalid event handler name {}. ", token_str);
+ //                self.error_at_current(err_msg);
+ //    //            return Err(ParseError::new(err_msg));
+ //            }
+ //        }
+
+        // match self.message_selector() {
+        //     Ok(MessageType::CustomMessage { message_node }) => {
+        //         line_number = message_node.line;
+        //         msg = message_node.name.clone();
+        //
+        //         message_type = CustomMessage { message_node };
+        //     }
+        //     Ok(MessageType::None) => {
+        //         let err_msg = "Unknown message type.";
+        //         self.error_at_current(err_msg);
+        //         return Err(ParseError::new(err_msg));
+        //     }
+        //     Err(parse_error) => {
+        //         // I don't think I need this:
+        //         // self.error_at_current("Error parsing event handler message.");
+        //         //return Err(parse_error);
+        //         let sync_tokens = vec![TokenType::Caret];
+        //         if !self.synchronize(&sync_tokens) {
+        //             return Err(parse_error);
+        //         }
+        //     }
+        // }
+
+
+        let id = self.previous();
+        msg = id.lexeme.clone();
+        line_number = id.line;
         let mut is_declaring_event = false;
 
         if self.is_building_symbol_table {
@@ -3457,7 +3575,7 @@ impl<'a> Parser<'a> {
         let mut pop_params_scope = false;
 
         // Parse event handler parameters
-        if self.match_token(&[TokenType::LBracket]) {
+        if self.match_token(&[TokenType::LParen]) {
             if msg == self.arcanum.symbol_config.enter_msg_symbol {
                 self.generate_state_context = true;
             }
@@ -3635,7 +3753,7 @@ impl<'a> Parser<'a> {
                         //                       self.arcanum.debug_print_current_symbols(self.arcanum.get_current_symtab());
                     }
                 }
-                Ok(None) => return Err(ParseError::new("TODO")),
+                Ok(None) => { },
                 Err(parse_error) => return Err(parse_error),
             }
         } else {
@@ -3651,6 +3769,23 @@ impl<'a> Parser<'a> {
                     msg
                 ));
             }
+        }
+
+        if self.consume(TokenType::RParen, "Expected ')'").is_err() {
+            let sync_tokens = vec![
+                TokenType::Colon,
+                TokenType::OpenBrace,
+            ];
+            self.synchronize(&sync_tokens);
+            // TODO: Look how to readd these:
+            // if !self.follows(
+            //     self.peek(),
+            //     &[
+            //         TokenType::Colon,
+            //         TokenType::OpenBrace,],
+            // ) {
+            //     return Err(ParseError::new(&format!("Unparseable state {}",state_name)));
+            // }
         }
 
         // Parse return type
@@ -3701,6 +3836,8 @@ impl<'a> Parser<'a> {
             }
         }
 
+        self.consume(TokenType::OpenBrace, "Expected '{'");
+
         if self.is_building_symbol_table {
             let event_handler_local_scope_struct = EventHandlerLocalScopeSymbol::new();
             let event_handler_local_scope_symbol_rcref =
@@ -3720,6 +3857,7 @@ impl<'a> Parser<'a> {
         let statements = self.statements(IdentifierDeclScope::EventHandlerVarScope);
         let event_symbol_rcref = self.arcanum.get_event(&msg, &self.state_name_opt).unwrap();
         let ret_event_symbol_rcref = Rc::clone(&event_symbol_rcref);
+        // TODO v.20: update sync for new syntax
         let terminator_node = match self.event_handler_terminator(event_symbol_rcref) {
             Ok(terminator_node) => terminator_node,
             Err(_parse_error) => {
@@ -3738,6 +3876,8 @@ impl<'a> Parser<'a> {
                 TerminatorExpr::new(TerminatorType::Return, None, 0)
             }
         };
+
+        self.consume(TokenType::CloseBrace, "Expected '}'");
 
         // The state name must be set in an enclosing context. Otherwise fail
         // with extreme prejudice.
@@ -3814,13 +3954,7 @@ impl<'a> Parser<'a> {
         } else if self.match_token(&[TokenType::ElseContinue]) {
             Ok(TerminatorExpr::new(Continue, None, self.previous().line))
         } else {
-            let mut err_msg = format!("Expected event handler terminator.");
-            if self.interface_method_called {
-                err_msg =
-                    format!("Interface method call must be last statement in an event handler.")
-            }
-            self.error_at_current(&err_msg);
-            Err(ParseError::new(&err_msg))
+            Ok(TerminatorExpr::new(Return, None, self.previous().line))
         }
     }
 
