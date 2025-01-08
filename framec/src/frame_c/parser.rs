@@ -3446,6 +3446,8 @@ impl<'a> Parser<'a> {
 
     // event_handler -> '|' Identifier '|' event_handler_terminator
 
+    // TODO: This is a mess and needs to be cleaned up.
+
     fn event_handler(&mut self) -> Result<Option<EventHandlerNode>, ParseError> {
         let mut message_type = MessageType::None;
         // Hack - there is a weird bug w/ Clion that doesn't let msg be uninitialized.
@@ -3525,8 +3527,24 @@ impl<'a> Parser<'a> {
         //         }
         //     }
         // }
+        let message_node;
+        let tt = self.previous().token_type;
+        match tt {
+            TokenType::Identifier
+            | TokenType::GT
+            | TokenType::LT
 
-
+            => {
+                message_node = self.create_message_node(tt)
+            },
+            _ => {
+                let token_str = self.previous().lexeme.clone();
+                let err_msg = &format!("Invalid event type. Found {}. ", token_str);
+                self.error_at_current(err_msg);
+                return Err(ParseError::new(err_msg));
+            }
+        }
+        message_type = MessageType::CustomMessage { message_node };
         let id = self.previous();
         msg = id.lexeme.clone();
         line_number = id.line;
