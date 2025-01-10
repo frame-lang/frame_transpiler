@@ -16,12 +16,20 @@ use crate::frame_c::utils::SystemHierarchy;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
+use std::io::BufRead;
 use std::rc::Rc;
-
 
 pub struct ParseError {
     // TODO:
     pub error: String,
+}
+
+impl ParseError {
+    fn new(msg: &str) -> ParseError {
+        ParseError {
+            error: String::from(msg),
+        }
+    }
 }
 
 struct StateEventHandlers {
@@ -38,13 +46,6 @@ impl StateEventHandlers {
             enter_event_handler_opt,
             exit_event_handler_opt,
             event_handlers,
-        }
-    }
-}
-impl ParseError {
-    fn new(msg: &str) -> ParseError {
-        ParseError {
-            error: String::from(msg),
         }
     }
 }
@@ -599,7 +600,7 @@ impl<'a> Parser<'a> {
                 let err_msg = &format!("Found {} token. Possible missing machine block.", self.peek().lexeme);
                 self.error_at_current(err_msg);
             } else {
-                let err_msg = &format!("Expected '}}' - found {}.", self.peek().lexeme);
+                let err_msg = &format!("Expected '}}' - found '{}'.", self.peek().lexeme);
                 self.error_at_current(err_msg);
             }
 
@@ -848,6 +849,7 @@ impl<'a> Parser<'a> {
     fn system_domain_args(&mut self) -> Result<Option<ExprListNode>, ParseError> {
         // let mut domain_args = Vec::new();
 
+        // TODO v0.20 - use syntax "system Foo($(a),>(b),c,d)"
         if self.match_token(&[TokenType::System]) {
             if self.match_token(&[TokenType::LParen]) {
                 match self.expr_list_node() {
@@ -955,7 +957,6 @@ impl<'a> Parser<'a> {
             if self.consume(TokenType::LParen, "Expected '('").is_err() {
                 let sync_tokens = vec![
                     TokenType::GT,
-                    TokenType::System,
                     TokenType::InterfaceBlock,
                     TokenType::ActionsBlock,
                     TokenType::MachineBlock,
@@ -1011,7 +1012,6 @@ impl<'a> Parser<'a> {
         if self.match_token(&[TokenType::GT]) {
             if self.consume(TokenType::LParen, "Expected '('").is_err() {
                 let sync_tokens = vec![
-                    TokenType::System,
                     TokenType::InterfaceBlock,
                     TokenType::ActionsBlock,
                     TokenType::MachineBlock,
@@ -1231,7 +1231,7 @@ impl<'a> Parser<'a> {
     ) -> Result<Rc<RefCell<FunctionNode>>, ParseError> {
         let mut params: Option<Vec<ParameterNode>> = Option::None;
 
-        if self.match_token(&[TokenType::LBracket]) {
+        if self.match_token(&[TokenType::LParen]) {
             params = match self.parameters_scope() {
                 Ok(Some(parameters)) => Some(parameters),
                 Ok(None) => None,
@@ -1534,7 +1534,6 @@ impl<'a> Parser<'a> {
                 TokenType::Colon,
                 TokenType::Caret,
                 TokenType::At,
-                TokenType::LBracket,
             ];
             self.synchronize(&sync_tokens);
             // if !self.follows(
@@ -1720,17 +1719,10 @@ impl<'a> Parser<'a> {
             if self.match_token(&[TokenType::At]) {
                 // TODO - review this
                 frame_event_part_opt = Some(FrameEventPart::Event { is_reference })
-            } else if self.match_token(&[TokenType::System]) {
-                is_system = true;
-                // The type may be a generic system '#'
-                // or a named system type '#Earth'. Try to match an identifier.
-                if self.match_token(&[TokenType::Identifier]) {
-                    type_str = self.previous().lexeme.clone();
-                }
             } else if self.match_token(&[TokenType::Identifier]) {
                 type_str = self.previous().lexeme.clone();
             } else {
-                let err_msg = &format!("Expected return type name.");
+                let err_msg = &format!("Expected variable type name.");
                 self.error_at_current(err_msg);
                 return Err(ParseError::new(err_msg));
             }
@@ -1940,45 +1932,46 @@ impl<'a> Parser<'a> {
                                 }
                             }
                         } else {
+                            // TODO?
                         }
 
                         parameters.push(parameter_node);
                     }
-                    None => {
-                        break;
-                    }
+                    None => {}
                 },
-                Err(_parse_error) => {
-                    let sync_tokens = vec![
-                        TokenType::Identifier,
-                        TokenType::Colon,
-                        TokenType::RBracket,
-                        TokenType::MachineBlock,
-                        TokenType::ActionsBlock,
-                        TokenType::DomainBlock,
-                        TokenType::SystemEnd,
-                    ];
-                    self.synchronize(&sync_tokens);
-                    if !self.follows(
-                        self.peek(),
-                        &[TokenType::Identifier, TokenType::Colon, TokenType::RBracket],
-                    ) {
-                        break;
-                    }
+                Err(parse_error) => {
+                    // // TODO: just return error and don't sync. Not enough context
+                    // // to know what follows.
+                    // let sync_tokens = vec![
+                    //     TokenType::Identifier,
+                    //     TokenType::Colon,
+                    //     TokenType::RBracket,
+                    //     TokenType::MachineBlock,
+                    //     TokenType::ActionsBlock,
+                    //     TokenType::DomainBlock,
+                    //     TokenType::SystemEnd,
+                    // ];
+                    // self.synchronize(&sync_tokens);
+                    // if !self.follows(
+                    //     self.peek(),
+                    //     &[TokenType::Identifier, TokenType::Colon, TokenType::RBracket],
+                    // ) {
+                    //     break;
+                    // }
+                    return Err(parse_error);
                 }
             }
-            if self.match_token(&[TokenType::RBracket]) {
+            if self.match_token(&[TokenType::RParen]) {
                 break;
-            } else if let Err(parse_error) = self.consume(TokenType::Comma, "Expected comma.") {
+            } else if let Err(parse_error) = self.consume(TokenType::Comma, &format!("Expected comma - found '{}'", self.peek().lexeme)) {
                 return Err(parse_error);
             }
         }
 
-        if !parameters.is_empty() {
-            Ok(Some(parameters))
+        if parameters.is_empty() {
+            Ok(None)
         } else {
-            self.error_at_current("Error - empty list declaration.");
-            Err(ParseError::new("Error - empty list declaration."))
+            Ok(Some(parameters))
         }
     }
 
@@ -2284,7 +2277,7 @@ impl<'a> Parser<'a> {
     fn action(&mut self, action_name: String) -> Result<Rc<RefCell<ActionNode>>, ParseError> {
         let mut params: Option<Vec<ParameterNode>> = Option::None;
 
-        if self.match_token(&[TokenType::LBracket]) {
+        if self.match_token(&[TokenType::RParen]) {
             params = match self.parameters_scope() {
                 Ok(Some(parameters)) => Some(parameters),
                 Ok(None) => None,
@@ -2496,16 +2489,21 @@ impl<'a> Parser<'a> {
     ) -> Result<Rc<RefCell<OperationNode>>, ParseError> {
         let mut params: Option<Vec<ParameterNode>> = Option::None;
 
-        if self.match_token(&[TokenType::LBracket]) {
-            params = match self.parameters_scope() {
-                Ok(Some(parameters)) => Some(parameters),
-                Ok(None) => None,
-                Err(parse_error) => return Err(parse_error),
-            }
+        // foo(
+        if let Err(parse_error) = self.consume(TokenType::LParen, &format!("Expected '(' - found '{}'", self.current_token)) {
+            return Err(parse_error);
         }
+
+        params = match self.parameters_scope() {
+            Ok(Some(parameters)) => Some(parameters),
+            Ok(None) => None,
+            Err(parse_error) => return Err(parse_error),
+        };
+
 
         let mut type_opt: Option<TypeNode> = None;
 
+        // foo(...) :
         if self.match_token(&[TokenType::Colon]) {
             match self.type_decl() {
                 Ok(type_node) => type_opt = Some(type_node),
@@ -2518,48 +2516,43 @@ impl<'a> Parser<'a> {
         let mut terminator_node_opt = None;
         let mut is_implemented = false;
 
-        if self.match_token(&[TokenType::OpenBrace]) {
-            is_implemented = true;
-            // TODO - figure out how this needes to be added to statements
-            // if self.match_token(&[TokenType::SuperString]) {
-            //     let token = self.previous();
-            //     code_opt = Some(token.lexeme.clone());
-            // }
+        // foo(...) : type {
+        if let Err(parse_error) = self.consume(TokenType::OpenBrace, &format!("Expected '{{' - found '{}'", self.current_token)) {
+            return Err(parse_error);
+        }
 
-            statements = self.statements(IdentifierDeclScope::BlockVarScope);
+        is_implemented = true;
+        // TODO - figure out how this needs to be added to statements
+        // if self.match_token(&[TokenType::SuperString]) {
+        //     let token = self.previous();
+        //     code_opt = Some(token.lexeme.clone());
+        // }
 
-            if self.match_token(&[TokenType::Caret]) {
-                if self.match_token(&[TokenType::LParen]) {
-                    let expr_t = match self.equality() {
-                        Ok(Some(expr_t)) => expr_t,
-                        _ => {
-                            let err_msg = "Expected expression as return value.";
-                            self.error_at_current(err_msg);
-                            return Err(ParseError::new(err_msg));
-                        }
-                    };
+        statements = self.statements(IdentifierDeclScope::BlockVarScope);
 
-                    if let Err(parse_error) = self.consume(TokenType::RParen, "Expected ')'.") {
-                        // self.arcanum.exit_parse_scope();
-                        return Err(parse_error);
-                    }
+        // foo(...) : type { ... return
+        if self.match_token(&[TokenType::Return_]) {
 
-                    terminator_node_opt = Some(TerminatorExpr::new(
-                        Return,
-                        Some(expr_t),
-                        self.previous().line,
-                    ));
-                } else {
-                    terminator_node_opt =
-                        Some(TerminatorExpr::new(Return, None, self.previous().line));
+            let expr_t = match self.equality() {
+                Ok(Some(expr_t)) => expr_t,
+                _ => {
+                    let err_msg = "Expected expression as return value.";
+                    self.error_at_current(err_msg);
+                    return Err(ParseError::new(err_msg));
                 }
-            }
+            };
 
-            if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
-                //   self.arcanum.exit_parse_scope();
-                return Err(parse_error);
-            } else {
-            }
+            terminator_node_opt = Some(TerminatorExpr::new(
+                Return,
+                Some(expr_t),
+                self.previous().line,
+            ));
+
+        }
+
+        // foo(...) : type { ... return True }
+        if let Err(parse_error) = self.consume(TokenType::CloseBrace, &format!("Expected '}}' - found '{}'", self.current_token)) {
+            return Err(parse_error);
         }
 
         let operation_node = OperationNode::new(
@@ -4088,7 +4081,6 @@ impl<'a> Parser<'a> {
                     TokenType::LParen,
                     TokenType::Caret,
                     TokenType::GT,
-                    TokenType::System,
                     TokenType::State,
                     TokenType::PipePipe,
                     TokenType::Dot,
@@ -5572,7 +5564,7 @@ impl<'a> Parser<'a> {
                 }
                 Err(parse_err) => return Err(parse_err),
             }
-        } else if self.match_token(&[TokenType::System]) {
+        } else if self.match_token(&[TokenType::Self_]) {
             // Parsing syntax related to a system.
             if self.match_token(&[TokenType::Dot]) {
                 // #.foo expression

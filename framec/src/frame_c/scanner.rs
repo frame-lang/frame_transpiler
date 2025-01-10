@@ -51,6 +51,8 @@ impl Scanner {
             ("actions:".to_string(), TokenType::ActionsBlock),
             ("operations:".to_string(), TokenType::OperationsBlock),
             ("domain:".to_string(), TokenType::DomainBlock),
+            ("self".to_string(), TokenType::Self_),
+            ("return".to_string(), TokenType::Return_),
         ]
         .iter()
         .cloned()
@@ -354,9 +356,9 @@ impl Scanner {
                 } else if self.match_char('/') {
                     self.add_token(TokenType::NumberMatchStart);
                 }
-                // else {
-                //     self.add_token(TokenType::System);
-                // }
+                else {
+                    self.add_token(TokenType::Hash);
+                }
             }
             '=' => {
                 if self.match_char('>') {
@@ -722,6 +724,8 @@ pub enum TokenType {
     LogicalAnd,                   // &&
     LogicalXor,                   // &|
     System,                       // #
+    Self_,                        // self
+    Return_,                      // return
     SystemEnd,                    // ##
     OuterAttributeOrDomainParams, // #[
     InnerAttribute,               // #![
@@ -785,6 +789,7 @@ pub enum TokenType {
     PipePipe,                // ||
     PipePipeDot,             // ||.
     PipePipeLBracket,        // ||[
+    Hash,                    // #
     Error,
 }
 
