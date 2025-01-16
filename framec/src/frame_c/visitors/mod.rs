@@ -257,4 +257,7 @@ pub trait AstVisitor {
     fn visit_operator_type_to_string(&mut self, _operator_type: &OperatorType, _output: &mut String) {}
 
     fn visit_return_assign_stmt_node(&mut self, _return_assign_stmt_node: &ReturnAssignStmtNode) {}
+
+    fn visit_self_expr_node(&mut self, _self_expr_node: &SelfExprNode) {}
+    fn visit_self_expr_node_to_string(&mut self, _self_expr_node: &SelfExprNode, _output: &mut String) {}
 }

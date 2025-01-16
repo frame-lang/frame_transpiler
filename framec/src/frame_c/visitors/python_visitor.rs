@@ -2997,10 +2997,13 @@ impl AstVisitor for PythonVisitor {
         if self.event_handler_has_code {
             self.visit_decl_stmts(&evt_handler_node.statements);
         }
-        // else {
-        //     self.newline();
-        //     self.add_code("pass");
-        // }
+            // TODO v0.20 - i added this back as it causes problems for the
+            // event switch but I am not sure why it was taken out before
+            // so I suspect there is an issue.
+        else {
+            self.newline();
+            self.add_code("pass");
+        }
 
         let terminator_node = &evt_handler_node.terminator_node;
         terminator_node.accept(self);
@@ -5267,6 +5270,22 @@ impl AstVisitor for PythonVisitor {
             .right_rcref
             .borrow()
             .accept_to_string(self, output);
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_self_expr_node(&mut self, _self_expr_node: &SelfExprNode) {
+        self.add_code("self");
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_self_expr_node_to_string(
+        &mut self,
+        _self_expr_node: &SelfExprNode,
+        output: &mut String,
+    ) {
+        output.push_str("self");
     }
 
     //* --------------------------------------------------------------------- *//

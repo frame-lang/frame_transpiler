@@ -825,7 +825,7 @@ impl SymbolTable {
                     domain_variable_symbol_rcref: Rc::clone(domain_variable_symbol_rcref),
                 }));
                 self.symbols.insert(name, st_ref);
-                return Ok(());
+                Ok(())
             }
             SymbolType::StateParam {
                 state_param_symbol_rcref,
@@ -1145,27 +1145,27 @@ impl Arcanum {
         self.current_symtab.borrow().lookup(name, search_scope)
     }
 
-    pub fn lookup_system_symbol(&self, name: &str) -> Option<SystemSymbolType> {
+    pub fn get_system_symbol(&self, name: &str) -> Result<SystemSymbolType,String> {
         if let Some(domain_scope_symbol_rcref) =
             self.lookup(name, &IdentifierDeclScope::DomainBlockScope)
         {
-            Some(DomainSymbol {
-                domain_scope_symbol_rcref,
+            Ok(DomainSymbol {
+                domain_scope_symbol_rcref
             })
         } else if let Some(action_scope_symbol_rcref) = self.lookup_action(name) {
-            Some(ActionSymbol {
+            Ok(ActionSymbol {
                 action_scope_symbol_rcref,
             })
         } else if let Some(interface_scope_symbol_rcref) = self.lookup_interface_method(name) {
-            Some(InterfaceSymbol {
+            Ok(InterfaceSymbol {
                 interface_scope_symbol_rcref,
             })
         } else if let Some(operation_scope_symbol_rcref) = self.lookup_operation(name) {
-            Some(OperationSymbol {
+            Ok(OperationSymbol {
                 operation_scope_symbol_rcref,
             })
         } else {
-            None
+            Err(String::from("Symbol not found in system."))
         }
     }
 

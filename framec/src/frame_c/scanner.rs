@@ -726,7 +726,6 @@ pub enum TokenType {
     System,                       // #
     Self_,                        // self
     Return_,                      // return
-    SystemEnd,                    // ##
     OuterAttributeOrDomainParams, // #[
     InnerAttribute,               // #![
     InterfaceBlock,               // -interface-

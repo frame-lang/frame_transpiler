@@ -1053,6 +1053,7 @@ pub enum MessageType {
     CustomMessage { message_node: MessageNode },
     None,
 }
+
 //-----------------------------------------------------//
 
 pub struct MessageNode {
@@ -1226,6 +1227,9 @@ pub enum ExprType {
     SystemTypeExprT {
         system_type_expr_node: SystemTypeExprNode,
     },
+    SelfExprT {
+        self_expr_node: SelfExprNode,
+    },
     // TODO:
     // NilExprT is a new ExprType used atm to hack around
     // differences between variables and parameters. Parameters
@@ -1317,6 +1321,7 @@ impl ExprType {
             ExprType::DefaultLiteralValueForTypeExprT { .. } => "DefaultLiteralValueForTypeExprT",
             ExprType::TransitionExprT { .. } => "TransitionExprT",
             ExprType::NilExprT { .. } => "NilExprT",
+            ExprType::SelfExprT { .. } => "SelfExprT",
         }
     }
 
@@ -1417,6 +1422,9 @@ impl NodeElement for ExprType {
             ExprType::EnumeratorExprT { enum_expr_node } => {
                 ast_visitor.visit_enumerator_expr_node(enum_expr_node);
             }
+            ExprType::SelfExprT { self_expr_node } => {
+                ast_visitor.visit_self_expr_node(self_expr_node);
+            }
             ExprType::TransitionExprT {
                 transition_expr_node,
             } => {
@@ -1503,6 +1511,9 @@ impl NodeElement for ExprType {
             } => {
                 ast_visitor.visit_transition_expr_node_to_string(transition_expr_node, output);
             }
+            ExprType::SelfExprT { self_expr_node } => {
+                ast_visitor.visit_self_expr_node_to_string(self_expr_node,output);
+            }
             ExprType::NilExprT => {
                 panic!("Unexpect use of ExprType::NilExprT");
             }
@@ -1511,57 +1522,6 @@ impl NodeElement for ExprType {
             }
         }
     }
-    //
-    // fn auto_inc_dec_expr_type(&self, ast_visitor: &mut dyn AstVisitor) {
-    //     match self {
-    //         ExprType::AssignmentExprT {
-    //             assignment_expr_node,
-    //         } => {
-    //             ast_visitor.auto_inc_dec_assignment_expr_node(assignment_expr_node);
-    //         }
-    //         ExprType::CallChainLiteralExprT {
-    //             call_chain_expr_node,
-    //         } => {
-    //             ast_visitor.auto_inc_dec_call_chain_literal_expr_node(call_chain_expr_node);
-    //         }
-    //         ExprType::CallExprT { call_expr_node } => {
-    //         //    ast_visitor.visit_call_expression_node(call_expr_node);
-    //         }
-    //         ExprType::CallExprListT {
-    //             call_expr_list_node,
-    //         } => {
-    //         //    ast_visitor.visit_call_expr_list_node(call_expr_list_node);
-    //         }
-    //         ExprType::ExprListT { expr_list_node } => {
-    //          //   ast_visitor.auto_inc_dec_expression_list_node(expr_list_node);
-    //         }
-    //         ExprType::VariableExprT { var_node: id_node } => {
-    //         //    ast_visitor.visit_variable_expr_node(id_node);
-    //         }
-    //         ExprType::LiteralExprT { literal_expr_node } => {
-    //         //    ast_visitor.visit_literal_expression_node(literal_expr_node);
-    //         }
-    //         ExprType::StateStackOperationExprT {
-    //             state_stack_op_node,
-    //         } => {
-    //         //    ast_visitor.visit_state_stack_operation_node(state_stack_op_node);
-    //         }
-    //         ExprType::FrameEventExprT { frame_event_part } => {
-    //         //    ast_visitor.visit_frame_event_part(frame_event_part);
-    //         }
-    //         ExprType::ActionCallExprT {
-    //             action_call_expr_node,
-    //         } => {
-    //         //    ast_visitor.visit_action_call_expression_node(action_call_expr_node);
-    //         }
-    //         ExprType::UnaryExprT { unary_expr_node } => {
-    //        //     ast_visitor.visit_unary_expr_node(unary_expr_node);
-    //         }
-    //         ExprType::BinaryExprT { binary_expr_node } => {
-    //             ast_visitor.auto_inc_dec_binary_expr_node(binary_expr_node);
-    //         }
-    //     }
-    // }
 }
 
 // TODO - need to create new types for permitted expressions
@@ -3575,6 +3535,27 @@ impl NodeElement for SystemInstanceExprNode {
 impl fmt::Display for SystemInstanceExprNode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.identifier)
+    }
+}
+
+//-----------------------------------------------------//
+
+pub struct SelfExprNode {
+}
+
+impl SelfExprNode {
+    pub fn new() -> SelfExprNode {
+        SelfExprNode {}
+    }
+}
+
+impl NodeElement for SelfExprNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_self_expr_node(self);
+    }
+
+    fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
+        ast_visitor.visit_self_expr_node_to_string(self, output);
     }
 }
 
