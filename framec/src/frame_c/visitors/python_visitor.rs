@@ -2439,42 +2439,32 @@ impl AstVisitor for PythonVisitor {
             self.add_code("raise NotImplementedError");
         } else {
             // Generate statements
-            if function_node.statements.is_empty() && function_node.terminator_node_opt.is_none() {
-                self.indent();
-                self.newline();
-                self.add_code("pass");
-                self.outdent();
-                // self.newline();
-            } else {
                 if !function_node.statements.is_empty() {
                     self.indent();
                     self.visit_decl_stmts(&function_node.statements);
                     self.outdent();
-                    // self.newline();
                 }
-                if let Some(terminator_expr) = &function_node.terminator_node_opt {
-                    self.indent();
-                    self.newline();
-                    match &terminator_expr.terminator_type {
-                        TerminatorType::Return => match &terminator_expr.return_expr_t_opt {
-                            Some(expr_t) => {
-                                self.add_code("return ");
-                                expr_t.accept(self);
-                            }
-                            None => {
-                                self.add_code("return");
-                            }
-                        },
-                        TerminatorType::Continue => {
-                            // shouldn't happen.
-                            self.errors
-                                .push("Continue not allowed as action terminator.".to_string());
+
+                self.indent();
+                self.newline();
+                match &function_node.terminator_expr.terminator_type {
+                    TerminatorType::Return => match &function_node.terminator_expr.return_expr_t_opt {
+                        Some(expr_t) => {
+                            self.add_code("return ");
+                            expr_t.accept(self);
                         }
+                        None => {
+                            self.add_code("return");
+                        }
+                    },
+                    TerminatorType::Dispatch => {
+                        // shouldn't happen.
+                        self.errors
+                            .push("Continue not allowed as action terminator.".to_string());
                     }
-                    self.outdent();
-                    // self.newline();
                 }
-            }
+                self.outdent();
+
         }
 
         if function_node.name == "main" {
@@ -2687,18 +2677,18 @@ impl AstVisitor for PythonVisitor {
         self.indent();
 
         // Generate statements
-        if operation_node.statements.is_empty() && operation_node.terminator_node_opt.is_none() {
-            self.newline();
-            self.add_code("pass");
-        } else {
+        // if operation_node.statements.is_empty() && operation_node.terminator_node_opt.is_none() {
+        //     self.newline();
+        //     self.add_code("pass");
+        // } else {
             if !operation_node.statements.is_empty() {
                 // self.newline();
                 self.visit_decl_stmts(&operation_node.statements);
             }
-            if let Some(terminator_expr) = &operation_node.terminator_node_opt {
+            // if let Some(terminator_expr) = &operation_node.terminator_node {
                 self.newline();
-                match &terminator_expr.terminator_type {
-                    TerminatorType::Return => match &terminator_expr.return_expr_t_opt {
+                match &operation_node.terminator_expr.terminator_type {
+                    TerminatorType::Return => match &operation_node.terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
                             self.add_code("return ");
                             expr_t.accept(self);
@@ -2709,14 +2699,14 @@ impl AstVisitor for PythonVisitor {
                             // self.newline();
                         }
                     },
-                    TerminatorType::Continue => {
+                    TerminatorType::Dispatch => {
                         // shouldn't happen.
                         self.errors
                             .push("Continue not allowed as operation terminator.".to_string());
                     }
                 }
-            }
-        }
+            // }
+     //   }
 
         self.outdent();
         self.operation_scope_depth -= 1;
@@ -2997,13 +2987,13 @@ impl AstVisitor for PythonVisitor {
         if self.event_handler_has_code {
             self.visit_decl_stmts(&evt_handler_node.statements);
         }
-            // TODO v0.20 - i added this back as it causes problems for the
-            // event switch but I am not sure why it was taken out before
-            // so I suspect there is an issue.
-        else {
-            self.newline();
-            self.add_code("pass");
-        }
+        //     // TODO v0.20 - i added this back as it causes problems for the
+        //     // event switch but I am not sure why it was taken out before
+        //     // so I suspect there is an issue.
+        // else {
+        //     self.newline();
+        //     self.add_code("pass");
+        // }
 
         let terminator_node = &evt_handler_node.terminator_node;
         terminator_node.accept(self);
@@ -3039,7 +3029,7 @@ impl AstVisitor for PythonVisitor {
                 }
                 None => self.generate_return(),
             },
-            TerminatorType::Continue => {
+            TerminatorType::Dispatch => {
                 self.generate_return_if_transitioned();
             }
         }
@@ -3947,7 +3937,7 @@ impl AstVisitor for PythonVisitor {
                         }
                         None => self.generate_return(),
                     },
-                    TerminatorType::Continue => {
+                    TerminatorType::Dispatch => {
                         self.generate_return_if_transitioned();
                     }
                 }
@@ -4013,7 +4003,7 @@ impl AstVisitor for PythonVisitor {
                         }
                         None => self.generate_return(),
                     },
-                    TerminatorType::Continue => {
+                    TerminatorType::Dispatch => {
                         self.generate_return_if_transitioned();
                     }
                 }
@@ -4161,7 +4151,7 @@ impl AstVisitor for PythonVisitor {
                         }
                         None => self.generate_return(),
                     },
-                    TerminatorType::Continue => {
+                    TerminatorType::Dispatch => {
                         self.generate_return_if_transitioned();
                     }
                 }
@@ -4229,7 +4219,7 @@ impl AstVisitor for PythonVisitor {
                         }
                         None => self.generate_return(),
                     },
-                    TerminatorType::Continue => {
+                    TerminatorType::Dispatch => {
                         self.generate_return_if_transitioned();
                     }
                 }
@@ -4353,7 +4343,7 @@ impl AstVisitor for PythonVisitor {
                         }
                         None => self.generate_return(),
                     },
-                    TerminatorType::Continue => {
+                    TerminatorType::Dispatch => {
                         self.generate_return_if_transitioned();
                     }
                 }
@@ -4394,7 +4384,7 @@ impl AstVisitor for PythonVisitor {
                         }
                         None => self.generate_return(),
                     },
-                    TerminatorType::Continue => {
+                    TerminatorType::Dispatch => {
                         self.generate_return_if_transitioned();
                     }
                 }
@@ -4547,7 +4537,7 @@ impl AstVisitor for PythonVisitor {
                         }
                         None => self.generate_return(),
                     },
-                    TerminatorType::Continue => {
+                    TerminatorType::Dispatch => {
                         self.generate_return_if_transitioned();
                     }
                 }
@@ -4611,7 +4601,7 @@ impl AstVisitor for PythonVisitor {
                         }
                         None => self.generate_return(),
                     },
-                    TerminatorType::Continue => {
+                    TerminatorType::Dispatch => {
                         self.generate_return_if_transitioned();
                     }
                 }
@@ -4956,18 +4946,18 @@ impl AstVisitor for PythonVisitor {
             subclass_code.push_str("#pass");
         } else {
             // Generate statements
-            if action_node.statements.is_empty() && action_node.terminator_node_opt.is_none() {
-                self.newline();
-                self.add_code("pass");
-            } else {
-                if !action_node.statements.is_empty() {
-                    // self.newline();
-                    self.visit_decl_stmts(&action_node.statements);
-                }
-                if let Some(terminator_expr) = &action_node.terminator_node_opt {
+            // if action_node.statements.is_empty() && action_node.terminator_node.is_none() {
+            //     self.newline();
+            //     self.add_code("pass");
+            // } else {
+            //     if !action_node.statements.is_empty() {
+            //         self.newline();
+            //         self.visit_decl_stmts(&action_node.statements);
+            //     }
+              //  if let Some(terminator_expr) = &action_node.terminator_expr {
                     self.newline();
-                    match &terminator_expr.terminator_type {
-                        TerminatorType::Return => match &terminator_expr.return_expr_t_opt {
+                    match &action_node.terminator_expr.terminator_type {
+                        TerminatorType::Return => match &action_node.terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
                                 self.add_code("return ");
                                 expr_t.accept(self);
@@ -4978,14 +4968,14 @@ impl AstVisitor for PythonVisitor {
                                 self.newline();
                             }
                         },
-                        TerminatorType::Continue => {
-                            // shouldn't happen.
+                        TerminatorType::Dispatch => {
+                            // TODO v0.20 shouldn't happen.
                             self.errors
                                 .push("Continue not allowed as action terminator.".to_string());
                         }
                     }
-                }
-            }
+              //  }
+            // }
         }
 
         self.outdent();

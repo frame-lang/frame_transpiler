@@ -7,7 +7,7 @@ use super::ast::ExprStmtType::*;
 use super::ast::ExprType;
 use super::ast::ExprType::*;
 use super::ast::MessageType::CustomMessage;
-use super::ast::TerminatorType::{Continue, Return};
+use super::ast::TerminatorType::{Dispatch, Return};
 use super::ast::*;
 use super::scanner::*;
 use super::symbol_table::*;
@@ -1268,7 +1268,11 @@ impl<'a> Parser<'a> {
         }
 
         let mut statements = Vec::new();
-        let mut terminator_node_opt = None;
+        let mut terminator_expr = TerminatorExpr::new(
+            Return,
+            None,
+            self.previous().line,
+        );
         let mut is_implemented = false;
 
 
@@ -1293,11 +1297,11 @@ impl<'a> Parser<'a> {
                 }
             };
 
-            terminator_node_opt = Some(TerminatorExpr::new(
+            terminator_expr = TerminatorExpr::new(
                 Return,
                 Some(expr_t),
                 self.previous().line,
-            ));
+            );
         }
 
         // foo(...) : type { ... return True }
@@ -1310,7 +1314,7 @@ impl<'a> Parser<'a> {
             params,
             is_implemented,
             statements,
-            terminator_node_opt,
+            terminator_expr,
             type_opt,
             line,
         );
@@ -1494,13 +1498,9 @@ impl<'a> Parser<'a> {
         let mut return_type_opt: Option<TypeNode> = Option::None;
         let mut alias_opt: Option<MessageNode> = Option::None;
 
-        if self.consume(TokenType::LParen, "Expected '('").is_err() {
+        if self.consume(TokenType::LParen, &format!("Expected '('.")).is_err() {
             let sync_tokens = vec![
-                TokenType::Colon,
-                TokenType::RParen,
-                TokenType::Caret,
-                TokenType::At,
-                TokenType::LBracket,
+                TokenType::MachineBlock,
             ];
             self.synchronize(&sync_tokens);
             // if !self.follows(
@@ -2268,8 +2268,8 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     fn action(&mut self, action_name: String) -> Result<Rc<RefCell<ActionNode>>, ParseError> {
-        let mut params: Option<Vec<ParameterNode>> = Option::None;
 
+        let mut params: Option<Vec<ParameterNode>> = Option::None;
 
         // foo(
         if let Err(parse_error) = self.consume(TokenType::LParen, &format!("Expected '(' - found '{}'", self.current_token)) {
@@ -2295,7 +2295,11 @@ impl<'a> Parser<'a> {
 
         let code_opt: Option<String> = None;
         let mut statements = Vec::new();
-        let mut terminator_node_opt = None;
+        let mut terminator_node  = TerminatorExpr::new(
+            Return,
+            None,
+            self.previous().line,
+        );;
         let mut is_implemented = false;
 
         // foo(...) : type {
@@ -2324,11 +2328,11 @@ impl<'a> Parser<'a> {
                 }
             };
 
-            terminator_node_opt = Some(TerminatorExpr::new(
+            terminator_node = TerminatorExpr::new(
                 Return,
                 Some(expr_t),
                 self.previous().line,
-            ));
+            );
 
         }
 
@@ -2410,7 +2414,7 @@ impl<'a> Parser<'a> {
             params,
             is_implemented,
             statements,
-            terminator_node_opt,
+            terminator_node,
             type_opt,
             code_opt,
         );
@@ -2574,7 +2578,11 @@ impl<'a> Parser<'a> {
 
         let code_opt: Option<String> = None;
         let mut statements = Vec::new();
-        let mut terminator_node_opt = None;
+        let mut terminator_node =  TerminatorExpr::new(
+            Return,
+            None,
+            self.previous().line,
+        );
         let mut is_implemented = false;
 
         // foo(...) : type {
@@ -2607,11 +2615,11 @@ impl<'a> Parser<'a> {
                 }
             }
 
-            terminator_node_opt = Some(TerminatorExpr::new(
+            terminator_node = TerminatorExpr::new(
                 Return,
                 expr_t_opt,
                 self.previous().line,
-            ));
+            );
 
         }
 
@@ -2626,7 +2634,7 @@ impl<'a> Parser<'a> {
             attributes_opt,
             is_implemented,
             statements,
-            terminator_node_opt,
+            terminator_node,
             type_opt,
             code_opt,
         );
@@ -3325,7 +3333,7 @@ impl<'a> Parser<'a> {
         // Event handler syntax:
         // a(x:int,y:string) : bool(True) { }
 
-        if self.match_token(&[TokenType::Identifier,TokenType::GT,TokenType::LT]) {
+        if self.match_token(&[TokenType::Identifier,TokenType::EnterStateMsg,TokenType::ExitStateMsg]) {
             match self.event_handlers(&state_name) {
                 Ok(seh) => {
                     state_event_handlers = seh;
@@ -3489,7 +3497,7 @@ impl<'a> Parser<'a> {
                     self.synchronize(&sync_tokens);
                 }
             }
-            if !self.match_token(&[TokenType::Identifier,TokenType::GT,TokenType::LT]) {
+            if !self.match_token(&[TokenType::Identifier,TokenType::EnterStateMsg,TokenType::ExitStateMsg]) {
                 break;
             }
         }
@@ -3590,8 +3598,8 @@ impl<'a> Parser<'a> {
         let tt = self.previous().token_type;
         match tt {
             TokenType::Identifier
-            | TokenType::GT
-            | TokenType::LT
+            | TokenType::EnterStateMsg
+            | TokenType::ExitStateMsg
 
             => {
                 message_node = self.create_message_node(tt)
@@ -3958,7 +3966,7 @@ impl<'a> Parser<'a> {
         // parent states. Return will short circut that behavior.
 
         let mut terminator_node= crate::frame_c::ast::TerminatorExpr::new(
-            Continue,
+            Return,
             None,
             self.previous().line
         );
@@ -3979,6 +3987,12 @@ impl<'a> Parser<'a> {
             terminator_node = TerminatorExpr::new(
                 Return,
                 expr_t_opt,
+                self.previous().line,
+            );
+        } else if self.match_token(&[TokenType::Dispatch]) {
+            terminator_node = TerminatorExpr::new(
+                Dispatch,
+                None,
                 self.previous().line,
             );
         }
@@ -4059,7 +4073,7 @@ impl<'a> Parser<'a> {
                 Ok(TerminatorExpr::new(Return, None, self.previous().line))
             }
         } else if self.match_token(&[TokenType::ElseContinue]) {
-            Ok(TerminatorExpr::new(Continue, None, self.previous().line))
+            Ok(TerminatorExpr::new(Dispatch, None, self.previous().line))
         } else {
             Ok(TerminatorExpr::new(Return, None, self.previous().line))
         }
@@ -4896,7 +4910,7 @@ impl<'a> Parser<'a> {
             }
         } else if self.match_token(&[TokenType::GT]) {
             return Ok(Some(TerminatorExpr::new(
-                Continue,
+                Dispatch,
                 None,
                 self.previous().line,
             )));

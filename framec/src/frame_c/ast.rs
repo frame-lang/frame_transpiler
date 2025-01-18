@@ -416,7 +416,7 @@ pub struct FunctionNode {
     pub params: Option<Vec<ParameterNode>>,
     pub is_implemented: bool,
     pub statements: Vec<DeclOrStmtType>,
-    pub terminator_node_opt: Option<TerminatorExpr>,
+    pub terminator_expr: TerminatorExpr,
     pub type_opt: Option<TypeNode>,
     pub line: usize,
 }
@@ -427,7 +427,7 @@ impl FunctionNode {
         params: Option<Vec<ParameterNode>>,
         is_implemented: bool,
         statements: Vec<DeclOrStmtType>,
-        terminator_node_opt: Option<TerminatorExpr>,
+        terminator_node: TerminatorExpr,
         type_opt: Option<TypeNode>,
         line: usize,
     ) -> FunctionNode {
@@ -436,7 +436,7 @@ impl FunctionNode {
             params,
             is_implemented,
             statements,
-            terminator_node_opt,
+            terminator_expr: terminator_node,
             type_opt,
             line,
         }
@@ -463,7 +463,7 @@ pub struct ActionNode {
     pub params: Option<Vec<ParameterNode>>,
     pub is_implemented: bool,
     pub statements: Vec<DeclOrStmtType>,
-    pub terminator_node_opt: Option<TerminatorExpr>,
+    pub terminator_expr: TerminatorExpr,
     pub type_opt: Option<TypeNode>,
     pub code_opt: Option<String>, // TODO - remove
 }
@@ -474,7 +474,7 @@ impl ActionNode {
         params: Option<Vec<ParameterNode>>,
         is_implemented: bool,
         statements: Vec<DeclOrStmtType>,
-        terminator_node_opt: Option<TerminatorExpr>,
+        terminator_node: TerminatorExpr,
         type_opt: Option<TypeNode>,
         code_opt: Option<String>,
     ) -> ActionNode {
@@ -483,7 +483,7 @@ impl ActionNode {
             params,
             is_implemented,
             statements,
-            terminator_node_opt,
+            terminator_expr: terminator_node,
             type_opt,
             code_opt,
         }
@@ -513,7 +513,7 @@ pub struct OperationNode {
     pub attributes_opt: Option<HashMap<String, AttributeNode>>,
     pub is_implemented: bool,
     pub statements: Vec<DeclOrStmtType>,
-    pub terminator_node_opt: Option<TerminatorExpr>,
+    pub terminator_expr: TerminatorExpr,
     pub type_opt: Option<TypeNode>,
     pub code_opt: Option<String>, // TODO - remove
 }
@@ -525,7 +525,7 @@ impl OperationNode {
         attributes_opt: Option<HashMap<String, AttributeNode>>,
         is_implemented: bool,
         statements: Vec<DeclOrStmtType>,
-        terminator_node_opt: Option<TerminatorExpr>,
+        terminator_node: TerminatorExpr,
         type_opt: Option<TypeNode>,
         code_opt: Option<String>,
     ) -> OperationNode {
@@ -535,7 +535,7 @@ impl OperationNode {
             attributes_opt,
             is_implemented,
             statements,
-            terminator_node_opt,
+            terminator_expr: terminator_node,
             type_opt,
             code_opt,
         }
@@ -1077,7 +1077,7 @@ impl MessageNode {
 
 pub enum TerminatorType {
     Return,
-    Continue,
+    Dispatch,
 }
 
 pub struct TerminatorExpr {

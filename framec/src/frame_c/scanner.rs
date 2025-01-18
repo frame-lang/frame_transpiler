@@ -199,8 +199,10 @@ impl Scanner {
                     Push,
                     Pop,
                 }
+                if self.match_char('>') {
+                    self.add_token(TokenType::EnterStateMsg);
+                } else if self.match_char('$') {
 
-                if self.match_char('$') {
                     let st;
                     if self.match_char('[') {
                         if self.match_char('+') {
@@ -226,9 +228,9 @@ impl Scanner {
                             }
                         }
                     }
+                } else {
+                    self.add_token(TokenType::State)
                 }
-
-                self.add_token(TokenType::State)
             }
             '^' => {
                 if self.match_char('=') {
@@ -245,7 +247,9 @@ impl Scanner {
                 }
             }
             '<' => {
-                if self.match_char('=') {
+                if self.match_char('$') {
+                    self.add_token(TokenType::ExitStateMsg);
+                } else if self.match_char('=') {
                     self.add_token(TokenType::LessEqual);
                 } else {
                     self.add_token(TokenType::LT);
@@ -726,6 +730,8 @@ pub enum TokenType {
     System,                       // #
     Self_,                        // self
     Return_,                      // return
+    EnterStateMsg,                   // $>
+    ExitStateMsg,                    // <$
     OuterAttributeOrDomainParams, // #[
     InnerAttribute,               // #![
     InterfaceBlock,               // -interface-

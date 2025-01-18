@@ -13,23 +13,23 @@ use std::rc::Rc;
 
 // TODO: init from file
 pub struct SymbolConfig {
-    pub start_msg_symbol: String,
-    pub stop_msg_symbol: String,
+    // pub start_msg_symbol: String,
+    // pub stop_msg_symbol: String,
     pub enter_msg_symbol: String,
     pub exit_msg_symbol: String,
-    pub save_msg_symbol: String,
-    pub restore_msg_symbol: String,
+    // pub save_msg_symbol: String,
+    // pub restore_msg_symbol: String,
 }
 
 impl SymbolConfig {
     pub fn new() -> SymbolConfig {
         SymbolConfig {
-            start_msg_symbol: String::from(">>"),
-            stop_msg_symbol: String::from("<<"),
-            enter_msg_symbol: String::from(">"),
-            exit_msg_symbol: String::from("<"),
-            save_msg_symbol: String::from(">>>"),
-            restore_msg_symbol: String::from("<<<"),
+            // start_msg_symbol: String::from(">>"),
+            // stop_msg_symbol: String::from("<<"),
+            enter_msg_symbol: String::from("$>"),
+            exit_msg_symbol: String::from("<$"),
+            // save_msg_symbol: String::from(">>>"),
+            // restore_msg_symbol: String::from("<<<"),
         }
     }
 }
@@ -839,7 +839,7 @@ impl SymbolTable {
                     state_param_symbol_rcref: Rc::clone(state_param_symbol_rcref),
                 }));
                 self.symbols.insert(name, st_ref);
-                return Ok(());
+                Ok(())
             }
             SymbolType::StateLocalScope {
                 state_local_scope_struct_rcref,
@@ -853,7 +853,7 @@ impl SymbolTable {
                     state_local_scope_struct_rcref: Rc::clone(state_local_scope_struct_rcref),
                 }));
                 self.symbols.insert(name, st_ref);
-                return Ok(());
+                Ok(())
             }
             SymbolType::StateVariable {
                 state_variable_symbol_rcref,
@@ -867,7 +867,7 @@ impl SymbolTable {
                     state_variable_symbol_rcref: Rc::clone(state_variable_symbol_rcref),
                 }));
                 self.symbols.insert(name, st_ref);
-                return Ok(());
+                Ok(())
             }
             SymbolType::EventHandlerParam {
                 event_handler_param_symbol_rcref,
@@ -881,7 +881,7 @@ impl SymbolTable {
                     event_handler_param_symbol_rcref: Rc::clone(event_handler_param_symbol_rcref),
                 }));
                 self.symbols.insert(name, st_ref);
-                return Ok(());
+                Ok(())
             }
             SymbolType::EventHandlerLocalScope {
                 event_handler_local_scope_rcref,
@@ -895,7 +895,7 @@ impl SymbolTable {
                     event_handler_local_scope_rcref: Rc::clone(event_handler_local_scope_rcref),
                 }));
                 self.symbols.insert(name, st_ref);
-                return Ok(());
+                Ok(())
             }
             SymbolType::EventHandlerVariable {
                 event_handler_variable_symbol_rcref,
@@ -911,7 +911,7 @@ impl SymbolTable {
                     ),
                 }));
                 self.symbols.insert(name, st_ref);
-                return Ok(());
+                Ok(())
             }
             // TODO: Currently actions are just declared.
             // When actions have bodies then this should become a scope symbol.
@@ -927,7 +927,7 @@ impl SymbolTable {
                     action_scope_symbol_rcref: Rc::clone(action_symbol_rcref),
                 }));
                 self.symbols.insert(name, symbol_type_rcref);
-                return Ok(());
+                Ok(())
             }
             SymbolType::InterfaceMethod {
                 interface_method_symbol_rcref,
@@ -941,7 +941,7 @@ impl SymbolTable {
                     interface_method_symbol_rcref: Rc::clone(interface_method_symbol_rcref),
                 }));
                 self.symbols.insert(name, symbol_type_rcref);
-                return Ok(());
+                Ok(())
             }
             SymbolType::EnumDeclSymbolT { enum_symbol_rcref } => {
                 let name = enum_symbol_rcref.borrow().name.clone();
@@ -953,7 +953,7 @@ impl SymbolTable {
                     enum_symbol_rcref: Rc::clone(enum_symbol_rcref),
                 }));
                 self.symbols.insert(name, symbol_type_rcref);
-                return Ok(());
+                Ok(())
             }
             SymbolType::LoopVar {
                 loop_variable_symbol_rcref,
@@ -967,7 +967,7 @@ impl SymbolTable {
                     loop_variable_symbol_rcref: Rc::clone(loop_variable_symbol_rcref),
                 }));
                 self.symbols.insert(name, symbol_type_rcref);
-                return Ok(());
+                Ok(())
             }
             SymbolType::BlockVar {
                 block_variable_symbol_rcref,
@@ -981,7 +981,7 @@ impl SymbolTable {
                     block_variable_symbol_rcref: Rc::clone(block_variable_symbol_rcref),
                 }));
                 self.symbols.insert(name, symbol_type_rcref);
-                return Ok(());
+                Ok(())
             }
             SymbolType::ParamSymbol { param_symbol_rcref } => {
                 let name = param_symbol_rcref.borrow().name.clone();
@@ -993,7 +993,7 @@ impl SymbolTable {
                     param_symbol_rcref: Rc::clone(param_symbol_rcref),
                 }));
                 self.symbols.insert(name, symbol_type_rcref);
-                return Ok(());
+                Ok(())
             }
             _ => panic!("Fatal error - missing symbol type"),
         }
@@ -1772,10 +1772,10 @@ impl Arcanum {
 
     pub fn declare_event(&mut self, event_symbol_rcref: Rc<RefCell<EventSymbol>>) {
         let msg = event_symbol_rcref.borrow().msg.clone();
-        if msg == self.symbol_config.save_msg_symbol || msg == self.symbol_config.restore_msg_symbol
-        {
-            self.serializable = true;
-        }
+        // if msg == self.symbol_config.save_msg_symbol || msg == self.symbol_config.restore_msg_symbol
+        // {
+        //     self.serializable = true;
+        // }
         let system_symbol_rcref = self.system_symbol_opt.as_ref().unwrap();
         let mut system_symbol_rcref_mut = system_symbol_rcref.borrow_mut();
         system_symbol_rcref_mut
