@@ -976,7 +976,7 @@ impl PythonVisitor {
                 self.newline();
                 self.add_code("# exit current state");
                 self.newline();
-                self.add_code("self.__router(FrameEvent( \"<\", self.__compartment.exit_args))");
+                self.add_code("self.__router(FrameEvent( \"<$\", self.__compartment.exit_args))");
                 self.newline();
                 self.add_code("# change state");
                 self.newline();
@@ -988,13 +988,13 @@ impl PythonVisitor {
                 self.newline();
                 self.add_code("# send normal enter event");
                 self.newline();
-                self.add_code("self.__router(FrameEvent(\">\", self.__compartment.enter_args))");
+                self.add_code("self.__router(FrameEvent(\"$>\", self.__compartment.enter_args))");
                 self.outdent();
                 self.newline();
                 self.add_code("else: # there is a forwarded event");
                 self.indent();
                 self.newline();
-                self.add_code("if next_compartment.forward_event._message == \">\":");
+                self.add_code("if next_compartment.forward_event._message == \"$>\":");
                 self.indent();
                 self.newline();
                 self.add_code("# forwarded event is enter event");
@@ -1009,7 +1009,7 @@ impl PythonVisitor {
                 self.newline();
                 self.add_code("# send normal enter event");
                 self.newline();
-                self.add_code("self.__router(FrameEvent(\">\", self.__compartment.enter_args))");
+                self.add_code("self.__router(FrameEvent(\"$>\", self.__compartment.enter_args))");
                 self.newline();
                 self.add_code("# and now forward event to new, intialized state");
                 self.newline();
@@ -1904,10 +1904,10 @@ impl PythonVisitor {
 
             if let Some(_enter_params) = &system_node.start_state_enter_params_opt {
                 self.newline();
-                self.add_code("frame_event = FrameEvent(\">\", self.__compartment.enter_args)");
+                self.add_code("frame_event = FrameEvent(\"$>\", self.__compartment.enter_args)");
             } else {
                 self.newline();
-                self.add_code("frame_event = FrameEvent(\">\", None)");
+                self.add_code("frame_event = FrameEvent(\"$>\", None)");
             }
 
             self.newline();
