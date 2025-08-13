@@ -1659,6 +1659,9 @@ pub enum StatementType {
     StateStackStmt {
         state_stack_operation_statement_node: StateStackOperationStatementNode,
     },
+    IfStmt {
+        if_stmt_node: IfStmtNode,
+    },
     LoopStmt {
         loop_stmt_node: LoopStmtNode,
     },
@@ -1958,6 +1961,43 @@ impl BinaryStmtNode {
 impl NodeElement for BinaryStmtNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         ast_visitor.visit_binary_stmt_node(self);
+    }
+}
+
+
+//-----------------------------------------------------//
+
+pub struct IfStmtNode {
+    pub condition: ExprType,
+    pub if_block: BlockStmtNode,
+    pub elif_clauses: Vec<ElifClause>,
+    pub else_block: Option<BlockStmtNode>,
+}
+
+pub struct ElifClause {
+    pub condition: ExprType,
+    pub block: BlockStmtNode,
+}
+
+impl IfStmtNode {
+    pub fn new(
+        condition: ExprType,
+        if_block: BlockStmtNode,
+        elif_clauses: Vec<ElifClause>,
+        else_block: Option<BlockStmtNode>,
+    ) -> IfStmtNode {
+        IfStmtNode {
+            condition,
+            if_block,
+            elif_clauses,
+            else_block,
+        }
+    }
+}
+
+impl NodeElement for IfStmtNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_if_stmt_node(self);
     }
 }
 

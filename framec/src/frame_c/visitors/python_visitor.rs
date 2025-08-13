@@ -934,6 +934,9 @@ impl PythonVisitor {
                         } => {
                             super_string_stmt_node.accept(self);
                         }
+                        StatementType::IfStmt { if_stmt_node } => {
+                            if_stmt_node.accept(self);
+                        }
                         StatementType::NoStmt => {
                             // TODO
                             self.errors.push("Unknown error.".to_string());
@@ -3672,6 +3675,30 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    fn visit_if_stmt_node(&mut self, if_stmt_node: &IfStmtNode) {
+        self.newline();
+        self.add_code("if ");
+        if_stmt_node.condition.accept(self);
+        self.add_code(":");
+        if_stmt_node.if_block.accept(self);
+
+        for elif_clause in &if_stmt_node.elif_clauses {
+            self.newline();
+            self.add_code("elif ");
+            elif_clause.condition.accept(self);
+            self.add_code(":");
+            elif_clause.block.accept(self);
+        }
+
+        if let Some(else_block) = &if_stmt_node.else_block {
+            self.newline();
+            self.add_code("else:");
+            else_block.accept(self);
+        }
+    }
+
+    //* --------------------------------------------------------------------- *//
+
     fn visit_loop_stmt_node(&mut self, loop_stmt_node: &LoopStmtNode) {
         match &loop_stmt_node.loop_types {
             LoopStmtTypes::LoopForStmt {
@@ -4946,36 +4973,34 @@ impl AstVisitor for PythonVisitor {
             subclass_code.push_str("#pass");
         } else {
             // Generate statements
-            // if action_node.statements.is_empty() && action_node.terminator_node.is_none() {
-            //     self.newline();
-            //     self.add_code("pass");
-            // } else {
-            //     if !action_node.statements.is_empty() {
-            //         self.newline();
-            //         self.visit_decl_stmts(&action_node.statements);
-            //     }
-              //  if let Some(terminator_expr) = &action_node.terminator_expr {
-                    self.newline();
-                    match &action_node.terminator_expr.terminator_type {
-                        TerminatorType::Return => match &action_node.terminator_expr.return_expr_t_opt {
-                            Some(expr_t) => {
-                                self.add_code("return ");
-                                expr_t.accept(self);
-                                self.newline();
-                            }
-                            None => {
-                                self.add_code("return");
-                                self.newline();
-                            }
-                        },
-                        TerminatorType::Dispatch => {
-                            // TODO v0.20 shouldn't happen.
-                            self.errors
-                                .push("Continue not allowed as action terminator.".to_string());
-                        }
+            if action_node.statements.is_empty() {
+                self.newline();
+                self.add_code("pass");
+            } else {
+                self.newline();
+                self.visit_decl_stmts(&action_node.statements);
+            }
+            
+            // Add terminator
+            self.newline();
+            match &action_node.terminator_expr.terminator_type {
+                TerminatorType::Return => match &action_node.terminator_expr.return_expr_t_opt {
+                    Some(expr_t) => {
+                        self.add_code("return ");
+                        expr_t.accept(self);
+                        self.newline();
                     }
-              //  }
-            // }
+                    None => {
+                        self.add_code("return");
+                        self.newline();
+                    }
+                },
+                TerminatorType::Dispatch => {
+                    // TODO v0.20 shouldn't happen.
+                    self.errors
+                        .push("Continue not allowed as action terminator.".to_string());
+                }
+            }
         }
 
         self.outdent();

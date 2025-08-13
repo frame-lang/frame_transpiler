@@ -6,7 +6,6 @@ use super::ast::DeclOrStmtType;
 use super::ast::ExprStmtType::*;
 use super::ast::ExprType;
 use super::ast::ExprType::*;
-use super::ast::MessageType::CustomMessage;
 use super::ast::TerminatorType::{Dispatch, Return};
 use super::ast::*;
 use super::scanner::*;
@@ -4570,6 +4569,14 @@ impl<'a> Parser<'a> {
             }
         }
 
+        if self.match_token(&[TokenType::If]) {
+            return match self.if_statement() {
+                Ok(Some(if_stmt_t)) => Ok(Some(if_stmt_t)),
+                Ok(None) => Err(ParseError::new("TODO")),
+                Err(parse_error) => Err(parse_error),
+            };
+        }
+
         if self.match_token(&[TokenType::Loop]) {
             return match self.loop_statement_scope() {
                 Ok(Some(loop_stmt_t)) => Ok(Some(loop_stmt_t)),
@@ -6085,6 +6092,205 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
+    // Scope manager wrapper that ensures scope is always properly closed
+    fn with_block_scope<F, R>(&mut self, scope_prefix: &str, parse_fn: F) -> Result<R, ParseError>
+    where
+        F: FnOnce(&mut Self) -> Result<R, ParseError>
+    {
+        let scope_name = &format!("{}_{}", scope_prefix, self.stmt_idx);
+        
+        if self.is_building_symbol_table {
+            let block_scope_rcref = Rc::new(RefCell::new(BlockScope::new(scope_name)));
+            self.arcanum
+                .enter_scope(ParseScopeType::Block { block_scope_rcref });
+        } else {
+            self.arcanum.set_parse_scope(scope_name);
+        }
+        
+        let result = parse_fn(self);
+        self.arcanum.exit_scope();
+        result
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    // Helper function to parse a single statement after colon (Python-style)
+    fn parse_single_statement_block(&mut self, scope_prefix: &str) -> Result<BlockStmtNode, ParseError> {
+        self.with_block_scope(scope_prefix, |parser| {
+            // Check if next token is an open brace - this is not allowed after colon
+            if parser.peek().token_type == TokenType::OpenBrace {
+                parser.error_at_current("Block statements not allowed after ':'. Use either ':' for single statement or '{' for block.");
+                return Err(ParseError::new("Block statements not allowed after ':'. Use either ':' for single statement or '{' for block."));
+            }
+            
+            match parser.decl_or_stmt(IdentifierDeclScope::BlockVarScope) {
+                Ok(Some(stmt)) => Ok(BlockStmtNode::new(vec![stmt])),
+                Ok(None) => {
+                    parser.error_at_current("Expected statement after ':'.");
+                    Err(ParseError::new("Expected statement after ':'."))
+                }
+                Err(e) => Err(e)
+            }
+        })
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    // Helper function to parse a braced block { stmt* }
+    fn parse_braced_block(&mut self, scope_prefix: &str) -> Result<BlockStmtNode, ParseError> {
+        self.with_block_scope(scope_prefix, |parser| {
+            let statements = parser.statements(IdentifierDeclScope::BlockVarScope);
+            
+            if let Err(parse_error) = parser.consume(TokenType::CloseBrace, "Expected '}'.") {
+                return Err(parse_error);
+            }
+            
+            Ok(BlockStmtNode::new(statements))
+        })
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    // Helper function to parse either a block { stmt* } or a single statement (legacy)
+    fn parse_block_or_statement(&mut self, scope_prefix: &str) -> Result<BlockStmtNode, ParseError> {
+        if self.match_token(&[TokenType::OpenBrace]) {
+            // Parse block with braces
+            let scope_name = &format!("{}_{}", scope_prefix, self.stmt_idx);
+            if self.is_building_symbol_table {
+                let block_scope_rcref = Rc::new(RefCell::new(BlockScope::new(scope_name)));
+                self.arcanum
+                    .enter_scope(ParseScopeType::Block { block_scope_rcref });
+            } else {
+                self.arcanum.set_parse_scope(scope_name);
+            }
+
+            let statements = self.statements(IdentifierDeclScope::BlockVarScope);
+            
+            if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
+                self.arcanum.exit_scope();
+                return Err(parse_error);
+            }
+            self.arcanum.exit_scope();
+
+            Ok(BlockStmtNode::new(statements))
+        } else {
+            // Parse single statement
+            let scope_name = &format!("{}_{}", scope_prefix, self.stmt_idx);
+            if self.is_building_symbol_table {
+                let block_scope_rcref = Rc::new(RefCell::new(BlockScope::new(scope_name)));
+                self.arcanum
+                    .enter_scope(ParseScopeType::Block { block_scope_rcref });
+            } else {
+                self.arcanum.set_parse_scope(scope_name);
+            }
+
+            match self.decl_or_stmt(IdentifierDeclScope::BlockVarScope) {
+                Ok(Some(decl_or_stmt)) => {
+                    self.arcanum.exit_scope();
+                    Ok(BlockStmtNode::new(vec![decl_or_stmt]))
+                }
+                Ok(None) => {
+                    self.arcanum.exit_scope();
+                    self.error_at_current("Expected statement after condition.");
+                    Err(ParseError::new("Expected statement after condition."))
+                }
+                Err(e) => {
+                    self.arcanum.exit_scope();
+                    Err(e)
+                }
+            }
+        }
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn if_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
+        // Parse the condition expression
+        let condition = match self.expression() {
+            Ok(Some(expr)) => expr,
+            Ok(None) => {
+                self.error_at_current("Expected condition after 'if'.");
+                return Err(ParseError::new("Expected condition after 'if'."));
+            }
+            Err(e) => return Err(e),
+        };
+
+        // Parse the if block - check for colon (Python-style) or braces
+        let if_block = if self.match_token(&[TokenType::Colon]) {
+            // Python-style: if condition: statement
+            self.parse_single_statement_block("if_block")
+        } else if self.match_token(&[TokenType::OpenBrace]) {
+            // Braced block: if condition { statements }
+            self.parse_braced_block("if_block")
+        } else {
+            self.error_at_current("Expected ':' or '{' after if condition.");
+            return Err(ParseError::new("Expected ':' or '{' after if condition."));
+        };
+
+        let if_block = match if_block {
+            Ok(block) => block,
+            Err(e) => return Err(e),
+        };
+
+        // Parse elif clauses
+        let mut elif_clauses = Vec::new();
+        while self.match_token(&[TokenType::Elif]) {
+            let elif_condition = match self.expression() {
+                Ok(Some(expr)) => expr,
+                Ok(None) => {
+                    self.error_at_current("Expected condition after 'elif'.");
+                    return Err(ParseError::new("Expected condition after 'elif'."));
+                }
+                Err(e) => return Err(e),
+            };
+
+            // Check for colon (Python-style) or braces
+            let elif_block = if self.match_token(&[TokenType::Colon]) {
+                self.parse_single_statement_block("elif_block")
+            } else if self.match_token(&[TokenType::OpenBrace]) {
+                self.parse_braced_block("elif_block")
+            } else {
+                self.error_at_current("Expected ':' or '{' after elif condition.");
+                return Err(ParseError::new("Expected ':' or '{' after elif condition."));
+            };
+
+            let elif_block = match elif_block {
+                Ok(block) => block,
+                Err(e) => return Err(e),
+            };
+
+            elif_clauses.push(ElifClause {
+                condition: elif_condition,
+                block: elif_block,
+            });
+        }
+
+        // Parse optional else clause
+        let else_block = if self.match_token(&[TokenType::Else]) {
+            // Check for colon (Python-style) or braces
+            let block = if self.match_token(&[TokenType::Colon]) {
+                self.parse_single_statement_block("else_block")
+            } else if self.match_token(&[TokenType::OpenBrace]) {
+                self.parse_braced_block("else_block")
+            } else {
+                self.error_at_current("Expected ':' or '{' after else.");
+                return Err(ParseError::new("Expected ':' or '{' after else."));
+            };
+
+            match block {
+                Ok(block) => Some(block),
+                Err(e) => return Err(e),
+            }
+        } else {
+            None
+        };
+
+        let if_stmt_node = IfStmtNode::new(condition, if_block, elif_clauses, else_block);
+        Ok(Some(StatementType::IfStmt { if_stmt_node }))
+    }
+
+    /* --------------------------------------------------------------------- */
+
     // TODO - update other scopes to follow this patter so that
     // TODO - all return paths automatically pop scope.
 
@@ -6189,23 +6395,6 @@ impl<'a> Parser<'a> {
         if self.match_token(&[TokenType::In]) {
             return self.loop_in_statement(init_stmt);
 
-            // match  self.expression() {
-            //     Ok(Some(expr_t)) => {
-            //         return self.loop_in_statement(Box::new(expr_t));
-            //     }
-            //     _ => {
-            //         // TODO - improve error msg
-            //         let err_msg = format!("Invalid initial clause for 'loop in' statement.");
-            //         self.error_at_current(&err_msg);
-            //         let parse_error = ParseError::new(
-            //             err_msg.as_str(),
-            //         );
-            //         return Err(parse_error);
-            //     }
-            // }
-            // if let Some(expr_type) =  {
-            //     return self.loop_in_statement(Box::new(expr_type));
-            // }
         }
 
         return Err(ParseError::new("Unrecognized loop syntax."));

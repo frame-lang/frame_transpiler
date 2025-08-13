@@ -433,6 +433,9 @@ impl GraphVizVisitor {
                         StatementType::SuperStringStmt { .. } => {
                             // super_string_stmt_node.accept(self);
                         }
+                        StatementType::IfStmt { .. } => {
+                            // TODO: Implement if statement visualization
+                        }
                         StatementType::NoStmt => {
                             // TODO
                             panic!("todo");

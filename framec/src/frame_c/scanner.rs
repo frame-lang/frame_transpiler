@@ -39,6 +39,9 @@ impl Scanner {
             ("false".to_string(), TokenType::False),
             ("var".to_string(), TokenType::Var),
             ("const".to_string(), TokenType::Const),
+            ("if".to_string(), TokenType::If),
+            ("elif".to_string(), TokenType::Elif),
+            ("else".to_string(), TokenType::Else),
             ("loop".to_string(), TokenType::Loop),
             ("in".to_string(), TokenType::In),
             ("continue".to_string(), TokenType::Continue),
@@ -748,11 +751,14 @@ pub enum TokenType {
     String,      // "foo"
     ThreeTicks,  // ```
     SuperString, // `stuff + "stuff"`
-    Number,      // 1, 1.01
-    Var,         // var keyword
-    Const,       // const keyword
-    //    New,         // new keyword
-    Loop,     // loop keyword
+    Number,                 // 1, 1.01
+    Var,                    // var keyword
+    Const,                  // const keyword
+    //    New,              // new keyword
+    Loop,                   // loop keyword
+    If,                     // if keyword
+    Elif,                   // elif keyword
+    Else,                   // else keyword
     Continue, // continue keyword
     Break,    // break keyword
     In,       // 'in' keyword
