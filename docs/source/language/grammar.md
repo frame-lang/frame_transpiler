@@ -177,9 +177,9 @@ if score >= 90 {
 
 #### Mixed braces and single statements
 ```frame
-if condition1 doFirst()
+if condition1: doFirst()
 elif condition2 {
     doSecond()
     doThird()
-} else doDefault()
+} else: doDefault()
 ```
