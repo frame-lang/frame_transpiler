@@ -2299,7 +2299,7 @@ impl<'a> Parser<'a> {
             None,
             self.previous().line,
         );
-        let mut is_implemencomted = false;
+        let mut is_implemented = false;
 
         // foo(...) : type {
         if let Err(parse_error) = self.consume(TokenType::OpenBrace, &format!("Expected '{{' - found '{}'", self.current_token)) {

@@ -1,5 +1,102 @@
 # Frame v0.20 Grammar (BNF)
 
+## Module Structure
+
+```bnf
+module: function* system*
+```
+
+## Functions
+
+```bnf
+function: 'fn' IDENTIFIER '(' parameter_list? ')' type? function_body
+function_body: '{' stmt* '}'
+parameter_list: parameter (',' parameter)*
+parameter: IDENTIFIER type?
+type: ':' type_expr
+type_expr: IDENTIFIER | SUPERSTRING
+```
+
+### Function Examples
+```frame
+// No parameters, no return
+fn main() {
+    print("Hello")
+}
+
+// With parameters and return type
+fn calculate(x: int, y: int) : int {
+    return x + y
+}
+```
+
+## Systems
+
+```bnf
+system: 'system' IDENTIFIER '{' system_block* '}'
+system_block: interface_block
+            | machine_block
+            | actions_block
+            | operations_block
+            | domain_block
+```
+
+### System Example
+```frame
+system TrafficLight {
+    interface:
+        start()
+        stop()
+        
+    machine:
+        $Red {
+            start() {
+                -> $Green
+            }
+        }
+        
+        $Green {
+            stop() {
+                -> $Red
+            }
+        }
+}
+```
+
+## Interface Block
+
+```bnf
+interface_block: 'interface:' interface_method*
+interface_method: IDENTIFIER '(' parameter_list? ')' type?
+```
+
+## Machine Block
+
+```bnf
+machine_block: 'machine:' state*
+state: '$' IDENTIFIER '{' event_handler* state_var* '}'
+event_handler: event_selector '{' stmt* '}'
+event_selector: IDENTIFIER '(' parameter_list? ')' type?
+               | '$>' '(' ')'  // Enter handler
+               | '<$' '(' ')'  // Exit handler
+state_var: 'var' IDENTIFIER type? '=' expr
+```
+
+## Domain Block
+
+```bnf
+domain_block: 'domain:' domain_var*
+domain_var: 'var' IDENTIFIER type? '=' expr
+```
+
+## Operations Block
+
+```bnf
+operations_block: 'operations:' operation*
+operation: attribute* IDENTIFIER '(' parameter_list? ')' type? '{' stmt* '}'
+attribute: '#[' IDENTIFIER ']'
+```
+
 ## Conditional Statements
 
 ### If Statement Grammar
@@ -263,5 +360,99 @@ for i in range(5, 10):
 Similar to if/elif/else statements:
 - After `:` only single statements are allowed (no `{` blocks)
 - After condition/iterable without `:`, braces `{` are required
+
+## Statements
+
+```bnf
+stmt: expr_stmt
+    | var_decl
+    | assignment
+    | if_stmt
+    | for_stmt
+    | while_stmt
+    | loop_stmt
+    | return_stmt
+    | transition_stmt
+    | state_stack_op
+    | block_stmt
+    | break_stmt
+    | continue_stmt
+
+expr_stmt: expr
+var_decl: 'var' IDENTIFIER type? '=' expr
+assignment: lvalue '=' expr
+return_stmt: 'return' expr?
+transition_stmt: '->' '$' IDENTIFIER
+state_stack_op: '$$[' '+' ']' | '$$[' '-' ']'
+block_stmt: '{' stmt* '}'
+break_stmt: 'break'
+continue_stmt: 'continue'
+```
+
+## Expressions
+
+```bnf
+expr: binary_expr | unary_expr | primary_expr | call_expr
+
+binary_expr: expr operator expr
+operator: '+' | '-' | '*' | '/' | '%'
+        | '==' | '!=' | '<' | '>' | '<=' | '>='
+        | '&&' | '||'
+
+unary_expr: ('-' | '!' | '~') expr
+
+primary_expr: IDENTIFIER | NUMBER | STRING | SUPERSTRING
+            | 'true' | 'false' | 'nil'
+            | '(' expr ')' | '@'
+
+call_expr: IDENTIFIER '(' arg_list? ')'
+arg_list: expr (',' expr)*
+```
+
+## Tokens
+
+```bnf
+IDENTIFIER: [a-zA-Z_][a-zA-Z0-9_]*
+NUMBER: [0-9]+ ('.' [0-9]+)?
+STRING: '"' (ESC | ~["])* '"'
+SUPERSTRING: '`' ~[`]* '`' | '```' ~* '```'
+```
+
+## Keywords
+
+```
+system interface machine actions operations domain
+fn var return
+if elif else for while loop in break continue
+true false nil
+```
+
+## Deprecated Features (v0.11 → v0.20)
+
+The following syntax from Frame v0.11 is deprecated in v0.20:
+
+1. **System declaration**: 
+   - Old: `#SystemName ... ##`
+   - New: `system SystemName { ... }`
+
+2. **Block markers**: 
+   - Old: `-interface-`, `-machine-`, `-actions-`, `-domain-`
+   - New: `interface:`, `machine:`, `actions:`, `domain:`
+
+3. **Return token**: 
+   - Old: `^` and `^(value)`
+   - New: `return` and `return value`
+
+4. **Parameter lists**: 
+   - Old: `[param1, param2]`
+   - New: `(param1, param2)`
+
+5. **Event selectors**: 
+   - Old: `|eventName|`
+   - New: `eventName()`
+
+6. **Function declaration**: 
+   - Old: `fn main {`
+   - New: `fn main() {`
 - Invalid: `for x in items: { stmt }` or `while x < 10: { stmt }`
 - Valid: `for x in items: stmt` or `for x in items { stmt }`
