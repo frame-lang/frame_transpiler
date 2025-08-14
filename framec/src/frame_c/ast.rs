@@ -1662,6 +1662,12 @@ pub enum StatementType {
     IfStmt {
         if_stmt_node: IfStmtNode,
     },
+    ForStmt {
+        for_stmt_node: ForStmtNode,
+    },
+    WhileStmt {
+        while_stmt_node: WhileStmtNode,
+    },
     LoopStmt {
         loop_stmt_node: LoopStmtNode,
     },
@@ -1998,6 +2004,56 @@ impl IfStmtNode {
 impl NodeElement for IfStmtNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         ast_visitor.visit_if_stmt_node(self);
+    }
+}
+
+//-----------------------------------------------------//
+
+pub struct ForStmtNode {
+    pub variable: Option<VariableNode>, // for var x in items
+    pub identifier: Option<IdentifierNode>, // for x in items
+    pub iterable: ExprType,
+    pub block: BlockStmtNode,
+}
+
+impl ForStmtNode {
+    pub fn new(
+        variable: Option<VariableNode>,
+        identifier: Option<IdentifierNode>,
+        iterable: ExprType,
+        block: BlockStmtNode,
+    ) -> ForStmtNode {
+        ForStmtNode {
+            variable,
+            identifier,
+            iterable,
+            block,
+        }
+    }
+}
+
+impl NodeElement for ForStmtNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_for_stmt_node(self);
+    }
+}
+
+//-----------------------------------------------------//
+
+pub struct WhileStmtNode {
+    pub condition: ExprType,
+    pub block: BlockStmtNode,
+}
+
+impl WhileStmtNode {
+    pub fn new(condition: ExprType, block: BlockStmtNode) -> WhileStmtNode {
+        WhileStmtNode { condition, block }
+    }
+}
+
+impl NodeElement for WhileStmtNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_while_stmt_node(self);
     }
 }
 

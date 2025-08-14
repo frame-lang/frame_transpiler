@@ -2298,8 +2298,8 @@ impl<'a> Parser<'a> {
             Return,
             None,
             self.previous().line,
-        );;
-        let mut is_implemented = false;
+        );
+        let mut is_implemencomted = false;
 
         // foo(...) : type {
         if let Err(parse_error) = self.consume(TokenType::OpenBrace, &format!("Expected '{{' - found '{}'", self.current_token)) {
@@ -4577,6 +4577,22 @@ impl<'a> Parser<'a> {
             };
         }
 
+        if self.match_token(&[TokenType::For]) {
+            return match self.for_statement() {
+                Ok(Some(for_stmt_t)) => Ok(Some(for_stmt_t)),
+                Ok(None) => Err(ParseError::new("TODO")),
+                Err(parse_error) => Err(parse_error),
+            };
+        }
+
+        if self.match_token(&[TokenType::While]) {
+            return match self.while_statement() {
+                Ok(Some(while_stmt_t)) => Ok(Some(while_stmt_t)),
+                Ok(None) => Err(ParseError::new("TODO")),
+                Err(parse_error) => Err(parse_error),
+            };
+        }
+
         if self.match_token(&[TokenType::Loop]) {
             return match self.loop_statement_scope() {
                 Ok(Some(loop_stmt_t)) => Ok(Some(loop_stmt_t)),
@@ -6291,6 +6307,126 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
+    fn for_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
+        let mut variable: Option<VariableNode> = None;
+        let mut identifier: Option<IdentifierNode> = None;
+
+        // Parse for var x in items or for x in items
+        if self.match_token(&[TokenType::Var]) {
+            // for var x in items
+            match self.var_declaration(IdentifierDeclScope::LoopVarScope) {
+                Ok(var_decl_t_rc_ref) => {
+                    // Create a VariableNode from the VariableDeclNode
+                    let var_decl = var_decl_t_rc_ref.borrow();
+                    let id_node = IdentifierNode::new(
+                        Token::new(
+                            TokenType::Identifier,
+                            var_decl.name.clone(),
+                            TokenLiteral::None,
+                            0, // line
+                            0, // start
+                            var_decl.name.len(),
+                        ),
+                        None,
+                        IdentifierDeclScope::LoopVarScope,
+                        false,
+                        0,
+                    );
+                    let var_node = VariableNode::new(id_node, IdentifierDeclScope::LoopVarScope, None);
+                    variable = Some(var_node);
+                }
+                Err(parse_error) => return Err(parse_error),
+            }
+        } else {
+            // for x in items - expect identifier
+            if self.match_token(&[TokenType::Identifier]) {
+                let id_node = IdentifierNode::new(
+                    self.previous().clone(),
+                    None,
+                    IdentifierDeclScope::LoopVarScope,
+                    false,
+                    self.previous().line,
+                );
+                identifier = Some(id_node);
+            } else {
+                self.error_at_current("Expected variable name after 'for'.");
+                return Err(ParseError::new("Expected variable name after 'for'."));
+            }
+        }
+
+        // Expect 'in' keyword
+        if !self.match_token(&[TokenType::In]) {
+            self.error_at_current("Expected 'in' after for loop variable.");
+            return Err(ParseError::new("Expected 'in' after for loop variable."));
+        }
+
+        // Parse iterable expression
+        let iterable = match self.expression() {
+            Ok(Some(expr)) => expr,
+            Ok(None) => {
+                self.error_at_current("Expected iterable expression after 'in'.");
+                return Err(ParseError::new("Expected iterable expression after 'in'."));
+            }
+            Err(e) => return Err(e),
+        };
+
+        // Parse the for block - check for colon (Python-style) or braces
+        let for_block = if self.match_token(&[TokenType::Colon]) {
+            // Python-style: for x in items: statement
+            self.parse_single_statement_block("for_block")
+        } else if self.match_token(&[TokenType::OpenBrace]) {
+            // Braced block: for x in items { statements }
+            self.parse_braced_block("for_block")
+        } else {
+            self.error_at_current("Expected ':' or '{' after for iterable.");
+            return Err(ParseError::new("Expected ':' or '{' after for iterable."));
+        };
+
+        let for_block = match for_block {
+            Ok(block) => block,
+            Err(e) => return Err(e),
+        };
+
+        let for_stmt_node = ForStmtNode::new(variable, identifier, iterable, for_block);
+        Ok(Some(StatementType::ForStmt { for_stmt_node }))
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn while_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
+        // Parse the condition expression
+        let condition = match self.expression() {
+            Ok(Some(expr)) => expr,
+            Ok(None) => {
+                self.error_at_current("Expected condition after 'while'.");
+                return Err(ParseError::new("Expected condition after 'while'."));
+            }
+            Err(e) => return Err(e),
+        };
+
+        // Parse the while block - check for colon (Python-style) or braces
+        let while_block = if self.match_token(&[TokenType::Colon]) {
+            // Python-style: while condition: statement
+            self.parse_single_statement_block("while_block")
+        } else if self.match_token(&[TokenType::OpenBrace]) {
+            // Braced block: while condition { statements }
+            self.parse_braced_block("while_block")
+        } else {
+            self.error_at_current("Expected ':' or '{' after while condition.");
+            return Err(ParseError::new("Expected ':' or '{' after while condition."));
+        };
+
+        let while_block = match while_block {
+            Ok(block) => block,
+            Err(e) => return Err(e),
+        };
+
+        let while_stmt_node = WhileStmtNode::new(condition, while_block);
+        Ok(Some(StatementType::WhileStmt { while_stmt_node }))
+    }
+
+    /* --------------------------------------------------------------------- */
+
     // TODO - update other scopes to follow this patter so that
     // TODO - all return paths automatically pop scope.
 
@@ -6325,6 +6461,9 @@ impl<'a> Parser<'a> {
     // loop .. { foo() continue break }
 
     fn loop_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
+        // Deprecation warning for 'loop' keyword
+        eprintln!("Warning: The 'loop' keyword is deprecated. Use 'for' or 'while' instead for better readability and Python compatibility.");
+        
         if self.match_token(&[TokenType::OpenBrace]) {
             // loop { foo() }
             return self.loop_infinite_statement();

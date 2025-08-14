@@ -436,6 +436,12 @@ impl GraphVizVisitor {
                         StatementType::IfStmt { .. } => {
                             // TODO: Implement if statement visualization
                         }
+                        StatementType::ForStmt { .. } => {
+                            // TODO: Implement for statement visualization
+                        }
+                        StatementType::WhileStmt { .. } => {
+                            // TODO: Implement while statement visualization
+                        }
                         StatementType::NoStmt => {
                             // TODO
                             panic!("todo");

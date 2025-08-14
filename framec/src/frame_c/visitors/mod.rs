@@ -174,6 +174,8 @@ pub trait AstVisitor {
     fn visit_expr_list_stmt_node(&mut self, _expr_list: &ExprListStmtNode) {}
 
     fn visit_if_stmt_node(&mut self, _if_stmt_node: &IfStmtNode) {}
+    fn visit_for_stmt_node(&mut self, _for_stmt_node: &ForStmtNode) {}
+    fn visit_while_stmt_node(&mut self, _while_stmt_node: &WhileStmtNode) {}
     fn visit_loop_stmt_node(&mut self, _expr_list: &LoopStmtNode) {}
     fn visit_loop_for_stmt_node(&mut self, _loop_for_stmt_node: &LoopForStmtNode) {}
     fn visit_loop_in_stmt_node(&mut self, _loop_in_stmt_node: &LoopInStmtNode) {}

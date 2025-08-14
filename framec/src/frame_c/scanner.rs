@@ -43,6 +43,8 @@ impl Scanner {
             ("elif".to_string(), TokenType::Elif),
             ("else".to_string(), TokenType::Else),
             ("loop".to_string(), TokenType::Loop),
+            ("for".to_string(), TokenType::For),
+            ("while".to_string(), TokenType::While),
             ("in".to_string(), TokenType::In),
             ("continue".to_string(), TokenType::Continue),
             ("break".to_string(), TokenType::Break),
@@ -756,6 +758,8 @@ pub enum TokenType {
     Const,                  // const keyword
     //    New,              // new keyword
     Loop,                   // loop keyword
+    For,                    // for keyword
+    While,                  // while keyword
     If,                     // if keyword
     Elif,                   // elif keyword
     Else,                   // else keyword

@@ -937,6 +937,12 @@ impl PythonVisitor {
                         StatementType::IfStmt { if_stmt_node } => {
                             if_stmt_node.accept(self);
                         }
+                        StatementType::ForStmt { for_stmt_node } => {
+                            for_stmt_node.accept(self);
+                        }
+                        StatementType::WhileStmt { while_stmt_node } => {
+                            while_stmt_node.accept(self);
+                        }
                         StatementType::NoStmt => {
                             // TODO
                             self.errors.push("Unknown error.".to_string());
@@ -3695,6 +3701,35 @@ impl AstVisitor for PythonVisitor {
             self.add_code("else:");
             else_block.accept(self);
         }
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_for_stmt_node(&mut self, for_stmt_node: &ForStmtNode) {
+        self.newline();
+        self.add_code("for ");
+        
+        // Emit the loop variable
+        if let Some(variable) = &for_stmt_node.variable {
+            self.add_code(&variable.id_node.name.lexeme);
+        } else if let Some(identifier) = &for_stmt_node.identifier {
+            self.add_code(&identifier.name.lexeme);
+        }
+        
+        self.add_code(" in ");
+        for_stmt_node.iterable.accept(self);
+        self.add_code(":");
+        for_stmt_node.block.accept(self);
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_while_stmt_node(&mut self, while_stmt_node: &WhileStmtNode) {
+        self.newline();
+        self.add_code("while ");
+        while_stmt_node.condition.accept(self);
+        self.add_code(":");
+        while_stmt_node.block.accept(self);
     }
 
     //* --------------------------------------------------------------------- *//

@@ -183,3 +183,85 @@ elif condition2 {
     doThird()
 } else: doDefault()
 ```
+
+## Loop Statements
+
+### Loop Grammar
+```bnf
+// For loops
+for_stmt: 'for' (var_decl | identifier) 'in' expr ':' stmt
+        | 'for' (var_decl | identifier) 'in' expr block
+
+// While loops  
+while_stmt: 'while' expr ':' stmt
+          | 'while' expr block
+
+// Legacy loop syntax (maintained for backward compatibility)
+loop_stmt: 'loop' '{' stmt* '}'
+         | 'loop' var_decl ';' expr ';' expr '{' stmt* '}'
+         | 'loop' (var_decl | identifier) 'in' expr '{' stmt* '}'
+```
+
+### Design Decisions
+
+1. **Python-style keywords**: Use `for` and `while` instead of generic `loop`
+2. **Consistent syntax with conditionals**: Support both `:` for single statements and `{}` for blocks
+3. **For-in loops**: Primary iteration pattern following Python
+4. **While loops**: Condition-based loops with clear syntax
+5. **Backward compatibility**: Original `loop` syntax still supported
+
+### Loop Examples
+
+#### For-in loops
+```frame
+// Python-style with colon
+for item in items:
+    process(item)
+
+// Braced blocks
+for item in items {
+    process(item)
+    doMore()
+}
+
+// With variable declaration
+for var item in items:
+    process(item)
+```
+
+#### While loops
+```frame
+// Python-style with colon
+while x < 10:
+    x = x + 1
+
+// Braced blocks
+while x < 10 {
+    x = x + 1
+    doSomething()
+}
+
+// Infinite loop
+while true:
+    doWork()
+    if done: break
+```
+
+#### Range-based iteration (future)
+```frame
+// Simple range (0 to 9)
+for i in range(10):
+    print(i)
+
+// Range with start and stop
+for i in range(5, 10):
+    print(i)
+```
+
+### Syntax Enforcement
+
+Similar to if/elif/else statements:
+- After `:` only single statements are allowed (no `{` blocks)
+- After condition/iterable without `:`, braces `{` are required
+- Invalid: `for x in items: { stmt }` or `while x < 10: { stmt }`
+- Valid: `for x in items: stmt` or `for x in items { stmt }`
