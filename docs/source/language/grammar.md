@@ -454,5 +454,42 @@ The following syntax from Frame v0.11 is deprecated in v0.20:
 6. **Function declaration**: 
    - Old: `fn main {`
    - New: `fn main() {`
-- Invalid: `for x in items: { stmt }` or `while x < 10: { stmt }`
-- Valid: `for x in items: stmt` or `for x in items { stmt }`
+
+7. **Enter/Exit events**:
+   - Old: `|>|` and `|<|`
+   - New: `$>()` and `<$()`
+
+## Special Event Handlers
+
+Frame systems support special built-in event handlers:
+
+```frame
+$StateName {
+    // Enter event - called when transitioning into this state
+    $>() {
+        print("Entering state")
+        return
+    }
+    
+    // Exit event - called when transitioning out of this state
+    <$() {
+        print("Exiting state") 
+        return
+    }
+    
+    // Regular event handlers
+    eventName() {
+        // handle event
+        return
+    }
+}
+```
+
+## Special Symbols
+
+- `$` - State prefix and enter event symbol
+- `<$` - Exit event symbol  
+- `->` - Transition operator
+- `@` - Current event reference
+- `#` - System type prefix (v0.11 legacy)
+- `##` - System terminator (v0.11 legacy)
