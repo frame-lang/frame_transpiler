@@ -223,6 +223,43 @@ type: ':' IDENTIFIER
 3. **Parameters**: Optional parameter list with optional types
 4. **Return Type**: Optional return type annotation
 
+## Transitions and Events
+
+### Transition Grammar
+```bnf
+transition: ('(' exit_args ')')? '->' ('(' enter_args ')')? label? '$' state_identifier ('(' state_params ')')?
+transition: '(' '->' ('(' enter_args ')')? label? '$' state_identifier ('(' state_params ')')? ')'
+exit_args: expr_list
+enter_args: expr_list
+state_params: expr_list
+label: STRING
+```
+
+### Enter and Exit Events
+
+#### Enter Event Handler
+```bnf
+enter_handler: '$>' '(' parameter_list? ')' '{' stmt* '}'
+```
+
+#### Exit Event Handler  
+```bnf
+exit_handler: '<$' '(' parameter_list? ')' '{' stmt* '}'
+```
+
+### Event Forwarding
+Event forwarding uses the dispatch operator `=>`:
+```frame
+-> => $TargetState
+```
+
+### Design Decisions
+
+1. **Enter/Exit Syntax**: Uses `$>()` for enter and `<$()` for exit events
+2. **Parameter Passing**: Both enter and exit handlers can accept parameters
+3. **Return Required**: All event handlers must end with `return` statement
+4. **Event Forwarding**: Uses `-> =>` syntax to forward events between states
+
 ## Examples
 
 ### Simple Action
