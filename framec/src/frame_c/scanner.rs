@@ -732,7 +732,7 @@ pub enum TokenType {
     ReturnAssign,                 // ^=
     LogicalAnd,                   // &&
     LogicalXor,                   // &|
-    System,                       // #
+    System,                       // # // TOOD - remove this
     Self_,                        // self
     Return_,                      // return
     EnterStateMsg,                   // $>

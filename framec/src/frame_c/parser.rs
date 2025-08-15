@@ -15,8 +15,8 @@ use crate::frame_c::utils::SystemHierarchy;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
-use std::io::BufRead;
 use std::rc::Rc;
+
 
 pub struct ParseError {
     // TODO:
@@ -824,7 +824,8 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     fn system_enter_args(&mut self) -> Result<Option<ExprListNode>, ParseError> {
-        if self.match_token(&[TokenType::GT]) {
+        // v0.20 syntax: $>("args") instead of >("args")
+        if self.match_token(&[TokenType::EnterStateMsg]) {
             if self.match_token(&[TokenType::LParen]) {
                 match self.expr_list_node() {
                     Ok(Some(expr_list_node)) => {
@@ -846,21 +847,23 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     fn system_domain_args(&mut self) -> Result<Option<ExprListNode>, ParseError> {
-        // let mut domain_args = Vec::new();
-
-        // TODO v0.20 - use syntax "system Foo($(a),>(b),c,d)"
-        if self.match_token(&[TokenType::System]) {
-            if self.match_token(&[TokenType::LParen]) {
-                match self.expr_list_node() {
-                    Ok(Some(expr_list_node)) => {
-                        return Ok(Some(expr_list_node));
-                    }
-                    Ok(None) => {
-                        return Ok(None);
-                    }
-                    Err(parse_err) => {
-                        return Err(parse_err);
-                    }
+        // v0.20 syntax: domain args are just plain arguments (no # prefix)
+        // They're parsed as part of a flat argument list: Foo($(a), $>(b), c, d)
+        // But at instantiation: Foo($("val1"), $>("val2"), "val3", "val4")
+        
+        // Check if we have plain arguments (not $ or $> prefixed)
+        if self.peek().token_type != TokenType::RParen 
+            && self.peek().token_type != TokenType::State
+            && self.peek().token_type != TokenType::EnterStateMsg {
+            match self.expr_list_node() {
+                Ok(Some(expr_list_node)) => {
+                    return Ok(Some(expr_list_node));
+                }
+                Ok(None) => {
+                    return Ok(None);
+                }
+                Err(parse_err) => {
+                    return Err(parse_err);
                 }
             }
         }
@@ -1008,7 +1011,8 @@ impl<'a> Parser<'a> {
     fn system_enter_params(&mut self) -> Option<Vec<ParameterNode>> {
         let mut system_enter_params_opt: Option<Vec<ParameterNode>> = Option::None;
 
-        if self.match_token(&[TokenType::GT]) {
+        // v0.20 syntax: $>(params) instead of >[params]
+        if self.match_token(&[TokenType::EnterStateMsg]) {
             if self.consume(TokenType::LParen, "Expected '('").is_err() {
                 let sync_tokens = vec![
                     TokenType::InterfaceBlock,
@@ -1024,6 +1028,13 @@ impl<'a> Parser<'a> {
                 Ok(None) => {}
                 Err(_) => {}
             }
+            if self.consume(TokenType::RParen, "Expected ')'").is_err() {
+                let sync_tokens = vec![
+                    TokenType::Comma,
+                    TokenType::RParen,
+                ];
+                self.synchronize(&sync_tokens);
+            }
         }
 
         system_enter_params_opt
@@ -1034,7 +1045,9 @@ impl<'a> Parser<'a> {
     fn system_domain_params(&mut self) -> Option<Vec<ParameterNode>> {
         let mut domain_params_opt: Option<Vec<ParameterNode>> = Option::None;
 
-        if self.match_token(&[TokenType::OuterAttributeOrDomainParams]) {
+        // v0.20: Domain params are now just plain parameters without #[ prefix
+        // Check if we have parameters that aren't start state or enter params
+        if self.peek().token_type == TokenType::Identifier {
             match self.parameters() {
                 Ok(Some(parameters)) => {
                     if !self.is_building_symbol_table {
@@ -3181,7 +3194,15 @@ impl<'a> Parser<'a> {
                         self.arcanum
                             .set_parse_scope(StateParamsScopeSymbol::scope_name());
                     }
-                    params_opt = Some(parameters);
+                    params_opt = Some(parameters.clone());
+                    
+                    // v0.20: Validate start state parameters match system parameters
+                    // This validation happens during the second pass
+                    if state_name == "Start" && !self.is_building_symbol_table {
+                        // TODO: Need to access system symbol to validate parameter counts
+                        // The system symbol should be available through the arcanum
+                        // but we need to track the current system name
+                    }
                 }
                 Err(parse_error) => return Err(parse_error),
                 Ok(None) => {}

@@ -33,7 +33,14 @@ fn calculate(x: int, y: int) : int {
 ## Systems
 
 ```bnf
-system: 'system' IDENTIFIER '{' system_block* '}'
+system: 'system' IDENTIFIER system_params? '{' system_block* '}'
+system_params: '(' system_param_list ')'
+system_param_list: system_param (',' system_param)*
+system_param: start_state_param | enter_event_param | domain_param
+start_state_param: '$(' parameter_list ')'
+enter_event_param: '$>(' parameter_list ')'
+domain_param: IDENTIFIER type?
+
 system_block: interface_block
             | machine_block
             | actions_block
@@ -41,7 +48,9 @@ system_block: interface_block
             | domain_block
 ```
 
-### System Example
+### System Examples
+
+#### Basic System
 ```frame
 system TrafficLight {
     interface:
@@ -60,6 +69,83 @@ system TrafficLight {
                 -> $Red
             }
         }
+}
+```
+
+#### System with Parameters
+```frame
+// System with start state parameters
+system StartStateParameters ($(msg)) {
+    machine:
+        $Start(msg) {
+            $>() {
+                print(msg)
+                return
+            }
+        }
+}
+
+// System with start state enter event parameters
+system StartStateEnterParameters ($>(msg)) {
+    machine:
+        $Start {
+            $>(msg) {
+                print(msg)
+                return
+            }
+        }
+}
+
+// System with domain parameters
+system DomainParameters (msg) {
+    domain:
+        var msg = nil
+        
+    machine:
+        $Start {
+            $>() {
+                print(msg)
+                return
+            }
+        }
+}
+
+// System with all parameter types
+system AllParameterTypes ($(A,B), $>(C,D), E,F) {
+    domain:
+        var E = nil
+        var F = nil
+    
+    machine:
+        $Start(A,B) {
+            $>(C,D) {
+                print(A + B + C + D + E + F)
+                return
+            }
+        }
+}
+```
+
+### System Instantiation
+
+System instantiation uses flattened argument lists:
+
+```frame
+fn main() {
+    // No parameters
+    var sys1 = TrafficLight()
+    
+    // Start state parameters - flattened list
+    var sys2 = StartStateParameters("hello")
+    
+    // Start state enter event parameters - flattened list
+    var sys3 = StartStateEnterParameters("world")
+    
+    // Domain parameters - flattened list
+    var sys4 = DomainParameters("message")
+    
+    // All parameter types - flattened list
+    var sys5 = AllParameterTypes("a", "b", "c", "d", "e", "f")
 }
 ```
 
@@ -472,29 +558,48 @@ The following syntax from Frame v0.11 is deprecated in v0.20:
    - Old: `#SystemName ... ##`
    - New: `system SystemName { ... }`
 
-2. **Block markers**: 
+2. **System parameters**:
+   - Old: `#SystemName [$[start], >[enter], #[domain]]`
+   - New: `system SystemName ($(start), $>(enter), domain)`
+
+3. **System instantiation**:
+   - Old: `SystemName($("a"), >("b"), #("c"))`
+   - New: `SystemName("a", "b", "c")` (flattened arguments)
+
+4. **Block markers**: 
    - Old: `-interface-`, `-machine-`, `-actions-`, `-domain-`
    - New: `interface:`, `machine:`, `actions:`, `domain:`
 
-3. **Return token**: 
+5. **Return token**: 
    - Old: `^` and `^(value)`
    - New: `return` and `return value`
 
-4. **Parameter lists**: 
+6. **Parameter lists**: 
    - Old: `[param1, param2]`
    - New: `(param1, param2)`
 
-5. **Event selectors**: 
+7. **Event selectors**: 
    - Old: `|eventName|`
    - New: `eventName()`
 
-6. **Function declaration**: 
+8. **Function declaration**: 
    - Old: `fn main {`
    - New: `fn main() {`
 
-7. **Enter/Exit events**:
+9. **Enter/Exit events**:
    - Old: `|>|` and `|<|`
    - New: `$>()` and `<$()`
+
+### System Parameter Migration Guide
+
+| v0.11 Syntax | v0.20 Syntax | Description |
+|--------------|--------------|-------------|
+| `$[params]` | `$(params)` | Start state parameters |
+| `>[params]` | `$>(params)` | Start state enter event parameters |
+| `#[params]` | `params` | Domain parameters (no special syntax) |
+| `$(<args>)` | `args` | Start state arguments (flattened) |
+| `>(<args>)` | `args` | Enter event arguments (flattened) |
+| `#(<args>)` | `args` | Domain arguments (flattened) |
 
 ## Special Event Handlers
 
