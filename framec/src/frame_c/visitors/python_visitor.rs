@@ -2466,7 +2466,7 @@ impl AstVisitor for PythonVisitor {
                             self.add_code("return");
                         }
                     },
-                    TerminatorType::Dispatch => {
+                    TerminatorType::DispatchToParentState => {
                         // shouldn't happen.
                         self.errors
                             .push("Continue not allowed as action terminator.".to_string());
@@ -2708,7 +2708,7 @@ impl AstVisitor for PythonVisitor {
                             // self.newline();
                         }
                     },
-                    TerminatorType::Dispatch => {
+                    TerminatorType::DispatchToParentState => {
                         // shouldn't happen.
                         self.errors
                             .push("Continue not allowed as operation terminator.".to_string());
@@ -3038,7 +3038,7 @@ impl AstVisitor for PythonVisitor {
                 }
                 None => self.generate_return(),
             },
-            TerminatorType::Dispatch => {
+            TerminatorType::DispatchToParentState => {
                 self.generate_return_if_transitioned();
             }
         }
@@ -3999,7 +3999,7 @@ impl AstVisitor for PythonVisitor {
                         }
                         None => self.generate_return(),
                     },
-                    TerminatorType::Dispatch => {
+                    TerminatorType::DispatchToParentState => {
                         self.generate_return_if_transitioned();
                     }
                 }
@@ -4065,7 +4065,7 @@ impl AstVisitor for PythonVisitor {
                         }
                         None => self.generate_return(),
                     },
-                    TerminatorType::Dispatch => {
+                    TerminatorType::DispatchToParentState => {
                         self.generate_return_if_transitioned();
                     }
                 }
@@ -4213,7 +4213,7 @@ impl AstVisitor for PythonVisitor {
                         }
                         None => self.generate_return(),
                     },
-                    TerminatorType::Dispatch => {
+                    TerminatorType::DispatchToParentState => {
                         self.generate_return_if_transitioned();
                     }
                 }
@@ -4281,7 +4281,7 @@ impl AstVisitor for PythonVisitor {
                         }
                         None => self.generate_return(),
                     },
-                    TerminatorType::Dispatch => {
+                    TerminatorType::DispatchToParentState => {
                         self.generate_return_if_transitioned();
                     }
                 }
@@ -4405,7 +4405,7 @@ impl AstVisitor for PythonVisitor {
                         }
                         None => self.generate_return(),
                     },
-                    TerminatorType::Dispatch => {
+                    TerminatorType::DispatchToParentState => {
                         self.generate_return_if_transitioned();
                     }
                 }
@@ -4446,7 +4446,7 @@ impl AstVisitor for PythonVisitor {
                         }
                         None => self.generate_return(),
                     },
-                    TerminatorType::Dispatch => {
+                    TerminatorType::DispatchToParentState => {
                         self.generate_return_if_transitioned();
                     }
                 }
@@ -4599,7 +4599,7 @@ impl AstVisitor for PythonVisitor {
                         }
                         None => self.generate_return(),
                     },
-                    TerminatorType::Dispatch => {
+                    TerminatorType::DispatchToParentState => {
                         self.generate_return_if_transitioned();
                     }
                 }
@@ -4663,7 +4663,7 @@ impl AstVisitor for PythonVisitor {
                         }
                         None => self.generate_return(),
                     },
-                    TerminatorType::Dispatch => {
+                    TerminatorType::DispatchToParentState => {
                         self.generate_return_if_transitioned();
                     }
                 }
@@ -5030,7 +5030,7 @@ impl AstVisitor for PythonVisitor {
                         self.newline();
                     }
                 },
-                TerminatorType::Dispatch => {
+                TerminatorType::DispatchToParentState => {
                     // TODO v0.20 shouldn't happen.
                     self.errors
                         .push("Continue not allowed as action terminator.".to_string());

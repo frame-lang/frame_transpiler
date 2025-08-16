@@ -160,11 +160,14 @@ interface_method: IDENTIFIER '(' parameter_list? ')' type?
 
 ```bnf
 machine_block: 'machine:' state*
-state: '$' IDENTIFIER '{' event_handler* state_var* '}'
-event_handler: event_selector '{' stmt* '}'
+state: '$' IDENTIFIER ('=>' '$' IDENTIFIER)? '{' event_handler* state_var* '}'
+event_handler: event_selector '{' stmt* terminator? '}'
 event_selector: IDENTIFIER '(' parameter_list? ')' type?
-               | '$>' '(' ')'  // Enter handler
-               | '<$' '(' ')'  // Exit handler
+               | '$>' '(' parameter_list? ')'  // Enter handler
+               | '<$' '(' parameter_list? ')'  // Exit handler
+terminator: 'return' expr?
+          | '@:>'             // Forward event to parent state
+          | '=>'              // Forward/dispatch event
 state_var: 'var' IDENTIFIER type? '=' expr
 ```
 
@@ -333,18 +336,60 @@ enter_handler: '$>' '(' parameter_list? ')' '{' stmt* '}'
 exit_handler: '<$' '(' parameter_list? ')' '{' stmt* '}'
 ```
 
-### Event Forwarding
-Event forwarding uses the dispatch operator `=>`:
-```frame
--> => $TargetState
+### Hierarchical State Machines
+
+Frame supports hierarchical state machines where child states can inherit behavior from parent states using the dispatch operator `=>`:
+
+```bnf
+hierarchy: '$' IDENTIFIER '=>' '$' IDENTIFIER
 ```
+
+#### State Hierarchy Example
+```frame
+machine:
+    // Parent state
+    $Parent {
+        commonEvent() {
+            print("Handled in parent")
+            return
+        }
+    }
+    
+    // Child state inherits from parent
+    $Child => $Parent {
+        specificEvent() {
+            print("Handled in child")
+            return
+        }
+    }
+```
+
+#### Event Forwarding to Parent States
+
+The `@:>` operator forwards events from child states to their parent states:
+
+```frame
+$Child => $Parent {
+    sharedEvent() {
+        print("Processing in child first")
+        @:>  // Forward to parent state
+    }
+}
+```
+
+### Event Forwarding
+
+1. **Transition forwarding**: Uses `-> =>` syntax to forward events during transitions
+2. **Parent forwarding**: Uses `@:>` to forward events to parent states in HSM
+3. **Event dispatch**: Uses `=>` for general event forwarding
 
 ### Design Decisions
 
 1. **Enter/Exit Syntax**: Uses `$>()` for enter and `<$()` for exit events
 2. **Parameter Passing**: Both enter and exit handlers can accept parameters
-3. **Return Required**: All event handlers must end with `return` statement
-4. **Event Forwarding**: Uses `-> =>` syntax to forward events between states
+3. **Terminator Required**: All event handlers must end with a terminator (`return`, `@:>`, or `=>`)
+4. **HSM Support**: Full hierarchical state machine support with `=>` operator
+5. **Event Forwarding**: Multiple forwarding mechanisms for different use cases
 
 ## Examples
 
@@ -590,6 +635,10 @@ The following syntax from Frame v0.11 is deprecated in v0.20:
    - Old: `|>|` and `|<|`
    - New: `$>()` and `<$()`
 
+10. **Event forwarding to parent**:
+   - Old: `:>` (v0.11-v0.19)
+   - New: `@:>` (v0.20)
+
 ### System Parameter Migration Guide
 
 | v0.11 Syntax | v0.20 Syntax | Description |
@@ -632,6 +681,8 @@ $StateName {
 - `$` - State prefix and enter event symbol
 - `<$` - Exit event symbol  
 - `->` - Transition operator
+- `=>` - Dispatch/hierarchy operator
+- `@:>` - Forward event to parent state (v0.20)
 - `@` - Current event reference
 - `#` - System type prefix (v0.11 legacy)
 - `##` - System terminator (v0.11 legacy)

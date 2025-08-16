@@ -6,7 +6,7 @@ use super::ast::DeclOrStmtType;
 use super::ast::ExprStmtType::*;
 use super::ast::ExprType;
 use super::ast::ExprType::*;
-use super::ast::TerminatorType::{Dispatch, Return};
+use super::ast::TerminatorType::{DispatchToParentState, Return};
 use super::ast::*;
 use super::scanner::*;
 use super::symbol_table::*;
@@ -4011,7 +4011,13 @@ impl<'a> Parser<'a> {
             );
         } else if self.match_token(&[TokenType::Dispatch]) {
             terminator_node = TerminatorExpr::new(
-                Dispatch,
+                DispatchToParentState,
+                None,
+                self.previous().line,
+            );
+        } else if self.match_token(&[TokenType::DispatchToParentState]) {
+            terminator_node = TerminatorExpr::new(
+                DispatchToParentState,
                 None,
                 self.previous().line,
             );
@@ -4092,8 +4098,8 @@ impl<'a> Parser<'a> {
             } else {
                 Ok(TerminatorExpr::new(Return, None, self.previous().line))
             }
-        } else if self.match_token(&[TokenType::ElseContinue]) {
-            Ok(TerminatorExpr::new(Dispatch, None, self.previous().line))
+        } else if self.match_token(&[TokenType::DispatchToParentState]) {
+            Ok(TerminatorExpr::new(DispatchToParentState, None, self.previous().line))
         } else {
             Ok(TerminatorExpr::new(Return, None, self.previous().line))
         }
@@ -4267,6 +4273,11 @@ impl<'a> Parser<'a> {
     // statement ->
 
     fn statement(&mut self) -> Result<Option<StatementType>, ParseError> {
+        // Check for @:> terminator - let the terminator parser handle this
+        if self.check(TokenType::DispatchToParentState) {
+            return Ok(None);
+        }
+        
         let mut expr_t_opt: Option<ExprType> = None;
 
         // Due to Frame test and transition syntax, we need to get the first expression
@@ -4288,7 +4299,7 @@ impl<'a> Parser<'a> {
                 let sync_tokens = vec![
                     TokenType::CloseBrace,
                     TokenType::Caret,
-                    TokenType::ElseContinue,
+                    TokenType::DispatchToParentState,
                     TokenType::Identifier,
                     TokenType::Pipe,
                     TokenType::State,
@@ -4768,8 +4779,8 @@ impl<'a> Parser<'a> {
 
         conditional_branches.push(first_branch_node);
 
-        while self.match_token(&[TokenType::ElseContinue]) {
-            // This enables a "dangling" ElseContinue.
+        while self.match_token(&[TokenType::DispatchToParentState]) {
+            // This enables a "dangling" DispatchToParentState.
             // :> : :|
             if self.peek().token_type == TokenType::Colon
                 || self.peek().token_type == TokenType::ColonBar
@@ -4954,7 +4965,7 @@ impl<'a> Parser<'a> {
             }
         } else if self.match_token(&[TokenType::GT]) {
             return Ok(Some(TerminatorExpr::new(
-                Dispatch,
+                DispatchToParentState,
                 None,
                 self.previous().line,
             )));
@@ -4990,8 +5001,8 @@ impl<'a> Parser<'a> {
 
         conditional_branches.push(first_branch_node);
 
-        while self.match_token(&[TokenType::ElseContinue]) {
-            // This enables a "dangling" ElseContinue.
+        while self.match_token(&[TokenType::DispatchToParentState]) {
+            // This enables a "dangling" DispatchToParentState.
             // :> : :|
             if self.peek().token_type == TokenType::Colon
                 || self.peek().token_type == TokenType::ColonBar
@@ -8236,8 +8247,8 @@ impl<'a> Parser<'a> {
 
         conditional_branches.push(first_branch_node);
 
-        while self.match_token(&[TokenType::ElseContinue]) {
-            // This enables a "dangling" ElseContinue.
+        while self.match_token(&[TokenType::DispatchToParentState]) {
+            // This enables a "dangling" DispatchToParentState.
             // :> : :|
             if self.peek().token_type == TokenType::Colon
                 || self.peek().token_type == TokenType::ColonBar
@@ -8415,8 +8426,8 @@ impl<'a> Parser<'a> {
 
         conditional_branches.push(first_branch_node);
 
-        while self.match_token(&[TokenType::ElseContinue]) {
-            // This enables a "dangling" ElseContinue.
+        while self.match_token(&[TokenType::DispatchToParentState]) {
+            // This enables a "dangling" DispatchToParentState.
             // :> : :|
             if self.peek().token_type == TokenType::Colon
                 || self.peek().token_type == TokenType::ColonBar

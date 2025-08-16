@@ -13,41 +13,47 @@ event handlers:
 
 .. code-block::
 
-    #StateVariableDemo
+    system StateVariableDemo {
 
-    -interface-
+        interface:
+            print()
+            updateName(newName: string)
+            forgetMe()
 
-    print
-    updateName [newName:string]
-    forgetMe
+        machine:
+            $JoeName {
+                var name: string = "Joe"
 
-    -machine-
+                print() {
+                    print(name)
+                    return
+                }
+                updateName(newName: string) {
+                    name = newName
+                    return
+                }
+                forgetMe() {
+                    -> $ResetName
+                    return
+                }
+            }
 
-    $JoeName
-        var name:string = "Joe"
+            $ResetName {
+                $>() {
+                    -> $JoeName
+                    return
+                }
+            }
 
-        |print|
-            print(name) ^
-        |updateName| [newName:string]
-            name = newName ^
-        |forgetMe|
-            -> $ResetName ^
+        actions:
+            print(msg: string) {}
+    }
 
-    $ResetName
-        |>|
-            -> $JoeName ^
+The `StateVariableDemo` system start state, `$JoeName`, initializes the `name`
+state variable to "Joe". The `updateName()` handler will update the state
+variable such that the next `print()` event will print the new name.
 
-    -actions-
-
-    print [msg:string]
-
-    ##
-
-The `#StateVariableDemo` spec start state, `$JoeName`, initializes the `name`
-state varible to "Joe". The `|updateName|` handler will update the state
-variable such that the next `|print|` event will print the new name.
-
-When `|forgetMe|` is handled, the machine will cycle through the `$ResetName`
+When `forgetMe()` is handled, the machine will cycle through the `$ResetName`
 state, losing reference to the previous state compartment and creating a
 new one upon reentry. This reentry will reset the state variable to "Joe".
 

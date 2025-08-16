@@ -305,7 +305,16 @@ impl Scanner {
                     //self.add_token(TokenType::Error);
                 }
             }
-            '@' => self.add_token(TokenType::At),
+            '@' => {
+                if self.peek() == ':' && self.peek_next() == '>' {
+                    // Found @:> - consume both characters
+                    self.advance(); // consume ':'
+                    self.advance(); // consume '>'
+                    self.add_token(TokenType::DispatchToParentState);
+                } else {
+                    self.add_token(TokenType::At);
+                }
+            }
             ' ' => {}
             '\r' => {}
             '\t' => {}
@@ -339,8 +348,6 @@ impl Scanner {
                 if self.match_char('|') {
                     self.add_token(TokenType::ColonBar);
                     self.test_t_stack.pop();
-                } else if self.match_char('>') {
-                    self.add_token(TokenType::ElseContinue);
                 } else if self.match_char('/') {
                     self.add_token(TokenType::EnumMatchStart);
                 } else {
@@ -790,7 +797,7 @@ pub enum TokenType {
     NumberMatchStart,        // '#/'
     EnumTest,                // '?:'
     EnumMatchStart,          // ':/'
-    ElseContinue,            // :>
+    DispatchToParentState,   // @:>
     ColonBar,                // ::
     ForwardSlash,            // /
     MatchString,             // '/<any characters>/' - contains <string>

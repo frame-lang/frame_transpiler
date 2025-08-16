@@ -1077,7 +1077,7 @@ impl MessageNode {
 
 pub enum TerminatorType {
     Return,
-    Dispatch,
+    DispatchToParentState,
 }
 
 pub struct TerminatorExpr {
