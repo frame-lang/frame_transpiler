@@ -442,6 +442,9 @@ impl GraphVizVisitor {
                         StatementType::WhileStmt { .. } => {
                             // TODO: Implement while statement visualization
                         }
+                        StatementType::ReturnStmt { return_stmt_node: _ } => {
+                            // Return statements don't affect state machine graph
+                        }
                         StatementType::NoStmt => {
                             // TODO
                             panic!("todo");

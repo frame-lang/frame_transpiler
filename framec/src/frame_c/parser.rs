@@ -4648,6 +4648,24 @@ impl<'a> Parser<'a> {
             let break_stmt_node = BreakStmtNode::new();
             return Ok(Some(StatementType::BreakStmt { break_stmt_node }));
         }
+        
+        if self.match_token(&[TokenType::Return_]) {
+            let mut expr_t_opt: Option<ExprType> = None;
+            let return_expr_result = self.equality();
+            match return_expr_result {
+                Ok(Some(expr_t)) => {
+                    expr_t_opt = Some(expr_t)
+                },
+                Ok(None) => {},
+                Err(parse_error) => {
+                    return Err(parse_error);
+                }
+            }
+            
+            let return_stmt_node = ReturnStmtNode::new(expr_t_opt);
+            return Ok(Some(StatementType::ReturnStmt { return_stmt_node }));
+        }
+        
         // if self.match_token(&[TokenType::OpenBrace]) {
         //     let break_stmt_node = BreakStmtNode::new();
         //     return Ok(Some(StatementType::BreakStmt { break_stmt_node }));

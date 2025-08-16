@@ -1686,6 +1686,9 @@ pub enum StatementType {
     ReturnAssignStmt {
         return_assign_stmt_node: ReturnAssignStmtNode,
     },
+    ReturnStmt {
+        return_stmt_node: ReturnStmtNode,
+    },
     #[allow(dead_code)] // is used, don't know why I need this
     NoStmt,
 }
@@ -3770,6 +3773,24 @@ impl NodeElement for ReturnAssignStmtNode {
     // fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
     //     ast_visitor.visit_return_assign_stmt_node_to_string(self, output);
     // }
+}
+
+//-----------------------------------------------------//
+
+pub struct ReturnStmtNode {
+    pub expr_t_opt: Option<ExprType>,
+}
+
+impl ReturnStmtNode {
+    pub fn new(expr_t_opt: Option<ExprType>) -> ReturnStmtNode {
+        ReturnStmtNode { expr_t_opt }
+    }
+}
+
+impl NodeElement for ReturnStmtNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_return_stmt_node(self);
+    }
 }
 
 //

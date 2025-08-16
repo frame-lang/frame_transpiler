@@ -686,3 +686,28 @@ $StateName {
 - `@` - Current event reference
 - `#` - System type prefix (v0.11 legacy)
 - `##` - System terminator (v0.11 legacy)
+
+## Implementation Status
+
+### v0.20 Recent Updates
+
+**Return Statements (2025-01-16)** ✅ **COMPLETED**
+- **Grammar**: `return_stmt: 'return' expr?` 
+- **Context**: Return statements now work as regular statements in all contexts
+- **Previous Issue**: Could only be used as event handler terminators
+- **Fix**: Added `StatementType::ReturnStmt` and `ReturnStmtNode` to AST
+- **Impact**: Enables conventional if/elif/else patterns with returns in event handlers
+- **Test Cases**: All if/elif/return combinations validated
+
+**Event Forwarding (2025-01-16)** ✅ **COMPLETED**
+- **Grammar**: `@:>` operator for parent state dispatch
+- **Implementation**: Block terminator with implicit return semantics
+- **Replaces**: Deprecated `:>` operator from v0.11
+
+### Grammar Coverage
+
+- ✅ **Core Syntax**: System declarations, event handlers, actions
+- ✅ **Control Flow**: if/elif/else, for/while/loop, return statements  
+- ✅ **State Management**: Transitions, hierarchical states, enter/exit
+- ✅ **Modern Syntax**: Conventional parameter syntax, block structure
+- 🔄 **Legacy Support**: v0.11 syntax still documented but deprecated

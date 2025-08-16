@@ -943,6 +943,9 @@ impl PythonVisitor {
                         StatementType::WhileStmt { while_stmt_node } => {
                             while_stmt_node.accept(self);
                         }
+                        StatementType::ReturnStmt { return_stmt_node } => {
+                            return_stmt_node.accept(self);
+                        }
                         StatementType::NoStmt => {
                             // TODO
                             self.errors.push("Unknown error.".to_string());
@@ -4689,6 +4692,20 @@ impl AstVisitor for PythonVisitor {
         self.newline();
         self.add_code(&format!("self.return_stack[-1] = {}", output));
     }
+    
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_return_stmt_node(&mut self, return_stmt_node: &ReturnStmtNode) {
+        self.newline();
+        if let Some(expr_t) = &return_stmt_node.expr_t_opt {
+            let mut output = String::new();
+            expr_t.accept_to_string(self, &mut output);
+            self.add_code(&format!("return {}", output));
+        } else {
+            self.add_code("return");
+        }
+    }
+    
     //* --------------------------------------------------------------------- *//
 
     fn visit_enum_match_test_pattern_node(
