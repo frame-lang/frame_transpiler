@@ -3753,7 +3753,7 @@ impl NodeElement for ListElementNode {
 
 //-----------------------------------------------------//
 
-// ReturnAssignExprNode captures "^= expr" statements.
+// ReturnAssignStmtNode captures "return = expr" statements (v0.20 syntax).
 
 pub struct ReturnAssignStmtNode {
     pub expr_t: ExprType,

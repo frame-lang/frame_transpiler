@@ -8,8 +8,10 @@ module: function* system*
 
 ## Functions
 
+Frame v0.20 supports a main function as the entry point. Currently, only one function (`main`) is supported per module, with additional functionality implemented as system action methods.
+
 ```bnf
-function: 'fn' IDENTIFIER '(' parameter_list? ')' type? function_body
+function: 'fn' 'main' '(' parameter_list? ')' type? function_body
 function_body: '{' stmt* '}'
 parameter_list: parameter (',' parameter)*
 parameter: IDENTIFIER type?
@@ -19,14 +21,21 @@ type_expr: IDENTIFIER | SUPERSTRING
 
 ### Function Examples
 ```frame
-// No parameters, no return
+// Basic main function
 fn main() {
-    print("Hello")
+    print("Hello, Frame!")
 }
 
-// With parameters and return type
-fn calculate(x: int, y: int) : int {
-    return x + y
+// Main with return type
+fn main(): int {
+    return 0
+}
+
+// Main with system interaction
+fn main() {
+    var calc = Calculator()
+    var result = calc.add(5, 3)
+    print("Result: " + str(result))
 }
 ```
 
@@ -308,9 +317,46 @@ type: ':' IDENTIFIER
 ### Design Decisions
 
 1. **Braces Required**: Action bodies must always use braces `{}`
-2. **Statements**: Action bodies can contain any valid statements including if/elif/else
+2. **Statements**: Action bodies can contain any valid statements including if/elif/else with return statements
 3. **Parameters**: Optional parameter list with optional types
 4. **Return Type**: Optional return type annotation
+5. **Return Statements**: Full support for return statements as regular statements (v0.20 improvement)
+
+### Action Method Examples
+
+```frame
+actions:
+    // Simple action with return
+    add(x: int, y: int): int {
+        return x + y
+    }
+    
+    // Action with conditional returns
+    classify(score: int): string {
+        if score >= 90 {
+            return "A"
+        } elif score >= 80 {
+            return "B"
+        } elif score >= 70 {
+            return "C"
+        } else {
+            return "F"
+        }
+    }
+    
+    // Early return validation pattern
+    validate(input: string): bool {
+        if input == "" {
+            return false  // Early return for invalid input
+        }
+        
+        if checkFormat(input) {
+            return true
+        }
+        
+        return false
+    }
+```
 
 ## Transitions and Events
 
@@ -375,6 +421,50 @@ $Child => $Parent {
         @:>  // Forward to parent state
     }
 }
+```
+
+### Event Handlers with Return Statements
+
+Frame v0.20 supports return statements as regular statements within event handlers, enabling conventional conditional logic:
+
+```frame
+machine:
+    $ProcessingState {
+        validateInput(value: int): string {
+            // Early return validation pattern
+            if value < 0 {
+                return "Invalid: negative"
+            } elif value > 100 {
+                return "Invalid: out of range"
+            }
+            
+            // Complex conditional logic with returns
+            if value >= 90 {
+                return "Excellent"
+            } elif value >= 70 {
+                return "Good"
+            } elif value >= 50 {
+                return "Average"
+            } else {
+                return "Below Average"
+            }
+        }
+        
+        processRequest(type: string): int {
+            // Return statements in nested conditions
+            if type == "urgent" {
+                if checkPermissions() {
+                    return 1  // High priority
+                } else {
+                    return 2  // Medium priority
+                }
+            } elif type == "normal" {
+                return 3  // Normal priority
+            } else {
+                return 4  // Low priority
+            }
+        }
+    }
 ```
 
 ### Event Forwarding
@@ -540,6 +630,7 @@ stmt: expr_stmt
     | while_stmt
     | loop_stmt
     | return_stmt
+    | return_assign_stmt
     | transition_stmt
     | state_stack_op
     | block_stmt
@@ -550,11 +641,49 @@ expr_stmt: expr
 var_decl: 'var' IDENTIFIER type? '=' expr
 assignment: lvalue '=' expr
 return_stmt: 'return' expr?
+return_assign_stmt: 'return' '=' expr
 transition_stmt: '->' '$' IDENTIFIER
 state_stack_op: '$$[' '+' ']' | '$$[' '-' ']'
 block_stmt: '{' stmt* '}'
 break_stmt: 'break'
 continue_stmt: 'continue'
+```
+
+### Interface Return Assignment
+
+Frame v0.20 introduces the `return = expr` syntax for setting interface return values anywhere within event handlers or action methods:
+
+```frame
+// Setting interface return values in event handlers
+machine:
+    $ProcessingState {
+        validateInput(data: string): bool {
+            if data == "" {
+                return = false  // Set interface return value
+                return          // Exit event handler  
+            }
+            
+            if checkFormat(data) {
+                return = true   // Set interface return value
+                return          // Exit event handler
+            }
+            
+            return = false      // Default case
+            return
+        }
+    }
+
+// Setting interface return values in action methods
+actions:
+    processData(input: string): string {
+        if input == "error" {
+            return = "failed"   // Set interface return value
+            return "internal"   // Return value to caller (action method)
+        }
+        
+        return = "success"      // Set interface return value
+        return input            // Return value to caller (action method)
+    }
 ```
 
 ## Expressions
@@ -691,13 +820,29 @@ $StateName {
 
 ### v0.20 Recent Updates
 
-**Return Statements (2025-01-16)** ✅ **COMPLETED**
+**Return Statements as Regular Statements (2025-01-16)** ✅ **COMPLETED**
 - **Grammar**: `return_stmt: 'return' expr?` 
 - **Context**: Return statements now work as regular statements in all contexts
-- **Previous Issue**: Could only be used as event handler terminators
+- **Previous Issue**: Could only be used as event handler terminators, preventing if/elif/else chains
 - **Fix**: Added `StatementType::ReturnStmt` and `ReturnStmtNode` to AST
-- **Impact**: Enables conventional if/elif/else patterns with returns in event handlers
-- **Test Cases**: All if/elif/return combinations validated
+- **Impact**: 
+  - Enables conventional if/elif/else patterns with returns in event handlers
+  - Supports early return validation patterns
+  - Allows complex nested conditional logic with returns
+  - Makes Frame v0.20 syntax more conventional and familiar
+- **Test Cases**: All if/elif/return combinations validated in event handlers and actions
+
+**Interface Return Assignment (2025-01-17)** ✅ **COMPLETED**
+- **Grammar**: `return_assign_stmt: 'return' '=' expr`
+- **Context**: New syntax for setting interface return values anywhere in event handlers/actions
+- **Previous Syntax**: `^= expr` (removed in v0.20)
+- **New Syntax**: `return = expr` (conventional assignment-like syntax)
+- **Implementation**: Reuses existing `ReturnAssignStmtNode` AST structure
+- **Code Generation**: 
+  - Python: `self.return_stack[-1] = expr`
+  - Java: `e._return = expr`
+  - Other typed languages: similar assignment to return field
+- **Benefits**: More readable and conventional than the previous `^=` operator
 
 **Event Forwarding (2025-01-16)** ✅ **COMPLETED**
 - **Grammar**: `@:>` operator for parent state dispatch
@@ -711,3 +856,10 @@ $StateName {
 - ✅ **State Management**: Transitions, hierarchical states, enter/exit
 - ✅ **Modern Syntax**: Conventional parameter syntax, block structure
 - 🔄 **Legacy Support**: v0.11 syntax still documented but deprecated
+
+### Known Limitations
+
+**Dead Code Generation**
+- Event handlers always generate a default return terminator after statements
+- This can result in unreachable return statements after exhaustive if/elif/else chains
+- Functional correctness is maintained; this is a code generation optimization for future work

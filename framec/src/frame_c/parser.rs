@@ -4580,26 +4580,7 @@ impl<'a> Parser<'a> {
         // }
 
 
-        // ^= expr
-        // TODO v.20: update to "return := expr"
-        if self.match_token(&[TokenType::ReturnAssign]) {
-            match self.return_assign_expression() {
-                Ok(Some(expr_type)) => {
-                    let return_assign_stmt_node = ReturnAssignStmtNode::new(expr_type);
-                    return Ok(Some(StatementType::ReturnAssignStmt {
-                        return_assign_stmt_node,
-                    }));
-                }
-                Ok(None) => {
-                    // TODO: continue parse rather than return an error.
-                    let err_msg = &format!("Error - invalid return expression type.");
-                    self.error_at_previous(err_msg);
-                    let parse_error = ParseError::new(err_msg.as_str());
-                    return Err(parse_error);
-                }
-                Err(err) => return Err(err),
-            }
-        }
+        // Removed: ^= expr syntax (replaced with "return = expr" in v0.20)
 
         if self.match_token(&[TokenType::If]) {
             return match self.if_statement() {
@@ -4650,20 +4631,41 @@ impl<'a> Parser<'a> {
         }
         
         if self.match_token(&[TokenType::Return_]) {
-            let mut expr_t_opt: Option<ExprType> = None;
-            let return_expr_result = self.equality();
-            match return_expr_result {
-                Ok(Some(expr_t)) => {
-                    expr_t_opt = Some(expr_t)
-                },
-                Ok(None) => {},
-                Err(parse_error) => {
-                    return Err(parse_error);
+            // Check if this is a return assignment: "return = expr"
+            if self.match_token(&[TokenType::Equals]) {
+                // This is "return = expr" syntax for interface return assignment
+                match self.return_assign_expression() {
+                    Ok(Some(expr_type)) => {
+                        let return_assign_stmt_node = ReturnAssignStmtNode::new(expr_type);
+                        return Ok(Some(StatementType::ReturnAssignStmt {
+                            return_assign_stmt_node,
+                        }));
+                    }
+                    Ok(None) => {
+                        let err_msg = &format!("Error - invalid return assignment expression.");
+                        return Err(ParseError::new(err_msg));
+                    }
+                    Err(parse_error) => {
+                        return Err(parse_error);
+                    }
                 }
+            } else {
+                // Regular return statement: "return expr?" 
+                let mut expr_t_opt: Option<ExprType> = None;
+                let return_expr_result = self.equality();
+                match return_expr_result {
+                    Ok(Some(expr_t)) => {
+                        expr_t_opt = Some(expr_t)
+                    },
+                    Ok(None) => {},
+                    Err(parse_error) => {
+                        return Err(parse_error);
+                    }
+                }
+                
+                let return_stmt_node = ReturnStmtNode::new(expr_t_opt);
+                return Ok(Some(StatementType::ReturnStmt { return_stmt_node }));
             }
-            
-            let return_stmt_node = ReturnStmtNode::new(expr_t_opt);
-            return Ok(Some(StatementType::ReturnStmt { return_stmt_node }));
         }
         
         // if self.match_token(&[TokenType::OpenBrace]) {

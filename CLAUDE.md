@@ -221,6 +221,13 @@ Documentation is located in `/Users/marktruluck/projects/frame-docs/`
 - **Rationale**: Simpler, more conventional syntax
 - **Migration**: `System($(a), $>(b), c)` → `System(a, b, c)`
 
+### Interface Return Assignment (2025-01-17)
+- **Decision**: Replace `^=` with `return = value` syntax
+- **Rationale**: More conventional and readable syntax
+- **Implementation**: Parser recognizes `return =` as interface return assignment
+- **Migration**: `^= expr` → `return = expr`
+- **Codegen**: Generates assignment to return stack/field in target language
+
 ## Files to Never Edit
 
 - Test files in main transpiler project (use test5 instead)

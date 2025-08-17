@@ -736,7 +736,7 @@ pub enum TokenType {
     Ampersand,                    // &
     Pipe,                         // |
     Caret,                        // ^
-    ReturnAssign,                 // ^=
+    ReturnAssign,                 // ^= (deprecated in v0.20, use "return = expr")
     LogicalAnd,                   // &&
     LogicalXor,                   // &|
     System,                       // # // TOOD - remove this
