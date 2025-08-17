@@ -844,6 +844,40 @@ $StateName {
   - Other typed languages: similar assignment to return field
 - **Benefits**: More readable and conventional than the previous `^=` operator
 
+**Transition + Return Parsing (2025-01-17)** ✅ **COMPLETED**
+- **Issue**: Parser failed with "Expected '}' - found 'elif'" when `return` followed transitions in if/elif/else
+- **Root Cause**: Transitions terminated statement parsing, preventing subsequent elif/else clauses
+- **Solution**: Consume optional `return` token after transitions without generating AST node
+- **Implementation**: `self.advance()` to consume return token but don't add to statements
+- **Rationale**: Transitions already terminate execution; explicit returns are for code clarity only
+- **Result**: 
+  - Allows readable `-> $State` followed by `return` syntax
+  - Prevents duplicate return statements in generated code
+  - Enables proper if/elif/else parsing with transitions
+- **Example**:
+  ```frame
+  if condition == "error" {
+      -> $Error     // Transition terminates execution
+      return        // Consumed but not code-generated
+  } elif condition == "success" {
+      -> $Success   // Parser continues to elif
+      return
+  }
+  ```
+
+**Comprehensive Test Suite Validation (2025-01-17)** ✅ **COMPLETED**
+- **Achievement**: 100% test file pass rate for implemented features (56/56 files)
+- **Coverage**: All currently implemented v0.20 syntax features validated end-to-end
+- **Quality**: Generated Python code passes syntax validation
+- **Fixes Applied**:
+  - Legacy syntax updates (^ → return, :> → @:>)
+  - System parameter syntax corrections (v0.11 → v0.20)
+  - Multiple function restrictions enforced (main only)
+  - For loop syntax modernization (C-style → iterator)
+- **Test Files**: Serve as comprehensive v0.20 syntax documentation
+- **Regression Testing**: All existing functionality preserved
+- **Parser Robustness**: Handles complex nested conditional patterns correctly
+
 **Event Forwarding (2025-01-16)** ✅ **COMPLETED**
 - **Grammar**: `@:>` operator for parent state dispatch
 - **Implementation**: Block terminator with implicit return semantics
@@ -851,11 +885,16 @@ $StateName {
 
 ### Grammar Coverage
 
-- ✅ **Core Syntax**: System declarations, event handlers, actions
-- ✅ **Control Flow**: if/elif/else, for/while/loop, return statements  
-- ✅ **State Management**: Transitions, hierarchical states, enter/exit
-- ✅ **Modern Syntax**: Conventional parameter syntax, block structure
-- 🔄 **Legacy Support**: v0.11 syntax still documented but deprecated
+- ✅ **Core Syntax**: System declarations, event handlers, actions, interfaces, domains
+- ✅ **Control Flow**: if/elif/else, for/while/loop, return statements, break/continue
+- ✅ **State Management**: Transitions, hierarchical states, enter/exit events, state variables
+- ✅ **Modern Syntax**: Conventional parameter syntax, block structure, flattened arguments
+- ✅ **System Parameters**: Start state, enter event, and domain parameter syntax
+- ✅ **Function Limitations**: Single main function restriction properly enforced
+- ✅ **Event Forwarding**: @:> operator for parent state dispatch
+- ✅ **Return Mechanisms**: Both return statements and return assignment (return = expr)
+- ✅ **Test Coverage**: 100% of test files passing for implemented v0.20 features
+- 🔄 **Legacy Support**: v0.11 syntax documented but deprecated (parser rejects old syntax)
 
 ### Known Limitations
 

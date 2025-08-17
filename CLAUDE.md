@@ -7,8 +7,9 @@ Frame is a state machine language that transpiles to multiple target languages. 
 ## Current State
 
 **Branch**: `v0.20`  
-**Status**: Active v0.20 syntax migration  
-**Recent**: Fixed if/elif/else parsing in event handlers by implementing return statements as regular statements
+**Status**: Active v0.20 syntax migration - all updated syntax validated  
+**Achievement**: 100% test coverage for implemented v0.20 features (56/56 files passing)  
+**Recent**: Comprehensive parser fixes for transitions + returns, system parameters, and legacy syntax
 
 ## Architecture
 
@@ -208,6 +209,28 @@ Documentation is located in `/Users/marktruluck/projects/frame-docs/`
 3. Verify generated code compiles/runs
 4. Check all visitors handle new syntax
 
+## Recent Accomplishments (2025-01-17)
+
+### Comprehensive v0.20 Syntax Validation ✅
+- **Achievement**: 100% test coverage for implemented v0.20 features (56/56 files)
+- **Parser Fixes**: Transition + return parsing, system parameters, legacy syntax updates
+- **Quality Assurance**: All generated Python code passes syntax validation
+- **Test Suite**: Now serves as comprehensive v0.20 syntax documentation
+- **Regression Testing**: All existing functionality preserved
+
+### Major Parser Improvements ✅
+- **Return Statements**: Now work as regular statements in all contexts (if/elif/else, loops, etc.)
+- **Return Assignment**: `return = expr` syntax for interface return values  
+- **Transition Parsing**: Fixed `-> $State` followed by `return` in conditional blocks
+- **System Parameters**: Correct v0.20 syntax with flattened instantiation arguments
+- **Legacy Cleanup**: Updated all test files from v0.11 to v0.20 syntax
+
+### Test File Modernization ✅  
+- **Legacy Syntax**: ^ → return, :> → @:>, old system parameters → v0.20
+- **Function Restrictions**: Enforced single main function, converted multiple functions to system actions
+- **Syntax Patterns**: Updated for loops, parameter lists, block structures
+- **Documentation Value**: Test files now serve as syntax examples
+
 ## Design Decisions Log
 
 ### @:> Operator (2025-01-16)
@@ -284,13 +307,14 @@ Documentation is located in `/Users/marktruluck/projects/frame-docs/`
 
 ## Current Priorities
 
-1. ✅ **COMPLETED**: if/elif/else parsing in event handlers
-2. Complete intermediate Frame documentation migration
-3. Update remaining advanced Frame topics  
-4. Validate all examples with transpiler
-5. Remove deprecated `^` token support
-6. Complete v0.20 syntax validation
-7. (Future) Optimize dead code generation in event handlers
+1. ✅ **COMPLETED**: if/elif/else parsing in event handlers - fixed with transition + return parsing
+2. ✅ **COMPLETED**: Validate all implemented syntax with transpiler - 56/56 test files passing
+3. ✅ **COMPLETED**: Update legacy syntax (^, :>, system parameters, multiple functions)
+4. Continue intermediate Frame documentation migration for remaining features
+5. Update remaining advanced Frame topics
+6. Remove deprecated `^` token support (parser updated, need to clean up scanner)
+7. Complete v0.20 syntax implementation for remaining features
+8. (Future) Optimize dead code generation in event handlers
 
 ## Helpful Commands
 

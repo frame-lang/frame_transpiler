@@ -4130,7 +4130,14 @@ impl<'a> Parser<'a> {
                                 match stmt_t {
                                     StatementType::TransitionStmt { .. } => {
                                         statements.push(decl_or_statement);
-                                        // must be last statement in event handler so return
+                                        // Check for optional return statement after transition (v0.20)
+                                        // Consume the return token if present but don't generate AST node
+                                        // since transitions already terminate execution
+                                        if self.check(TokenType::Return_) {
+                                            self.advance(); // consume 'return' token
+                                            // Don't add return statement to AST - transition already terminates
+                                        }
+                                        // Transition (with optional return) must be last in event handler
                                         return statements;
                                     }
                                     StatementType::ExpressionStmt { expr_stmt_t } => {
