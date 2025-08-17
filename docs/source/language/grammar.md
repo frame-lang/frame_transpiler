@@ -19,6 +19,8 @@ type: ':' type_expr
 type_expr: IDENTIFIER | SUPERSTRING
 ```
 
+**Note**: Function parameter lists always require parentheses `()`, even when empty. The `parameter_list?` indicates the parameters inside are optional, but the parentheses themselves are mandatory.
+
 ### Function Examples
 ```frame
 // Basic main function
@@ -546,6 +548,7 @@ elif condition2 {
 // For loops
 for_stmt: 'for' (var_decl | identifier) 'in' expr ':' stmt
         | 'for' (var_decl | identifier) 'in' expr block
+        | 'for' var_decl ';' expr ';' expr block  // C-style for loop
 
 // While loops  
 while_stmt: 'while' expr ':' stmt
@@ -582,6 +585,19 @@ for item in items {
 // With variable declaration
 for var item in items:
     process(item)
+```
+
+#### C-style for loops
+```frame
+// Traditional index-based iteration
+for var i = 0; i < len(list); i = i + 1 {
+    print("Item " + str(i) + ": " + str(list[i]))
+}
+
+// Countdown loop
+for var i = 10; i > 0; i = i - 1 {
+    print("Countdown: " + str(i))
+}
 ```
 
 #### While loops
