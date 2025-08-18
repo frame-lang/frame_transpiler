@@ -206,6 +206,8 @@ impl Scanner {
                 }
                 if self.match_char('>') {
                     self.add_token(TokenType::EnterStateMsg);
+                } else if self.match_char('@') {
+                    self.add_token(TokenType::DollarAt);
                 } else if self.match_char('$') {
 
                     let st;
@@ -311,6 +313,10 @@ impl Scanner {
                     self.advance(); // consume ':'
                     self.advance(); // consume '>'
                     self.add_token(TokenType::DispatchToParentState);
+                } else if self.peek() == '@' {
+                    // Found @@ - consume second @
+                    self.advance(); // consume second '@'
+                    self.add_token(TokenType::AtAt);
                 } else {
                     self.add_token(TokenType::At);
                 }
@@ -808,6 +814,8 @@ pub enum TokenType {
     StateStackOperationPop,  // $$[-]
     Dot,                     // .
     At,                      // @
+    AtAt,                    // @@
+    DollarAt,                // $@ - current event reference
     PipePipe,                // ||
     PipePipeDot,             // ||.
     PipePipeLBracket,        // ||[

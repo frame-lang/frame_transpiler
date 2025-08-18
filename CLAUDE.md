@@ -57,6 +57,15 @@ Target Code (Python, C#, etc.)
 - **Old**: `:>` (deprecated)
 - **New**: `@:>` (DispatchToParentState)
 
+### Attributes (NEW in v0.20)
+- **Old**: `#[static]` (Rust-style)
+- **New**: `@staticmethod` (Python-style)
+
+### Current Event Reference (NEW in v0.20)
+- **Old**: `@` for current event
+- **New**: `$@` for current event
+- **Note**: Single `@` now reserved for Python-style attributes
+
 ### System Parameters
 - **Old**: `#System [$[start], >[enter], #[domain]]`
 - **New**: `system System ($(start), $>(enter), domain)`
@@ -208,6 +217,22 @@ Documentation is located in `/Users/marktruluck/projects/frame-docs/`
 2. Test with sample .frm files
 3. Verify generated code compiles/runs
 4. Check all visitors handle new syntax
+
+## Recent Accomplishments (2025-01-18)
+
+### @ Symbol Refactoring for v0.20 ✅
+- **Achievement**: Successfully refactored @ symbol usage for clearer semantics
+- **Python Attributes**: Adopted `@staticmethod` and other Python decorators as standard
+- **Current Event**: Changed from `@` to `$@` to align with Frame's $ prefix pattern
+- **FrameEvents**: Reserved `@@` for FrameEvent markers
+- **Implementation**: Updated scanner, parser, AST, and Python visitor
+- **Documentation**: Updated all Frame documentation to reflect new syntax
+
+### Static Operations Support ✅
+- **Parser**: Now correctly recognizes `@staticmethod` attribute
+- **Code Generation**: Python visitor generates proper `@staticmethod` decorator
+- **Method Signature**: Static methods correctly omit `self` parameter
+- **Validation**: All operations.rst examples now generate working Python code
 
 ## Recent Accomplishments (2025-01-17)
 

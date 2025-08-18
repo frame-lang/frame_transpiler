@@ -1361,6 +1361,17 @@ impl<'a> Parser<'a> {
                 if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
                     return Err(parse_error);
                 }
+            } else if self.match_token(&[TokenType::At]) {
+                // Handle @static, @async, etc. decorator syntax
+                if !self.match_token(&[TokenType::Identifier]) {
+                    let err_msg = "Expected attribute name after '@'.";
+                    self.error_at_current(err_msg);
+                    return Err(ParseError::new(err_msg));
+                }
+                let attribute_name = self.previous().lexeme.clone();
+                let attr = AttributeMetaWord::new(attribute_name.clone(), AttributeAffinity::Outer);
+                let attribute_node = AttributeNode::MetaWord { attr };
+                attributes.insert(attribute_name, attribute_node);
             } else {
                 break;
             }
@@ -1721,7 +1732,7 @@ impl<'a> Parser<'a> {
                 is_reference = true
             }
             let mut frame_event_part_opt = None;
-            if self.match_token(&[TokenType::At]) {
+            if self.match_token(&[TokenType::DollarAt]) {
                 // TODO - review this
                 frame_event_part_opt = Some(FrameEventPart::Event { is_reference })
             } else if self.match_token(&[TokenType::Identifier]) {
@@ -2462,7 +2473,8 @@ impl<'a> Parser<'a> {
             if matches!(
                 self.peek().token_type,
                 TokenType::OuterAttributeOrDomainParams
-            ) || matches!(self.peek().token_type, TokenType::Identifier)
+            ) || matches!(self.peek().token_type, TokenType::At)
+                || matches!(self.peek().token_type, TokenType::Identifier)
             {
                 if let Ok(operation_node) = self.operation_scope() {
                     operations.push(operation_node);
@@ -6839,15 +6851,15 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     // Parse FrameEvent "part" identifier:
-    // @||  - Event message
-    // @[p] - Event parameter
-    // @^   - Event return object/value
+    // $@||  - Event message
+    // $@[p] - Event parameter
+    // $@^   - Event return object/value
 
     fn frame_event_part(
         &mut self,
         is_reference: bool,
     ) -> Result<Option<FrameEventPart>, ParseError> {
-        if !self.match_token(&[TokenType::At]) {
+        if !self.match_token(&[TokenType::DollarAt]) {
             return Ok(None);
         }
 

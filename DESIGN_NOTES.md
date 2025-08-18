@@ -1,5 +1,70 @@
 # Frame Language Design Notes
 
+## @ Symbol Refactoring for v0.20
+
+### Decision: Separate @ Usage for Attributes, Events, and Current Event
+
+**Date**: 2025-01-18  
+**Context**: Aligning Frame with Python-style attributes while preserving event semantics
+
+### Design Decision
+
+Frame v0.20 refactors the `@` symbol usage to better align with modern language conventions:
+
+1. **`@`** - Python-style attributes (e.g., `@static` instead of `#[static]`)
+2. **`@@`** - FrameEvent declarations/references
+3. **`$@`** - Current event reference (replacing bare `@`)
+
+### Token Mapping
+
+| Old Syntax | New Syntax | Purpose |
+|------------|------------|---------|
+| `#[static]` | `@staticmethod` | Static method attribute (Python standard) |
+| `#[attribute]` | `@attribute` | General attributes |
+| `@` | `$@` | Current event reference |
+| `@[]` | `$@[]` | Current event parameters |
+| `@["key"]` | `$@["key"]` | Current event parameter by key |
+| N/A | `@@` | FrameEvent marker |
+
+### Python Attribute Standards
+
+Frame adopts Python's built-in decorator names as the standard:
+- `@staticmethod` - Static methods (not `@static`)
+- `@classmethod` - Class methods (if/when supported)
+- `@property` - Properties (if/when supported)
+- Custom Frame attributes will follow Python naming conventions (lowercase_with_underscores)
+
+### Rationale
+
+- **Python Alignment**: Single `@` for attributes matches Python decorators, which are more familiar to developers than Rust's `#[attr]` syntax
+- **Frame Consistency**: `$@` for current event aligns with Frame's `$` prefix pattern (`$State`, `$>()`, `$<()`)
+- **Clear Semantics**: `@@` double-at provides a distinctive marker for FrameEvents
+- **No Ambiguity**: Each @ variant has a unique, unambiguous meaning
+- **Python as Standard**: Frame will adopt Python attribute conventions as the standard, only deviating when technically necessary
+
+### Implementation Plan
+
+1. **Scanner Changes**: 
+   - Add `TokenType::DollarAt` for `$@` sequence
+   - Keep `TokenType::At` for attributes
+   - Keep `TokenType::AtAt` for FrameEvents (already implemented)
+
+2. **Parser Updates**:
+   - Update event reference parsing to expect `$@` instead of `@`
+   - Update attribute parsing to use `@` instead of `#[...]`
+
+3. **Documentation Updates**:
+   - `operations.rst`: Change `#[static]` to `@static`
+   - `intermediate_events.rst`: Update event reference syntax to `$@`
+
+### Migration Impact
+
+- **Breaking Change**: Yes, for both attributes and event references
+- **Migration Path**: Clear mechanical transformation
+- **Benefits**: More intuitive syntax, better alignment with mainstream languages
+
+---
+
 ## @:> (DispatchToParentState) Operator
 
 ### Decision: Block Terminator with Implicit Return

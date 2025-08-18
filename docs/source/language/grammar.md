@@ -195,7 +195,40 @@ domain_var: 'var' IDENTIFIER type? '=' expr
 ```bnf
 operations_block: 'operations:' operation*
 operation: attribute* IDENTIFIER '(' parameter_list? ')' type? '{' stmt* '}'
-attribute: '#[' IDENTIFIER ']'
+attribute: '@' IDENTIFIER  // Python-style attributes (e.g., @staticmethod)
+```
+
+### Operations Examples
+
+#### Instance Operations
+```frame
+system Calculator {
+    operations:
+        // Instance operation - includes implicit 'self' parameter
+        getResult(): int {
+            return currentValue
+        }
+    
+    domain:
+        var currentValue: int = 0
+}
+```
+
+#### Static Operations  
+```frame
+system MathUtils {
+    operations:
+        // Static operation - no 'self' parameter, callable without instance
+        @staticmethod
+        add(a: int, b: int): int {
+            return a + b
+        }
+        
+        @staticmethod
+        multiply(x: int, y: int): int {
+            return x * y
+        }
+}
 ```
 
 ## Conditional Statements
@@ -791,6 +824,14 @@ The following syntax from Frame v0.11 is deprecated in v0.20:
 10. **Event forwarding to parent**:
    - Old: `:>` (v0.11-v0.19)
    - New: `@:>` (v0.20)
+
+11. **Attributes**:
+   - Old: `#[static]` (Rust-style)
+   - New: `@staticmethod` (Python-style)
+
+12. **Current event reference**:
+   - Old: `@` for current event
+   - New: `$@` for current event (single `@` now reserved for attributes)
 
 ### System Parameter Migration Guide
 

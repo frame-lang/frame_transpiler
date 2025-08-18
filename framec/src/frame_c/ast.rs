@@ -543,7 +543,8 @@ impl OperationNode {
 
     pub fn is_static(&self) -> bool {
         if let Some(attributes_map) = &self.attributes_opt {
-            let is_static = attributes_map.get("static");
+            // Check for both "static" (legacy) and "staticmethod" (v0.20 Python-style)
+            let is_static = attributes_map.get("staticmethod").or_else(|| attributes_map.get("static"));
             is_static.is_some()
         } else {
             false
