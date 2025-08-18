@@ -1144,8 +1144,9 @@ impl AstVisitor for GraphVizVisitor {
         // Generate statements
         self.visit_decl_stmts(&evt_handler_node.statements);
 
-        let terminator_node = &evt_handler_node.terminator_node;
-        terminator_node.accept(self);
+        if let Some(terminator_node) = &evt_handler_node.terminator_node {
+            terminator_node.accept(self);
+        }
 
         // this controls formatting here
         self.first_event_handler = false;

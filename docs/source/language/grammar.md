@@ -179,6 +179,7 @@ event_selector: IDENTIFIER '(' parameter_list? ')' type?
 terminator: 'return' expr?
           | '@:>'             // Forward event to parent state
           | '=>'              // Forward/dispatch event
+          | '->' '$' IDENTIFIER  // Transition
 state_var: 'var' IDENTIFIER type? '=' expr
 ```
 
@@ -479,9 +480,10 @@ machine:
 
 1. **Enter/Exit Syntax**: Uses `$>()` for enter and `<$()` for exit events
 2. **Parameter Passing**: Both enter and exit handlers can accept parameters
-3. **Terminator Required**: All event handlers must end with a terminator (`return`, `@:>`, or `=>`)
+3. **Terminator Optional**: Event handlers can optionally end with a terminator (`return`, `@:>`, `=>`, or `->`)
 4. **HSM Support**: Full hierarchical state machine support with `=>` operator
 5. **Event Forwarding**: Multiple forwarding mechanisms for different use cases
+6. **Block Terminators**: Transitions (`->`) are block terminators - no statements can follow them
 
 ## Examples
 
@@ -548,7 +550,7 @@ elif condition2 {
 // For loops
 for_stmt: 'for' (var_decl | identifier) 'in' expr ':' stmt
         | 'for' (var_decl | identifier) 'in' expr block
-        | 'for' var_decl ';' expr ';' expr block  // C-style for loop
+        | 'for' var_decl ';' expr ';' expr block  // C-style for loop with 'for' keyword
 
 // While loops  
 while_stmt: 'while' expr ':' stmt
@@ -565,8 +567,9 @@ loop_stmt: 'loop' '{' stmt* '}'
 1. **Python-style keywords**: Use `for` and `while` instead of generic `loop`
 2. **Consistent syntax with conditionals**: Support both `:` for single statements and `{}` for blocks
 3. **For-in loops**: Primary iteration pattern following Python
-4. **While loops**: Condition-based loops with clear syntax
-5. **Backward compatibility**: Original `loop` syntax still supported
+4. **C-style for loops**: Support traditional three-part loops with both `for` and `loop` keywords
+5. **While loops**: Condition-based loops with clear syntax
+6. **Backward compatibility**: Original `loop` syntax still supported
 
 ### Loop Examples
 
@@ -589,7 +592,7 @@ for var item in items:
 
 #### C-style for loops
 ```frame
-// Traditional index-based iteration
+// Traditional index-based iteration using 'for' keyword
 for var i = 0; i < len(list); i = i + 1 {
     print("Item " + str(i) + ": " + str(list[i]))
 }
@@ -597,6 +600,11 @@ for var i = 0; i < len(list); i = i + 1 {
 // Countdown loop
 for var i = 10; i > 0; i = i - 1 {
     print("Countdown: " + str(i))
+}
+
+// Note: The 'loop' keyword also supports C-style syntax for backward compatibility
+loop var j = 0; j < 5; j = j + 1 {
+    print("Loop iteration: " + str(j))
 }
 ```
 
@@ -880,6 +888,29 @@ $StateName {
       return
   }
   ```
+
+**Event Handler Terminator Optionality (2025-01-17)** ✅ **COMPLETED**
+- **Grammar**: `event_handler: event_selector '{' stmt* terminator? '}'`
+- **Implementation**: Event handlers no longer require explicit terminators
+- **Rationale**: Block-scoped functions don't need explicit terminators in most languages
+- **Backward Compatibility**: Explicit terminators still supported and recommended for transitions
+- **Impact**: 
+  - Reduces syntactic noise in simple event handlers
+  - Maintains semantic clarity for state transitions
+  - Aligns with conventional programming language patterns
+  - Python visitor generates implicit returns only when needed
+- **Transition Requirement**: Transitions (`->`) still terminate blocks - no statements after them
+
+**C-style For Loop with 'for' Keyword (2025-01-17)** ✅ **COMPLETED**
+- **Grammar**: `for var_decl ';' expr ';' expr block`
+- **Implementation**: Parser now supports C-style for loops using the `for` keyword
+- **Previous Limitation**: C-style loops only worked with `loop` keyword
+- **Enhancement**: Traditional three-part for loops now work with conventional `for` syntax
+- **Backward Compatibility**: `loop` keyword still supports C-style syntax
+- **Rationale**: Aligns Frame syntax with Python/JavaScript conventions for familiar loop patterns
+- **Examples**: 
+  - `for var i = 0; i < 10; i = i + 1 { ... }` (new)
+  - `loop var i = 0; i < 10; i = i + 1 { ... }` (legacy, still supported)
 
 **Comprehensive Test Suite Validation (2025-01-17)** ✅ **COMPLETED**
 - **Achievement**: 100% test file pass rate for implemented features (56/56 files)

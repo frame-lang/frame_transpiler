@@ -2698,16 +2698,18 @@ impl AstVisitor for PythonVisitor {
                 self.visit_decl_stmts(&operation_node.statements);
             }
             // if let Some(terminator_expr) = &operation_node.terminator_node {
-                self.newline();
                 match &operation_node.terminator_expr.terminator_type {
                     TerminatorType::Return => match &operation_node.terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
+                            self.newline();
                             self.add_code("return ");
                             expr_t.accept(self);
                             // self.newline();
                         }
                         None => {
-                            self.add_code("return");
+                            // Don't generate another return - the explicit return statement in the 
+                            // operation body already generated one
+                            // self.add_code("return");
                             // self.newline();
                         }
                     },
@@ -3007,8 +3009,9 @@ impl AstVisitor for PythonVisitor {
         //     self.add_code("pass");
         // }
 
-        let terminator_node = &evt_handler_node.terminator_node;
-        terminator_node.accept(self);
+        if let Some(terminator_node) = &evt_handler_node.terminator_node {
+            terminator_node.accept(self);
+        }
         self.outdent();
         // self.newline();
 
@@ -3039,7 +3042,11 @@ impl AstVisitor for PythonVisitor {
                     self.generate_return();
                     self.newline();
                 }
-                None => self.generate_return(),
+                None => {
+                    // Don't generate another return - the explicit return statement in the 
+                    // event handler body already generated one
+                    // self.generate_return()
+                }
             },
             TerminatorType::DispatchToParentState => {
                 self.generate_return_if_transitioned();
@@ -4704,6 +4711,8 @@ impl AstVisitor for PythonVisitor {
         } else {
             self.add_code("return");
         }
+        // Mark that we've generated a return to avoid duplicate in terminator
+        self.this_branch_transitioned = false;
     }
     
     //* --------------------------------------------------------------------- *//

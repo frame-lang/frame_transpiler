@@ -330,3 +330,4 @@ find . -name "*.frm"
 # Build and test in one command
 cargo build && ./target/debug/framec -l python_3 test_file.frm
 ```
+- Always indent the code in the frame blocks (operations: interface: machine: etc) in the samples that are generated or updated.

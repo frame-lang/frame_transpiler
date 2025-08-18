@@ -3982,14 +3982,8 @@ impl<'a> Parser<'a> {
         //     }
         // };
 
-        // The default termination for an event handler is to pass the event to any
-        // parent states. Return will short circut that behavior.
-
-        let mut terminator_node= crate::frame_c::ast::TerminatorExpr::new(
-            Return,
-            None,
-            self.previous().line
-        );
+        // Check for optional terminators
+        let mut terminator_node_opt: Option<TerminatorExpr> = None;
 
         if self.match_token(&[TokenType::Return_]) {
             let mut expr_t_opt: Option<ExprType> = None;
@@ -4004,23 +3998,23 @@ impl<'a> Parser<'a> {
                 }
             }
 
-            terminator_node = TerminatorExpr::new(
+            terminator_node_opt = Some(TerminatorExpr::new(
                 Return,
                 expr_t_opt,
                 self.previous().line,
-            );
+            ));
         } else if self.match_token(&[TokenType::Dispatch]) {
-            terminator_node = TerminatorExpr::new(
+            terminator_node_opt = Some(TerminatorExpr::new(
                 DispatchToParentState,
                 None,
                 self.previous().line,
-            );
+            ));
         } else if self.match_token(&[TokenType::DispatchToParentState]) {
-            terminator_node = TerminatorExpr::new(
+            terminator_node_opt = Some(TerminatorExpr::new(
                 DispatchToParentState,
                 None,
                 self.previous().line,
-            );
+            ));
         }
 
         self.consume(TokenType::CloseBrace, "Expected '}'");
@@ -4052,7 +4046,7 @@ impl<'a> Parser<'a> {
             st_name,
             message_type,
             statements,
-            terminator_node,
+            terminator_node_opt,
             ret_event_symbol_rcref,
             self.event_handler_has_transition,
             line_number,
@@ -6367,6 +6361,131 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     fn for_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
+        // Check if this is a C-style for loop by looking for var declaration followed by semicolon
+        // or an assignment followed by semicolon
+        let checkpoint = self.current;
+        
+        // Try to parse as C-style for loop first
+        // for var i = 0; i < 10; i = i + 1 { ... }
+        // for i = 0; i < 10; i = i + 1 { ... }
+        
+        let mut init_stmt = LoopFirstStmt::None;
+        let mut is_c_style = false;
+        
+        if self.match_token(&[TokenType::Var]) {
+            // Try parsing var declaration
+            match self.var_declaration(IdentifierDeclScope::LoopVarScope) {
+                Ok(var_decl_t_rc_ref) => {
+                    if self.match_token(&[TokenType::Semicolon]) {
+                        // This is C-style for loop
+                        is_c_style = true;
+                        init_stmt = LoopFirstStmt::VarDecl {
+                            var_decl_node_rcref: var_decl_t_rc_ref,
+                        };
+                    } else {
+                        // Check for 'in' - this is for-in loop
+                        if self.match_token(&[TokenType::In]) {
+                            // Continue with for-in loop parsing
+                            self.current = checkpoint;
+                            return self.for_in_statement();
+                        } else {
+                            self.error_at_current("Expected ';' for C-style loop or 'in' for iteration.");
+                            return Err(ParseError::new("Invalid for loop syntax."));
+                        }
+                    }
+                }
+                Err(parse_error) => return Err(parse_error),
+            }
+        } else {
+            // Check if identifier or expression
+            let first_expr_result = self.expression();
+            match first_expr_result {
+                Ok(Some(expr_type)) => {
+                    if self.match_token(&[TokenType::Semicolon]) {
+                        // C-style for loop with expression init
+                        is_c_style = true;
+                        init_stmt = match expr_type {
+                            VariableExprT { var_node } => LoopFirstStmt::Var { var_node },
+                            AssignmentExprT {
+                                assignment_expr_node,
+                            } => LoopFirstStmt::VarAssign {
+                                assign_expr_node: assignment_expr_node,
+                            },
+                            _ => {
+                                let err_msg = "Invalid initialization in C-style for loop.";
+                                self.error_at_current(err_msg);
+                                return Err(ParseError::new(err_msg));
+                            }
+                        };
+                    } else if self.match_token(&[TokenType::In]) {
+                        // This is for-in loop, reset and parse as for-in
+                        self.current = checkpoint;
+                        return self.for_in_statement();
+                    } else {
+                        self.error_at_current("Expected ';' for C-style loop or 'in' for iteration.");
+                        return Err(ParseError::new("Invalid for loop syntax."));
+                    }
+                }
+                Ok(None) => {
+                    // Empty init clause in C-style loop
+                    if self.match_token(&[TokenType::Semicolon]) {
+                        is_c_style = true;
+                    } else {
+                        self.error_at_current("Expected expression or variable declaration after 'for'.");
+                        return Err(ParseError::new("Invalid for loop syntax."));
+                    }
+                }
+                Err(err) => return Err(err),
+            }
+        }
+        
+        if is_c_style {
+            // Continue parsing C-style for loop
+            // We've already consumed init and first semicolon
+            // Now parse condition
+            let condition_expr_t_opt = self.expression()?;
+            
+            if !self.match_token(&[TokenType::Semicolon]) {
+                self.error_at_current("Expected ';' after for loop condition.");
+                return Err(ParseError::new("Expected ';' after for loop condition."));
+            }
+            
+            // Parse increment expression
+            let inc_expr_t_opt = self.expression()?;
+            
+            // Parse block
+            if !self.match_token(&[TokenType::OpenBrace]) {
+                self.error_at_current("Expected '{' after for loop header.");
+                return Err(ParseError::new("Expected '{' after for loop header."));
+            }
+            
+            let statements = self.statements(IdentifierDeclScope::BlockVarScope);
+            
+            if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
+                return Err(parse_error);
+            }
+            
+            // Create a LoopForStmtNode using existing loop infrastructure
+            let loop_for_stmt_node = LoopForStmtNode::new(
+                Some(init_stmt),
+                condition_expr_t_opt,
+                inc_expr_t_opt,
+                statements,
+            );
+            
+            let loop_stmt_node = LoopStmtNode::new(LoopStmtTypes::LoopForStmt {
+                loop_for_stmt_node,
+            });
+            
+            Ok(Some(StatementType::LoopStmt { loop_stmt_node }))
+        } else {
+            // Should not reach here as we handle for-in above
+            self.current = checkpoint;
+            self.for_in_statement()
+        }
+    }
+    
+    fn for_in_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
         let mut variable: Option<VariableNode> = None;
         let mut identifier: Option<IdentifierNode> = None;
 
