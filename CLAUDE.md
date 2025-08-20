@@ -224,19 +224,21 @@ Documentation is located in `/Users/marktruluck/projects/frame-docs/`
 - **Achievement**: Full implementation of new parent dispatch syntax replacing deprecated `@:>`
 - **Parser Enhancement**: Added validation to prevent `=> $^` in non-hierarchical states  
 - **AST Updates**: Enhanced `ParentDispatchStmtNode` with parent state tracking
-- **Code Generation**: Generates actual parent state calls with transition detection
+- **Code Generation**: Router-based architecture eliminates hardcoded parent method names
 - **Auto-Return**: Parser automatically adds return terminators to event handlers without explicit returns
 - **Double Return Fix**: Resolved issue where both explicit and auto-generated returns were being created
+- **Router Architecture**: Unified all parent dispatch through existing router infrastructure
 - **Test Coverage**: Comprehensive test suite with 57/57 files passing validation
 - **Documentation**: Updated all syntax documentation and examples
 
 ### Key Features Implemented ✅
 - **Statement Syntax**: `=> $^` can appear anywhere in event handler (not just as terminator)
-- **Parent Call**: Generates `self.parent_state(__e, compartment.parent_compartment)`
+- **Router-Based Dispatch**: Uses `self.__router(__e, compartment.parent_compartment)` for clean architecture
 - **Transition Safety**: Code after `=> $^` doesn't execute if parent triggers transition
 - **Validation**: Parser prevents invalid usage in non-hierarchical states
 - **Compatibility**: Works in all event handler types including enter/exit handlers
 - **Smart Returns**: Parser intelligently avoids double return generation
+- **Architectural Consistency**: Both explicit and fallback parent dispatch use same router mechanism
 
 ## Recent Accomplishments (2025-01-18)
 
@@ -284,6 +286,16 @@ Documentation is located in `/Users/marktruluck/projects/frame-docs/`
 - **Implementation**: Parser validates hierarchical context, AST tracks parent state, visitor generates parent call
 - **Transition Safety**: Generated code checks for transitions after parent call and returns early if needed
 - **Validation**: Parser error if used in non-hierarchical state
+
+### Router-Based Parent Dispatch Architecture (2025-01-20)
+- **Decision**: Use existing `__router` infrastructure for all parent dispatch instead of hardcoded method names
+- **Rationale**: Maintains architectural consistency, eliminates code duplication, easier maintenance
+- **Implementation**: 
+  - Modified router signature: `__router(self, __e, compartment=None)`
+  - Parent dispatch: `self.__router(__e, compartment.parent_compartment)`
+  - Fallback dispatch also uses router for consistency
+- **Benefits**: Dynamic state resolution, no hardcoded names, single point of routing logic
+- **Compatibility**: Preserves all existing functionality while improving code quality
 
 ### v0.20 System Parameters
 - **Decision**: Flattened argument lists for instantiation

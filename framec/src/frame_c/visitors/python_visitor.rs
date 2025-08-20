@@ -1040,8 +1040,10 @@ impl PythonVisitor {
                 self.outdent();
                 self.newline();
                 self.newline();
-                self.add_code("def __router(self, __e):");
+                self.add_code("def __router(self, __e, compartment=None):");
                 self.indent();
+                self.newline();
+                self.add_code("target_compartment = compartment or self.__compartment");
                 self.newline();
 
                 let _current_index = 0;
@@ -1053,16 +1055,16 @@ impl PythonVisitor {
                         .format_target_state_name(&state_node_rcref.borrow().name)
                         .to_string();
                     if current_index == 0 {
-                        self.add_code(&format!("if self.__compartment.state == '{}':", state_name));
+                        self.add_code(&format!("if target_compartment.state == '{}':", state_name));
                     } else {
                         self.add_code(&format!(
-                            "elif self.__compartment.state == '{}':",
+                            "elif target_compartment.state == '{}':",
                             state_name
                         ));
                     }
                     self.indent();
                     self.newline();
-                    self.add_code(&format!("self.{}(__e, self.__compartment)", state_name));
+                    self.add_code(&format!("self.{}(__e, target_compartment)", state_name));
                     self.outdent();
                     if current_index != len {
                         self.newline();
@@ -3234,10 +3236,7 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_dispatch_node(&mut self, dispatch_node: &DispatchNode) {
         self.newline();
-        self.add_code(&format!(
-            "self.{}(__e, compartment.parent_compartment)",
-            self.format_target_state_name(&dispatch_node.target_state_ref.name)
-        ));
+        self.add_code("self.__router(__e, compartment.parent_compartment)");
         self.generate_comment(dispatch_node.line);
         self.newline();
     }
@@ -4705,27 +4704,16 @@ impl AstVisitor for PythonVisitor {
     fn visit_parent_dispatch_stmt_node(&mut self, _parent_dispatch_stmt_node: &ParentDispatchStmtNode) {
         self.newline();
         self.add_code("# => $^ parent dispatch");
+        self.newline();
+        self.add_code("self.__router(__e, compartment.parent_compartment)");
         
-        // Generate parent call using same pattern as visit_dispatch_node
-        if let Some(parent_state_name) = self.current_state_parent_opt.clone() {
-            self.newline();
-            self.add_code(&format!(
-                "self.{}(__e, compartment.parent_compartment)",
-                self.format_target_state_name(&parent_state_name)
-            ));
-            
-            // Check if a transition was triggered and return early
-            self.newline();
-            self.add_code("if self.__next_compartment is not None:");
-            self.indent();
-            self.newline();
-            self.add_code("return");
-            self.outdent();
-        } else {
-            // This should be caught by parser validation
-            self.newline();
-            self.add_code("# ERROR: => $^ used but no parent state found");
-        }
+        // Check if a transition was triggered and return early
+        self.newline();
+        self.add_code("if self.__next_compartment is not None:");
+        self.indent();
+        self.newline();
+        self.add_code("return");
+        self.outdent();
     }
     
     //* --------------------------------------------------------------------- *//
