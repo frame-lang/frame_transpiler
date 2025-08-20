@@ -5757,7 +5757,15 @@ impl<'a> Parser<'a> {
                 }
                 Ok(Some(_)) => return Err(ParseError::new("TODO")), // TODO
                 Err(parse_error) => return Err(parse_error),
-                Ok(None) => self.error_at_current("Empty expression list '()' not allowed "), // continue
+                Ok(None) => {
+                    // v0.20: Allow empty expression lists '()'
+                    self.consume(TokenType::RParen, "Expected ')'");
+                    // Return empty expression list for v0.20 compatibility
+                    let empty_expr_list = ExprListNode::new(Vec::new());
+                    return Ok(Some(ExprListT {
+                        expr_list_node: empty_expr_list,
+                    }))
+                }
             }
         }
 
@@ -7172,12 +7180,71 @@ impl<'a> Parser<'a> {
                                 ParseError::new(err_msg.as_str());
                             return Err(parse_error);
                         }
-                    } else {
+                    } else if !self.check(TokenType::LParen) {
+                        // No dot and no method call - just return the call chain as is
                         let call_chain_expr_node = CallChainExprNode::new(call_chain);
                         return Ok(Some(CallChainExprT {
                             call_chain_expr_node,
                         }));
                     }
+                    // Continue parsing if we have a method call (LParen)
+                    // The method identifier is already in call_chain, no need to set up id_node
+                    // Jump directly to the main loop to handle the method call
+                    let mut is_first_node = false; // we're not the first node since we have self
+                    loop {
+                        if self.match_token(&[TokenType::LParen]) {
+                            // Get the last node from call_chain to process as a method call
+                            if let Some(last_node) = call_chain.back() {
+                                let method_name = match last_node {
+                                    CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
+                                        id_node.name.lexeme.clone()
+                                    }
+                                    CallChainNodeType::VariableNodeT { var_node } => {
+                                        var_node.id_node.name.lexeme.clone()
+                                    }
+                                    CallChainNodeType::OperationRefT { operation_ref_expr_node } => {
+                                        operation_ref_expr_node.name.clone()
+                                    }
+                                    _ => String::new(),
+                                };
+                                
+                                if !method_name.is_empty() {
+                                    // Create a temporary id_node for finish_call using previous token as base
+                                    let mut temp_token = self.previous().clone();
+                                    temp_token.token_type = TokenType::Identifier;
+                                    temp_token.lexeme = method_name;
+                                    let temp_id_node = IdentifierNode::new(
+                                        temp_token,
+                                        None,
+                                        scope.clone(),
+                                        false,
+                                        self.previous().line,
+                                    );
+                                    
+                                    let call_expr_node_result = self.finish_call(temp_id_node);
+                                    match call_expr_node_result {
+                                        Ok(call_expr_node) => {
+                                            // Replace the last node with a method call
+                                            call_chain.pop_back();
+                                            let call_t = CallChainNodeType::UndeclaredCallT {
+                                                call_node: call_expr_node,
+                                            };
+                                            call_chain.push_back(call_t);
+                                            break;
+                                        }
+                                        Err(parse_error) => return Err(parse_error),
+                                    }
+                                }
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+                    
+                    let call_chain_expr_node = CallChainExprNode::new(call_chain);
+                    return Ok(Some(CallChainExprT {
+                        call_chain_expr_node,
+                    }));
                 } else {
                     let err_msg = format!("Expected Identifier. Found '{}'.", self.previous().lexeme);
                     self.error_at_previous(&err_msg);

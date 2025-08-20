@@ -21,6 +21,8 @@ type_expr: IDENTIFIER | SUPERSTRING
 
 **Note**: Function parameter lists always require parentheses `()`, even when empty. The `parameter_list?` indicates the parameters inside are optional, but the parentheses themselves are mandatory.
 
+**v0.20 Feature**: Empty parameter lists `()` are fully supported in v0.20, unlike v0.11 which rejected empty parameter syntax in certain contexts.
+
 ### Function Examples
 ```frame
 // Basic main function
@@ -856,6 +858,10 @@ The following syntax from Frame v0.11 is deprecated in v0.20:
    - Old: `@` for current event
    - New: `$@` for current event (single `@` now reserved for attributes)
 
+13. **Empty parameter lists**:
+   - Old: v0.11 rejected `()` in certain parsing contexts
+   - New: v0.20 fully supports empty parameter lists `()` in all method calls, interface declarations, and event handlers
+
 ### System Parameter Migration Guide
 
 | v0.11 Syntax | v0.20 Syntax | Description |
@@ -907,6 +913,15 @@ $StateName {
 ## Implementation Status
 
 ### v0.20 Recent Updates
+
+**Empty Parameter List Support (2025-01-20)** ✅ **COMPLETED**
+- **Achievement**: Full support for empty parameter lists `()` in all contexts
+- **Parser Enhancement**: Fixed v0.11 restriction that rejected empty parameter syntax in certain contexts
+- **Method Calls**: `self.method()` calls now parse and generate correct Python code  
+- **Interface Declarations**: Empty parameter interfaces like `quit()` fully supported
+- **Code Generation**: Fixed Python visitor to correctly handle `self.method()` → `method()` transformation
+- **Test Validation**: All services documentation examples now compile successfully
+- **Impact**: Enables conventional method call patterns and interface definitions without parameters
 
 **Return Statements as Regular Statements (2025-01-16)** ✅ **COMPLETED**
 - **Grammar**: `return_stmt: 'return' expr?` 
@@ -1013,6 +1028,7 @@ $StateName {
 - ✅ **Event Forwarding**: => $^ statement for parent state dispatch
 - ✅ **Return Mechanisms**: Both return statements and return assignment (return = expr)
 - ✅ **Test Coverage**: 100% of test files passing for implemented v0.20 features
+- ✅ **Empty Parameter Lists**: Full support for `()` syntax in all contexts (methods, interfaces, event handlers)
 - 🔄 **Legacy Support**: v0.11 syntax documented but deprecated (parser rejects old syntax)
 
 ### Known Limitations

@@ -240,6 +240,17 @@ Documentation is located in `/Users/marktruluck/projects/frame-docs/`
 - **Smart Returns**: Parser intelligently avoids double return generation
 - **Architectural Consistency**: Both explicit and fallback parent dispatch use same router mechanism
 
+## Recent Accomplishments (2025-01-20)
+
+### Empty Parameter List Support ✅
+- **Achievement**: Full support for empty parameter lists `()` in all contexts
+- **Parser Enhancement**: Fixed v0.11 restriction that rejected empty parameter syntax in `expr_list()` parsing
+- **Method Call Fix**: `self.method()` calls now parse correctly and generate proper Python code
+- **Interface Support**: Empty parameter interfaces like `quit()` fully supported
+- **Code Generation**: Fixed Python visitor call chain handling to output `self.method()` → `method()`
+- **Test Validation**: All services documentation examples now transpile successfully
+- **Implementation**: Modified parser `unary_expression()` and call chain processing in `call()` method
+
 ## Recent Accomplishments (2025-01-18)
 
 ### @ Symbol Refactoring for v0.20 ✅
