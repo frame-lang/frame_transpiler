@@ -6,7 +6,7 @@ use super::ast::DeclOrStmtType;
 use super::ast::ExprStmtType::*;
 use super::ast::ExprType;
 use super::ast::ExprType::*;
-use super::ast::TerminatorType::{DispatchToParentState, Return};
+use super::ast::TerminatorType::Return;
 use super::ast::*;
 use super::scanner::*;
 use super::symbol_table::*;
@@ -113,6 +113,7 @@ pub struct Parser<'a> {
     is_building_symbol_table: bool,
     arcanum: Arcanum,
     state_name_opt: Option<String>,
+    state_parent_opt: Option<String>,
     had_error: bool,
     panic_mode: bool,
     errors: String,
@@ -153,6 +154,7 @@ impl<'a> Parser<'a> {
             is_building_symbol_table,
             arcanum,
             state_name_opt: None,
+            state_parent_opt: None,
             had_error: false,
             panic_mode: false,
             errors: String::new(),
@@ -3279,6 +3281,12 @@ impl<'a> Parser<'a> {
             }
         }
 
+        // Track parent state for => $^ validation
+        self.state_parent_opt = match &dispatch_opt {
+            Some(dispatch_node) => Some(dispatch_node.target_state_ref.name.clone()),
+            None => None,
+        };
+
         // add to hierarchy
 
         match &dispatch_opt {
@@ -3421,6 +3429,7 @@ impl<'a> Parser<'a> {
         }
 
         self.state_name_opt = None;
+        self.state_parent_opt = None;
 
         if pop_state_params_scope {
             self.arcanum.exit_scope(); // state params scope
@@ -4015,18 +4024,6 @@ impl<'a> Parser<'a> {
                 expr_t_opt,
                 self.previous().line,
             ));
-        } else if self.match_token(&[TokenType::Dispatch]) {
-            terminator_node_opt = Some(TerminatorExpr::new(
-                DispatchToParentState,
-                None,
-                self.previous().line,
-            ));
-        } else if self.match_token(&[TokenType::DispatchToParentState]) {
-            terminator_node_opt = Some(TerminatorExpr::new(
-                DispatchToParentState,
-                None,
-                self.previous().line,
-            ));
         }
 
         self.consume(TokenType::CloseBrace, "Expected '}'");
@@ -4054,11 +4051,32 @@ impl<'a> Parser<'a> {
 
         self.current_event_symbol_opt = None;
 
+        // Auto-add return terminator if none provided and last statement isn't already a return
+        let final_terminator_opt = match terminator_node_opt {
+            Some(terminator) => Some(terminator),
+            None => {
+                // Check if last statement is already a return statement
+                let needs_return = match statements.last() {
+                    Some(DeclOrStmtType::StmtT { stmt_t }) => {
+                        !matches!(stmt_t, StatementType::ReturnStmt { .. })
+                    },
+                    Some(DeclOrStmtType::VarDeclT { .. }) => true, // Variable declaration, need return
+                    None => true, // Empty handler needs return
+                };
+                
+                if needs_return {
+                    Some(TerminatorExpr::new(TerminatorType::Return, None, line_number))
+                } else {
+                    None // Last statement is already a return, don't add another
+                }
+            }
+        };
+
         Ok(Some(EventHandlerNode::new(
             st_name,
             message_type,
             statements,
-            terminator_node_opt,
+            final_terminator_opt,
             ret_event_symbol_rcref,
             self.event_handler_has_transition,
             line_number,
@@ -4104,8 +4122,6 @@ impl<'a> Parser<'a> {
             } else {
                 Ok(TerminatorExpr::new(Return, None, self.previous().line))
             }
-        } else if self.match_token(&[TokenType::DispatchToParentState]) {
-            Ok(TerminatorExpr::new(DispatchToParentState, None, self.previous().line))
         } else {
             Ok(TerminatorExpr::new(Return, None, self.previous().line))
         }
@@ -4286,11 +4302,6 @@ impl<'a> Parser<'a> {
     // statement ->
 
     fn statement(&mut self) -> Result<Option<StatementType>, ParseError> {
-        // Check for @:> terminator - let the terminator parser handle this
-        if self.check(TokenType::DispatchToParentState) {
-            return Ok(None);
-        }
-        
         let mut expr_t_opt: Option<ExprType> = None;
 
         // Due to Frame test and transition syntax, we need to get the first expression
@@ -4312,7 +4323,6 @@ impl<'a> Parser<'a> {
                 let sync_tokens = vec![
                     TokenType::CloseBrace,
                     TokenType::Caret,
-                    TokenType::DispatchToParentState,
                     TokenType::Identifier,
                     TokenType::Pipe,
                     TokenType::State,
@@ -4583,6 +4593,32 @@ impl<'a> Parser<'a> {
                 }
             }
         }
+        
+        // Check for => $^ (parent dispatch)
+        if self.match_token(&[TokenType::Dispatch]) {
+            if self.match_token(&[TokenType::ParentState]) {
+                // Validate that we're in a hierarchical state
+                if self.state_parent_opt.is_none() {
+                    self.error_at_current("Cannot use '=> $^' parent dispatch in non-hierarchical state");
+                    return Err(ParseError::new("Parent dispatch not allowed here"));
+                }
+                
+                let target_state_ref_opt = self.state_parent_opt.as_ref().map(|parent_name| {
+                    StateRefNode {
+                        name: parent_name.clone()
+                    }
+                });
+                let parent_dispatch_stmt_node = ParentDispatchStmtNode::new(target_state_ref_opt, self.previous().line);
+                return Ok(Some(StatementType::ParentDispatchStmt {
+                    parent_dispatch_stmt_node,
+                }));
+            } else {
+                // Put the dispatch token back for error reporting
+                self.current -= 1;
+                let err_msg = "Expected '$^' after '=>' for parent dispatch";
+                return Err(ParseError::new(err_msg));
+            }
+        }
 
         // if self.match_token(&[TokenType::ChangeState]) {
         //     return match self.change_state() {
@@ -4812,21 +4848,7 @@ impl<'a> Parser<'a> {
 
         conditional_branches.push(first_branch_node);
 
-        while self.match_token(&[TokenType::DispatchToParentState]) {
-            // This enables a "dangling" DispatchToParentState.
-            // :> : :|
-            if self.peek().token_type == TokenType::Colon
-                || self.peek().token_type == TokenType::ColonBar
-            {
-                break;
-            }
-            match self.bool_test_else_continue_branch() {
-                Ok(branch_node) => {
-                    conditional_branches.push(branch_node);
-                }
-                Err(parse_error) => return Err(parse_error),
-            }
-        }
+        // Removed: dangling DispatchToParentState handling for @:> syntax
 
         // (':' bool_test_else_branch)?
         let mut bool_test_else_node_opt: Option<BoolTestElseBranchNode> = None;
@@ -4996,12 +5018,6 @@ impl<'a> Parser<'a> {
                     self.previous().line,
                 )));
             }
-        } else if self.match_token(&[TokenType::GT]) {
-            return Ok(Some(TerminatorExpr::new(
-                DispatchToParentState,
-                None,
-                self.previous().line,
-            )));
         } else {
             Ok(None)
         }
@@ -5034,21 +5050,7 @@ impl<'a> Parser<'a> {
 
         conditional_branches.push(first_branch_node);
 
-        while self.match_token(&[TokenType::DispatchToParentState]) {
-            // This enables a "dangling" DispatchToParentState.
-            // :> : :|
-            if self.peek().token_type == TokenType::Colon
-                || self.peek().token_type == TokenType::ColonBar
-            {
-                break;
-            }
-            match self.string_match_test_match_branch() {
-                Ok(branch_node) => {
-                    conditional_branches.push(branch_node);
-                }
-                Err(parse_error) => return Err(parse_error),
-            }
-        }
+        // Removed: dangling DispatchToParentState handling for @:> syntax
 
         // (':' match_test_else_branch)?
         let mut else_branch_opt: Option<StringMatchTestElseBranchNode> = None;
@@ -8405,8 +8407,8 @@ impl<'a> Parser<'a> {
 
         conditional_branches.push(first_branch_node);
 
-        while self.match_token(&[TokenType::DispatchToParentState]) {
-            // This enables a "dangling" DispatchToParentState.
+        // Removed DispatchToParentState token matching - no longer used in v0.20
+        loop {
             // :> : :|
             if self.peek().token_type == TokenType::Colon
                 || self.peek().token_type == TokenType::ColonBar
@@ -8584,8 +8586,8 @@ impl<'a> Parser<'a> {
 
         conditional_branches.push(first_branch_node);
 
-        while self.match_token(&[TokenType::DispatchToParentState]) {
-            // This enables a "dangling" DispatchToParentState.
+        // Removed DispatchToParentState token matching - no longer used in v0.20
+        loop {
             // :> : :|
             if self.peek().token_type == TokenType::Colon
                 || self.peek().token_type == TokenType::ColonBar

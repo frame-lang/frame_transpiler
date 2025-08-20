@@ -177,7 +177,6 @@ event_selector: IDENTIFIER '(' parameter_list? ')' type?
                | '$>' '(' parameter_list? ')'  // Enter handler
                | '<$' '(' parameter_list? ')'  // Exit handler
 terminator: 'return' expr?
-          | '@:>'             // Forward event to parent state
           | '=>'              // Forward/dispatch event
           | '->' '$' IDENTIFIER  // Transition
 state_var: 'var' IDENTIFIER type? '=' expr
@@ -448,13 +447,14 @@ machine:
 
 #### Event Forwarding to Parent States
 
-The `@:>` operator forwards events from child states to their parent states:
+The `=> $^` statement forwards events from child states to their parent states:
 
 ```frame
 $Child => $Parent {
     sharedEvent() {
         print("Processing in child first")
-        @:>  // Forward to parent state
+        => $^  // Forward to parent state
+        print("This continues after parent unless parent transitions")
     }
 }
 ```
@@ -506,14 +506,14 @@ machine:
 ### Event Forwarding
 
 1. **Transition forwarding**: Uses `-> =>` syntax to forward events during transitions
-2. **Parent forwarding**: Uses `@:>` to forward events to parent states in HSM
+2. **Parent forwarding**: Uses `=> $^` to forward events to parent states in HSM
 3. **Event dispatch**: Uses `=>` for general event forwarding
 
 ### Design Decisions
 
 1. **Enter/Exit Syntax**: Uses `$>()` for enter and `<$()` for exit events
 2. **Parameter Passing**: Both enter and exit handlers can accept parameters
-3. **Terminator Optional**: Event handlers can optionally end with a terminator (`return`, `@:>`, `=>`, or `->`)
+3. **Terminator Optional**: Event handlers can optionally end with a terminator (`return`, `=>`, or `->`), or use statements like `=> $^`
 4. **HSM Support**: Full hierarchical state machine support with `=>` operator
 5. **Event Forwarding**: Multiple forwarding mechanisms for different use cases
 6. **Block Terminators**: Transitions (`->`) are block terminators - no statements can follow them
@@ -688,6 +688,7 @@ stmt: expr_stmt
     | loop_stmt
     | return_stmt
     | return_assign_stmt
+    | parent_dispatch_stmt
     | transition_stmt
     | state_stack_op
     | block_stmt
@@ -699,12 +700,34 @@ var_decl: 'var' IDENTIFIER type? '=' expr
 assignment: lvalue '=' expr
 return_stmt: 'return' expr?
 return_assign_stmt: 'return' '=' expr
+parent_dispatch_stmt: '=>' '$^'
 transition_stmt: '->' '$' IDENTIFIER
 state_stack_op: '$$[' '+' ']' | '$$[' '-' ']'
 block_stmt: '{' stmt* '}'
 break_stmt: 'break'
 continue_stmt: 'continue'
 ```
+
+### Parent Dispatch Statement
+
+Frame v0.20 introduces the `=> $^` statement for forwarding events from child states to their parent states in hierarchical state machines. Unlike the deprecated `@:>` terminator, this is a regular statement that allows code to continue after the parent call (unless the parent triggers a transition):
+
+```frame
+machine:
+    $Child => $Parent {
+        testEvent() {
+            print("Child processing first")
+            => $^  // Forward to parent state
+            print("This executes after parent unless parent transitions")
+        }
+    }
+```
+
+**Key Features:**
+- **Statement syntax**: Can appear anywhere in event handler, not just at the end
+- **Transition detection**: Code after `=> $^` doesn't execute if parent triggers a transition
+- **Validation**: Parser prevents usage in non-hierarchical states
+- **Flexibility**: Multiple `=> $^` calls allowed in same handler
 
 ### Interface Return Assignment
 
@@ -822,8 +845,8 @@ The following syntax from Frame v0.11 is deprecated in v0.20:
    - New: `$>()` and `<$()`
 
 10. **Event forwarding to parent**:
-   - Old: `:>` (v0.11-v0.19)
-   - New: `@:>` (v0.20)
+   - Old: `:>` (v0.11-v0.19), `@:>` (early v0.20)
+   - New: `=> $^` (v0.20)
 
 11. **Attributes**:
    - Old: `#[static]` (Rust-style)
@@ -876,8 +899,8 @@ $StateName {
 - `<$` - Exit event symbol  
 - `->` - Transition operator
 - `=>` - Dispatch/hierarchy operator
-- `@:>` - Forward event to parent state (v0.20)
-- `@` - Current event reference
+- `=> $^` - Forward event to parent state (v0.20)
+- `$@` - Current event reference
 - `#` - System type prefix (v0.11 legacy)
 - `##` - System terminator (v0.11 legacy)
 
@@ -954,11 +977,11 @@ $StateName {
   - `loop var i = 0; i < 10; i = i + 1 { ... }` (legacy, still supported)
 
 **Comprehensive Test Suite Validation (2025-01-17)** ✅ **COMPLETED**
-- **Achievement**: 100% test file pass rate for implemented features (56/56 files)
+- **Achievement**: 100% test file pass rate for implemented features (57/57 files)
 - **Coverage**: All currently implemented v0.20 syntax features validated end-to-end
 - **Quality**: Generated Python code passes syntax validation
 - **Fixes Applied**:
-  - Legacy syntax updates (^ → return, :> → @:>)
+  - Legacy syntax updates (^ → return, :> → => $^)
   - System parameter syntax corrections (v0.11 → v0.20)
   - Multiple function restrictions enforced (main only)
   - For loop syntax modernization (C-style → iterator)
@@ -966,10 +989,18 @@ $StateName {
 - **Regression Testing**: All existing functionality preserved
 - **Parser Robustness**: Handles complex nested conditional patterns correctly
 
-**Event Forwarding (2025-01-16)** ✅ **COMPLETED**
-- **Grammar**: `@:>` operator for parent state dispatch
-- **Implementation**: Block terminator with implicit return semantics
-- **Replaces**: Deprecated `:>` operator from v0.11
+**Event Forwarding (2025-01-20)** ✅ **COMPLETED**
+- **Grammar**: `=> $^` statement for parent state dispatch
+- **Implementation**: Statement syntax (not terminator) with transition detection
+- **Validation**: Parser prevents usage in non-hierarchical states
+- **Replaces**: Deprecated `:>` and `@:>` operators
+
+**Auto-Return Statements (2025-01-20)** ✅ **COMPLETED**
+- **Feature**: Parser automatically adds return terminators to event handlers without explicit returns
+- **Grammar**: `event_handler: event_selector '{' stmt* terminator? '}'` - terminator is auto-added if missing
+- **Implementation**: Parser creates `TerminatorExpr::new(TerminatorType::Return, None, line_number)` when no terminator provided
+- **Benefit**: Event handlers can omit explicit return statements for cleaner syntax
+- **Compatibility**: Works with all event handler types including enter/exit handlers
 
 ### Grammar Coverage
 
@@ -979,7 +1010,7 @@ $StateName {
 - ✅ **Modern Syntax**: Conventional parameter syntax, block structure, flattened arguments
 - ✅ **System Parameters**: Start state, enter event, and domain parameter syntax
 - ✅ **Function Limitations**: Single main function restriction properly enforced
-- ✅ **Event Forwarding**: @:> operator for parent state dispatch
+- ✅ **Event Forwarding**: => $^ statement for parent state dispatch
 - ✅ **Return Mechanisms**: Both return statements and return assignment (return = expr)
 - ✅ **Test Coverage**: 100% of test files passing for implemented v0.20 features
 - 🔄 **Legacy Support**: v0.11 syntax documented but deprecated (parser rejects old syntax)

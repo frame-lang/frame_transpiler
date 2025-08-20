@@ -1078,7 +1078,6 @@ impl MessageNode {
 
 pub enum TerminatorType {
     Return,
-    DispatchToParentState,
 }
 
 pub struct TerminatorExpr {
@@ -1689,6 +1688,9 @@ pub enum StatementType {
     },
     ReturnStmt {
         return_stmt_node: ReturnStmtNode,
+    },
+    ParentDispatchStmt {
+        parent_dispatch_stmt_node: ParentDispatchStmtNode,
     },
     #[allow(dead_code)] // is used, don't know why I need this
     NoStmt,
@@ -3791,6 +3793,28 @@ impl ReturnStmtNode {
 impl NodeElement for ReturnStmtNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         ast_visitor.visit_return_stmt_node(self);
+    }
+}
+
+//-----------------------------------------------------//
+
+pub struct ParentDispatchStmtNode {
+    pub target_state_ref_opt: Option<StateRefNode>,
+    pub line: usize,
+}
+
+impl ParentDispatchStmtNode {
+    pub fn new(target_state_ref_opt: Option<StateRefNode>, line: usize) -> ParentDispatchStmtNode {
+        ParentDispatchStmtNode { 
+            target_state_ref_opt,
+            line 
+        }
+    }
+}
+
+impl NodeElement for ParentDispatchStmtNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_parent_dispatch_stmt_node(self);
     }
 }
 

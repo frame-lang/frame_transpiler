@@ -261,6 +261,7 @@ pub trait AstVisitor {
 
     fn visit_return_assign_stmt_node(&mut self, _return_assign_stmt_node: &ReturnAssignStmtNode) {}
     fn visit_return_stmt_node(&mut self, _return_stmt_node: &ReturnStmtNode) {}
+    fn visit_parent_dispatch_stmt_node(&mut self, _parent_dispatch_stmt_node: &ParentDispatchStmtNode) {}
 
     fn visit_self_expr_node(&mut self, _self_expr_node: &SelfExprNode) {}
     fn visit_self_expr_node_to_string(&mut self, _self_expr_node: &SelfExprNode, _output: &mut String) {}

@@ -8,8 +8,8 @@ Frame is a state machine language that transpiles to multiple target languages. 
 
 **Branch**: `v0.20`  
 **Status**: Active v0.20 syntax migration - all updated syntax validated  
-**Achievement**: 100% test coverage for implemented v0.20 features (56/56 files passing)  
-**Recent**: Comprehensive parser fixes for transitions + returns, system parameters, and legacy syntax
+**Achievement**: 100% test coverage for implemented v0.20 features (57/57 files passing)  
+**Recent**: Complete `=> $^` parent dispatch implementation with validation and auto-return statements
 
 ## Architecture
 
@@ -54,8 +54,8 @@ Target Code (Python, C#, etc.)
 - **New**: `return` and `return value`
 
 ### Event Forwarding to Parent (NEW in v0.20)
-- **Old**: `:>` (deprecated)
-- **New**: `@:>` (DispatchToParentState)
+- **Old**: `:>` (deprecated), `@:>` (terminator - deprecated)
+- **New**: `=> $^` (statement - can appear anywhere in event handler)
 
 ### Attributes (NEW in v0.20)
 - **Old**: `#[static]` (Rust-style)
@@ -218,6 +218,26 @@ Documentation is located in `/Users/marktruluck/projects/frame-docs/`
 3. Verify generated code compiles/runs
 4. Check all visitors handle new syntax
 
+## Recent Accomplishments (2025-01-20)
+
+### Complete `=> $^` Parent Dispatch Implementation ✅
+- **Achievement**: Full implementation of new parent dispatch syntax replacing deprecated `@:>`
+- **Parser Enhancement**: Added validation to prevent `=> $^` in non-hierarchical states  
+- **AST Updates**: Enhanced `ParentDispatchStmtNode` with parent state tracking
+- **Code Generation**: Generates actual parent state calls with transition detection
+- **Auto-Return**: Parser automatically adds return terminators to event handlers without explicit returns
+- **Double Return Fix**: Resolved issue where both explicit and auto-generated returns were being created
+- **Test Coverage**: Comprehensive test suite with 57/57 files passing validation
+- **Documentation**: Updated all syntax documentation and examples
+
+### Key Features Implemented ✅
+- **Statement Syntax**: `=> $^` can appear anywhere in event handler (not just as terminator)
+- **Parent Call**: Generates `self.parent_state(__e, compartment.parent_compartment)`
+- **Transition Safety**: Code after `=> $^` doesn't execute if parent triggers transition
+- **Validation**: Parser prevents invalid usage in non-hierarchical states
+- **Compatibility**: Works in all event handler types including enter/exit handlers
+- **Smart Returns**: Parser intelligently avoids double return generation
+
 ## Recent Accomplishments (2025-01-18)
 
 ### @ Symbol Refactoring for v0.20 ✅
@@ -258,11 +278,12 @@ Documentation is located in `/Users/marktruluck/projects/frame-docs/`
 
 ## Design Decisions Log
 
-### @:> Operator (2025-01-16)
-- **Decision**: Block terminator (not statement)
-- **Rationale**: Prevents confusing control flow if parent triggers transition
-- **Implementation**: Scanner recognizes `@:>`, parser treats as `DispatchToParentState` terminator
-- **Codegen**: Must emit implicit return after dispatch
+### `=> $^` Parent Dispatch (2025-01-20)
+- **Decision**: Statement syntax (not terminator) replacing deprecated `@:>`
+- **Rationale**: More flexible - can appear anywhere in event handler with statements after
+- **Implementation**: Parser validates hierarchical context, AST tracks parent state, visitor generates parent call
+- **Transition Safety**: Generated code checks for transitions after parent call and returns early if needed
+- **Validation**: Parser error if used in non-hierarchical state
 
 ### v0.20 System Parameters
 - **Decision**: Flattened argument lists for instantiation
@@ -333,13 +354,15 @@ Documentation is located in `/Users/marktruluck/projects/frame-docs/`
 ## Current Priorities
 
 1. ✅ **COMPLETED**: if/elif/else parsing in event handlers - fixed with transition + return parsing
-2. ✅ **COMPLETED**: Validate all implemented syntax with transpiler - 56/56 test files passing
-3. ✅ **COMPLETED**: Update legacy syntax (^, :>, system parameters, multiple functions)
-4. Continue intermediate Frame documentation migration for remaining features
-5. Update remaining advanced Frame topics
-6. Remove deprecated `^` token support (parser updated, need to clean up scanner)
-7. Complete v0.20 syntax implementation for remaining features
-8. (Future) Optimize dead code generation in event handlers
+2. ✅ **COMPLETED**: Validate all implemented syntax with transpiler - 57/57 test files passing
+3. ✅ **COMPLETED**: Update legacy syntax (^, :>, @:>, system parameters, multiple functions)
+4. ✅ **COMPLETED**: Complete `=> $^` parent dispatch implementation with validation and double return fix
+5. ✅ **COMPLETED**: Auto-return statements for event handlers without explicit returns
+6. Continue intermediate Frame documentation migration for remaining features
+7. Update remaining advanced Frame topics
+8. Remove deprecated `^` and `@:>` token support (parser updated, need to clean up scanner)
+9. Complete v0.20 syntax implementation for remaining features
+10. (Future) Optimize dead code generation in event handlers
 
 ## Helpful Commands
 
@@ -356,3 +379,4 @@ find . -name "*.frm"
 cargo build && ./target/debug/framec -l python_3 test_file.frm
 ```
 - Always indent the code in the frame blocks (operations: interface: machine: etc) in the samples that are generated or updated.
+- do not add attribution to claude on the commit messages

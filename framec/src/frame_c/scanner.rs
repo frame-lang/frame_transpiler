@@ -208,6 +208,8 @@ impl Scanner {
                     self.add_token(TokenType::EnterStateMsg);
                 } else if self.match_char('@') {
                     self.add_token(TokenType::DollarAt);
+                } else if self.match_char('^') {
+                    self.add_token(TokenType::ParentState);
                 } else if self.match_char('$') {
 
                     let st;
@@ -308,12 +310,7 @@ impl Scanner {
                 }
             }
             '@' => {
-                if self.peek() == ':' && self.peek_next() == '>' {
-                    // Found @:> - consume both characters
-                    self.advance(); // consume ':'
-                    self.advance(); // consume '>'
-                    self.add_token(TokenType::DispatchToParentState);
-                } else if self.peek() == '@' {
+                if self.peek() == '@' {
                     // Found @@ - consume second @
                     self.advance(); // consume second '@'
                     self.add_token(TokenType::AtAt);
@@ -803,7 +800,6 @@ pub enum TokenType {
     NumberMatchStart,        // '#/'
     EnumTest,                // '?:'
     EnumMatchStart,          // ':/'
-    DispatchToParentState,   // @:>
     ColonBar,                // ::
     ForwardSlash,            // /
     MatchString,             // '/<any characters>/' - contains <string>
@@ -812,6 +808,7 @@ pub enum TokenType {
     SingleLineComment,       // '//'
     StateStackOperationPush, // $$[+]
     StateStackOperationPop,  // $$[-]
+    ParentState,             // $^ - parent state reference
     Dot,                     // .
     At,                      // @
     AtAt,                    // @@

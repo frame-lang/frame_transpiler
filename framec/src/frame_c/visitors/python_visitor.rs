@@ -22,6 +22,7 @@ pub struct PythonVisitor {
     code: String,
     dent: usize,
     current_state_name_opt: Option<String>,
+    current_state_parent_opt: Option<String>,
     current_event_ret_type: String,
     arcanium: Arcanum,
     symbol_config: SymbolConfig,
@@ -84,6 +85,7 @@ impl PythonVisitor {
             code: String::from(""),
             dent: 0,
             current_state_name_opt: None,
+            current_state_parent_opt: None,
             current_event_ret_type: String::new(),
             arcanium,
             symbol_config: SymbolConfig::new(),
@@ -945,6 +947,9 @@ impl PythonVisitor {
                         }
                         StatementType::ReturnStmt { return_stmt_node } => {
                             return_stmt_node.accept(self);
+                        }
+                        StatementType::ParentDispatchStmt { parent_dispatch_stmt_node } => {
+                            parent_dispatch_stmt_node.accept(self);
                         }
                         StatementType::NoStmt => {
                             // TODO
@@ -2469,11 +2474,7 @@ impl AstVisitor for PythonVisitor {
                             self.add_code("return");
                         }
                     },
-                    TerminatorType::DispatchToParentState => {
-                        // shouldn't happen.
-                        self.errors
-                            .push("Continue not allowed as action terminator.".to_string());
-                    }
+                    // DispatchToParentState removed - now handled as ParentDispatchStmt statement
                 }
                 self.outdent();
 
@@ -2713,11 +2714,7 @@ impl AstVisitor for PythonVisitor {
                             // self.newline();
                         }
                     },
-                    TerminatorType::DispatchToParentState => {
-                        // shouldn't happen.
-                        self.errors
-                            .push("Continue not allowed as operation terminator.".to_string());
-                    }
+                    // DispatchToParentState removed - now handled as ParentDispatchStmt statement
                 }
             // }
      //   }
@@ -2883,6 +2880,12 @@ impl AstVisitor for PythonVisitor {
             self.newline();
         }
         self.current_state_name_opt = Some(state_node.name.clone());
+        
+        // Track parent state for => $^ dispatch in event handlers
+        self.current_state_parent_opt = match &state_node.dispatch_opt {
+            Some(dispatch) => Some(dispatch.target_state_ref.name.clone()),
+            None => None,
+        };
 
         self.newline();
         self.add_code("# ----------------------------------------");
@@ -2949,6 +2952,7 @@ impl AstVisitor for PythonVisitor {
         self.newline();
 
         self.current_state_name_opt = None;
+        self.current_state_parent_opt = None;
     }
 
     //* --------------------------------------------------------------------- *//
@@ -3043,14 +3047,11 @@ impl AstVisitor for PythonVisitor {
                     self.newline();
                 }
                 None => {
-                    // Don't generate another return - the explicit return statement in the 
-                    // event handler body already generated one
-                    // self.generate_return()
+                    // Generate return for auto-added terminator or explicit return without value
+                    self.generate_return();
                 }
             },
-            TerminatorType::DispatchToParentState => {
-                self.generate_return_if_transitioned();
-            }
+            // DispatchToParentState removed - now handled as ParentDispatchStmt statement
         }
     }
 
@@ -4009,9 +4010,7 @@ impl AstVisitor for PythonVisitor {
                         }
                         None => self.generate_return(),
                     },
-                    TerminatorType::DispatchToParentState => {
-                        self.generate_return_if_transitioned();
-                    }
+                    // DispatchToParentState removed - now handled as ParentDispatchStmt statement
                 }
             }
             None => {
@@ -4075,9 +4074,7 @@ impl AstVisitor for PythonVisitor {
                         }
                         None => self.generate_return(),
                     },
-                    TerminatorType::DispatchToParentState => {
-                        self.generate_return_if_transitioned();
-                    }
+                    // DispatchToParentState removed - now handled as ParentDispatchStmt statement
                 }
             }
             None => {
@@ -4223,9 +4220,7 @@ impl AstVisitor for PythonVisitor {
                         }
                         None => self.generate_return(),
                     },
-                    TerminatorType::DispatchToParentState => {
-                        self.generate_return_if_transitioned();
-                    }
+                    // DispatchToParentState removed - now handled as ParentDispatchStmt statement
                 }
             }
             None => {
@@ -4291,9 +4286,7 @@ impl AstVisitor for PythonVisitor {
                         }
                         None => self.generate_return(),
                     },
-                    TerminatorType::DispatchToParentState => {
-                        self.generate_return_if_transitioned();
-                    }
+                    // DispatchToParentState removed - now handled as ParentDispatchStmt statement
                 }
             }
             None => {
@@ -4415,9 +4408,7 @@ impl AstVisitor for PythonVisitor {
                         }
                         None => self.generate_return(),
                     },
-                    TerminatorType::DispatchToParentState => {
-                        self.generate_return_if_transitioned();
-                    }
+                    // DispatchToParentState removed - now handled as ParentDispatchStmt statement
                 }
             }
             None => {
@@ -4456,9 +4447,7 @@ impl AstVisitor for PythonVisitor {
                         }
                         None => self.generate_return(),
                     },
-                    TerminatorType::DispatchToParentState => {
-                        self.generate_return_if_transitioned();
-                    }
+                    // DispatchToParentState removed - now handled as ParentDispatchStmt statement
                 }
             }
             None => {
@@ -4609,9 +4598,7 @@ impl AstVisitor for PythonVisitor {
                         }
                         None => self.generate_return(),
                     },
-                    TerminatorType::DispatchToParentState => {
-                        self.generate_return_if_transitioned();
-                    }
+                    // DispatchToParentState removed - now handled as ParentDispatchStmt statement
                 }
             }
             None => {
@@ -4673,9 +4660,7 @@ impl AstVisitor for PythonVisitor {
                         }
                         None => self.generate_return(),
                     },
-                    TerminatorType::DispatchToParentState => {
-                        self.generate_return_if_transitioned();
-                    }
+                    // DispatchToParentState removed - now handled as ParentDispatchStmt statement
                 }
             }
             None => {
@@ -4713,6 +4698,34 @@ impl AstVisitor for PythonVisitor {
         }
         // Mark that we've generated a return to avoid duplicate in terminator
         self.this_branch_transitioned = false;
+    }
+    
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_parent_dispatch_stmt_node(&mut self, _parent_dispatch_stmt_node: &ParentDispatchStmtNode) {
+        self.newline();
+        self.add_code("# => $^ parent dispatch");
+        
+        // Generate parent call using same pattern as visit_dispatch_node
+        if let Some(parent_state_name) = self.current_state_parent_opt.clone() {
+            self.newline();
+            self.add_code(&format!(
+                "self.{}(__e, compartment.parent_compartment)",
+                self.format_target_state_name(&parent_state_name)
+            ));
+            
+            // Check if a transition was triggered and return early
+            self.newline();
+            self.add_code("if self.__next_compartment is not None:");
+            self.indent();
+            self.newline();
+            self.add_code("return");
+            self.outdent();
+        } else {
+            // This should be caught by parser validation
+            self.newline();
+            self.add_code("# ERROR: => $^ used but no parent state found");
+        }
     }
     
     //* --------------------------------------------------------------------- *//
@@ -5056,11 +5069,7 @@ impl AstVisitor for PythonVisitor {
                         self.newline();
                     }
                 },
-                TerminatorType::DispatchToParentState => {
-                    // TODO v0.20 shouldn't happen.
-                    self.errors
-                        .push("Continue not allowed as action terminator.".to_string());
-                }
+                // DispatchToParentState removed - now handled as ParentDispatchStmt statement
             }
         }
 

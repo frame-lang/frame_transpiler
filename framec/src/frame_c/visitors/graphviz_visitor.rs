@@ -445,6 +445,9 @@ impl GraphVizVisitor {
                         StatementType::ReturnStmt { return_stmt_node: _ } => {
                             // Return statements don't affect state machine graph
                         }
+                        StatementType::ParentDispatchStmt { parent_dispatch_stmt_node } => {
+                            parent_dispatch_stmt_node.accept(self);
+                        }
                         StatementType::NoStmt => {
                             // TODO
                             panic!("todo");
@@ -2171,6 +2174,12 @@ impl AstVisitor for GraphVizVisitor {
     fn visit_assignment_statement_node(&mut self, assignment_stmt_node: &AssignmentStmtNode) {
         self.generate_comment(assignment_stmt_node.get_line());
         assignment_stmt_node.assignment_expr_node.accept(self);
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_parent_dispatch_stmt_node(&mut self, _parent_dispatch_stmt_node: &ParentDispatchStmtNode) {
+        // GraphViz visualization doesn't need to generate runtime behavior for parent dispatch
     }
 
     //* --------------------------------------------------------------------- *//

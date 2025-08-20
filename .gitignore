@@ -9,3 +9,6 @@
 target
 
 framec_tests/javascript/node_modules
+
+# Planning docs (internal use only)
+docs/plans/
