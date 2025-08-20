@@ -1025,10 +1025,11 @@ $StateName {
 - ✅ **Modern Syntax**: Conventional parameter syntax, block structure, flattened arguments
 - ✅ **System Parameters**: Start state, enter event, and domain parameter syntax
 - ✅ **Function Limitations**: Single main function restriction properly enforced
-- ✅ **Event Forwarding**: => $^ statement for parent state dispatch
+- ✅ **Event Forwarding**: => $^ statement for parent state dispatch with router-based architecture
 - ✅ **Return Mechanisms**: Both return statements and return assignment (return = expr)
-- ✅ **Test Coverage**: 100% of test files passing for implemented v0.20 features
+- ✅ **Test Coverage**: 100% of test files passing for implemented v0.20 features (73/73 files)
 - ✅ **Empty Parameter Lists**: Full support for `()` syntax in all contexts (methods, interfaces, event handlers)
+- ✅ **Router Architecture**: Unified parent dispatch through dynamic router infrastructure
 - 🔄 **Legacy Support**: v0.11 syntax documented but deprecated (parser rejects old syntax)
 
 ### Known Limitations

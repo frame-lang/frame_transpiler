@@ -2731,11 +2731,9 @@ impl AstVisitor for PythonVisitor {
         &mut self,
         operation_call_expr_node: &OperationCallExprNode,
     ) {
-        // if operation_call_expr_node.call_origin
-        //     == CallOrigin::Internal
-        // {
-        //     self.add_code("self.");
-        // }
+        // Operation calls should always have self. prefix
+        // Static operations calling self.method() should be caught as parser errors
+        self.add_code("self.");
 
         self.add_code(&format!(
             "{}",
@@ -2751,11 +2749,10 @@ impl AstVisitor for PythonVisitor {
         operation_call_expr_node: &OperationCallExprNode,
         output: &mut String,
     ) {
-        // if operation_call_expr_node.call_origin
-        //     == CallOrigin::Internal
-        // {
-        //     output.push_str(&format!("self."));
-        // }
+        // Operation calls should always have self. prefix
+        // Static operations calling self.method() should be caught as parser errors
+        output.push_str("self.");
+        
         output.push_str(&format!(
             "{}",
             operation_call_expr_node.identifier.name.lexeme

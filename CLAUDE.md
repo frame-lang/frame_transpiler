@@ -8,8 +8,8 @@ Frame is a state machine language that transpiles to multiple target languages. 
 
 **Branch**: `v0.20`  
 **Status**: Active v0.20 syntax migration - all updated syntax validated  
-**Achievement**: 100% test coverage for implemented v0.20 features (57/57 files passing)  
-**Recent**: Complete `=> $^` parent dispatch implementation with validation and auto-return statements
+**Achievement**: 100% test coverage for implemented v0.20 features (73/73 files passing)  
+**Recent**: Router-based parent dispatch architecture and comprehensive v0.20 testing validation
 
 ## Architecture
 
@@ -145,9 +145,10 @@ Documentation is located in `/Users/marktruluck/projects/frame-docs/`
 - `intermediate_frame/return.rst` - Return statement migration (^ → return)
 - `intermediate_frame/states.rst` - State definitions and behavior
 
-### Advanced Frame Documentation (⏳ PENDING)
+### Advanced Frame Documentation (🔄 IN PROGRESS)
 - `advanced_frame/state_variables.rst` - ✅ COMPLETED
 - `advanced_frame/transitions.rst` - ✅ COMPLETED  
+- `advanced_frame/services.rst` - ✅ COMPLETED v0.20 migration with auto-return and empty parameters
 - `advanced_frame/transition_parameters.rst` - Transition parameter passing
 - `advanced_frame/control_flow.rst` - Advanced control flow patterns
 - `advanced_frame/compartments.rst` - State compartmentalization
@@ -220,27 +221,23 @@ Documentation is located in `/Users/marktruluck/projects/frame-docs/`
 
 ## Recent Accomplishments (2025-01-20)
 
+### Router-Based Parent Dispatch Architecture ✅
+- **Achievement**: Complete router infrastructure implementation for parent dispatch eliminating hardcoded method names
+- **Architecture Improvement**: Unified all parent dispatch through existing `__router` infrastructure 
+- **Router Enhancement**: Modified signature to accept optional `compartment` parameter for hierarchical dispatch
+- **Code Generation**: `=> $^` generates `self.__router(__e, compartment.parent_compartment)` instead of hardcoded calls
+- **Consistency**: Both explicit parent dispatch and fallback parent dispatch use same router mechanism
+- **Maintainability**: Eliminates code duplication and provides single point of routing logic
+- **Dynamic Resolution**: States resolved dynamically through router rather than hardcoded method names
+- **Test Coverage**: Comprehensive validation with 73/73 files passing (100% success rate)
+
 ### Complete `=> $^` Parent Dispatch Implementation ✅
 - **Achievement**: Full implementation of new parent dispatch syntax replacing deprecated `@:>`
 - **Parser Enhancement**: Added validation to prevent `=> $^` in non-hierarchical states  
 - **AST Updates**: Enhanced `ParentDispatchStmtNode` with parent state tracking
-- **Code Generation**: Router-based architecture eliminates hardcoded parent method names
 - **Auto-Return**: Parser automatically adds return terminators to event handlers without explicit returns
 - **Double Return Fix**: Resolved issue where both explicit and auto-generated returns were being created
-- **Router Architecture**: Unified all parent dispatch through existing router infrastructure
-- **Test Coverage**: Comprehensive test suite with 57/57 files passing validation
 - **Documentation**: Updated all syntax documentation and examples
-
-### Key Features Implemented ✅
-- **Statement Syntax**: `=> $^` can appear anywhere in event handler (not just as terminator)
-- **Router-Based Dispatch**: Uses `self.__router(__e, compartment.parent_compartment)` for clean architecture
-- **Transition Safety**: Code after `=> $^` doesn't execute if parent triggers transition
-- **Validation**: Parser prevents invalid usage in non-hierarchical states
-- **Compatibility**: Works in all event handler types including enter/exit handlers
-- **Smart Returns**: Parser intelligently avoids double return generation
-- **Architectural Consistency**: Both explicit and fallback parent dispatch use same router mechanism
-
-## Recent Accomplishments (2025-01-20)
 
 ### Empty Parameter List Support ✅
 - **Achievement**: Full support for empty parameter lists `()` in all contexts
@@ -377,15 +374,18 @@ Documentation is located in `/Users/marktruluck/projects/frame-docs/`
 ## Current Priorities
 
 1. ✅ **COMPLETED**: if/elif/else parsing in event handlers - fixed with transition + return parsing
-2. ✅ **COMPLETED**: Validate all implemented syntax with transpiler - 57/57 test files passing
+2. ✅ **COMPLETED**: Validate all implemented syntax with transpiler - 73/73 test files passing
 3. ✅ **COMPLETED**: Update legacy syntax (^, :>, @:>, system parameters, multiple functions)
 4. ✅ **COMPLETED**: Complete `=> $^` parent dispatch implementation with validation and double return fix
 5. ✅ **COMPLETED**: Auto-return statements for event handlers without explicit returns
-6. Continue intermediate Frame documentation migration for remaining features
-7. Update remaining advanced Frame topics
-8. Remove deprecated `^` and `@:>` token support (parser updated, need to clean up scanner)
-9. Complete v0.20 syntax implementation for remaining features
-10. (Future) Optimize dead code generation in event handlers
+6. ✅ **COMPLETED**: Router-based parent dispatch architecture eliminating hardcoded method names
+7. ✅ **COMPLETED**: Empty parameter list support for v0.20 interface methods and operations
+8. ✅ **COMPLETED**: Comprehensive test validation with 100% success rate (73/73 files)
+9. Continue intermediate Frame documentation migration for remaining features
+10. Update remaining advanced Frame topics
+11. Remove deprecated `^` and `@:>` token support (parser updated, need to clean up scanner)
+12. Complete v0.20 syntax implementation for remaining features
+13. (Future) Optimize dead code generation in event handlers
 
 ## Helpful Commands
 

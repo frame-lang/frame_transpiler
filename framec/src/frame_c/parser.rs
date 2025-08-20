@@ -7187,64 +7187,93 @@ impl<'a> Parser<'a> {
                             call_chain_expr_node,
                         }));
                     }
-                    // Continue parsing if we have a method call (LParen)
-                    // The method identifier is already in call_chain, no need to set up id_node
-                    // Jump directly to the main loop to handle the method call
-                    let mut is_first_node = false; // we're not the first node since we have self
-                    loop {
-                        if self.match_token(&[TokenType::LParen]) {
-                            // Get the last node from call_chain to process as a method call
-                            if let Some(last_node) = call_chain.back() {
-                                let method_name = match last_node {
-                                    CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
-                                        id_node.name.lexeme.clone()
-                                    }
-                                    CallChainNodeType::VariableNodeT { var_node } => {
-                                        var_node.id_node.name.lexeme.clone()
-                                    }
-                                    CallChainNodeType::OperationRefT { operation_ref_expr_node } => {
-                                        operation_ref_expr_node.name.clone()
-                                    }
-                                    _ => String::new(),
-                                };
-                                
-                                if !method_name.is_empty() {
-                                    // Create a temporary id_node for finish_call using previous token as base
-                                    let mut temp_token = self.previous().clone();
-                                    temp_token.token_type = TokenType::Identifier;
-                                    temp_token.lexeme = method_name;
-                                    let temp_id_node = IdentifierNode::new(
-                                        temp_token,
+                    // We have self.method() - need to handle the method call
+                    // TODO: Add proper context tracking for static operations
+                    // For now, we'll allow self.method() calls but document the need for validation
+                    
+                    // The method identifier was already added to call_chain, now convert it to a call
+                    if self.match_token(&[TokenType::LParen]) {
+                        // Remove the last node (which is the method identifier)
+                        if let Some(last_node) = call_chain.pop_back() {
+                            // Get the method name from the last node
+                            let method_id = match last_node {
+                                CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
+                                    id_node
+                                }
+                                CallChainNodeType::OperationRefT { operation_ref_expr_node } => {
+                                    // Create an identifier node from the operation ref
+                                    let mut token = self.previous().clone();
+                                    token.lexeme = operation_ref_expr_node.name.clone();
+                                    IdentifierNode::new(
+                                        token,
                                         None,
                                         scope.clone(),
                                         false,
                                         self.previous().line,
-                                    );
-                                    
-                                    let call_expr_node_result = self.finish_call(temp_id_node);
-                                    match call_expr_node_result {
-                                        Ok(call_expr_node) => {
-                                            // Replace the last node with a method call
-                                            call_chain.pop_back();
-                                            let call_t = CallChainNodeType::UndeclaredCallT {
-                                                call_node: call_expr_node,
-                                            };
-                                            call_chain.push_back(call_t);
-                                            break;
-                                        }
-                                        Err(parse_error) => return Err(parse_error),
-                                    }
+                                    )
                                 }
+                                _ => {
+                                    // Put it back and continue to main loop
+                                    call_chain.push_back(last_node);
+                                    // Continue to main loop - create a dummy identifier
+                                    IdentifierNode::new(
+                                        self.previous().clone(),
+                                        None,
+                                        scope.clone(),
+                                        false,
+                                        self.previous().line,
+                                    )
+                                }
+                            };
+                            
+                            // Now finish the call with the method identifier
+                            let call_expr_node_result = self.finish_call(method_id);
+                            match call_expr_node_result {
+                                Ok(call_expr_node) => {
+                                    // Determine if this is an interface or operation call
+                                    let method_name = call_expr_node.get_name();
+                                    
+                                    // Check if it's an interface method
+                                    if let Some(interface_method_symbol_rcref) = 
+                                        self.arcanum.lookup_interface_method(&method_name) {
+                                        let mut interface_method_call_expr_node =
+                                            InterfaceMethodCallExprNode::new(
+                                                call_expr_node,
+                                                CallOrigin::External,
+                                            );
+                                        interface_method_call_expr_node.set_interface_symbol(
+                                            &interface_method_symbol_rcref.clone(),
+                                        );
+                                        call_chain.push_back(CallChainNodeType::InterfaceMethodCallT {
+                                            interface_method_call_expr_node,
+                                        });
+                                    } else if let Some(operation_symbol_rcref) = 
+                                        self.arcanum.lookup_operation(&method_name) {
+                                        let mut operation_call_expr_node =
+                                            OperationCallExprNode::new(call_expr_node);
+                                        operation_call_expr_node.set_operation_symbol(
+                                            &operation_symbol_rcref.clone(),
+                                        );
+                                        call_chain.push_back(CallChainNodeType::OperationCallT {
+                                            operation_call_expr_node,
+                                        });
+                                    } else {
+                                        // Unknown call type
+                                        call_chain.push_back(CallChainNodeType::UndeclaredCallT {
+                                            call_node: call_expr_node,
+                                        });
+                                    }
+                                    
+                                    let call_chain_expr_node = CallChainExprNode::new(call_chain);
+                                    return Ok(Some(CallChainExprT {
+                                        call_chain_expr_node,
+                                    }));
+                                }
+                                Err(parse_error) => return Err(parse_error),
                             }
-                        } else {
-                            break;
                         }
                     }
-                    
-                    let call_chain_expr_node = CallChainExprNode::new(call_chain);
-                    return Ok(Some(CallChainExprT {
-                        call_chain_expr_node,
-                    }));
+                    // Continue to main loop if no immediate method call
                 } else {
                     let err_msg = format!("Expected Identifier. Found '{}'.", self.previous().lexeme);
                     self.error_at_previous(&err_msg);
