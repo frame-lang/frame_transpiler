@@ -1,27 +1,49 @@
 
 #[codegen.python.code.public_state_info:bool="true"]
 
-#Basic
-    -interface-
-    A
-    B
-    -machine-
+system Basic {
+    interface:
+        A()
+        B()
 
-    $S0
-        |>| entered("S0") ^
-        |<| left("S0") ^
-        |A| -> "ooh" $S1 ^
+    machine:
+        $S0 {
+            $>() {
+                entered("S0") 
+                return
+            }
+            <$() {
+                left("S0") 
+                return
+            }
+            A() {
+                -> "ooh" $S1 
+                return
+            }
+        }
 
-    $S1
-        |>| entered("S1") ^
-        |<| left("S1") ^
-        |B| -> "aah" $S0 ^
+        $S1 {
+            $>() {
+                entered("S1") 
+                return
+            }
+            <$() {
+                left("S1") 
+                return
+            }
+            B() {
+                -> "aah" $S0 
+                return
+            }
+        }
 
-    -actions-
-    entered[msg:str]
-    left[msg:str]
+    actions:
+        entered(msg:str) {
+        }
+        left(msg:str) {
+        }
 
-    -domain-
-    var entry_log = `[]`
-    var exit_log = `[]`
-##
+    domain:
+        var entry_log = `[]`
+        var exit_log = `[]`
+}

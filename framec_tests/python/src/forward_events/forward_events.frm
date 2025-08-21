@@ -1,47 +1,78 @@
 
 #[codegen.python.code.public_state_info:bool="true"]
 
-#ForwardEvents
+system ForwardEvents {
+    interface:
+        GotoS1()
+        GotoS2()
+        ReturnFromS1()
+        ReturnFromS2()
 
-    -interface-
+    machine:
+        $S0 {
+            $>() {
+                log("Enter $S0")
+                return
+            }
+            <$() {
+                log("Exit $S0")
+                return
+            }
+            GotoS1() {
+                log("Recieved GotoS1")
+                -> $S1
+                return
+            }
+            GotoS2() {
+                log("Recieved GotoS2")
+                $$[+]
+                -> $S2
+                return
+            }
+            ReturnFromS1() {
+                log("ReturnFromS1 Forwarded")
+                return
+            }
+            ReturnFromS2() {
+                log("ReturnFromS2 Forwarded")
+                return
+            }
+        }
 
-    GotoS1
-    GotoS2
-    ReturnFromS1
-    ReturnFromS2
+        $S1 {
+            $>() {
+                log("Enter $S1")
+                return
+            }
+            <$() {
+                log("Exit $S1")
+                return
+            }
+            ReturnFromS1() {
+                -> $S0
+                return
+            }
+        }
 
-    -machine-
+        $S2 {
+            $>() {
+                log("Enter $S2")
+                return
+            }
+            <$() {
+                log("Exit $S2")
+                return
+            }
+            ReturnFromS2() {
+                -> $$[-]
+                return
+            }
+        }
 
-    $S0
-        |>| log("Enter $S0") ^
-        |<| log("Exit $S0") ^
-        |GotoS1| log("Recieved |GotoS1|")
-                 -> $S1 ^
-        |GotoS2| log("Recieved |GotoS2|")
-                 $$[+] -> $S2 ^
-        |ReturnFromS1| log("|ReturnFromS1| Forwarded") ^
-        |ReturnFromS2| log("|ReturnFromS2| Forwarded") ^
+    actions:
+        log(msg:str) {
+        }
 
-    $S1
-        |>| log("Enter $S1") ^
-        |<| log("Exit $S1") ^
-        |ReturnFromS1| -> => $S0 ^
-
-    $S2
-        |>| log("Enter $S2") ^
-        |<| log("Exit $S2") ^
-        |ReturnFromS2| -> => $$[-] ^
-
-    -actions-
-
-    log [msg:str] {
-        ```
-        self.tape.append(f'{msg}')
-        ```
-    }
-
-    -domain-
-
-    var tape = `[]`
-
-##
+    domain:
+        var tape = `[]`
+}

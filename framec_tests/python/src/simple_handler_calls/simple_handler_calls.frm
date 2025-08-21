@@ -1,30 +1,47 @@
 
 #[codegen.python.code.public_state_info:bool="true"]
 
-#SimpleHandlerCalls
-    -interface-
-    A
-    B
-    C
-    D
-    E
+system SimpleHandlerCalls {
+    interface:
+        A()
+        B()
+        C()
+        D()
+        E()
 
-    -machine-
-    $Init
-        |A| -> $A ^
+    machine:
+        $Init {
+            A() {
+                -> $A
+                return
+            }
 
-        |B| -> $B ^
+            B() {
+                -> $B
+                return
+            }
 
-        |C| A() ^
+            C() {
+                A()
+                return
+            }
 
-        |D|
-            B()
-            -> $A ^
+            D() {
+                B()
+                -> $A
+                return
+            }
 
-        |E|
-            D()
-            C() ^
+            E() {
+                D()
+                C()
+                return
+            }
+        }
 
-    $A
-    $B
-##
+        $A {
+        }
+        
+        $B {
+        }
+}

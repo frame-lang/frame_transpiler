@@ -2,101 +2,118 @@
 #[codegen.python.code.public_state_info:bool="true"]
 
 
-#StateContextSm
-    -interface-
-    Start
-    LogState
-    Inc : int
-    Next [arg:int]
-    // Change [arg:int]
+system StateContextSm {
+    interface:
+        Start()
+        LogState()
+        Inc() : int
+        Next(arg:int)
+        // Change(arg:int)
 
-    -machine-
-    $Init
-        var w:int = 0
+    machine:
+        $Init {
+            var w:int = 0
 
-        |>|
-            w = 3
-            log("w", w)
-            ^
+            $>() {
+                w = 3
+                log("w", w)
+                return
+            }
 
-        |Inc|:int
-            w = w + 1
-            log("w", w)
-            ^(w)
+            Inc() : int {
+                w = w + 1
+                log("w", w)
+                return w
+            }
 
-        |LogState|
-            log("w", w)
-            ^
+            LogState() {
+                log("w", w)
+                return
+            }
 
-        |Start|
-            -> (3, w) $Foo
-            ^
+            Start() {
+                -> (3, w) $Foo
+                return
+            }
+        }
 
-    $Foo
-        var x:int = 0
+        $Foo {
+            var x:int = 0
 
-        |>| [a:int, b:int]
-            log("a", a)
-            log("b", b)
-            x = a * b
-            log("x", x)
-            ^
+            $>(a:int, b:int) {
+                log("a", a)
+                log("b", b)
+                x = a * b
+                log("x", x)
+                return
+            }
 
-        |<| [c:int]
-            log("c", c)
-            x = x + c
-            log("x", x)
-            ^
+            <$(c:int) {
+                log("c", c)
+                x = x + c
+                log("x", x)
+                return
+            }
 
-        |LogState|
-            log("x", x)
-            ^
+            LogState() {
+                log("x", x)
+                return
+            }
 
-        |Inc|:int
-            x = x + 1
-            log("x", x)
-            ^(x)
+            Inc() : int {
+                x = x + 1
+                log("x", x)
+                return x
+            }
 
-        |Next| [arg:int]
-            var tmp = arg * 10  // FIXME: Swapping this to 10 * arg causes a parse error!
-            (10) -> (tmp) $Bar(x)
-            ^
+            Next(arg:int) {
+                var tmp = arg * 10  // FIXME: Swapping this to 10 * arg causes a parse error!
+                (10) -> (tmp) $Bar(x)
+                return
+            }
 
-        // |Change| [arg:int]
-        //     var tmp = x + arg
-        //     -> $Bar(tmp)
-        //     ^
+            // Change(arg:int) {
+            //     var tmp = x + arg
+            //     -> $Bar(tmp)
+            //     return
+            // }
+        }
 
-    $Bar [y:int]
+        $Bar(y:int) {
+            var z:int = 0
 
-        var z:int = 0
+            $>(a:int) {
+                log("a", a)
+                log("y", y)
+                z = a + y
+                log("z", z)
+                return
+            }
 
-        |>| [a:int]
-            log("a", a)
-            log("y", y)
-            z = a + y
-            log("z", z)
-            ^
+            LogState() {
+                log("y", y)
+                log("z", z)
+                return
+            }
 
-        |LogState|
-            log("y", y)
-            log("z", z)
-            ^
+            Inc() : int {
+                z = z + 1
+                log("z", z)
+                return z
+            }
 
-        |Inc|:int
-            z = z + 1
-            log("z", z)
-            ^(z)
+            // Change(arg:int) {
+            //     var tmp = y + z + arg
+            //     log("tmp", tmp)
+            //     ->> $Init
+            //     return
+            // }
+        }
 
-        // |Change| [arg:int]
-        //     var tmp = y + z + arg
-        //     log("tmp", tmp)
-        //     ->> $Init
-        //     ^
+    actions:
+        log(name:str, val:int) {
+        }
 
-    -actions-
-    log [name:str, val:int]
-
-    -domain-
-    var tape = `[]`
-##
+    domain:
+        var tape = `[]`
+}
