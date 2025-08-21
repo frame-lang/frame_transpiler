@@ -3,17 +3,7 @@ use crate::frame_c::parser::*;
 use crate::frame_c::scanner::*;
 use crate::frame_c::symbol_table::*;
 use crate::frame_c::utils::{frame_exitcode, RunError};
-// use crate::frame_c::visitors::cpp_visitor::CppVisitor;
-// use crate::frame_c::visitors::cs_visitor::CsVisitor;
-//use crate::frame_c::visitors::cs_visitor_for_bob::CsVisitorForBob;
-// use crate::frame_c::visitors::gdscript_3_2_visitor::GdScript32Visitor;
-// use crate::frame_c::visitors::golang_visitor::GolangVisitor;
-// use crate::frame_c::visitors::java_8_visitor::Java8Visitor;
-// use crate::frame_c::visitors::javascript_visitor::JavaScriptVisitor;
-// use crate::frame_c::visitors::plantuml_visitor::PlantUmlVisitor;
 use crate::frame_c::visitors::python_visitor::PythonVisitor;
-// use crate::frame_c::visitors::rust_visitor::RustVisitor;
-// use crate::frame_c::visitors::smcat_visitor::SmcatVisitor;
 use crate::frame_c::visitors::graphviz_visitor::GraphVizVisitor;
 
 use exitcode::USAGE;
@@ -35,7 +25,7 @@ use std::convert::TryFrom;
 /* --------------------------------------------------------------------- */
 
 static IS_DEBUG: bool = false;
-static FRAMEC_VERSION: &str = "Emitted from framec_v0.20.0";
+static FRAMEC_VERSION: &str = "Emitted from framec_v0.30.0";
 
 /* --------------------------------------------------------------------- */
 
@@ -246,122 +236,6 @@ impl Exe {
                 return Err(run_error);
             }
             Some(lang) => match lang {
-                // TargetLanguage::Cpp => {
-                //     let mut visitor = CppVisitor::new(
-                //         semantic_parser.get_arcanum(),
-                //         generate_exit_args,
-                //         generate_enter_args || generate_state_context,
-                //         generate_state_stack,
-                //         generate_change_state,
-                //         FRAMEC_VERSION,
-                //         comments,
-                //         config
-                //     );
-                //     visitor.run(&system_node);
-                //     output = visitor.get_code();
-                // }
-                // TargetLanguage::CSharp => {
-                //     let mut visitor = CsVisitor::new(
-                //         semantic_parser.get_arcanum(),
-                //         //generate_exit_args,
-                //         generate_enter_args || generate_state_context,
-                //         generate_state_stack,
-                //         generate_change_state,
-                //         //generate_transition_state,
-                //         FRAMEC_VERSION,
-                //         comments,
-                //         config
-                //     );
-                //     visitor.run(&system_node);
-                //     output = visitor.get_code();
-                // }
-                // TargetLanguage::CSharpForBob => {
-                //     let mut visitor = CsVisitorForBob::new(
-                //         semantic_parser.get_arcanum(),
-                //         generate_exit_args,
-                //         generate_enter_args || generate_state_context,
-                //         generate_state_stack,
-                //         generate_change_state,
-                //         generate_transition_state,
-                //         FRAMEC_VERSION,
-                //         comments,
-                //     );
-                //     visitor.run(&system_node);
-                //     output = visitor.get_code();
-                // }
-                // TargetLanguage::GdScript => {
-                //     let mut visitor = GdScript32Visitor::new(
-                //         semantic_parser.get_arcanum(),
-                //         generate_exit_args,
-                //         generate_enter_args || generate_state_context,
-                //         generate_state_stack,
-                //         generate_change_state,
-                //         generate_transition_state,
-                //         FRAMEC_VERSION,
-                //         comments,
-                //     );
-                //     visitor.run(&system_node);
-                //     output = visitor.get_code();
-                // }
-                //              TargetLanguage::GoLang => {
-                //                  let mut visitor = GolangVisitor::new(
-                //                      semantic_parser.get_arcanum(),
-                //                      config,
-                //  //                    generate_exit_args,
-                // //                     generate_enter_args || generate_state_context,
-                //                      generate_state_stack,
-                //                      generate_change_state,
-                //  //                    generate_transition_state,
-                //                      FRAMEC_VERSION,
-                //                      comments,
-                //                  );
-                //                  visitor.run(&system_node);
-                //                  output = visitor.get_code();
-                //              }
-                //              TargetLanguage::Java8 => {
-                //                  let mut visitor = Java8Visitor::new(
-                //                      semantic_parser.get_arcanum(),
-                //                      // generate_exit_args,
-                //                      generate_enter_args || generate_state_context,
-                //                      generate_state_stack,
-                //                      generate_change_state,
-                //                      FRAMEC_VERSION,
-                //                      comments,
-                //                      config
-                //                  );
-                //                  visitor.run(&system_node);
-                //                  output = visitor.get_code();
-                //              }
-                //              TargetLanguage::JavaScript => {
-                //                  let mut visitor = JavaScriptVisitor::new(
-                //                      semantic_parser.get_arcanum(),
-                //                      // generate_exit_args,
-                //                      // generate_enter_args || generate_state_context,
-                //                      generate_state_stack,
-                //                      generate_change_state,
-                //                      // generate_transition_state,
-                //                      FRAMEC_VERSION,
-                //                      comments,
-                //                      config
-                //                  );
-                //                  visitor.run(&system_node);
-                //                  output = visitor.get_code();
-                //              }
-                // TargetLanguage::PlantUml => {
-                //     let (arcanum, system_hierarchy) = semantic_parser.get_all();
-                //     let mut visitor = PlantUmlVisitor::new(
-                //         arcanum,
-                //         system_hierarchy,
-                //         generate_state_context,
-                //         generate_state_stack,
-                //         generate_change_state,
-                //         generate_transition_state,
-                //         FRAMEC_VERSION,
-                //         comments,
-                //     );
-                //     visitor.run(&system_node);
-                //     output = visitor.get_code();
-                // }
                 TargetLanguage::Graphviz => {
                     let (arcanum, system_hierarchy_opt) = semantic_parser.get_all();
                     // If there was no system in the spec then don't run the visitor.
@@ -401,55 +275,11 @@ impl Exe {
                     let system_node_rcref = Rc::new(RefCell::new(system_node));
                     visitor.run(system_node_rcref);
                     output = visitor.get_code();
-                } // TargetLanguage::Rust => {
-                  //     let mut visitor = RustVisitor::new(
-                  //         FRAMEC_VERSION,
-                  //         config,
-                  //         input_path_str,
-                  //         sha256,
-                  //         semantic_parser.get_arcanum(),
-                  //         generate_enter_args,
-                  //         generate_exit_args,
-                  //         generate_state_context,
-                  //         generate_state_stack,
-                  //         generate_change_state,
-                  //         generate_transition_state,
-                  //         comments,
-                  //     );
-                  //     visitor.run(&system_node);
-                  //     output = visitor.get_code();
-                  // }
-                  // TargetLanguage::Smcat => {
-                  //     let mut visitor = SmcatVisitor::new(
-                  //         FRAMEC_VERSION,
-                  //         config,
-                  //         semantic_parser.get_system_hierarchy(),
-                  //     );
-                  //     visitor.run(&system_node);
-                  //     output = visitor.get_code();
-                  // }
-                  // TargetLanguage::XState => {
-                  //     let mut visitor = XStateVisitor::new(
-                  //         semantic_parser.get_arcanum(),
-                  //         generate_exit_args,
-                  //         generate_state_context,
-                  //         generate_state_stack,
-                  //         generate_change_state,
-                  //         generate_transition_state,
-                  //         FRAMEC_VERSION,
-                  //         comments,
-                  //     );
-                  //     visitor.run(&system_node);
-                  //     output = visitor.get_code();
-                  // },
+                }
             },
         }
 
         Ok(output)
-
-        // let mut graphviz_visitor = GraphVizVisitor::new(semantic_parser.get_arcanum(), comments);
-        // graphviz_visitor.run(&system_node);
-        // println!("{}", graphviz_visitor.code);
     }
 }
 

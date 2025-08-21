@@ -129,8 +129,6 @@ pub trait AstVisitor {
     fn visit_call_expr_list_node_to_string(&mut self, _node: &CallExprListNode, _output: &mut String) {}
 
     fn visit_call_chain_expr_node(&mut self, _node: &CallChainExprNode) {}
-    // fn auto_inc_dec_call_chain_literal_expr_node(&mut self, _node: &CallChainLiteralExprNode) {}
-    // fn auto_post_inc_dec_call_chain_literal_expr_node(&mut self, _node: &CallChainLiteralExprNode) {}
     fn visit_call_chain_expr_node_to_string(&mut self, _node: &CallChainExprNode, _output: &mut String) {}
 
     fn visit_call_chain_statement_node(&mut self, _node: &CallChainStmtNode) {}
@@ -165,9 +163,6 @@ pub trait AstVisitor {
 
     fn visit_list_elem_node(&mut self, _list_elem: &ListElementNode) {}
     fn visit_list_elem_node_to_string(&mut self, _list_elem: &ListElementNode, _output: &mut String) {}
-    // fn visit_auto_pre_inc_dec_expr_node(&mut self, _expr_list: &RefExprType) {}
-    // fn visit_auto_post_inc_dec_expr_node(&mut self, _expr_list: &RefExprType) {}
-    //   fn auto_post_inc_dec_expression_list_node(&mut self, _expr_list: &ExprListNode) {}
 
     fn visit_list_stmt_node(&mut self, _list: &ListStmtNode) {}
 
@@ -184,8 +179,6 @@ pub trait AstVisitor {
     fn visit_continue_stmt_node(&mut self, _continue_expr_node: &ContinueStmtNode) {}
     fn visit_superstring_stmt_node(&mut self, _continue_expr_node: &SuperStringStmtNode) {}
     fn visit_block_stmt_node(&mut self, _block_stmt_node: &BlockStmtNode) {}
-    // fn visit_loop_expr_node(&mut self, _loop_types: &LoopTypes) {}
-    // fn visit_loop_expr_node_to_string(&mut self, _loop_types: &LoopTypes, _output: &mut String) {}
     fn visit_literal_expression_node(&mut self, _node: &LiteralExprNode) {}
     fn visit_literal_expression_node_to_string(&mut self, _node: &LiteralExprNode, _output: &mut String) {}
     fn visit_identifier_node(&mut self, _node: &IdentifierNode) {}
@@ -194,7 +187,6 @@ pub trait AstVisitor {
     fn visit_state_stack_operation_node_to_string(&mut self, _node: &StateStackOperationNode, _output: &mut String) {}
     fn visit_state_stack_operation_statement_node(&mut self, _node: &StateStackOperationStatementNode) {}
     fn visit_state_context_node(&mut self, _node: &TargetStateContextNode) {}
-    // fn visit_change_state_statement_node(&mut self, _node: &ChangeStateStatementNode) {}
     fn visit_frame_event_part(&mut self, _event_part: &FrameEventPart) {}
     fn visit_frame_event_part_to_string(&mut self, _event_part: &FrameEventPart, _output: &mut String) {}
     fn visit_actions_block_node(&mut self, _node: &ActionsBlockNode) {}
@@ -211,12 +203,8 @@ pub trait AstVisitor {
 
     // ---
     fn visit_operations_block_node(&mut self, _node: &OperationsBlockNode) {}
-    // fn visit_action_node_rust_trait(&mut self, _node: &ActionsBlockNode) {}
-    // fn visit_actions_node_rust_impl(&mut self, _node: &ActionsBlockNode) {}
 
     fn visit_operation_node(&mut self, _node: &OperationNode) {}
-    // fn visit_action_impl_node(&mut self, _node: &ActionNode) {}
-    //
     fn visit_operation_call_expression_node(&mut self, _node: &OperationCallExprNode) {}
     fn visit_operation_call_expression_node_to_string(&mut self, _node: &OperationCallExprNode, _output: &mut String) {}
     fn visit_operation_call_statement_node(&mut self, _node: &OperationCallExprNode) {}

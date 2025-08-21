@@ -3,13 +3,6 @@ use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Display;
 
-enum MatchType {
-    Bool,
-    String,
-    Number,
-    Enum,
-    //    None,
-}
 
 pub(crate) struct Scanner {
     source: String,
@@ -19,12 +12,6 @@ pub(crate) struct Scanner {
     token_str: String,
     pub has_errors: bool,
     pub errors: String,
-    // The test_t_stack stack is to parse nested tests.  It is necessary
-    // because the tokenizer should change how is scans the matches based
-    // on the test type. Therefore we have to remember that
-    // what the current test type was in order to change the scanner
-    // and pop it off when done with the test.
-    test_t_stack: Vec<MatchType>,
     line: usize,
     keywords: HashMap<String, TokenType>,
     //    match_type:MatchType,
@@ -71,7 +58,6 @@ impl Scanner {
             token_str: String::new(),
             has_errors: false,
             errors: String::new(),
-            test_t_stack: Vec::new(),
             line: 1,
             keywords,
             //     match_type:MatchType::None,
@@ -276,24 +262,19 @@ impl Scanner {
             '?' => {
                 if self.match_char('!') {
                     self.add_token(TokenType::BoolTestFalse);
-                    // Store the context for the parse
-                    self.test_t_stack.push(MatchType::Bool);
+                    self.error(self.line, "Boolean test syntax '?!' is deprecated in v0.30. Use if/elif/else statements instead.");
                 } else if self.match_char('~') {
                     self.add_token(TokenType::StringTest);
-                    // Store the context for the parse
-                    self.test_t_stack.push(MatchType::String);
+                    self.error(self.line, "String test syntax '?~' is deprecated in v0.30. Use if/elif/else statements instead.");
                 } else if self.match_char('#') {
                     self.add_token(TokenType::NumberTest);
-                    // Store the context for the parse
-                    self.test_t_stack.push(MatchType::Number);
+                    self.error(self.line, "Number test syntax '?#' is deprecated in v0.30. Use if/elif/else statements instead.");
                 } else if self.match_char(':') {
                     self.add_token(TokenType::EnumTest);
-                    // Store the context for the parse
-                    self.test_t_stack.push(MatchType::Enum);
+                    self.error(self.line, "Enum test syntax '?:' is deprecated in v0.30. Use if/elif/else statements instead.");
                 } else {
                     self.add_token(TokenType::BoolTestTrue);
-                    // Store the context for the parse
-                    self.test_t_stack.push(MatchType::Bool);
+                    self.error(self.line, "Boolean test syntax '?' is deprecated in v0.30. Use if/elif/else statements instead.");
                 }
             }
             '~' => {
@@ -350,9 +331,10 @@ impl Scanner {
             ':' => {
                 if self.match_char('|') {
                     self.add_token(TokenType::ColonBar);
-                    self.test_t_stack.pop();
+                    self.error(self.line, "Test terminator ':|' is deprecated in v0.30. Tests have been replaced by if/elif/else statements.");
                 } else if self.match_char('/') {
                     self.add_token(TokenType::EnumMatchStart);
+                    self.error(self.line, "Enum match syntax ':/' is deprecated in v0.30. Use if/elif/else statements instead.");
                 } else {
                     self.add_token(TokenType::Colon);
                 }
@@ -374,6 +356,7 @@ impl Scanner {
                     }
                 } else if self.match_char('/') {
                     self.add_token(TokenType::NumberMatchStart);
+                    self.error(self.line, "Number match syntax '#/' is deprecated in v0.30. Use if/elif/else statements instead.");
                 }
                 else {
                     self.add_token(TokenType::Hash);
@@ -424,7 +407,7 @@ impl Scanner {
         }
         let c = self.source.as_bytes()[self.current] as char;
         if c == 'i' {
-            let debug = 1;
+            let _debug = 1;
         }
         if c != expected {
             return false;
@@ -739,21 +722,21 @@ pub enum TokenType {
     Ampersand,                    // &
     Pipe,                         // |
     Caret,                        // ^
-    ReturnAssign,                 // ^= (deprecated in v0.20, use "return = expr")
+    ReturnAssign,                 // ^= (deprecated in v0.30, use "return = expr")
     LogicalAnd,                   // &&
     LogicalXor,                   // &|
-    System,                       // # // TOOD - remove this
+    System,                       // # (deprecated v0.30 - use "system Name {}" syntax)
     Self_,                        // self
     Return_,                      // return
     EnterStateMsg,                   // $>
     ExitStateMsg,                    // <$
     OuterAttributeOrDomainParams, // #[
     InnerAttribute,               // #![
-    InterfaceBlock,               // -interface-
-    MachineBlock,                 // -machine-
-    ActionsBlock,                 // -actions-
-    OperationsBlock,              // -operations-
-    DomainBlock,                  // -domain-
+    InterfaceBlock,               // interface:
+    MachineBlock,                 // machine:
+    ActionsBlock,                 // actions:
+    OperationsBlock,              // operations:
+    DomainBlock,                  // domain:
     LParen,                       // (
     RParen,                       // )
     LBracket,                     // [
@@ -792,20 +775,21 @@ pub enum TokenType {
     Dispatch,         // =>
     Equals,           // =
     //    DeclAssignment,          // ':='
-    BoolTestTrue,            // '?'
-    BoolTestFalse,           // '?!'
-    StringTest,              // '?~'
-    StringMatchStart,        // '~/'
-    NumberTest,              // '?#'
-    NumberMatchStart,        // '#/'
-    EnumTest,                // '?:'
-    EnumMatchStart,          // ':/'
-    ColonBar,                // ::
     ForwardSlash,            // /
     MatchString,             // '/<any characters>/' - contains <string>
     MatchEmptyString,        // '~//'
     MatchNull,               // '!//'
     SingleLineComment,       // '//'
+    // Deprecated test tokens - kept for parser compatibility but generate errors
+    BoolTestTrue,            // '?' - DEPRECATED: use if statements
+    BoolTestFalse,           // '?!' - DEPRECATED: use if statements  
+    StringTest,              // '?~' - DEPRECATED: use if statements
+    StringMatchStart,        // '~/' - DEPRECATED
+    NumberTest,              // '?#' - DEPRECATED: use if statements
+    NumberMatchStart,        // '#/' - DEPRECATED
+    EnumTest,                // '?:' - DEPRECATED: use if statements
+    EnumMatchStart,          // ':/' - DEPRECATED
+    ColonBar,                // '::' - DEPRECATED
     StateStackOperationPush, // $$[+]
     StateStackOperationPop,  // $$[-]
     ParentState,             // $^ - parent state reference

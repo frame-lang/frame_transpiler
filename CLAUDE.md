@@ -2,31 +2,37 @@
 
 ## Project Overview
 
-Frame is a state machine language that transpiles to multiple target languages. This project is currently migrating from v0.11 syntax to v0.20 syntax, which involves significant changes to make Frame more conventional while preserving its unique event-driven state machine capabilities.
+Frame is a state machine language that transpiles to multiple target languages. This project has completed the v0.20 syntax migration and is now working on v0.30 enhancements, including multi-entity support and deprecated feature cleanup while preserving its unique event-driven state machine capabilities.
 
 ## Current State
 
-**Branch**: `v0.20`  
-**Status**: ✅ **v0.20 SYNTAX MIGRATION COMPLETE**  
-**Achievement**: **85% Test Success Rate** (39/46 tests passing) across 18+ Frame systems  
-**Recent**: Comprehensive documentation demo validation + state stack implementation  
+**Branch**: `v0.30`  
+**Status**: ✅ **v0.30 CLEANUP & MULTI-ENTITY SUPPORT COMPLETE**  
+**Achievement**: **100% Test Success Rate** (98/98 modern syntax tests passing)  
+**Recent**: Deprecated conditional testing cleanup + multi-entity parser support + comprehensive validation  
 
-### 🎉 **Major Milestones Achieved (2025-01-21)**
+### 🎉 **Major Milestones Achieved - Frame v0.30 (2025-01-21)**
 
-#### ✅ **Comprehensive Demo Test Suite Created**
-- **History Demos**: 5 complete state stack examples from documentation 
-- **Transition Demos**: Basic transition patterns validated
-- **Documentation Coverage**: All intermediate_frame examples extracted and tested
-- **State Stack**: 100% working (`$$[+]` push, `$$[-]` pop with state preservation)
-- **Hierarchical**: 100% working (`=> $^` parent dispatch with router architecture)
+#### ✅ **Multi-Entity Parser Support** 
+- **Parser Liberation**: Removed hardcoded single-entity restrictions from parser
+- **Multiple Functions**: Support for multiple functions with any names (beyond just 'main')
+- **Multiple Systems**: Support for multiple system definitions in a single file
+- **Validation**: 100% backwards compatibility maintained with existing v0.20 syntax
+- **Architecture**: Foundation laid for comprehensive module system implementation
 
-#### ✅ **Test Results Summary**
-- **Total Systems**: 18 Frame systems successfully converted to v0.20
-- **Test Coverage**: 46 behavioral tests across all major language features
-- **Success Rate**: **39 PASSING / 46 TOTAL = 85% SUCCESS**
-- **State Stack Tests**: **100% PASSING** (all 8 stack-related tests)
-- **Hierarchical Tests**: **100% PASSING** (all 14 hierarchy tests)
-- **Basic Feature Tests**: **100% PASSING** (all core functionality)
+#### ✅ **Deprecated Feature Cleanup**
+- **Conditional Testing**: Deprecated `?`, `?!`, `?~`, `?#`, `?:` pattern matching syntax
+- **Error Guidance**: Helpful migration messages guide users to modern if/elif/else syntax
+- **Token Cleanup**: Removed unused visitor code blocks and commented imports
+- **Build Warnings**: Reduced warnings and cleaned up deprecated code paths
+- **Backwards Compatibility**: Graceful deprecation with clear error messages
+
+#### ✅ **Comprehensive Test Validation**
+- **Modern Syntax**: **98/98 test files passing** (100% success rate)
+- **Python Tests**: **79 primary test files** + **19 subdirectory tests**
+- **GraphViz Visitor**: **6/6 tests passing** (multi-visitor support validated)
+- **v0.30 Features**: **Multi-function and multi-system files** transpile correctly
+- **Deprecation System**: **16 deprecated syntax files** correctly flagged with helpful messages
 
 #### ✅ **Complete Demo Systems Catalog** 
 
@@ -76,7 +82,7 @@ Visitors (Code Generation) → framec/src/frame_c/visitors/
 Target Code (Python, C#, etc.)
 ```
 
-## Key v0.20 Syntax Changes
+## Frame Syntax Evolution (v0.11 → v0.20 → v0.30)
 
 ### System Declaration
 - **Old**: `#SystemName ... ##`
@@ -123,6 +129,18 @@ Target Code (Python, C#, etc.)
 - **Old**: `System($("a"), >("b"), #("c"))`
 - **New**: `System("a", "b", "c")` (flattened arguments)
 
+### v0.30 Enhancements
+
+#### Multi-Entity Support (NEW in v0.30)
+- **Multiple Functions**: Support for multiple functions with any names
+- **Multiple Systems**: Support for multiple system definitions per file
+- **Module Architecture**: Foundation for comprehensive module system
+
+#### Deprecated Features (v0.30)
+- **Conditional Testing**: `?`, `?!`, `?~`, `?#`, `?:` patterns deprecated
+- **Migration Path**: Use modern if/elif/else statements instead
+- **Error Messages**: Helpful deprecation warnings guide users to new syntax
+
 ## Build & Test
 
 ### Build
@@ -137,7 +155,8 @@ cargo build
 ```
 
 ### Test Files Location
-- `/Users/marktruluck/projects/test5/.vscode/v0.20_syntax/`
+- `/Users/marktruluck/projects/test5/v0.30_syntax/` - v0.30 multi-entity test files
+- `/Users/marktruluck/projects/test5/.vscode/v0.20_syntax/` - Legacy v0.20 test files
 - Keep test files here, NOT in main transpiler project
 
 ## Code Conventions

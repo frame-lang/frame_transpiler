@@ -220,20 +220,8 @@ impl<'a> Parser<'a> {
             Err(_parse_error) => None,
         };
 
-        if let Some(ref function_vec) = functions_opt {
-            // If there is a function, there can be only one and it must be named 'main'.
-            if function_vec.len() > 1 {
-                self.error_at_current("Frame can have at most one function which must be 'main'.");
-            } else if function_vec.len() == 1 {
-                let function_opt = function_vec.get(0);
-                let function_node = function_opt.unwrap().borrow();
-                if function_node.name != "main" {
-                    self.error_at_current(
-                        "Frame can have at most one function which must be 'main'.",
-                    );
-                }
-            }
-        }
+        // v0.30: Allow multiple functions with any names
+        // Functions are validated during semantic analysis
 
         // #[system_attribute]
         let system_attributes_opt = match self.entity_attributes() {
@@ -244,14 +232,11 @@ impl<'a> Parser<'a> {
         if self.match_token(&[TokenType::System]) {
             self.system(module_elements_opt, system_attributes_opt, functions_opt)
         } else {
-            // TODO: This path is taken when there isn't a declared system.
-            // For now, the rule is there must be a function and/or a system declared.
+            // v0.30: This path is taken when there isn't a declared system.
+            // Allow modules with only functions, no systems required.
 
-            // The semantics for any existing functions are validated above.
-            // If we don't have a system then we must have a main so none is an error here.
-            if functions_opt.is_none() {
-                self.error_at_current("Frame modules must have a 'main' function or a system.");
-            }
+            // v0.30: Allow empty modules or modules with only functions
+            // Validation moved to semantic analysis phase
 
             let module = match module_elements_opt {
                 Some(module_elements) => Module { module_elements },
@@ -1244,23 +1229,13 @@ impl<'a> Parser<'a> {
         function_name: String,
         line: usize,
     ) -> Result<Rc<RefCell<FunctionNode>>, ParseError> {
-        let mut params: Option<Vec<ParameterNode>> = Option::None;
-
-        // if self.match_token(&[TokenType::LParen]) {
-        //     params = match self.parameters_scope() {
-        //         Ok(Some(parameters)) => Some(parameters),
-        //         Ok(None) => None,
-        //         Err(parse_error) => return Err(parse_error),
-        //     }
-        // }
-
         // foo(
         if let Err(parse_error) = self.consume(TokenType::LParen, &format!("Expected '(' - found '{}'", self.current_token)) {
             return Err(parse_error);
         }
 
         // foo(...)
-        params = match self.parameters_scope() {
+        let params = match self.parameters_scope() {
             Ok(Some(parameters)) => Some(parameters),
             Ok(None) => None,
             Err(parse_error) => return Err(parse_error),
@@ -1281,23 +1256,19 @@ impl<'a> Parser<'a> {
             return Err(parse_error);
         }
 
-        let mut statements = Vec::new();
         let mut terminator_expr = TerminatorExpr::new(
             Return,
             None,
             self.previous().line,
         );
-        let mut is_implemented = false;
-
-
-        is_implemented = true;
+        let is_implemented = true;
         // TODO - figure out how this needs to be added to statements
         // if self.match_token(&[TokenType::SuperString]) {
         //     let token = self.previous();
         //     code_opt = Some(token.lexeme.clone());
         // }
 
-        statements = self.statements(IdentifierDeclScope::BlockVarScope);
+        let statements = self.statements(IdentifierDeclScope::BlockVarScope);
 
         // foo(...) : type { ... return
         if self.match_token(&[TokenType::Return_]) {
@@ -1721,7 +1692,7 @@ impl<'a> Parser<'a> {
 
     fn type_decl(&mut self) -> Result<TypeNode, ParseError> {
         let mut is_reference = false;
-        let mut is_system = false;
+        let is_system = false;
 
         let mut type_str = String::new();
 
@@ -2293,16 +2264,13 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     fn action(&mut self, action_name: String) -> Result<Rc<RefCell<ActionNode>>, ParseError> {
-
-        let mut params: Option<Vec<ParameterNode>> = Option::None;
-
         // foo(
         if let Err(parse_error) = self.consume(TokenType::LParen, &format!("Expected '(' - found '{}'", self.current_token)) {
             return Err(parse_error);
         }
 
         // foo(...
-        params = match self.parameters_scope() {
+        let params = match self.parameters_scope() {
             Ok(Some(parameters)) => Some(parameters),
             Ok(None) => None,
             Err(parse_error) => return Err(parse_error),
@@ -2319,27 +2287,25 @@ impl<'a> Parser<'a> {
         }
 
         let code_opt: Option<String> = None;
-        let mut statements = Vec::new();
         let mut terminator_node  = TerminatorExpr::new(
             Return,
             None,
             self.previous().line,
         );
-        let mut is_implemented = false;
 
         // foo(...) : type {
         if let Err(parse_error) = self.consume(TokenType::OpenBrace, &format!("Expected '{{' - found '{}'", self.current_token)) {
             return Err(parse_error);
         }
 
-        is_implemented = true;
+        let is_implemented = true;
         // TODO - figure out how this needs to be added to statements
         // if self.match_token(&[TokenType::SuperString]) {
         //     let token = self.previous();
         //     code_opt = Some(token.lexeme.clone());
         // }
 
-        statements = self.statements(IdentifierDeclScope::BlockVarScope);
+        let statements = self.statements(IdentifierDeclScope::BlockVarScope);
 
         // foo(...) : type { ... return
         if self.match_token(&[TokenType::Return_]) {
@@ -2578,15 +2544,13 @@ impl<'a> Parser<'a> {
         operation_name: String,
         attributes_opt: Option<HashMap<String, AttributeNode>>,
     ) -> Result<Rc<RefCell<OperationNode>>, ParseError> {
-        let mut params: Option<Vec<ParameterNode>> = Option::None;
-
         // foo(
         if let Err(parse_error) = self.consume(TokenType::LParen, &format!("Expected '(' - found '{}'", self.current_token)) {
             return Err(parse_error);
         }
 
         // foo(...
-        params = match self.parameters_scope() {
+        let params = match self.parameters_scope() {
             Ok(Some(parameters)) => Some(parameters),
             Ok(None) => None,
             Err(parse_error) => return Err(parse_error),
@@ -2603,27 +2567,25 @@ impl<'a> Parser<'a> {
         }
 
         let code_opt: Option<String> = None;
-        let mut statements = Vec::new();
         let mut terminator_node =  TerminatorExpr::new(
             Return,
             None,
             self.previous().line,
         );
-        let mut is_implemented = false;
 
         // foo(...) : type {
         if let Err(parse_error) = self.consume(TokenType::OpenBrace, &format!("Expected '{{' - found '{}'", self.current_token)) {
             return Err(parse_error);
         }
 
-        is_implemented = true;
+        let is_implemented = true;
         // TODO - figure out how this needs to be added to statements
         // if self.match_token(&[TokenType::SuperString]) {
         //     let token = self.previous();
         //     code_opt = Some(token.lexeme.clone());
         // }
 
-        statements = self.statements(IdentifierDeclScope::BlockVarScope);
+        let statements = self.statements(IdentifierDeclScope::BlockVarScope);
 
         // TODO P0: align/factor return statements into a function
         // foo(...) : type { ... return
@@ -3309,7 +3271,7 @@ impl<'a> Parser<'a> {
             },
         }
 
-        self.consume(TokenType::OpenBrace, "Expected '{'");
+        let _ = self.consume(TokenType::OpenBrace, "Expected '{'");
 
         if self.is_building_symbol_table {
             let state_local_scope_struct = StateLocalScopeSymbol::new();
@@ -3341,7 +3303,7 @@ impl<'a> Parser<'a> {
         // TODO: I don't know what state calls are.
         // State Calls
         let mut calls_opt = None;
-        let mut calls = Vec::new();
+        let calls = Vec::new();
         //
         // // @TODO - add reference syntax
         // while self.match_token(&[TokenType::Identifier]) {
@@ -3362,7 +3324,7 @@ impl<'a> Parser<'a> {
         // Parse event handlers.
 
         // TODO: make this Option?
-        let mut evt_handlers: Vec<Rc<RefCell<EventHandlerNode>>> = Vec::new();
+        let _evt_handlers: Vec<Rc<RefCell<EventHandlerNode>>> = Vec::new();
 
         let mut state_event_handlers = StateEventHandlers {
             enter_event_handler_opt: None,
@@ -3384,7 +3346,7 @@ impl<'a> Parser<'a> {
         }
 
 
-        self.consume(TokenType::CloseBrace, "Expected '}'");
+        let _ = self.consume(TokenType::CloseBrace, "Expected '}'");
 
         // TODO: Moved this down here as I think is a bug to hve it above but not sure.
         self.arcanum.exit_scope(); // state block scope (StateBlockScopeSymbol)
@@ -3557,11 +3519,7 @@ impl<'a> Parser<'a> {
     // TODO: This is a mess and needs to be cleaned up.
 
     fn event_handler(&mut self) -> Result<Option<EventHandlerNode>, ParseError> {
-        let mut message_type = MessageType::None;
-        // Hack - there is a weird bug w/ Clion that doesn't let msg be uninitialized.
-        // It just hangs upon exiting the method.
-        let mut msg: String = "".to_string();
-        let mut line_number = 0; // TODO - review
+        // Variables initialized at point of use - see line 3632-3635
         self.interface_method_called = false;
 
         self.event_handler_has_transition = false;
@@ -3652,10 +3610,10 @@ impl<'a> Parser<'a> {
                 return Err(ParseError::new(err_msg));
             }
         }
-        message_type = MessageType::CustomMessage { message_node };
+        let message_type = MessageType::CustomMessage { message_node };
         let id = self.previous();
-        msg = id.lexeme.clone();
-        line_number = id.line;
+        let msg = id.lexeme.clone();
+        let line_number = id.line;
         let mut is_declaring_event = false;
 
         if self.is_building_symbol_table {
@@ -3962,7 +3920,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        self.consume(TokenType::OpenBrace, "Expected '{'");
+        let _ = self.consume(TokenType::OpenBrace, "Expected '{'");
 
         if self.is_building_symbol_table {
             let event_handler_local_scope_struct = EventHandlerLocalScopeSymbol::new();
@@ -4026,7 +3984,7 @@ impl<'a> Parser<'a> {
             ));
         }
 
-        self.consume(TokenType::CloseBrace, "Expected '}'");
+        let _ = self.consume(TokenType::CloseBrace, "Expected '}'");
 
         // The state name must be set in an enclosing context. Otherwise fail
         // with extreme prejudice.
@@ -4848,7 +4806,7 @@ impl<'a> Parser<'a> {
 
         conditional_branches.push(first_branch_node);
 
-        // Removed: dangling DispatchToParentState handling for @:> syntax
+        // v0.30: Parent dispatch now handled by => $^ statements
 
         // (':' bool_test_else_branch)?
         let mut bool_test_else_node_opt: Option<BoolTestElseBranchNode> = None;
@@ -5050,7 +5008,7 @@ impl<'a> Parser<'a> {
 
         conditional_branches.push(first_branch_node);
 
-        // Removed: dangling DispatchToParentState handling for @:> syntax
+        // v0.30: Parent dispatch now handled by => $^ statements
 
         // (':' match_test_else_branch)?
         let mut else_branch_opt: Option<StringMatchTestElseBranchNode> = None;
@@ -5759,7 +5717,7 @@ impl<'a> Parser<'a> {
                 Err(parse_error) => return Err(parse_error),
                 Ok(None) => {
                     // v0.20: Allow empty expression lists '()'
-                    self.consume(TokenType::RParen, "Expected ')'");
+                    let _ = self.consume(TokenType::RParen, "Expected ')'");
                     // Return empty expression list for v0.20 compatibility
                     let empty_expr_list = ExprListNode::new(Vec::new());
                     return Ok(Some(ExprListT {
@@ -5769,7 +5727,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let mut scope = IdentifierDeclScope::UnknownScope;
+        let scope = IdentifierDeclScope::UnknownScope;
 
         if self.match_token(&[TokenType::Transition]) {
             match self.transition_expr() {
@@ -7118,7 +7076,7 @@ impl<'a> Parser<'a> {
             if self.match_token(&[TokenType::Dot]) {
                 if self.match_token(&[TokenType::Identifier]) {
 
-                    let mut id_node = IdentifierNode::new(
+                    let id_node = IdentifierNode::new(
                         self.previous().clone(),
                         None,
                         scope.clone(),
@@ -8503,7 +8461,7 @@ impl<'a> Parser<'a> {
 
         conditional_branches.push(first_branch_node);
 
-        // Removed DispatchToParentState token matching - no longer used in v0.20
+        // v0.30: DispatchToParentState (@:>) deprecated - use => $^ statements
         loop {
             // :> : :|
             if self.peek().token_type == TokenType::Colon
@@ -8682,7 +8640,7 @@ impl<'a> Parser<'a> {
 
         conditional_branches.push(first_branch_node);
 
-        // Removed DispatchToParentState token matching - no longer used in v0.20
+        // v0.30: DispatchToParentState (@:>) deprecated - use => $^ statements
         loop {
             // :> : :|
             if self.peek().token_type == TokenType::Colon
