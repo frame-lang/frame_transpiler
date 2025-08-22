@@ -203,32 +203,23 @@ impl<'a> Parser<'a> {
             Err(_parse_error) => None,
         };
 
-        let functions_opt = match self.functions() {
-            Ok(functions_opt) => functions_opt,
-            // TODO - review error logic
-            Err(_parse_error) => None,
-        };
-
-        // v0.30: Allow multiple functions with any names
-        // Functions are validated during semantic analysis
-
-        // #[system_attribute]
-        let mut system_attributes_opt = match self.entity_attributes() {
-            Ok(attributes_opt) => attributes_opt,
-            Err(_parse_error) => None,
-        };
-
-        // v0.30: Parse multiple functions and systems
+        // v0.30: Parse multiple functions and systems in sequence
         let mut functions = Vec::new();
         let mut systems = Vec::new();
         
-        // Add any pre-parsed functions to the collection
-        if let Some(func_vec) = functions_opt {
-            functions.extend(func_vec);
-        }
-        
         // Parse all entities in sequence
         loop {
+            // First check for attributes that might precede a system
+            let entity_attributes_opt = if self.check(TokenType::OuterAttributeOrDomainParams) {
+                match self.entity_attributes() {
+                    Ok(attributes_opt) => attributes_opt,
+                    Err(_parse_error) => None,
+                }
+            } else {
+                None
+            };
+            
+            // Now check what entity type we have
             if self.match_token(&[TokenType::System]) {
                 // Parse system (first system gets module elements, others get empty module)
                 let module_for_system = if systems.is_empty() {
@@ -242,18 +233,22 @@ impl<'a> Parser<'a> {
                     Module::new(vec![])
                 };
                 
-                let attrs = if systems.is_empty() { 
-                    system_attributes_opt.take() 
-                } else { 
-                    None 
-                };
-                let system = self.system(Some(module_for_system), attrs, None);
+                let system = self.system(Some(module_for_system), entity_attributes_opt, None);
                 systems.push(system);
             } else if self.match_token(&[TokenType::Function]) {
+                // Functions shouldn't have system attributes, but ignore them if present
                 match self.function_scope() {
-                    Ok(function) => functions.push(function),
-                    Err(_) => break, // Error handling - stop parsing on function error
+                    Ok(function) => {
+                        functions.push(function);
+                    },
+                    Err(_) => {
+                        break; // Error handling - stop parsing on function error
+                    }
                 }
+            } else if entity_attributes_opt.is_some() {
+                // We parsed attributes but found no system or function - this is an error
+                self.error_at_current("Expected 'system' or 'function' after attributes.");
+                break;
             } else {
                 // No more systems or functions found - exit loop
                 break;

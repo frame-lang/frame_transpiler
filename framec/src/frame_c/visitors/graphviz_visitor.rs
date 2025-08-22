@@ -322,6 +322,14 @@ impl GraphVizVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    pub fn run_v2(&mut self, frame_module: &FrameModule) {
+        // v0.30: For now, generate GraphViz for each system separately
+        // Future: could generate a combined graph with subgraphs for each system
+        for system_node in &frame_module.systems {
+            system_node.accept(self);
+        }
+    }
+    
     pub fn run(&mut self, system_node: &SystemNode) {
         system_node.accept(self);
     }

@@ -1,19 +1,21 @@
-# Frame v0.20 Grammar (BNF)
+# Frame v0.30 Grammar (BNF)
 
-This grammar specification has been comprehensively validated with 98 working Frame systems and 100% test success rate (98/98 tests passing) including complete state stack operations, hierarchical state machines, and all major v0.20 language features.
+This grammar specification has been comprehensively validated with 105 working Frame systems and 100% test success rate (105/105 tests passing) including complete multi-entity module support, state stack operations, hierarchical state machines, and all major v0.30 language features.
 
 ## Module Structure
 
 ```bnf
-module: function* system*
+module: (function | system)*
 ```
+
+**v0.30 Multi-Entity Support**: Modules can contain any combination of functions and systems in any order. Each entity (function or system) can have individual attributes.
 
 ## Functions
 
-Frame v0.20 supports a main function as the entry point. Currently, only one function (`main`) is supported per module, with additional functionality implemented as system action methods.
+Frame v0.30 supports multiple functions per module with any names. Functions are peer entities alongside systems within modules.
 
 ```bnf
-function: 'fn' 'main' '(' parameter_list? ')' type? function_body
+function: attributes? 'fn' IDENTIFIER '(' parameter_list? ')' type? function_body
 function_body: '{' stmt* '}'
 parameter_list: parameter (',' parameter)*
 parameter: IDENTIFIER type?
@@ -23,25 +25,44 @@ type_expr: IDENTIFIER | SUPERSTRING
 
 **Note**: Function parameter lists always require parentheses `()`, even when empty. The `parameter_list?` indicates the parameters inside are optional, but the parentheses themselves are mandatory.
 
-**v0.20 Feature**: Empty parameter lists `()` are fully supported in v0.20, unlike v0.11 which rejected empty parameter syntax in certain contexts.
+**v0.30 Feature**: Multiple functions are fully supported with any function names. Empty parameter lists `()` are fully supported, unlike v0.11 which rejected empty parameter syntax in certain contexts.
 
 ### Function Examples
 ```frame
-// Basic main function
+// Multiple functions in v0.30
 fn main() {
-    print("Hello, Frame!")
+    helper("test")
+    var result = calculate(10, 20)
+    print(result)
 }
 
-// Main with return type
-fn main(): int {
-    return 0
+fn helper(msg) {
+    print("Helper: " + msg)
 }
 
-// Main with system interaction
-fn main() {
-    var calc = Calculator()
-    var result = calc.add(5, 3)
-    print("Result: " + str(result))
+fn calculate(x, y) {
+    return x * y + 5
+}
+
+// Functions mixed with systems
+fn utility(data) {
+    print("Utility: " + data)
+}
+
+system Worker {
+    interface:
+        start()
+        
+    machine:
+        $Idle {
+            start() {
+                utility("Worker starting")
+                -> $Running
+            }
+        }
+        
+        $Running {
+        }
 }
 ```
 

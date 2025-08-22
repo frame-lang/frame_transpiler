@@ -683,6 +683,221 @@ impl PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
+    pub fn run_v2(&mut self, frame_module: &FrameModule) {
+        // v0.30: Generate proper module structure with multiple systems
+        
+        // Add header
+        self.add_code(&format!("#{}", self.compiler_version));
+        self.newline();
+        self.newline();
+        
+        // Generate FrameEvent class (common to all systems)
+        self.newline();
+        self.add_code("class FrameEvent:");
+        self.indent();
+        self.newline();
+        self.add_code("def __init__(self, message, parameters):");
+        self.indent();
+        self.newline();
+        self.add_code("self._message = message");
+        self.newline();
+        self.add_code("self._parameters = parameters");
+        self.outdent();
+        self.outdent();
+        self.newline();
+        self.newline();
+        
+        // Generate module-level functions (like main)
+        for function_rcref in &frame_module.functions {
+            let function_node = function_rcref.borrow();
+            function_node.accept(self);
+            self.newline();
+        }
+        
+        // Generate each system as a separate class
+        for system_node in &frame_module.systems {
+            self.generate_system_class_simple(system_node);
+            self.newline();
+        }
+        
+        // Generate __main__ block if main function exists
+        let has_main = frame_module.functions.iter().any(|f| f.borrow().name == "main");
+        if has_main {
+            self.newline();
+            self.add_code("if __name__ == '__main__':");
+            self.indent();
+            self.newline();
+            self.add_code("main()");
+            self.outdent();
+        }
+    }
+    
+    fn generate_system_class_simple(&mut self, system_node: &SystemNode) {
+        // Generate a simple but complete system as a Python class
+        self.add_code(&format!("class {}:", system_node.name));
+        self.indent();
+        
+        // Generate __init__ method
+        self.newline();
+        self.add_code("def __init__(self):");
+        self.indent();
+        
+        // Initialize state to first state
+        if let Some(machine_block) = &system_node.machine_block_node_opt {
+            if !machine_block.states.is_empty() {
+                let first_state = &machine_block.states[0];
+                self.newline();
+                self.add_code(&format!("self.__state = self._s{}", first_state.borrow().name));
+            }
+        }
+        self.outdent();
+        
+        // Generate interface methods
+        if let Some(interface_block) = &system_node.interface_block_node_opt {
+            self.newline();
+            self.add_code("# ==================== Interface Block ================== #");
+            
+            for interface_method_rcref in &interface_block.interface_methods {
+                let interface_method = interface_method_rcref.borrow();
+                self.newline();
+                self.newline();
+                self.add_code(&format!("def {}(self", interface_method.name));
+                
+                // Add parameters
+                if let Some(params) = &interface_method.params {
+                    for param in params {
+                        self.add_code(", ");
+                        self.add_code(&param.param_name);
+                    }
+                }
+                
+                self.add_code("):");
+                self.indent();
+                self.newline();
+                
+                // Create event and dispatch to state
+                self.add_code(&format!("__e = FrameEvent('{}', None)", interface_method.name));
+                self.newline();
+                self.add_code("self.__state(__e)");
+                
+                self.outdent();
+            }
+        }
+        
+        // Generate state methods
+        if let Some(machine_block) = &system_node.machine_block_node_opt {
+            self.newline();
+            self.add_code("# ===================== Machine Block =================== #");
+            
+            for state_rcref in &machine_block.states {
+                let state_node = state_rcref.borrow();
+                self.newline();
+                self.newline();
+                self.add_code(&format!("def _s{}(self, __e):", state_node.name));
+                self.indent();
+                
+                // Generate event handlers
+                let mut first_handler = true;
+                for event_handler_rcref in &state_node.evt_handlers_rcref {
+                    let event_handler = event_handler_rcref.borrow();
+                    
+                    if !first_handler {
+                        self.add_code("el");
+                    }
+                    first_handler = false;
+                    
+                    // Handle different event types
+                    let event_symbol = event_handler.event_symbol_rcref.borrow();
+                    let event_name = if event_symbol.msg == "$>" {
+                        "$>".to_string()
+                    } else if event_symbol.msg == "<$" {
+                        "<$".to_string()  
+                    } else {
+                        event_symbol.msg.clone()
+                    };
+                    
+                    self.newline();
+                    self.add_code(&format!("if __e._message == '{}':", event_name));
+                    self.indent();
+                    
+                    // Generate statements
+                    if !event_handler.statements.is_empty() {
+                        for statement in &event_handler.statements {
+                            self.newline();
+                            // Simple print statement handling for now
+                            match statement {
+                                DeclOrStmtType::StmtT { stmt_t } => {
+                                    // For now, just handle basic statements
+                                    match stmt_t {
+                                        StatementType::ExpressionStmt { expr_stmt_t } => {
+                                            match expr_stmt_t {
+                                                ExprStmtType::CallStmtT { call_stmt_node } => {
+                                                    call_stmt_node.accept(self);
+                                                }
+                                                ExprStmtType::TransitionStmtT { transition_statement_node } => {
+                                                    // For simplicity, just extract the target state name from the label
+                                                    if let Some(label) = &transition_statement_node.transition_expr_node.label_opt {
+                                                        self.add_code(&format!("self.__state = self._s{}", label));
+                                                    }
+                                                }
+                                                _ => {}
+                                            }
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                    
+                    // Handle terminator (transition or return)
+                    match &event_handler.terminator_node {
+                        Some(terminator_expr) => {
+                            match &terminator_expr.terminator_type {
+                                TerminatorType::Return => {
+                                    self.newline();
+                                    self.add_code("return");
+                                }
+                                _ => {
+                                    // Continue to next handler
+                                }
+                            }
+                        }
+                        None => {
+                            self.newline();
+                            self.add_code("return");
+                        }
+                    }
+                    
+                    self.outdent();
+                }
+                
+                self.outdent();
+            }
+        }
+        
+        self.outdent();
+    }
+    
+    fn generate_frame_event(&mut self) {
+        self.newline();
+        self.add_code("class FrameEvent:");
+        self.indent();
+        self.newline();
+        self.add_code("def __init__(self, message, parameters):");
+        self.indent();
+        self.newline();
+        self.add_code("self._message = message");
+        self.newline();
+        self.add_code("self._parameters = parameters");
+        self.outdent();
+        self.outdent();
+        self.newline();
+        self.newline();
+    }
+    
+
     pub fn run(&mut self, system_node_rcref: Rc<RefCell<SystemNode>>) {
         match &system_node_rcref.borrow().system_attributes_opt {
             Some(attributes) => {

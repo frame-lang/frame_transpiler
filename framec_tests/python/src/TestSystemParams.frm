@@ -51,11 +51,6 @@ system StartStateEnterParameters($>(p1)) {
 
 // System with domain variable initialization
 system DomainVariables(a, c) {
-    domain:
-        var a = nil // a is set with a parameter value
-        var b = nil 
-        var c = nil // c is set with a parameter value
-    
     machine:
         $Start {
             $>() {
@@ -63,15 +58,15 @@ system DomainVariables(a, c) {
                 return
             }
         }
-}
-
-// System with all parameter types: start state, start state enter event, domain
-system AllParameterTypes($(p1), $>(p2), a, c) {
+    
     domain:
         var a = nil // a is set with a parameter value
         var b = nil 
         var c = nil // c is set with a parameter value
-    
+}
+
+// System with all parameter types: start state, start state enter event, domain
+system AllParameterTypes($(p1), $>(p2), a, c) {
     machine:
         $S1(p1) { 
             $>(p2) {
@@ -79,4 +74,9 @@ system AllParameterTypes($(p1), $>(p2), a, c) {
                 return
             }
         }
+    
+    domain:
+        var a = nil // a is set with a parameter value
+        var b = nil 
+        var c = nil // c is set with a parameter value
 }

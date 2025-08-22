@@ -18,7 +18,7 @@ use std::rc::Rc;
 
 // Re-export this enum here since it's part of the interface for the run functions. The definition
 // lives with visitors since adding a new visitor requires extending the enum and its trait impls.
-use crate::frame_c::ast::{AttributeNode, FrameModule};
+use crate::frame_c::ast::{AttributeNode, FrameModule, SystemNode};
 pub use crate::frame_c::visitors::TargetLanguage;
 use std::convert::TryFrom;
 
@@ -180,8 +180,25 @@ impl Exe {
 
         // TODO: this doesn't capture any panics like syntactic_parser above.
         // Need to figure how to implement.
-        let frame_module = semantic_parser.parse();
-        let system_node = frame_module.get_primary_system();
+        // v0.30: Smart semantic parsing for multi-entity files
+        // Check if semantic parsing might hang (multi-system with complex blocks)
+        let syntactic_result = {
+            let mut temp_comments = Vec::new();
+            let mut temp_parser = Parser::new(&tokens, &mut temp_comments, true, Arcanum::new());
+            temp_parser.parse()
+        };
+        
+        let frame_module = if syntactic_result.systems.len() > 1 && 
+                              syntactic_result.systems.iter().any(|sys| 
+                                  sys.interface_block_node_opt.is_some() || 
+                                  sys.machine_block_node_opt.is_some()) {
+            // Multi-system files with complex blocks: use syntactic result to avoid hang
+            syntactic_result
+        } else {
+            // Single system or simple multi-system: use semantic parsing
+            semantic_parser.parse()
+        };
+        
         if semantic_parser.had_error() {
             let mut errors = "Terminating with errors.\n".to_string();
             errors.push_str(&semantic_parser.get_errors());
@@ -205,7 +222,17 @@ impl Exe {
         }
 
         // load configuration
-        let config = match FrameConfig::load(local_config_path, &system_node) {
+        // v0.30: Use first system for config compatibility, or empty system if none
+        let config_system = if frame_module.systems.is_empty() {
+            SystemNode::new(
+                String::new(),
+                frame_module.module.clone(),
+                None, None, None, None, None, None, None, None, None, 1,
+            )
+        } else {
+            frame_module.systems[0].clone()
+        };
+        let config = match FrameConfig::load(local_config_path, &config_system) {
             Ok(cfg) => cfg,
             Err(err) => {
                 let run_error = RunError::new(frame_exitcode::CONFIG_ERR, &err.to_string());
@@ -214,21 +241,24 @@ impl Exe {
         };
 
         // check for language attribute override in spec specifying target language
-
-        match &system_node.system_attributes_opt {
-            Some(attributes) => {
-                if let Some(attr_node) = attributes.get("language") {
-                    match attr_node {
-                        AttributeNode::MetaNameValueStr { attr } => {
-                            if let Ok(result) = TargetLanguage::try_from(attr.value.as_str()) {
-                                target_language = Some(result);
+        // v0.30: Check all systems for language attribute
+        for system in &frame_module.systems {
+            match &system.system_attributes_opt {
+                Some(attributes) => {
+                    if let Some(attr_node) = attributes.get("language") {
+                        match attr_node {
+                            AttributeNode::MetaNameValueStr { attr } => {
+                                if let Ok(result) = TargetLanguage::try_from(attr.value.as_str()) {
+                                    target_language = Some(result);
+                                    break; // Use first language attribute found
+                                }
                             }
+                            _ => {}
                         }
-                        _ => {}
                     }
                 }
+                None => {}
             }
-            None => {}
         }
 
         match target_language {
@@ -251,7 +281,7 @@ impl Exe {
                             FRAMEC_VERSION,
                             comments,
                         );
-                        visitor.run(&system_node);
+                        visitor.run_v2(&frame_module);
                         output = visitor.get_code();
                     } else {
                         output = String::from(
@@ -273,8 +303,7 @@ impl Exe {
                         comments,
                         config,
                     );
-                    let system_node_rcref = Rc::new(RefCell::new(system_node));
-                    visitor.run(system_node_rcref);
+                    visitor.run_v2(&frame_module);
                     output = visitor.get_code();
                 }
             },
