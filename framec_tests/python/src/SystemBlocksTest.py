@@ -7,76 +7,20 @@ class FrameEvent:
         self._message = message
         self._parameters = parameters
 
-
 class HelloWorldSystem:
-    
     
     # ==================== System Factory =================== #
     
     def __init__(self):
-        
-        self.__compartment = None
-        self.return_stack = [None]
-        
-        # Initialize domain
-        
-        
+        # Constructor implementation will be added here
     
-    # ==================== Interface Block ================== #
+    # Interface methods will be added here
     
-    # ===================== Machine Block =================== #
+    # State machine will be added here
     
-    # ===================== Actions Block =================== #
+    # Action methods will be added here
     
-    # ==================== Operations Block ================== #
+    # Operation methods will be added here
     
-    # ==================== System Runtime =================== #
-    
-    def __kernel(self, __e):
-        
-        # send event to current state
-        self.__router(__e)
-        
-        # loop until no transitions occur
-        while self.__next_compartment != None:
-            next_compartment = self.__next_compartment
-            self.__next_compartment = None
-            
-            # exit current state
-            self.__router(FrameEvent( "<$", self.__compartment.exit_args))
-            # change state
-            self.__compartment = next_compartment
-            
-            if next_compartment.forward_event is None:
-                # send normal enter event
-                self.__router(FrameEvent("$>", self.__compartment.enter_args))
-            else: # there is a forwarded event
-                if next_compartment.forward_event._message == "$>":
-                    # forwarded event is enter event
-                    self.__router(next_compartment.forward_event)
-                else:
-                    # forwarded event is not enter event
-                    # send normal enter event
-                    self.__router(FrameEvent("$>", self.__compartment.enter_args))
-                    # and now forward event to new, intialized state
-                    self.__router(next_compartment.forward_event)
-                next_compartment.forward_event = None
-                
-    
-    def __router(self, __e, compartment=None):
-        target_compartment = compartment or self.__compartment
-        
-
-# ===================== Compartment =================== #
-
-class HelloWorldSystemCompartment:
-
-    def __init__(self,state,parent_compartment):
-        self.state = state
-        self.state_args = {}
-        self.state_vars = {}
-        self.enter_args = {}
-        self.exit_args = {}
-        self.forward_event = None
-        self.parent_compartment = parent_compartment
+    # System runtime (__kernel, __router, __transition) will be added here
     

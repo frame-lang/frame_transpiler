@@ -8,6 +8,7 @@ use super::ast::ExprType;
 use super::ast::ExprType::*;
 use super::ast::TerminatorType::Return;
 use super::ast::*;
+use std::collections::VecDeque;
 use super::scanner::*;
 use super::symbol_table::*;
 use crate::frame_c::ast::ModuleElement::*;
@@ -7113,14 +7114,10 @@ impl<'a> Parser<'a> {
                             CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
 
                         }
-                        Err(err) => {
-                            if !self.is_building_symbol_table {
-                                self.error_at_current(err.as_str());
-                                CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
-                            } else {
-                                CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
-                            }
-
+                        Err(_err) => {
+                            // For unrecognized identifiers, just pass them through as undeclared
+                            // This allows calling built-in functions like print() or external libraries
+                            CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
                         }
                     };
 
@@ -7264,6 +7261,18 @@ impl<'a> Parser<'a> {
             // let debug_name = format!("id = {}" , id_node.name.lexeme.clone());
 
             if self.match_token(&[TokenType::LParen]) {
+                // For simple function calls, we'll let the UndeclaredCallT handle everything
+                
+                // v0.30: Try the new simplified call chain method for external functions AND method calls
+                // Use V2 for: 1) External functions (first node, empty chain) 2) Method calls (not first node, 1 item in chain)
+                if (is_first_node && call_chain.is_empty()) || (!is_first_node && call_chain.len() == 1) {
+                    
+                    // Rewind the LParen token since build_call_chain_v2 expects to parse it
+                    self.current -= 1;
+                    
+                    return self.build_call_chain_v2_with_existing(id_node, call_chain);
+                }
+                
                 let call_expr_node_result = self.finish_call(id_node);
                 match call_expr_node_result {
                     Ok(call_expr_node) => {
@@ -7498,14 +7507,24 @@ impl<'a> Parser<'a> {
 
                                 call_chain.push_back(call_t);
                             } else {
-                                // is first or only node in a call chain. Determine if an action,
-                                // interface or external call.
+                                // is first or only node in a call chain. For simple external calls, just add as UndeclaredCallT
                                 let method_name = call_expr_node.identifier.name.lexeme.clone();
+                                eprintln!("DEBUG PARSER: Creating UndeclaredCallT for simple function call '{}'", method_name);
+                                let call_t = CallChainNodeType::UndeclaredCallT {
+                                    call_node: call_expr_node,
+                                };
+                                call_chain.push_back(call_t);
+                                eprintln!("DEBUG PARSER: Added UndeclaredCallT to call_chain, new length: {}", call_chain.len());
+                                
+                                // For now, skip the complex action/interface lookup logic for simple calls
+                                /*
                                 let action_decl_symbol_opt =
                                     self.arcanum.lookup_action(&method_name);
 
+                                eprintln!("DEBUG PARSER: Looking up action '{}', result: {:?}", method_name, action_decl_symbol_opt.is_some());
                                 match action_decl_symbol_opt {
                                     Some(ads) => {
+                                        eprintln!("DEBUG PARSER: Found action, processing...");
                                         // first node is an action
 
                                         let action_symbol_opt =
@@ -7583,8 +7602,10 @@ impl<'a> Parser<'a> {
                                         let interface_method_symbol_opt =
                                             self.arcanum.lookup_interface_method(&method_name);
 
+                                        eprintln!("DEBUG PARSER: Looking up interface method '{}', result: {:?}", method_name, interface_method_symbol_opt.is_some());
                                         match interface_method_symbol_opt {
                                             Some(interface_method_symbol) => {
+                                                eprintln!("DEBUG PARSER: Found interface method, processing...");
                                                 // first node is an interface call.
                                                 if self.is_action_scope {
                                                     // iface calls disallowed in actions.
@@ -7663,6 +7684,7 @@ impl<'a> Parser<'a> {
                                         }
                                     }
                                 }
+                                */
                             }
                         }
                     }
@@ -7951,7 +7973,155 @@ impl<'a> Parser<'a> {
             is_first_node = false;
         }
 
+        
         let call_chain_expr_node = CallChainExprNode::new(call_chain);
+        Ok(Some(CallChainExprT {
+            call_chain_expr_node,
+        }))
+    }
+
+    /* --------------------------------------------------------------------- */
+    
+    // v0.30 Improved call chain parsing method
+    // This method provides a cleaner, more maintainable approach to parsing call chains
+    fn build_call_chain_v2(&mut self, base_id: IdentifierNode) -> Result<Option<ExprType>, ParseError> {
+        use crate::frame_c::ast::{CallChainNodeTypeV2, IdentifierScope, CallTargetType};
+        use std::collections::VecDeque;
+        
+        let mut chain: VecDeque<CallChainNodeTypeV2> = VecDeque::new();
+        let mut current_id = base_id;
+        
+        
+        // Parse the rest of the chain
+        loop {
+            if self.match_token(&[TokenType::LParen]) {
+                // It's a call - for external functions, just create the call node
+                let call_expr = self.finish_call(current_id)?;
+                chain.push_back(CallChainNodeTypeV2::Call {
+                    expr: call_expr,
+                    target_type: self.determine_call_target_type_v2(&chain),
+                });
+                break; // Calls end the chain for now
+            } else if self.match_token(&[TokenType::Dot]) {
+                // It's a member access - continue parsing
+                if !self.match_token(&[TokenType::Identifier]) {
+                    let err_msg = format!("Expected identifier after '.'");
+                    return Err(ParseError::new(&err_msg));
+                }
+                
+                current_id = IdentifierNode::new(
+                    self.previous().clone(),
+                    None,
+                    IdentifierDeclScope::UnknownScope,
+                    false,
+                    self.previous().line,
+                );
+                
+                chain.push_back(CallChainNodeTypeV2::Identifier {
+                    name: current_id.name.lexeme.clone(),
+                    scope: IdentifierScope::Unknown, // Will be resolved later
+                    line: current_id.name.line,
+                });
+            } else {
+                // No more chain elements - just an identifier
+                break;
+            }
+        }
+        
+        
+        // Convert to legacy CallChainExprNode for compatibility
+        let legacy_chain = self.convert_v2_to_legacy_chain(chain)?;
+        let call_chain_expr_node = CallChainExprNode::new(legacy_chain);
+        
+        Ok(Some(CallChainExprT {
+            call_chain_expr_node,
+        }))
+    }
+    
+    // Helper method to determine identifier scope using new enums
+    fn determine_identifier_scope_v2(&self, _id_node: &IdentifierNode) -> IdentifierScope {
+        // For now, return Unknown - this will be enhanced later
+        IdentifierScope::Unknown
+    }
+    
+    // Helper method to determine call target type
+    fn determine_call_target_type_v2(&self, _chain: &VecDeque<CallChainNodeTypeV2>) -> CallTargetType {
+        // For now, return Unknown - this will be enhanced later
+        CallTargetType::Unknown
+    }
+    
+    // Convert V2 chain to legacy chain for compatibility
+    fn convert_v2_to_legacy_chain(&self, v2_chain: VecDeque<CallChainNodeTypeV2>) -> Result<VecDeque<CallChainNodeType>, ParseError> {
+        let mut legacy_chain = VecDeque::new();
+        
+        for node in v2_chain {
+            match node {
+                CallChainNodeTypeV2::Identifier { name, line, .. } => {
+                    // Create a basic IdentifierNode for the legacy system
+                    let id_node = IdentifierNode::new(
+                        Token::new(TokenType::Identifier, name.clone(), TokenLiteral::None, line, 0, name.len()),
+                        None,
+                        IdentifierDeclScope::UnknownScope,
+                        false,
+                        line,
+                    );
+                    legacy_chain.push_back(CallChainNodeType::UndeclaredIdentifierNodeT { id_node });
+                }
+                CallChainNodeTypeV2::Call { expr, .. } => {
+                    legacy_chain.push_back(CallChainNodeType::UndeclaredCallT { call_node: expr });
+                }
+                // For now, convert other types to basic equivalents
+                CallChainNodeTypeV2::Variable { var_node } => {
+                    legacy_chain.push_back(CallChainNodeType::VariableNodeT { var_node });
+                }
+                CallChainNodeTypeV2::InterfaceMethod { method_node } => {
+                    legacy_chain.push_back(CallChainNodeType::InterfaceMethodCallT { 
+                        interface_method_call_expr_node: method_node 
+                    });
+                }
+                CallChainNodeTypeV2::Operation { op_node } => {
+                    legacy_chain.push_back(CallChainNodeType::OperationCallT { 
+                        operation_call_expr_node: op_node 
+                    });
+                }
+                CallChainNodeTypeV2::Action { action_node } => {
+                    legacy_chain.push_back(CallChainNodeType::ActionCallT { 
+                        action_call_expr_node: action_node 
+                    });
+                }
+                _ => {
+                    // For unhandled types, create a placeholder
+                }
+            }
+        }
+        
+        Ok(legacy_chain)
+    }
+
+    // v0.30: Modified build_call_chain_v2 that can append to existing call chain for method calls
+    fn build_call_chain_v2_with_existing(&mut self, base_id: IdentifierNode, mut existing_chain: VecDeque<CallChainNodeType>) -> Result<Option<ExprType>, ParseError> {
+        use crate::frame_c::ast::{CallChainNodeTypeV2, IdentifierScope};
+        
+        let mut chain: VecDeque<CallChainNodeTypeV2> = VecDeque::new();
+        let current_id = base_id;
+        
+        // Parse the call
+        if self.match_token(&[TokenType::LParen]) {
+            // It's a call - for method calls, just create the call node
+            let call_expr = self.finish_call(current_id)?;
+            chain.push_back(CallChainNodeTypeV2::Call {
+                expr: call_expr,
+                target_type: self.determine_call_target_type_v2(&chain),
+            });
+        }
+        
+        // Convert to legacy and append to existing chain
+        let legacy_chain = self.convert_v2_to_legacy_chain(chain)?;
+        for node in legacy_chain {
+            existing_chain.push_back(node);
+        }
+        
+        let call_chain_expr_node = CallChainExprNode::new(existing_chain);
         Ok(Some(CallChainExprT {
             call_chain_expr_node,
         }))

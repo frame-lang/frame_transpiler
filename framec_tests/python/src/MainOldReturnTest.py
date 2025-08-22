@@ -10,6 +10,5 @@ class FrameEvent:
 def main():
     return 0
     return
-
 if __name__ == '__main__':
     main()

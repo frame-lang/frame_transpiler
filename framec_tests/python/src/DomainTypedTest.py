@@ -7,103 +7,16 @@ class FrameEvent:
         self._message = message
         self._parameters = parameters
 
-
 class DomainTypedTest:
-    
     
     # ==================== System Factory =================== #
     
     def __init__(self):
-        
-         # Create and initialize start state compartment.
-        
-        next_compartment = None
-        next_compartment = DomainTypedTestCompartment('__domaintypedtest_state_Ready', next_compartment)
-        self.__compartment = next_compartment
-        self.__next_compartment = None
-        self.return_stack = [None]
-        
-        # Initialize domain
-        
-        self.item_id  = 42
-        self.name : string = "Boris"
-        self.s : []int = [6]int{2, 3, 5, 7, 11, 13}[1:4]
-        
-        # Send system start event
-        frame_event = FrameEvent("$>", None)
-        self.__kernel(frame_event)
+        # Constructor implementation will be added here
     
-    # ===================== Machine Block =================== #
+    # State machine will be added here
     
+    # Action methods will be added here
     
-    # ----------------------------------------
-    # $Ready
-    
-    def __domaintypedtest_state_Ready(self, __e, compartment):
-        if __e._message == "displayName":
-            print("My name is " + self.name)
-            return
-    
-    # ===================== Actions Block =================== #
-    
-    def printName_do(self):
-        
-        print("My name is " + self.name)
-        return
-        
-    
-    # ==================== System Runtime =================== #
-    
-    def __kernel(self, __e):
-        
-        # send event to current state
-        self.__router(__e)
-        
-        # loop until no transitions occur
-        while self.__next_compartment != None:
-            next_compartment = self.__next_compartment
-            self.__next_compartment = None
-            
-            # exit current state
-            self.__router(FrameEvent( "<$", self.__compartment.exit_args))
-            # change state
-            self.__compartment = next_compartment
-            
-            if next_compartment.forward_event is None:
-                # send normal enter event
-                self.__router(FrameEvent("$>", self.__compartment.enter_args))
-            else: # there is a forwarded event
-                if next_compartment.forward_event._message == "$>":
-                    # forwarded event is enter event
-                    self.__router(next_compartment.forward_event)
-                else:
-                    # forwarded event is not enter event
-                    # send normal enter event
-                    self.__router(FrameEvent("$>", self.__compartment.enter_args))
-                    # and now forward event to new, intialized state
-                    self.__router(next_compartment.forward_event)
-                next_compartment.forward_event = None
-                
-    
-    def __router(self, __e, compartment=None):
-        target_compartment = compartment or self.__compartment
-        if target_compartment.state == '__domaintypedtest_state_Ready':
-            self.__domaintypedtest_state_Ready(__e, target_compartment)
-        
-    def __transition(self, next_compartment):
-        self.__next_compartment = next_compartment
-    
-
-# ===================== Compartment =================== #
-
-class DomainTypedTestCompartment:
-
-    def __init__(self,state,parent_compartment):
-        self.state = state
-        self.state_args = {}
-        self.state_vars = {}
-        self.enter_args = {}
-        self.exit_args = {}
-        self.forward_event = None
-        self.parent_compartment = parent_compartment
+    # System runtime (__kernel, __router, __transition) will be added here
     

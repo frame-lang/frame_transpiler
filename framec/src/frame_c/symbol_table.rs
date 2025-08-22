@@ -1085,7 +1085,11 @@ pub enum SystemSymbolType {
 pub struct Arcanum {
     pub global_symtab: Rc<RefCell<SymbolTable>>,
     pub current_symtab: Rc<RefCell<SymbolTable>>,
+    // Legacy single-system support (maintained for backward compatibility)
     pub system_symbol_opt: Option<Rc<RefCell<SystemSymbol>>>,
+    // v0.30: Multi-entity collections
+    pub function_symbols: Vec<Rc<RefCell<FunctionScopeSymbol>>>,
+    pub system_symbols: Vec<Rc<RefCell<SystemSymbol>>>,
     pub symbol_config: SymbolConfig,
     pub serializable: bool,
 }
@@ -1103,7 +1107,9 @@ impl Arcanum {
         Arcanum {
             current_symtab: Rc::clone(&global_symbtab_rc),
             global_symtab: global_symbtab_rc,
-            system_symbol_opt: None,
+            system_symbol_opt: None, // Legacy compatibility
+            function_symbols: Vec::new(), // v0.30: Multi-function support
+            system_symbols: Vec::new(),   // v0.30: Multi-system support
             symbol_config: SymbolConfig::new(), // TODO
             serializable: false,
         }
@@ -1282,6 +1288,143 @@ impl Arcanum {
     }
 
     /* --------------------------------------------------------------------- */
+    // v0.30: Multi-entity accessor methods
+    /* --------------------------------------------------------------------- */
+
+    /// Get all functions in the module
+    pub fn get_functions(&self) -> &Vec<Rc<RefCell<FunctionScopeSymbol>>> {
+        &self.function_symbols
+    }
+
+    /// Get all systems in the module  
+    pub fn get_systems(&self) -> &Vec<Rc<RefCell<SystemSymbol>>> {
+        &self.system_symbols
+    }
+
+    /// Get function by name (v0.30 multi-entity support)
+    pub fn get_function_by_name(&self, name: &str) -> Option<Rc<RefCell<FunctionScopeSymbol>>> {
+        self.function_symbols.iter()
+            .find(|func| func.borrow().name == name)
+            .cloned()
+    }
+
+    /// Get system by name (v0.30 multi-entity support)  
+    pub fn get_system_by_name(&self, name: &str) -> Option<Rc<RefCell<SystemSymbol>>> {
+        self.system_symbols.iter()
+            .find(|sys| sys.borrow().name == name)
+            .cloned()
+    }
+
+    /// Check if module has multiple functions
+    pub fn has_multiple_functions(&self) -> bool {
+        self.function_symbols.len() > 1
+    }
+
+    /// Check if module has multiple systems
+    pub fn has_multiple_systems(&self) -> bool {
+        self.system_symbols.len() > 1
+    }
+
+    /// Get the primary system (first system for legacy compatibility)
+    pub fn get_primary_system(&self) -> Option<Rc<RefCell<SystemSymbol>>> {
+        self.system_symbols.first().cloned()
+    }
+
+    // v0.30: Multi-entity symbol lookup methods
+    
+    /// Search for an interface method across all systems in the module
+    pub fn lookup_interface_method_in_all_systems(
+        &self,
+        name: &str,
+    ) -> Option<(Rc<RefCell<InterfaceMethodSymbol>>, Rc<RefCell<SystemSymbol>>)> {
+        for system_symbol_rcref in &self.system_symbols {
+            match &system_symbol_rcref.borrow().interface_block_symbol_opt {
+                Some(interface_block_symbol_rcref) => {
+                    let interface_block_symbol = interface_block_symbol_rcref.borrow();
+                    let symbol_table = &interface_block_symbol.symtab_rcref.borrow();
+                    if let Some(symbol_t_rcref) = symbol_table.lookup(name, &IdentifierDeclScope::InterfaceBlockScope) {
+                        let symbol_t = symbol_t_rcref.borrow();
+                        if let SymbolType::InterfaceMethod { interface_method_symbol_rcref } = &*symbol_t {
+                            return Some((Rc::clone(interface_method_symbol_rcref), Rc::clone(system_symbol_rcref)));
+                        }
+                    }
+                }
+                None => continue,
+            }
+        }
+        None
+    }
+
+    /// Search for an action method across all systems in the module
+    pub fn lookup_action_in_all_systems(
+        &self,
+        name: &str,
+    ) -> Option<(Rc<RefCell<ActionScopeSymbol>>, Rc<RefCell<SystemSymbol>>)> {
+        for system_symbol_rcref in &self.system_symbols {
+            match &system_symbol_rcref.borrow().actions_block_symbol_opt {
+                Some(actions_block_symbol_rcref) => {
+                    let actions_block_symbol = actions_block_symbol_rcref.borrow();
+                    let symbol_table = &actions_block_symbol.symtab_rcref.borrow();
+                    if let Some(symbol_t_rcref) = symbol_table.lookup(name, &IdentifierDeclScope::ActionsBlockScope) {
+                        let symbol_t = symbol_t_rcref.borrow();
+                        if let SymbolType::ActionScope { action_scope_symbol_rcref } = &*symbol_t {
+                            return Some((Rc::clone(action_scope_symbol_rcref), Rc::clone(system_symbol_rcref)));
+                        }
+                    }
+                }
+                None => continue,
+            }
+        }
+        None
+    }
+
+    /// Search for an operation method across all systems in the module  
+    pub fn lookup_operation_in_all_systems(
+        &self,
+        name: &str,
+    ) -> Option<(Rc<RefCell<OperationScopeSymbol>>, Rc<RefCell<SystemSymbol>>)> {
+        for system_symbol_rcref in &self.system_symbols {
+            match &system_symbol_rcref.borrow().operations_block_symbol_opt {
+                Some(operations_block_symbol_rcref) => {
+                    let operations_block_symbol = operations_block_symbol_rcref.borrow();
+                    let symbol_table = &operations_block_symbol.symtab_rcref.borrow();
+                    if let Some(symbol_t_rcref) = symbol_table.lookup(name, &IdentifierDeclScope::OperationsBlockScope) {
+                        let symbol_t = symbol_t_rcref.borrow();
+                        if let SymbolType::OperationScope { operation_scope_symbol_rcref } = &*symbol_t {
+                            return Some((Rc::clone(operation_scope_symbol_rcref), Rc::clone(system_symbol_rcref)));
+                        }
+                    }
+                }
+                None => continue,
+            }
+        }
+        None
+    }
+
+    /// Search for a state across all systems in the module
+    pub fn lookup_state_in_all_systems(
+        &self,
+        name: &str,
+    ) -> Option<(Rc<RefCell<StateSymbol>>, Rc<RefCell<SystemSymbol>>)> {
+        for system_symbol_rcref in &self.system_symbols {
+            match &system_symbol_rcref.borrow().machine_block_symbol_opt {
+                Some(machine_block_symbol_rcref) => {
+                    let machine_block_symbol = machine_block_symbol_rcref.borrow();
+                    let symbol_table = &machine_block_symbol.symtab_rcref.borrow();
+                    if let Some(symbol_t_rcref) = symbol_table.lookup(name, &IdentifierDeclScope::UnknownScope) {
+                        let symbol_t = symbol_t_rcref.borrow();
+                        if let SymbolType::State { state_symbol_ref } = &*symbol_t {
+                            return Some((Rc::clone(state_symbol_ref), Rc::clone(system_symbol_rcref)));
+                        }
+                    }
+                }
+                None => continue,
+            }
+        }
+        None
+    }
+
+    /* --------------------------------------------------------------------- */
 
     pub fn enter_scope(&mut self, scope_t: ParseScopeType) {
         // do scope specific actions
@@ -1294,6 +1437,9 @@ impl Arcanum {
                 function_scope_symbol_rcref
                     .borrow_mut()
                     .set_parent_symtab(&current_symbtab_rcref);
+
+                // v0.30: Add to multi-entity function collection
+                self.function_symbols.push(Rc::clone(function_scope_symbol_rcref));
 
                 // add new scope symbol to previous symbol table
                 let function_scope_symbol_rcref_clone = Rc::clone(function_scope_symbol_rcref);
@@ -1315,8 +1461,12 @@ impl Arcanum {
                     .borrow_mut()
                     .set_parent_symtab(&current_symbtab_rcref);
 
-                // cache the system symbol
+                // cache the system symbol (legacy compatibility)
                 self.system_symbol_opt = Some(Rc::clone(system_symbol_rcref));
+                
+                // v0.30: Add to multi-entity system collection
+                self.system_symbols.push(Rc::clone(system_symbol_rcref));
+                
                 // add new scope symbol to previous symbol table
                 let system_symbol_rcref_clone = Rc::clone(system_symbol_rcref);
                 // clone the Rc for the symbol table

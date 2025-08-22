@@ -139,6 +139,78 @@ impl CallChainNodeType {
 }
 
 //-----------------------------------------------------//
+// v0.30 Improved Call Chain Architecture
+// These new types provide a cleaner, more maintainable
+// approach to handling call chains
+
+#[derive(Debug, Clone)]
+pub enum IdentifierScope {
+    Unknown,        // External identifiers
+    Variable,       // Local variables  
+    Parameter,      // Parameters
+    Domain,         // Domain variables
+    System,         // System names
+    Function,       // Function names
+}
+
+#[derive(Debug, Clone)]
+pub enum CallTargetType {
+    Unknown,        // External functions like print()
+    Interface,      // Interface methods
+    Operation,      // Operations  
+    Action,         // Actions
+    Function,       // Functions
+}
+
+// New simplified call chain node types
+// These will eventually replace CallChainNodeType
+pub enum CallChainNodeTypeV2 {
+    // BASE TYPES
+    Identifier { 
+        name: String, 
+        scope: IdentifierScope,
+        line: usize,
+    },
+    Call { 
+        expr: CallExprNode, 
+        target_type: CallTargetType 
+    },
+    ListAccess { 
+        expr: ListElementNode 
+    },
+    
+    // SPECIALIZED TYPES (for optimization/validation)
+    Variable { 
+        var_node: VariableNode 
+    },
+    InterfaceMethod { 
+        method_node: InterfaceMethodCallExprNode 
+    },
+    Operation { 
+        op_node: OperationCallExprNode 
+    },
+    Action { 
+        action_node: ActionCallExprNode 
+    },
+}
+
+impl CallChainNodeTypeV2 {
+    pub fn set_is_reference(&mut self, is_reference: bool) {
+        match self {
+            CallChainNodeTypeV2::Variable { var_node } => {
+                var_node.id_node.is_reference = is_reference;
+            }
+            CallChainNodeTypeV2::Identifier { .. } => {
+                // For now, we'll handle this in the conversion phase
+            }
+            _ => {
+                // Other types don't support reference semantics yet
+            }
+        }
+    }
+}
+
+//-----------------------------------------------------//
 // See Rust attribute grammar spec:
 // see https://doc.rust-lang.org/reference/attributes.html#attributes
 

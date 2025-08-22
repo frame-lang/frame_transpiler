@@ -287,6 +287,25 @@ Documentation is located in `/Users/marktruluck/projects/frame-docs/`
 3. Verify generated code compiles/runs
 4. Check all visitors handle new syntax
 
+## Recent Accomplishments (2025-01-22)
+
+### V2 Call Chain Architecture - Method Call Support ✅
+- **Achievement**: Extended V2 call chain method to handle both external function calls AND method calls on objects
+- **Problem Solved**: Method calls like `obj.start()` and `obj.getValue()` were generating incomplete chains (only variable part)
+- **Root Cause**: Two-pass parser only built complete call chains in second pass, but AST retained first pass incomplete chains
+- **Solution**: Extended V2 method condition to handle method calls (`!is_first_node && call_chain.len() == 1`)
+- **New Method**: Added `build_call_chain_v2_with_existing()` that appends to existing call chains for method calls
+- **Result**: Method calls now generate complete 2-node chains in both passes: `[VariableNodeT, UndeclaredCallT]`
+- **Generated Code**: Clean Python output: `obj.start()`, `result = obj.getValue()`
+
+### Multi-Entity Call Chain Support ✅
+- **External Functions**: `print("test")`, `str(value)` work correctly
+- **Method Calls**: `obj.method()`, `sys.getValue()` now generate properly
+- **Constructor Calls**: `SystemA()`, `SystemB("param")` work correctly
+- **Complex Expressions**: Method call assignments like `result = obj.getValue()` work properly
+- **Two-Pass Compatibility**: Both symbol table building and code generation passes create complete call chains
+- **Visitor Integration**: Python visitor receives proper 2-node chains and generates clean method call syntax
+
 ## Recent Accomplishments (2025-01-20)
 
 ### Router-Based Parent Dispatch Architecture ✅

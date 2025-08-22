@@ -857,6 +857,9 @@ impl PythonVisitor {
                 DeclOrStmtType::StmtT { stmt_t } => {
                     match stmt_t {
                         StatementType::ExpressionStmt { expr_stmt_t } => {
+                            // v0.30 DEBUG: Let's see what actual ExprStmtType this is
+                            self.add_code(&format!("# DEBUG_EXPR_TYPE: {:?}", std::mem::discriminant(expr_stmt_t)));
+                            self.newline();
                             match expr_stmt_t {
                                 ExprStmtType::TransitionStmtT {
                                     transition_statement_node: _transition_statement_node,
@@ -871,7 +874,7 @@ impl PythonVisitor {
                                     action_call_stmt_node,
                                 } => action_call_stmt_node.accept(self), // // TODO
                                 ExprStmtType::CallStmtT { call_stmt_node } => {
-                                    call_stmt_node.accept(self)
+                                    call_stmt_node.accept(self);
                                 }
                                 ExprStmtType::CallChainStmtT {
                                     call_chain_literal_stmt_node: call_chain_stmt_node,
@@ -880,33 +883,57 @@ impl PythonVisitor {
                                     assignment_stmt_node,
                                 } => assignment_stmt_node.accept(self),
                                 ExprStmtType::VariableStmtT { variable_stmt_node } => {
+                                    self.add_code("# DEBUG: FOUND VariableStmtT");
+                                    self.newline();
                                     variable_stmt_node.accept(self)
                                 }
                                 ExprStmtType::ListStmtT { list_stmt_node } => {
+                                    self.add_code("# DEBUG: FOUND ListStmtT");
+                                    self.newline();
                                     list_stmt_node.accept(self)
                                 }
                                 ExprStmtType::ExprListStmtT {
                                     expr_list_stmt_node,
-                                } => expr_list_stmt_node.accept(self),
+                                } => {
+                                    self.add_code("# DEBUG: FOUND ExprListStmtT");
+                                    self.newline();
+                                    expr_list_stmt_node.accept(self)
+                                },
                                 ExprStmtType::EnumeratorStmtT {
                                     enumerator_stmt_node,
-                                } => enumerator_stmt_node.accept(self),
+                                } => {
+                                    self.add_code("# DEBUG: EnumeratorStmtT");
+                                    self.newline();
+                                    enumerator_stmt_node.accept(self)
+                                },
                                 ExprStmtType::BinaryStmtT { binary_stmt_node } => {
+                                    self.add_code("# DEBUG: BinaryStmtT");
+                                    self.newline();
                                     binary_stmt_node.accept(self)
+                                }
+                                _ => {
+                                    self.add_code("# DEBUG: UNHANDLED ExprStmtType - this should not happen!");
+                                    self.newline();
                                 }
                             }
                         }
                         StatementType::TransitionStmt {
                             transition_statement_node: transition_statement,
                         } => {
+                            self.add_code("# DEBUG: TransitionStmt");
+                            self.newline();
                             transition_statement.accept(self);
                         }
                         StatementType::TestStmt { test_stmt_node } => {
+                            self.add_code("# DEBUG: TestStmt");
+                            self.newline();
                             test_stmt_node.accept(self);
                         }
                         StatementType::StateStackStmt {
                             state_stack_operation_statement_node,
                         } => {
+                            self.add_code("# DEBUG: StateStackStmt");
+                            self.newline();
                             state_stack_operation_statement_node.accept(self);
                         }
                         // StatementType::ChangeStateStmt {
@@ -1959,6 +1986,156 @@ impl PythonVisitor {
         self.newline();
         self.outdent();
     }
+    
+    // v0.30: Generate all functions from the Arcanum
+    fn generate_all_functions(&mut self) {
+        let function_symbols = self.arcanium.get_functions().clone(); // Clone to avoid borrow issues
+        
+        for function_symbol_rcref in function_symbols {
+            let function_symbol = function_symbol_rcref.borrow();
+            if let Some(function_node_rcref) = &function_symbol.ast_node_opt {
+                let function_node = function_node_rcref.borrow();
+                function_node.accept(self);
+            }
+        }
+    }
+
+    // v0.30: Generate all systems from the Arcanum
+    fn generate_all_systems(&mut self) {
+        let system_symbols = self.arcanium.get_systems().clone(); // Clone to avoid borrow issues
+        
+        for system_symbol_rcref in system_symbols {
+            let system_symbol = system_symbol_rcref.borrow();
+            self.generate_single_system(&system_symbol);
+        }
+    }
+
+    // v0.30: Generate a single system from its symbol
+    fn generate_single_system(&mut self, system_symbol: &SystemSymbol) {
+        // domain variable vector
+        let mut domain_vec: Vec<(String, String)> = Vec::new();
+        if let Some(domain_block_symbol_rcref) = &system_symbol.domain_block_symbol_opt {
+            let domain_block_symbol = domain_block_symbol_rcref.borrow();
+            let symbol_table = domain_block_symbol.symtab_rcref.borrow();
+            
+            // Collect domain variables for initialization
+            for (_name, symbol_type_rcref) in symbol_table.symbols.iter() {
+                let symbol_type = symbol_type_rcref.borrow();
+                if let SymbolType::DomainVariable { domain_variable_symbol_rcref } = &*symbol_type {
+                    let domain_var_symbol = domain_variable_symbol_rcref.borrow();
+                    let var_name = domain_var_symbol.name.clone();
+                    let var_decl_node_rcref = &domain_var_symbol.ast_node_rcref;
+                    let var_decl_node = var_decl_node_rcref.borrow();
+                    let var_init_expr = var_decl_node.get_initializer_value_rc();
+                    let mut init_expression = String::new();
+                    var_init_expr.accept_to_string(self, &mut init_expression);
+                    domain_vec.push((var_name, init_expression));
+                }
+            }
+        }
+
+        self.system_name = system_symbol.name.clone();
+        
+        // Generate the system class and its components
+        self.generate_system_class(&system_symbol, domain_vec);
+    }
+
+    // v0.30: Generate system class from system symbol
+    fn generate_system_class(&mut self, system_symbol: &SystemSymbol, domain_vec: Vec<(String, String)>) {
+        let system_name = &system_symbol.name;
+        
+        self.newline();
+        self.add_code(&format!("class {}:", system_name));
+        self.indent();
+        self.newline();
+        self.newline();
+        
+        self.add_code(&format!("# ==================== System Factory =================== #"));
+        self.newline();
+        self.newline();
+        
+        // Generate constructor (__init__)
+        self.generate_system_constructor(system_symbol, domain_vec);
+        
+        // Generate interface methods
+        if let Some(interface_block_symbol_rcref) = &system_symbol.interface_block_symbol_opt {
+            self.generate_interface_methods(interface_block_symbol_rcref);
+        }
+        
+        // Generate machine states
+        if let Some(machine_block_symbol_rcref) = &system_symbol.machine_block_symbol_opt {
+            self.generate_machine_states(machine_block_symbol_rcref);
+        }
+        
+        // Generate action methods
+        if let Some(actions_block_symbol_rcref) = &system_symbol.actions_block_symbol_opt {
+            self.generate_action_methods(actions_block_symbol_rcref);
+        }
+        
+        // Generate operation methods
+        if let Some(operations_block_symbol_rcref) = &system_symbol.operations_block_symbol_opt {
+            self.generate_operation_methods(operations_block_symbol_rcref);
+        }
+        
+        // Generate system runtime (__kernel, __router, __transition)
+        self.generate_system_runtime(system_symbol);
+        
+        self.outdent();
+    }
+    
+    // Helper methods for system generation (stubs for now)
+    fn generate_system_constructor(&mut self, _system_symbol: &SystemSymbol, domain_vec: Vec<(String, String)>) {
+        // TODO: Implement constructor generation
+        self.add_code("def __init__(self):");
+        self.indent();
+        self.newline();
+        self.add_code("# Constructor implementation will be added here");
+        
+        // Initialize domain variables
+        for (var_name, init_expression) in domain_vec {
+            self.newline();
+            self.add_code(&format!("self.{} = {}", var_name, init_expression));
+        }
+        
+        self.outdent();
+        self.newline();
+    }
+    
+    fn generate_interface_methods(&mut self, _interface_block_symbol_rcref: &Rc<RefCell<InterfaceBlockScopeSymbol>>) {
+        // TODO: Implement interface method generation
+        self.newline();
+        self.add_code("# Interface methods will be added here");
+        self.newline();
+    }
+    
+    fn generate_machine_states(&mut self, _machine_block_symbol_rcref: &Rc<RefCell<MachineBlockScopeSymbol>>) {
+        // TODO: Implement state machine generation
+        self.newline();
+        self.add_code("# State machine will be added here");
+        self.newline();
+    }
+    
+    fn generate_action_methods(&mut self, _actions_block_symbol_rcref: &Rc<RefCell<ActionsBlockScopeSymbol>>) {
+        // TODO: Implement action method generation
+        self.newline();
+        self.add_code("# Action methods will be added here");
+        self.newline();
+    }
+    
+    fn generate_operation_methods(&mut self, _operations_block_symbol_rcref: &Rc<RefCell<OperationsBlockScopeSymbol>>) {
+        // TODO: Implement operation method generation
+        self.newline();
+        self.add_code("# Operation methods will be added here");
+        self.newline();
+    }
+    
+    fn generate_system_runtime(&mut self, _system_symbol: &SystemSymbol) {
+        // TODO: Implement system runtime generation
+        self.newline();
+        self.add_code("# System runtime (__kernel, __router, __transition) will be added here");
+        self.newline();
+    }
+    
     //* --------------------------------------------------------------------- *//
 }
 
@@ -2021,24 +2198,17 @@ impl AstVisitor for PythonVisitor {
             self.newline();
         }
 
-        // domain variable vector
-        let mut domain_vec: Vec<(String, String)> = Vec::new();
-        if let Some(domain_block_node) = &system_node.domain_block_node_opt {
-            // get init expression and cache code
-            for var_rcref in &domain_block_node.member_variables {
-                let var_name = var_rcref.borrow().name.clone();
-                let var = var_rcref.borrow();
-                let var_init_expr = &var.get_initializer_value_rc();
-                let mut init_expression = String::new();
-                var_init_expr.accept_to_string(self, &mut init_expression);
-                // push for later initialization
-                domain_vec.push((var_name.clone(), init_expression));
-            }
-        }
-
-        self.system_name = system_node.name.clone();
-
+        // v0.30: Process module first to generate FrameEvent and common elements
         let _ = &system_node.module.accept(self);
+
+        // v0.30: Generate all functions from Arcanum
+        self.generate_all_functions();
+
+        // v0.30: Generate all systems from Arcanum  
+        self.generate_all_systems();
+
+        // v0.30: Return early to avoid legacy single-system processing
+        return;
 
         // Generate any enums
 
@@ -3058,7 +3228,11 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_call_statement_node(&mut self, method_call_statement: &CallStmtNode) {
         self.newline();
+        self.add_code("# CALL STMT DEBUG - about to accept call_expr_node");
+        self.newline();
         method_call_statement.call_expr_node.accept(self);
+        self.add_code("# CALL STMT DEBUG - finished accepting call_expr_node");
+        self.newline();
     }
 
     //* --------------------------------------------------------------------- *//
@@ -3364,7 +3538,8 @@ impl AstVisitor for PythonVisitor {
             );
             return;
         }
-        for node in &call_l_chain_expression_node.call_chain {
+        
+        for (_i, node) in call_l_chain_expression_node.call_chain.iter().enumerate() {
             self.add_code(separator);
             separator = ".";
             match &node {
