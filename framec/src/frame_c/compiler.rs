@@ -18,7 +18,7 @@ use std::rc::Rc;
 
 // Re-export this enum here since it's part of the interface for the run functions. The definition
 // lives with visitors since adding a new visitor requires extending the enum and its trait impls.
-use crate::frame_c::ast::AttributeNode;
+use crate::frame_c::ast::{AttributeNode, FrameModule};
 pub use crate::frame_c::visitors::TargetLanguage;
 use std::convert::TryFrom;
 
@@ -180,7 +180,8 @@ impl Exe {
 
         // TODO: this doesn't capture any panics like syntactic_parser above.
         // Need to figure how to implement.
-        let system_node = semantic_parser.parse();
+        let frame_module = semantic_parser.parse();
+        let system_node = frame_module.get_primary_system();
         if semantic_parser.had_error() {
             let mut errors = "Terminating with errors.\n".to_string();
             errors.push_str(&semantic_parser.get_errors());

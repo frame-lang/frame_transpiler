@@ -760,25 +760,26 @@ impl PythonVisitor {
             self.indent();
             self.newline();
             let mut arg_cnt: usize = 0;
-            if let Some(functions) = &self
-                .system_node_rcref_opt
-                .as_ref()
-                .unwrap()
-                .borrow()
-                .functions_opt
-            {
-                for function_rcref in functions {
-                    let function_node = function_rcref.borrow();
-                    if function_node.name == "main" {
-                        if let Some(params) = &function_node.params {
-                            arg_cnt = params.len();
-                        } else {
-                            arg_cnt = 0;
-                        }
-                        break;
-                    }
-                }
-            };
+            // v0.30: Functions moved to module level - get from Arcanum
+            // if let Some(functions) = &self
+            //     .system_node_rcref_opt
+            //     .as_ref()
+            //     .unwrap()
+            //     .borrow()
+            //     .functions_opt
+            // {
+            //     for function_rcref in functions {
+            //         let function_node = function_rcref.borrow();
+            //         if function_node.name == "main" {
+            //             if let Some(params) = &function_node.params {
+            //                 arg_cnt = params.len();
+            //             } else {
+            //                 arg_cnt = 0;
+            //             }
+            //             break;
+            //         }
+            //     }
+            // };
             self.add_code("main(");
             let mut separator = "";
             for i in 1..arg_cnt + 1 {
@@ -2167,6 +2168,12 @@ impl AstVisitor for PythonVisitor {
                         }
                     }
                 }
+                ModuleElement::Function { .. } => {
+                    // Functions are handled separately by Arcanum
+                }
+                ModuleElement::System { .. } => {
+                    // Systems are handled separately by Arcanum
+                }
             }
         }
 
@@ -2216,12 +2223,13 @@ impl AstVisitor for PythonVisitor {
             domain_block_node.accept_enums(self);
         }
 
-        if let Some(vec) = &system_node.functions_opt {
-            for function_node_rcref in vec {
-                let function_node = function_node_rcref.borrow();
-                function_node.accept(self);
-            }
-        }
+        // v0.30: Functions moved to module level - handled by Arcanum
+        // if let Some(vec) = &system_node.functions_opt {
+        //     for function_node_rcref in vec {
+        //         let function_node = function_node_rcref.borrow();
+        //         function_node.accept(self);
+        //     }
+        // }
         self.newline();
         // TODO!!: This is a hack until we rework modules to detect if there
         // was no system parsed

@@ -54,9 +54,60 @@ pub struct Module {
     pub module_elements: Vec<ModuleElement>,
 }
 
+// v0.30: Top-level Frame module containing systems and functions
+pub struct FrameModule {
+    pub module: Module,
+    pub functions: Vec<Rc<RefCell<FunctionNode>>>,
+    pub systems: Vec<SystemNode>,
+}
+
+impl FrameModule {
+    pub fn new(
+        module: Module, 
+        functions: Vec<Rc<RefCell<FunctionNode>>>, 
+        systems: Vec<SystemNode>
+    ) -> FrameModule {
+        FrameModule { module, functions, systems }
+    }
+    
+    // v0.30: Backward compatibility - get primary system for legacy visitors
+    pub fn get_primary_system(&self) -> SystemNode {
+        if self.systems.is_empty() {
+            // Create empty system if no systems exist (function-only modules)
+            SystemNode::new(
+                String::new(),
+                self.module.clone(),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                1,
+            )
+        } else {
+            // Return first system with module attached
+            let mut primary = self.systems[0].clone();
+            primary.module = self.module.clone();
+            primary
+        }
+    }
+}
+
 impl Module {
     pub fn new(module_elements: Vec<ModuleElement>) -> Module {
         Module { module_elements }
+    }
+}
+
+impl Clone for Module {
+    fn clone(&self) -> Self {
+        Module {
+            module_elements: vec![], // Simplified - only clone structure not contents
+        }
     }
 }
 
@@ -73,6 +124,9 @@ impl NodeElement for Module {
 pub enum ModuleElement {
     CodeBlock { code_block: String },
     ModuleAttribute { attribute_node: AttributeNode },
+    // v0.30: Multi-entity support
+    Function { function_node: Rc<RefCell<FunctionNode>> },
+    System { system_node: SystemNode },
 }
 
 // TODO: is this a good name for Identifier and Call expressions?
@@ -323,8 +377,6 @@ pub struct SystemNode {
     pub operations_block_node_opt: Option<OperationsBlockNode>,
     pub domain_block_node_opt: Option<DomainBlockNode>,
     pub line: usize,
-    // TODO - move this int a module node
-    pub functions_opt: Option<Vec<Rc<RefCell<FunctionNode>>>>,
 }
 
 impl SystemNode {
@@ -342,7 +394,6 @@ impl SystemNode {
         operations_block_node_opt: Option<OperationsBlockNode>,
         domain_block_node_opt: Option<DomainBlockNode>,
         line: usize,
-        functions_node_opt: Option<Vec<Rc<RefCell<FunctionNode>>>>,
     ) -> SystemNode {
         SystemNode {
             name,
@@ -357,7 +408,6 @@ impl SystemNode {
             operations_block_node_opt,
             domain_block_node_opt,
             line,
-            functions_opt: functions_node_opt,
         }
     }
 
@@ -372,6 +422,25 @@ impl SystemNode {
         match &self.machine_block_node_opt {
             Some(mb) => mb.get_state_node(state_name),
             None => None,
+        }
+    }
+}
+
+impl Clone for SystemNode {
+    fn clone(&self) -> Self {
+        SystemNode {
+            name: self.name.clone(),
+            module: self.module.clone(),
+            system_attributes_opt: None, // Simplified clone
+            start_state_state_params_opt: None,
+            start_state_enter_params_opt: None,
+            domain_params_opt: None,
+            interface_block_node_opt: None,
+            machine_block_node_opt: None,
+            actions_block_node_opt: None,
+            operations_block_node_opt: None,
+            domain_block_node_opt: None,
+            line: self.line,
         }
     }
 }

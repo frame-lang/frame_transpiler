@@ -181,35 +181,23 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    pub fn parse(&mut self) -> SystemNode {
+    pub fn parse(&mut self) -> FrameModule {
         self.module()
     }
 
     /* --------------------------------------------------------------------- */
 
-    fn module(&mut self) -> SystemNode {
+    fn module(&mut self) -> FrameModule {
         if self.match_token(&[TokenType::Eof]) {
             self.error_at_current("Empty module.");
-            return SystemNode::new(
-                String::from("error"),
-                Module {
-                    module_elements: vec![],
-                },
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                0,
-                None,
+            return FrameModule::new(
+                Module::new(vec![]),
+                vec![],
+                vec![],
             );
         }
 
-        let module_elements_opt = match self.header() {
+        let mut module_elements_opt = match self.header() {
             Ok(module_elements_opt) => module_elements_opt,
             // TODO - review error logic
             Err(_parse_error) => None,
@@ -225,50 +213,60 @@ impl<'a> Parser<'a> {
         // Functions are validated during semantic analysis
 
         // #[system_attribute]
-        let system_attributes_opt = match self.entity_attributes() {
+        let mut system_attributes_opt = match self.entity_attributes() {
             Ok(attributes_opt) => attributes_opt,
             Err(_parse_error) => None,
         };
 
-        if self.match_token(&[TokenType::System]) {
-            self.system(module_elements_opt, system_attributes_opt, functions_opt)
-        } else {
-            // v0.30: This path is taken when there isn't a declared system.
-            // Allow modules with only functions, no systems required.
-
-            // v0.30: Allow empty modules or modules with only functions
-            // Validation moved to semantic analysis phase
-
-            let module = match module_elements_opt {
-                Some(module_elements) => Module { module_elements },
-                None => Module {
-                    module_elements: vec![],
-                },
-            };
-
-            // Hack to prevent referencing -1 index in previous().
-            let line = if self.current == 0 {
-                1
-            } else {
-                self.previous().line
-            };
-
-            SystemNode::new(
-                String::new(),
-                module,
-                system_attributes_opt,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                line,
-                functions_opt,
-            )
+        // v0.30: Parse multiple functions and systems
+        let mut functions = Vec::new();
+        let mut systems = Vec::new();
+        
+        // Add any pre-parsed functions to the collection
+        if let Some(func_vec) = functions_opt {
+            functions.extend(func_vec);
         }
+        
+        // Parse all entities in sequence
+        loop {
+            if self.match_token(&[TokenType::System]) {
+                // Parse system (first system gets module elements, others get empty module)
+                let module_for_system = if systems.is_empty() {
+                    // First system gets the module elements
+                    match module_elements_opt.take() {
+                        Some(elements) => Module::new(elements),
+                        None => Module::new(vec![]),
+                    }
+                } else {
+                    // Additional systems get empty module
+                    Module::new(vec![])
+                };
+                
+                let attrs = if systems.is_empty() { 
+                    system_attributes_opt.take() 
+                } else { 
+                    None 
+                };
+                let system = self.system(Some(module_for_system), attrs, None);
+                systems.push(system);
+            } else if self.match_token(&[TokenType::Function]) {
+                match self.function_scope() {
+                    Ok(function) => functions.push(function),
+                    Err(_) => break, // Error handling - stop parsing on function error
+                }
+            } else {
+                // No more systems or functions found - exit loop
+                break;
+            }
+        }
+        
+        // v0.30: Create FrameModule with parsed functions and systems
+        let final_module = match module_elements_opt {
+            Some(module_elements) => Module::new(module_elements),
+            None => Module::new(vec![]),
+        };
+        
+        FrameModule::new(final_module, functions, systems)
     }
 
     /* --------------------------------------------------------------------- */
@@ -327,9 +325,9 @@ impl<'a> Parser<'a> {
 
     fn system(
         &mut self,
-        module_elements_opt: Option<Vec<ModuleElement>>,
+        module_opt: Option<Module>,
         system_attributes_opt: Option<HashMap<String, AttributeNode>>,
-        functions_opt: Option<Vec<Rc<RefCell<FunctionNode>>>>,
+        _functions_opt: Option<Vec<Rc<RefCell<FunctionNode>>>>,
     ) -> SystemNode {
         let mut interface_block_node_opt = Option::None;
         let mut machine_block_node_opt = Option::None;
@@ -597,8 +595,8 @@ impl<'a> Parser<'a> {
 
         self.arcanum.exit_scope();
 
-        let module = match module_elements_opt {
-            Some(module_elements) => Module { module_elements },
+        let module = match module_opt {
+            Some(m) => m,
             None => Module {
                 module_elements: vec![],
             },
@@ -616,7 +614,6 @@ impl<'a> Parser<'a> {
             operations_block_node_opt,
             domain_block_node_opt,
             line,
-            functions_opt,
         );
 
         // TODO - change reference to SystemNode to use an rc refcell data structure.
