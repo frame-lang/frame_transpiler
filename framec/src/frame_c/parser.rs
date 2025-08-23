@@ -8060,6 +8060,7 @@ impl<'a> Parser<'a> {
                     legacy_chain.push_back(CallChainNodeType::UndeclaredIdentifierNodeT { id_node });
                 }
                 CallChainNodeTypeV2::Call { expr, .. } => {
+                    // Always create UndeclaredCallT here - resolution happens in visitor
                     legacy_chain.push_back(CallChainNodeType::UndeclaredCallT { call_node: expr });
                 }
                 // For now, convert other types to basic equivalents

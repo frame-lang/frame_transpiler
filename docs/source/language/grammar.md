@@ -222,6 +222,8 @@ operation: attribute* IDENTIFIER '(' parameter_list? ')' type? '{' stmt* '}'
 attribute: '@' IDENTIFIER  // Python-style attributes (e.g., @staticmethod)
 ```
 
+**v0.30 Implementation Note**: Operations and actions are resolved at code generation time through symbol table lookup. Calls to operations generate with `self.` prefix for instance methods, while static operations use `ClassName.method()` syntax. Actions automatically receive the `_do` suffix in generated code.
+
 ### Operations Examples
 
 #### Instance Operations

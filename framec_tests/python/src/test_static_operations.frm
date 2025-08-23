@@ -1,32 +1,33 @@
-fn main() {
-    var service = StaticTestService()
-}
-
-system StaticTestService {
-
+// Test static operations vs instance operations
+system StaticTest {
     operations:
         @staticmethod
-        static_op() {
-            print("static operation")
+        static_helper() {
+            print("Static: static_helper called")
         }
         
-        member_op() {
-            print("member operation")
-            self.static_op()  // Should generate static_op() without self.
+        instance_helper() {
+            print("Instance: instance_helper called")
+        }
+        
+        @staticmethod
+        static_with_param(msg) {
+            print("Static: " + msg)
         }
 
     machine:
-
-    $Start {
-        $>() {
-            self.member_op()  // Should generate self.member_op()
-            -> $Done
+        $Start {
+            $>() {
+                print("Machine: testing static vs instance calls")
+                
+                // Instance operation call (should use self.method())
+                self.instance_helper()
+                
+                // Static operation calls (should use ClassName.method())
+                StaticTest.static_helper()
+                StaticTest.static_with_param("hello static")
+                
+                print("Machine: all operation tests complete")
+            }
         }
-    }
-
-    $Done {
-        $>() {
-            print("Done")
-        }
-    }
 }

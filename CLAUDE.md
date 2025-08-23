@@ -376,6 +376,34 @@ Documentation is located in `/Users/marktruluck/projects/frame-docs/`
 3. Verify generated code compiles/runs
 4. Check all visitors handle new syntax
 
+## Recent Accomplishments (2025-01-23)
+
+### Operations Block Generation Fix ✅
+- **Achievement**: Fixed operations blocks not being generated in v0.30 multi-entity architecture
+- **Problem**: Operations blocks were completely missing from generated Python code
+- **Root Cause**: `generate_system_from_node()` method lacked operations block handling
+- **Solution**: Added operations block visitor call between constructor and interface blocks (python_visitor.rs:817-820)
+- **Test Files**: `test_operations_simple.frm`, `test_static_operations.frm`
+- **Result**: Operations now generate correctly with proper `self.` prefixes
+
+### Action Call Resolution Fix ✅  
+- **Achievement**: Fixed action calls losing `self.` prefix and `_do` suffix
+- **Problem**: `self.finish()` was generating as `finish()` instead of `self.finish_do()`
+- **Architecture Decision**: Option 2 - Defer resolution to visitor stage (compiler best practice)
+- **Solution**: Enhanced `visit_call_expression_node()` in Python visitor to check symbol table:
+  - Actions: Generate `self.{name}_do()`
+  - Operations: Generate `self.{name}()`
+  - External calls: Generate as-is
+- **Files Modified**: python_visitor.rs:3992-4080 (visitor resolution logic)
+- **Test File**: `test_blocks_simple.frm`
+- **Result**: All method calls now resolve correctly based on their symbol type
+
+### Static Operations Validation ✅
+- **Confirmed**: Static operations already working correctly
+- **Pattern**: `@staticmethod` decorator, no `self` parameter, called as `ClassName.method()`
+- **Test File**: `test_static_operations.frm`
+- **Result**: Follows universal language conventions perfectly
+
 ## Recent Accomplishments (2025-01-22)
 
 ### V2 Call Chain Architecture - Method Call Support ✅

@@ -814,6 +814,11 @@ impl PythonVisitor {
         }
         self.outdent();
         
+        // Generate operations block
+        if let Some(ref operations_block_node) = system_node.operations_block_node_opt {
+            operations_block_node.accept(self);
+        }
+        
         // Generate interface block
         if let Some(ref interface_block_node) = system_node.interface_block_node_opt {
             interface_block_node.accept(self);
@@ -2458,12 +2463,18 @@ impl PythonVisitor {
 
     // v0.30: Generate all systems from the Arcanum
     fn generate_all_systems(&mut self) {
+        self.add_code("# DEBUG: generate_all_systems() called");
         let system_symbols = self.arcanium.get_systems().clone(); // Clone to avoid borrow issues
+        
+        self.add_code(&format!("# DEBUG: Found {} system symbols", system_symbols.len()));
         
         for system_symbol_rcref in system_symbols {
             let system_symbol = system_symbol_rcref.borrow();
+            self.add_code(&format!("# DEBUG: Generating system '{}'", system_symbol.name));
             self.generate_single_system(&system_symbol);
         }
+        
+        self.add_code("# DEBUG: generate_all_systems() completed");
     }
 
     // v0.30: Generate a single system from its symbol
@@ -2559,8 +2570,13 @@ impl PythonVisitor {
         }
         
         // Generate operation methods
+        self.newline();
+        self.add_code("# DEBUG: Checking for operations block...");
         if let Some(operations_block_symbol_rcref) = &system_symbol.operations_block_symbol_opt {
+            self.add_code("# DEBUG: Operations block found! Calling generate_operation_methods()");
             self.generate_operation_methods(operations_block_symbol_rcref);
+        } else {
+            self.add_code("# DEBUG: No operations block found in system symbol");
         }
         
         // Generate system runtime (__kernel, __router, __transition)
@@ -2659,23 +2675,35 @@ impl PythonVisitor {
         self.newline();
         self.add_code("# ==================== Operations Block ================== #");
         
+        // Debug: Add comment showing we reached this method
+        self.newline();
+        self.add_code("# DEBUG: generate_operation_methods() called");
+        
         // Access operations from symbol table
         let operations_block_symbol = operations_block_symbol_rcref.borrow();
         let symbol_table = operations_block_symbol.symtab_rcref.borrow();
         
+        // Debug: Show how many symbols we found
+        self.newline();
+        self.add_code(&format!("# DEBUG: Found {} symbols in operations block", symbol_table.symbols.len()));
+        
         // Generate each operation method
-        for (_name, symbol_type_rcref) in symbol_table.symbols.iter() {
+        for (name, symbol_type_rcref) in symbol_table.symbols.iter() {
             let symbol_type = symbol_type_rcref.borrow();
+            self.newline();
+            self.add_code(&format!("# DEBUG: Processing symbol '{}'", name));
+            
             if let SymbolType::OperationScope { operation_scope_symbol_rcref } = &*symbol_type {
                 let operation_symbol = operation_scope_symbol_rcref.borrow();
                 
                 // Try to use AST node if available
                 if let Some(operation_node_rcref) = &operation_symbol.ast_node_opt {
+                    self.add_code(&format!("# DEBUG: AST node available for '{}'", operation_symbol.name));
                     let operation_node = operation_node_rcref.borrow();
                     operation_node.accept(self);
                 } else {
                     // AST node not available - generate method stub
-                    // This is a known limitation where symbols don't have AST references
+                    self.add_code(&format!("# DEBUG: AST node NOT available for '{}'", operation_symbol.name));
                     self.newline();
                     self.newline();
                     self.add_code(&format!("def {}(self):", operation_symbol.name));
@@ -2891,6 +2919,8 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_system_node(&mut self, system_node: &SystemNode) {
+        self.add_code("# DEBUG: visit_system_node() called - STARTING v0.30 generation");
+        
         self.add_code(&format!("#{}", self.compiler_version));
         self.newline();
         self.newline();
@@ -2899,12 +2929,15 @@ impl AstVisitor for PythonVisitor {
             self.newline();
         }
 
+        self.add_code("# DEBUG: About to process module");
         // v0.30: Process module first to generate FrameEvent and common elements
         let _ = &system_node.module.accept(self);
 
+        self.add_code("# DEBUG: About to generate all functions");
         // v0.30: Generate all functions from Arcanum
         self.generate_all_functions();
 
+        self.add_code("# DEBUG: About to generate all systems");
         // v0.30: Generate all systems from Arcanum  
         self.generate_all_systems();
 
@@ -3957,19 +3990,45 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_call_expression_node(&mut self, method_call: &CallExprNode) {
-        if let Some(call_chain) = &method_call.call_chain {
-            for callable in call_chain {
-                callable.callable_accept(self);
-                self.add_code(".");
+        // Check if call chain already has content (like "self.")
+        let has_call_chain = if let Some(call_chain) = &method_call.call_chain {
+            if !call_chain.is_empty() {
+                for callable in call_chain {
+                    callable.callable_accept(self);
+                    self.add_code(".");
+                }
+                true
+            } else {
+                false
             }
+        } else {
+            false
+        };
+
+        // Check if this is an action or operation call that needs special handling
+        // Only add self. if there's no existing call chain
+        let method_name = &method_call.identifier.name.lexeme;
+        
+        // Check if it's an action (needs self. prefix if not present and _do suffix)
+        if let Some(_action_symbol) = self.arcanium.lookup_action(method_name) {
+            if !has_call_chain {
+                self.add_code("self.");
+            }
+            self.add_code(&format!("{}_do", method_name));
+        }
+        // Check if it's an operation (needs self. prefix if not present)
+        else if let Some(_operation_symbol) = self.arcanium.lookup_operation(method_name) {
+            if !has_call_chain {
+                self.add_code("self.");
+            }
+            self.add_code(method_name);
+        }
+        // Otherwise output as-is (external function call)
+        else {
+            self.add_code(method_name);
         }
 
-        self.add_code(&method_call.identifier.name.lexeme.to_string());
-
-        //let mut output = String::new();
-        //method_call.call_expr_list.accept_to_string(self, &mut output);
         method_call.call_expr_list.accept(self);
-        // self.add_code( output.as_str());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -3979,14 +4038,44 @@ impl AstVisitor for PythonVisitor {
         method_call: &CallExprNode,
         output: &mut String,
     ) {
-        if let Some(call_chain) = &method_call.call_chain {
-            for callable in call_chain {
-                callable.callable_accept(self);
-                output.push('.');
+        // Check if call chain already has content (like "self.")
+        let has_call_chain = if let Some(call_chain) = &method_call.call_chain {
+            if !call_chain.is_empty() {
+                for callable in call_chain {
+                    callable.callable_accept(self);
+                    output.push('.');
+                }
+                true
+            } else {
+                false
             }
-        }
+        } else {
+            false
+        };
 
-        output.push_str(&method_call.identifier.name.lexeme.to_string());
+        // Check if this is an action or operation call that needs special handling
+        // Only add self. if there's no existing call chain
+        let method_name = &method_call.identifier.name.lexeme;
+        
+        // Check if it's an action (needs self. prefix if not present and _do suffix)
+        if let Some(_action_symbol) = self.arcanium.lookup_action(method_name) {
+            if !has_call_chain {
+                output.push_str("self.");
+            }
+            output.push_str(&format!("{}_do", method_name));
+        }
+        // Check if it's an operation (needs self. prefix if not present)
+        else if let Some(_operation_symbol) = self.arcanium.lookup_operation(method_name) {
+            if !has_call_chain {
+                output.push_str("self.");
+            }
+            output.push_str(method_name);
+        }
+        // Otherwise output as-is (external function call)
+        else {
+            output.push_str(method_name);
+        }
+        
         method_call.call_expr_list.accept_to_string(self, output);
     }
 

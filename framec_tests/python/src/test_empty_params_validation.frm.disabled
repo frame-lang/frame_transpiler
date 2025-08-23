@@ -1,14 +1,9 @@
+// EXPECTED_OUTPUT: Enter event with empty paramsInterface method with empty params calledTest completed successfully!
 fn main() {
     var service = ValidationService()
 }
 
 system ValidationService {
-
-    operations:
-        test_empty_params() {
-            print("Operation with empty params called")
-            self.interface_method()
-        }
 
     interface:
         interface_method()
@@ -18,7 +13,6 @@ system ValidationService {
     $Start {
         $>() {
             print("Enter event with empty params")
-            self.test_empty_params()
             -> $Done
         }
     }
