@@ -4,33 +4,45 @@
 
 Frame is a state machine language that transpiles to multiple target languages. This project has completed the v0.20 syntax migration and is now working on v0.30 enhancements, including multi-entity support and deprecated feature cleanup while preserving its unique event-driven state machine capabilities.
 
+## File Locations
+
+### Test Files
+- **CORRECT location for Frame test files**: `/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/`
+- **DO NOT** create test files in the project root directory
+- All `.frm` test files must go in the framec_tests/python/src/ directory
+
 ## Current State
 
 **Branch**: `v0.30`  
-**Status**: ✅ **v0.30 RUNTIME ARCHITECTURE COMPLETE**  
-**Achievement**: **Auto-Start System Runtime** with proper kernel/router/transition infrastructure  
-**Recent**: Complete runtime generation fixes with comprehensive testing framework (2025-08-23)  
-**Test Results**: 57/108 (52.8%) transpile, 34/57 (59.6%) execute, TestMinimal validation fixed  
+**Status**: ✅ **v0.30 SYMBOL-BASED GENERATION ANALYSIS COMPLETE**  
+**Achievement**: **Operations Block Generation Issue Identified and Diagnosed**  
+**Recent**: Found root cause of missing operations methods in v0.30 multi-entity systems (2025-08-23)  
+**Next**: Implementing proper Symbol-to-AST connections to fix operations block generation  
 
-### 🎉 **Latest Achievements - Frame v0.30 Runtime (2025-08-23)**
+### 🎉 **Latest Achievements - Frame v0.30 Debugging (2025-08-23)**
 
-#### ✅ **Complete Runtime Architecture Implementation**
-- **Auto-Start Systems**: Systems now automatically trigger enter events upon instantiation
-- **Runtime Infrastructure**: Full `__kernel`, `__router`, `__transition` method generation
-- **FrameCompartment Enhanced**: Added `parent_compartment` parameter for HSM support
-- **Breaking Change**: Eliminated need for manual event triggers in test files
+#### ✅ **Operations Block Issue Root Cause Analysis**
+- **Problem Identified**: Operations methods not generated in v0.30 multi-entity systems
+- **Root Cause**: Symbol-to-AST connections missing for OperationScopeSymbol.ast_node_opt
+- **Two Code Paths**: AST-based (working) vs Symbol-based (incomplete) generation
+- **Architecture Issue**: v0.30 uses symbol-based path but AST nodes not connected to symbols
 
-#### ✅ **Comprehensive Testing Framework**
-- **Integrated Testing**: Combined transpilation testing with existing pytest framework
-- **Automated Validation**: Comment-based expected output validation (`// EXPECTED_OUTPUT:`)
-- **File Organization**: Proper test file structure in `framec_tests/python/src/`
-- **Results Tracking**: Detailed test metrics and failure analysis
+#### ✅ **Test File Issues Resolved**
+- **TestMinimal Fixed**: Removed double output issue by regenerating with current transpiler
+- **Build Issues**: Temporarily disabled problematic files to enable core framec library builds
+- **File Organization**: Corrected test file locations to framec_tests/python/src/
 
-#### ✅ **Documentation and Planning**
-- **String Conventions**: Python string syntax standardization documented
-- **Runtime Architecture**: Complete design documentation in DESIGN_NOTES.md
-- **Next Steps**: Clear prioritized roadmap for continued development
-- **File Organization**: Clean project structure with gitignored working files
+#### ✅ **Core Transpiler Status**
+- **Build Success**: Core framec library builds successfully (35 warnings, no errors)
+- **Simple Systems**: Single-entity systems transpile and execute correctly
+- **Multi-Entity Functions**: Functions-only modules work perfectly
+- **Runtime Architecture**: Auto-start systems and full runtime infrastructure operational
+
+#### 🔧 **Issues Requiring Fix**
+- **Operations Blocks**: AST node connections missing in symbol table creation
+- **Actions Blocks**: Same symbol-to-AST connection issue affects actions
+- **Multi-Entity Complex**: Some complex mixed entity files fail to generate
+- **System Parameters**: Constructor generation issues in parameterized systems
 
 ### 🎉 **Previous Milestones - Frame v0.30 (2025-01-21/22)**
 

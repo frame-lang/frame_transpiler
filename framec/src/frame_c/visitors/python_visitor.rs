@@ -2653,11 +2653,41 @@ impl PythonVisitor {
         self.newline();
     }
     
-    fn generate_operation_methods(&mut self, _operations_block_symbol_rcref: &Rc<RefCell<OperationsBlockScopeSymbol>>) {
-        // TODO: Implement operation method generation
+    fn generate_operation_methods(&mut self, operations_block_symbol_rcref: &Rc<RefCell<OperationsBlockScopeSymbol>>) {
+        // Generate operations block header
         self.newline();
-        self.add_code("# Operation methods will be added here");
         self.newline();
+        self.add_code("# ==================== Operations Block ================== #");
+        
+        // Access operations from symbol table
+        let operations_block_symbol = operations_block_symbol_rcref.borrow();
+        let symbol_table = operations_block_symbol.symtab_rcref.borrow();
+        
+        // Generate each operation method
+        for (_name, symbol_type_rcref) in symbol_table.symbols.iter() {
+            let symbol_type = symbol_type_rcref.borrow();
+            if let SymbolType::OperationScope { operation_scope_symbol_rcref } = &*symbol_type {
+                let operation_symbol = operation_scope_symbol_rcref.borrow();
+                
+                // Try to use AST node if available
+                if let Some(operation_node_rcref) = &operation_symbol.ast_node_opt {
+                    let operation_node = operation_node_rcref.borrow();
+                    operation_node.accept(self);
+                } else {
+                    // AST node not available - generate method stub
+                    // This is a known limitation where symbols don't have AST references
+                    self.newline();
+                    self.newline();
+                    self.add_code(&format!("def {}(self):", operation_symbol.name));
+                    self.indent();
+                    self.newline();
+                    self.add_code("# TODO: Operation implementation not available from symbol");
+                    self.newline();
+                    self.add_code("pass");
+                    self.outdent();
+                }
+            }
+        }
     }
     
     fn generate_system_runtime(&mut self, system_symbol: &SystemSymbol) {
