@@ -8306,6 +8306,13 @@ impl<'a> Parser<'a> {
             let state_id = self.previous();
             let name = state_id.lexeme.clone();
 
+            // v0.30: Block transitions to parent ($^) - only dispatch (=> $^) is allowed
+            if name == "^" && is_transition {
+                let err_msg = "Syntax error: '-> $^' is not allowed. Use '=> $^' for parent dispatch instead.";
+                self.error_at_previous(err_msg);
+                return Err(ParseError::new(err_msg));
+            }
+
             if !self.is_building_symbol_table {
                 if !self.arcanum.has_state(&*name) {
                     let err_msg = format!(

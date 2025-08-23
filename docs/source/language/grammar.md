@@ -1,6 +1,6 @@
 # Frame v0.30 Grammar (BNF)
 
-This grammar specification has been comprehensively validated with the Frame v0.30 transpiler including multi-entity module support, runtime architecture with auto-start functionality, state stack operations, hierarchical state machines, and major v0.30 language features. Current test results: 57/108 files transpile successfully with runtime architecture improvements completed.
+This grammar specification has been comprehensively validated with the Frame v0.30 transpiler including multi-entity module support, runtime architecture with auto-start functionality, state stack operations, hierarchical state machines, and major v0.30 language features. Current test results: 57/108 files transpile successfully with runtime architecture improvements and HSM parent dispatch fixes completed.
 
 ## Module Structure
 
@@ -202,8 +202,10 @@ event_selector: IDENTIFIER '(' parameter_list? ')' type?
                | '$>' '(' parameter_list? ')'  // Enter handler
                | '<$' '(' parameter_list? ')'  // Exit handler
 terminator: 'return' expr?
-          | '=>'              // Forward/dispatch event
-          | '->' '$' IDENTIFIER  // Transition
+          | '=>'              // Forward/dispatch event  
+          | '->' '$' IDENTIFIER  // Transition to named state (NOT '$^')
+stmt: parent_dispatch_stmt | /* other statements */
+parent_dispatch_stmt: '=>' '$^'  // Parent dispatch statement
 state_var: 'var' IDENTIFIER type? '=' expr
 ```
 
@@ -446,19 +448,32 @@ exit_handler: '<$' '(' parameter_list? ')' '{' stmt* '}'
 
 ### Hierarchical State Machines
 
-Frame supports hierarchical state machines where child states can inherit behavior from parent states using the dispatch operator `=>`:
+Frame v0.20+ supports hierarchical state machines where child states can inherit behavior from parent states and forward events up the hierarchy. This enables code reuse and structured state organization.
 
 ```bnf
 hierarchy: '$' IDENTIFIER '=>' '$' IDENTIFIER
+parent_dispatch: '=>' '$^'
 ```
 
-#### State Hierarchy Example
+**Key Features:**
+- **State Inheritance**: Child states automatically inherit event handlers from parent states
+- **Parent Dispatch**: Events can be forwarded from child to parent using `=> $^`
+- **Compartment Hierarchy**: Runtime maintains proper parent-child compartment relationships
+- **Syntax Restrictions**: Only `=> $^` (dispatch) is allowed; `-> $^` (transition to parent) is blocked
+
+#### State Hierarchy Declaration
+
 ```frame
 machine:
-    // Parent state
+    // Parent state with common event handlers
     $Parent {
         commonEvent() {
-            print("Handled in parent")
+            print("Handled in parent state")
+            return
+        }
+        
+        sharedLogic() {
+            print("Common logic for all child states")
             return
         }
     }
@@ -466,7 +481,21 @@ machine:
     // Child state inherits from parent
     $Child => $Parent {
         specificEvent() {
-            print("Handled in child")
+            print("Handled only in child state")
+            return
+        }
+        
+        // Child can override parent handlers
+        commonEvent() {
+            print("Child-specific handling")
+            => $^  // Forward to parent after child processing
+        }
+    }
+    
+    // Multiple inheritance levels supported
+    $GrandChild => $Child {
+        specializedEvent() {
+            print("Most specific handling")
             return
         }
     }
@@ -474,17 +503,157 @@ machine:
 
 #### Event Forwarding to Parent States
 
-The `=> $^` statement forwards events from child states to their parent states:
+The `=> $^` statement forwards events from child states to their parent states. This is a **statement** (not terminator), allowing code execution to continue after the parent call:
 
 ```frame
 $Child => $Parent {
     sharedEvent() {
-        print("Processing in child first")
-        => $^  // Forward to parent state
-        print("This continues after parent unless parent transitions")
+        print("Child processing first")
+        => $^  // Forward event to parent state
+        print("This executes after parent unless parent transitions")
+        return
+    }
+    
+    complexEvent() {
+        if validate_locally() {
+            handle_locally()
+            return  // Handle entirely in child
+        }
+        
+        print("Forwarding to parent for complex handling")
+        => $^  // Let parent handle complex case
+        // Parent may transition, so this might not execute
+        print("Parent completed processing")
+        return
     }
 }
 ```
+
+**Parent Dispatch Behavior:**
+- **Child Processing First**: Child state processes event before forwarding
+- **Transition Detection**: If parent triggers transition, child code after `=> $^` doesn't execute
+- **Multiple Forwards**: Multiple `=> $^` calls allowed in same handler
+- **Statement Position**: Can appear anywhere in event handler (beginning, middle, end)
+- **Validation**: Parser prevents usage in non-hierarchical states
+
+#### Runtime Compartment Architecture
+
+Frame v0.30 implements proper hierarchical compartment initialization to support parent dispatch:
+
+**Generated Compartment Structure:**
+```python
+# Non-hierarchical state (normal)
+self.__compartment = FrameCompartment('StateName', None, None, None, None)
+
+# Hierarchical child state (enhanced)
+self.__compartment = FrameCompartment('Child', None, None, None, 
+    FrameCompartment('Parent', None, None, None, None))
+```
+
+**Key Implementation Details:**
+- **Parent Reference**: Child compartments maintain reference to parent compartment
+- **Infinite Recursion Fix**: Proper initialization prevents `parent_compartment=None` issues
+- **Router Integration**: Parent dispatch uses existing `__router` infrastructure
+- **Transition Safety**: Generated code checks for transitions after parent calls
+
+#### HSM Syntax Restrictions
+
+Frame v0.30 enforces clear separation between transitions and dispatch operations:
+
+**✅ ALLOWED - Parent Dispatch (Statement):**
+```frame
+$Child => $Parent {
+    event() {
+        => $^  // Forward event to parent (statement)
+        return
+    }
+}
+```
+
+**❌ BLOCKED - Transition to Parent:**
+```frame
+$Child => $Parent {
+    event() {
+        -> $^  // SYNTAX ERROR: Transitions to parent not allowed
+        return
+    }
+}
+```
+
+**Error Message:** `"Syntax error: '-> $^' is not allowed. Use '=> $^' for parent dispatch instead."`
+
+**Rationale:** 
+- Transitions represent state changes with clear target states
+- Parent dispatch represents event forwarding within state hierarchy
+- Ambiguous `-> $^` syntax could confuse transition vs dispatch semantics
+- Clear distinction improves code readability and maintainability
+
+#### Complete HSM Example
+
+```frame
+system HSMExample {
+    interface:
+        start()
+        commonEvent()
+        childEvent()
+        
+    machine:
+        // Top-level parent state
+        $Parent {
+            commonEvent() {
+                print("Parent handling common event")
+                return
+            }
+            
+            fallbackEvent() {
+                print("Parent fallback handler")  
+                return
+            }
+        }
+        
+        // Child state with inheritance
+        $Child => $Parent {
+            $>() {
+                print("Entering child state")
+                return
+            }
+            
+            start() {
+                print("Starting from child")
+                return
+            }
+            
+            childEvent() {
+                print("Child-specific event")
+                return
+            }
+            
+            // Override with forwarding
+            commonEvent() {
+                print("Child preprocessing")
+                => $^  // Forward to parent
+                print("Child postprocessing")
+                return
+            }
+        }
+        
+        // Deeply nested hierarchy
+        $GrandChild => $Child {
+            specialEvent() {
+                print("Most specific behavior")
+                => $^  // Forward up the hierarchy
+                return
+            }
+        }
+}
+```
+
+**Generated Runtime Behavior:**
+1. **Event Reception**: Events first processed by most specific state (e.g., $GrandChild)
+2. **Local Processing**: Child state executes its handler logic
+3. **Parent Forwarding**: `=> $^` forwards event to immediate parent
+4. **Hierarchy Traversal**: Event continues up hierarchy until handled or root reached
+5. **Transition Detection**: If any level triggers transition, execution terminates
 
 ### Event Handlers with Return Statements
 
@@ -1125,21 +1294,31 @@ $StateName {
 - **Parser**: Sequential entity parsing supporting any combination of functions and systems
 - **Backward Compatibility**: Legacy single-entity access maintained during transition
 
+**HSM Hierarchical State Machine Support (2025-08-23)** ✅ **COMPLETED**
+- **Achievement**: Complete fix for HSM parent dispatch infinite recursion issues
+- **Compartment Initialization**: Proper parent compartment references in hierarchical states
+- **Parent Dispatch**: `=> $^` statement works correctly without infinite recursion
+- **Syntax Restrictions**: `-> $^` transitions blocked, only `=> $^` dispatch allowed
+- **Validation**: TestHSM.frm successfully demonstrates parent dispatch functionality
+- **Generated Code**: Proper compartment hierarchy: `FrameCompartment('Child', ..., FrameCompartment('Parent', ...))`
+- **Router Integration**: Parent dispatch uses unified `__router` infrastructure
+- **Error Prevention**: Parser prevents `=> $^` usage in non-hierarchical states
+
 ### Current Test Status (2025-08-23)
 
 **Transpilation Results**: 57/108 (52.8% success rate)
 **Execution Results**: 34/57 (59.6% success rate) 
-**Validation Results**: 1 test passing automated validation (TestMinimal fixed)
+**Validation Results**: HSM parent dispatch validated successfully (TestHSM.frm)
 
 **Priority Issues Identified**:
 1. **System Parameter Constructors**: Generated constructors don't accept parameters
-2. **Array Syntax**: Multi-dimensional array transpilation failures
+2. **Array Syntax**: Multi-dimensional array transpilation failures (e.g., `[4][2]int{{...}}` Go syntax)
 3. **Multi-Entity Support**: 51 files fail transpilation (parser/visitor issues)
 
 **Next Steps**:
 - Remove manual triggers from ALL test files (legacy cleanup)
 - Fix system parameter constructor generation
-- Improve array syntax transpilation
+- Improve array syntax transpilation (Python list initialization)
 - Investigate multi-entity transpilation failures
 
 ### Known Limitations

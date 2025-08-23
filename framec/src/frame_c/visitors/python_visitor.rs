@@ -783,8 +783,26 @@ impl PythonVisitor {
             self.newline();
             self.add_code("# Create and initialize start state compartment");
             self.newline();
-            self.add_code(&format!("self.__compartment = FrameCompartment('{}', None, None, None, None)", 
-                self.format_target_state_name(&self.first_state_name)));
+            
+            // Check if start state has a parent for hierarchical initialization
+            let parent_compartment_init = if let Some(ref machine_block_node) = system_node.machine_block_node_opt {
+                if let Some(first_state) = machine_block_node.get_first_state() {
+                    if let Some(ref dispatch_node) = first_state.borrow().dispatch_opt {
+                        let parent_state_name = &dispatch_node.target_state_ref.name;
+                        format!("FrameCompartment('{}', None, None, None, None)", 
+                            self.format_target_state_name(parent_state_name))
+                    } else {
+                        "None".to_string()
+                    }
+                } else {
+                    "None".to_string()
+                }
+            } else {
+                "None".to_string()
+            };
+            
+            self.add_code(&format!("self.__compartment = FrameCompartment('{}', None, None, None, {})", 
+                self.format_target_state_name(&self.first_state_name), parent_compartment_init));
             self.newline();
             self.add_code("self.__next_compartment = None");
             
@@ -3861,13 +3879,15 @@ impl AstVisitor for PythonVisitor {
             self.newline();
         }
 
-        match &state_node.dispatch_opt {
-            Some(dispatch) => {
-                self.newline();
-                dispatch.accept(self);
-            }
-            None => {}
-        }
+        // Dispatch to parent is now handled explicitly via => $^ in event handlers
+        // No automatic fallback dispatch should be generated
+        // match &state_node.dispatch_opt {
+        //     Some(dispatch) => {
+        //         self.newline();
+        //         dispatch.accept(self);
+        //     }
+        //     None => {}
+        // }
 
         self.outdent();
         self.newline();

@@ -244,9 +244,10 @@ python3 SystemsTest.py
 **Note**: Generation-only checks are useful for syntax validation but cannot be called "passing tests".
 
 ### Test Files Location
-- `/Users/marktruluck/projects/test5/v0.30_syntax/` - v0.30 multi-entity test files
-- `/Users/marktruluck/projects/test5/.vscode/v0.20_syntax/` - Legacy v0.20 test files
-- Keep test files here, NOT in main transpiler project
+**ALWAYS PUT TEST FILES HERE:**
+- `/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/` - ALL Frame test files go here
+- NEVER put test files in the main project directory
+- NEVER use test5 directory - it's deprecated
 
 ## Code Conventions
 
