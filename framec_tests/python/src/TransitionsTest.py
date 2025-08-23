@@ -1,6 +1,20 @@
 #Emitted from framec_v0.30.0
 
 
+class FrameEvent:
+    def __init__(self, message, parameters):
+        self._message = message
+        self._parameters = parameters
+
+
+def main():
+    btmd = BasicTransitionBehaviorDemo()# DEBUG_EXPR_TYPE: Discriminant(4)
+    
+    btmd.next()
+    return
+#Emitted from framec_v0.30.0
+
+
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -25,5 +39,6 @@ class BasicTransitionBehaviorDemo:
     
     # System runtime (__kernel, __router, __transition) will be added here
     
+
 if __name__ == '__main__':
     main()

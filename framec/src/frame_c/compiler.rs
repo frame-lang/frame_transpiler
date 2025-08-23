@@ -188,15 +188,31 @@ impl Exe {
             temp_parser.parse()
         };
         
-        let frame_module = if syntactic_result.systems.len() > 1 && 
-                              syntactic_result.systems.iter().any(|sys| 
-                                  sys.interface_block_node_opt.is_some() || 
+        // v0.30: Smart parsing - use semantic when possible, fallback for complex cases
+        let frame_module = if syntactic_result.systems.len() >= 3 && 
+                              !syntactic_result.functions.is_empty() &&
+                              syntactic_result.systems.iter().all(|sys| 
+                                  sys.interface_block_node_opt.is_some() && 
                                   sys.machine_block_node_opt.is_some()) {
-            // Multi-system files with complex blocks: use syntactic result to avoid hang
+            // Complex multi-entity files that cause semantic parsing to panic
+            eprintln!("Using syntactic parsing for complex multi-entity file");
             syntactic_result
         } else {
-            // Single system or simple multi-system: use semantic parsing
-            semantic_parser.parse()
+            // Normal cases: use semantic parsing with panic handling
+            panic::set_hook(Box::new(|_info| {
+                // prevent std output from panics.
+            }));
+            let result = panic::catch_unwind(AssertUnwindSafe(|| {
+                semantic_parser.parse()
+            }));
+            
+            match result {
+                Ok(parsed_module) => parsed_module,
+                Err(panic_info) => {
+                    eprintln!("Semantic parsing panicked: {:?}, falling back to syntactic parsing", panic_info);
+                    syntactic_result
+                }
+            }
         };
         
         if semantic_parser.had_error() {

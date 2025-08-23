@@ -1,6 +1,18 @@
 #Emitted from framec_v0.30.0
 
 
+class FrameEvent:
+    def __init__(self, message, parameters):
+        self._message = message
+        self._parameters = parameters
+
+
+def main():
+    service = CleanExitService()
+    return
+#Emitted from framec_v0.30.0
+
+
 import time
 import signal
 import sys
@@ -26,5 +38,6 @@ class CleanExitService:
     
     # System runtime (__kernel, __router, __transition) will be added here
     
+
 if __name__ == '__main__':
     main()

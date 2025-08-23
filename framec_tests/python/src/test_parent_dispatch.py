@@ -1,6 +1,26 @@
 #Emitted from framec_v0.30.0
 
 
+class FrameEvent:
+    def __init__(self, message, parameters):
+        self._message = message
+        self._parameters = parameters
+
+
+def main():
+    hsm = ParentDispatchTest()# DEBUG_EXPR_TYPE: Discriminant(4)
+    
+    hsm.test1()# DEBUG_EXPR_TYPE: Discriminant(4)
+    
+    hsm.test2()# DEBUG_EXPR_TYPE: Discriminant(4)
+    
+    hsm.test3()# DEBUG_EXPR_TYPE: Discriminant(4)
+    
+    hsm.next()
+    return
+#Emitted from framec_v0.30.0
+
+
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -31,5 +51,6 @@ class ParentDispatchTest:
     
     # System runtime (__kernel, __router, __transition) will be added here
     
+
 if __name__ == '__main__':
     main()

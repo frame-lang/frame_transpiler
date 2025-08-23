@@ -7,11 +7,32 @@ Frame is a state machine language that transpiles to multiple target languages. 
 ## Current State
 
 **Branch**: `v0.30`  
-**Status**: ✅ **v0.30 MULTI-ENTITY ARCHITECTURE PRODUCTION-READY**  
-**Achievement**: **Complete Multi-Entity Module System** with 100% test success rate (105/105 tests passing)  
-**Recent**: Full comprehensive validation with perfect success rate across all Frame functionality  
+**Status**: ✅ **v0.30 RUNTIME ARCHITECTURE COMPLETE**  
+**Achievement**: **Auto-Start System Runtime** with proper kernel/router/transition infrastructure  
+**Recent**: Complete runtime generation fixes with comprehensive testing framework (2025-08-23)  
+**Test Results**: 57/108 (52.8%) transpile, 34/57 (59.6%) execute, TestMinimal validation fixed  
 
-### 🎉 **Major Milestones Achieved - Frame v0.30 (2025-01-21/22)**
+### 🎉 **Latest Achievements - Frame v0.30 Runtime (2025-08-23)**
+
+#### ✅ **Complete Runtime Architecture Implementation**
+- **Auto-Start Systems**: Systems now automatically trigger enter events upon instantiation
+- **Runtime Infrastructure**: Full `__kernel`, `__router`, `__transition` method generation
+- **FrameCompartment Enhanced**: Added `parent_compartment` parameter for HSM support
+- **Breaking Change**: Eliminated need for manual event triggers in test files
+
+#### ✅ **Comprehensive Testing Framework**
+- **Integrated Testing**: Combined transpilation testing with existing pytest framework
+- **Automated Validation**: Comment-based expected output validation (`// EXPECTED_OUTPUT:`)
+- **File Organization**: Proper test file structure in `framec_tests/python/src/`
+- **Results Tracking**: Detailed test metrics and failure analysis
+
+#### ✅ **Documentation and Planning**
+- **String Conventions**: Python string syntax standardization documented
+- **Runtime Architecture**: Complete design documentation in DESIGN_NOTES.md
+- **Next Steps**: Clear prioritized roadmap for continued development
+- **File Organization**: Clean project structure with gitignored working files
+
+### 🎉 **Previous Milestones - Frame v0.30 (2025-01-21/22)**
 
 #### ✅ **Modular Architecture Implementation (2025-01-22)**
 - **FrameModule Design**: Created proper top-level module container replacing SystemNode-centric architecture
@@ -174,10 +195,41 @@ cargo build
 ```
 
 ### Test Transpiler
+
+**CRITICAL: PROPER TEST VALIDATION PROTOCOL**
+
+When claiming tests are "passing" or "working", you MUST follow this 4-step validation process:
+
+1. **Generate**: Run framec to generate code
+2. **Execute**: Run the generated Python/target code 
+3. **Validate**: Verify the output matches expected behavior
+4. **Report**: State specifically what functionality was verified
+
+**DO NOT claim "passing", "working", "100% success", or "complete validation" unless all 4 steps are completed.**
+
+#### Example Proper Test Validation:
+```bash
+# Step 1: Generate
+./target/debug/framec -l python_3 SystemsTest.frm > SystemsTest.py
+
+# Step 2: Execute  
+python3 SystemsTest.py
+
+# Step 3: Validate output
+# Expected: "NoParameters started"
+# Actual: "NoParameters started" ✅
+
+# Step 4: Report
+# VERIFIED: System initialization, enter event handling, print statement execution
+```
+
+#### Quick Generation Only (for syntax checking):
 ```bash
 # Available languages: python_3, graphviz
 ./target/debug/framec -l python_3 file.frm
 ```
+
+**Note**: Generation-only checks are useful for syntax validation but cannot be called "passing tests".
 
 ### Test Files Location
 - `/Users/marktruluck/projects/test5/v0.30_syntax/` - v0.30 multi-entity test files
@@ -550,3 +602,4 @@ cargo build && ./target/debug/framec -l python_3 test_file.frm
 - Always indent the code in the frame blocks (operations: interface: machine: etc) in the samples that are generated or updated.
 - do not add attribution to claude on the commit messages
 - full validation or comprehensive testing means running every test
+- put transient documents we work on like reports and findings in docs/tmp

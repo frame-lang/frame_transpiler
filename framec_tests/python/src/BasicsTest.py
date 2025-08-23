@@ -1,11 +1,11 @@
 #Emitted from framec_v0.30.0
 
 
-
 class FrameEvent:
     def __init__(self, message, parameters):
         self._message = message
         self._parameters = parameters
+
 
 def main():# DEBUG_EXPR_TYPE: Discriminant(4)
     
@@ -22,5 +22,6 @@ def main():# DEBUG_EXPR_TYPE: Discriminant(4)
     
     print("Basics test completed")
     return
+
 if __name__ == '__main__':
     main()

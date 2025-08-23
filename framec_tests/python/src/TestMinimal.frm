@@ -1,3 +1,4 @@
+// EXPECTED_OUTPUT: started
 fn main() {
     var sys = NoParamsSystem()
 }

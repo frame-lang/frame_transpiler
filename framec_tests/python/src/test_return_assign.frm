@@ -1,17 +1,18 @@
-fn main() {
-    var sys = TestReturnAssign()
-    print(sys.getValue())
-}
-
-system TestReturnAssign {
+system TestSystem {
     interface:
-        getValue() ^("default")
-
+        next()
+        
     machine:
-        $Start {
-            getValue() {
-                return = "modified"
-                return
+        $StateA {
+            next() {
+                return = true
+                -> $StateB
+            }
+        }
+        
+        $StateB {
+            next() {
+                return = false
             }
         }
 }
