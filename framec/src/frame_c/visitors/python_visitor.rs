@@ -201,8 +201,7 @@ impl PythonVisitor {
 
         self.newline_to_string(&mut ret);
         ret.push_str(&format!(
-            "next_compartment = {}Compartment('{}', next_compartment)",
-            self.system_node_rcref_opt.as_ref().unwrap().borrow().name,
+            "next_compartment = FrameCompartment('{}', next_compartment)",
             self.format_target_state_name(state_node_rcref.borrow().name.as_str())
         ));
 
@@ -351,7 +350,8 @@ impl PythonVisitor {
                         None => {}
                     }
                 } else {
-                    panic!("TODO");
+                    // No exit event handler defined - this is ok, just skip exit args
+                    // Exit args without a handler will be ignored
                 }
             } // -- State Arguments --
 
@@ -384,10 +384,12 @@ impl PythonVisitor {
         {
             // #STATE_NODE_UPDATE_BUG - search comments in parser for why this is here
             let state_symbol = state_symbol_rcref.borrow();
-            let state_node = &state_symbol.state_node_opt.as_ref().unwrap().borrow();
-            // generate local state variables
-            if state_node.vars_opt.is_some() {
-                for variable_decl_node_rcref in state_node.vars_opt.as_ref().unwrap() {
+            // v0.30: Gracefully handle missing state_node_opt instead of unwrap()
+            if let Some(state_node_rcref_inner) = &state_symbol.state_node_opt {
+                let state_node = state_node_rcref_inner.borrow();
+                // generate local state variables
+                if let Some(vars) = &state_node.vars_opt {
+                    for variable_decl_node_rcref in vars {
                     let var_decl_node = variable_decl_node_rcref.borrow();
                     let initalizer_value_expr_t = &var_decl_node.get_initializer_value_rc();
                     initalizer_value_expr_t.debug_print();
@@ -399,11 +401,12 @@ impl PythonVisitor {
                     // code that relies on knowing what kind of variable this is
                     // broke. That happened in this next line.
                     initalizer_value_expr_t.accept_to_string(self, &mut expr_code);
-                    self.newline_to_string(&mut ret);
-                    ret.push_str(&format!(
-                        "next_compartment.state_vars[\"{}\"] = {}",
-                        var_decl_node.name, expr_code
-                    ));
+                        self.newline_to_string(&mut ret);
+                        ret.push_str(&format!(
+                            "next_compartment.state_vars[\"{}\"] = {}",
+                            var_decl_node.name, expr_code
+                        ));
+                    }
                 }
             }
         }
@@ -1987,7 +1990,8 @@ impl PythonVisitor {
                         None => panic!("Fatal error: misaligned parameters to arguments."),
                     }
                 } else {
-                    panic!("TODO");
+                    // No exit event handler defined - this is ok, just skip exit args
+                    // Exit args without a handler will be ignored
                 }
             }
         }
@@ -1997,12 +2001,20 @@ impl PythonVisitor {
         self.newline();
         self.add_code("next_compartment = None");
         //  self.newline();
-        let state_node_rcref_opt = self
-            .system_node_rcref_opt
-            .as_ref()
-            .unwrap()
-            .borrow()
-            .get_state_node(&target_state_name.to_string());
+        
+        // v0.30: Use system-scoped state access instead of system_node_rcref_opt
+        let state_node_rcref_opt = if let Some(system_symbol_rcref) = self.arcanium.get_system_by_name(&self.system_name) {
+            let system_symbol = system_symbol_rcref.borrow();
+            if let Some(state_symbol_rcref) = system_symbol.get_state(&target_state_name.to_string()) {
+                let state_symbol = state_symbol_rcref.borrow();
+                state_symbol.state_node_opt.clone()
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        
         if let Some(state_node_rcref) = state_node_rcref_opt {
             let code = self.format_compartment_hierarchy(
                 &state_node_rcref,
@@ -2248,7 +2260,8 @@ impl PythonVisitor {
                         None => panic!("Fatal error: misaligned parameters to arguments."),
                     }
                 } else {
-                    panic!("TODO");
+                    // No exit event handler defined - this is ok, just skip exit args
+                    // Exit args without a handler will be ignored
                 }
             }
         }

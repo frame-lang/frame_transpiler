@@ -15,3 +15,7 @@ docs/plans/
 
 # Temporary working documents
 docs/tmp/
+
+# Claude-specific files (AI assistant context)
+CLAUDE.md
+CLAUDE.local.md
