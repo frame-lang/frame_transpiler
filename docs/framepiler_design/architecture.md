@@ -76,6 +76,9 @@ Multiple systems in the same file maintain proper isolation through system-scope
 ### FrameCompartment Generation
 Fixed bug where Python visitor generated system-specific compartment classes instead of the standard FrameCompartment class.
 
+### Call Chain Scope Processing (v0.30 Critical Fix)
+Resolved critical bug in Python visitor where external object method calls (`obj.method()`) incorrectly generated `obj.self.method()` while internal operation calls (`self.method()`) lost required `self.` prefixes. The fix implements conditional flag setting in call chain processing to properly distinguish between external and internal call contexts.
+
 ## Build System
 
 ### Main Build

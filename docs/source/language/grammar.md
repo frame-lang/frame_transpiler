@@ -2,6 +2,8 @@
 
 This grammar specification has been comprehensively validated with the Frame v0.30 transpiler including multi-entity module support, runtime architecture with auto-start functionality, state stack operations, hierarchical state machines, and major v0.30 language features. **HIERARCHICAL STATE MACHINE ISSUES COMPLETELY RESOLVED** - all HSM functionality verified working with proper multi-entity file format requirements (2025-08-24).
 
+**CRITICAL SCOPE BUG RESOLVED** (2025-08-24): Fixed transpiler bug where external object method calls (`obj.method()`) incorrectly generated `obj.self.method()` in Python output. The transpiler now correctly handles both external object calls and internal operation calls with proper scoping.
+
 ## Module Structure
 
 ```bnf
@@ -1001,7 +1003,7 @@ actions:
 ## Expressions
 
 ```bnf
-expr: binary_expr | unary_expr | primary_expr | call_expr
+expr: binary_expr | unary_expr | primary_expr | call_expr | call_chain_expr
 
 binary_expr: expr operator expr
 operator: '+' | '-' | '*' | '/' | '%'
@@ -1015,8 +1017,101 @@ primary_expr: IDENTIFIER | NUMBER | STRING | SUPERSTRING
             | '(' expr ')' | '@'
 
 call_expr: IDENTIFIER '(' arg_list? ')'
+call_chain_expr: call_chain_node ('.' call_chain_node)*
+call_chain_node: IDENTIFIER | call_expr
 arg_list: expr (',' expr)*
 ```
+
+### Call Chain Expressions and Scoping
+
+Frame v0.30 provides robust support for both external object method calls and internal operation calls with proper scoping:
+
+#### External Object Method Calls
+```frame
+fn main() {
+    var obj = TestSystem()
+    obj.run()        // External call - no 'self.' prefix in generated code
+    obj.getValue()   // External call - generates: obj.getValue()
+}
+```
+
+#### Internal Operation Calls  
+```frame
+system TestSystem {
+    operations:
+        process() {
+            self.helper()     // Internal call - keeps 'self.' prefix
+            validate("data")  // Static operation call (if @staticmethod)
+        }
+        
+        helper() {
+            print("Helper called")
+        }
+        
+        @staticmethod
+        validate(data) {
+            return data != ""
+        }
+}
+```
+
+#### Scope Resolution Rules
+
+**v0.30 Critical Fix (2025-08-24)**: The transpiler correctly distinguishes between external and internal calls:
+
+1. **Multi-node call chains** (`obj.method()`):
+   - Parsed as: `[Variable(obj), UndeclaredCall(method)]`
+   - Generated as: `obj.method()` (no self. prefix)
+   - Used for external object interactions
+
+2. **Single-node operation calls** (`self.method()`):
+   - Parsed as: `[OperationCall(method)]` 
+   - Generated as: `self.method()` (keeps self. prefix)
+   - Used for internal operations within the same system
+
+3. **Static operation calls** (`ClassName.method()`):
+   - Generated with `@staticmethod` decorator
+   - No `self` parameter in method definition
+   - Called as `ClassName.method()` in generated code
+
+#### Code Generation Examples
+
+**Frame Source**:
+```frame
+system Calculator {
+    operations:
+        process() {
+            self.calculate(10)    // Internal operation
+            var helper = Helper()
+            helper.assist()       // External method call  
+        }
+        
+        calculate(value) {
+            return value * 2
+        }
+}
+```
+
+**Generated Python**:
+```python
+class Calculator:
+    def process(self):
+        self.calculate(10)    # Correct: internal operation
+        helper = Helper()
+        helper.assist()       # Correct: external method call
+    
+    def calculate(self, value):
+        return value * 2
+```
+
+#### Transpiler Implementation
+
+The scope resolution is handled by the Python visitor's call chain processing logic, which uses conditional flag setting to distinguish between call contexts:
+
+- **Multi-node chains**: Set `in_call_chain = true` → prevent `self.` prefix
+- **Single-node operations**: Keep `in_call_chain = false` → add `self.` prefix as needed
+
+This ensures proper Python code generation for all object-oriented interactions.
 
 ## Tokens
 
@@ -1337,3 +1432,21 @@ $StateName {
 - Systems with manual event triggers like `sys._sStart(FrameEvent("$>", []))` will execute enter events twice
 - Manual triggers must be removed as systems now auto-start
 - Test files require cleanup to remove legacy manual trigger patterns
+
+### Frame v0.30 Scope Resolution Fix (2025-08-24)
+
+**Call Chain Scope Bug Resolution** ✅ **CRITICAL FIX COMPLETED**
+- **Issue**: External object method calls (`obj.method()`) incorrectly generated `obj.self.method()` in Python output
+- **Impact**: Broke external object interactions, caused `NameError: name 'obj.self.method' is not defined`
+- **Root Cause**: Python visitor's `visiting_call_chain_operation` flag set for ALL operation calls in call chains, including single-node chains
+- **Solution**: Conditional flag setting - only set for multi-node chains (`obj.method()`), not single-node operations (`self.method()`)
+- **Technical Details**:
+  - **Multi-node chains**: `[Variable(obj), UndeclaredCall(method)]` → generates `obj.method()` ✅
+  - **Single-node operations**: `[OperationCall(internal_op)]` → generates `self.internal_op()` ✅
+  - **Files Modified**: `framec/src/frame_c/visitors/python_visitor.rs` (lines 4481-4492, 4772-4783)
+- **Validation**: 
+  - Simple debug test: External and internal calls work correctly ✅
+  - Complex workflow: CultureTicks seat booking system runs successfully ✅
+  - All operation calls within operations maintain proper `self.` prefix ✅
+- **Production Impact**: Frame v0.30 now supports reliable object-oriented Python integration
+- **Debug Infrastructure**: Added `FRAME_DEBUG` environment variable for visitor debugging

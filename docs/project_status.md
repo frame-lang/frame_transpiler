@@ -5,6 +5,7 @@
 **Branch**: `v0.30`  
 **Status**: ✅ **v0.30 MULTI-ENTITY ARCHITECTURE PRODUCTION-READY**  
 **Achievement**: **Complete Multi-Entity Module System** with comprehensive validation  
+**Latest**: ✅ **CRITICAL SCOPE BUG RESOLVED** (2025-08-24)
 
 ## Latest Accomplishments (August 2025)
 
@@ -16,6 +17,7 @@
 - **FrameCompartment Fix**: Corrected Python code generation for compartment classes
 
 ### ✅ Critical Bug Fixes
+- **Call Chain Scoping** (2025-08-24): Fixed critical bug where `obj.method()` calls generated `obj.self.method()` in Python
 - **Token Parsing**: Fixed double `self.previous()` infinite loop in system_scope()
 - **Visitor Panics**: Replaced panic!("TODO") with graceful error handling
 - **State Resolution**: Implemented proper system-scoped API replacing singleton pattern
@@ -35,6 +37,13 @@
 - ✅ Executes correctly with expected output
 - ✅ Demonstrates complete v0.30 architecture
 
+**Scope Resolution Test**: `test_seat_booking_workflow.frm`
+- ✅ Complex CultureTicks workflow with 20+ operation calls
+- ✅ All `self.operation()` calls generate correctly with proper prefixes
+- ✅ External object method calls work correctly
+- ✅ Full workflow execution successful - no runtime errors
+- ✅ Demonstrates production-ready object-oriented integration
+
 ## Documentation Structure
 
 ### Frame Language Design
@@ -48,6 +57,7 @@
 - **Contents**:
   - `architecture.md` - Transpiler architecture overview
   - `v030_fixes.md` - Detailed fix documentation
+  - `v030_scope_fix.md` - Critical scope resolution bug fix (2025-08-24)
 
 ## Current Priorities
 
