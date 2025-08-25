@@ -1082,9 +1082,28 @@ pub enum SystemSymbolType {
     },
 }
 
+// LEGB Scope Context
+#[derive(Debug, Clone, PartialEq)]
+pub enum ScopeContext {
+    Global,           // Module level
+    Function(String), // Inside a specific function
+    System(String),   // Inside a specific system
+}
+
+// LEGB Lookup Results  
+pub enum LegbLookupResult {
+    Function(Rc<RefCell<FunctionScopeSymbol>>),
+    Action(Rc<RefCell<ActionScopeSymbol>>),
+    Operation(Rc<RefCell<OperationScopeSymbol>>),
+    Builtin(Rc<RefCell<FunctionScopeSymbol>>),
+}
+
 pub struct Arcanum {
     pub global_symtab: Rc<RefCell<SymbolTable>>,
     pub current_symtab: Rc<RefCell<SymbolTable>>,
+    // LEGB Scoping
+    pub builtin_symtab: Rc<RefCell<SymbolTable>>,  // Built-in functions (print, etc.)
+    pub scope_context: ScopeContext,               // Current parsing context
     // Legacy single-system support (maintained for backward compatibility)
     pub system_symbol_opt: Option<Rc<RefCell<SystemSymbol>>>,
     // v0.30: Multi-entity collections
@@ -1096,6 +1115,7 @@ pub struct Arcanum {
 
 impl Arcanum {
     pub fn new() -> Arcanum {
+        // Create global (module) symbol table
         let st = SymbolTable::new(
             String::from("global"),
             None,
@@ -1103,16 +1123,41 @@ impl Arcanum {
             false,
         );
         let global_symbtab_rc = Rc::new(RefCell::new(st));
+        
+        // Create built-in symbol table with Frame built-in functions
+        let builtin_st = SymbolTable::new(
+            String::from("builtins"),
+            None,
+            IdentifierDeclScope::UnknownScope,
+            false,
+        );
+        let builtin_symbtab_rc = Rc::new(RefCell::new(builtin_st));
+        
+        // Add built-in functions
+        Self::add_builtin_functions(&builtin_symbtab_rc);
 
         Arcanum {
             current_symtab: Rc::clone(&global_symbtab_rc),
             global_symtab: global_symbtab_rc,
+            builtin_symtab: builtin_symbtab_rc,
+            scope_context: ScopeContext::Global,
             system_symbol_opt: None, // Legacy compatibility
             function_symbols: Vec::new(), // v0.30: Multi-function support
             system_symbols: Vec::new(),   // v0.30: Multi-system support
             symbol_config: SymbolConfig::new(), // TODO
             serializable: false,
         }
+    }
+
+    /// Add built-in functions to the built-in symbol table
+    fn add_builtin_functions(builtin_symtab: &Rc<RefCell<SymbolTable>>) {
+        // Add print() built-in function
+        // For now, we'll create a simple function symbol
+        // TODO: Create proper BuiltinFunctionSymbol type if needed
+        let print_symbol = SymbolType::FunctionScope {
+            function_symbol_ref: Rc::new(RefCell::new(FunctionScopeSymbol::new("print".to_string()))),
+        };
+        builtin_symtab.borrow_mut().symbols.insert("print".to_string(), Rc::new(RefCell::new(print_symbol)));
     }
 
     pub fn debug_print_current_symbols(&self, symbol_table_rcref: Rc<RefCell<SymbolTable>>) {
@@ -1288,6 +1333,156 @@ impl Arcanum {
     }
 
     /* --------------------------------------------------------------------- */
+    // LEGB Scoping Methods
+    /* --------------------------------------------------------------------- */
+    
+    /// Set the current scope context (Function vs System)
+    pub fn set_scope_context(&mut self, context: ScopeContext) {
+        self.scope_context = context;
+    }
+    
+    /// Get the current scope context
+    pub fn get_scope_context(&self) -> &ScopeContext {
+        &self.scope_context
+    }
+
+    /* --------------------------------------------------------------------- */
+    
+    // Debug Methods
+    pub fn debug_dump_arcanum(&self) {
+        if std::env::var("FRAME_DEBUG").is_ok() {
+            eprintln!("\n=== ARCANUM DEBUG DUMP ===");
+            self.debug_dump_scope_context();
+            self.debug_dump_system_context();
+            self.debug_dump_symbol_tables();
+            self.debug_dump_entity_collections();
+            eprintln!("=== END ARCANUM DUMP ===\n");
+        }
+    }
+    
+    fn debug_dump_scope_context(&self) {
+        eprintln!("LEGB Scope Context: {:?}", self.scope_context);
+    }
+    
+    fn debug_dump_system_context(&self) {
+        match &self.system_symbol_opt {
+            Some(system_symbol) => {
+                let system_name = system_symbol.borrow().name.clone();
+                eprintln!("Current System Context: Some({})", system_name);
+            }
+            None => eprintln!("Current System Context: None"),
+        }
+    }
+    
+    fn debug_dump_symbol_tables(&self) {
+        eprintln!("--- Symbol Tables ---");
+        eprintln!("Global SymTab: '{}'", self.global_symtab.borrow().name);
+        eprintln!("Current SymTab: '{}'", self.current_symtab.borrow().name);
+        eprintln!("Builtin SymTab: '{}' ({} symbols)", 
+                  self.builtin_symtab.borrow().name,
+                  self.builtin_symtab.borrow().symbols.len());
+        
+        // Dump current symbol table contents
+        let current_symbols = &self.current_symtab.borrow().symbols;
+        eprintln!("Current SymTab '{}' contains {} symbols:", 
+                  self.current_symtab.borrow().name,
+                  current_symbols.len());
+        for (name, symbol_ref) in current_symbols {
+            let symbol = symbol_ref.borrow();
+            let symbol_type = match &*symbol {
+                SymbolType::FunctionScope { .. } => "Function",
+                SymbolType::ActionScope { .. } => "Action",
+                SymbolType::OperationScope { .. } => "Operation",
+                SymbolType::InterfaceMethod { .. } => "InterfaceMethod",
+                SymbolType::System { .. } => "System",
+                SymbolType::State { .. } => "State",
+                SymbolType::DomainVariable { .. } => "DomainVariable",
+                SymbolType::StateVariable { .. } => "StateVariable",
+                SymbolType::EventHandlerVariable { .. } => "EventHandlerVariable",
+                SymbolType::BlockVar { .. } => "BlockVariable",
+                SymbolType::LoopVar { .. } => "LoopVariable",
+                SymbolType::ParamSymbol { .. } => "Parameter",
+                _ => "Other",
+            };
+            eprintln!("  '{}': {}", name, symbol_type);
+        }
+    }
+    
+    fn debug_dump_entity_collections(&self) {
+        eprintln!("--- Entity Collections ---");
+        eprintln!("Functions ({} total):", self.function_symbols.len());
+        for (i, func_symbol) in self.function_symbols.iter().enumerate() {
+            eprintln!("  [{}] '{}'", i, func_symbol.borrow().name);
+        }
+        
+        eprintln!("Systems ({} total):", self.system_symbols.len());
+        for (i, system_symbol) in self.system_symbols.iter().enumerate() {
+            eprintln!("  [{}] '{}'", i, system_symbol.borrow().name);
+        }
+    }
+    
+    /// LEGB-aware symbol lookup that respects scope context
+    /// L - Local (current function/system parameters, local vars)
+    /// E - Enclosing (module-level functions, but NOT system internals unless in system context)
+    /// G - Global (imported modules, global vars - not implemented yet)  
+    /// B - Built-ins (print, etc.)
+    pub fn legb_lookup_call(&self, name: &str) -> Option<LegbLookupResult> {
+        // L - Local scope (handled by current_symtab in parser)
+        // This is handled by the parser's local symbol table
+        
+        // E - Enclosing (module) scope  
+        // Different behavior based on scope context
+        match &self.scope_context {
+            ScopeContext::Function(_) => {
+                // In function context: only look for other functions, NOT system internals
+                if let Some(function_symbol) = self.lookup_function(name) {
+                    return Some(LegbLookupResult::Function(function_symbol));
+                }
+            }
+            ScopeContext::System(_system_name) => {
+                // In system context: look for actions/operations in current system first
+                if let Some(action_symbol) = self.lookup_action(name) {
+                    return Some(LegbLookupResult::Action(action_symbol));
+                }
+                if let Some(operation_symbol) = self.lookup_operation(name) {
+                    return Some(LegbLookupResult::Operation(operation_symbol));
+                }
+                // Then look for functions
+                if let Some(function_symbol) = self.lookup_function(name) {
+                    return Some(LegbLookupResult::Function(function_symbol));
+                }
+            }
+            ScopeContext::Global => {
+                // At module level: look for functions only
+                if let Some(function_symbol) = self.lookup_function(name) {
+                    return Some(LegbLookupResult::Function(function_symbol));
+                }
+            }
+        }
+        
+        // G - Global scope (not implemented yet)
+        // TODO: Add support for imported modules and global variables
+        
+        // B - Built-ins  
+        if let Some(builtin_symbol) = self.lookup_builtin(name) {
+            return Some(LegbLookupResult::Builtin(builtin_symbol));
+        }
+        
+        None
+    }
+    
+    /// Lookup built-in functions
+    pub fn lookup_builtin(&self, name: &str) -> Option<Rc<RefCell<FunctionScopeSymbol>>> {
+        if let Some(symbol_rcref) = self.builtin_symtab.borrow().symbols.get(name) {
+            let symbol = symbol_rcref.borrow();
+            if let SymbolType::FunctionScope { function_symbol_ref } = &*symbol {
+                return Some(Rc::clone(function_symbol_ref));
+            }
+        }
+        None
+    }
+
+    /* --------------------------------------------------------------------- */
     // v0.30: Multi-entity accessor methods
     /* --------------------------------------------------------------------- */
 
@@ -1432,6 +1627,20 @@ impl Arcanum {
             ParseScopeType::Function {
                 function_scope_symbol_rcref,
             } => {
+                // LEGB: Set function scope context
+                let function_name = function_scope_symbol_rcref.borrow().name.clone();
+                self.scope_context = ScopeContext::Function(function_name.clone());
+                
+                // CRITICAL FIX: Clear system context when entering function scope
+                // Functions should NOT have access to system internals (actions, operations)
+                self.system_symbol_opt = None;
+                
+                // Debug dump after entering function scope
+                if std::env::var("FRAME_DEBUG").is_ok() {
+                    eprintln!(">>> ENTERED FUNCTION SCOPE: {}", function_name);
+                    self.debug_dump_arcanum();
+                }
+                
                 // set parent symbol table
                 let current_symbtab_rcref = Rc::clone(&self.current_symtab);
                 function_scope_symbol_rcref
@@ -1455,6 +1664,10 @@ impl Arcanum {
             ParseScopeType::System {
                 system_symbol: system_symbol_rcref,
             } => {
+                // LEGB: Set system scope context
+                let system_name = system_symbol_rcref.borrow().name.clone();
+                self.scope_context = ScopeContext::System(system_name.clone());
+                
                 // set parent symbol table
                 let current_symbtab_rcref = Rc::clone(&self.current_symtab);
                 system_symbol_rcref
@@ -1463,6 +1676,12 @@ impl Arcanum {
 
                 // cache the system symbol (legacy compatibility)
                 self.system_symbol_opt = Some(Rc::clone(system_symbol_rcref));
+                
+                // Debug dump after entering system scope (AFTER setting system_symbol_opt)
+                if std::env::var("FRAME_DEBUG").is_ok() {
+                    eprintln!(">>> ENTERED SYSTEM SCOPE: {}", system_name);
+                    self.debug_dump_arcanum();
+                }
                 
                 // v0.30: Add to multi-entity system collection
                 self.system_symbols.push(Rc::clone(system_symbol_rcref));
@@ -1844,6 +2063,16 @@ impl Arcanum {
         ));
 
         self.current_symtab = symbol_table_rcref;
+        
+        // LEGB: Reset to Global (module) scope context when exiting function/system scopes
+        self.scope_context = ScopeContext::Global;
+        
+        // Debug dump after exiting scope
+        if std::env::var("FRAME_DEBUG").is_ok() {
+            eprintln!(">>> EXITED SCOPE - Back to Global");
+            self.debug_dump_arcanum();
+        }
+        
         Exe::debug_print(&format!(
             "Returned to scope |{}|",
             self.current_symtab.borrow().name

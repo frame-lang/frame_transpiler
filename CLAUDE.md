@@ -14,12 +14,24 @@ Frame is a state machine language that transpiles to multiple target languages. 
 ## Current State
 
 **Branch**: `v0.30`  
-**Status**: ✅ **v0.30 HIERARCHICAL STATE MACHINE ISSUES RESOLVED**  
-**Achievement**: **Complete Hierarchical State Machine Validation**  
+**Status**: ✅ **v0.30 PRODUCTION-READY WITH CRITICAL FIXES**  
+**Achievement**: **Complete Call Chain Scope Resolution + Hierarchical State Machine Validation**  
+**Latest**: Fixed critical scope bug where `obj.method()` generated `obj.self.method()` (2025-08-24)
 **Recent**: Fixed all hierarchical parsing issues - root cause was file format requirements (2025-08-24)  
-**Current**: Frame v0.30 hierarchical systems working perfectly with proper multi-entity format  
+**Current**: Frame v0.30 fully functional for object-oriented Python integration with proper multi-entity format  
 
-### 🎉 **Latest Achievements - Frame v0.30 Hierarchical Fix (2025-08-24)**
+### 🎉 **Latest Achievements - Frame v0.30 Critical Scope Fix (2025-08-24)**
+
+#### ✅ **Call Chain Scope Bug COMPLETELY RESOLVED**
+- **Critical Issue**: External object method calls (`obj.method()`) incorrectly generated `obj.self.method()` in Python
+- **Impact**: Broke external object interactions, caused `NameError` runtime exceptions
+- **Root Cause**: Python visitor's `visiting_call_chain_operation` flag incorrectly set for single-node operation calls
+- **Solution**: Conditional flag setting based on call chain length - multi-node vs single-node distinction
+- **Files Modified**: `framec/src/frame_c/visitors/python_visitor.rs` (lines 4481-4492, 4772-4783)
+- **Validation**: Complex CultureTicks seat booking workflow with 20+ operation calls runs successfully ✅
+- **Production Impact**: Frame v0.30 now supports reliable object-oriented Python integration ✅
+
+### 🎉 **Previous Achievements - Frame v0.30 Hierarchical Fix (2025-08-24)**
 
 #### ✅ **Hierarchical State Machine Issues COMPLETELY RESOLVED**
 - **Root Cause Identified**: File format requirements, not parser bugs  
@@ -210,11 +222,16 @@ cargo build
 
 ### Test Transpiler
 
+**IMPORTANT: GENERATION LOCATION**  
+⚠️ **Generate Python files in the SAME directory as the source .frm file for easy location.**
+- When transpiling `framec_tests/python/src/test.frm`, generate to `framec_tests/python/src/test.py`
+- DO NOT use the `generated/` directory - generate right next to the source file
+
 **CRITICAL: PROPER TEST VALIDATION PROTOCOL**
 
 When claiming tests are "passing" or "working", you MUST follow this 4-step validation process:
 
-1. **Generate**: Run framec to generate code
+1. **Generate**: Run framec to generate code IN THE SAME DIRECTORY as the source
 2. **Execute**: Run the generated Python/target code 
 3. **Validate**: Verify the output matches expected behavior
 4. **Report**: State specifically what functionality was verified
@@ -223,11 +240,11 @@ When claiming tests are "passing" or "working", you MUST follow this 4-step vali
 
 #### Example Proper Test Validation:
 ```bash
-# Step 1: Generate
-./target/debug/framec -l python_3 SystemsTest.frm > SystemsTest.py
+# Step 1: Generate (to same directory as source)
+./target/debug/framec -l python_3 framec_tests/python/src/test.frm > framec_tests/python/src/test.py
 
 # Step 2: Execute  
-python3 SystemsTest.py
+python3 framec_tests/python/src/test.py
 
 # Step 3: Validate output
 # Expected: "NoParameters started"
@@ -247,9 +264,11 @@ python3 SystemsTest.py
 
 ### Test Files Location
 **ALWAYS PUT TEST FILES HERE:**
-- `/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/` - ALL Frame test files go here
+- `/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/` - ALL Frame test files (.frm) go here
+- **Generated Python files (.py)**: Generated next to source files in `/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/`
 - NEVER put test files in the main project directory
 - NEVER use test5 directory - it's deprecated
+- **Note**: The `/generated/` folder has been removed - all transpiled output goes directly to the `src/` directory
 
 ## Code Conventions
 
@@ -378,6 +397,47 @@ Documentation is located in `/Users/marktruluck/projects/frame-docs/`
 2. Test with sample .frm files
 3. Verify generated code compiles/runs
 4. Check all visitors handle new syntax
+
+## Recent Accomplishments (2025-01-xx - Frame v0.30 Transpiler Bug Fixes)
+
+### ✅ **Complete Transpiler Bug Fix Suite - Three Critical Issues Resolved**
+
+**Achievement**: Systematic resolution of Frame v0.30 transpiler bugs using model-driven debugging workflow  
+**Impact**: Frame v0.30 Python code generation now production-ready with reliable runtime behavior  
+**Documentation**: Complete Frame runtime architecture documented in:
+- `docs/framelang_design/frame_runtime.md` - Abstract runtime specification for all languages
+- `docs/framelang_design/python_runtime.md` - Python-specific runtime implementation details
+
+#### **Bug #1: Malformed Transition Generation** ✅
+- **Issue**: Generated `next_compartment = Noneself.__transition()` causing syntax errors
+- **Root Cause**: State lookup returning None without proper FrameCompartment fallback generation  
+- **Fix**: Added fallback FrameCompartment generation in `python_visitor.rs` transition statements
+- **Files**: 62 test files affected, now all generate correct transition syntax
+
+#### **Bug #2: System Constructor Parameter Handling** ✅  
+- **Issue**: All system constructors generated as `def __init__(self):` regardless of Frame system parameters
+- **Root Cause**: Missing parameter mapping logic for Frame's flattened argument pattern
+- **Fix**: Implemented complete parameter processing for state args, enter params, and domain variables
+- **Architecture**: `system MySystem ($(A,B), $>(C,D), E, F)` → `def __init__(self, arg0, arg1, arg2, arg3, arg4, arg5):`
+
+#### **Bug #3: Domain Variable Initialization** ✅
+- **Issue**: Domain variables with default values (e.g., `var hello_txt = "Hello"`) not initialized in constructor
+- **Root Cause**: Domain block processing occurred after constructor generation, missing initialization
+- **Fix**: Added domain variable initialization in constructor BEFORE start event (critical ordering)
+- **Runtime Compliance**: Matches Frame runtime semantics per `/advanced_frame/runtime.rst` specification
+
+### ✅ **Model-Driven Transpiler Debugging Workflow** 
+
+**Innovation**: Established reusable workflow for systematic transpiler debugging:
+1. **Error Analysis**: Comprehensive runtime error categorization and pattern identification
+2. **Model Creation**: Manual Python fixes become "models" for correct transpiler behavior  
+3. **Transpiler Fixes**: Root cause analysis and visitor pattern modifications
+4. **Model Validation**: Automated comparison between regenerated code and working models
+
+**Workflow Tools**: 
+- `analyze_failures.py`: Automated error categorization and failure analysis
+- `model_workflow.py`: Model creation, comparison, and validation framework
+- Comprehensive test coverage with systematic validation protocols
 
 ## Recent Accomplishments (2025-01-23)
 

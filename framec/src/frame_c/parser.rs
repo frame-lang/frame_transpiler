@@ -125,6 +125,7 @@ pub struct Parser<'a> {
     is_action_scope: bool,
     operation_scope_depth: i32,
     is_function_scope: bool,
+    is_system_scope: bool,
     is_loop_scope: bool,
     stmt_idx: i32,
     interface_method_called: bool,
@@ -172,6 +173,7 @@ impl<'a> Parser<'a> {
             is_action_scope: false,
             operation_scope_depth: 0,
             is_function_scope: false,
+            is_system_scope: false,
             is_loop_scope: false,
             stmt_idx: 0,
             interface_method_called: false,
@@ -233,7 +235,26 @@ impl<'a> Parser<'a> {
                     Module::new(vec![])
                 };
                 
-                let system = self.system(Some(module_for_system), entity_attributes_opt, None);
+                let system = match self.system_scope(Some(module_for_system), entity_attributes_opt, None) {
+                    Ok(system) => system,
+                    Err(_) => {
+                        // Handle parse error by creating empty system and continuing
+                        SystemNode::new(
+                            "error".to_string(),
+                            Module::new(vec![]),
+                            None,
+                            None,
+                            None,
+                            None,
+                            None,
+                            None,
+                            None,
+                            None,
+                            None,
+                            0,
+                        )
+                    }
+                };
                 systems.push(system);
             } else if self.match_token(&[TokenType::Function]) {
                 // Functions shouldn't have system attributes, but ignore them if present
@@ -320,30 +341,16 @@ impl<'a> Parser<'a> {
 
     fn system(
         &mut self,
+        system_name: String,
         module_opt: Option<Module>,
         system_attributes_opt: Option<HashMap<String, AttributeNode>>,
         _functions_opt: Option<Vec<Rc<RefCell<FunctionNode>>>>,
-    ) -> SystemNode {
+    ) -> Result<SystemNode, ParseError> {
         let mut interface_block_node_opt = Option::None;
         let mut machine_block_node_opt = Option::None;
         let mut actions_block_node_opt = Option::None;
         let mut operations_block_node_opt = Option::None;
         let mut domain_block_node_opt = Option::None;
-
-        if !self.match_token(&[TokenType::Identifier]) {
-            self.error_at_current("Expected system identifer.");
-            let sync_tokens = vec![
-                TokenType::InterfaceBlock,
-                TokenType::MachineBlock,
-                TokenType::ActionsBlock,
-                TokenType::DomainBlock,
-                TokenType::CloseBrace,
-            ];
-            self.synchronize(&sync_tokens);
-        }
-
-        let id = self.previous();
-        let system_name = id.lexeme.clone();
 
         // SystemHierarchy is used in the GraphViz visitor rather than the AST
         self.system_hierarchy_opt = Some(SystemHierarchy::new(system_name.clone()));
@@ -619,7 +626,7 @@ impl<'a> Parser<'a> {
         //     }
         // }
 
-        system_node
+        Ok(system_node)
     }
 
     /* --------------------------------------------------------------------- */
@@ -1216,6 +1223,53 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
+    fn system_scope(
+        &mut self,
+        module_opt: Option<Module>,
+        system_attributes_opt: Option<HashMap<String, AttributeNode>>,
+        functions_opt: Option<Vec<Rc<RefCell<FunctionNode>>>>,
+    ) -> Result<SystemNode, ParseError> {
+        if !self.match_token(&[TokenType::Identifier]) {
+            let err_msg = "Expected system identifier.";
+            self.error_at_current(&err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+
+        let system_name = self.previous().lexeme.clone();
+
+        // The 'is_system_scope' flag is used to determine parsing context
+        let prev_is_system_scope = self.is_system_scope;
+        self.is_system_scope = true;
+
+        if self.is_building_symbol_table {
+            // lexical pass - create system symbol and enter scope
+            let system_symbol = SystemSymbol::new(system_name.clone());
+            let system_symbol_rcref = Rc::new(RefCell::new(system_symbol));
+            let system_symbol_parse_scope_t = ParseScopeType::System {
+                system_symbol: system_symbol_rcref.clone(),
+            };
+            self.arcanum.enter_scope(system_symbol_parse_scope_t);
+        } else {
+            // semantic pass
+            self.arcanum.set_parse_scope(&system_name);
+        }
+
+        // Call the actual system parsing method
+        let ret = self.system(system_name.clone(), module_opt, system_attributes_opt, functions_opt);
+
+        if self.is_building_symbol_table {
+            // Associate AST node with symbol if successful  
+            // (System symbols are managed in the symbol table enter/exit scope logic)
+        }
+
+        // Exit scope and restore state
+        self.arcanum.exit_scope();
+        self.is_system_scope = prev_is_system_scope;
+        
+        ret
+    }
+
+    /* --------------------------------------------------------------------- */
 
     fn function(
         &mut self,
@@ -7255,9 +7309,10 @@ impl<'a> Parser<'a> {
             if self.match_token(&[TokenType::LParen]) {
                 // For simple function calls, we'll let the UndeclaredCallT handle everything
                 
-                // v0.30: Try the new simplified call chain method for external functions AND method calls
-                // Use V2 for: 1) External functions (first node, empty chain) 2) Method calls (not first node, 1 item in chain)
-                if (is_first_node && call_chain.is_empty()) || (!is_first_node && call_chain.len() == 1) {
+                // v0.30: Try the new simplified call chain method for external functions ONLY
+                // Use V2 only for: External functions (first node, empty chain)
+                // Do NOT use V2 for method calls as it breaks the object-method relationship
+                if (is_first_node && call_chain.is_empty()) {
                     
                     // Rewind the LParen token since build_call_chain_v2 expects to parse it
                     self.current -= 1;
@@ -7510,6 +7565,12 @@ impl<'a> Parser<'a> {
                                 
                                 // For now, skip the complex action/interface lookup logic for simple calls
                                 /*
+                                // Debug dump before symbol lookup
+                                if std::env::var("FRAME_DEBUG").is_ok() {
+                                    eprintln!(">>> PARSER: About to lookup action '{}' in call chain", method_name);
+                                    self.arcanum.debug_dump_arcanum();
+                                }
+                                
                                 let action_decl_symbol_opt =
                                     self.arcanum.lookup_action(&method_name);
 
@@ -8094,6 +8155,12 @@ impl<'a> Parser<'a> {
     // v0.30: Modified build_call_chain_v2 that can append to existing call chain for method calls
     fn build_call_chain_v2_with_existing(&mut self, base_id: IdentifierNode, mut existing_chain: VecDeque<CallChainNodeType>) -> Result<Option<ExprType>, ParseError> {
         use crate::frame_c::ast::{CallChainNodeTypeV2, IdentifierScope};
+        
+        // Debug dump when starting V2 call chain building
+        if std::env::var("FRAME_DEBUG").is_ok() {
+            eprintln!(">>> PARSER: Starting V2 call chain for '{}'", base_id.name.lexeme);
+            self.arcanum.debug_dump_arcanum();
+        }
         
         let mut chain: VecDeque<CallChainNodeTypeV2> = VecDeque::new();
         let current_id = base_id;

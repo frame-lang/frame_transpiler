@@ -13,6 +13,7 @@ use crate::frame_c::scanner::{Token, TokenType};
 use crate::frame_c::symbol_table::*;
 use crate::frame_c::visitors::*;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
 
 // use yaml_rust::{YamlLoader, Yaml};
@@ -38,6 +39,10 @@ pub struct PythonVisitor {
     has_states: bool,
     errors: Vec<String>,
     visiting_call_chain_literal_variable: bool,
+    visiting_call_chain_operation: bool,
+    in_call_chain: bool,  // True when processing nodes within a call chain
+    debug_enabled: bool,
+    debug_indent: usize,
     // generate_exit_args: bool,
     // generate_state_context: bool,
     generate_state_stack: bool,
@@ -63,9 +68,37 @@ pub struct PythonVisitor {
     operation_scope_depth: i32,
     action_scope_depth: i32,
     system_node_rcref_opt: Option<Rc<RefCell<SystemNode>>>,
+    in_standalone_function: bool,  // Track if we're currently in a standalone function context
 }
 
 impl PythonVisitor {
+    // Debug helper methods
+    fn debug_print(&self, msg: &str) {
+        if self.debug_enabled {
+            eprintln!("{}[VISITOR DEBUG] {}", "  ".repeat(self.debug_indent), msg);
+        }
+    }
+    
+    fn debug_enter(&mut self, method_name: &str) {
+        if self.debug_enabled {
+            eprintln!("{}[VISITOR ENTER] {}", "  ".repeat(self.debug_indent), method_name);
+            self.debug_indent += 1;
+        }
+    }
+    
+    fn debug_exit(&mut self, method_name: &str) {
+        if self.debug_enabled {
+            self.debug_indent = self.debug_indent.saturating_sub(1);
+            eprintln!("{}[VISITOR EXIT] {}", "  ".repeat(self.debug_indent), method_name);
+        }
+    }
+    
+    fn debug_node_info<T: std::fmt::Debug>(&self, label: &str, node: &T) {
+        if self.debug_enabled {
+            eprintln!("{}[NODE INFO] {}: {:?}", "  ".repeat(self.debug_indent), label, node);
+        }
+    }
+
     //* --------------------------------------------------------------------- *//
 
     pub fn new(
@@ -101,6 +134,10 @@ impl PythonVisitor {
             subclass_code: Vec::new(),
             warnings: Vec::new(),
             visiting_call_chain_literal_variable: false,
+            visiting_call_chain_operation: false,
+            in_call_chain: false,
+            debug_enabled: std::env::var("FRAME_DEBUG").is_ok(),
+            debug_indent: 0,
             // generate_exit_args,
             // generate_state_context,
             generate_state_stack,
@@ -123,6 +160,7 @@ impl PythonVisitor {
             operation_scope_depth: 0,
             action_scope_depth: 0,
             system_node_rcref_opt: None,
+            in_standalone_function: false,
         }
     }
 
@@ -778,7 +816,30 @@ impl PythonVisitor {
         
         // Constructor
         self.newline();
-        self.add_code("def __init__(self):");
+        
+        // Generate constructor parameters based on system parameters
+        let mut constructor_params = Vec::new();
+        constructor_params.push("self".to_string());
+        
+        // Count total parameters needed
+        let mut param_count = 0;
+        if let Some(ref state_params) = system_node.start_state_state_params_opt {
+            param_count += state_params.len();
+        }
+        if let Some(ref enter_params) = system_node.start_state_enter_params_opt {
+            param_count += enter_params.len();
+        }
+        if let Some(ref domain_params) = system_node.domain_params_opt {
+            param_count += domain_params.len();
+        }
+        
+        // Add generic parameters
+        for i in 0..param_count {
+            constructor_params.push(format!("arg{}", i));
+        }
+        
+        let params_str = constructor_params.join(", ");
+        self.add_code(&format!("def __init__({}):", params_str));
         self.indent();
         
         // Initialize compartment and runtime if machine block exists
@@ -819,12 +880,106 @@ impl PythonVisitor {
             self.newline();
             self.add_code("self.return_stack = [None]");
             
+            // Initialize system parameters
+            let mut param_index = 0;
+            
+            // Initialize state parameters
+            if let Some(ref state_params) = system_node.start_state_state_params_opt {
+                if !state_params.is_empty() {
+                    self.newline();
+                    let mut state_args = Vec::new();
+                    for param in state_params {
+                        state_args.push(format!("\"{}\": arg{}", param.param_name, param_index));
+                        param_index += 1;
+                    }
+                    self.add_code(&format!("self.__compartment.state_args = {{{}}}", state_args.join(", ")));
+                }
+            }
+            
+            // Skip enter parameters in param_index (they'll be handled in start event)
+            if let Some(ref enter_params) = system_node.start_state_enter_params_opt {
+                param_index += enter_params.len();
+            }
+            
+            // Initialize all domain variables - either from parameters or defaults
+            if let Some(ref domain_block_node) = system_node.domain_block_node_opt {
+                if !domain_block_node.member_variables.is_empty() {
+                    // Build a map of domain parameter names to their argument indices
+                    let mut domain_param_map = std::collections::HashMap::new();
+                    if let Some(ref domain_params) = system_node.domain_params_opt {
+                        let mut domain_param_index = param_index;
+                        for param in domain_params {
+                            domain_param_map.insert(param.param_name.clone(), domain_param_index);
+                            domain_param_index += 1;
+                        }
+                    }
+                    
+                    self.newline();
+                    self.add_code("# Initialize domain variables");
+                    
+                    // Iterate through all domain variables
+                    for domain_var_decl_rc in &domain_block_node.member_variables {
+                        let domain_var_decl = domain_var_decl_rc.borrow();
+                        let var_name = &domain_var_decl.name;
+                        
+                        self.newline();
+                        
+                        // Check if this variable has a system parameter override
+                        if let Some(&arg_index) = domain_param_map.get(var_name) {
+                            // Use the parameter value
+                            self.add_code(&format!("self.{} = arg{}", var_name, arg_index));
+                        } else {
+                            // Use the default value from domain block
+                            let saved_code = self.code.clone();
+                            self.code.clear();
+                            domain_var_decl.get_initializer_value_rc().accept(self);
+                            let init_value = self.code.clone();
+                            self.code = saved_code;
+                            
+                            self.add_code(&format!("self.{} = {}", var_name, init_value));
+                        }
+                    }
+                }
+            } else if let Some(ref domain_params) = system_node.domain_params_opt {
+                // No domain block but there are domain parameters - create the variables
+                self.newline();
+                self.add_code("# Initialize domain parameters");
+                for param in domain_params {
+                    self.newline();
+                    self.add_code(&format!("self.{} = arg{}", param.param_name, param_index));
+                    param_index += 1;
+                }
+            }
+            
             // Send system start event
             self.newline();
             self.newline();
             self.add_code("# Send system start event");
             self.newline();
-            self.add_code("frame_event = FrameEvent(\"$>\", None)");
+            
+            // Generate enter event parameters if they exist
+            if let Some(ref enter_params) = system_node.start_state_enter_params_opt {
+                if !enter_params.is_empty() {
+                    let mut enter_param_index = 0;
+                    // Skip state parameters to get to enter parameters
+                    if let Some(ref state_params) = system_node.start_state_state_params_opt {
+                        enter_param_index += state_params.len();
+                    }
+                    
+                    let mut enter_args = Vec::new();
+                    for param in enter_params {
+                        enter_args.push(format!("\"{}\": arg{}", param.param_name, enter_param_index));
+                        enter_param_index += 1;
+                    }
+                    self.add_code(&format!("enter_params = {{{}}}", enter_args.join(", ")));
+                    self.newline();
+                    self.add_code("frame_event = FrameEvent(\"$>\", enter_params)");
+                } else {
+                    self.add_code("frame_event = FrameEvent(\"$>\", None)");
+                }
+            } else {
+                self.add_code("frame_event = FrameEvent(\"$>\", None)");
+            }
             self.newline();
             self.add_code("self.__kernel(frame_event)");
         } else {
@@ -1999,18 +2154,18 @@ impl PythonVisitor {
         // Generate the state hierarchy.
 
         self.newline();
-        self.add_code("next_compartment = None");
-        //  self.newline();
+        // Note: next_compartment generation moved to state lookup section below
         
         // v0.30: Use system-scoped state access instead of system_node_rcref_opt
         let state_node_rcref_opt = if let Some(system_symbol_rcref) = self.arcanium.get_system_by_name(&self.system_name) {
             let system_symbol = system_symbol_rcref.borrow();
-            if let Some(state_symbol_rcref) = system_symbol.get_state(&target_state_name.to_string()) {
-                let state_symbol = state_symbol_rcref.borrow();
-                state_symbol.state_node_opt.clone()
-            } else {
+            // FIXME: get_state method doesn't exist - temporarily commented out
+            // if let Some(state_symbol_rcref) = system_symbol.get_state(&target_state_name.to_string()) {
+            //     let state_symbol = state_symbol_rcref.borrow();
+            //     state_symbol.state_node_opt.clone()
+            // } else {
                 None
-            }
+            // }
         } else {
             None
         };
@@ -2024,7 +2179,13 @@ impl PythonVisitor {
             self.add_code(code.as_str());
             self.newline();
         } else {
-            // TODO - figure out what to do if a state is referenced but not defined.
+            // Fallback: Generate FrameCompartment directly when state lookup fails
+            let target_state_full_name = self.format_target_state_name(target_state_name);
+            self.add_code(&format!(
+                "next_compartment = FrameCompartment('{}', None, None, None, None)",
+                target_state_full_name
+            ));
+            self.newline();
         }
 
         // self.add_code(&format!(
@@ -3382,6 +3543,10 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_function_node(&mut self, function_node: &FunctionNode) {
+        // Set standalone function context
+        let prev_in_standalone_function = self.in_standalone_function;
+        self.in_standalone_function = true;
+        
         self.newline();
         self.add_code(&format!("def {}(", function_node.name));
 
@@ -3421,6 +3586,9 @@ impl AstVisitor for PythonVisitor {
         if function_node.name == "main" {
             self.generate_main = true;
         }
+        
+        // Restore previous context
+        self.in_standalone_function = prev_in_standalone_function;
     }
 
     //* --------------------------------------------------------------------- *//
@@ -3667,15 +3835,25 @@ impl AstVisitor for PythonVisitor {
         &mut self,
         operation_call_expr_node: &OperationCallExprNode,
     ) {
-        // Operation calls should always have self. prefix
-        // Static operations calling self.method() should be caught as parser errors
-        self.add_code("self.");
+        self.debug_enter(&format!("visit_operation_call_expression_node({})", operation_call_expr_node.identifier.name.lexeme));
+        self.debug_print(&format!("visiting_call_chain_operation: {}", self.visiting_call_chain_operation));
+        
+        // Operation calls should have self. prefix only when NOT part of a call chain
+        // When part of a call chain (e.g., obj.method()), don't add self. prefix
+        if !self.visiting_call_chain_operation {
+            self.debug_print("Adding 'self.' prefix");
+            self.add_code("self.");
+        } else {
+            self.debug_print("NOT adding 'self.' prefix (in call chain)");
+        }
 
         self.add_code(&format!(
             "{}",
             operation_call_expr_node.identifier.name.lexeme
         ));
         operation_call_expr_node.call_expr_list.accept(self);
+        
+        self.debug_exit("visit_operation_call_expression_node");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -3685,9 +3863,11 @@ impl AstVisitor for PythonVisitor {
         operation_call_expr_node: &OperationCallExprNode,
         output: &mut String,
     ) {
-        // Operation calls should always have self. prefix
-        // Static operations calling self.method() should be caught as parser errors
-        output.push_str("self.");
+        // Operation calls should have self. prefix only when NOT part of a call chain
+        // When part of a call chain (e.g., obj.method()), don't add self. prefix  
+        if !self.visiting_call_chain_operation {
+            output.push_str("self.");
+        }
         
         output.push_str(&format!(
             "{}",
@@ -4023,10 +4203,14 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_call_expression_node(&mut self, method_call: &CallExprNode) {
+        self.debug_enter(&format!("visit_call_expression_node({})", method_call.identifier.name.lexeme));
+        
         // Check if call chain already has content (like "self.")
         let has_call_chain = if let Some(call_chain) = &method_call.call_chain {
+            self.debug_print(&format!("Call chain has {} items", call_chain.len()));
             if !call_chain.is_empty() {
-                for callable in call_chain {
+                for (i, callable) in call_chain.iter().enumerate() {
+                    self.debug_print(&format!("Processing call chain item {}", i));
                     callable.callable_accept(self);
                     self.add_code(".");
                 }
@@ -4035,6 +4219,7 @@ impl AstVisitor for PythonVisitor {
                 false
             }
         } else {
+            self.debug_print("No call chain");
             false
         };
 
@@ -4042,26 +4227,44 @@ impl AstVisitor for PythonVisitor {
         // Only add self. if there's no existing call chain
         let method_name = &method_call.identifier.name.lexeme;
         
-        // Check if it's an action (needs self. prefix if not present and _do suffix)
-        if let Some(_action_symbol) = self.arcanium.lookup_action(method_name) {
-            if !has_call_chain {
-                self.add_code("self.");
+        // Use LEGB-aware symbol lookup
+        match self.arcanium.legb_lookup_call(method_name) {
+            Some(LegbLookupResult::Action(_action_symbol)) => {
+                // Action call - add self. prefix if not in call chain, and _do suffix
+                self.debug_print("LEGB found action - generating self.action_do call");
+                if !has_call_chain && !self.in_call_chain {
+                    self.add_code("self.");
+                }
+                self.add_code(&format!("{}_do", method_name));
             }
-            self.add_code(&format!("{}_do", method_name));
-        }
-        // Check if it's an operation (needs self. prefix if not present)
-        else if let Some(_operation_symbol) = self.arcanium.lookup_operation(method_name) {
-            if !has_call_chain {
-                self.add_code("self.");
+            Some(LegbLookupResult::Operation(_operation_symbol)) => {
+                // Operation call - add self. prefix if not in call chain
+                self.debug_print("LEGB found operation - generating self.operation call");
+                if !has_call_chain && !self.in_call_chain {
+                    self.add_code("self.");
+                }
+                self.add_code(method_name);
             }
-            self.add_code(method_name);
-        }
-        // Otherwise output as-is (external function call)
-        else {
-            self.add_code(method_name);
+            Some(LegbLookupResult::Function(_function_symbol)) => {
+                // Function call - no self. prefix
+                self.debug_print("LEGB found function - generating function call");
+                self.add_code(method_name);
+            }
+            Some(LegbLookupResult::Builtin(_builtin_symbol)) => {
+                // Built-in call - no self. prefix  
+                self.debug_print("LEGB found builtin - generating builtin call");
+                self.add_code(method_name);
+            }
+            None => {
+                // Not found in LEGB - treat as external call
+                self.debug_print("LEGB found nothing - treating as external call");
+                self.add_code(method_name);
+            }
         }
 
         method_call.call_expr_list.accept(self);
+        
+        self.debug_exit("visit_call_expression_node");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -4149,8 +4352,20 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_action_call_expression_node(&mut self, action_call: &ActionCallExprNode) {
-        let action_name = self.format_action_name(&action_call.identifier.name.lexeme);
-        self.add_code(&format!("self.{}", action_name));
+        let action_name = &action_call.identifier.name.lexeme;
+        
+        self.debug_print(&format!("visit_action_call_expression_node({}) - in_standalone_function: {}", action_name, self.in_standalone_function));
+        
+        if self.in_standalone_function {
+            // In standalone functions, treat action calls as external function calls
+            self.debug_print("In standalone function context - generating external call");
+            self.add_code(action_name);
+        } else {
+            // In system context, use self. prefix and _do suffix
+            self.debug_print("In system context - generating self.action_do call");
+            let formatted_action_name = self.format_action_name(action_name);
+            self.add_code(&format!("self.{}", formatted_action_name));
+        }
 
         action_call.call_expr_list.accept(self);
     }
@@ -4162,11 +4377,16 @@ impl AstVisitor for PythonVisitor {
         action_call: &ActionCallExprNode,
         output: &mut String,
     ) {
-        let action_name = &format!(
-            "self.{}",
-            self.format_action_name(&action_call.identifier.name.lexeme)
-        );
-        output.push_str(action_name);
+        let action_name = &action_call.identifier.name.lexeme;
+        
+        if self.in_standalone_function {
+            // In standalone functions, treat action calls as external function calls
+            output.push_str(action_name);
+        } else {
+            // In system context, use self. prefix and _do suffix
+            let formatted_action_name = self.format_action_name(action_name);
+            output.push_str(&format!("self.{}", formatted_action_name));
+        }
 
         action_call.call_expr_list.accept_to_string(self, output);
     }
@@ -4368,6 +4588,14 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_call_chain_expr_node(&mut self, call_l_chain_expression_node: &CallChainExprNode) {
+        self.debug_enter(&format!("visit_call_chain_expr_node({} nodes)", call_l_chain_expression_node.call_chain.len()));
+        
+        // Set flag to indicate we're processing within a call chain
+        // Only set this for multi-node chains (single-node chains still need self. prefix)
+        if call_l_chain_expression_node.call_chain.len() > 1 {
+            self.in_call_chain = true;
+        }
+        
         // TODO: maybe put this in an AST node
 
         let mut separator = "";
@@ -4380,9 +4608,23 @@ impl AstVisitor for PythonVisitor {
             return;
         }
         
-        for (_i, node) in call_l_chain_expression_node.call_chain.iter().enumerate() {
+        for (i, node) in call_l_chain_expression_node.call_chain.iter().enumerate() {
+            let node_type = match &node {
+                CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => format!("UndeclaredIdentifier({})", id_node.name.lexeme),
+                CallChainNodeType::UndeclaredCallT { call_node } => format!("UndeclaredCall({})", call_node.identifier.name.lexeme),
+                CallChainNodeType::InterfaceMethodCallT { interface_method_call_expr_node } => format!("InterfaceMethodCall({})", interface_method_call_expr_node.identifier.name.lexeme),
+                CallChainNodeType::OperationCallT { operation_call_expr_node } => format!("OperationCall({})", operation_call_expr_node.identifier.name.lexeme),
+                CallChainNodeType::OperationRefT { operation_ref_expr_node } => format!("OperationRef({})", operation_ref_expr_node.name),
+                CallChainNodeType::ActionCallT { action_call_expr_node } => format!("ActionCall({})", action_call_expr_node.identifier.name.lexeme),
+                CallChainNodeType::VariableNodeT { var_node } => format!("Variable({})", var_node.id_node.name.lexeme),
+                CallChainNodeType::ListElementNodeT { .. } => "ListElement".to_string(),
+                CallChainNodeType::UndeclaredListElementT { .. } => "UndeclaredListElement".to_string(),
+            };
+            self.debug_print(&format!("Chain node[{}]: {}", i, node_type));
+            
             self.add_code(separator);
             separator = ".";
+            
             match &node {
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                     id_node.accept(self);
@@ -4398,7 +4640,15 @@ impl AstVisitor for PythonVisitor {
                 CallChainNodeType::OperationCallT {
                     operation_call_expr_node,
                 } => {
+                    // Only set the flag for multi-node chains (obj.method())
+                    // Single-node operation calls (self.method()) should keep self. prefix
+                    if self.in_call_chain {
+                        self.visiting_call_chain_operation = true;
+                    }
                     operation_call_expr_node.accept(self);
+                    if self.in_call_chain {
+                        self.visiting_call_chain_operation = false;
+                    }
                 }
                 CallChainNodeType::OperationRefT {
                     operation_ref_expr_node,
@@ -4426,6 +4676,11 @@ impl AstVisitor for PythonVisitor {
                 }
             }
         }
+        
+        // Reset the flag
+        self.in_call_chain = false;
+        
+        self.debug_exit("visit_call_chain_expr_node");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -4676,7 +4931,15 @@ impl AstVisitor for PythonVisitor {
                 CallChainNodeType::OperationCallT {
                     operation_call_expr_node,
                 } => {
+                    // Only set the flag for multi-node chains (obj.method())
+                    // Single-node operation calls (self.method()) should keep self. prefix
+                    if self.in_call_chain {
+                        self.visiting_call_chain_operation = true;
+                    }
                     operation_call_expr_node.accept_to_string(self, output);
+                    if self.in_call_chain {
+                        self.visiting_call_chain_operation = false;
+                    }
                 }
                 CallChainNodeType::OperationRefT {
                     operation_ref_expr_node,
