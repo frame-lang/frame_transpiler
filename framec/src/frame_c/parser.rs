@@ -143,8 +143,11 @@ impl<'a> Parser<'a> {
         tokens: &'a [Token],
         comments: &'a mut Vec<Token>,
         is_building_symbol_table: bool,
-        arcanum: Arcanum,
+        mut arcanum: Arcanum,
     ) -> Parser<'a> {
+        // Initialize foundational scopes once per parser instance
+        arcanum.initialize_scope_stack();
+        
         Parser {
             tokens,
             comments,
@@ -190,6 +193,13 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     fn module(&mut self) -> FrameModule {
+        // Module scope is already established by initialize_scope_stack()
+        // Just parse the module content directly
+        self.parse_module_content()
+    }
+    
+    
+    fn parse_module_content(&mut self) -> FrameModule {
         if self.match_token(&[TokenType::Eof]) {
             self.error_at_current("Empty module.");
             return FrameModule::new(
@@ -1156,6 +1166,10 @@ impl<'a> Parser<'a> {
     // the parsing. Here the scope stack is managed including
     // the scope symbol creation and association with the AST node.
 
+    // ===================== Scope Management Functions =====================
+    
+    // ===================== Entity Scope Functions =====================
+    
     fn function_scope(&mut self) -> Result<Rc<RefCell<FunctionNode>>, ParseError> {
         if !self.match_token(&[TokenType::Identifier]) {
             let err_msg = "Expected function name.";

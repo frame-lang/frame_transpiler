@@ -50,6 +50,11 @@ pub trait ScopeSymbol {
 }
 
 pub enum ParseScopeType {
+    // Foundational scopes (LEGB)
+    Builtin,
+    Global,
+    Module,
+    // Entity scopes
     Function {
         function_scope_symbol_rcref: Rc<RefCell<FunctionScopeSymbol>>,
     },
@@ -651,6 +656,11 @@ impl SymbolTable {
 
     pub fn insert_parse_scope(&mut self, scope_t: ParseScopeType) {
         match scope_t {
+            ParseScopeType::Builtin | ParseScopeType::Global | ParseScopeType::Module => {
+                // These foundational scopes don't need to be inserted as symbols
+                // They are managed directly by the Arcanum
+                return;
+            }
             ParseScopeType::Function {
                 function_scope_symbol_rcref,
             } => {
@@ -1099,10 +1109,11 @@ pub enum LegbLookupResult {
 }
 
 pub struct Arcanum {
-    pub global_symtab: Rc<RefCell<SymbolTable>>,
     pub current_symtab: Rc<RefCell<SymbolTable>>,
-    // LEGB Scoping
+    // LEGB Scope Stack (properly ordered)
     pub builtin_symtab: Rc<RefCell<SymbolTable>>,  // Built-in functions (print, etc.)
+    pub global_symtab: Rc<RefCell<SymbolTable>>,   // Cross-module global scope
+    pub module_symtab: Rc<RefCell<SymbolTable>>,   // Module-level (file) scope
     pub scope_context: ScopeContext,               // Current parsing context
     // Legacy single-system support (maintained for backward compatibility)
     pub system_symbol_opt: Option<Rc<RefCell<SystemSymbol>>>,
@@ -1115,38 +1126,48 @@ pub struct Arcanum {
 
 impl Arcanum {
     pub fn new() -> Arcanum {
-        // Create global (module) symbol table
-        let st = SymbolTable::new(
-            String::from("global"),
+        // Start with an empty symbol table - the parser will build the scope stack
+        let empty_st = SymbolTable::new(
+            String::from("uninitialized"),
             None,
             IdentifierDeclScope::UnknownScope,
             false,
         );
-        let global_symbtab_rc = Rc::new(RefCell::new(st));
-        
-        // Create built-in symbol table with Frame built-in functions
+        let empty_symbtab_rc = Rc::new(RefCell::new(empty_st));
+
+        Arcanum {
+            current_symtab: Rc::clone(&empty_symbtab_rc),
+            builtin_symtab: Rc::clone(&empty_symbtab_rc),  // Will be set by parser
+            global_symtab: Rc::clone(&empty_symbtab_rc),   // Will be set by parser
+            module_symtab: Rc::clone(&empty_symbtab_rc),   // Will be set by parser
+            scope_context: ScopeContext::Global,
+            system_symbol_opt: None,
+            function_symbols: Vec::new(),
+            system_symbols: Vec::new(),
+            symbol_config: SymbolConfig::new(),
+            serializable: false,
+        }
+    }
+    
+    /// Initialize the scope stack - called by parser at start
+    pub fn initialize_scope_stack(&mut self) {
+        // 1. Create and enter built-in scope
         let builtin_st = SymbolTable::new(
             String::from("builtins"),
-            None,
+            None,  // No parent - this is the bottom
             IdentifierDeclScope::UnknownScope,
             false,
         );
         let builtin_symbtab_rc = Rc::new(RefCell::new(builtin_st));
-        
-        // Add built-in functions
         Self::add_builtin_functions(&builtin_symbtab_rc);
-
-        Arcanum {
-            current_symtab: Rc::clone(&global_symbtab_rc),
-            global_symtab: global_symbtab_rc,
-            builtin_symtab: builtin_symbtab_rc,
-            scope_context: ScopeContext::Global,
-            system_symbol_opt: None, // Legacy compatibility
-            function_symbols: Vec::new(), // v0.30: Multi-function support
-            system_symbols: Vec::new(),   // v0.30: Multi-system support
-            symbol_config: SymbolConfig::new(), // TODO
-            serializable: false,
-        }
+        self.builtin_symtab = Rc::clone(&builtin_symbtab_rc);
+        self.current_symtab = builtin_symbtab_rc;
+        
+        // 2. Push global scope
+        self.enter_scope(ParseScopeType::Global);
+        
+        // 3. Push module scope  
+        self.enter_scope(ParseScopeType::Module);
     }
 
     /// Add built-in functions to the built-in symbol table
@@ -1158,6 +1179,18 @@ impl Arcanum {
             function_symbol_ref: Rc::new(RefCell::new(FunctionScopeSymbol::new("print".to_string()))),
         };
         builtin_symtab.borrow_mut().symbols.insert("print".to_string(), Rc::new(RefCell::new(print_symbol)));
+    }
+
+    /// Push a symbol to the parent (global) scope - for 'global' variable declarations
+    pub fn add_to_global_scope(&mut self, symbol_type: SymbolType) -> Result<(), String> {
+        // Add the symbol to the global symbol table instead of current
+        self.global_symtab.borrow_mut().define(&symbol_type)
+    }
+
+    /// Check if we're at module level (for determining where to add symbols)
+    pub fn is_at_module_level(&self) -> bool {
+        // We're at module level if current symtab is the module symtab
+        Rc::ptr_eq(&self.current_symtab, &self.module_symtab)
     }
 
     pub fn debug_print_current_symbols(&self, symbol_table_rcref: Rc<RefCell<SymbolTable>>) {
@@ -1624,6 +1657,59 @@ impl Arcanum {
     pub fn enter_scope(&mut self, scope_t: ParseScopeType) {
         // do scope specific actions
         match &scope_t {
+            ParseScopeType::Builtin => {
+                // Create builtin scope - this is the foundation
+                let builtin_st = SymbolTable::new(
+                    String::from("builtins"),
+                    None,  // No parent - this is the bottom
+                    IdentifierDeclScope::UnknownScope,
+                    false,
+                );
+                let builtin_symtab_rc = Rc::new(RefCell::new(builtin_st));
+                Self::add_builtin_functions(&builtin_symtab_rc);
+                self.builtin_symtab = Rc::clone(&builtin_symtab_rc);
+                self.current_symtab = builtin_symtab_rc;
+                
+                if std::env::var("FRAME_DEBUG").is_ok() {
+                    eprintln!(">>> ENTERED BUILTIN SCOPE");
+                    self.debug_dump_arcanum();
+                }
+            }
+            ParseScopeType::Global => {
+                // Create global scope with builtin as parent
+                let global_st = SymbolTable::new(
+                    String::from("global"),
+                    Some(Rc::clone(&self.current_symtab)),  // Parent is builtin
+                    IdentifierDeclScope::UnknownScope,
+                    false,
+                );
+                let global_symtab_rc = Rc::new(RefCell::new(global_st));
+                self.global_symtab = Rc::clone(&global_symtab_rc);
+                self.current_symtab = global_symtab_rc;
+                
+                if std::env::var("FRAME_DEBUG").is_ok() {
+                    eprintln!(">>> ENTERED GLOBAL SCOPE");
+                    self.debug_dump_arcanum();
+                }
+            }
+            ParseScopeType::Module => {
+                // Create module scope with global as parent
+                let module_st = SymbolTable::new(
+                    String::from("module"),
+                    Some(Rc::clone(&self.current_symtab)),  // Parent is global
+                    IdentifierDeclScope::UnknownScope,
+                    false,
+                );
+                let module_symtab_rc = Rc::new(RefCell::new(module_st));
+                self.module_symtab = Rc::clone(&module_symtab_rc);
+                self.current_symtab = module_symtab_rc;
+                self.scope_context = ScopeContext::Global;  // Module level is "global" context
+                
+                if std::env::var("FRAME_DEBUG").is_ok() {
+                    eprintln!(">>> ENTERED MODULE SCOPE");
+                    self.debug_dump_arcanum();
+                }
+            }
             ParseScopeType::Function {
                 function_scope_symbol_rcref,
             } => {
@@ -1634,12 +1720,6 @@ impl Arcanum {
                 // CRITICAL FIX: Clear system context when entering function scope
                 // Functions should NOT have access to system internals (actions, operations)
                 self.system_symbol_opt = None;
-                
-                // Debug dump after entering function scope
-                if std::env::var("FRAME_DEBUG").is_ok() {
-                    eprintln!(">>> ENTERED FUNCTION SCOPE: {}", function_name);
-                    self.debug_dump_arcanum();
-                }
                 
                 // set parent symbol table
                 let current_symbtab_rcref = Rc::clone(&self.current_symtab);
@@ -1658,8 +1738,14 @@ impl Arcanum {
 
                 // add new scope symbol to previous symbol table
                 self.current_symtab.borrow_mut().insert_parse_scope(scope_t);
-                // clone the Rc for the symbol table
+                // Update current symbol table to the function's symbol table
                 self.current_symtab = Rc::clone(&function_symbol_symtab_rcref);
+                
+                // Debug dump AFTER updating current_symtab
+                if std::env::var("FRAME_DEBUG").is_ok() {
+                    eprintln!(">>> ENTERED FUNCTION SCOPE: {}", function_name);
+                    self.debug_dump_arcanum();
+                }
             }
             ParseScopeType::System {
                 system_symbol: system_symbol_rcref,
@@ -1677,12 +1763,6 @@ impl Arcanum {
                 // cache the system symbol (legacy compatibility)
                 self.system_symbol_opt = Some(Rc::clone(system_symbol_rcref));
                 
-                // Debug dump after entering system scope (AFTER setting system_symbol_opt)
-                if std::env::var("FRAME_DEBUG").is_ok() {
-                    eprintln!(">>> ENTERED SYSTEM SCOPE: {}", system_name);
-                    self.debug_dump_arcanum();
-                }
-                
                 // v0.30: Add to multi-entity system collection
                 self.system_symbols.push(Rc::clone(system_symbol_rcref));
                 
@@ -1694,8 +1774,14 @@ impl Arcanum {
 
                 // add new scope symbol to previous symbol table
                 self.current_symtab.borrow_mut().insert_parse_scope(scope_t);
-                // clone the Rc for the symbol table
+                // Update current symbol table to the system's symbol table
                 self.current_symtab = Rc::clone(&system_symbol_symtab_rcref);
+                
+                // Debug dump AFTER updating current_symtab
+                if std::env::var("FRAME_DEBUG").is_ok() {
+                    eprintln!(">>> ENTERED SYSTEM SCOPE: {}", system_name);
+                    self.debug_dump_arcanum();
+                }
             }
             ParseScopeType::InterfaceBlock {
                 interface_block_scope_symbol_rcref,
@@ -2064,12 +2150,31 @@ impl Arcanum {
 
         self.current_symtab = symbol_table_rcref;
         
-        // LEGB: Reset to Global (module) scope context when exiting function/system scopes
-        self.scope_context = ScopeContext::Global;
+        // LEGB: Update scope context based on where we returned to
+        if Rc::ptr_eq(&self.current_symtab, &self.module_symtab) {
+            // Back at module level
+            self.scope_context = ScopeContext::Global;
+            
+            // Clear any lingering system context when back at module level
+            self.system_symbol_opt = None;
+        }
+        // Otherwise we're still inside a function/system/block
         
         // Debug dump after exiting scope
         if std::env::var("FRAME_DEBUG").is_ok() {
-            eprintln!(">>> EXITED SCOPE - Back to Global");
+            let current_name = self.current_symtab.borrow().name.clone();
+            let module_name = self.module_symtab.borrow().name.clone();
+            eprintln!(">>> EXITED SCOPE - Current: '{}', Module: '{}'", current_name, module_name);
+            eprintln!("    Ptr equality check: {}", Rc::ptr_eq(&self.current_symtab, &self.module_symtab));
+            
+            let scope_name = if Rc::ptr_eq(&self.current_symtab, &self.module_symtab) {
+                "Module"
+            } else if Rc::ptr_eq(&self.current_symtab, &self.global_symtab) {
+                "Global"  
+            } else {
+                &self.current_symtab.borrow().name
+            };
+            eprintln!(">>> Scope name resolved to: {}", scope_name);
             self.debug_dump_arcanum();
         }
         
