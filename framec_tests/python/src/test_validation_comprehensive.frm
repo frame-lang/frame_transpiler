@@ -55,12 +55,14 @@ system SystemB(param) {
         }
         
     domain:
-        var value:string
+        var value:string = ""
 }
 
 system SystemC {
     operations:
-        run()
+        run() {
+            print("SystemC operation running")
+        }
         
     machine:
         $Begin {

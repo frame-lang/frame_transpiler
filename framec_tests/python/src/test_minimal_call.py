@@ -6,44 +6,91 @@ class FrameEvent:
         self._message = message
         self._parameters = parameters
 
+class FrameCompartment:
+    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None):
+        self.state = state
+        self.forward_event = forward_event
+        self.exit_args = exit_args
+        self.enter_args = enter_args
+        self.parent_compartment = parent_compartment
+
 
 def main():
     service = TestService()
     return
 
-def test_func():# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("external")
-    return
-#Emitted from framec_v0.30.0
-
-
-
-class FrameEvent:
-    def __init__(self, message, parameters):
-        self._message = message
-        self._parameters = parameters
-
-def main():
-    service = TestService()
-    return
 def test_func():# DEBUG_EXPR_TYPE: Discriminant(4)
     
     print("external")
     return
 class TestService:
-    
-    # ==================== System Factory =================== #
-    
     def __init__(self):
-        # Constructor implementation will be added here
+        # Create and initialize start state compartment
+        self.__compartment = FrameCompartment('__testservice_state_Start', None, None, None, None)
+        self.__next_compartment = None
+        self.return_stack = [None]
+        
+        # Send system start event
+        frame_event = FrameEvent("$>", None)
+        self.__kernel(frame_event)
     
-    # State machine will be added here
+    # ==================== Operations Block ================== #
     
-    # Operation methods will be added here
+    def test_method(self):# DEBUG_EXPR_TYPE: Discriminant(4)
+        
+        test_func()
+    # ===================== Machine Block =================== #
     
-    # System runtime (__kernel, __router, __transition) will be added here
     
+    # ----------------------------------------
+    # $Start
+    
+    def __testservice_state_Start(self, __e, compartment):
+        if __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
+            
+            print("test")
+            return
+    
+    # ===================== State Dispatchers =================== #
+    
+    def _sStart(self, __e):
+        return self.__testservice_state_Start(__e, None)
+    
+    # ==================== System Runtime =================== #
+    
+    def __kernel(self, __e):
+        # send event to current state
+        self.__router(__e)
+        
+        # loop until no transitions occur
+        while self.__next_compartment != None:
+            next_compartment = self.__next_compartment
+            self.__next_compartment = None
+            
+            # exit current state
+            self.__router(FrameEvent("<$", self.__compartment.exit_args))
+            # change state
+            self.__compartment = next_compartment
+            
+            if next_compartment.forward_event is None:
+                # send normal enter event
+                self.__router(FrameEvent("$>", self.__compartment.enter_args))
+            else:
+                # forwarded event
+                if next_compartment.forward_event._message == "$>":
+                    self.__router(next_compartment.forward_event)
+                else:
+                    self.__router(FrameEvent("$>", self.__compartment.enter_args))
+                    self.__router(next_compartment.forward_event)
+                next_compartment.forward_event = None
+    
+    def __router(self, __e, compartment=None):
+        target_compartment = compartment or self.__compartment
+        if target_compartment.state == '__testservice_state_Start':
+            self.__testservice_state_Start(__e, target_compartment)
+    
+    def __transition(self, next_compartment):
+        self.__next_compartment = next_compartment
 
 if __name__ == '__main__':
     main()

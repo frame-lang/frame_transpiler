@@ -69,6 +69,7 @@ pub struct PythonVisitor {
     action_scope_depth: i32,
     system_node_rcref_opt: Option<Rc<RefCell<SystemNode>>>,
     in_standalone_function: bool,  // Track if we're currently in a standalone function context
+    current_system_operations: Vec<String>,  // Track operations defined in the current system
 }
 
 impl PythonVisitor {
@@ -161,6 +162,7 @@ impl PythonVisitor {
             action_scope_depth: 0,
             system_node_rcref_opt: None,
             in_standalone_function: false,
+            current_system_operations: Vec::new(),
         }
     }
 
@@ -483,9 +485,17 @@ impl PythonVisitor {
         } else if type_node.is_enum {
             format!("{}_{}", self.system_name, type_node.type_str)
         } else {
-            let mut s = String::new();
-            s.push_str(&type_node.type_str.clone());
-            s
+            // Convert Frame types to Python equivalents
+            match type_node.type_str.as_str() {
+                "string" => "str".to_string(),
+                "int" => "int".to_string(),
+                "float" => "float".to_string(),
+                "bool" => "bool".to_string(),
+                _ => {
+                    // For unknown types, omit type annotation to avoid errors
+                    String::new()
+                }
+            }
         }
     }
 
@@ -924,10 +934,20 @@ impl PythonVisitor {
                         
                         self.newline();
                         
+                        // Get type annotation if available
+                        let var_type = match &domain_var_decl.type_opt {
+                            Some(type_node) => self.format_type(type_node),
+                            None => String::new(),
+                        };
+                        
                         // Check if this variable has a system parameter override
                         if let Some(&arg_index) = domain_param_map.get(var_name) {
                             // Use the parameter value
-                            self.add_code(&format!("self.{} = arg{}", var_name, arg_index));
+                            if !var_type.is_empty() {
+                                self.add_code(&format!("self.{}: {} = arg{}", var_name, var_type, arg_index));
+                            } else {
+                                self.add_code(&format!("self.{} = arg{}", var_name, arg_index));
+                            }
                         } else {
                             // Use the default value from domain block
                             let saved_code = self.code.clone();
@@ -936,7 +956,11 @@ impl PythonVisitor {
                             let init_value = self.code.clone();
                             self.code = saved_code;
                             
-                            self.add_code(&format!("self.{} = {}", var_name, init_value));
+                            if !var_type.is_empty() {
+                                self.add_code(&format!("self.{}: {} = {}", var_name, var_type, init_value));
+                            } else {
+                                self.add_code(&format!("self.{} = {}", var_name, init_value));
+                            }
                         }
                     }
                 }
@@ -3113,6 +3137,9 @@ impl AstVisitor for PythonVisitor {
     fn visit_system_node(&mut self, system_node: &SystemNode) {
         self.add_code("# DEBUG: visit_system_node() called - STARTING v0.30 generation");
         
+        // Reset operations list for this system
+        self.current_system_operations.clear();
+        
         self.add_code(&format!("#{}", self.compiler_version));
         self.newline();
         self.newline();
@@ -3769,6 +3796,10 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_operation_node(&mut self, operation_node: &OperationNode) {
         self.operation_scope_depth += 1;
+        
+        // Track this operation name for method call resolution
+        self.current_system_operations.push(operation_node.name.clone());
+        
         self.newline();
         self.newline();
         let operation_name = self.format_operation_name(&operation_node.name);
@@ -4227,39 +4258,34 @@ impl AstVisitor for PythonVisitor {
         // Only add self. if there's no existing call chain
         let method_name = &method_call.identifier.name.lexeme;
         
-        // Use LEGB-aware symbol lookup
-        match self.arcanium.legb_lookup_call(method_name) {
-            Some(LegbLookupResult::Action(_action_symbol)) => {
-                // Action call - add self. prefix if not in call chain, and _do suffix
-                self.debug_print("LEGB found action - generating self.action_do call");
-                if !has_call_chain && !self.in_call_chain {
-                    self.add_code("self.");
-                }
-                self.add_code(&format!("{}_do", method_name));
+        // Check if it's an action (needs self. prefix if not present and _do suffix)
+        if let Some(_action_symbol) = self.arcanium.lookup_action(method_name) {
+            self.debug_print("Found action - generating self.action_do call");
+            if !has_call_chain && !self.in_call_chain {
+                self.add_code("self.");
             }
-            Some(LegbLookupResult::Operation(_operation_symbol)) => {
-                // Operation call - add self. prefix if not in call chain
-                self.debug_print("LEGB found operation - generating self.operation call");
-                if !has_call_chain && !self.in_call_chain {
-                    self.add_code("self.");
-                }
-                self.add_code(method_name);
+            self.add_code(&format!("{}_do", method_name));
+        }
+        // Check if it's an operation (needs self. prefix if not present)
+        else if let Some((_operation_symbol, _system_symbol)) = self.arcanium.lookup_operation_in_all_systems(method_name) {
+            self.debug_print("Found operation - generating self.operation call");
+            if !has_call_chain && !self.in_call_chain {
+                self.add_code("self.");
             }
-            Some(LegbLookupResult::Function(_function_symbol)) => {
-                // Function call - no self. prefix
-                self.debug_print("LEGB found function - generating function call");
-                self.add_code(method_name);
+            self.add_code(method_name);
+        }
+        // Fallback: check if it's in our tracked operations list (when symbol table fails)
+        else if self.current_system_operations.contains(&method_name.to_string()) {
+            self.debug_print("Found operation in tracked list - generating self.operation call");
+            if !has_call_chain && !self.in_call_chain {
+                self.add_code("self.");
             }
-            Some(LegbLookupResult::Builtin(_builtin_symbol)) => {
-                // Built-in call - no self. prefix  
-                self.debug_print("LEGB found builtin - generating builtin call");
-                self.add_code(method_name);
-            }
-            None => {
-                // Not found in LEGB - treat as external call
-                self.debug_print("LEGB found nothing - treating as external call");
-                self.add_code(method_name);
-            }
+            self.add_code(method_name);
+        }
+        // Otherwise output as-is (external function call)
+        else {
+            self.debug_print("Found nothing - generating external call");
+            self.add_code(method_name);
         }
 
         method_call.call_expr_list.accept(self);
@@ -4278,8 +4304,19 @@ impl AstVisitor for PythonVisitor {
         let has_call_chain = if let Some(call_chain) = &method_call.call_chain {
             if !call_chain.is_empty() {
                 for callable in call_chain {
+                    // Save current code state and clear for callable output
+                    let saved_code = self.code.clone();
+                    self.code.clear();
+                    
+                    // Let callable write to self.code
                     callable.callable_accept(self);
+                    
+                    // Capture the output and add to result string
+                    output.push_str(&self.code);
                     output.push('.');
+                    
+                    // Restore original code state
+                    self.code = saved_code;
                 }
                 true
             } else {
@@ -4301,7 +4338,14 @@ impl AstVisitor for PythonVisitor {
             output.push_str(&format!("{}_do", method_name));
         }
         // Check if it's an operation (needs self. prefix if not present)
-        else if let Some(_operation_symbol) = self.arcanium.lookup_operation(method_name) {
+        else if let Some((_operation_symbol, _system_symbol)) = self.arcanium.lookup_operation_in_all_systems(method_name) {
+            if !has_call_chain {
+                output.push_str("self.");
+            }
+            output.push_str(method_name);
+        }
+        // Fallback: check if it's in our tracked operations list (when symbol table fails)
+        else if self.current_system_operations.contains(&method_name.to_string()) {
             if !has_call_chain {
                 output.push_str("self.");
             }

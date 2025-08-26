@@ -6,147 +6,250 @@ class FrameEvent:
         self._message = message
         self._parameters = parameters
 
-#Emitted from framec_v0.30.0
-
-
-
-class FrameEvent:
-    def __init__(self, message, parameters):
-        self._message = message
-        self._parameters = parameters
-
-class SystemA:
-    
-    # ==================== System Factory =================== #
-    
-    def __init__(self):
-        # Constructor implementation will be added here
-    
-    # Interface methods will be added here
-    
-    # State machine will be added here
-    
-    # System runtime (__kernel, __router, __transition) will be added here
-    
-class SystemB:
-    
-    # ==================== System Factory =================== #
-    
-    def __init__(self):
-        # Constructor implementation will be added here
-    
-    # Interface methods will be added here
-    
-    # State machine will be added here
-    
-    # System runtime (__kernel, __router, __transition) will be added here
-    
-class SystemC:
-    
-    # ==================== System Factory =================== #
-    
-    def __init__(self):
-        # Constructor implementation will be added here
-    
-    # Interface methods will be added here
-    
-    # State machine will be added here
-    
-    # System runtime (__kernel, __router, __transition) will be added here
-    
-#Emitted from framec_v0.30.0
-
-
-
-class FrameEvent:
-    def __init__(self, message, parameters):
-        self._message = message
-        self._parameters = parameters
+class FrameCompartment:
+    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None):
+        self.state = state
+        self.forward_event = forward_event
+        self.exit_args = exit_args
+        self.enter_args = enter_args
+        self.parent_compartment = parent_compartment
 
 class SystemA:
-    
-    # ==================== System Factory =================== #
-    
     def __init__(self):
-        # Constructor implementation will be added here
+        # Create and initialize start state compartment
+        self.__compartment = FrameCompartment('__systema_state_Start', None, None, None, None)
+        self.__next_compartment = None
+        self.return_stack = [None]
+        
+        # Send system start event
+        frame_event = FrameEvent("$>", None)
+        self.__kernel(frame_event)
+    # ==================== Interface Block ================== #
     
-    # Interface methods will be added here
+    def activate(self,):
+        self.return_stack.append(None)
+        __e = FrameEvent("activate",None)
+        self.__kernel(__e)
+        return self.return_stack.pop(-1)
     
-    # State machine will be added here
+    # ===================== Machine Block =================== #
     
-    # System runtime (__kernel, __router, __transition) will be added here
     
+    # ----------------------------------------
+    # $Start
+    
+    def __systema_state_Start(self, __e, compartment):
+        if __e._message == "activate":# DEBUG: TransitionStmt
+            
+            next_compartment = FrameCompartment('__systema_state_Active', None, None, None, None)
+            self.__transition(next_compartment)
+            return
+    
+    
+    # ----------------------------------------
+    # $Active
+    
+    def __systema_state_Active(self, __e, compartment):
+        if __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
+            
+            print("SystemA active")
+            return
+    
+    # ===================== State Dispatchers =================== #
+    
+    def _sStart(self, __e):
+        return self.__systema_state_Start(__e, None)
+    def _sActive(self, __e):
+        return self.__systema_state_Active(__e, None)
+    
+    # ==================== System Runtime =================== #
+    
+    def __kernel(self, __e):
+        # send event to current state
+        self.__router(__e)
+        
+        # loop until no transitions occur
+        while self.__next_compartment != None:
+            next_compartment = self.__next_compartment
+            self.__next_compartment = None
+            
+            # exit current state
+            self.__router(FrameEvent("<$", self.__compartment.exit_args))
+            # change state
+            self.__compartment = next_compartment
+            
+            if next_compartment.forward_event is None:
+                # send normal enter event
+                self.__router(FrameEvent("$>", self.__compartment.enter_args))
+            else:
+                # forwarded event
+                if next_compartment.forward_event._message == "$>":
+                    self.__router(next_compartment.forward_event)
+                else:
+                    self.__router(FrameEvent("$>", self.__compartment.enter_args))
+                    self.__router(next_compartment.forward_event)
+                next_compartment.forward_event = None
+    
+    def __router(self, __e, compartment=None):
+        target_compartment = compartment or self.__compartment
+        if target_compartment.state == '__systema_state_Start':
+            self.__systema_state_Start(__e, target_compartment)
+        elif target_compartment.state == '__systema_state_Active':
+            self.__systema_state_Active(__e, target_compartment)
+    
+    def __transition(self, next_compartment):
+        self.__next_compartment = next_compartment
 class SystemB:
-    
-    # ==================== System Factory =================== #
-    
     def __init__(self):
-        # Constructor implementation will be added here
+        # Create and initialize start state compartment
+        self.__compartment = FrameCompartment('__systemb_state_Begin', None, None, None, None)
+        self.__next_compartment = None
+        self.return_stack = [None]
+        
+        # Send system start event
+        frame_event = FrameEvent("$>", None)
+        self.__kernel(frame_event)
+    # ==================== Interface Block ================== #
     
-    # Interface methods will be added here
+    def run(self,):
+        self.return_stack.append(None)
+        __e = FrameEvent("run",None)
+        self.__kernel(__e)
+        return self.return_stack.pop(-1)
     
-    # State machine will be added here
+    # ===================== Machine Block =================== #
     
-    # System runtime (__kernel, __router, __transition) will be added here
     
+    # ----------------------------------------
+    # $Begin
+    
+    def __systemb_state_Begin(self, __e, compartment):
+        if __e._message == "run":# DEBUG: TransitionStmt
+            
+            next_compartment = FrameCompartment('__systemb_state_Running', None, None, None, None)
+            self.__transition(next_compartment)
+            return
+    
+    
+    # ----------------------------------------
+    # $Running
+    
+    def __systemb_state_Running(self, __e, compartment):
+        pass
+        
+    
+    # ===================== State Dispatchers =================== #
+    
+    def _sBegin(self, __e):
+        return self.__systemb_state_Begin(__e, None)
+    def _sRunning(self, __e):
+        return self.__systemb_state_Running(__e, None)
+    
+    # ==================== System Runtime =================== #
+    
+    def __kernel(self, __e):
+        # send event to current state
+        self.__router(__e)
+        
+        # loop until no transitions occur
+        while self.__next_compartment != None:
+            next_compartment = self.__next_compartment
+            self.__next_compartment = None
+            
+            # exit current state
+            self.__router(FrameEvent("<$", self.__compartment.exit_args))
+            # change state
+            self.__compartment = next_compartment
+            
+            if next_compartment.forward_event is None:
+                # send normal enter event
+                self.__router(FrameEvent("$>", self.__compartment.enter_args))
+            else:
+                # forwarded event
+                if next_compartment.forward_event._message == "$>":
+                    self.__router(next_compartment.forward_event)
+                else:
+                    self.__router(FrameEvent("$>", self.__compartment.enter_args))
+                    self.__router(next_compartment.forward_event)
+                next_compartment.forward_event = None
+    
+    def __router(self, __e, compartment=None):
+        target_compartment = compartment or self.__compartment
+        if target_compartment.state == '__systemb_state_Begin':
+            self.__systemb_state_Begin(__e, target_compartment)
+        elif target_compartment.state == '__systemb_state_Running':
+            self.__systemb_state_Running(__e, target_compartment)
+    
+    def __transition(self, next_compartment):
+        self.__next_compartment = next_compartment
 class SystemC:
-    
-    # ==================== System Factory =================== #
-    
     def __init__(self):
-        # Constructor implementation will be added here
+        # Create and initialize start state compartment
+        self.__compartment = FrameCompartment('__systemc_state_Initial', None, None, None, None)
+        self.__next_compartment = None
+        self.return_stack = [None]
+        
+        # Send system start event
+        frame_event = FrameEvent("$>", None)
+        self.__kernel(frame_event)
+    # ==================== Interface Block ================== #
     
-    # Interface methods will be added here
+    def process(self,):
+        self.return_stack.append(None)
+        __e = FrameEvent("process",None)
+        self.__kernel(__e)
+        return self.return_stack.pop(-1)
     
-    # State machine will be added here
+    # ===================== Machine Block =================== #
     
-    # System runtime (__kernel, __router, __transition) will be added here
     
-#Emitted from framec_v0.30.0
+    # ----------------------------------------
+    # $Initial
+    
+    def __systemc_state_Initial(self, __e, compartment):
+        if __e._message == "process":# DEBUG_EXPR_TYPE: Discriminant(4)
+            
+            print("Processing in SystemC")
+            return
+    
+    # ===================== State Dispatchers =================== #
+    
+    def _sInitial(self, __e):
+        return self.__systemc_state_Initial(__e, None)
+    
+    # ==================== System Runtime =================== #
+    
+    def __kernel(self, __e):
+        # send event to current state
+        self.__router(__e)
+        
+        # loop until no transitions occur
+        while self.__next_compartment != None:
+            next_compartment = self.__next_compartment
+            self.__next_compartment = None
+            
+            # exit current state
+            self.__router(FrameEvent("<$", self.__compartment.exit_args))
+            # change state
+            self.__compartment = next_compartment
+            
+            if next_compartment.forward_event is None:
+                # send normal enter event
+                self.__router(FrameEvent("$>", self.__compartment.enter_args))
+            else:
+                # forwarded event
+                if next_compartment.forward_event._message == "$>":
+                    self.__router(next_compartment.forward_event)
+                else:
+                    self.__router(FrameEvent("$>", self.__compartment.enter_args))
+                    self.__router(next_compartment.forward_event)
+                next_compartment.forward_event = None
+    
+    def __router(self, __e, compartment=None):
+        target_compartment = compartment or self.__compartment
+        if target_compartment.state == '__systemc_state_Initial':
+            self.__systemc_state_Initial(__e, target_compartment)
+    
+    def __transition(self, next_compartment):
+        self.__next_compartment = next_compartment
 
-
-
-class FrameEvent:
-    def __init__(self, message, parameters):
-        self._message = message
-        self._parameters = parameters
-
-class SystemA:
-    
-    # ==================== System Factory =================== #
-    
-    def __init__(self):
-        # Constructor implementation will be added here
-    
-    # Interface methods will be added here
-    
-    # State machine will be added here
-    
-    # System runtime (__kernel, __router, __transition) will be added here
-    
-class SystemB:
-    
-    # ==================== System Factory =================== #
-    
-    def __init__(self):
-        # Constructor implementation will be added here
-    
-    # Interface methods will be added here
-    
-    # State machine will be added here
-    
-    # System runtime (__kernel, __router, __transition) will be added here
-    
-class SystemC:
-    
-    # ==================== System Factory =================== #
-    
-    def __init__(self):
-        # Constructor implementation will be added here
-    
-    # Interface methods will be added here
-    
-    # State machine will be added here
-    
-    # System runtime (__kernel, __router, __transition) will be added here
-    

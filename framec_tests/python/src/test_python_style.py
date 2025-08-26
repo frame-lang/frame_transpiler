@@ -6,23 +6,67 @@ class FrameEvent:
         self._message = message
         self._parameters = parameters
 
-#Emitted from framec_v0.30.0
-
-
-
-class FrameEvent:
-    def __init__(self, message, parameters):
-        self._message = message
-        self._parameters = parameters
+class FrameCompartment:
+    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None):
+        self.state = state
+        self.forward_event = forward_event
+        self.exit_args = exit_args
+        self.enter_args = enter_args
+        self.parent_compartment = parent_compartment
 
 class A:
-    
-    # ==================== System Factory =================== #
-    
     def __init__(self):
-        # Constructor implementation will be added here
+        self.__compartment = None
+        self.return_stack = [None]
+    # ===================== Actions Block =================== #
     
-    # Action methods will be added here
+    def testPythonStyle_do(self):
+        
+        if x > 5:# DEBUG_EXPR_TYPE: Discriminant(4)
+            
+            doSomething()
+        elif y < 10:# DEBUG_EXPR_TYPE: Discriminant(4)
+            
+            doOther()
+        else:# DEBUG_EXPR_TYPE: Discriminant(4)
+            
+            doDefault()
+        return
+        
     
-    # System runtime (__kernel, __router, __transition) will be added here
+    def testBracedStyle_do(self):
+        
+        if x > 5:# DEBUG_EXPR_TYPE: Discriminant(4)
+            
+            doSomething()# DEBUG_EXPR_TYPE: Discriminant(4)
+            
+            doMore()
+        elif y < 10:# DEBUG_EXPR_TYPE: Discriminant(4)
+            
+            doOther()# DEBUG_EXPR_TYPE: Discriminant(4)
+            
+            doAnother()
+        else:# DEBUG_EXPR_TYPE: Discriminant(4)
+            
+            doDefault()# DEBUG_EXPR_TYPE: Discriminant(4)
+            
+            doFinal()
+        return
+        
     
+    def testMixed_do(self):
+        
+        if simpleCondition:# DEBUG_EXPR_TYPE: Discriminant(4)
+            
+            singleStatement()
+        elif complexCondition:# DEBUG_EXPR_TYPE: Discriminant(4)
+            
+            firstStatement()# DEBUG_EXPR_TYPE: Discriminant(4)
+            
+            secondStatement()
+        else:# DEBUG_EXPR_TYPE: Discriminant(4)
+            
+            fallbackStatement()
+        return
+        
+

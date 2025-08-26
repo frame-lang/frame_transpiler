@@ -1,0 +1,11 @@
+{
+    "name": "Hierarchical State Machine Tests",
+    "description": "Test files for hierarchical state machines",
+    "patterns": [
+        "*hierarchy*.frm",
+        "*hsm*.frm",
+        "*parent*.frm"
+    ],
+    "transpile_only": false,
+    "notes": "Tests for => $^ parent dispatch and hierarchical systems"
+}

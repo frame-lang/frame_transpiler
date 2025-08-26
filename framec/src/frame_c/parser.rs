@@ -193,9 +193,32 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     fn module(&mut self) -> FrameModule {
-        // Module scope is already established by initialize_scope_stack()
-        // Just parse the module content directly
-        self.parse_module_content()
+        // Properly manage module scope for both passes
+        self.module_scope()
+    }
+    
+    fn module_scope(&mut self) -> FrameModule {
+        // Module scope management following the function_scope() pattern
+        
+        if self.is_building_symbol_table {
+            // First pass: lexical analysis
+            // Module scope is already created by initialize_scope_stack()
+            // but we need to set the context to Global for module-level parsing
+            self.arcanum.set_scope_context(ScopeContext::Global);
+        } else {
+            // Second pass: semantic analysis
+            // The module scope should already be set from the first pass
+            // Just ensure we're in the right context
+            self.arcanum.set_scope_context(ScopeContext::Global);
+        }
+        
+        // Parse the module content
+        let module = self.parse_module_content();
+        
+        // Note: We don't exit scope here because the module scope
+        // should remain active for the entire file parsing
+        
+        module
     }
     
     
@@ -1195,6 +1218,9 @@ impl<'a> Parser<'a> {
                 function_scope_symbol_rcref,
             };
             self.arcanum.enter_scope(function_symbol_parse_scope_t);
+            
+            // Set scope context to Function
+            self.arcanum.set_scope_context(ScopeContext::Function(function_name.clone()));
         } else {
             // semantic pass
             // link function symbol to function declaration node
@@ -1209,6 +1235,9 @@ impl<'a> Parser<'a> {
             // see if we can get the function symbol set in the lexical pass. if so, then move
             // all this to the calling function and pass inthe symbol
             self.arcanum.set_parse_scope(&function_name);
+            
+            // Set scope context to Function for semantic pass too
+            self.arcanum.set_scope_context(ScopeContext::Function(function_name.clone()));
         }
 
         let ret = self.function(function_name.clone(), line);
@@ -1231,6 +1260,8 @@ impl<'a> Parser<'a> {
         }
 
         self.arcanum.exit_scope();
+        // Reset scope context back to Global (module level)
+        self.arcanum.set_scope_context(ScopeContext::Global);
         self.is_function_scope = false;
         ret
     }
@@ -1263,9 +1294,15 @@ impl<'a> Parser<'a> {
                 system_symbol: system_symbol_rcref.clone(),
             };
             self.arcanum.enter_scope(system_symbol_parse_scope_t);
+            
+            // Set scope context to System
+            self.arcanum.set_scope_context(ScopeContext::System(system_name.clone()));
         } else {
             // semantic pass
             self.arcanum.set_parse_scope(&system_name);
+            
+            // Set scope context to System for semantic pass too
+            self.arcanum.set_scope_context(ScopeContext::System(system_name.clone()));
         }
 
         // Call the actual system parsing method
@@ -1278,6 +1315,8 @@ impl<'a> Parser<'a> {
 
         // Exit scope and restore state
         self.arcanum.exit_scope();
+        // Reset scope context back to Global (module level)
+        self.arcanum.set_scope_context(ScopeContext::Global);
         self.is_system_scope = prev_is_system_scope;
         
         ret
@@ -1506,8 +1545,25 @@ impl<'a> Parser<'a> {
                 interface_block_scope_symbol_rcref: interface_symbol,
             });
         } else {
-            self.arcanum
-                .set_parse_scope(InterfaceBlockScopeSymbol::scope_name());
+            // Semantic pass: Get the interface block from the current system
+            if let Some(system_symbol) = self.arcanum.get_current_system_symbol() {
+                let interface_symtab = {
+                    let system = system_symbol.borrow();
+                    if let Some(interface_block_symbol) = &system.interface_block_symbol_opt {
+                        Some(interface_block_symbol.borrow().symtab_rcref.clone())
+                    } else {
+                        None
+                    }
+                };
+                
+                if let Some(symtab) = interface_symtab {
+                    self.arcanum.set_current_symtab(symtab);
+                } else {
+                    eprintln!("ERROR: interface_block() called but system has no interface block symbol");
+                }
+            } else {
+                eprintln!("ERROR: interface_block() called but no current system symbol");
+            }
         }
 
         let x = &self.arcanum.current_symtab;
@@ -2127,8 +2183,25 @@ impl<'a> Parser<'a> {
                 machine_scope_symbol_rcref: machine_symbol,
             });
         } else {
-            self.arcanum
-                .set_parse_scope(MachineBlockScopeSymbol::scope_name());
+            // Semantic pass: Get the machine block from the current system
+            if let Some(system_symbol) = self.arcanum.get_current_system_symbol() {
+                let machine_symtab = {
+                    let system = system_symbol.borrow();
+                    if let Some(machine_block_symbol) = &system.machine_block_symbol_opt {
+                        Some(machine_block_symbol.borrow().symtab_rcref.clone())
+                    } else {
+                        None
+                    }
+                };
+                
+                if let Some(symtab) = machine_symtab {
+                    self.arcanum.set_current_symtab(symtab);
+                } else {
+                    eprintln!("ERROR: machine_block() called but system has no machine block symbol");
+                }
+            } else {
+                eprintln!("ERROR: machine_block() called but no current system symbol");
+            }
         }
 
         let mut states = Vec::new();
@@ -2171,8 +2244,25 @@ impl<'a> Parser<'a> {
                 actions_block_scope_symbol_rcref: actions_block_scope_symbol,
             });
         } else {
-            self.arcanum
-                .set_parse_scope(ActionsBlockScopeSymbol::scope_name());
+            // Semantic pass: Get the actions block from the current system
+            if let Some(system_symbol) = self.arcanum.get_current_system_symbol() {
+                let actions_symtab = {
+                    let system = system_symbol.borrow();
+                    if let Some(actions_block_symbol) = &system.actions_block_symbol_opt {
+                        Some(actions_block_symbol.borrow().symtab_rcref.clone())
+                    } else {
+                        None
+                    }
+                };
+                
+                if let Some(symtab) = actions_symtab {
+                    self.arcanum.set_current_symtab(symtab);
+                } else {
+                    eprintln!("ERROR: actions_block() called but system has no actions block symbol");
+                }
+            } else {
+                eprintln!("ERROR: actions_block() called but no current system symbol");
+            }
         }
 
         let mut actions = Vec::new();
@@ -2487,8 +2577,28 @@ impl<'a> Parser<'a> {
                 operations_block_scope_symbol_rcref: operations_block_scope_symbol,
             });
         } else {
-            self.arcanum
-                .set_parse_scope(OperationsBlockScopeSymbol::scope_name());
+            // Semantic pass: Get the operations block from the current system
+            // Don't use set_parse_scope with a generic name, instead get it from the system
+            if let Some(system_symbol) = self.arcanum.get_current_system_symbol() {
+                let operations_symtab = {
+                    let system = system_symbol.borrow();
+                    if let Some(operations_block_symbol) = &system.operations_block_symbol_opt {
+                        Some(operations_block_symbol.borrow().symtab_rcref.clone())
+                    } else {
+                        None
+                    }
+                };
+                
+                if let Some(symtab) = operations_symtab {
+                    self.arcanum.set_current_symtab(symtab);
+                } else {
+                    // No operations block in this system (which is fine, it's optional)
+                    // But we're here, so there must be one - this is an error
+                    eprintln!("ERROR: operations_block() called but system has no operations block symbol");
+                }
+            } else {
+                eprintln!("ERROR: operations_block() called but no current system symbol");
+            }
         }
 
         let mut operations = Vec::new();
@@ -2705,8 +2815,25 @@ impl<'a> Parser<'a> {
                 domain_block_scope_symbol_rcref: domain_symbol,
             });
         } else {
-            self.arcanum
-                .set_parse_scope(DomainBlockScopeSymbol::scope_name());
+            // Semantic pass: Get the domain block from the current system
+            if let Some(system_symbol) = self.arcanum.get_current_system_symbol() {
+                let domain_symtab = {
+                    let system = system_symbol.borrow();
+                    if let Some(domain_block_symbol) = &system.domain_block_symbol_opt {
+                        Some(domain_block_symbol.borrow().symtab_rcref.clone())
+                    } else {
+                        None
+                    }
+                };
+                
+                if let Some(symtab) = domain_symtab {
+                    self.arcanum.set_current_symtab(symtab);
+                } else {
+                    eprintln!("ERROR: domain_block() called but system has no domain block symbol");
+                }
+            } else {
+                eprintln!("ERROR: domain_block() called but no current system symbol");
+            }
         }
 
         let mut domain_variables = Vec::new();
@@ -9366,5 +9493,75 @@ impl<'a> Parser<'a> {
         }
 
         op_type
+    }
+
+    /* --------------------------------------------------------------------- */
+    // LEGB Scope-Aware Symbol Lookups
+    /* --------------------------------------------------------------------- */
+
+    /// Scope-aware symbol lookup that respects LEGB and scope isolation
+    fn scope_aware_symbol_lookup(&self, name: &str) -> Option<Rc<RefCell<SymbolType>>> {
+        // Use LEGB lookup first
+        let symbol_opt = self.arcanum.legb_lookup(name);
+        
+        // Apply scope accessibility check
+        match symbol_opt {
+            Some(symbol_ref) => {
+                let symbol = symbol_ref.borrow();
+                if self.arcanum.is_symbol_accessible(&*symbol) {
+                    Some(symbol_ref.clone())
+                } else {
+                    // Symbol exists but not accessible in current scope
+                    None
+                }
+            }
+            None => None
+        }
+    }
+
+    /// Check if we can call an action in the current scope context
+    fn can_call_action_in_current_scope(&self, action_name: &str) -> bool {
+        // Functions should NOT be able to call system actions
+        match self.arcanum.scope_context {
+            ScopeContext::Function(_) => {
+                // Functions cannot call actions
+                false
+            }
+            ScopeContext::System(_) => {
+                // Systems can call their own actions - verify through LEGB
+                if let Some(symbol_ref) = self.scope_aware_symbol_lookup(action_name) {
+                    matches!(*symbol_ref.borrow(), SymbolType::ActionScope { .. })
+                } else {
+                    false
+                }
+            }
+            ScopeContext::Global => {
+                // Module level cannot call actions directly
+                false
+            }
+        }
+    }
+
+    /// Check if we can call an operation in the current scope context  
+    fn can_call_operation_in_current_scope(&self, operation_name: &str) -> bool {
+        // Functions should NOT be able to call system operations directly
+        match self.arcanum.scope_context {
+            ScopeContext::Function(_) => {
+                // Functions cannot call system operations directly
+                false
+            }
+            ScopeContext::System(_) => {
+                // Systems can call their own operations - verify through LEGB
+                if let Some(symbol_ref) = self.scope_aware_symbol_lookup(operation_name) {
+                    matches!(*symbol_ref.borrow(), SymbolType::OperationScope { .. })
+                } else {
+                    false
+                }
+            }
+            ScopeContext::Global => {
+                // Module level cannot call operations directly
+                false
+            }
+        }
     }
 }

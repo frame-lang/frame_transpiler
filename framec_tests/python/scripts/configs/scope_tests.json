@@ -1,0 +1,59 @@
+{
+    "name": "Scope Resolution Tests",
+    "description": "Tests for LEGB scope resolution and isolation",
+    "test_files": [
+        "test_legb_basic.frm",
+        "test_function_isolation.frm", 
+        "test_system_isolation.frm",
+        "test_mixed_entities.frm",
+        "test_builtin_access.frm",
+        "test_call_chain_scope.frm",
+        "test_scope_operations.frm",
+        "test_minimal_scope.frm",
+        "test_v030_functions_only.frm"
+    ],
+    "expected_behaviors": {
+        "test_legb_basic.frm": {
+            "description": "Basic LEGB resolution and variable shadowing",
+            "expected_output_contains": [
+                "Basic LEGB Test",
+                "Function Scope",
+                "BLOCK",
+                "Back in main"
+            ]
+        },
+        "test_function_isolation.frm": {
+            "description": "Functions cannot access system internals",
+            "expected_output_contains": [
+                "Function Isolation Test",
+                "Can only use public interfaces",
+                "Function isolation test completed"
+            ]
+        },
+        "test_system_isolation.frm": {
+            "description": "Systems cannot access each other's internals", 
+            "expected_output_contains": [
+                "System Isolation Test",
+                "SystemOne public method",
+                "SystemTwo public method"
+            ]
+        },
+        "test_mixed_entities.frm": {
+            "description": "Multiple entities maintain proper isolation",
+            "expected_output_contains": [
+                "Mixed Entity Test",
+                "Function One",
+                "SystemA interface",
+                "Mixed entity test completed"
+            ]
+        },
+        "test_builtin_access.frm": {
+            "description": "Built-in functions accessible from all scopes",
+            "expected_output_contains": [
+                "Built-in Access Test",
+                "Function can access built-ins",
+                "System can access built-ins"
+            ]
+        }
+    }
+}

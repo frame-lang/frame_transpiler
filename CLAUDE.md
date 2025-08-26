@@ -15,12 +15,31 @@ Frame is a state machine language that transpiles to multiple target languages. 
 
 **Branch**: `v0.30`  
 **Status**: ✅ **v0.30 PRODUCTION-READY WITH CRITICAL FIXES**  
-**Achievement**: **Complete Call Chain Scope Resolution + Hierarchical State Machine Validation**  
-**Latest**: Fixed critical scope bug where `obj.method()` generated `obj.self.method()` (2025-08-24)
-**Recent**: Fixed all hierarchical parsing issues - root cause was file format requirements (2025-08-24)  
-**Current**: Frame v0.30 fully functional for object-oriented Python integration with proper multi-entity format  
+**Achievement**: **Complete Operations Scope Resolution + Error Handling Improvements**  
+**Latest**: Fixed operations calling operations missing `self.` prefix (2025-08-26)
+**Recent**: Improved error handling with proper Result types replacing panics (2025-08-26)  
+**Current**: Frame v0.30 fully functional with proper scope resolution for all method types  
 
-### 🎉 **Latest Achievements - Frame v0.30 Critical Scope Fix (2025-08-24)**
+### 🎉 **Latest Achievements - Frame v0.30 Operations Scope Fix (2025-08-26)**
+
+#### ✅ **Operations Call Scope Bug COMPLETELY RESOLVED**
+- **Critical Issue**: Operations calling other operations (`helper_operation()`) missing `self.` prefix in Python
+- **Impact**: Generated code caused `NameError: name 'helper_operation' is not defined` at runtime
+- **Root Cause**: `lookup_operation()` relied on current system symbol which wasn't available during fallback syntactic parsing
+- **Solution**: Changed to `lookup_operation_in_all_systems()` which searches all systems regardless of context
+- **Files Modified**: `framec/src/frame_c/visitors/python_visitor.rs` (lines 4270, 4341)
+- **Validation**: Operations calling operations now correctly generate `self.helper_operation()` ✅
+- **Production Impact**: Frame v0.30 now correctly handles all internal method calls within systems ✅
+
+#### ✅ **Error Handling Improvements**
+- **Panic Reduction**: Converted critical panics to proper `Result<T, String>` error handling
+- **Better Diagnostics**: Error messages now show available symbols when lookups fail
+- **Files Modified**: 
+  - `framec/src/frame_c/symbol_table.rs`: `get_next_symbol_table()` returns Result
+  - `framec/src/frame_c/parser.rs`: All block parsing methods handle Results properly
+- **Remaining Work**: 68+ panic calls still to be converted (tracked in todo #14)
+
+### 🎉 **Previous Achievements - Frame v0.30 Call Chain Fix (2025-08-24)**
 
 #### ✅ **Call Chain Scope Bug COMPLETELY RESOLVED**
 - **Critical Issue**: External object method calls (`obj.method()`) incorrectly generated `obj.self.method()` in Python

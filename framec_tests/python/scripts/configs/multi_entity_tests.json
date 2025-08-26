@@ -1,0 +1,10 @@
+{
+    "name": "Multi-Entity Tests",
+    "description": "Test files for Frame v0.30 multi-entity support",
+    "patterns": [
+        "test_multi*.frm",
+        "test_multiple*.frm"
+    ],
+    "transpile_only": false,
+    "notes": "These test multiple functions and systems in the same file"
+}

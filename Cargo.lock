@@ -195,16 +195,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "framec_tests"
-version = "0.30.0"
-dependencies = [
- "anyhow",
- "frame_build",
- "frame_runtime",
- "once_cell",
-]
-
-[[package]]
 name = "generic-array"
 version = "0.14.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"

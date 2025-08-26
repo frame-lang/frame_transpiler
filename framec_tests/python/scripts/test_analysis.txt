@@ -1,0 +1,361 @@
+Found 72 test files
+============================================================
+
+test_all_blocks_comprehensive
+----------------------------------------
+  ✅ PASSED
+
+test_comprehensive_v0_20_features
+----------------------------------------
+  ❌ FAILED
+  Error: Traceback (most recent call last):
+  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_comprehensive_v0_20_features.py", line 275, in <module>
+    main()
+    ~~~~^^
+  Fil
+
+test_elif_with_return
+----------------------------------------
+  ✅ PASSED
+
+test_empty_params
+----------------------------------------
+  ✅ PASSED
+
+test_enum_basic
+----------------------------------------
+  ❌ FAILED
+  Error: Traceback (most recent call last):
+  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_enum_basic.py", line 34, in <module>
+    def describeFruit(fruit_value: Fruit):
+   
+
+test_enums
+----------------------------------------
+  ❌ FAILED
+  Error: Traceback (most recent call last):
+  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_enums.py", line 125, in <module>
+    main()
+    ~~~~^^
+  File "/Users/marktruluck/p
+
+test_enums_doc_calendar
+----------------------------------------
+  ✅ PASSED
+
+test_enums_doc_fruitsystem
+----------------------------------------
+  ✅ PASSED
+
+test_enums_doc_function
+----------------------------------------
+  ❌ FAILED
+  Error: Traceback (most recent call last):
+  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_enums_doc_function.py", line 25, in <module>
+    class TestSystem:
+    ...<37 lines
+
+test_enums_doc_grocery_full
+----------------------------------------
+  ❌ FAILED
+  Error: Traceback (most recent call last):
+  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_enums_doc_grocery_full.py", line 125, in <module>
+    main()
+    ~~~~^^
+  File "/Us
+
+test_enums_doc_values
+----------------------------------------
+  ✅ PASSED
+
+test_enums_simple
+----------------------------------------
+  ✅ PASSED
+
+test_enums_terminator
+----------------------------------------
+  ✅ PASSED
+
+test_forward_event
+----------------------------------------
+  ✅ PASSED
+
+test_function_call
+----------------------------------------
+  ✅ PASSED
+
+test_functions_basic
+----------------------------------------
+  ✅ PASSED
+
+test_functions_event_handler
+----------------------------------------
+  ❌ FAILED
+  Error: Traceback (most recent call last):
+  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_functions_event_handler.py", line 110, in <module>
+    main()
+    ~~~~^^
+  File "/U
+
+test_functions_with_system
+----------------------------------------
+  ❌ FAILED
+  Error: Traceback (most recent call last):
+  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_functions_with_system.py", line 107, in <module>
+    main()
+    ~~~~^^
+  File "/Use
+
+test_history
+----------------------------------------
+  ✅ PASSED
+
+test_if_elif_returns
+----------------------------------------
+  ✅ PASSED
+
+test_if_simple
+----------------------------------------
+  ✅ PASSED
+
+test_if_with_simple_stmt
+----------------------------------------
+  ✅ PASSED
+
+test_keyword
+----------------------------------------
+  ✅ PASSED
+
+test_minimal_call
+----------------------------------------
+  ✅ PASSED
+
+test_minimal_transition_single
+----------------------------------------
+  ✅ PASSED
+
+test_minimal_two_systems
+----------------------------------------
+  ✅ PASSED
+
+test_mixed_function_system
+----------------------------------------
+  ✅ PASSED
+
+test_mixed_returns
+----------------------------------------
+  ✅ PASSED
+
+test_mixed_system_states
+----------------------------------------
+  ✅ PASSED
+
+test_multi_entity_demo
+----------------------------------------
+  ❌ FAILED
+  Error: Traceback (most recent call last):
+  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_multi_entity_demo.py", line 417, in <module>
+    main()
+    ~~~~^^
+  File "/Users/m
+
+test_multi_entity_simple
+----------------------------------------
+  ✅ PASSED
+
+test_multi_systems_with_interface
+----------------------------------------
+  ✅ PASSED
+
+test_multi_systems_with_main
+----------------------------------------
+  ✅ PASSED
+
+test_multi_systems_with_transitions
+----------------------------------------
+  ✅ PASSED
+
+test_multiple_systems_valid
+----------------------------------------
+  ✅ PASSED
+
+test_operations
+----------------------------------------
+  ✅ PASSED
+
+test_operations_simple
+----------------------------------------
+  ✅ PASSED
+
+test_parent_dispatch
+----------------------------------------
+  ❌ FAILED
+  Error: Traceback (most recent call last):
+  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_parent_dispatch.py", line 228, in <module>
+    main()
+    ~~~~^^
+  File "/Users/mar
+
+test_parent_dispatch_complete
+----------------------------------------
+  ❌ FAILED
+  Error: Traceback (most recent call last):
+  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_parent_dispatch_complete.py", line 250, in <module>
+    main()
+    ~~~~^^
+  File "/
+
+test_parent_transition_detection
+----------------------------------------
+  ✅ PASSED
+
+test_python_style
+----------------------------------------
+  ✅ PASSED
+
+test_return_assign
+----------------------------------------
+  ✅ PASSED
+
+test_return_assign_actions
+----------------------------------------
+  ✅ PASSED
+
+test_return_assign_event_handler
+----------------------------------------
+  ✅ PASSED
+
+test_self_call
+----------------------------------------
+  ✅ PASSED
+
+test_simple_call
+----------------------------------------
+  ✅ PASSED
+
+test_simple_condition
+----------------------------------------
+  ✅ PASSED
+
+test_simple_elif
+----------------------------------------
+  ✅ PASSED
+
+test_simple_validation
+----------------------------------------
+  ✅ PASSED
+
+test_single_lifecycle
+----------------------------------------
+  ✅ PASSED
+
+test_single_system
+----------------------------------------
+  ✅ PASSED
+
+test_single_system_transitions
+----------------------------------------
+  ❌ FAILED
+  Error: Execution timeout
+
+test_state_parameters
+----------------------------------------
+  ❌ FAILED
+  Error: Traceback (most recent call last):
+  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_state_parameters.py", line 121, in <module>
+    main()
+    ~~~~^^
+  File "/Users/ma
+
+test_states_simple
+----------------------------------------
+  ✅ PASSED
+
+test_static_operations
+----------------------------------------
+  ✅ PASSED
+
+test_system_no_function
+----------------------------------------
+  ✅ PASSED
+
+test_transition_return
+----------------------------------------
+  ✅ PASSED
+
+test_transition_with_return
+----------------------------------------
+  ✅ PASSED
+
+test_two_systems_no_function
+----------------------------------------
+  ✅ PASSED
+
+test_two_systems_print
+----------------------------------------
+  ✅ PASSED
+
+test_v030_edge_cases
+----------------------------------------
+  ✅ PASSED
+
+test_v030_functions_only
+----------------------------------------
+  ✅ PASSED
+
+test_v030_hierarchical_systems
+----------------------------------------
+  ✅ PASSED
+
+test_v030_lifecycle_demo
+----------------------------------------
+  ✅ PASSED
+
+test_v030_mixed_entities
+----------------------------------------
+  ❌ FAILED
+  Error: Traceback (most recent call last):
+  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_v030_mixed_entities.py", line 343, in <module>
+    main()
+    ~~~~^^
+  File "/Users
+
+test_v030_multi_system_basic
+----------------------------------------
+  ✅ PASSED
+
+test_v030_simple_lifecycle
+----------------------------------------
+  ✅ PASSED
+
+test_v030_system_lifecycle
+----------------------------------------
+  ❌ FAILED
+  Error: Traceback (most recent call last):
+  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_v030_system_lifecycle.py", line 453, in <module>
+    main()
+    ~~~~^^
+  File "/Use
+
+test_v030_system_lifecycle_simple
+----------------------------------------
+  ✅ PASSED
+
+test_v030_system_with_functions
+----------------------------------------
+  ✅ PASSED
+
+test_v030_three_systems
+----------------------------------------
+  ✅ PASSED
+
+test_validation_comprehensive
+----------------------------------------
+  ✅ PASSED
+
+============================================================
+SUMMARY
+============================================================
+Transpilation: 72 passed, 0 failed
+Execution: 58 passed, 14 failed
+Success rate: 80.6%

@@ -176,17 +176,23 @@ impl Exe {
         }
 
         let mut comments2 = comments.clone();
-        let mut semantic_parser = Parser::new(&tokens, &mut comments2, false, arcanum);
-
-        // TODO: this doesn't capture any panics like syntactic_parser above.
-        // Need to figure how to implement.
+        
+        // Create semantic parser after building syntactic fallback to preserve arcanum
         // v0.30: Smart semantic parsing for multi-entity files
-        // Check if semantic parsing might hang (multi-system with complex blocks)
+        // Check if semantic parsing might hang (multi-system with complex blocks)  
         let syntactic_result = {
             let mut temp_comments = Vec::new();
-            let mut temp_parser = Parser::new(&tokens, &mut temp_comments, true, Arcanum::new());
+            let mut temp_arcanum = Arcanum::new();
+            // Copy the populated symbol tables from our main arcanum
+            temp_arcanum.module_symtab = arcanum.module_symtab.clone();
+            temp_arcanum.global_symtab = arcanum.global_symtab.clone();  
+            temp_arcanum.system_symbols = arcanum.system_symbols.clone();
+            temp_arcanum.function_symbols = arcanum.function_symbols.clone();
+            let mut temp_parser = Parser::new(&tokens, &mut temp_comments, true, temp_arcanum);
             temp_parser.parse()
         };
+        
+        let mut semantic_parser = Parser::new(&tokens, &mut comments2, false, arcanum);
         
         // v0.30: Smart parsing - use semantic when possible, fallback for complex cases
         let frame_module = if syntactic_result.systems.len() >= 3 && 

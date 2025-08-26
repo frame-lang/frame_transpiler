@@ -1,0 +1,9 @@
+{
+    "name": "All Tests",
+    "description": "Run all Frame test files",
+    "patterns": [
+        "test_*.frm"
+    ],
+    "transpile_only": false,
+    "notes": "Complete test suite"
+}

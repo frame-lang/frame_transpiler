@@ -1229,6 +1229,14 @@ impl Arcanum {
         self.current_symtab.borrow().lookup(name, search_scope)
     }
 
+    pub fn get_current_system_symbol(&self) -> Option<&Rc<RefCell<SystemSymbol>>> {
+        self.system_symbol_opt.as_ref()
+    }
+
+    pub fn set_current_symtab(&mut self, symtab: Rc<RefCell<SymbolTable>>) {
+        self.current_symtab = symtab;
+    }
+
     pub fn get_system_symbol(&self, name: &str) -> Result<SystemSymbolType,String> {
         if let Some(domain_scope_symbol_rcref) =
             self.lookup(name, &IdentifierDeclScope::DomainBlockScope)
@@ -2132,20 +2140,39 @@ impl Arcanum {
     // This is used in the semantic pass to set the previously built scope from the symbol table.
     pub fn set_parse_scope(&mut self, scope_name: &str) {
         Exe::debug_print(&format!("Setting parse scope = |{}|.", scope_name));
-        self.current_symtab = self.get_next_symbol_table(scope_name, &self.current_symtab);
+        
+        match self.get_next_symbol_table(scope_name, &self.current_symtab) {
+            Ok(symtab) => {
+                self.current_symtab = symtab;
+            }
+            Err(err_msg) => {
+                eprintln!("Error in set_parse_scope: {}", err_msg);
+                eprintln!("Current symtab name: {}", self.current_symtab.borrow().name);
+                // For now, panic with the detailed error message
+                // Eventually this should propagate the error up
+                panic!("{}", err_msg);
+            }
+        }
     }
 
     /* --------------------------------------------------------------------- */
 
     pub fn exit_scope(&mut self) {
+        let current_scope_name = self.current_symtab.borrow().name.clone();
+        
         let symbol_table_rcref = match self.current_symtab.borrow_mut().get_parent_symtab() {
             Some(symtab_ref) => symtab_ref,
-            None => panic!("Fatal error - could not find parent symtab."),
+            None => {
+                // This shouldn't happen, but provide helpful error instead of panic
+                eprintln!("ERROR: Could not find parent symtab when exiting scope '{}'", current_scope_name);
+                eprintln!("This usually indicates a mismatch between enter_scope and exit_scope calls");
+                panic!("Fatal error - could not find parent symtab for scope '{}'", current_scope_name);
+            }
         };
 
         Exe::debug_print(&format!(
             "Exit scope |{}|",
-            self.current_symtab.borrow().name
+            current_scope_name
         ));
 
         self.current_symtab = symbol_table_rcref;
@@ -2184,12 +2211,107 @@ impl Arcanum {
         ));
     }
 
+    /* --------------------------------------------------------------------- */
+
+    /// LEGB (Local, Enclosing, Global, Built-in) symbol lookup
+    /// This is the core symbol resolution method that respects scope boundaries
+    pub fn legb_lookup(&self, name: &str) -> Option<Rc<RefCell<SymbolType>>> {
+        Exe::debug_print(&format!("LEGB lookup for: {}", name));
+        
+        // 1. Local scope (current)
+        if let Some(symbol) = self.current_symtab.borrow().symbols.get(name) {
+            Exe::debug_print(&format!("Found '{}' in LOCAL scope: {}", name, self.current_symtab.borrow().name));
+            return Some(Rc::clone(symbol));
+        }
+        
+        // 2. Enclosing scopes (walk up to module, respecting boundaries)
+        let mut current_ref = Rc::clone(&self.current_symtab);
+        loop {
+            let parent_ref = {
+                match current_ref.borrow().parent_symtab_rcref_opt.clone() {
+                    Some(parent) => parent,
+                    None => break,
+                }
+            };
+            
+            // Stop at module boundary to respect scope isolation
+            if Rc::ptr_eq(&parent_ref, &self.module_symtab) {
+                break;
+            }
+            
+            if let Some(symbol) = parent_ref.borrow().symbols.get(name) {
+                Exe::debug_print(&format!("Found '{}' in ENCLOSING scope: {}", name, parent_ref.borrow().name));
+                return Some(Rc::clone(symbol));
+            }
+            current_ref = parent_ref;
+        }
+        
+        // 3. Module scope (Global in Frame terms)
+        if let Some(symbol) = self.module_symtab.borrow().symbols.get(name) {
+            Exe::debug_print(&format!("Found '{}' in MODULE scope", name));
+            return Some(Rc::clone(symbol));
+        }
+        
+        // 4. Global scope (cross-module - future)
+        if let Some(symbol) = self.global_symtab.borrow().symbols.get(name) {
+            Exe::debug_print(&format!("Found '{}' in GLOBAL scope", name));
+            return Some(Rc::clone(symbol));
+        }
+        
+        // 5. Built-in scope
+        if let Some(symbol) = self.builtin_symtab.borrow().symbols.get(name) {
+            Exe::debug_print(&format!("Found '{}' in BUILTIN scope", name));
+            return Some(Rc::clone(symbol));
+        }
+        
+        Exe::debug_print(&format!("Symbol '{}' not found in any LEGB scope", name));
+        None
+    }
+    
+    /// Check if symbol is visible in current scope context
+    /// This enforces scope isolation rules (functions can't see system internals)
+    pub fn is_symbol_accessible(&self, symbol_type: &SymbolType) -> bool {
+        match &self.scope_context {
+            ScopeContext::Function(_) => {
+                // Functions cannot see system internals
+                !matches!(symbol_type, 
+                    SymbolType::ActionScope { .. } | 
+                    SymbolType::OperationScope { .. } |
+                    SymbolType::DomainVariable { .. }
+                )
+            }
+            ScopeContext::System(_sys_name) => {
+                // Systems can see their own internals and module symbols
+                match symbol_type {
+                    SymbolType::ActionScope { .. } => {
+                        // TODO: Add system name checking when we have access to it
+                        true
+                    }
+                    SymbolType::OperationScope { .. } => {
+                        // TODO: Add system name checking when we have access to it
+                        true
+                    }
+                    _ => true // Module symbols, functions, etc. are accessible
+                }
+            }
+            ScopeContext::Global => {
+                // Module level can see functions and systems but not internals
+                !matches!(symbol_type, 
+                    SymbolType::ActionScope { .. } | 
+                    SymbolType::OperationScope { .. }
+                )
+            }
+        }
+    }
+
+    /* --------------------------------------------------------------------- */
+
     #[allow(clippy::many_single_char_names)] // TODO
     fn get_next_symbol_table(
         &self,
         scope_name: &str,
         symtab_rcref: &Rc<RefCell<SymbolTable>>,
-    ) -> Rc<RefCell<SymbolTable>> {
+    ) -> Result<Rc<RefCell<SymbolTable>>, String> {
         let symbol_table = symtab_rcref.borrow();
         let symbols_map = &symbol_table.symbols;
         let symbol_t_rcref_opt = symbols_map.get(scope_name);
@@ -2197,10 +2319,15 @@ impl Arcanum {
             Some(symbol_t_rcref) => {
                 let symbol_t = symbol_t_rcref.borrow();
                 let symbol_table_rcref = symbol_t.get_symbol_table();
-                Rc::clone(&symbol_table_rcref)
+                Ok(Rc::clone(&symbol_table_rcref))
             }
             None => {
-                panic!("Fatal error - could not get next symbol table.")
+                // Provide helpful context about what went wrong
+                let available_symbols: Vec<String> = symbols_map.keys().cloned().collect();
+                Err(format!(
+                    "Fatal error - could not get next symbol table for '{}'. Available symbols: {:?}",
+                    scope_name, available_symbols
+                ))
             }
         }
     }
