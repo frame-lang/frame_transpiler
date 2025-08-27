@@ -1292,7 +1292,17 @@ impl<'a> Parser<'a> {
             // CRITICAL: Also set the system symbol for the semantic pass
             // Look up the system symbol from the module scope
             if let Some(system_symbol) = self.arcanum.get_system_by_name(&system_name) {
+                // Debug: Check if the system symbol has blocks
+                {
+                    let sys = system_symbol.borrow();
+                    eprintln!("DEBUG: Retrieved system '{}' in semantic pass", sys.name);
+                    eprintln!("  Has actions block: {}", sys.actions_block_symbol_opt.is_some());
+                    eprintln!("  Has machine block: {}", sys.machine_block_symbol_opt.is_some());
+                    eprintln!("  Has interface block: {}", sys.interface_block_symbol_opt.is_some());
+                }
                 self.arcanum.set_current_system_symbol(Some(system_symbol));
+            } else {
+                eprintln!("WARNING: Could not find system symbol '{}' in semantic pass", system_name);
             }
         }
 

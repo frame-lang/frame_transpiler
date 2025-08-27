@@ -13,10 +13,14 @@ DEBUG: Symbols in module scope before second pass: ["Utils", "main"]
 DEBUG: Created semantic parser with is_building_symbol_table=false
 DEBUG: Looking for symbol 'main' in scope 'module'. Available symbols: ["Utils", "main"]
 DEBUG: Found symbol 'main' in scope 'module'
-DEBUG: Looking for symbol '-parameters-' in scope 'main'. Available symbols: ["result", "category", "-parameters-"]
+DEBUG: Looking for symbol '-parameters-' in scope 'main'. Available symbols: ["result", "-parameters-", "category"]
 DEBUG: Found symbol '-parameters-' in scope 'main'
 DEBUG: Looking for symbol 'Utils' in scope 'module'. Available symbols: ["Utils", "main"]
 DEBUG: Found symbol 'Utils' in scope 'module'
+DEBUG: Retrieved system 'Utils' in semantic pass
+  Has actions block: false
+  Has machine block: false
+  Has interface block: false
 DEBUG: Looking for symbol 'Utils' in scope 'Utils'. Available symbols: ["Utils"]
 DEBUG: Found symbol 'Utils' in scope 'Utils'
 ERROR: actions_block() called but system has no actions block symbol

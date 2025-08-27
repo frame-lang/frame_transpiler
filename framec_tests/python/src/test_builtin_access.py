@@ -14,41 +14,65 @@ class FrameCompartment:
         self.enter_args = enter_args
         self.parent_compartment = parent_compartment
 
-class SimpleOperationsTest:
+
+def main():
+    print("=== Built-in Access Test ===")
+    test_function_builtins()
+    sys = TestBuiltins()
+    sys.test_interface()
+    print("Built-in access test completed")
+    return
+
+def test_function_builtins():
+    print("Function can access built-ins")
+    if True:
+        print("Block can access built-ins")
+        if True:
+            print("Nested block can access built-ins")
+    return
+class TestBuiltins:
     def __init__(self):
         # Create and initialize start state compartment
-        self.__compartment = FrameCompartment('__simpleoperationstest_state_Start', None, None, None, None)
+        self.__compartment = FrameCompartment('__testbuiltins_state_Start', None, None, None, None)
         self.__next_compartment = None
         self.return_stack = [None]
         
         # Send system start event
         frame_event = FrameEvent("$>", None)
         self.__kernel(frame_event)
+    # ==================== Interface Block ================== #
     
-    # ==================== Operations Block ================== #
+    def test_interface(self,):
+        self.return_stack.append(None)
+        __e = FrameEvent("test_interface",None)
+        self.__kernel(__e)
+        return self.return_stack.pop(-1)
     
-    def test_operation(self):
-        print("Operation called")
-    
-    def operation_with_param(self,msg):
-        print("Operation: " + msg)
     # ===================== Machine Block =================== #
     
     
     # ----------------------------------------
     # $Start
     
-    def __simpleoperationstest_state_Start(self, __e, compartment):
-        if __e._message == "$>":
-            self.test_operation()
-            self.operation_with_param("hello")
-            print("Done")
+    def __testbuiltins_state_Start(self, __e, compartment):
+        if __e._message == "test_interface":
+            print("System can access built-ins")
+            if True:
+                print("System block can access built-ins")
+            test_action()
             return
     
     # ===================== State Dispatchers =================== #
     
     def _sStart(self, __e):
-        return self.__simpleoperationstest_state_Start(__e, None)
+        return self.__testbuiltins_state_Start(__e, None)
+    # ===================== Actions Block =================== #
+    
+    def test_action_do(self):
+        
+        print("Action can access built-ins")
+        return
+        
     
     # ==================== System Runtime =================== #
     
@@ -80,13 +104,11 @@ class SimpleOperationsTest:
     
     def __router(self, __e, compartment=None):
         target_compartment = compartment or self.__compartment
-        if target_compartment.state == '__simpleoperationstest_state_Start':
-            self.__simpleoperationstest_state_Start(__e, target_compartment)
+        if target_compartment.state == '__testbuiltins_state_Start':
+            self.__testbuiltins_state_Start(__e, target_compartment)
     
     def __transition(self, next_compartment):
         self.__next_compartment = next_compartment
 
-
-
-# Test instantiation
-system = SimpleOperationsTest()
+if __name__ == '__main__':
+    main()

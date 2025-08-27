@@ -14,41 +14,49 @@ class FrameCompartment:
         self.enter_args = enter_args
         self.parent_compartment = parent_compartment
 
-class SimpleOperationsTest:
+
+def main():
+    sys = TestSystem()
+    sys.test("hello")
+    return
+class TestSystem:
     def __init__(self):
         # Create and initialize start state compartment
-        self.__compartment = FrameCompartment('__simpleoperationstest_state_Start', None, None, None, None)
+        self.__compartment = FrameCompartment('__testsystem_state_Start', None, None, None, None)
         self.__next_compartment = None
         self.return_stack = [None]
+        # Initialize domain variables
+        self.domain_var: str = "domain test"
         
         # Send system start event
         frame_event = FrameEvent("$>", None)
         self.__kernel(frame_event)
+    # ==================== Interface Block ================== #
     
-    # ==================== Operations Block ================== #
+    def test(self,msg: str):
+        parameters = {}
+        parameters["msg"] = msg
+        self.return_stack.append(None)
+        __e = FrameEvent("test",parameters)
+        self.__kernel(__e)
+        return self.return_stack.pop(-1)
     
-    def test_operation(self):
-        print("Operation called")
-    
-    def operation_with_param(self,msg):
-        print("Operation: " + msg)
     # ===================== Machine Block =================== #
     
     
     # ----------------------------------------
     # $Start
     
-    def __simpleoperationstest_state_Start(self, __e, compartment):
-        if __e._message == "$>":
-            self.test_operation()
-            self.operation_with_param("hello")
-            print("Done")
+    def __testsystem_state_Start(self, __e, compartment):
+        if __e._message == "test":
+            print(__e._parameters["msg"])
+            print(self.domain_var)
             return
     
     # ===================== State Dispatchers =================== #
     
     def _sStart(self, __e):
-        return self.__simpleoperationstest_state_Start(__e, None)
+        return self.__testsystem_state_Start(__e, None)
     
     # ==================== System Runtime =================== #
     
@@ -80,13 +88,11 @@ class SimpleOperationsTest:
     
     def __router(self, __e, compartment=None):
         target_compartment = compartment or self.__compartment
-        if target_compartment.state == '__simpleoperationstest_state_Start':
-            self.__simpleoperationstest_state_Start(__e, target_compartment)
+        if target_compartment.state == '__testsystem_state_Start':
+            self.__testsystem_state_Start(__e, target_compartment)
     
     def __transition(self, next_compartment):
         self.__next_compartment = next_compartment
 
-
-
-# Test instantiation
-system = SimpleOperationsTest()
+if __name__ == '__main__':
+    main()

@@ -1,0 +1,38 @@
+DEBUG: Starting first pass - building symbol table
+DEBUG: Created syntactic parser with is_building_symbol_table=true
+DEBUG: Setting system_symbol_opt to 'SimpleOperationsTest'
+DEBUG: Setting system_symbol_opt to 'SimpleOperationsTest'
+DEBUG: Setting operations block symbol on system 'SimpleOperationsTest'
+DEBUG: First pass parsing succeeded
+DEBUG: Extracted arcanum from first pass
+DEBUG: Symbols in arcanum after first pass: ["SimpleOperationsTest"]
+DEBUG: Starting second pass - semantic analysis
+DEBUG: Symbols in module scope before second pass: ["SimpleOperationsTest"]
+DEBUG: Created semantic parser with is_building_symbol_table=false
+DEBUG: Looking for symbol 'SimpleOperationsTest' in scope 'module'. Available symbols: ["SimpleOperationsTest"]
+DEBUG: Found symbol 'SimpleOperationsTest' in scope 'module'
+DEBUG: get_system_by_name('SimpleOperationsTest') - searching 2 systems
+  System[0]: 'SimpleOperationsTest', has_actions: false, has_operations: false
+  System[1]: 'SimpleOperationsTest', has_actions: false, has_operations: true
+DEBUG: Retrieved system 'SimpleOperationsTest' in semantic pass
+  Has actions block: false
+  Has machine block: true
+  Has interface block: false
+DEBUG: Looking for symbol 'SimpleOperationsTest' in scope 'SimpleOperationsTest'. Available symbols: ["SimpleOperationsTest"]
+DEBUG: Found symbol 'SimpleOperationsTest' in scope 'SimpleOperationsTest'
+DEBUG: Looking for symbol 'test_operation' in scope '-operations-block-'. Available symbols: ["operation_with_param", "test_operation"]
+DEBUG: Found symbol 'test_operation' in scope '-operations-block-'
+DEBUG: Looking for symbol '-parameters-' in scope 'test_operation'. Available symbols: ["-parameters-"]
+DEBUG: Found symbol '-parameters-' in scope 'test_operation'
+DEBUG: Looking for symbol 'operation_with_param' in scope '-operations-block-'. Available symbols: ["operation_with_param", "test_operation"]
+DEBUG: Found symbol 'operation_with_param' in scope '-operations-block-'
+DEBUG: Looking for symbol '-parameters-' in scope 'operation_with_param'. Available symbols: ["-parameters-"]
+DEBUG: Found symbol '-parameters-' in scope 'operation_with_param'
+DEBUG: Looking for symbol 'Start' in scope '-machine-block-'. Available symbols: ["Start"]
+DEBUG: Found symbol 'Start' in scope '-machine-block-'
+DEBUG: Looking for symbol '-state-local-' in scope 'Start'. Available symbols: ["-state-local-"]
+DEBUG: Found symbol '-state-local-' in scope 'Start'
+DEBUG: Looking for symbol '$>' in scope '-state-local-'. Available symbols: ["$>"]
+DEBUG: Found symbol '$>' in scope '-state-local-'
+DEBUG: Looking for symbol '-event-handler-local-' in scope '$>'. Available symbols: ["-event-handler-local-"]
+DEBUG: Found symbol '-event-handler-local-' in scope '$>'

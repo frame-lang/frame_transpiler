@@ -1553,8 +1553,27 @@ impl Arcanum {
 
     /// Get system by name (v0.30 multi-entity support)  
     pub fn get_system_by_name(&self, name: &str) -> Option<Rc<RefCell<SystemSymbol>>> {
+        eprintln!("DEBUG: get_system_by_name('{}') - searching {} systems", name, self.system_symbols.len());
+        for (i, sys) in self.system_symbols.iter().enumerate() {
+            let sys_name = sys.borrow().name.clone();
+            let has_actions = sys.borrow().actions_block_symbol_opt.is_some();
+            let has_operations = sys.borrow().operations_block_symbol_opt.is_some();
+            eprintln!("  System[{}]: '{}', has_actions: {}, has_operations: {}", i, sys_name, has_actions, has_operations);
+        }
+        // v0.30 FIX: Prefer systems with blocks over empty systems (handles duplicate system bug)
         self.system_symbols.iter()
-            .find(|sys| sys.borrow().name == name)
+            .filter(|sys| sys.borrow().name == name)
+            .max_by_key(|sys| {
+                let s = sys.borrow();
+                // Priority: systems with more blocks are preferred
+                let mut priority = 0;
+                if s.operations_block_symbol_opt.is_some() { priority += 1; }
+                if s.actions_block_symbol_opt.is_some() { priority += 1; }
+                if s.machine_block_symbol_opt.is_some() { priority += 1; }
+                if s.interface_block_symbol_opt.is_some() { priority += 1; }
+                if s.domain_block_symbol_opt.is_some() { priority += 1; }
+                priority
+            })
             .cloned()
     }
 
@@ -1776,6 +1795,7 @@ impl Arcanum {
                     .set_parent_symtab(&current_symbtab_rcref);
 
                 // cache the system symbol (legacy compatibility)
+                eprintln!("DEBUG: Setting system_symbol_opt to '{}'", system_symbol_rcref.borrow().name);
                 self.system_symbol_opt = Some(Rc::clone(system_symbol_rcref));
                 
                 // v0.30: Add to multi-entity system collection
@@ -1972,10 +1992,14 @@ impl Arcanum {
                 actions_block_scope_symbol_rcref: actions_block_scope_symbol,
             } => {
                 {
-                    let system_symbol_ref = self.system_symbol_opt.as_ref().unwrap().as_ref();
-                    let mut system_symbol = system_symbol_ref.borrow_mut();
-                    system_symbol.actions_block_symbol_opt =
-                        Some(Rc::clone(actions_block_scope_symbol));
+                    if let Some(ref system_symbol_ref) = self.system_symbol_opt {
+                        let mut system_symbol = system_symbol_ref.borrow_mut();
+                        eprintln!("DEBUG: Setting actions block symbol on system '{}'", system_symbol.name);
+                        system_symbol.actions_block_symbol_opt =
+                            Some(Rc::clone(actions_block_scope_symbol));
+                    } else {
+                        eprintln!("ERROR: No system symbol available when entering actions block!");
+                    }
                 }
 
                 // current symtab should be the SystemSymbol
@@ -2017,10 +2041,14 @@ impl Arcanum {
                 operations_block_scope_symbol_rcref,
             } => {
                 {
-                    let system_symbol_ref = self.system_symbol_opt.as_ref().unwrap().as_ref();
-                    let mut system_symbol = system_symbol_ref.borrow_mut();
-                    system_symbol.operations_block_symbol_opt =
-                        Some(Rc::clone(operations_block_scope_symbol_rcref));
+                    if let Some(ref system_symbol_ref) = self.system_symbol_opt {
+                        let mut system_symbol = system_symbol_ref.borrow_mut();
+                        eprintln!("DEBUG: Setting operations block symbol on system '{}'", system_symbol.name);
+                        system_symbol.operations_block_symbol_opt =
+                            Some(Rc::clone(operations_block_scope_symbol_rcref));
+                    } else {
+                        eprintln!("ERROR: No system symbol available when entering operations block!");
+                    }
                 }
 
                 // current symtab should be the SystemSymbol
