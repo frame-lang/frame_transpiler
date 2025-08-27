@@ -17,14 +17,17 @@ class FrameCompartment:
 
 def main():# DEBUG_EXPR_TYPE: Discriminant(4)
     
-    print("=== Simple Seat Booking Test ===")
-    seat_manager = SeatManager()# DEBUG_EXPR_TYPE: Discriminant(4)
+    print("=== System Isolation Test ===")
+    sys1 = SystemOne()
+    sys2 = SystemTwo()# DEBUG_EXPR_TYPE: Discriminant(4)
     
-    seat_manager.test_operations()# DEBUG_EXPR_TYPE: Discriminant(4)
+    sys1.test_public()# DEBUG_EXPR_TYPE: Discriminant(4)
     
-    print("=== Test Complete ===")
+    sys2.test_public()# DEBUG_EXPR_TYPE: Discriminant(4)
+    
+    print("System isolation test completed")
     return
-class SeatManager:
+class SystemOne:
     def __init__(self):
         self.__compartment = None
         self.return_stack = [None]

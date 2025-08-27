@@ -1,54 +1,35 @@
-#Emitted from framec_v0.30.0
+DEBUG: Starting first pass - building symbol table
+DEBUG: Created syntactic parser with is_building_symbol_table=true
+DEBUG: Building symbol table for function: main
+DEBUG: Entering function scope for: main
+DEBUG: Inserting function symbol 'main' into symbol table
+DEBUG: Function symbol 'main' inserted successfully. Total symbols: 1
+DEBUG: Function symbol table building complete for: main
+DEBUG: First pass parsing succeeded
+DEBUG: Extracted arcanum from first pass
+DEBUG: Symbols in arcanum after first pass: ["main", "Utils"]
+DEBUG: Starting second pass - semantic analysis
+DEBUG: Symbols in module scope before second pass: ["main", "Utils"]
+DEBUG: Created semantic parser with is_building_symbol_table=false
+DEBUG: Looking for symbol 'main' in scope 'module'. Available symbols: ["main", "Utils"]
+DEBUG: Found symbol 'main' in scope 'module'
+DEBUG: Looking for symbol '-parameters-' in scope 'main'. Available symbols: ["category", "-parameters-", "result"]
+DEBUG: Found symbol '-parameters-' in scope 'main'
+DEBUG: Looking for symbol 'Utils' in scope 'module'. Available symbols: ["main", "Utils"]
+DEBUG: Found symbol 'Utils' in scope 'module'
+DEBUG: Looking for symbol 'Utils' in scope 'Utils'. Available symbols: ["Utils"]
+DEBUG: Found symbol 'Utils' in scope 'Utils'
+ERROR: actions_block() called but no current system symbol
+DEBUG: Looking for symbol 'add' in scope 'Utils'. Available symbols: ["-actions-block-"]
+DEBUG: Symbol 'add' not found in 'Utils', checking parent scope...
+DEBUG: Looking for symbol 'add' in scope 'Utils'. Available symbols: ["Utils"]
+DEBUG: Symbol 'add' not found in 'Utils', checking parent scope...
+DEBUG: Looking for symbol 'add' in scope 'module'. Available symbols: ["main", "Utils"]
+DEBUG: Symbol 'add' not found in 'module', checking parent scope...
+DEBUG: Looking for symbol 'add' in scope 'global'. Available symbols: []
+DEBUG: Symbol 'add' not found in 'global', checking parent scope...
+DEBUG: Looking for symbol 'add' in scope 'builtins'. Available symbols: ["print"]
+Framec failed with an error:
+Terminating with errors.
+[line 11] Error at '(' : Expected '}' - found '('.
 
-
-class FrameEvent:
-    def __init__(self, message, parameters):
-        self._message = message
-        self._parameters = parameters
-
-class FrameCompartment:
-    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None):
-        self.state = state
-        self.forward_event = forward_event
-        self.exit_args = exit_args
-        self.enter_args = enter_args
-        self.parent_compartment = parent_compartment
-
-
-def main():
-    result = self.add_do(5,3)# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("5 + 3 = " + str(result))
-    category = self.categorizeNumber_do(42)# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("42 is " + category)
-    return
-class Utils:
-    def __init__(self):
-        self.__compartment = None
-        self.return_stack = [None]
-    # ===================== Actions Block =================== #
-    
-    def add_do(self,x: int,y: int):
-        
-        return x + y
-        return
-        
-    
-    def categorizeNumber_do(self,num: int):
-        
-        if num < 0:
-            return "negative"
-        elif num == 0:
-            return "zero"
-        elif num < 10:
-            return "single digit"
-        elif num < 100:
-            return "double digit"
-        else:
-            return "large number"
-        return
-        
-
-if __name__ == '__main__':
-    main()

@@ -1,0 +1,24 @@
+DEBUG: Starting first pass - building symbol table
+DEBUG: Created syntactic parser with is_building_symbol_table=true
+DEBUG: Building symbol table for function: main
+DEBUG: Entering function scope for: main
+DEBUG: Inserting function symbol 'main' into symbol table
+DEBUG: Function symbol 'main' inserted successfully. Total symbols: 1
+DEBUG: Function symbol table building complete for: main
+DEBUG: First pass parsing succeeded
+DEBUG: Extracted arcanum from first pass
+DEBUG: Symbols in arcanum after first pass: ["main", "Utils"]
+DEBUG: Starting second pass - semantic analysis
+DEBUG: Symbols in module scope before second pass: ["main", "Utils"]
+DEBUG: Created semantic parser with is_building_symbol_table=false
+DEBUG: Looking for symbol 'main' in scope 'module'. Available symbols: []
+DEBUG: Symbol 'main' not found in 'module', checking parent scope...
+DEBUG: Looking for symbol 'main' in scope 'global'. Available symbols: []
+DEBUG: Symbol 'main' not found in 'global', checking parent scope...
+DEBUG: Looking for symbol 'main' in scope 'builtins'. Available symbols: ["print"]
+Framec failed with an error:
+Parse error:
+Failed to set function scope 'main': Failed to set parse scope 'main': Fatal error - could not get next symbol table for 'main'. Searched scopes: ["module", "global", "builtins"]
+Current symtab: 'module'
+
+Parsing failed. Please check your Frame syntax and try again.

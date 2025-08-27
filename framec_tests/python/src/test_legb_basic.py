@@ -17,20 +17,30 @@ class FrameCompartment:
 
 def main():# DEBUG_EXPR_TYPE: Discriminant(4)
     
-    print("Testing basic scope")
-    module_var = "module_value"# DEBUG_EXPR_TYPE: Discriminant(4)
+    print("=== Basic LEGB Test ===")
+    module_var = "MODULE"# DEBUG_EXPR_TYPE: Discriminant(4)
     
     print(module_var)# DEBUG_EXPR_TYPE: Discriminant(4)
     
     test_function()# DEBUG_EXPR_TYPE: Discriminant(4)
     
-    print("Back in main")
+    print("Back in main")# DEBUG_EXPR_TYPE: Discriminant(4)
+    
+    print(module_var)
     return
 
 def test_function():# DEBUG_EXPR_TYPE: Discriminant(4)
     
-    print("In test function")
-    func_var = "function_value"# DEBUG_EXPR_TYPE: Discriminant(4)
+    print("=== Function Scope ===")
+    func_var = "FUNCTION"# DEBUG_EXPR_TYPE: Discriminant(4)
+    
+    print(func_var)
+    if True:
+        block_var = "BLOCK"# DEBUG_EXPR_TYPE: Discriminant(4)
+        
+        print(block_var)# DEBUG_EXPR_TYPE: Discriminant(4)
+        
+        print(func_var)# DEBUG_EXPR_TYPE: Discriminant(4)
     
     print(func_var)
     return

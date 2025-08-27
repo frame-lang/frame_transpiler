@@ -17,14 +17,31 @@ class FrameCompartment:
 
 def main():# DEBUG_EXPR_TYPE: Discriminant(4)
     
-    print("=== Simple Seat Booking Test ===")
-    seat_manager = SeatManager()# DEBUG_EXPR_TYPE: Discriminant(4)
+    print("=== Function Isolation Test ===")
+    sys = TestSystem()# DEBUG_EXPR_TYPE: Discriminant(4)
     
-    seat_manager.test_operations()# DEBUG_EXPR_TYPE: Discriminant(4)
+    sys.public_interface()# DEBUG_EXPR_TYPE: Discriminant(4)
     
-    print("=== Test Complete ===")
+    test_isolation()# DEBUG_EXPR_TYPE: Discriminant(4)
+    
+    print("Function isolation test completed")
     return
-class SeatManager:
+
+def test_isolation():# DEBUG_EXPR_TYPE: Discriminant(4)
+    
+    print("In test_isolation function")
+    local_sys = TestSystem()# DEBUG_EXPR_TYPE: Discriminant(4)
+    
+    local_sys.public_interface()# DEBUG_EXPR_TYPE: Discriminant(4)
+    
+    print("Can only use public interfaces")
+    return
+
+def helper():# DEBUG_EXPR_TYPE: Discriminant(4)
+    
+    print("Helper function works")
+    return
+class TestSystem:
     def __init__(self):
         self.__compartment = None
         self.return_stack = [None]

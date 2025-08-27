@@ -17,19 +17,16 @@ class FrameCompartment:
 
 def main():# DEBUG_EXPR_TYPE: Discriminant(4)
     
-    print("=== Simple Seat Booking Test ===")
-    seat_manager = SeatManager()# DEBUG_EXPR_TYPE: Discriminant(4)
+    print("test")
+    x = "value"# DEBUG_EXPR_TYPE: Discriminant(4)
     
-    seat_manager.test_operations()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("=== Test Complete ===")
+    print(x)
     return
-class SeatManager:
-    def __init__(self):
-        self.__compartment = None
-        self.return_stack = [None]
+
+def helper():# DEBUG_EXPR_TYPE: Discriminant(4)
     
-    # ==================== Operations Block ================== #
+    print("helper")
+    return
 
 if __name__ == '__main__':
     main()

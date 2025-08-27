@@ -12,7 +12,6 @@ use std::cell::RefCell;
 use std::fs;
 use std::io;
 use std::io::Read;
-use std::panic::{self, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
@@ -154,70 +153,67 @@ impl Exe {
 
         let mut arcanum = Arcanum::new();
         let mut comments = Vec::new();
-        // NOTE: This block is to remove references to symbol_table and comments
+        // First pass: syntactic parsing to build symbol table
         {
+            eprintln!("DEBUG: Starting first pass - building symbol table");
             let mut syntactic_parser = Parser::new(&tokens, &mut comments, true, arcanum);
+            eprintln!("DEBUG: Created syntactic parser with is_building_symbol_table=true");
 
-            panic::set_hook(Box::new(|_info| {
-                // prevent std output from panics.
-            }));
-            // catch and suppress panics
-            let _result = panic::catch_unwind(AssertUnwindSafe(|| {
-                syntactic_parser.parse();
-            }));
-
+            // Check for parser errors before parsing
             if syntactic_parser.had_error() {
-                let mut errors = "Terminating with errors.\n".to_string();
+                let mut errors = "Initial parser errors:\n".to_string();
                 errors.push_str(&syntactic_parser.get_errors());
                 let run_error = RunError::new(frame_exitcode::PARSE_ERR, &errors);
                 return Err(run_error);
             }
-            arcanum = syntactic_parser.get_arcanum();
+
+            match syntactic_parser.parse() {
+                Ok(_) => {
+                    eprintln!("DEBUG: First pass parsing succeeded");
+                    // Check for errors after parsing but before consuming the parser
+                    if syntactic_parser.had_error() {
+                        let mut errors = "First pass parsing errors:\n".to_string();
+                        errors.push_str(&syntactic_parser.get_errors());
+                        let run_error = RunError::new(frame_exitcode::PARSE_ERR, &errors);
+                        return Err(run_error);
+                    }
+                    // Symbol table building successful, extract arcanum for second pass
+                    arcanum = syntactic_parser.get_arcanum();
+                    eprintln!("DEBUG: Extracted arcanum from first pass");
+                    // Debug: Check what symbols are in the arcanum before second pass
+                    let current_table = arcanum.current_symtab.borrow();
+                    let symbol_keys: Vec<String> = current_table.symbols.keys().cloned().collect();
+                    eprintln!("DEBUG: Symbols in arcanum after first pass: {:?}", symbol_keys);
+                }
+                Err(parse_error) => {
+                    let mut errors = "First pass parse error:\n".to_string();
+                    errors.push_str(&parse_error.error);
+                    errors.push_str("\n\nSymbol table construction failed. Please check your Frame syntax.");
+                    let run_error = RunError::new(frame_exitcode::PARSE_ERR, &errors);
+                    return Err(run_error);
+                }
+            }
         }
 
         let mut comments2 = comments.clone();
-        
-        // Create semantic parser after building syntactic fallback to preserve arcanum
-        // v0.30: Smart semantic parsing for multi-entity files
-        // Check if semantic parsing might hang (multi-system with complex blocks)  
-        let syntactic_result = {
-            let mut temp_comments = Vec::new();
-            let mut temp_arcanum = Arcanum::new();
-            // Copy the populated symbol tables from our main arcanum
-            temp_arcanum.module_symtab = arcanum.module_symtab.clone();
-            temp_arcanum.global_symtab = arcanum.global_symtab.clone();  
-            temp_arcanum.system_symbols = arcanum.system_symbols.clone();
-            temp_arcanum.function_symbols = arcanum.function_symbols.clone();
-            let mut temp_parser = Parser::new(&tokens, &mut temp_comments, true, temp_arcanum);
-            temp_parser.parse()
-        };
-        
+        eprintln!("DEBUG: Starting second pass - semantic analysis");
+        // Debug: Check if symbols are still there before creating second parser
+        let module_table = arcanum.module_symtab.borrow();
+        let module_symbol_keys: Vec<String> = module_table.symbols.keys().cloned().collect();
+        eprintln!("DEBUG: Symbols in module scope before second pass: {:?}", module_symbol_keys);
+        drop(module_table);
         let mut semantic_parser = Parser::new(&tokens, &mut comments2, false, arcanum);
+        eprintln!("DEBUG: Created semantic parser with is_building_symbol_table=false");
         
-        // v0.30: Smart parsing - use semantic when possible, fallback for complex cases
-        let frame_module = if syntactic_result.systems.len() >= 3 && 
-                              !syntactic_result.functions.is_empty() &&
-                              syntactic_result.systems.iter().all(|sys| 
-                                  sys.interface_block_node_opt.is_some() && 
-                                  sys.machine_block_node_opt.is_some()) {
-            // Complex multi-entity files that cause semantic parsing to panic
-            eprintln!("Using syntactic parsing for complex multi-entity file");
-            syntactic_result
-        } else {
-            // Normal cases: use semantic parsing with panic handling
-            panic::set_hook(Box::new(|_info| {
-                // prevent std output from panics.
-            }));
-            let result = panic::catch_unwind(AssertUnwindSafe(|| {
-                semantic_parser.parse()
-            }));
-            
-            match result {
-                Ok(parsed_module) => parsed_module,
-                Err(panic_info) => {
-                    eprintln!("Semantic parsing panicked: {:?}, falling back to syntactic parsing", panic_info);
-                    syntactic_result
-                }
+        // Parse with proper error handling - no more fallback architecture
+        let frame_module = match semantic_parser.parse() {
+            Ok(module) => module,
+            Err(parse_error) => {
+                let mut errors = "Parse error:\n".to_string();
+                errors.push_str(&parse_error.error);
+                errors.push_str("\n\nParsing failed. Please check your Frame syntax and try again.");
+                let run_error = RunError::new(frame_exitcode::PARSE_ERR, &errors);
+                return Err(run_error);
             }
         };
         

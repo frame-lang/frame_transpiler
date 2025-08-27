@@ -665,10 +665,12 @@ impl SymbolTable {
                 function_scope_symbol_rcref,
             } => {
                 let name = function_scope_symbol_rcref.borrow().name.clone();
+                eprintln!("DEBUG: Inserting function symbol '{}' into symbol table", name);
                 let st_ref = Rc::new(RefCell::new(SymbolType::FunctionScope {
                     function_symbol_ref: function_scope_symbol_rcref,
                 }));
-                self.symbols.insert(name, st_ref);
+                self.symbols.insert(name.clone(), st_ref);
+                eprintln!("DEBUG: Function symbol '{}' inserted successfully. Total symbols: {}", name, self.symbols.len());
             }
             ParseScopeType::System { system_symbol } => {
                 let name = system_symbol.borrow().name.clone();
@@ -1163,7 +1165,7 @@ impl Arcanum {
         self.builtin_symtab = Rc::clone(&builtin_symbtab_rc);
         self.current_symtab = builtin_symbtab_rc;
         
-        // 2. Push global scope
+        // 2. Push global scope (exists but should remain empty until we implement 'global' keyword)
         self.enter_scope(ParseScopeType::Global);
         
         // 3. Push module scope  
@@ -1181,7 +1183,7 @@ impl Arcanum {
         builtin_symtab.borrow_mut().symbols.insert("print".to_string(), Rc::new(RefCell::new(print_symbol)));
     }
 
-    /// Push a symbol to the parent (global) scope - for 'global' variable declarations
+    /// Push a symbol to the global scope - for 'global' variable declarations
     pub fn add_to_global_scope(&mut self, symbol_type: SymbolType) -> Result<(), String> {
         // Add the symbol to the global symbol table instead of current
         self.global_symtab.borrow_mut().define(&symbol_type)
@@ -1357,7 +1359,7 @@ impl Arcanum {
 
     #[allow(clippy::many_single_char_names)] // TODO
     pub fn lookup_function(&self, name: &str) -> Option<Rc<RefCell<FunctionScopeSymbol>>> {
-        let symbol_type_rcref_opt = self.global_symtab.borrow().lookup_local(name);
+        let symbol_type_rcref_opt = self.module_symtab.borrow().lookup_local(name);
 
         match symbol_type_rcref_opt {
             Some(x) => {
@@ -1418,6 +1420,7 @@ impl Arcanum {
     fn debug_dump_symbol_tables(&self) {
         eprintln!("--- Symbol Tables ---");
         eprintln!("Global SymTab: '{}'", self.global_symtab.borrow().name);
+        eprintln!("Module SymTab: '{}'", self.module_symtab.borrow().name);
         eprintln!("Current SymTab: '{}'", self.current_symtab.borrow().name);
         eprintln!("Builtin SymTab: '{}' ({} symbols)", 
                   self.builtin_symtab.borrow().name,
@@ -2138,19 +2141,18 @@ impl Arcanum {
     /* --------------------------------------------------------------------- */
 
     // This is used in the semantic pass to set the previously built scope from the symbol table.
-    pub fn set_parse_scope(&mut self, scope_name: &str) {
+    pub fn set_parse_scope(&mut self, scope_name: &str) -> Result<(), String> {
         Exe::debug_print(&format!("Setting parse scope = |{}|.", scope_name));
         
         match self.get_next_symbol_table(scope_name, &self.current_symtab) {
             Ok(symtab) => {
                 self.current_symtab = symtab;
+                Ok(())
             }
             Err(err_msg) => {
-                eprintln!("Error in set_parse_scope: {}", err_msg);
-                eprintln!("Current symtab name: {}", self.current_symtab.borrow().name);
-                // For now, panic with the detailed error message
-                // Eventually this should propagate the error up
-                panic!("{}", err_msg);
+                let context = format!("Failed to set parse scope '{}': {}\nCurrent symtab: '{}'", 
+                                      scope_name, err_msg, self.current_symtab.borrow().name);
+                Err(context)
             }
         }
     }
@@ -2252,7 +2254,7 @@ impl Arcanum {
             return Some(Rc::clone(symbol));
         }
         
-        // 4. Global scope (cross-module - future)
+        // 4. Global scope (should be empty until we implement 'global' keyword)
         if let Some(symbol) = self.global_symtab.borrow().symbols.get(name) {
             Exe::debug_print(&format!("Found '{}' in GLOBAL scope", name));
             return Some(Rc::clone(symbol));
@@ -2312,24 +2314,53 @@ impl Arcanum {
         scope_name: &str,
         symtab_rcref: &Rc<RefCell<SymbolTable>>,
     ) -> Result<Rc<RefCell<SymbolTable>>, String> {
-        let symbol_table = symtab_rcref.borrow();
-        let symbols_map = &symbol_table.symbols;
-        let symbol_t_rcref_opt = symbols_map.get(scope_name);
-        match symbol_t_rcref_opt {
-            Some(symbol_t_rcref) => {
-                let symbol_t = symbol_t_rcref.borrow();
-                let symbol_table_rcref = symbol_t.get_symbol_table();
-                Ok(Rc::clone(&symbol_table_rcref))
-            }
-            None => {
-                // Provide helpful context about what went wrong
+        // LEGB Scope Resolution: Look in current scope first, then walk up parent chain
+        let mut current_scope = Rc::clone(symtab_rcref);
+        let mut searched_scopes = Vec::new();
+        
+        loop {
+            let (scope_name_for_debug, available_symbols, found_symbol, parent_opt) = {
+                let symbol_table = current_scope.borrow();
+                let scope_name_for_debug = symbol_table.name.clone();
+                let symbols_map = &symbol_table.symbols;
                 let available_symbols: Vec<String> = symbols_map.keys().cloned().collect();
-                Err(format!(
-                    "Fatal error - could not get next symbol table for '{}'. Available symbols: {:?}",
-                    scope_name, available_symbols
-                ))
+                
+                eprintln!("DEBUG: Looking for symbol '{}' in scope '{}'. Available symbols: {:?}", 
+                          scope_name, scope_name_for_debug, available_symbols);
+                          
+                let found_symbol = symbols_map.get(scope_name).map(|symbol_t_rcref| {
+                    let symbol_t = symbol_t_rcref.borrow();
+                    symbol_t.get_symbol_table()
+                });
+                
+                let parent_opt = symbol_table.parent_symtab_rcref_opt.as_ref().map(Rc::clone);
+                
+                (scope_name_for_debug, available_symbols, found_symbol, parent_opt)
+            };
+            
+            searched_scopes.push(scope_name_for_debug.clone());
+            
+            if let Some(symbol_table_rcref) = found_symbol {
+                eprintln!("DEBUG: Found symbol '{}' in scope '{}'", scope_name, scope_name_for_debug);
+                return Ok(Rc::clone(&symbol_table_rcref));
+            }
+            
+            // Symbol not found in current scope, try parent scope
+            if let Some(parent_symtab) = parent_opt {
+                current_scope = parent_symtab;
+                eprintln!("DEBUG: Symbol '{}' not found in '{}', checking parent scope...", 
+                          scope_name, scope_name_for_debug);
+            } else {
+                // No parent scope - we've reached the top (builtin scope)
+                break;
             }
         }
+        
+        // Symbol not found in any scope in the chain
+        Err(format!(
+            "Fatal error - could not get next symbol table for '{}'. Searched scopes: {:?}",
+            scope_name, searched_scopes
+        ))
     }
 
     /* --------------------------------------------------------------------- */

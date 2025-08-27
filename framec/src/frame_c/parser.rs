@@ -145,8 +145,11 @@ impl<'a> Parser<'a> {
         is_building_symbol_table: bool,
         mut arcanum: Arcanum,
     ) -> Parser<'a> {
-        // Initialize foundational scopes once per parser instance
-        arcanum.initialize_scope_stack();
+        // Initialize foundational scopes ONLY for first pass (symbol table building)
+        // Second pass reuses the populated symbol tables from first pass
+        if is_building_symbol_table {
+            arcanum.initialize_scope_stack();
+        }
         
         Parser {
             tokens,
@@ -186,18 +189,18 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    pub fn parse(&mut self) -> FrameModule {
+    pub fn parse(&mut self) -> Result<FrameModule, ParseError> {
         self.module()
     }
 
     /* --------------------------------------------------------------------- */
 
-    fn module(&mut self) -> FrameModule {
+    fn module(&mut self) -> Result<FrameModule, ParseError> {
         // Properly manage module scope for both passes
         self.module_scope()
     }
     
-    fn module_scope(&mut self) -> FrameModule {
+    fn module_scope(&mut self) -> Result<FrameModule, ParseError> {
         // Module scope management following the function_scope() pattern
         
         if self.is_building_symbol_table {
@@ -213,30 +216,21 @@ impl<'a> Parser<'a> {
         }
         
         // Parse the module content
-        let module = self.parse_module_content();
+        let module = self.parse_module_content()?;
         
         // Note: We don't exit scope here because the module scope
         // should remain active for the entire file parsing
         
-        module
+        Ok(module)
     }
     
     
-    fn parse_module_content(&mut self) -> FrameModule {
+    fn parse_module_content(&mut self) -> Result<FrameModule, ParseError> {
         if self.match_token(&[TokenType::Eof]) {
-            self.error_at_current("Empty module.");
-            return FrameModule::new(
-                Module::new(vec![]),
-                vec![],
-                vec![],
-            );
+            return Err(ParseError::new("Empty module - Frame files must contain at least one function or system."));
         }
 
-        let mut module_elements_opt = match self.header() {
-            Ok(module_elements_opt) => module_elements_opt,
-            // TODO - review error logic
-            Err(_parse_error) => None,
-        };
+        let mut module_elements_opt = self.header()?;
 
         // v0.30: Parse multiple functions and systems in sequence
         let mut functions = Vec::new();
@@ -246,10 +240,7 @@ impl<'a> Parser<'a> {
         loop {
             // First check for attributes that might precede a system
             let entity_attributes_opt = if self.check(TokenType::OuterAttributeOrDomainParams) {
-                match self.entity_attributes() {
-                    Ok(attributes_opt) => attributes_opt,
-                    Err(_parse_error) => None,
-                }
+                self.entity_attributes()?
             } else {
                 None
             };
@@ -268,41 +259,18 @@ impl<'a> Parser<'a> {
                     Module::new(vec![])
                 };
                 
-                let system = match self.system_scope(Some(module_for_system), entity_attributes_opt, None) {
-                    Ok(system) => system,
-                    Err(_) => {
-                        // Handle parse error by creating empty system and continuing
-                        SystemNode::new(
-                            "error".to_string(),
-                            Module::new(vec![]),
-                            None,
-                            None,
-                            None,
-                            None,
-                            None,
-                            None,
-                            None,
-                            None,
-                            None,
-                            0,
-                        )
-                    }
-                };
+                let system = self.system_scope(Some(module_for_system), entity_attributes_opt, None)?;
                 systems.push(system);
             } else if self.match_token(&[TokenType::Function]) {
-                // Functions shouldn't have system attributes, but ignore them if present
-                match self.function_scope() {
-                    Ok(function) => {
-                        functions.push(function);
-                    },
-                    Err(_) => {
-                        break; // Error handling - stop parsing on function error
-                    }
+                // Functions shouldn't have system attributes, but warn if present
+                if entity_attributes_opt.is_some() {
+                    return Err(ParseError::new("Functions do not support attributes. Remove attributes or change to system."));
                 }
+                let function = self.function_scope()?;
+                functions.push(function);
             } else if entity_attributes_opt.is_some() {
                 // We parsed attributes but found no system or function - this is an error
-                self.error_at_current("Expected 'system' or 'function' after attributes.");
-                break;
+                return Err(ParseError::new("Expected 'system' after attributes. Functions do not support attributes."));
             } else {
                 // No more systems or functions found - exit loop
                 break;
@@ -315,7 +283,7 @@ impl<'a> Parser<'a> {
             None => Module::new(vec![]),
         };
         
-        FrameModule::new(final_module, functions, systems)
+        Ok(FrameModule::new(final_module, functions, systems))
     }
 
     /* --------------------------------------------------------------------- */
@@ -417,7 +385,9 @@ impl<'a> Parser<'a> {
                 system_symbol: system_symbol_rcref,
             });
         } else {
-            self.arcanum.set_parse_scope(&system_name);
+            if let Err(err) = self.arcanum.set_parse_scope(&system_name) {
+                return Err(ParseError::new(&format!("Failed to set system scope '{}': {}", system_name, err)));
+            }
             (
                 system_start_state_state_params_opt,
                 system_enter_params_opt,
@@ -1210,6 +1180,7 @@ impl<'a> Parser<'a> {
 
         if self.is_building_symbol_table {
             // lexical pass
+            eprintln!("DEBUG: Building symbol table for function: {}", function_name);
             let function_symbol = FunctionScopeSymbol::new(function_name.clone());
             //            function_symbol_opt = Some(function_symbol);
 
@@ -1217,10 +1188,12 @@ impl<'a> Parser<'a> {
             let function_symbol_parse_scope_t = ParseScopeType::Function {
                 function_scope_symbol_rcref,
             };
+            eprintln!("DEBUG: Entering function scope for: {}", function_name);
             self.arcanum.enter_scope(function_symbol_parse_scope_t);
             
             // Set scope context to Function
             self.arcanum.set_scope_context(ScopeContext::Function(function_name.clone()));
+            eprintln!("DEBUG: Function symbol table building complete for: {}", function_name);
         } else {
             // semantic pass
             // link function symbol to function declaration node
@@ -1234,7 +1207,9 @@ impl<'a> Parser<'a> {
 
             // see if we can get the function symbol set in the lexical pass. if so, then move
             // all this to the calling function and pass inthe symbol
-            self.arcanum.set_parse_scope(&function_name);
+            if let Err(err) = self.arcanum.set_parse_scope(&function_name) {
+                return Err(ParseError::new(&format!("Failed to set function scope '{}': {}", function_name, err)));
+            }
             
             // Set scope context to Function for semantic pass too
             self.arcanum.set_scope_context(ScopeContext::Function(function_name.clone()));
@@ -1249,9 +1224,14 @@ impl<'a> Parser<'a> {
 
                     let function_scope_symbol_rcref_opt =
                         self.arcanum.lookup_function(&function_name.clone());
-                    let function_scope_symbol_rcref = function_scope_symbol_rcref_opt.unwrap();
-                    let mut function_scope_symbol = function_scope_symbol_rcref.borrow_mut();
-                    function_scope_symbol.ast_node_opt = Some(function_node_rcref.clone());
+                    if let Some(function_scope_symbol_rcref) = function_scope_symbol_rcref_opt {
+                        let mut function_scope_symbol = function_scope_symbol_rcref.borrow_mut();
+                        function_scope_symbol.ast_node_opt = Some(function_node_rcref.clone());
+                    } else {
+                        // Function symbol not found - this shouldn't happen in normal cases
+                        // Continue processing but log for debugging
+                        eprintln!("Warning: Function symbol '{}' not found during AST association", function_name);
+                    }
                 }
                 Err(_err) => {
                     // just return the error upon exiting the function
@@ -1299,7 +1279,9 @@ impl<'a> Parser<'a> {
             self.arcanum.set_scope_context(ScopeContext::System(system_name.clone()));
         } else {
             // semantic pass
-            self.arcanum.set_parse_scope(&system_name);
+            if let Err(err) = self.arcanum.set_parse_scope(&system_name) {
+                return Err(ParseError::new(&format!("Failed to set system scope '{}': {}", system_name, err)));
+            }
             
             // Set scope context to System for semantic pass too
             self.arcanum.set_scope_context(ScopeContext::System(system_name.clone()));
@@ -1991,8 +1973,9 @@ impl<'a> Parser<'a> {
                 params_scope_symbol_rcref,
             });
         } else {
-            self.arcanum
-                .set_parse_scope(ParamsScopeSymbol::scope_name());
+            if let Err(err) = self.arcanum.set_parse_scope(ParamsScopeSymbol::scope_name()) {
+                return Err(ParseError::new(&format!("Failed to set parameters scope: {}", err)));
+            }
         }
 
         let ret = self.parameters2();
@@ -2384,7 +2367,9 @@ impl<'a> Parser<'a> {
 
             // see if we can get the action symbol set in the lexical pass. if so, then move
             // all this to the calling function and pass inthe symbol
-            self.arcanum.set_parse_scope(&action_name);
+            if let Err(err) = self.arcanum.set_parse_scope(&action_name) {
+                return Err(ParseError::new(&format!("Failed to set action scope '{}': {}", action_name, err)));
+            }
         }
 
         let ret = self.action(action_name.clone());
@@ -2680,7 +2665,9 @@ impl<'a> Parser<'a> {
 
             // see if we can get the operation symbol set in the lexical pass. if so, then move
             // all this to the calling function and pass inthe symbol
-            self.arcanum.set_parse_scope(&operation_name);
+            if let Err(err) = self.arcanum.set_parse_scope(&operation_name) {
+                return Err(ParseError::new(&format!("Failed to set operation scope '{}': {}", operation_name, err)));
+            }
         }
 
         let ret = self.operation(operation_name.clone(), attributes_opt);
@@ -3308,7 +3295,9 @@ impl<'a> Parser<'a> {
                 state_symbol: state_symbol_rcref.clone(),
             });
         } else {
-            self.arcanum.set_parse_scope(&state_name);
+            if let Err(err) = self.arcanum.set_parse_scope(&state_name) {
+                return Err(ParseError::new(&format!("Failed to set state scope '{}': {}", state_name, err)));
+            }
             state_symbol_rcref = self.arcanum.get_state(&state_name).unwrap();
         }
 
@@ -3355,8 +3344,9 @@ impl<'a> Parser<'a> {
                             }
                         }
                     } else {
-                        self.arcanum
-                            .set_parse_scope(StateParamsScopeSymbol::scope_name());
+                        if let Err(err) = self.arcanum.set_parse_scope(StateParamsScopeSymbol::scope_name()) {
+                            return Err(ParseError::new(&format!("Failed to set state params scope: {}", err)));
+                        }
                     }
                     params_opt = Some(parameters.clone());
                     
@@ -3469,8 +3459,9 @@ impl<'a> Parser<'a> {
             };
             self.arcanum.enter_scope(state_local_scope);
         } else {
-            self.arcanum
-                .set_parse_scope(StateLocalScopeSymbol::scope_name());
+            if let Err(err) = self.arcanum.set_parse_scope(StateLocalScopeSymbol::scope_name()) {
+                return Err(ParseError::new(&format!("Failed to set state local scope: {}", err)));
+            }
         }
 
         // state local variables
@@ -3840,7 +3831,9 @@ impl<'a> Parser<'a> {
                 event_handler_scope_symbol_rcref,
             });
         } else {
-            self.arcanum.set_parse_scope(&msg);
+            if let Err(err) = self.arcanum.set_parse_scope(&msg) {
+                return Err(ParseError::new(&format!("Failed to set event handler scope '{}': {}", msg, err)));
+            }
         }
 
         // Remember to pop param scope at end if it is entered.
@@ -4020,8 +4013,9 @@ impl<'a> Parser<'a> {
                     } else {
                         // leave these comments to show how to debug scope errors.
                         //                       self.arcanum.debug_print_current_symbols(self.arcanum.get_current_symtab());
-                        self.arcanum
-                            .set_parse_scope(EventHandlerParamsScopeSymbol::scope_name());
+                        if let Err(err) = self.arcanum.set_parse_scope(EventHandlerParamsScopeSymbol::scope_name()) {
+                            return Err(ParseError::new(&format!("Failed to set event handler params scope: {}", err)));
+                        }
                         //                       self.arcanum.debug_print_current_symbols(self.arcanum.get_current_symtab());
                     }
                 }
@@ -4119,8 +4113,9 @@ impl<'a> Parser<'a> {
             };
             self.arcanum.enter_scope(event_handler_local_scope);
         } else {
-            self.arcanum
-                .set_parse_scope(EventHandlerLocalScopeSymbol::scope_name());
+            if let Err(err) = self.arcanum.set_parse_scope(EventHandlerLocalScopeSymbol::scope_name()) {
+                return Err(ParseError::new(&format!("Failed to set event handler local scope: {}", err)));
+            }
         }
 
         let event_symbol_rcref = self.arcanum.get_event(&*msg, &self.state_name_opt).unwrap();
@@ -4884,7 +4879,9 @@ impl<'a> Parser<'a> {
             self.arcanum
                 .enter_scope(ParseScopeType::Block { block_scope_rcref });
         } else {
-            self.arcanum.set_parse_scope(scope_name);
+            if let Err(err) = self.arcanum.set_parse_scope(scope_name) {
+                return Err(ParseError::new(&format!("Failed to set block scope '{}': {}", scope_name, err)));
+            }
         }
         let ret = self.block();
         // exit block scope
@@ -5070,7 +5067,9 @@ impl<'a> Parser<'a> {
             self.arcanum
                 .enter_scope(ParseScopeType::Block { block_scope_rcref });
         } else {
-            self.arcanum.set_parse_scope(scope_name);
+            if let Err(err) = self.arcanum.set_parse_scope(scope_name) {
+                return Err(ParseError::new(&format!("Failed to set bool test conditional branch scope '{}': {}", scope_name, err)));
+            }
         }
         let ret = self.bool_test_conditional_branch_statements(is_negated, expr_t);
         // exit block scope
@@ -5109,7 +5108,9 @@ impl<'a> Parser<'a> {
             self.arcanum
                 .enter_scope(ParseScopeType::Block { block_scope_rcref });
         } else {
-            self.arcanum.set_parse_scope(scope_name);
+            if let Err(err) = self.arcanum.set_parse_scope(scope_name) {
+                return Err(ParseError::new(&format!("Failed to set bool test else branch scope '{}': {}", scope_name, err)));
+            }
         }
         let ret = self.bool_test_else_branch();
         // exit block scope
@@ -6341,7 +6342,9 @@ impl<'a> Parser<'a> {
             self.arcanum
                 .enter_scope(ParseScopeType::Block { block_scope_rcref });
         } else {
-            self.arcanum.set_parse_scope(scope_name);
+            if let Err(err) = self.arcanum.set_parse_scope(scope_name) {
+                return Err(ParseError::new(&format!("Failed to set block scope '{}': {}", scope_name, err)));
+            }
         }
         
         let result = parse_fn(self);
@@ -6398,7 +6401,9 @@ impl<'a> Parser<'a> {
                 self.arcanum
                     .enter_scope(ParseScopeType::Block { block_scope_rcref });
             } else {
-                self.arcanum.set_parse_scope(scope_name);
+                if let Err(err) = self.arcanum.set_parse_scope(scope_name) {
+                    return Err(ParseError::new(&format!("Failed to set block scope '{}': {}", scope_name, err)));
+                }
             }
 
             let statements = self.statements(IdentifierDeclScope::BlockVarScope);
@@ -6418,7 +6423,9 @@ impl<'a> Parser<'a> {
                 self.arcanum
                     .enter_scope(ParseScopeType::Block { block_scope_rcref });
             } else {
-                self.arcanum.set_parse_scope(scope_name);
+                if let Err(err) = self.arcanum.set_parse_scope(scope_name) {
+                    return Err(ParseError::new(&format!("Failed to set block scope '{}': {}", scope_name, err)));
+                }
             }
 
             match self.decl_or_stmt(IdentifierDeclScope::BlockVarScope) {
@@ -6789,7 +6796,9 @@ impl<'a> Parser<'a> {
         } else {
             // give each loop in a scope a unique name
             let scope_name = &format!("{}.{}", LoopStmtScopeSymbol::scope_name(), self.stmt_idx);
-            self.arcanum.set_parse_scope(scope_name);
+            if let Err(err) = self.arcanum.set_parse_scope(scope_name) {
+                return Err(ParseError::new(&format!("Failed to set loop scope '{}': {}", scope_name, err)));
+            }
         }
         // parse loop
         let ret = self.loop_statement();
