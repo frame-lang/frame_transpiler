@@ -1553,13 +1553,6 @@ impl Arcanum {
 
     /// Get system by name (v0.30 multi-entity support)  
     pub fn get_system_by_name(&self, name: &str) -> Option<Rc<RefCell<SystemSymbol>>> {
-        eprintln!("DEBUG: get_system_by_name('{}') - searching {} systems", name, self.system_symbols.len());
-        for (i, sys) in self.system_symbols.iter().enumerate() {
-            let sys_name = sys.borrow().name.clone();
-            let has_actions = sys.borrow().actions_block_symbol_opt.is_some();
-            let has_operations = sys.borrow().operations_block_symbol_opt.is_some();
-            eprintln!("  System[{}]: '{}', has_actions: {}, has_operations: {}", i, sys_name, has_actions, has_operations);
-        }
         // v0.30 FIX: Prefer systems with blocks over empty systems (handles duplicate system bug)
         self.system_symbols.iter()
             .filter(|sys| sys.borrow().name == name)
@@ -1795,7 +1788,6 @@ impl Arcanum {
                     .set_parent_symtab(&current_symbtab_rcref);
 
                 // cache the system symbol (legacy compatibility)
-                eprintln!("DEBUG: Setting system_symbol_opt to '{}'", system_symbol_rcref.borrow().name);
                 self.system_symbol_opt = Some(Rc::clone(system_symbol_rcref));
                 
                 // v0.30: Add to multi-entity system collection
@@ -1994,11 +1986,8 @@ impl Arcanum {
                 {
                     if let Some(ref system_symbol_ref) = self.system_symbol_opt {
                         let mut system_symbol = system_symbol_ref.borrow_mut();
-                        eprintln!("DEBUG: Setting actions block symbol on system '{}'", system_symbol.name);
                         system_symbol.actions_block_symbol_opt =
                             Some(Rc::clone(actions_block_scope_symbol));
-                    } else {
-                        eprintln!("ERROR: No system symbol available when entering actions block!");
                     }
                 }
 
@@ -2043,11 +2032,8 @@ impl Arcanum {
                 {
                     if let Some(ref system_symbol_ref) = self.system_symbol_opt {
                         let mut system_symbol = system_symbol_ref.borrow_mut();
-                        eprintln!("DEBUG: Setting operations block symbol on system '{}'", system_symbol.name);
                         system_symbol.operations_block_symbol_opt =
                             Some(Rc::clone(operations_block_scope_symbol_rcref));
-                    } else {
-                        eprintln!("ERROR: No system symbol available when entering operations block!");
                     }
                 }
 
@@ -2110,6 +2096,14 @@ impl Arcanum {
             ParseScopeType::DomainBlock {
                 domain_block_scope_symbol_rcref,
             } => {
+                {
+                    if let Some(ref system_symbol_ref) = self.system_symbol_opt {
+                        let mut system_symbol = system_symbol_ref.borrow_mut();
+                        system_symbol.domain_block_symbol_opt =
+                            Some(Rc::clone(domain_block_scope_symbol_rcref));
+                    }
+                }
+
                 // clone the Rc for the symbol table
                 let domain_block_scope_symbol_rcref_clone =
                     Rc::clone(domain_block_scope_symbol_rcref);
