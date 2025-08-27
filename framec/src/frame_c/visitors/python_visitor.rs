@@ -1518,9 +1518,6 @@ impl PythonVisitor {
                 DeclOrStmtType::StmtT { stmt_t } => {
                     match stmt_t {
                         StatementType::ExpressionStmt { expr_stmt_t } => {
-                            // v0.30 DEBUG: Let's see what actual ExprStmtType this is
-                            self.add_code(&format!("# DEBUG_EXPR_TYPE: {:?}", std::mem::discriminant(expr_stmt_t)));
-                            self.newline();
                             match expr_stmt_t {
                                 ExprStmtType::TransitionStmtT {
                                     transition_statement_node,
@@ -1544,57 +1541,40 @@ impl PythonVisitor {
                                     assignment_stmt_node,
                                 } => assignment_stmt_node.accept(self),
                                 ExprStmtType::VariableStmtT { variable_stmt_node } => {
-                                    self.add_code("# DEBUG: FOUND VariableStmtT");
-                                    self.newline();
                                     variable_stmt_node.accept(self)
                                 }
                                 ExprStmtType::ListStmtT { list_stmt_node } => {
-                                    self.add_code("# DEBUG: FOUND ListStmtT");
-                                    self.newline();
                                     list_stmt_node.accept(self)
                                 }
                                 ExprStmtType::ExprListStmtT {
                                     expr_list_stmt_node,
                                 } => {
-                                    self.add_code("# DEBUG: FOUND ExprListStmtT");
-                                    self.newline();
                                     expr_list_stmt_node.accept(self)
                                 },
                                 ExprStmtType::EnumeratorStmtT {
                                     enumerator_stmt_node,
                                 } => {
-                                    self.add_code("# DEBUG: EnumeratorStmtT");
-                                    self.newline();
                                     enumerator_stmt_node.accept(self)
                                 },
                                 ExprStmtType::BinaryStmtT { binary_stmt_node } => {
-                                    self.add_code("# DEBUG: BinaryStmtT");
-                                    self.newline();
                                     binary_stmt_node.accept(self)
                                 }
                                 _ => {
-                                    self.add_code("# DEBUG: UNHANDLED ExprStmtType - this should not happen!");
-                                    self.newline();
+                                    // Unhandled ExprStmtType
                                 }
                             }
                         }
                         StatementType::TransitionStmt {
                             transition_statement_node: transition_statement,
                         } => {
-                            self.add_code("# DEBUG: TransitionStmt");
-                            self.newline();
                             transition_statement.accept(self);
                         }
                         StatementType::TestStmt { test_stmt_node } => {
-                            self.add_code("# DEBUG: TestStmt");
-                            self.newline();
                             test_stmt_node.accept(self);
                         }
                         StatementType::StateStackStmt {
                             state_stack_operation_statement_node,
                         } => {
-                            self.add_code("# DEBUG: StateStackStmt");
-                            self.newline();
                             state_stack_operation_statement_node.accept(self);
                         }
                         // StatementType::ChangeStateStmt {
@@ -2679,18 +2659,12 @@ impl PythonVisitor {
 
     // v0.30: Generate all systems from the Arcanum
     fn generate_all_systems(&mut self) {
-        self.add_code("# DEBUG: generate_all_systems() called");
         let system_symbols = self.arcanium.get_systems().clone(); // Clone to avoid borrow issues
-        
-        self.add_code(&format!("# DEBUG: Found {} system symbols", system_symbols.len()));
         
         for system_symbol_rcref in system_symbols {
             let system_symbol = system_symbol_rcref.borrow();
-            self.add_code(&format!("# DEBUG: Generating system '{}'", system_symbol.name));
             self.generate_single_system(&system_symbol);
         }
-        
-        self.add_code("# DEBUG: generate_all_systems() completed");
     }
 
     // v0.30: Generate a single system from its symbol
@@ -2787,12 +2761,8 @@ impl PythonVisitor {
         
         // Generate operation methods
         self.newline();
-        self.add_code("# DEBUG: Checking for operations block...");
         if let Some(operations_block_symbol_rcref) = &system_symbol.operations_block_symbol_opt {
-            self.add_code("# DEBUG: Operations block found! Calling generate_operation_methods()");
             self.generate_operation_methods(operations_block_symbol_rcref);
-        } else {
-            self.add_code("# DEBUG: No operations block found in system symbol");
         }
         
         // Generate system runtime (__kernel, __router, __transition)
@@ -2891,17 +2861,12 @@ impl PythonVisitor {
         self.newline();
         self.add_code("# ==================== Operations Block ================== #");
         
-        // Debug: Add comment showing we reached this method
         self.newline();
-        self.add_code("# DEBUG: generate_operation_methods() called");
         
         // Access operations from symbol table
         let operations_block_symbol = operations_block_symbol_rcref.borrow();
         let symbol_table = operations_block_symbol.symtab_rcref.borrow();
         
-        // Debug: Show how many symbols we found
-        self.newline();
-        self.add_code(&format!("# DEBUG: Found {} symbols in operations block", symbol_table.symbols.len()));
         
         // Generate each operation method
         for (name, symbol_type_rcref) in symbol_table.symbols.iter() {

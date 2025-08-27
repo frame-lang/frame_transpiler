@@ -149,6 +149,9 @@ impl<'a> Parser<'a> {
         // Second pass reuses the populated symbol tables from first pass
         if is_building_symbol_table {
             arcanum.initialize_scope_stack();
+        } else {
+            // Second pass: Set current scope to module scope to start semantic analysis
+            arcanum.current_symtab = Rc::clone(&arcanum.module_symtab);
         }
         
         Parser {
