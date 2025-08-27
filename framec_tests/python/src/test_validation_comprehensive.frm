@@ -55,6 +55,7 @@ system SystemB(param) {
         }
         
     domain:
+        var param = ""
         var value:string = ""
 }
 

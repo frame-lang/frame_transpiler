@@ -21,7 +21,7 @@ fn main() {
 
 system SystemOne {
     operations:
-        internal_op_one() -> string {
+        internal_op_one() {
             return "SystemOne internal operation"
         }
         
@@ -70,14 +70,14 @@ system SystemOne {
 
 system SystemTwo {
     operations:
-        internal_op_two() -> string {
+        internal_op_two() {
             return "SystemTwo internal operation"
         }
         
     interface:
         public_method()
         try_cross_call()
-        get_value() -> string
+        get_value()
         
     machine:
         $Running {
@@ -107,7 +107,7 @@ system SystemTwo {
                 print("Can only access SystemOne through public interface")
             }
             
-            get_value() -> string {
+            get_value() {
                 // Return own domain value
                 return domain_two
             }

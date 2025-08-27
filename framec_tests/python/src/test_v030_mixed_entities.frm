@@ -46,6 +46,7 @@ system Worker(task_name) {
         }
         
     domain:
+        var task_name = ""
         var progress:int = 0
 }
 

@@ -64,7 +64,7 @@ fn helper_function() {
     print("Helper function called successfully")
 }
 
-fn compute_value(a:int, b:int) -> int {
+fn compute_value(a, b) {
     return a + b
 }
 
