@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -15,24 +16,184 @@ class FrameCompartment:
         self.parent_compartment = parent_compartment
 
 
-def main():# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+def main():
     print("=== System Isolation Test ===")
     sys1 = SystemOne()
-    sys2 = SystemTwo()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    sys1.test_public()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    sys2.test_public()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    sys2 = SystemTwo()
+    sys1.test_public()
+    sys2.test_public()
     print("System isolation test completed")
     return
 class SystemOne:
     def __init__(self):
-        self.__compartment = None
+        # Create and initialize start state compartment
+        self.__compartment = FrameCompartment('__systemone_state_Active', None, None, None, None)
+        self.__next_compartment = None
         self.return_stack = [None]
+        
+        # Send system start event
+        frame_event = FrameEvent("$>", None)
+        self.__kernel(frame_event)
     
     # ==================== Operations Block ================== #
+    
+    def internal_one(self):
+        print("SystemOne internal operation")
+    # ==================== Interface Block ================== #
+    
+    def test_public(self,):
+        self.return_stack.append(None)
+        __e = FrameEvent("test_public",None)
+        self.__kernel(__e)
+        return self.return_stack.pop(-1)
+    
+    # ===================== Machine Block =================== #
+    
+    
+    # ----------------------------------------
+    # $Active
+    
+    def __systemone_state_Active(self, __e, compartment):
+        if __e._message == "test_public":
+            print("SystemOne public method")
+            self.internal_one()
+            action_one()
+            other = SystemTwo()
+            other.test_public()
+            return
+    
+    # ===================== State Dispatchers =================== #
+    
+    def _sActive(self, __e):
+        return self.__systemone_state_Active(__e, None)
+    # ===================== Actions Block =================== #
+    
+    def action_one_do(self):
+        
+        print("SystemOne action")
+        return
+        
+    
+    # ==================== System Runtime =================== #
+    
+    def __kernel(self, __e):
+        # send event to current state
+        self.__router(__e)
+        
+        # loop until no transitions occur
+        while self.__next_compartment != None:
+            next_compartment = self.__next_compartment
+            self.__next_compartment = None
+            
+            # exit current state
+            self.__router(FrameEvent("<$", self.__compartment.exit_args))
+            # change state
+            self.__compartment = next_compartment
+            
+            if next_compartment.forward_event is None:
+                # send normal enter event
+                self.__router(FrameEvent("$>", self.__compartment.enter_args))
+            else:
+                # forwarded event
+                if next_compartment.forward_event._message == "$>":
+                    self.__router(next_compartment.forward_event)
+                else:
+                    self.__router(FrameEvent("$>", self.__compartment.enter_args))
+                    self.__router(next_compartment.forward_event)
+                next_compartment.forward_event = None
+    
+    def __router(self, __e, compartment=None):
+        target_compartment = compartment or self.__compartment
+        if target_compartment.state == '__systemone_state_Active':
+            self.__systemone_state_Active(__e, target_compartment)
+    
+    def __transition(self, next_compartment):
+        self.__next_compartment = next_compartment
+class SystemTwo:
+    def __init__(self):
+        # Create and initialize start state compartment
+        self.__compartment = FrameCompartment('__systemtwo_state_Ready', None, None, None, None)
+        self.__next_compartment = None
+        self.return_stack = [None]
+        
+        # Send system start event
+        frame_event = FrameEvent("$>", None)
+        self.__kernel(frame_event)
+    
+    # ==================== Operations Block ================== #
+    
+    def internal_two(self):
+        print("SystemTwo internal operation")
+    # ==================== Interface Block ================== #
+    
+    def test_public(self,):
+        self.return_stack.append(None)
+        __e = FrameEvent("test_public",None)
+        self.__kernel(__e)
+        return self.return_stack.pop(-1)
+    
+    # ===================== Machine Block =================== #
+    
+    
+    # ----------------------------------------
+    # $Ready
+    
+    def __systemtwo_state_Ready(self, __e, compartment):
+        if __e._message == "test_public":
+            print("SystemTwo public method")
+            self.internal_two()
+            action_two()
+            other = SystemOne()
+            other.test_public()
+            return
+    
+    # ===================== State Dispatchers =================== #
+    
+    def _sReady(self, __e):
+        return self.__systemtwo_state_Ready(__e, None)
+    # ===================== Actions Block =================== #
+    
+    def action_two_do(self):
+        
+        print("SystemTwo action")
+        return
+        
+    
+    # ==================== System Runtime =================== #
+    
+    def __kernel(self, __e):
+        # send event to current state
+        self.__router(__e)
+        
+        # loop until no transitions occur
+        while self.__next_compartment != None:
+            next_compartment = self.__next_compartment
+            self.__next_compartment = None
+            
+            # exit current state
+            self.__router(FrameEvent("<$", self.__compartment.exit_args))
+            # change state
+            self.__compartment = next_compartment
+            
+            if next_compartment.forward_event is None:
+                # send normal enter event
+                self.__router(FrameEvent("$>", self.__compartment.enter_args))
+            else:
+                # forwarded event
+                if next_compartment.forward_event._message == "$>":
+                    self.__router(next_compartment.forward_event)
+                else:
+                    self.__router(FrameEvent("$>", self.__compartment.enter_args))
+                    self.__router(next_compartment.forward_event)
+                next_compartment.forward_event = None
+    
+    def __router(self, __e, compartment=None):
+        target_compartment = compartment or self.__compartment
+        if target_compartment.state == '__systemtwo_state_Ready':
+            self.__systemtwo_state_Ready(__e, target_compartment)
+    
+    def __transition(self, next_compartment):
+        self.__next_compartment = next_compartment
 
 if __name__ == '__main__':
     main()

@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -18,10 +19,8 @@ class FrameCompartment:
 def main():
     counter = Counter()
     iterations = [1,2,3]
-    for i in iterations:# DEBUG_EXPR_TYPE: Discriminant(4)
-        
-        counter.increment()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    for i in iterations:
+        counter.increment()
     print("Final count: " + counter.getCount())
     return
 class Counter:
@@ -31,7 +30,7 @@ class Counter:
         self.__next_compartment = None
         self.return_stack = [None]
         # Initialize domain variables
-        self.count = 0
+        self.count: int = 0
         
         # Send system start event
         frame_event = FrameEvent("$>", None)
@@ -57,8 +56,7 @@ class Counter:
     # $Start
     
     def __counter_state_Start(self, __e, compartment):
-        if __e._message == "increment":# DEBUG_EXPR_TYPE: Discriminant(5)
-            
+        if __e._message == "increment":
             self.count = self.count + 1
             return
         elif __e._message == "getCount":

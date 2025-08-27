@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -16,12 +17,9 @@ class FrameCompartment:
 
 
 def main():
-    hsm = TransitionDetectionTest()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("=== Testing parent transition detection ===")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    hsm.triggerParentTransition()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    hsm = TransitionDetectionTest()
+    print("=== Testing parent transition detection ===")
+    hsm.triggerParentTransition()
     hsm.checkCurrentState()
     return
 class TransitionDetectionTest:
@@ -55,18 +53,15 @@ class TransitionDetectionTest:
     # $Child
     
     def __transitiondetectiontest_state_Child(self, __e, compartment):
-        if __e._message == "triggerParentTransition":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "triggerParentTransition":
             print("Child: Before parent dispatch")
             # => $^ parent dispatch
             self.__router(__e, compartment.parent_compartment)
             if self.__next_compartment is not None:
-                return# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+                return
             print("ERROR: This line should NOT execute due to parent transition!")
             return
-        elif __e._message == "checkCurrentState":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "checkCurrentState":
             print("ERROR: This should not be called - we should be in NewState")
             return
     
@@ -75,15 +70,12 @@ class TransitionDetectionTest:
     # $Parent
     
     def __transitiondetectiontest_state_Parent(self, __e, compartment):
-        if __e._message == "triggerParentTransition":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            print("Parent: Triggering transition to NewState")# DEBUG: TransitionStmt
-            
+        if __e._message == "triggerParentTransition":
+            print("Parent: Triggering transition to NewState")
             next_compartment = FrameCompartment('__transitiondetectiontest_state_NewState', None, None, None, None)
             self.__transition(next_compartment)
             return
-        elif __e._message == "checkCurrentState":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "checkCurrentState":
             print("ERROR: This should not be called - we should be in NewState")
             return
     
@@ -92,12 +84,10 @@ class TransitionDetectionTest:
     # $NewState
     
     def __transitiondetectiontest_state_NewState(self, __e, compartment):
-        if __e._message == "checkCurrentState":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "checkCurrentState":
             print("SUCCESS: We are correctly in NewState after parent transition")
             return
-        elif __e._message == "triggerParentTransition":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "triggerParentTransition":
             print("NewState: triggerParentTransition called (no action)")
             return
     

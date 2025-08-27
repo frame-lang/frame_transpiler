@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -31,8 +32,7 @@ class Test1:
     # $Start
     
     def __test1_state_Start(self, __e, compartment):
-        if __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "$>":
             print("Test1 Enter")
             return
     
@@ -93,8 +93,7 @@ class Test2:
     # $Start
     
     def __test2_state_Start(self, __e, compartment):
-        if __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "$>":
             print("Test2 Enter")
             return
     

@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -16,13 +17,11 @@ class FrameCompartment:
 
 
 def main():
-    sys = TestSystem()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    sys = TestSystem()
     helper()
     return
 
-def helper():# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+def helper():
     print("Helper function called")
     return
 class TestSystem:
@@ -42,8 +41,7 @@ class TestSystem:
     # $Init
     
     def __testsystem_state_Init(self, __e, compartment):
-        if __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "$>":
             print("System initialized")
             return
     

@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -43,8 +44,7 @@ class TestService:
     # $Start
     
     def __testservice_state_Start(self, __e, compartment):
-        if __e._message == "quit":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "quit":
             print("Test")
             return
     

@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -15,23 +16,17 @@ class FrameCompartment:
         self.parent_compartment = parent_compartment
 
 
-def main():# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+def main():
     print("Testing basic scope")
-    module_var = "module_value"# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print(module_var)# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    test_function()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    module_var = "module_value"
+    print(module_var)
+    test_function()
     print("Back in main")
     return
 
-def test_function():# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+def test_function():
     print("In test function")
-    func_var = "function_value"# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    func_var = "function_value"
     print(func_var)
     return
 

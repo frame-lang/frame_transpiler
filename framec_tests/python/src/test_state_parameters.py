@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -15,8 +16,7 @@ class FrameCompartment:
         self.parent_compartment = parent_compartment
 
 
-def main():# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+def main():
     FibonacciSystemParamsDemo(0,1)
     return
 class FibonacciSystemParamsDemo:
@@ -46,12 +46,9 @@ class FibonacciSystemParamsDemo:
     # $Setup
     
     def __fibonaccisystemparamsdemo_state_Setup(self, __e, compartment):
-        if __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            print((compartment.state_args["zero"]))# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            print(__e._parameters["one"])# DEBUG: TransitionStmt
-            
+        if __e._message == "$>":
+            print((compartment.state_args["zero"]))
+            print(__e._parameters["one"])
             next_compartment = FrameCompartment('__fibonaccisystemparamsdemo_state_PrintNextFibonacciNumber', None, None, None, None)
             self.__transition(next_compartment)
             return
@@ -62,12 +59,9 @@ class FibonacciSystemParamsDemo:
     
     def __fibonaccisystemparamsdemo_state_PrintNextFibonacciNumber(self, __e, compartment):
         if __e._message == "next":
-            sum = compartment.state_args["a"] + compartment.state_args["b"]# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            print(sum)# DEBUG_EXPR_TYPE: Discriminant(5)
-            
-            (compartment.state_args["a"]) = compartment.state_args["b"]# DEBUG_EXPR_TYPE: Discriminant(5)
-            
+            sum = compartment.state_args["a"] + compartment.state_args["b"]
+            print(sum)
+            (compartment.state_args["a"]) = compartment.state_args["b"]
             (compartment.state_args["b"]) = sum
             return
     

@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -15,11 +16,9 @@ class FrameCompartment:
         self.parent_compartment = parent_compartment
 
 
-def main():# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+def main():
     print("=== Simple Seat Test ===")
-    seat = SeatSystem()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    seat = SeatSystem()
     seat.select_seat("A1")
     return
 class SeatSystem:
@@ -29,7 +28,7 @@ class SeatSystem:
         self.__next_compartment = None
         self.return_stack = [None]
         # Initialize domain variables
-        self.current_seat = ""
+        self.current_seat: str = ""
         
         # Send system start event
         frame_event = FrameEvent("$>", None)
@@ -51,10 +50,8 @@ class SeatSystem:
     # $Idle
     
     def __seatsystem_state_Idle(self, __e, compartment):
-        if __e._message == "select_seat":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            print("Selected seat: " + __e._parameters["seat_id"])# DEBUG: TransitionStmt
-            
+        if __e._message == "select_seat":
+            print("Selected seat: " + __e._parameters["seat_id"])
             next_compartment = FrameCompartment('__seatsystem_state_SeatSelected', None, None, None, None)
             self.__transition(next_compartment)
             return
@@ -64,8 +61,7 @@ class SeatSystem:
     # $SeatSelected
     
     def __seatsystem_state_SeatSelected(self, __e, compartment):
-        if __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "$>":
             print("Seat is now selected")
             return
     

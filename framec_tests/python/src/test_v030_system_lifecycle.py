@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -15,43 +16,25 @@ class FrameCompartment:
         self.parent_compartment = parent_compartment
 
 
-def main():# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+def main():
     print("=== Starting System Lifecycle Test ===")
-    mainSys = MainSystem()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("\n--- Cycle 1: StateA ---")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    mainSys# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    mainSys# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    mainSys# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("\n--- Cycle 1: StateB ---")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    mainSys# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    mainSys# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    mainSys# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("\n--- Cycle 2: StateA ---")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    mainSys# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    mainSys# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    mainSys# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("\n--- Cycle 2: StateB ---")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    mainSys# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    mainSys# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    mainSys# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    mainSys = MainSystem()
+    print("\n--- Cycle 1: StateA ---")
+    mainSys.next()
+    mainSys.next()
+    mainSys.next()
+    print("\n--- Cycle 1: StateB ---")
+    mainSys.next()
+    mainSys.next()
+    mainSys.next()
+    print("\n--- Cycle 2: StateA ---")
+    mainSys.next()
+    mainSys.next()
+    mainSys.next()
+    print("\n--- Cycle 2: StateB ---")
+    mainSys.next()
+    mainSys.next()
+    mainSys.next()
     print("\n=== System Lifecycle Test Complete ===")
     return
 class MainSystem:
@@ -79,28 +62,20 @@ class MainSystem:
     # $StateA
     
     def __mainsystem_state_StateA(self, __e, compartment):
-        if __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            print("MainSystem: Entering StateA")# DEBUG_EXPR_TYPE: Discriminant(5)
-            
-            (compartment.state_vars["sysA"]) = SystemA()# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "$>":
+            print("MainSystem: Entering StateA")
+            (compartment.state_vars["sysA"]) = SystemA()
             print("MainSystem: Created SystemA instance")
             return
-        elif __e._message == "<$":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            print("MainSystem: Exiting StateA")# DEBUG_EXPR_TYPE: Discriminant(5)
-            
-            (compartment.state_vars["sysA"]) = None# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "<$":
+            print("MainSystem: Exiting StateA")
+            (compartment.state_vars["sysA"]) = None
             print("MainSystem: Destroyed SystemA instance")
             return
         elif __e._message == "next":
-            continueProcessing = compartment.state_vars["sysA"]
-            if ( not continueProcessing):# DEBUG_EXPR_TYPE: Discriminant(4)
-                
-                print("MainSystem: SystemA complete, transitioning to StateB")# DEBUG: TransitionStmt
-                
+            continueProcessing = compartment.state_vars["sysA"].next()
+            if ( not continueProcessing):
+                print("MainSystem: SystemA complete, transitioning to StateB")
                 next_compartment = FrameCompartment('__mainsystem_state_StateB', None, None, None, None)
                 self.__transition(next_compartment)
             return
@@ -110,28 +85,20 @@ class MainSystem:
     # $StateB
     
     def __mainsystem_state_StateB(self, __e, compartment):
-        if __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            print("MainSystem: Entering StateB")# DEBUG_EXPR_TYPE: Discriminant(5)
-            
-            (compartment.state_vars["sysB"]) = SystemB()# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "$>":
+            print("MainSystem: Entering StateB")
+            (compartment.state_vars["sysB"]) = SystemB()
             print("MainSystem: Created SystemB instance")
             return
-        elif __e._message == "<$":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            print("MainSystem: Exiting StateB")# DEBUG_EXPR_TYPE: Discriminant(5)
-            
-            (compartment.state_vars["sysB"]) = None# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "<$":
+            print("MainSystem: Exiting StateB")
+            (compartment.state_vars["sysB"]) = None
             print("MainSystem: Destroyed SystemB instance")
             return
         elif __e._message == "next":
-            continueProcessing = compartment.state_vars["sysB"]
-            if ( not continueProcessing):# DEBUG_EXPR_TYPE: Discriminant(4)
-                
-                print("MainSystem: SystemB complete, transitioning to StateA")# DEBUG: TransitionStmt
-                
+            continueProcessing = compartment.state_vars["sysB"].next()
+            if ( not continueProcessing):
+                print("MainSystem: SystemB complete, transitioning to StateA")
                 next_compartment = FrameCompartment('__mainsystem_state_StateA', None, None, None, None)
                 self.__transition(next_compartment)
             return
@@ -205,19 +172,15 @@ class SystemA:
     # $Start
     
     def __systema_state_Start(self, __e, compartment):
-        if __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "$>":
             print("SystemA: Entering Start state")
             return
-        elif __e._message == "<$":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "<$":
             print("SystemA: Exiting Start state")
             return
-        elif __e._message == "next":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "next":
             print("SystemA: Start.next() -> Working (returning true)")
-            self.return_stack[-1] = True# DEBUG: TransitionStmt
-            
+            self.return_stack[-1] = True
             next_compartment = FrameCompartment('__systema_state_Working', None, None, None, None)
             self.__transition(next_compartment)
             return
@@ -227,19 +190,15 @@ class SystemA:
     # $Working
     
     def __systema_state_Working(self, __e, compartment):
-        if __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "$>":
             print("SystemA: Entering Working state")
             return
-        elif __e._message == "<$":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "<$":
             print("SystemA: Exiting Working state")
             return
-        elif __e._message == "next":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "next":
             print("SystemA: Working.next() -> End (returning true)")
-            self.return_stack[-1] = True# DEBUG: TransitionStmt
-            
+            self.return_stack[-1] = True
             next_compartment = FrameCompartment('__systema_state_End', None, None, None, None)
             self.__transition(next_compartment)
             return
@@ -249,16 +208,13 @@ class SystemA:
     # $End
     
     def __systema_state_End(self, __e, compartment):
-        if __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "$>":
             print("SystemA: Entering End state")
             return
-        elif __e._message == "<$":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "<$":
             print("SystemA: Exiting End state")
             return
-        elif __e._message == "next":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "next":
             print("SystemA: End.next() - complete (returning false)")
             self.return_stack[-1] = False
             return
@@ -336,19 +292,15 @@ class SystemB:
     # $Start
     
     def __systemb_state_Start(self, __e, compartment):
-        if __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "$>":
             print("SystemB: Entering Start state")
             return
-        elif __e._message == "<$":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "<$":
             print("SystemB: Exiting Start state")
             return
-        elif __e._message == "next":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "next":
             print("SystemB: Start.next() -> Working (returning true)")
-            self.return_stack[-1] = True# DEBUG: TransitionStmt
-            
+            self.return_stack[-1] = True
             next_compartment = FrameCompartment('__systemb_state_Working', None, None, None, None)
             self.__transition(next_compartment)
             return
@@ -358,19 +310,15 @@ class SystemB:
     # $Working
     
     def __systemb_state_Working(self, __e, compartment):
-        if __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "$>":
             print("SystemB: Entering Working state")
             return
-        elif __e._message == "<$":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "<$":
             print("SystemB: Exiting Working state")
             return
-        elif __e._message == "next":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "next":
             print("SystemB: Working.next() -> End (returning true)")
-            self.return_stack[-1] = True# DEBUG: TransitionStmt
-            
+            self.return_stack[-1] = True
             next_compartment = FrameCompartment('__systemb_state_End', None, None, None, None)
             self.__transition(next_compartment)
             return
@@ -380,16 +328,13 @@ class SystemB:
     # $End
     
     def __systemb_state_End(self, __e, compartment):
-        if __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "$>":
             print("SystemB: Entering End state")
             return
-        elif __e._message == "<$":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "<$":
             print("SystemB: Exiting End state")
             return
-        elif __e._message == "next":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "next":
             print("SystemB: End.next() - complete (returning false)")
             self.return_stack[-1] = False
             return

@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -15,21 +16,86 @@ class FrameCompartment:
         self.parent_compartment = parent_compartment
 
 
-def main():# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+def main():
     print("=== Simple Seat Booking Test ===")
-    seat_manager = SeatManager()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    seat_manager.test_operations()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    seat_manager = SeatManager()
+    seat_manager.test_operations()
     print("=== Test Complete ===")
     return
 class SeatManager:
     def __init__(self):
-        self.__compartment = None
+        # Create and initialize start state compartment
+        self.__compartment = FrameCompartment('__seatmanager_state_Start', None, None, None, None)
+        self.__next_compartment = None
         self.return_stack = [None]
+        
+        # Send system start event
+        frame_event = FrameEvent("$>", None)
+        self.__kernel(frame_event)
     
     # ==================== Operations Block ================== #
+    
+    def test_operations(self):
+        print("Testing operations...")
+        self.create_seat("A1")
+        self.process_booking("A1","user123")
+    
+    def create_seat(self,seat_id):
+        print("Creating seat: " + seat_id)
+    
+    def process_booking(self,seat_id,user_id):
+        print("Processing booking for seat: " + seat_id + " user: " + user_id)
+    # ===================== Machine Block =================== #
+    
+    
+    # ----------------------------------------
+    # $Start
+    
+    def __seatmanager_state_Start(self, __e, compartment):
+        if __e._message == "$>":
+            print("Seat manager started")
+            return
+    
+    # ===================== State Dispatchers =================== #
+    
+    def _sStart(self, __e):
+        return self.__seatmanager_state_Start(__e, None)
+    
+    # ==================== System Runtime =================== #
+    
+    def __kernel(self, __e):
+        # send event to current state
+        self.__router(__e)
+        
+        # loop until no transitions occur
+        while self.__next_compartment != None:
+            next_compartment = self.__next_compartment
+            self.__next_compartment = None
+            
+            # exit current state
+            self.__router(FrameEvent("<$", self.__compartment.exit_args))
+            # change state
+            self.__compartment = next_compartment
+            
+            if next_compartment.forward_event is None:
+                # send normal enter event
+                self.__router(FrameEvent("$>", self.__compartment.enter_args))
+            else:
+                # forwarded event
+                if next_compartment.forward_event._message == "$>":
+                    self.__router(next_compartment.forward_event)
+                else:
+                    self.__router(FrameEvent("$>", self.__compartment.enter_args))
+                    self.__router(next_compartment.forward_event)
+                next_compartment.forward_event = None
+    
+    def __router(self, __e, compartment=None):
+        target_compartment = compartment or self.__compartment
+        if target_compartment.state == '__seatmanager_state_Start':
+            self.__seatmanager_state_Start(__e, target_compartment)
+    
+    def __transition(self, next_compartment):
+        self.__next_compartment = next_compartment
 
 if __name__ == '__main__':
     main()

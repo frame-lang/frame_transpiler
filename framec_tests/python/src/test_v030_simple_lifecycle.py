@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -15,25 +16,17 @@ class FrameCompartment:
         self.parent_compartment = parent_compartment
 
 
-def main():# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+def main():
     print("Starting test")
-    controller = Controller()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    controller = Controller()
     print("Testing SystemA:")
-    sysA = SystemA()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    sysA# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    sysA# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    sysA = SystemA()
+    sysA.step()
+    sysA.step()
     print("Testing SystemB:")
-    sysB = SystemB()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    sysB# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    sysB# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    sysB = SystemB()
+    sysB.step()
+    sysB.step()
     print("Test complete")
     return
 class Controller:
@@ -61,8 +54,7 @@ class Controller:
     # $Active
     
     def __controller_state_Active(self, __e, compartment):
-        if __e._message == "manage":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "manage":
             print("Controller managing")
             return
     
@@ -131,10 +123,8 @@ class SystemA:
     # $Start
     
     def __systema_state_Start(self, __e, compartment):
-        if __e._message == "step":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            print("SystemA: Start -> Middle")# DEBUG: TransitionStmt
-            
+        if __e._message == "step":
+            print("SystemA: Start -> Middle")
             next_compartment = FrameCompartment('__systema_state_Middle', None, None, None, None)
             self.__transition(next_compartment)
             return
@@ -144,10 +134,8 @@ class SystemA:
     # $Middle
     
     def __systema_state_Middle(self, __e, compartment):
-        if __e._message == "step":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            print("SystemA: Middle -> End")# DEBUG: TransitionStmt
-            
+        if __e._message == "step":
+            print("SystemA: Middle -> End")
             next_compartment = FrameCompartment('__systema_state_End', None, None, None, None)
             self.__transition(next_compartment)
             return
@@ -157,8 +145,7 @@ class SystemA:
     # $End
     
     def __systema_state_End(self, __e, compartment):
-        if __e._message == "step":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "step":
             print("SystemA: Already at End")
             return
     
@@ -235,10 +222,8 @@ class SystemB:
     # $Start
     
     def __systemb_state_Start(self, __e, compartment):
-        if __e._message == "step":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            print("SystemB: Start -> Middle")# DEBUG: TransitionStmt
-            
+        if __e._message == "step":
+            print("SystemB: Start -> Middle")
             next_compartment = FrameCompartment('__systemb_state_Middle', None, None, None, None)
             self.__transition(next_compartment)
             return
@@ -248,10 +233,8 @@ class SystemB:
     # $Middle
     
     def __systemb_state_Middle(self, __e, compartment):
-        if __e._message == "step":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            print("SystemB: Middle -> End")# DEBUG: TransitionStmt
-            
+        if __e._message == "step":
+            print("SystemB: Middle -> End")
             next_compartment = FrameCompartment('__systemb_state_End', None, None, None, None)
             self.__transition(next_compartment)
             return
@@ -261,8 +244,7 @@ class SystemB:
     # $End
     
     def __systemb_state_End(self, __e, compartment):
-        if __e._message == "step":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "step":
             print("SystemB: Already at End")
             return
     

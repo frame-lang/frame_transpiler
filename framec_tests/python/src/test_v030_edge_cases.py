@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -15,8 +16,7 @@ class FrameCompartment:
         self.parent_compartment = parent_compartment
 
 
-def main():# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+def main():
     minimal()
     empty = EmptySystem()
     simple = SimpleSystem()
@@ -160,8 +160,8 @@ class SystemWithDomain:
         self.__next_compartment = None
         self.return_stack = [None]
         # Initialize domain variables
-        self.value = "default"
-        self.count = 0
+        self.value: str = "default"
+        self.count: int = 0
         
         # Send system start event
         frame_event = FrameEvent("$>", None)
@@ -251,8 +251,7 @@ class SystemWithOperations:
     def __systemwithoperations_state_State(self, __e, compartment):
         if __e._message == "op1":
             return
-        elif __e._message == "op2":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "op2":
             print(__e._parameters["param"])
             return
     

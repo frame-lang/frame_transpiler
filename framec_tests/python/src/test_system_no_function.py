@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -39,14 +40,11 @@ class OnlySystem:
     # $Start
     
     def __onlysystem_state_Start(self, __e, compartment):
-        if __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "$>":
             print("Entering Start")
             return
-        elif __e._message == "test":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            print("In test method")# DEBUG: TransitionStmt
-            
+        elif __e._message == "test":
+            print("In test method")
             next_compartment = FrameCompartment('__onlysystem_state_End', None, None, None, None)
             self.__transition(next_compartment)
             return
@@ -56,8 +54,7 @@ class OnlySystem:
     # $End
     
     def __onlysystem_state_End(self, __e, compartment):
-        if __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "$>":
             print("Entering End")
             return
     

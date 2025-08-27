@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -15,54 +16,36 @@ class FrameCompartment:
         self.parent_compartment = parent_compartment
 
 
-def format_message(prefix,msg):# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+def format_message(prefix,msg):
     print("=== " + prefix + ": " + msg + " ===")
     return prefix + "_" + msg
     return
 
-def log_event(system_name,event_name):# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+def log_event(system_name,event_name):
     print("[LOG] System: " + system_name + ", Event: " + event_name)
     return
 
-def main():# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("Starting Multi-Entity Demo")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+def main():
+    print("Starting Multi-Entity Demo")
     print("---------------------------")
-    result = format_message("TEST","helper_works")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    result = format_message("TEST","helper_works")
     print("Result: " + result)
-    counter = CounterSystem()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    counter# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    counter
-    count = counter# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("Counter value: " + str(count))# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    counter
-    toggle = ToggleSystem()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    toggle# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    toggle# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    toggle
-    light = TrafficLight()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    light# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    light# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    light# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    light# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("---------------------------")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    counter = CounterSystem()
+    counter.increment()
+    counter.increment()
+    count = counter.get_count()
+    print("Counter value: " + str(count))
+    counter.reset()
+    toggle = ToggleSystem()
+    toggle.switch()
+    toggle.switch()
+    toggle.switch()
+    light = TrafficLight()
+    light.next()
+    light.next()
+    light.next()
+    light.emergency()
+    print("---------------------------")
     print("Multi-Entity Demo Complete")
     return
 class CounterSystem:
@@ -72,7 +55,7 @@ class CounterSystem:
         self.__next_compartment = None
         self.return_stack = [None]
         # Initialize domain variables
-        self.count = 0
+        self.count: int = 0
         
         # Send system start event
         frame_event = FrameEvent("$>", None)
@@ -104,23 +87,17 @@ class CounterSystem:
     # $Counting
     
     def __countersystem_state_Counting(self, __e, compartment):
-        if __e._message == "increment":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            log_event("CounterSystem","increment")# DEBUG_EXPR_TYPE: Discriminant(5)
-            
-            count = count + 1# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            print("Count incremented to: " + str(count))
+        if __e._message == "increment":
+            log_event("CounterSystem","increment")
+            self.count = self.count + 1
+            print("Count incremented to: " + str(self.count))
             return
         elif __e._message == "get_count":
-            self.return_stack[-1] = count
+            self.return_stack[-1] = self.count
             return
-        elif __e._message == "reset":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            log_event("CounterSystem","reset")# DEBUG_EXPR_TYPE: Discriminant(5)
-            
-            count = 0# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "reset":
+            log_event("CounterSystem","reset")
+            self.count = 0
             print("Counter reset to 0")
             return
     
@@ -189,12 +166,9 @@ class ToggleSystem:
     # $Off
     
     def __togglesystem_state_Off(self, __e, compartment):
-        if __e._message == "switch":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            log_event("ToggleSystem","switch_to_on")# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            print("Toggle: OFF -> ON")# DEBUG: TransitionStmt
-            
+        if __e._message == "switch":
+            log_event("ToggleSystem","switch_to_on")
+            print("Toggle: OFF -> ON")
             next_compartment = FrameCompartment('__togglesystem_state_On', None, None, None, None)
             self.__transition(next_compartment)
             return
@@ -204,12 +178,9 @@ class ToggleSystem:
     # $On
     
     def __togglesystem_state_On(self, __e, compartment):
-        if __e._message == "switch":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            log_event("ToggleSystem","switch_to_off")# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            print("Toggle: ON -> OFF")# DEBUG: TransitionStmt
-            
+        if __e._message == "switch":
+            log_event("ToggleSystem","switch_to_off")
+            print("Toggle: ON -> OFF")
             next_compartment = FrameCompartment('__togglesystem_state_Off', None, None, None, None)
             self.__transition(next_compartment)
             return
@@ -289,24 +260,18 @@ class TrafficLight:
     # $Green
     
     def __trafficlight_state_Green(self, __e, compartment):
-        if __e._message == "next":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            log_event("TrafficLight","green_to_yellow")# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            print("Traffic Light: GREEN -> YELLOW")# DEBUG: TransitionStmt
-            
+        if __e._message == "next":
+            log_event("TrafficLight","green_to_yellow")
+            print("Traffic Light: GREEN -> YELLOW")
             next_compartment = FrameCompartment('__trafficlight_state_Yellow', None, None, None, None)
             self.__transition(next_compartment)
             return
-        elif __e._message == "emergency":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            print("EMERGENCY: Going to RED")# DEBUG: TransitionStmt
-            
+        elif __e._message == "emergency":
+            print("EMERGENCY: Going to RED")
             next_compartment = FrameCompartment('__trafficlight_state_Red', None, None, None, None)
             self.__transition(next_compartment)
             return
-        elif __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "$>":
             print("Light is now GREEN")
             return
     
@@ -315,24 +280,18 @@ class TrafficLight:
     # $Yellow
     
     def __trafficlight_state_Yellow(self, __e, compartment):
-        if __e._message == "next":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            log_event("TrafficLight","yellow_to_red")# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            print("Traffic Light: YELLOW -> RED")# DEBUG: TransitionStmt
-            
+        if __e._message == "next":
+            log_event("TrafficLight","yellow_to_red")
+            print("Traffic Light: YELLOW -> RED")
             next_compartment = FrameCompartment('__trafficlight_state_Red', None, None, None, None)
             self.__transition(next_compartment)
             return
-        elif __e._message == "emergency":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            print("EMERGENCY: Going to RED")# DEBUG: TransitionStmt
-            
+        elif __e._message == "emergency":
+            print("EMERGENCY: Going to RED")
             next_compartment = FrameCompartment('__trafficlight_state_Red', None, None, None, None)
             self.__transition(next_compartment)
             return
-        elif __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "$>":
             print("Light is now YELLOW")
             return
     
@@ -341,21 +300,16 @@ class TrafficLight:
     # $Red
     
     def __trafficlight_state_Red(self, __e, compartment):
-        if __e._message == "next":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            log_event("TrafficLight","red_to_green")# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            print("Traffic Light: RED -> GREEN")# DEBUG: TransitionStmt
-            
+        if __e._message == "next":
+            log_event("TrafficLight","red_to_green")
+            print("Traffic Light: RED -> GREEN")
             next_compartment = FrameCompartment('__trafficlight_state_Green', None, None, None, None)
             self.__transition(next_compartment)
             return
-        elif __e._message == "emergency":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "emergency":
             print("Already at RED - safe state")
             return
-        elif __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "$>":
             print("Light is now RED")
             return
     

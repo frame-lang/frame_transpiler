@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -15,17 +16,13 @@ class FrameCompartment:
         self.parent_compartment = parent_compartment
 
 
-def main():# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("Main function calling helper")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    helper_function()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+def main():
+    print("Main function calling helper")
+    helper_function()
     print("Back in main")
     return
 
-def helper_function():# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+def helper_function():
     print("Helper function called")
     return
 

@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -16,8 +17,7 @@ class FrameCompartment:
 
 
 def main():
-    sys = TestForwardEvent()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    sys = TestForwardEvent()
     sys.test()
     return
 class TestForwardEvent:
@@ -45,8 +45,7 @@ class TestForwardEvent:
     # $Child
     
     def __testforwardevent_state_Child(self, __e, compartment):
-        if __e._message == "test":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "test":
             print("in child")
             # => $^ parent dispatch
             self.__router(__e, compartment.parent_compartment)
@@ -59,8 +58,7 @@ class TestForwardEvent:
     # $Parent
     
     def __testforwardevent_state_Parent(self, __e, compartment):
-        if __e._message == "test":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "test":
             print("in parent")
             return
     

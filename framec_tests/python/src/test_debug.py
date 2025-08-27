@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -21,13 +22,11 @@ class A:
     # ===================== Actions Block =================== #
     
     def a_do(self):
-        # DEBUG_EXPR_TYPE: Discriminant(4)
         
         doSomething()
-        if x:# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            doY()# DEBUG_EXPR_TYPE: Discriminant(4)
-        
+        if x:
+            doY()
         doOtherThing()
         return
         
+

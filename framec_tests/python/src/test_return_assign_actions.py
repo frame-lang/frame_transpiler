@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -17,8 +18,7 @@ class FrameCompartment:
 
 def main():
     processor = DataProcessor()
-    result = processor.process("test")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    result = processor.process("test")
     print("Interface return: " + result)
     return
 class DataProcessor:
@@ -33,7 +33,7 @@ class DataProcessor:
         self.__kernel(frame_event)
     # ==================== Interface Block ================== #
     
-    def process(self,input: str):
+    def process(self,input):
         parameters = {}
         parameters["input"] = input
         self.return_stack.append(None)
@@ -49,8 +49,7 @@ class DataProcessor:
     
     def __dataprocessor_state_Active(self, __e, compartment):
         if __e._message == "process":
-            actionResult = self.validateAndProcess_do(__e._parameters["input"])# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+            actionResult = validateAndProcess(__e._parameters["input"])
             print("Action returned: " + actionResult)
             return
     
@@ -60,7 +59,7 @@ class DataProcessor:
         return self.__dataprocessor_state_Active(__e, None)
     # ===================== Actions Block =================== #
     
-    def validateAndProcess_do(self,data: str):
+    def validateAndProcess_do(self,data):
         
         if data == "":
             self.return_stack[-1] = "error: empty input"

@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -16,10 +17,8 @@ class FrameCompartment:
 
 
 def main():
-    sys = TestSystem()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    sys.testFruit()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    sys = TestSystem()
+    sys.testFruit()
     sys.describeFruit(TestSystem_Fruit.Banana)
     return
 class TestSystem:
@@ -30,38 +29,36 @@ class TestSystem:
     
     def testFruit_do(self):
         
-        f: TestSystem_Fruit = TestSystem_Fruit.Pear
-        if f == TestSystem_Fruit.Peach:# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        f: TestSystem_Fruit = self.TestSystem_Fruit.Pear
+        if f == self.TestSystem_Fruit.Peach:
             print("Found a Peach")
-        elif f == TestSystem_Fruit.Pear:# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif f == self.TestSystem_Fruit.Pear:
             print("Found a Pear")
-        elif f == TestSystem_Fruit.Banana:# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif f == self.TestSystem_Fruit.Banana:
             print("Found a Banana")
-        else:# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        else:
             print("Unknown fruit")
         return
         
     
     def describeFruit_do(self,fruit_value: TestSystem_Fruit):
         
-        if fruit_value == TestSystem_Fruit.Peach:# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if fruit_value == self.TestSystem_Fruit.Peach:
             print("Peaches")
-        elif fruit_value == TestSystem_Fruit.Pear:# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif fruit_value == self.TestSystem_Fruit.Pear:
             print("Pears")
-        elif fruit_value == TestSystem_Fruit.Banana:# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif fruit_value == self.TestSystem_Fruit.Banana:
             print("Bananas")
-        else:# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        else:
             print("Other Fruit")
         return
         
+    
+    class TestSystem_Fruit(Enum):
+        Peach = 0
+        Pear = 1
+        Banana = 2
+    
 
 if __name__ == '__main__':
     main()

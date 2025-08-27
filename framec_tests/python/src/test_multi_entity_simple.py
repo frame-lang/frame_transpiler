@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -15,38 +16,27 @@ class FrameCompartment:
         self.parent_compartment = parent_compartment
 
 
-def helper(msg):# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+def helper(msg):
     print("Helper says: " + msg)
     return "processed"
     return
 
-def log_event(info):# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+def log_event(info):
     print("[LOG] " + info)
     return
 
-def main():# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+def main():
     print("=== Simple Multi-Entity Demo ===")
-    result = helper("hello")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    result = helper("hello")
     print("Result: " + result)
-    toggle = ToggleSwitch()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    toggle# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    toggle# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    toggle
-    machine = SimpleStateMachine()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    machine# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    machine# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    machine# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    toggle = ToggleSwitch()
+    toggle.flip()
+    toggle.flip()
+    toggle.flip()
+    machine = SimpleStateMachine()
+    machine.advance()
+    machine.advance()
+    machine.advance()
     print("=== Demo Complete ===")
     return
 class ToggleSwitch:
@@ -74,15 +64,12 @@ class ToggleSwitch:
     # $Off
     
     def __toggleswitch_state_Off(self, __e, compartment):
-        if __e._message == "flip":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            log_event("Switch: OFF -> ON")# DEBUG: TransitionStmt
-            
+        if __e._message == "flip":
+            log_event("Switch: OFF -> ON")
             next_compartment = FrameCompartment('__toggleswitch_state_On', None, None, None, None)
             self.__transition(next_compartment)
             return
-        elif __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "$>":
             print("Switch initialized to OFF")
             return
     
@@ -91,15 +78,12 @@ class ToggleSwitch:
     # $On
     
     def __toggleswitch_state_On(self, __e, compartment):
-        if __e._message == "flip":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            log_event("Switch: ON -> OFF")# DEBUG: TransitionStmt
-            
+        if __e._message == "flip":
+            log_event("Switch: ON -> OFF")
             next_compartment = FrameCompartment('__toggleswitch_state_Off', None, None, None, None)
             self.__transition(next_compartment)
             return
-        elif __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "$>":
             print("Now ON")
             return
     
@@ -172,15 +156,12 @@ class SimpleStateMachine:
     # $StateA
     
     def __simplestatemachine_state_StateA(self, __e, compartment):
-        if __e._message == "advance":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            print("State A -> B")# DEBUG: TransitionStmt
-            
+        if __e._message == "advance":
+            print("State A -> B")
             next_compartment = FrameCompartment('__simplestatemachine_state_StateB', None, None, None, None)
             self.__transition(next_compartment)
             return
-        elif __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "$>":
             print("Starting in State A")
             return
     
@@ -189,15 +170,12 @@ class SimpleStateMachine:
     # $StateB
     
     def __simplestatemachine_state_StateB(self, __e, compartment):
-        if __e._message == "advance":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            print("State B -> C")# DEBUG: TransitionStmt
-            
+        if __e._message == "advance":
+            print("State B -> C")
             next_compartment = FrameCompartment('__simplestatemachine_state_StateC', None, None, None, None)
             self.__transition(next_compartment)
             return
-        elif __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "$>":
             print("Entered State B")
             return
     
@@ -206,15 +184,12 @@ class SimpleStateMachine:
     # $StateC
     
     def __simplestatemachine_state_StateC(self, __e, compartment):
-        if __e._message == "advance":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            print("State C -> A (cycling back)")# DEBUG: TransitionStmt
-            
+        if __e._message == "advance":
+            print("State C -> A (cycling back)")
             next_compartment = FrameCompartment('__simplestatemachine_state_StateA', None, None, None, None)
             self.__transition(next_compartment)
             return
-        elif __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "$>":
             print("Entered State C")
             return
     

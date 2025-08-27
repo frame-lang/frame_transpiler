@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -17,11 +18,9 @@ class FrameCompartment:
 
 def main():
     calc = Calculator()
-    sum = calc.add(5,3)# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    sum = calc.add(5,3)
     print("5 + 3 = " + str(sum))
-    category = calc.categorizeNumber(42)# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    category = calc.categorizeNumber(42)
     print("42 is: " + category)
     return
 class Calculator:

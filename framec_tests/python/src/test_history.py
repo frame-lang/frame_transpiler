@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -16,10 +17,8 @@ class FrameCompartment:
 
 
 def main():
-    sys = History103()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    sys.gotoC()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    sys = History103()
+    sys.gotoC()
     sys.ret()
     return
 class History103:
@@ -54,16 +53,12 @@ class History103:
     # $A
     
     def __history103_state_A(self, __e, compartment):
-        if __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "$>":
             print("In $A")
             return
-        elif __e._message == "gotoC":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            print("$A pushing to stack and going to $C")# DEBUG: StateStackStmt
-            
-            self.__state_stack_push(self.__compartment)# DEBUG: TransitionStmt
-            
+        elif __e._message == "gotoC":
+            print("$A pushing to stack and going to $C")
+            self.__state_stack_push(self.__compartment)
             # $$[+]
             next_compartment = FrameCompartment('__history103_state_C', None, None, None, None)
             self.__transition(next_compartment)
@@ -74,16 +69,12 @@ class History103:
     # $B
     
     def __history103_state_B(self, __e, compartment):
-        if __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "$>":
             print("In $B")
             return
-        elif __e._message == "gotoC":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            print("$B pushing to stack and going to $C")# DEBUG: StateStackStmt
-            
-            self.__state_stack_push(self.__compartment)# DEBUG: TransitionStmt
-            
+        elif __e._message == "gotoC":
+            print("$B pushing to stack and going to $C")
+            self.__state_stack_push(self.__compartment)
             # $$[+]
             next_compartment = FrameCompartment('__history103_state_C', None, None, None, None)
             self.__transition(next_compartment)
@@ -94,14 +85,11 @@ class History103:
     # $C
     
     def __history103_state_C(self, __e, compartment):
-        if __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "$>":
             print("In $C")
             return
-        elif __e._message == "ret":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            print("Popping from stack and returning")# DEBUG: TransitionStmt
-            
+        elif __e._message == "ret":
+            print("Popping from stack and returning")
             # $$[-]
             next_compartment = self.__state_stack_pop()
             self.__transition(next_compartment)

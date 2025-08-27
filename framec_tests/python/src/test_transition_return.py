@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -16,8 +17,7 @@ class FrameCompartment:
 
 
 def main():
-    sys = TransitionTest()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    sys = TransitionTest()
     sys.test()
     return
 class TransitionTest:
@@ -47,16 +47,13 @@ class TransitionTest:
     def __transitiontest_state_Start(self, __e, compartment):
         if __e._message == "test":
             condition = "error"
-            if condition == "error":# DEBUG: TransitionStmt
-                
+            if condition == "error":
                 next_compartment = FrameCompartment('__transitiontest_state_Error', None, None, None, None)
                 self.__transition(next_compartment)
-            elif condition == "success":# DEBUG: TransitionStmt
-                
+            elif condition == "success":
                 next_compartment = FrameCompartment('__transitiontest_state_Success', None, None, None, None)
                 self.__transition(next_compartment)
-            else:# DEBUG: TransitionStmt
-                
+            else:
                 next_compartment = FrameCompartment('__transitiontest_state_Default', None, None, None, None)
                 self.__transition(next_compartment)
             return
@@ -66,8 +63,7 @@ class TransitionTest:
     # $Error
     
     def __transitiontest_state_Error(self, __e, compartment):
-        if __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "$>":
             print("In error state")
             return
     
@@ -76,8 +72,7 @@ class TransitionTest:
     # $Success
     
     def __transitiontest_state_Success(self, __e, compartment):
-        if __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "$>":
             print("In success state")
             return
     
@@ -86,8 +81,7 @@ class TransitionTest:
     # $Default
     
     def __transitiontest_state_Default(self, __e, compartment):
-        if __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "$>":
             print("In default state")
             return
     

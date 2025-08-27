@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -16,8 +17,7 @@ class FrameCompartment:
 
 
 def main():
-    sys1 = SystemA()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    sys1 = SystemA()
     sys1.start()
     return
 class SystemA:

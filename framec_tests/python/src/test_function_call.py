@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -15,8 +16,7 @@ class FrameCompartment:
         self.parent_compartment = parent_compartment
 
 
-def logTransition(fromState,toState):# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+def logTransition(fromState,toState):
     print("Transition: " + fromState + " -> " + toState)
     return
 class TestSystem:
@@ -36,8 +36,7 @@ class TestSystem:
     # $StateA
     
     def __testsystem_state_StateA(self, __e, compartment):
-        if __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "$>":
             logTransition("","StateA")
             return
     
@@ -81,3 +80,4 @@ class TestSystem:
     
     def __transition(self, next_compartment):
         self.__next_compartment = next_compartment
+

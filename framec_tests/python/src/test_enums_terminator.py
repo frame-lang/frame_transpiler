@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -40,9 +41,8 @@ class Grocery:
     
     def __grocery_state_Start(self, __e, compartment):
         if __e._message == "getFruitOfTheDay":
-            f = Fruit.Peach
-            if f == Fruit.Peach:# DEBUG_EXPR_TYPE: Discriminant(4)
-                
+            f: Grocery_Fruit = Grocery_Fruit.Peach
+            if f == Grocery_Fruit.Peach:
                 print("Found a Peach")
             return "Peaches"
     
@@ -50,6 +50,12 @@ class Grocery:
     
     def _sStart(self, __e):
         return self.__grocery_state_Start(__e, None)
+    
+    class Grocery_Fruit(Enum):
+        Peach = 0
+        Pear = 1
+        Banana = 2
+    
     
     # ==================== System Runtime =================== #
     

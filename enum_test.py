@@ -75,7 +75,7 @@ class FruitSystem:
     
     def getFruitOfTheDay_do(self):
         
-        fruit_of_the_day: FruitSystem_Fruit = self.FruitSystem_Fruit.Pear
+        fruit_of_the_day: FruitSystem_Fruit = FruitSystem_Fruit.Pear
         return fruit_of_the_day
         return
         

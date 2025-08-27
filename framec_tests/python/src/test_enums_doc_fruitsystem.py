@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -22,8 +23,14 @@ class FruitSystem:
     
     def getFruitOfTheDay_do(self):
         
-        fruit_of_the_day = Fruit.Pear
+        fruit_of_the_day: FruitSystem_Fruit = self.FruitSystem_Fruit.Pear
         return fruit_of_the_day
         return
         
+    
+    class FruitSystem_Fruit(Enum):
+        Peach = 0
+        Pear = 1
+        Banana = 2
+    
 

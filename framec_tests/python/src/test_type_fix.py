@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -41,8 +42,7 @@ class TypeTest:
     # $Start
     
     def __typetest_state_Start(self, __e, compartment):
-        if __e._message == "test_method":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "test_method":
             print(__e._parameters["data"])
             return
     

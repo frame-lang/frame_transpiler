@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -15,80 +16,45 @@ class FrameCompartment:
         self.parent_compartment = parent_compartment
 
 
-def main():# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("=== System Lifecycle Management Demo ===")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("This demonstrates the v0.30 multi-entity architecture")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("with MainSystem managing the lifecycle of SystemA and SystemB")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+def main():
+    print("=== System Lifecycle Management Demo ===")
+    print("")
+    print("This demonstrates the v0.30 multi-entity architecture")
+    print("with MainSystem managing the lifecycle of SystemA and SystemB")
+    print("")
     print("Creating MainSystem...")
-    mainSys = MainSystem()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("Conceptual Flow:")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("1. MainSystem starts in StateA")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("   - Creates SystemA instance")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("   - Drives SystemA through states: Start -> Working -> End")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("   - When SystemA reaches End, transitions to StateB")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("2. MainSystem transitions to StateB")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("   - Destroys SystemA instance")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("   - Creates SystemB instance")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("   - Drives SystemB through states: Start -> Working -> End")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("   - When SystemB reaches End, transitions back to StateA")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("3. Cycle repeats as needed")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("System Structure:")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("- MainSystem: Orchestrator with StateA and StateB")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("- SystemA: Worker with Start, Working, End states")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("- SystemB: Worker with Start, Working, End states")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("v0.30 Features Demonstrated:")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("- Multiple systems in single file")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("- Multiple functions in single file")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("- State-scoped variables")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("- System instantiation and lifecycle management")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("- Interface method return values")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    mainSys = MainSystem()
+    print("")
+    print("Conceptual Flow:")
+    print("1. MainSystem starts in StateA")
+    print("   - Creates SystemA instance")
+    print("   - Drives SystemA through states: Start -> Working -> End")
+    print("   - When SystemA reaches End, transitions to StateB")
+    print("")
+    print("2. MainSystem transitions to StateB")
+    print("   - Destroys SystemA instance")
+    print("   - Creates SystemB instance")
+    print("   - Drives SystemB through states: Start -> Working -> End")
+    print("   - When SystemB reaches End, transitions back to StateA")
+    print("")
+    print("3. Cycle repeats as needed")
+    print("")
+    print("System Structure:")
+    print("- MainSystem: Orchestrator with StateA and StateB")
+    print("- SystemA: Worker with Start, Working, End states")
+    print("- SystemB: Worker with Start, Working, End states")
+    print("")
+    print("v0.30 Features Demonstrated:")
+    print("- Multiple systems in single file")
+    print("- Multiple functions in single file")
+    print("- State-scoped variables")
+    print("- System instantiation and lifecycle management")
+    print("- Interface method return values")
+    print("")
     print("=== Demo Complete ===")
     return
 
-def logTransition(fromState,toState):# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+def logTransition(fromState,toState):
     print("Transition: " + fromState + " -> " + toState)
     return
 class MainSystem:
@@ -116,16 +82,13 @@ class MainSystem:
     # $StateA
     
     def __mainsystem_state_StateA(self, __e, compartment):
-        if __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "$>":
             logTransition("","StateA")
             return
-        elif __e._message == "<$":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "<$":
             logTransition("StateA","")
             return
-        elif __e._message == "next":# DEBUG: TransitionStmt
-            
+        elif __e._message == "next":
             next_compartment = FrameCompartment('__mainsystem_state_StateB', None, None, None, None)
             self.__transition(next_compartment)
             return
@@ -135,16 +98,13 @@ class MainSystem:
     # $StateB
     
     def __mainsystem_state_StateB(self, __e, compartment):
-        if __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "$>":
             logTransition("","StateB")
             return
-        elif __e._message == "<$":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "<$":
             logTransition("StateB","")
             return
-        elif __e._message == "next":# DEBUG: TransitionStmt
-            
+        elif __e._message == "next":
             next_compartment = FrameCompartment('__mainsystem_state_StateA', None, None, None, None)
             self.__transition(next_compartment)
             return
@@ -219,8 +179,7 @@ class SystemA:
     
     def __systema_state_Start(self, __e, compartment):
         if __e._message == "next":
-            self.return_stack[-1] = True# DEBUG: TransitionStmt
-            
+            self.return_stack[-1] = True
             next_compartment = FrameCompartment('__systema_state_Working', None, None, None, None)
             self.__transition(next_compartment)
             return
@@ -231,8 +190,7 @@ class SystemA:
     
     def __systema_state_Working(self, __e, compartment):
         if __e._message == "next":
-            self.return_stack[-1] = True# DEBUG: TransitionStmt
-            
+            self.return_stack[-1] = True
             next_compartment = FrameCompartment('__systema_state_End', None, None, None, None)
             self.__transition(next_compartment)
             return
@@ -320,8 +278,7 @@ class SystemB:
     
     def __systemb_state_Start(self, __e, compartment):
         if __e._message == "next":
-            self.return_stack[-1] = True# DEBUG: TransitionStmt
-            
+            self.return_stack[-1] = True
             next_compartment = FrameCompartment('__systemb_state_Working', None, None, None, None)
             self.__transition(next_compartment)
             return
@@ -332,8 +289,7 @@ class SystemB:
     
     def __systemb_state_Working(self, __e, compartment):
         if __e._message == "next":
-            self.return_stack[-1] = True# DEBUG: TransitionStmt
-            
+            self.return_stack[-1] = True
             next_compartment = FrameCompartment('__systemb_state_End', None, None, None, None)
             self.__transition(next_compartment)
             return

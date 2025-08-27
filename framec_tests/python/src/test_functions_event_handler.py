@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -17,8 +18,7 @@ class FrameCompartment:
 
 def main():
     grader = GradeProcessor()
-    grade = grader.processScore(85)# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    grade = grader.processScore(85)
     print("Grade: " + grade)
     return
 class GradeProcessor:

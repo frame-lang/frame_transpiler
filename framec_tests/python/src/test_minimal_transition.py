@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -31,8 +32,7 @@ class T:
     # $A
     
     def __t_state_A(self, __e, compartment):
-        if __e._message == "go":# DEBUG: TransitionStmt
-            
+        if __e._message == "go":
             next_compartment = FrameCompartment('__t_state_B', None, None, None, None)
             self.__transition(next_compartment)
             return

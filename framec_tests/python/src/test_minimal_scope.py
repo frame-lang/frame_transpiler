@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -16,8 +17,7 @@ class FrameCompartment:
 
 
 def main():
-    local_var = "test"# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    local_var = "test"
     print(local_var)
     return
 

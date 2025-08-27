@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -17,16 +18,12 @@ class FrameCompartment:
 
 def main():
     grader = GradeSystem()
-    scores = [95,85,75,65,55,-5,105]# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    scores = [95,85,75,65,55,-5,105]
     print("=== Grade System Tests ===")
     for score in scores:
-        grade = grader.calculateGrade(score)# DEBUG_EXPR_TYPE: Discriminant(4)
-        
-        print("Score " + str(score) + " -> Grade: " + grade)# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("\n=== Category Tests ===")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+        grade = grader.calculateGrade(score)
+        print("Score " + str(score) + " -> Grade: " + grade)
+    print("\n=== Category Tests ===")
     grader.testCategories()
     return
 class GradeSystem:
@@ -108,20 +105,16 @@ class GradeSystem:
             return
         elif __e._message == "testCategories":
             testValue = 42
-            if testValue < 25:# DEBUG_EXPR_TYPE: Discriminant(4)
-                
+            if testValue < 25:
                 print("Low value")
                 return
-            elif testValue < 50:# DEBUG_EXPR_TYPE: Discriminant(4)
-                
+            elif testValue < 50:
                 print("Medium value: " + str(testValue))
                 return
-            elif testValue < 75:# DEBUG_EXPR_TYPE: Discriminant(4)
-                
+            elif testValue < 75:
                 print("High value")
                 return
-            else:# DEBUG_EXPR_TYPE: Discriminant(4)
-                
+            else:
                 print("Very high value")
                 return
             return

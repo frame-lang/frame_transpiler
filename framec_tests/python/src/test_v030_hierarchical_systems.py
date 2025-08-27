@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -47,13 +48,11 @@ class Parent:
     # $Root
     
     def __parent_state_Root(self, __e, compartment):
-        if __e._message == "start":# DEBUG: TransitionStmt
-            
+        if __e._message == "start":
             next_compartment = FrameCompartment('__parent_state_Active', None, None, None, None)
             self.__transition(next_compartment)
             return
-        elif __e._message == "process":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "process":
             print("Parent processing: " + __e._parameters["data"])
             return
     
@@ -62,8 +61,7 @@ class Parent:
     # $Active
     
     def __parent_state_Active(self, __e, compartment):
-        if __e._message == "process":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "process":
             print("Parent Active processing: " + __e._parameters["data"])
             return
     
@@ -144,8 +142,7 @@ class AnotherParent:
     # $Start
     
     def __anotherparent_state_Start(self, __e, compartment):
-        if __e._message == "begin":# DEBUG: TransitionStmt
-            
+        if __e._message == "begin":
             next_compartment = FrameCompartment('__anotherparent_state_Running', None, None, None, None)
             self.__transition(next_compartment)
             return
@@ -155,8 +152,7 @@ class AnotherParent:
     # $Running
     
     def __anotherparent_state_Running(self, __e, compartment):
-        if __e._message == "handle":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "handle":
             print("Running: " + __e._parameters["msg"])
             return
     

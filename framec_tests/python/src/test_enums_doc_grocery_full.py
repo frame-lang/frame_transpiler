@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -16,12 +17,9 @@ class FrameCompartment:
 
 
 def main():
-    grocery = Grocery()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("We are selling " + grocery.getFruitOfTheDay() + " today.")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    print("We sold " + grocery.getFruitOfTheDay() + " yesterday.")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    grocery = Grocery()
+    print("We are selling " + grocery.getFruitOfTheDay() + " today.")
+    print("We sold " + grocery.getFruitOfTheDay() + " yesterday.")
     print("We are selling " + grocery.getFruitOfTheDay() + " tomorrow.")
     return
 class Grocery:
@@ -50,17 +48,14 @@ class Grocery:
     
     def __grocery_state_Start(self, __e, compartment):
         if __e._message == "getFruitOfTheDay":
-            f: Grocery_Fruit = self.getRandomFruit_do()
-            if f == Grocery_Fruit.Peach:# DEBUG_EXPR_TYPE: Discriminant(4)
-                
+            f: Grocery_Fruit = getRandomFruit()
+            if f == Grocery_Fruit.Peach:
                 print("Found a Peach.")
                 return "Peaches"
-            elif f == Grocery_Fruit.Pear:# DEBUG_EXPR_TYPE: Discriminant(4)
-                
+            elif f == Grocery_Fruit.Pear:
                 print("Found a Pear.")
                 return "Pears"
-            elif f == Grocery_Fruit.Banana:# DEBUG_EXPR_TYPE: Discriminant(4)
-                
+            elif f == Grocery_Fruit.Banana:
                 print("Found a Banana.")
                 return "Bananas"
             return "None"
@@ -75,15 +70,21 @@ class Grocery:
         
         val = random.randint(1,3)
         if val == 1:
-            return Grocery_Fruit.Peach
+            return self.Grocery_Fruit.Peach
         elif val == 2:
-            return Grocery_Fruit.Pear
+            return self.Grocery_Fruit.Pear
         elif val == 3:
-            return Grocery_Fruit.Banana
+            return self.Grocery_Fruit.Banana
         else:
-            return Grocery_Fruit.Peach
+            return self.Grocery_Fruit.Peach
         return
         
+    
+    class Grocery_Fruit(Enum):
+        Peach = 0
+        Pear = 1
+        Banana = 2
+    
     
     # ==================== System Runtime =================== #
     

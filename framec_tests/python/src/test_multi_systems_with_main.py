@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -16,12 +17,10 @@ class FrameCompartment:
 
 
 def main():
-    sys1 = FirstSystem()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    sys1
-    sys2 = SecondSystem()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    sys2
+    sys1 = FirstSystem()
+    sys1.start()
+    sys2 = SecondSystem()
+    sys2.activate()
     return
 class FirstSystem:
     def __init__(self):
@@ -48,10 +47,8 @@ class FirstSystem:
     # $Idle
     
     def __firstsystem_state_Idle(self, __e, compartment):
-        if __e._message == "start":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            print("FirstSystem starting")# DEBUG: TransitionStmt
-            
+        if __e._message == "start":
+            print("FirstSystem starting")
             next_compartment = FrameCompartment('__firstsystem_state_Running', None, None, None, None)
             self.__transition(next_compartment)
             return
@@ -61,8 +58,7 @@ class FirstSystem:
     # $Running
     
     def __firstsystem_state_Running(self, __e, compartment):
-        if __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "$>":
             print("FirstSystem running")
             return
     
@@ -135,10 +131,8 @@ class SecondSystem:
     # $Waiting
     
     def __secondsystem_state_Waiting(self, __e, compartment):
-        if __e._message == "activate":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            print("SecondSystem activating")# DEBUG: TransitionStmt
-            
+        if __e._message == "activate":
+            print("SecondSystem activating")
             next_compartment = FrameCompartment('__secondsystem_state_Active', None, None, None, None)
             self.__transition(next_compartment)
             return
@@ -148,8 +142,7 @@ class SecondSystem:
     # $Active
     
     def __secondsystem_state_Active(self, __e, compartment):
-        if __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "$>":
             print("SecondSystem active")
             return
     

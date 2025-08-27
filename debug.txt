@@ -1,0 +1,70 @@
+DEBUG: Starting first pass - building symbol table
+DEBUG: Created syntactic parser with is_building_symbol_table=true
+DEBUG: Building symbol table for function: testFruit
+DEBUG: Entering function scope for: testFruit
+DEBUG: Inserting function symbol 'testFruit' into symbol table
+DEBUG: Function symbol 'testFruit' inserted successfully. Total symbols: 4
+DEBUG: Function symbol table building complete for: testFruit
+DEBUG: Building symbol table for function: describeFruit
+DEBUG: Entering function scope for: describeFruit
+DEBUG: Inserting function symbol 'describeFruit' into symbol table
+DEBUG: Function symbol 'describeFruit' inserted successfully. Total symbols: 5
+DEBUG: Function symbol table building complete for: describeFruit
+DEBUG: First pass parsing succeeded
+DEBUG: Extracted arcanum from first pass
+DEBUG: Symbols in arcanum after first pass: ["EnumValueSystem", "CalendarSystem", "describeFruit", "FruitSystem", "testFruit"]
+DEBUG: Starting second pass - semantic analysis
+DEBUG: Symbols in module scope before second pass: ["EnumValueSystem", "CalendarSystem", "describeFruit", "FruitSystem", "testFruit"]
+DEBUG: Created semantic parser with is_building_symbol_table=false
+DEBUG: Looking for symbol 'CalendarSystem' in scope 'module'. Available symbols: ["EnumValueSystem", "CalendarSystem", "describeFruit", "FruitSystem", "testFruit"]
+DEBUG: Found symbol 'CalendarSystem' in scope 'module'
+DEBUG: Retrieved system 'CalendarSystem' in semantic pass
+  Has actions block: false
+  Has machine block: false
+  Has interface block: false
+DEBUG: Looking for symbol 'CalendarSystem' in scope 'CalendarSystem'. Available symbols: ["CalendarSystem"]
+DEBUG: Found symbol 'CalendarSystem' in scope 'CalendarSystem'
+DEBUG: Looking for symbol 'EnumValueSystem' in scope 'module'. Available symbols: ["EnumValueSystem", "CalendarSystem", "describeFruit", "FruitSystem", "testFruit"]
+DEBUG: Found symbol 'EnumValueSystem' in scope 'module'
+DEBUG: Retrieved system 'EnumValueSystem' in semantic pass
+  Has actions block: false
+  Has machine block: false
+  Has interface block: false
+DEBUG: Looking for symbol 'EnumValueSystem' in scope 'EnumValueSystem'. Available symbols: ["EnumValueSystem"]
+DEBUG: Found symbol 'EnumValueSystem' in scope 'EnumValueSystem'
+DEBUG: Looking for symbol 'FruitSystem' in scope 'module'. Available symbols: ["EnumValueSystem", "CalendarSystem", "describeFruit", "FruitSystem", "testFruit"]
+DEBUG: Found symbol 'FruitSystem' in scope 'module'
+DEBUG: Retrieved system 'FruitSystem' in semantic pass
+  Has actions block: true
+  Has machine block: false
+  Has interface block: false
+DEBUG: Looking for symbol 'FruitSystem' in scope 'FruitSystem'. Available symbols: ["FruitSystem"]
+DEBUG: Found symbol 'FruitSystem' in scope 'FruitSystem'
+DEBUG: Looking for symbol 'getFruitOfTheDay' in scope '-actions-block-'. Available symbols: ["getFruitOfTheDay"]
+DEBUG: Found symbol 'getFruitOfTheDay' in scope '-actions-block-'
+DEBUG: Looking for symbol '-parameters-' in scope 'getFruitOfTheDay'. Available symbols: ["-parameters-", "fruit_of_the_day"]
+DEBUG: Found symbol '-parameters-' in scope 'getFruitOfTheDay'
+DEBUG: Looking for symbol 'testFruit' in scope 'module'. Available symbols: ["EnumValueSystem", "CalendarSystem", "describeFruit", "FruitSystem", "testFruit"]
+DEBUG: Found symbol 'testFruit' in scope 'module'
+DEBUG: Looking for symbol '-parameters-' in scope 'testFruit'. Available symbols: ["elif_block_9", "else_block_11", "f", "elif_block_7", "-parameters-", "if_block_5"]
+DEBUG: Found symbol '-parameters-' in scope 'testFruit'
+DEBUG: Looking for symbol 'if_block_5' in scope 'testFruit'. Available symbols: ["elif_block_9", "else_block_11", "f", "elif_block_7", "-parameters-", "if_block_5"]
+DEBUG: Found symbol 'if_block_5' in scope 'testFruit'
+DEBUG: Looking for symbol 'elif_block_7' in scope 'testFruit'. Available symbols: ["elif_block_9", "else_block_11", "f", "elif_block_7", "-parameters-", "if_block_5"]
+DEBUG: Found symbol 'elif_block_7' in scope 'testFruit'
+DEBUG: Looking for symbol 'elif_block_9' in scope 'testFruit'. Available symbols: ["elif_block_9", "else_block_11", "f", "elif_block_7", "-parameters-", "if_block_5"]
+DEBUG: Found symbol 'elif_block_9' in scope 'testFruit'
+DEBUG: Looking for symbol 'else_block_11' in scope 'testFruit'. Available symbols: ["elif_block_9", "else_block_11", "f", "elif_block_7", "-parameters-", "if_block_5"]
+DEBUG: Found symbol 'else_block_11' in scope 'testFruit'
+DEBUG: Looking for symbol 'describeFruit' in scope 'module'. Available symbols: ["EnumValueSystem", "CalendarSystem", "describeFruit", "FruitSystem", "testFruit"]
+DEBUG: Found symbol 'describeFruit' in scope 'module'
+DEBUG: Looking for symbol '-parameters-' in scope 'describeFruit'. Available symbols: ["-parameters-", "elif_block_17", "if_block_15", "else_block_21", "elif_block_19"]
+DEBUG: Found symbol '-parameters-' in scope 'describeFruit'
+DEBUG: Looking for symbol 'if_block_15' in scope 'describeFruit'. Available symbols: ["-parameters-", "elif_block_17", "if_block_15", "else_block_21", "elif_block_19"]
+DEBUG: Found symbol 'if_block_15' in scope 'describeFruit'
+DEBUG: Looking for symbol 'elif_block_17' in scope 'describeFruit'. Available symbols: ["-parameters-", "elif_block_17", "if_block_15", "else_block_21", "elif_block_19"]
+DEBUG: Found symbol 'elif_block_17' in scope 'describeFruit'
+DEBUG: Looking for symbol 'elif_block_19' in scope 'describeFruit'. Available symbols: ["-parameters-", "elif_block_17", "if_block_15", "else_block_21", "elif_block_19"]
+DEBUG: Found symbol 'elif_block_19' in scope 'describeFruit'
+DEBUG: Looking for symbol 'else_block_21' in scope 'describeFruit'. Available symbols: ["-parameters-", "elif_block_17", "if_block_15", "else_block_21", "elif_block_19"]
+DEBUG: Found symbol 'else_block_21' in scope 'describeFruit'

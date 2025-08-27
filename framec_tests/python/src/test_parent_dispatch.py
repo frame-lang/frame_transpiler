@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -16,14 +17,10 @@ class FrameCompartment:
 
 
 def main():
-    hsm = ParentDispatchTest()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    hsm.test1()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    hsm.test2()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    hsm.test3()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    hsm = ParentDispatchTest()
+    hsm.test1()
+    hsm.test2()
+    hsm.test3()
     hsm.next()
     return
 class ParentDispatchTest:
@@ -69,18 +66,14 @@ class ParentDispatchTest:
     # $Parent
     
     def __parentdispatchtest_state_Parent(self, __e, compartment):
-        if __e._message == "test1":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "test1":
             print("test1 handled in parent")
             return
-        elif __e._message == "test2":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "test2":
             print("test2 handled in parent")
             return
-        elif __e._message == "test3":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            print("test3 parent triggers transition")# DEBUG: TransitionStmt
-            
+        elif __e._message == "test3":
+            print("test3 parent triggers transition")
             next_compartment = FrameCompartment('__parentdispatchtest_state_Child2', None, None, None, None)
             self.__transition(next_compartment)
             return
@@ -96,48 +89,39 @@ class ParentDispatchTest:
             if self.__next_compartment is not None:
                 return
             return
-        elif __e._message == "test2":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "test2":
             print("test2 in child before dispatch")
             # => $^ parent dispatch
             self.__router(__e, compartment.parent_compartment)
             if self.__next_compartment is not None:
-                return# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+                return
             print("test2 in child after dispatch - should execute")
             return
-        elif __e._message == "test3":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "test3":
             print("test3 in child before dispatch")
             # => $^ parent dispatch
             self.__router(__e, compartment.parent_compartment)
             if self.__next_compartment is not None:
-                return# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+                return
             print("test3 in child after dispatch - should NOT execute due to transition")
             return
-        elif __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "$>":
             print("enter child1")
             # => $^ parent dispatch
             self.__router(__e, compartment.parent_compartment)
             if self.__next_compartment is not None:
-                return# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+                return
             print("enter child1 - after parent dispatch")
             return
-        elif __e._message == "<$":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "<$":
             print("exit child1")
             # => $^ parent dispatch
             self.__router(__e, compartment.parent_compartment)
             if self.__next_compartment is not None:
-                return# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+                return
             print("exit child1 - after parent dispatch")
             return
-        elif __e._message == "next":# DEBUG: TransitionStmt
-            
+        elif __e._message == "next":
             next_compartment = FrameCompartment('__parentdispatchtest_state_Child2', None, None, None, None)
             self.__transition(next_compartment)
             return
@@ -147,24 +131,21 @@ class ParentDispatchTest:
     # $Child2
     
     def __parentdispatchtest_state_Child2(self, __e, compartment):
-        if __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "$>":
             print("enter child2")
             # => $^ parent dispatch
             self.__router(__e, compartment.parent_compartment)
             if self.__next_compartment is not None:
                 return
             return
-        elif __e._message == "<$":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "<$":
             print("exit child2")
             # => $^ parent dispatch
             self.__router(__e, compartment.parent_compartment)
             if self.__next_compartment is not None:
                 return
             return
-        elif __e._message == "next":# DEBUG: TransitionStmt
-            
+        elif __e._message == "next":
             next_compartment = FrameCompartment('__parentdispatchtest_state_Child1', None, None, None, None)
             self.__transition(next_compartment)
             return

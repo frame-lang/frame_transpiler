@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -22,50 +23,37 @@ class A:
     
     def testPythonStyle_do(self):
         
-        if x > 5:# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if x > 5:
             doSomething()
-        elif y < 10:# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif y < 10:
             doOther()
-        else:# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        else:
             doDefault()
         return
         
     
     def testBracedStyle_do(self):
         
-        if x > 5:# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            doSomething()# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if x > 5:
+            doSomething()
             doMore()
-        elif y < 10:# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            doOther()# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif y < 10:
+            doOther()
             doAnother()
-        else:# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            doDefault()# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        else:
+            doDefault()
             doFinal()
         return
         
     
     def testMixed_do(self):
         
-        if simpleCondition:# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if simpleCondition:
             singleStatement()
-        elif complexCondition:# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            firstStatement()# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif complexCondition:
+            firstStatement()
             secondStatement()
-        else:# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        else:
             fallbackStatement()
         return
         

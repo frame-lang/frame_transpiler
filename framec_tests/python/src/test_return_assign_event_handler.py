@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -17,17 +18,13 @@ class FrameCompartment:
 
 def main():
     calculator = Calculator()
-    result1 = calculator.getDefault()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    result1 = calculator.getDefault()
     print("Default value: " + result1)
-    result2 = calculator.calculate(10,5)# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    result2 = calculator.calculate(10,5)
     print("10 + 5 = " + str(result2))
-    result3 = calculator.divide(10,0)# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    result3 = calculator.divide(10,0)
     print("10 / 0 = " + result3)
-    result4 = calculator.divide(10,2)# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    result4 = calculator.divide(10,2)
     print("10 / 2 = " + str(result4))
     return
 class Calculator:
@@ -76,8 +73,7 @@ class Calculator:
         if __e._message == "getDefault":
             return
         elif __e._message == "calculate":
-            self.return_stack[-1] = __e._parameters["a"] + __e._parameters["b"]# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+            self.return_stack[-1] = __e._parameters["a"] + __e._parameters["b"]
             print("Calculated sum: " + str(__e._parameters["a"] + __e._parameters["b"]))
             return
         elif __e._message == "divide":

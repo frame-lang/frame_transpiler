@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -18,4 +19,15 @@ class CalendarSystem:
     def __init__(self):
         self.__compartment = None
         self.return_stack = [None]
+    
+    class CalendarSystem_Days(Enum):
+        SUNDAY = 0
+        monday = 1
+        Tuesday = 1000
+        WEDNESDAY = 1001
+        tHuRsDaY = 1002
+        FRIDAY = 1003
+        SATURDAY = 1000
+        SUNDAY = 2000
+    
 

@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -16,10 +17,8 @@ class FrameCompartment:
 
 
 def main():
-    eemd = EnterExitMessagesDemo()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    eemd.next()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    eemd = EnterExitMessagesDemo()
+    eemd.next()
     eemd.next()
     return
 class EnterExitMessagesDemo:
@@ -47,16 +46,13 @@ class EnterExitMessagesDemo:
     # $Begin
     
     def __enterexitmessagesdemo_state_Begin(self, __e, compartment):
-        if __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "$>":
             print("entering $Begin")
             return
-        elif __e._message == "<$":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "<$":
             print("exiting $Begin")
             return
-        elif __e._message == "next":# DEBUG: TransitionStmt
-            
+        elif __e._message == "next":
             next_compartment = FrameCompartment('__enterexitmessagesdemo_state_Working', None, None, None, None)
             self.__transition(next_compartment)
             return
@@ -66,16 +62,13 @@ class EnterExitMessagesDemo:
     # $Working
     
     def __enterexitmessagesdemo_state_Working(self, __e, compartment):
-        if __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "$>":
             print("entering $Working")
             return
-        elif __e._message == "<$":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        elif __e._message == "<$":
             print("exiting $Working")
             return
-        elif __e._message == "next":# DEBUG: TransitionStmt
-            
+        elif __e._message == "next":
             next_compartment = FrameCompartment('__enterexitmessagesdemo_state_End', None, None, None, None)
             self.__transition(next_compartment)
             return
@@ -85,8 +78,7 @@ class EnterExitMessagesDemo:
     # $End
     
     def __enterexitmessagesdemo_state_End(self, __e, compartment):
-        if __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "$>":
             print("entering $End")
             return
     

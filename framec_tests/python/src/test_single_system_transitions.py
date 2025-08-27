@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -35,8 +36,7 @@ class TestSystem:
     # $Init
     
     def __testsystem_state_Init(self, __e, compartment):
-        if __e._message == "$>":# DEBUG: TransitionStmt
-            
+        if __e._message == "$>":
             next_compartment = FrameCompartment('__testsystem_state_A', None, None, None, None)
             self.__transition(next_compartment)
             return
@@ -46,8 +46,7 @@ class TestSystem:
     # $A
     
     def __testsystem_state_A(self, __e, compartment):
-        if __e._message == "$>":# DEBUG: TransitionStmt
-            
+        if __e._message == "$>":
             next_compartment = FrameCompartment('__testsystem_state_B', None, None, None, None)
             self.__transition(next_compartment)
             return
@@ -57,8 +56,7 @@ class TestSystem:
     # $B
     
     def __testsystem_state_B(self, __e, compartment):
-        if __e._message == "$>":# DEBUG: TransitionStmt
-            
+        if __e._message == "$>":
             next_compartment = FrameCompartment('__testsystem_state_A', None, None, None, None)
             self.__transition(next_compartment)
             return

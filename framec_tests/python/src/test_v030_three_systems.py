@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -39,8 +40,7 @@ class SystemA:
     # $Start
     
     def __systema_state_Start(self, __e, compartment):
-        if __e._message == "activate":# DEBUG: TransitionStmt
-            
+        if __e._message == "activate":
             next_compartment = FrameCompartment('__systema_state_Active', None, None, None, None)
             self.__transition(next_compartment)
             return
@@ -50,8 +50,7 @@ class SystemA:
     # $Active
     
     def __systema_state_Active(self, __e, compartment):
-        if __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "$>":
             print("SystemA active")
             return
     
@@ -124,8 +123,7 @@ class SystemB:
     # $Begin
     
     def __systemb_state_Begin(self, __e, compartment):
-        if __e._message == "run":# DEBUG: TransitionStmt
-            
+        if __e._message == "run":
             next_compartment = FrameCompartment('__systemb_state_Running', None, None, None, None)
             self.__transition(next_compartment)
             return
@@ -207,8 +205,7 @@ class SystemC:
     # $Initial
     
     def __systemc_state_Initial(self, __e, compartment):
-        if __e._message == "process":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "process":
             print("Processing in SystemC")
             return
     

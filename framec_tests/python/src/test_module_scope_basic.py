@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -31,8 +32,7 @@ class TestBasic:
     # $Start
     
     def __testbasic_state_Start(self, __e, compartment):
-        if __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "$>":
             print("Basic module scope test")
             return
     
@@ -77,5 +77,3 @@ class TestBasic:
     def __transition(self, next_compartment):
         self.__next_compartment = next_compartment
 
-if __name__ == '__main__':
-    test = TestBasic()

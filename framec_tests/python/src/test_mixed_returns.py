@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -17,17 +18,13 @@ class FrameCompartment:
 
 def main():
     analyzer = TextAnalyzer()
-    result1 = analyzer.analyze("")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    result1 = analyzer.analyze("")
     print("Empty: " + result1)
-    result2 = analyzer.analyze("hello")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    result2 = analyzer.analyze("hello")
     print("hello: " + result2)
-    result3 = analyzer.analyze("HELLO WORLD")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    result3 = analyzer.analyze("HELLO WORLD")
     print("HELLO WORLD: " + result3)
-    result4 = analyzer.analyze("Frame v0.20 is great!")# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+    result4 = analyzer.analyze("Frame v0.20 is great!")
     print("Frame v0.20 is great!: " + result4)
     return
 class TextAnalyzer:
@@ -42,7 +39,7 @@ class TextAnalyzer:
         self.__kernel(frame_event)
     # ==================== Interface Block ================== #
     
-    def analyze(self,text: str):
+    def analyze(self,text):
         parameters = {}
         parameters["text"] = text
         self.return_stack.append(None)
@@ -61,8 +58,7 @@ class TextAnalyzer:
             if __e._parameters["text"] == "":
                 self.return_stack[-1] = "empty input"
                 return
-            category = self.categorizeText_do(__e._parameters["text"])# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+            category = categorizeText(__e._parameters["text"])
             print("Category from action: " + category)
             if category == "short":
                 self.return_stack[-1] = "short text: " + __e._parameters["text"]
@@ -78,7 +74,7 @@ class TextAnalyzer:
         return self.__textanalyzer_state_Analyzing(__e, None)
     # ===================== Actions Block =================== #
     
-    def categorizeText_do(self,text: str):
+    def categorizeText_do(self,text):
         
         if len(text) < 10:
             return "short"
@@ -88,11 +84,10 @@ class TextAnalyzer:
         return
         
     
-    def len_do(self,s: str):
+    def len_do(self,s):
         
         count = 0
-        for c in s:# DEBUG_EXPR_TYPE: Discriminant(5)
-            
+        for c in s:
             count = count + 1
         return count
         return
