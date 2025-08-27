@@ -1288,6 +1288,12 @@ impl<'a> Parser<'a> {
             
             // Set scope context to System for semantic pass too
             self.arcanum.set_scope_context(ScopeContext::System(system_name.clone()));
+            
+            // CRITICAL: Also set the system symbol for the semantic pass
+            // Look up the system symbol from the module scope
+            if let Some(system_symbol) = self.arcanum.get_system_by_name(&system_name) {
+                self.arcanum.set_current_system_symbol(Some(system_symbol));
+            }
         }
 
         // Call the actual system parsing method
@@ -1302,6 +1308,8 @@ impl<'a> Parser<'a> {
         self.arcanum.exit_scope();
         // Reset scope context back to Global (module level)
         self.arcanum.set_scope_context(ScopeContext::Global);
+        // Clear the system symbol when exiting system scope
+        self.arcanum.set_current_system_symbol(None);
         self.is_system_scope = prev_is_system_scope;
         
         ret

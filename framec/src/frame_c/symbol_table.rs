@@ -1234,6 +1234,10 @@ impl Arcanum {
     pub fn get_current_system_symbol(&self) -> Option<&Rc<RefCell<SystemSymbol>>> {
         self.system_symbol_opt.as_ref()
     }
+    
+    pub fn set_current_system_symbol(&mut self, system_symbol_opt: Option<Rc<RefCell<SystemSymbol>>>) {
+        self.system_symbol_opt = system_symbol_opt;
+    }
 
     pub fn set_current_symtab(&mut self, symtab: Rc<RefCell<SymbolTable>>) {
         self.current_symtab = symtab;

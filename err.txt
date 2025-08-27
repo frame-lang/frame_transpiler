@@ -5,22 +5,31 @@ DEBUG: Entering function scope for: main
 DEBUG: Inserting function symbol 'main' into symbol table
 DEBUG: Function symbol 'main' inserted successfully. Total symbols: 1
 DEBUG: Function symbol table building complete for: main
-DEBUG: Building symbol table for function: helper
-DEBUG: Entering function scope for: helper
-DEBUG: Inserting function symbol 'helper' into symbol table
-DEBUG: Function symbol 'helper' inserted successfully. Total symbols: 2
-DEBUG: Function symbol table building complete for: helper
 DEBUG: First pass parsing succeeded
 DEBUG: Extracted arcanum from first pass
-DEBUG: Symbols in arcanum after first pass: ["helper", "main"]
+DEBUG: Symbols in arcanum after first pass: ["Utils", "main"]
 DEBUG: Starting second pass - semantic analysis
-DEBUG: Symbols in module scope before second pass: ["helper", "main"]
+DEBUG: Symbols in module scope before second pass: ["Utils", "main"]
 DEBUG: Created semantic parser with is_building_symbol_table=false
-DEBUG: Looking for symbol 'main' in scope 'module'. Available symbols: ["helper", "main"]
+DEBUG: Looking for symbol 'main' in scope 'module'. Available symbols: ["Utils", "main"]
 DEBUG: Found symbol 'main' in scope 'module'
-DEBUG: Looking for symbol '-parameters-' in scope 'main'. Available symbols: ["-parameters-", "x"]
+DEBUG: Looking for symbol '-parameters-' in scope 'main'. Available symbols: ["result", "category", "-parameters-"]
 DEBUG: Found symbol '-parameters-' in scope 'main'
-DEBUG: Looking for symbol 'helper' in scope 'module'. Available symbols: ["helper", "main"]
-DEBUG: Found symbol 'helper' in scope 'module'
-DEBUG: Looking for symbol '-parameters-' in scope 'helper'. Available symbols: ["-parameters-"]
-DEBUG: Found symbol '-parameters-' in scope 'helper'
+DEBUG: Looking for symbol 'Utils' in scope 'module'. Available symbols: ["Utils", "main"]
+DEBUG: Found symbol 'Utils' in scope 'module'
+DEBUG: Looking for symbol 'Utils' in scope 'Utils'. Available symbols: ["Utils"]
+DEBUG: Found symbol 'Utils' in scope 'Utils'
+ERROR: actions_block() called but system has no actions block symbol
+DEBUG: Looking for symbol 'add' in scope 'Utils'. Available symbols: ["-actions-block-"]
+DEBUG: Symbol 'add' not found in 'Utils', checking parent scope...
+DEBUG: Looking for symbol 'add' in scope 'Utils'. Available symbols: ["Utils"]
+DEBUG: Symbol 'add' not found in 'Utils', checking parent scope...
+DEBUG: Looking for symbol 'add' in scope 'module'. Available symbols: ["Utils", "main"]
+DEBUG: Symbol 'add' not found in 'module', checking parent scope...
+DEBUG: Looking for symbol 'add' in scope 'global'. Available symbols: []
+DEBUG: Symbol 'add' not found in 'global', checking parent scope...
+DEBUG: Looking for symbol 'add' in scope 'builtins'. Available symbols: ["print"]
+Framec failed with an error:
+Terminating with errors.
+[line 11] Error at '(' : Expected '}' - found '('.
+
