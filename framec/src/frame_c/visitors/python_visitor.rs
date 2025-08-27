@@ -743,6 +743,10 @@ impl PythonVisitor {
         self.newline();
         self.newline();
         
+        // Add enum import for domain enums
+        self.add_code("from enum import Enum");
+        self.newline();
+        
         // Generate FrameEvent class (common to all systems)
         self.newline();
         self.add_code("class FrameEvent:");
@@ -1037,6 +1041,11 @@ impl PythonVisitor {
         // Generate domain block
         if let Some(ref domain_block_node) = system_node.domain_block_node_opt {
             domain_block_node.accept(self);
+        }
+        
+        // Generate enums from domain block
+        if let Some(ref domain_block_node) = system_node.domain_block_node_opt {
+            domain_block_node.accept_enums(self);
         }
         
         // Generate system runtime (__kernel, __router, __transition)
@@ -2657,6 +2666,14 @@ impl PythonVisitor {
         }
     }
 
+    // v0.30: Generate all enums from the primary system for now
+    // TODO: Extend to handle multiple systems when AST node references are available
+    fn generate_all_enums(&mut self) {
+        // For now, try to access enums from the first system we have access to
+        // This is a temporary solution until we can access AST nodes from symbols
+        // The enums will be generated in the legacy system processing if available
+    }
+
     // v0.30: Generate all systems from the Arcanum
     fn generate_all_systems(&mut self) {
         let system_symbols = self.arcanium.get_systems().clone(); // Clone to avoid borrow issues
@@ -2872,19 +2889,16 @@ impl PythonVisitor {
         for (name, symbol_type_rcref) in symbol_table.symbols.iter() {
             let symbol_type = symbol_type_rcref.borrow();
             self.newline();
-            self.add_code(&format!("# DEBUG: Processing symbol '{}'", name));
             
             if let SymbolType::OperationScope { operation_scope_symbol_rcref } = &*symbol_type {
                 let operation_symbol = operation_scope_symbol_rcref.borrow();
                 
                 // Try to use AST node if available
                 if let Some(operation_node_rcref) = &operation_symbol.ast_node_opt {
-                    self.add_code(&format!("# DEBUG: AST node available for '{}'", operation_symbol.name));
                     let operation_node = operation_node_rcref.borrow();
                     operation_node.accept(self);
                 } else {
                     // AST node not available - generate method stub
-                    self.add_code(&format!("# DEBUG: AST node NOT available for '{}'", operation_symbol.name));
                     self.newline();
                     self.newline();
                     self.add_code(&format!("def {}(self):", operation_symbol.name));
@@ -3100,7 +3114,6 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_system_node(&mut self, system_node: &SystemNode) {
-        self.add_code("# DEBUG: visit_system_node() called - STARTING v0.30 generation");
         
         // Reset operations list for this system
         self.current_system_operations.clear();
@@ -3113,26 +3126,19 @@ impl AstVisitor for PythonVisitor {
             self.newline();
         }
 
-        self.add_code("# DEBUG: About to process module");
         // v0.30: Process module first to generate FrameEvent and common elements
         let _ = &system_node.module.accept(self);
 
-        self.add_code("# DEBUG: About to generate all functions");
         // v0.30: Generate all functions from Arcanum
         self.generate_all_functions();
 
-        self.add_code("# DEBUG: About to generate all systems");
         // v0.30: Generate all systems from Arcanum  
         self.generate_all_systems();
 
+        // Note: Enums will be generated per system in generate_system_from_node()
+
         // v0.30: Return early to avoid legacy single-system processing
         return;
-
-        // Generate any enums
-
-        if let Some(domain_block_node) = &system_node.domain_block_node_opt {
-            domain_block_node.accept_enums(self);
-        }
 
         // v0.30: Functions moved to module level - handled by Arcanum
         // if let Some(vec) = &system_node.functions_opt {
@@ -4189,10 +4195,7 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_call_statement_node(&mut self, method_call_statement: &CallStmtNode) {
         self.newline();
-        self.add_code("# CALL STMT DEBUG - about to accept call_expr_node");
-        self.newline();
         method_call_statement.call_expr_node.accept(self);
-        self.add_code("# CALL STMT DEBUG - finished accepting call_expr_node");
         self.newline();
     }
 
@@ -6413,10 +6416,19 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_enumerator_expr_node(&mut self, enum_expr_node: &EnumeratorExprNode) {
-        self.add_code(&format!(
-            "{}_{}.{}",
-            self.system_name, enum_expr_node.enum_type, enum_expr_node.enumerator
-        ));
+        // Within system methods (actions/operations), use self.EnumName
+        // At module level (functions), use SystemName_EnumName directly
+        if self.is_in_action_or_operation() {
+            self.add_code(&format!(
+                "self.{}_{}.{}",
+                self.system_name, enum_expr_node.enum_type, enum_expr_node.enumerator
+            ));
+        } else {
+            self.add_code(&format!(
+                "{}_{}.{}",
+                self.system_name, enum_expr_node.enum_type, enum_expr_node.enumerator
+            ));
+        }
     }
 
     //* --------------------------------------------------------------------- *//
@@ -6426,10 +6438,19 @@ impl AstVisitor for PythonVisitor {
         enum_expr_node: &EnumeratorExprNode,
         output: &mut String,
     ) {
-        output.push_str(&format!(
-            "{}_{}.{}",
-            self.system_name, enum_expr_node.enum_type, enum_expr_node.enumerator
-        ));
+        // Within system methods (actions/operations), use self.EnumName
+        // At module level (functions), use SystemName_EnumName directly
+        if self.is_in_action_or_operation() {
+            output.push_str(&format!(
+                "self.{}_{}.{}",
+                self.system_name, enum_expr_node.enum_type, enum_expr_node.enumerator
+            ));
+        } else {
+            output.push_str(&format!(
+                "{}_{}.{}",
+                self.system_name, enum_expr_node.enum_type, enum_expr_node.enumerator
+            ));
+        }
     }
 
     //* --------------------------------------------------------------------- *//
