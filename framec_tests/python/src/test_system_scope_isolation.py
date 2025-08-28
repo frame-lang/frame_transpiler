@@ -8,12 +8,14 @@ class FrameEvent:
         self._parameters = parameters
 
 class FrameCompartment:
-    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None):
+    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None, state_vars=None, state_args=None):
         self.state = state
         self.forward_event = forward_event
         self.exit_args = exit_args
         self.enter_args = enter_args
         self.parent_compartment = parent_compartment
+        self.state_vars = state_vars or {}
+        self.state_args = state_args or {}
 
 
 def main():
@@ -29,7 +31,7 @@ def main():
 class SystemOne:
     def __init__(self):
         # Create and initialize start state compartment
-        self.__compartment = FrameCompartment('__systemone_state_Active', None, None, None, None)
+        self.__compartment = FrameCompartment('__systemone_state_Active', None, None, None, None, {}, {})
         self.__next_compartment = None
         self.return_stack = [None]
         # Initialize domain variables
@@ -129,7 +131,7 @@ class SystemOne:
 class SystemTwo:
     def __init__(self):
         # Create and initialize start state compartment
-        self.__compartment = FrameCompartment('__systemtwo_state_Running', None, None, None, None)
+        self.__compartment = FrameCompartment('__systemtwo_state_Running', None, None, None, None, {}, {})
         self.__next_compartment = None
         self.return_stack = [None]
         # Initialize domain variables
@@ -184,7 +186,8 @@ class SystemTwo:
             print("Can only access SystemOne through public interface")
             return
         elif __e._message == "get_value":
-            return self.domain_two
+            self.return_stack[-1] = self.domain_two
+            return
     
     # ===================== State Dispatchers =================== #
     
@@ -237,7 +240,7 @@ class SystemTwo:
 class SystemThree:
     def __init__(self):
         # Create and initialize start state compartment
-        self.__compartment = FrameCompartment('__systemthree_state_Waiting', None, None, None, None)
+        self.__compartment = FrameCompartment('__systemthree_state_Waiting', None, None, None, None, {}, {})
         self.__next_compartment = None
         self.return_stack = [None]
         

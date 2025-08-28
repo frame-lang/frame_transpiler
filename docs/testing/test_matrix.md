@@ -10,10 +10,16 @@
 |--------|-------|------------|
 | **Total Tests** | 134 | 100% |
 | **Transpilation Success** | 134 | 100% ✅ |
-| **Execution Success** | 113 | 84.3% ⬆️ |
-| **Complete Success** | 113 | 84.3% ⬆️ |
+| **Execution Success** | 114 | 85.1% ⬆️ |
+| **Complete Success** | 114 | 85.1% ⬆️ |
 
 ## Recent Improvements (2025-01-28)
+
+✅ **EMPTY METHOD CALL SYNTAX FIXED**: Method calls like `other.public_interface()` now generate correctly
+- **Issue**: Generated `other.()` instead of `other.public_interface()`
+- **Cause**: Bug was already fixed by print function call fix, but test files needed regeneration
+- **Files Fixed**: `test_function_scope_isolation.py`, `test_system_scope_isolation.py`, `test_system_isolation.py`
+- **Impact**: Success rate improved from 84.3% to 85.1% (1 additional test now passes)
 
 ✅ **PRINT FUNCTION BUG FIXED**: External function calls like `print()` now work correctly in all contexts
 - **Functions**: `print("hello")` ✅ (was already working)  
@@ -22,7 +28,24 @@
 
 **Fix Details**: Restructured control flow in `visit_call_expression_node` to ensure external function calls reach the fallback logic regardless of context.
 
-**Impact**: Success rate improved from 83.6% to 84.3% (1 additional test now passes)
+**Combined Impact**: Success rate improved from 83.6% to 85.1% (+1.5% total improvement)
+
+## Remaining Issues Identified
+
+🔄 **Function-to-System Action Calls**: Functions calling system actions need design clarification
+- **Issue**: `main()` calling `add(5,3)` where `add` is a system action
+- **Error**: `NameError: name 'add' is not defined`
+- **Analysis**: Functions cannot access system internals per Frame semantics, but tests expect this to work
+- **Next Step**: Resolve design ambiguity - should functions call system actions as utilities?
+
+⏱️ **Infinite Loop Timeouts**: Some tests enter infinite loops during execution
+- **Tests**: `test_single_system_transitions.py`, `test_your_example.py`  
+- **Impact**: Tests timeout after 30 seconds
+- **Analysis**: Likely HSM state machine logic or loop condition issues
+
+🔧 **Other Runtime Errors**: Various execution-time failures in remaining 20 tests
+- **Types**: AttributeErrors, state variable access issues, type errors
+- **Analysis**: Need individual investigation of each failure type
 
 ## Test Status Legend
 
