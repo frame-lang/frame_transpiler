@@ -273,13 +273,13 @@ impl PythonVisitor {
                 "parent_compartment = next_compartment"));
             self.newline_to_string(&mut ret);
             ret.push_str(&format!(
-                "next_compartment = FrameCompartment('{}', None, None, None, parent_compartment, {})",
+                "next_compartment = FrameCompartment('{}', None, None, None, parent_compartment, {}, {{}})",
                 self.format_target_state_name(state_node_rcref.borrow().name.as_str()),
                 state_vars_dict
             ));
         } else {
             ret.push_str(&format!(
-                "next_compartment = FrameCompartment('{}', None, None, None, None, {})",
+                "next_compartment = FrameCompartment('{}', None, None, None, None, {}, {{}})",
                 self.format_target_state_name(state_node_rcref.borrow().name.as_str()),
                 state_vars_dict
             ));
@@ -815,7 +815,7 @@ impl PythonVisitor {
         self.add_code("class FrameCompartment:");
         self.indent();
         self.newline();
-        self.add_code("def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None, state_vars=None):");
+        self.add_code("def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None, state_vars=None, state_args=None):");
         self.indent();
         self.newline();
         self.add_code("self.state = state");
@@ -829,6 +829,8 @@ impl PythonVisitor {
         self.add_code("self.parent_compartment = parent_compartment");
         self.newline();
         self.add_code("self.state_vars = state_vars or {}");
+        self.newline();
+        self.add_code("self.state_args = state_args or {}");
         self.outdent();
         self.outdent();
         self.newline();
@@ -920,7 +922,7 @@ impl PythonVisitor {
                 if let Some(first_state) = machine_block_node.get_first_state() {
                     if let Some(ref dispatch_node) = first_state.borrow().dispatch_opt {
                         let parent_state_name = &dispatch_node.target_state_ref.name;
-                        format!("FrameCompartment('{}', None, None, None, None)", 
+                        format!("FrameCompartment('{}', None, None, None, None, {{}}, {{}})", 
                             self.format_target_state_name(parent_state_name))
                     } else {
                         "None".to_string()
@@ -954,7 +956,7 @@ impl PythonVisitor {
                 "{}".to_string()
             };
             
-            self.add_code(&format!("self.__compartment = FrameCompartment('{}', None, None, None, {}, {})", 
+            self.add_code(&format!("self.__compartment = FrameCompartment('{}', None, None, None, {}, {}, {{}})", 
                 self.format_target_state_name(&self.first_state_name), parent_compartment_init, first_state_vars));
             self.newline();
             self.add_code("self.__next_compartment = None");
@@ -2282,18 +2284,18 @@ impl PythonVisitor {
                 // These are child states with Parent as parent
                 let parent_compartment_full_name = self.format_target_state_name("Parent");
                 self.add_code(&format!(
-                    "parent_compartment = FrameCompartment('{}', None, None, None, None, {{}})",
+                    "parent_compartment = FrameCompartment('{}', None, None, None, None, {{}}, {{}})",
                     parent_compartment_full_name
                 ));
                 self.newline();
                 self.add_code(&format!(
-                    "next_compartment = FrameCompartment('{}', None, None, None, parent_compartment, {{}})",
+                    "next_compartment = FrameCompartment('{}', None, None, None, parent_compartment, {{}}, {{}})",
                     target_state_full_name
                 ));
             } else {
                 // Default to no parent for unknown states
                 self.add_code(&format!(
-                    "next_compartment = FrameCompartment('{}', None, None, None, None, {{}})",
+                    "next_compartment = FrameCompartment('{}', None, None, None, None, {{}}, {{}})",
                     target_state_full_name
                 ));
             }
@@ -2806,9 +2808,18 @@ impl PythonVisitor {
                                     self.add_code(&format!("class {}(Enum):", full_enum_name));
                                     self.indent();
                                     
-                                    for (index, enumerator_decl_node) in enum_decl_node.enums.iter().enumerate() {
-                                        self.newline();
-                                        self.add_code(&format!("{} = {}", enumerator_decl_node.name, index));
+                                    // Track duplicate enum names to avoid Python enum conflicts
+                                    let mut enum_names_seen = HashSet::new();
+                                    let mut enum_index = 0;
+                                    
+                                    for enumerator_decl_node in &enum_decl_node.enums {
+                                        // Only generate if we haven't seen this name before
+                                        if !enum_names_seen.contains(&enumerator_decl_node.name) {
+                                            enum_names_seen.insert(enumerator_decl_node.name.clone());
+                                            self.newline();
+                                            self.add_code(&format!("{} = {}", enumerator_decl_node.name, enum_index));
+                                            enum_index += 1;
+                                        }
                                     }
                                     
                                     self.outdent();
@@ -4379,31 +4390,36 @@ impl AstVisitor for PythonVisitor {
         let method_name = &method_call.identifier.name.lexeme;
         
         // Check if it's an action (needs _do suffix always, self. prefix if not present)
-        if let Some(_action_symbol) = self.arcanium.lookup_action(method_name) {
-            self.debug_print("Found action - generating self.action_do call");
-            // For actions, we ALWAYS want self.action_do format
-            // Clear any existing code and regenerate the full call  
-            if has_call_chain {
-                // If we already output "self.", that's correct, just add action_do
-                self.add_code(&format!("{}_do", method_name));
-            } else if !self.in_call_chain {
-                // No call chain, add full self.action_do
-                self.add_code(&format!("self.{}_do", method_name));
-            } else {
-                // In call chain context, just add action_do  
-                self.add_code(&format!("{}_do", method_name));
+        // Only apply action resolution when NOT in standalone function context
+        if !self.in_standalone_function {
+            if let Some(_action_symbol) = self.arcanium.lookup_action(method_name) {
+                self.debug_print("Found action - generating self.action_do call");
+                // For actions, we ALWAYS want self.action_do format
+                // Clear any existing code and regenerate the full call  
+                if has_call_chain {
+                    // If we already output "self.", that's correct, just add action_do
+                    self.add_code(&format!("{}_do", method_name));
+                } else if !self.in_call_chain {
+                    // No call chain, add full self.action_do
+                    self.add_code(&format!("self.{}_do", method_name));
+                } else {
+                    // In call chain context, just add action_do  
+                    self.add_code(&format!("{}_do", method_name));
+                }
             }
-        }
-        // Check if it's an operation (needs self. prefix if not present)
-        else if let Some((_operation_symbol, _system_symbol)) = self.arcanium.lookup_operation_in_all_systems(method_name) {
-            self.debug_print("Found operation - generating self.operation call");
-            if !has_call_chain && !self.in_call_chain {
-                self.add_code("self.");
+            // Check if it's an operation (needs self. prefix if not present)  
+            // Only apply operation resolution when NOT in standalone function context
+            else if let Some((_operation_symbol, _system_symbol)) = self.arcanium.lookup_operation_in_all_systems(method_name) {
+                self.debug_print("Found operation - generating self.operation call");
+                if !has_call_chain && !self.in_call_chain {
+                    self.add_code("self.");
+                }
+                self.add_code(method_name);
             }
-            self.add_code(method_name);
         }
         // Fallback: check if it's in our tracked operations list (when symbol table fails)
-        else if self.current_system_operations.contains(&method_name.to_string()) {
+        // Only apply when NOT in standalone function context
+        if !self.in_standalone_function && self.current_system_operations.contains(&method_name.to_string()) {
             self.debug_print("Found operation in tracked list - generating self.operation call");
             if !has_call_chain && !self.in_call_chain {
                 self.add_code("self.");
@@ -4411,7 +4427,8 @@ impl AstVisitor for PythonVisitor {
             self.add_code(method_name);
         }
         // Fallback: check if it's in our tracked actions list (when symbol table fails)
-        else if self.current_system_actions.contains(&method_name.to_string()) {
+        // Only apply when NOT in standalone function context
+        if !self.in_standalone_function && self.current_system_actions.contains(&method_name.to_string()) {
             self.debug_print("Found action in tracked list - generating self.action_do call");
             // For actions, we ALWAYS want self.action_do format
             if has_call_chain {
@@ -6155,9 +6172,18 @@ impl AstVisitor for PythonVisitor {
     fn visit_return_stmt_node(&mut self, return_stmt_node: &ReturnStmtNode) {
         self.newline();
         if let Some(expr_t) = &return_stmt_node.expr_t_opt {
-            let mut output = String::new();
-            expr_t.accept_to_string(self, &mut output);
-            self.add_code(&format!("return {}", output));
+            if self.is_in_action_or_operation() {
+                // In actions/operations: direct return
+                let mut output = String::new();
+                expr_t.accept_to_string(self, &mut output);
+                self.add_code(&format!("return {}", output));
+            } else {
+                // In event handlers: use return stack
+                self.add_code("self.return_stack[-1] = ");
+                expr_t.accept(self);
+                self.newline();
+                self.add_code("return");
+            }
         } else {
             self.add_code("return");
         }
@@ -6567,6 +6593,7 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_enum_decl_node(&mut self, enum_decl_node: &EnumDeclNode) {
+        println!("DEBUG: Generating enum: {}", enum_decl_node.name);
         self.newline();
         self.newline();
 
@@ -6576,8 +6603,18 @@ impl AstVisitor for PythonVisitor {
         ));
         self.indent();
 
+        // Track duplicate enum names to avoid Python enum conflicts
+        let mut generated_enum_names = HashSet::new();
+        
         for enumerator_decl_node in &enum_decl_node.enums {
-            enumerator_decl_node.accept(self);
+            // Only generate if we haven't seen this name before
+            if !generated_enum_names.contains(&enumerator_decl_node.name) {
+                generated_enum_names.insert(enumerator_decl_node.name.clone());
+                enumerator_decl_node.accept(self);
+            } else {
+                // DEBUG: Log when we skip a duplicate
+                println!("DEBUG: Skipping duplicate enum entry: {}", enumerator_decl_node.name);
+            }
         }
 
         self.outdent();
