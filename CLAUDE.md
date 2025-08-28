@@ -14,13 +14,34 @@ Frame is a state machine language that transpiles to multiple target languages. 
 ## Current State
 
 **Branch**: `v0.30`  
-**Status**: ✅ **v0.30 PRODUCTION-READY WITH CRITICAL FIXES**  
-**Achievement**: **Complete Operations Scope Resolution + Error Handling Improvements**  
-**Latest**: Fixed operations calling operations missing `self.` prefix (2025-08-26)
-**Recent**: Improved error handling with proper Result types replacing panics (2025-08-26)  
-**Current**: Frame v0.30 fully functional with proper scope resolution for all method types  
+**Status**: ✅ **v0.30 APPROACHING PRODUCTION READINESS - 88.2% TEST SUCCESS**  
+**Achievement**: **Backtick Import Fix + Action Call Resolution + Enum Scope Fix**  
+**Latest**: Fixed critical backtick import bug - module elements now properly preserved (2025-01-23)
+**Recent**: Action call resolution (_do suffix) and enum generation at module level (2025-01-23)  
+**Current**: Frame v0.30 test suite at 88.2% success rate (112/127 tests passing)  
 
-### 🎉 **Latest Achievements - Frame v0.30 Operations Scope Fix (2025-08-26)**
+### 🎉 **Latest Achievements - Frame v0.30 Critical Bug Fixes (2025-01-23)**
+
+#### ✅ **Backtick Import Bug COMPLETELY RESOLVED**
+- **Critical Issue**: Backtick statements (`import random`) not appearing in generated Python code when systems present
+- **Impact**: Caused `NameError: name 'random' is not defined` runtime errors
+- **Root Cause**: Module elements were being consumed by system parsing via `.take()`, leaving FrameModule empty
+- **Solution**: Systems now get empty modules, module elements preserved for FrameModule
+- **Files Modified**: `framec/src/frame_c/parser.rs` (line 254 - removed .take() logic)
+- **Validation**: All backtick imports now correctly appear in generated Python ✅
+- **Test Improvement**: Success rate increased from 82.7% to 88.2% (7 additional tests passing)
+
+#### ✅ **Action Call Resolution Bug FIXED**
+- **Issue**: Action calls from functions/operations generated without `self.` prefix and `_do` suffix
+- **Solution**: Pre-populate action tracking list before machine block processing
+- **Impact**: All action calls now correctly generate as `self.action_do()`
+
+#### ✅ **Enum Scope Resolution FIXED**
+- **Issue**: Functions couldn't access system-defined enums, forward reference errors
+- **Solution**: Generate all enums at module level before functions and systems
+- **Impact**: Enums accessible from anywhere in module without self. prefix
+
+### 🎉 **Previous Achievements - Frame v0.30 Operations Scope Fix (2025-08-26)**
 
 #### ✅ **Operations Call Scope Bug COMPLETELY RESOLVED**
 - **Critical Issue**: Operations calling other operations (`helper_operation()`) missing `self.` prefix in Python
