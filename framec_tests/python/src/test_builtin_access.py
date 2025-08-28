@@ -60,7 +60,7 @@ class TestBuiltins:
             print("System can access built-ins")
             if True:
                 print("System block can access built-ins")
-            test_action()
+            self.test_action_do()
             return
     
     # ===================== State Dispatchers =================== #

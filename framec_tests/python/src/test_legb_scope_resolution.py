@@ -119,7 +119,7 @@ class TestSystem:
                 print(nested)
                 print(handler_var)
                 print(self.domain_var)
-            test_action()
+            self.test_action_do()
             return
     
     # ===================== State Dispatchers =================== #

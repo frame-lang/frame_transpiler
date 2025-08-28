@@ -16,6 +16,30 @@ class FrameCompartment:
         self.parent_compartment = parent_compartment
 
 
+class CalendarSystem_Days(Enum):
+    SUNDAY = 0
+    monday = 1
+    Tuesday = 2
+    WEDNESDAY = 3
+    tHuRsDaY = 4
+    FRIDAY = 5
+    SATURDAY = 6
+
+class EnumValueSystem_Days(Enum):
+    SUNDAY = 0
+    monday = 1
+    Tuesday = 2
+    WEDNESDAY = 3
+    tHuRsDaY = 4
+    FRIDAY = 5
+    SATURDAY = 6
+    SUNDAY2 = 7
+
+class FruitSystem_Fruit(Enum):
+    Peach = 0
+    Pear = 1
+    Banana = 2
+
 def testFruit():
     f = getFruitOfTheDay()
     if f == Fruit.Peach:
@@ -42,31 +66,10 @@ class CalendarSystem:
     def __init__(self):
         self.__compartment = None
         self.return_stack = [None]
-    
-    class CalendarSystem_Days(Enum):
-        SUNDAY = 0
-        monday = 1
-        Tuesday = 2
-        WEDNESDAY = 3
-        tHuRsDaY = 4
-        FRIDAY = 5
-        SATURDAY = 6
-    
 class EnumValueSystem:
     def __init__(self):
         self.__compartment = None
         self.return_stack = [None]
-    
-    class EnumValueSystem_Days(Enum):
-        SUNDAY = 0
-        monday = 1
-        Tuesday = 1000
-        WEDNESDAY = 1001
-        tHuRsDaY = 1002
-        FRIDAY = 1003
-        SATURDAY = 1000
-        SUNDAY2 = 2000
-    
 class FruitSystem:
     def __init__(self):
         self.__compartment = None
@@ -75,14 +78,8 @@ class FruitSystem:
     
     def getFruitOfTheDay_do(self):
         
-        fruit_of_the_day: FruitSystem_Fruit = self.FruitSystem_Fruit.Pear
+        fruit_of_the_day: FruitSystem_Fruit = FruitSystem_Fruit.Pear
         return fruit_of_the_day
         return
         
-    
-    class FruitSystem_Fruit(Enum):
-        Peach = 0
-        Pear = 1
-        Banana = 2
-    
 

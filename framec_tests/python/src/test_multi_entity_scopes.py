@@ -108,7 +108,7 @@ class FirstSystem:
         if __e._message == "test_scope":
             print("\n=== FirstSystem Scope ===")
             self.system_operation()
-            system_action()
+            self.system_action_do()
             print("Domain: " + self.first_domain)
             return
     
@@ -195,7 +195,7 @@ class SecondSystem:
         if __e._message == "test_scope":
             print("\n=== SecondSystem Scope ===")
             self.second_operation()
-            second_action()
+            self.second_action_do()
             print("Domain: " + self.second_domain)
             return
     

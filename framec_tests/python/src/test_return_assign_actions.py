@@ -49,7 +49,7 @@ class DataProcessor:
     
     def __dataprocessor_state_Active(self, __e, compartment):
         if __e._message == "process":
-            actionResult = validateAndProcess(__e._parameters["input"])
+            actionResult = self.validateAndProcess_do(__e._parameters["input"])
             print("Action returned: " + actionResult)
             return
     

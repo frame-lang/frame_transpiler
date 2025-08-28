@@ -16,6 +16,11 @@ class FrameCompartment:
         self.parent_compartment = parent_compartment
 
 
+class Grocery_Fruit(Enum):
+    Peach = 0
+    Pear = 1
+    Banana = 2
+
 def main():
     grocery = Grocery()
     print("We are selling " + grocery.getFruitOfTheDay() + " today.")
@@ -48,7 +53,7 @@ class Grocery:
     
     def __grocery_state_Start(self, __e, compartment):
         if __e._message == "getFruitOfTheDay":
-            f: Grocery_Fruit = getRandomFruit()
+            f: Grocery_Fruit = self.getRandomFruit_do()
             if f == Grocery_Fruit.Peach:
                 print("Found a Peach.")
                 return "Peaches"
@@ -70,21 +75,15 @@ class Grocery:
         
         val = random.randint(1,3)
         if val == 1:
-            return self.Grocery_Fruit.Peach
+            return Grocery_Fruit.Peach
         elif val == 2:
-            return self.Grocery_Fruit.Pear
+            return Grocery_Fruit.Pear
         elif val == 3:
-            return self.Grocery_Fruit.Banana
+            return Grocery_Fruit.Banana
         else:
-            return self.Grocery_Fruit.Peach
+            return Grocery_Fruit.Peach
         return
         
-    
-    class Grocery_Fruit(Enum):
-        Peach = 0
-        Pear = 1
-        Banana = 2
-    
     
     # ==================== System Runtime =================== #
     

@@ -1,5 +1,6 @@
 #Emitted from framec_v0.30.0
 
+from enum import Enum
 
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -18,17 +19,13 @@ class FrameCompartment:
 def main():
     sys1 = SystemA()
     sys2 = SystemB("parameter")
-    sys3 = SystemC()# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    sys1# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    sys2# DEBUG_EXPR_TYPE: Discriminant(4)
-    
-    sys3
+    sys3 = SystemC()
+    sys1.start()
+    sys2.activate("test")
+    sys3.run()
     return
 
-def helper():# DEBUG_EXPR_TYPE: Discriminant(4)
-    
+def helper():
     print("Helper function works")
     return
 class SystemA:
@@ -62,10 +59,8 @@ class SystemA:
     # $Idle
     
     def __systema_state_Idle(self, __e, compartment):
-        if __e._message == "start":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            helper()# DEBUG: TransitionStmt
-            
+        if __e._message == "start":
+            helper()
             next_compartment = FrameCompartment('__systema_state_Running', None, None, None, None)
             self.__transition(next_compartment)
             return
@@ -75,8 +70,7 @@ class SystemA:
     # $Running
     
     def __systema_state_Running(self, __e, compartment):
-        if __e._message == "stop":# DEBUG: TransitionStmt
-            
+        if __e._message == "stop":
             next_compartment = FrameCompartment('__systema_state_Idle', None, None, None, None)
             self.__transition(next_compartment)
             return
@@ -132,7 +126,8 @@ class SystemB:
         self.__next_compartment = None
         self.return_stack = [None]
         # Initialize domain variables
-        self.value = ""
+        self.param = arg0
+        self.value: str = ""
         
         # Send system start event
         frame_event = FrameEvent("$>", None)
@@ -154,12 +149,9 @@ class SystemB:
     # $Start
     
     def __systemb_state_Start(self, __e, compartment):
-        if __e._message == "activate":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            print(param)# DEBUG_EXPR_TYPE: Discriminant(4)
-            
-            print(__e._parameters["data"])# DEBUG: TransitionStmt
-            
+        if __e._message == "activate":
+            print(self.param)
+            print(__e._parameters["data"])
             next_compartment = FrameCompartment('__systemb_state_Active', None, None, None, None)
             self.__transition(next_compartment)
             return
@@ -169,8 +161,7 @@ class SystemB:
     # $Active
     
     def __systemb_state_Active(self, __e, compartment):
-        if __e._message == "$>":# DEBUG_EXPR_TYPE: Discriminant(4)
-            
+        if __e._message == "$>":
             print("SystemB active")
             return
     
@@ -231,8 +222,7 @@ class SystemC:
     
     # ==================== Operations Block ================== #
     
-    def run(self):# DEBUG_EXPR_TYPE: Discriminant(4)
-        
+    def run(self):
         print("SystemC operation running")
     # ===================== Machine Block =================== #
     
@@ -251,7 +241,6 @@ class SystemC:
     # ===================== Actions Block =================== #
     
     def run_do(self):
-        # DEBUG_EXPR_TYPE: Discriminant(4)
         
         print("SystemC running")
         return

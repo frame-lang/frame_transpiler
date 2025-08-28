@@ -153,14 +153,14 @@ class SeatManager:
     def __seatmanager_state_ProcessingSelection(self, __e, compartment):
         if __e._message == "$>":
             print("Processing selection for seat")
-            check_seat_availability("seat_id")
+            self.check_seat_availability_do("seat_id")
             return
         elif __e._message == "reserve_seat":
             print("Reserving seat: " + __e._parameters["seat_id"])
             print("Lock Request ID: " + __e._parameters["lock_request_id"])
             print("Exchange Ticket Group ID: " + __e._parameters["exchange_ticket_group_id"])
-            if is_seat_available(__e._parameters["seat_id"]):
-                create_mercury_lock(__e._parameters["seat_id"],__e._parameters["lock_request_id"],__e._parameters["exchange_ticket_group_id"])
+            if self.is_seat_available_do(__e._parameters["seat_id"]):
+                self.create_mercury_lock_do(__e._parameters["seat_id"],__e._parameters["lock_request_id"],__e._parameters["exchange_ticket_group_id"])
                 next_compartment = FrameCompartment('__seatmanager_state_SeatReserved', None, None, None, None)
                 self.__transition(next_compartment)
             else:
@@ -176,11 +176,11 @@ class SeatManager:
     def __seatmanager_state_SeatReserved(self, __e, compartment):
         if __e._message == "$>":
             print("Seat reserved with lock")
-            start_lock_timer("current_seat","current_lock")
+            self.start_lock_timer_do("current_seat","current_lock")
             return
         elif __e._message == "purchase_seat":
             print("Processing payment for seat: " + __e._parameters["seat_id"])
-            if process_payment(__e._parameters["payment_info"]):
+            if self.process_payment_do(__e._parameters["payment_info"]):
                 print("Payment successful - seat sold")
                 next_compartment = FrameCompartment('__seatmanager_state_SeatSold', None, None, None, None)
                 self.__transition(next_compartment)
@@ -191,13 +191,13 @@ class SeatManager:
             return
         elif __e._message == "release_seat":
             print("User released seat: " + __e._parameters["seat_id"])
-            remove_lock(__e._parameters["seat_id"])
+            self.remove_lock_do(__e._parameters["seat_id"])
             next_compartment = FrameCompartment('__seatmanager_state_Idle', None, None, None, None)
             self.__transition(next_compartment)
             return
         elif __e._message == "expire_lock":
             print("Lock expired for seat: " + __e._parameters["seat_id"])
-            remove_lock(__e._parameters["seat_id"])
+            self.remove_lock_do(__e._parameters["seat_id"])
             next_compartment = FrameCompartment('__seatmanager_state_Idle', None, None, None, None)
             self.__transition(next_compartment)
             return

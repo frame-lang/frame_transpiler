@@ -86,7 +86,7 @@ class AllBlocksTest:
         if __e._message == "$>":
             print("Machine: Complete state entered")
             print("Actions: calling complete_process")
-            complete_process()
+            self.complete_process_do()
             return
         elif __e._message == "start_test":
             print("Machine: start_test interface called")

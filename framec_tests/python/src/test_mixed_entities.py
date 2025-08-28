@@ -73,7 +73,7 @@ class SystemA:
     def __systema_state_StateA(self, __e, compartment):
         if __e._message == "interface_a":
             print("SystemA interface")
-            action_a()
+            self.action_a_do()
             return
     
     # ===================== State Dispatchers =================== #
@@ -150,7 +150,7 @@ class SystemB:
     def __systemb_state_StateB(self, __e, compartment):
         if __e._message == "interface_b":
             print("SystemB interface")
-            action_b()
+            self.action_b_do()
             return
     
     # ===================== State Dispatchers =================== #

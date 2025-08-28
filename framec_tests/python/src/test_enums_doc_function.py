@@ -16,6 +16,11 @@ class FrameCompartment:
         self.parent_compartment = parent_compartment
 
 
+class TestSystem_Fruit(Enum):
+    Peach = 0
+    Pear = 1
+    Banana = 2
+
 def main():
     sys = TestSystem()
     sys.testFruit()
@@ -29,12 +34,12 @@ class TestSystem:
     
     def testFruit_do(self):
         
-        f: TestSystem_Fruit = self.TestSystem_Fruit.Pear
-        if f == self.TestSystem_Fruit.Peach:
+        f: TestSystem_Fruit = TestSystem_Fruit.Pear
+        if f == TestSystem_Fruit.Peach:
             print("Found a Peach")
-        elif f == self.TestSystem_Fruit.Pear:
+        elif f == TestSystem_Fruit.Pear:
             print("Found a Pear")
-        elif f == self.TestSystem_Fruit.Banana:
+        elif f == TestSystem_Fruit.Banana:
             print("Found a Banana")
         else:
             print("Unknown fruit")
@@ -43,22 +48,16 @@ class TestSystem:
     
     def describeFruit_do(self,fruit_value: TestSystem_Fruit):
         
-        if fruit_value == self.TestSystem_Fruit.Peach:
+        if fruit_value == TestSystem_Fruit.Peach:
             print("Peaches")
-        elif fruit_value == self.TestSystem_Fruit.Pear:
+        elif fruit_value == TestSystem_Fruit.Pear:
             print("Pears")
-        elif fruit_value == self.TestSystem_Fruit.Banana:
+        elif fruit_value == TestSystem_Fruit.Banana:
             print("Bananas")
         else:
             print("Other Fruit")
         return
         
-    
-    class TestSystem_Fruit(Enum):
-        Peach = 0
-        Pear = 1
-        Banana = 2
-    
 
 if __name__ == '__main__':
     main()

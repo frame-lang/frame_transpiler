@@ -102,7 +102,7 @@ class AdvancedProcessor:
     def __advancedprocessor_state_Processing(self, __e, compartment):
         if __e._message == "$>":
             print("Processing: " + (compartment.state_args["data"]))
-            result = processText(compartment.state_args["data"])
+            result = self.processText_do(compartment.state_args["data"])
             if result == "error":
                 self.return_stack[-1] = "processing failed"
                 next_compartment = FrameCompartment('__advancedprocessor_state_Idle', None, None, None, None)
@@ -174,7 +174,7 @@ class AdvancedProcessor:
         
         if text == "ERROR":
             return "error"
-        if len(text) > 50:
+        if self.len_do(text) > 50:
             return "warning"
         if text == "test":
             return "validated"

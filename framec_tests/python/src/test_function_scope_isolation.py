@@ -17,19 +17,52 @@ class FrameCompartment:
 
 
 def main():
-    print("=== System Isolation Test ===")
-    sys1 = SystemOne()
-    sys2 = SystemTwo()
-    sys1.test_public()
-    sys2.test_public()
-    print("System isolation test completed")
+    print("=== Function Scope Isolation Test ===")
+    sys = IsolatedSystem()
+    sys.public_interface()
+    test_function_cannot_access_internals()
+    test_function_can_call_functions()
+    test_function_can_use_builtins()
     return
-class SystemOne:
+
+def test_function_cannot_access_internals():
+    print("\n=== Function Cannot Access System Internals ===")
+    local_sys = IsolatedSystem()
+    local_sys.public_interface()
+    print("Function isolation test completed")
+    return
+
+def test_function_can_call_functions():
+    print("\n=== Function Can Call Other Functions ===")
+    helper_function()
+    result = compute_value(5,3)
+    print("Computed: " + str(result))
+    return
+
+def test_function_can_use_builtins():
+    print("\n=== Function Can Use Built-ins ===")
+    print("Print works")
+    text = str(42)
+    print("Stringified: " + text)
+    num = 10
+    print("Number: " + str(num))
+    return
+
+def helper_function():
+    print("Helper function called successfully")
+    return
+
+def compute_value(a,b):
+    return a + b
+    return
+class IsolatedSystem:
     def __init__(self):
         # Create and initialize start state compartment
-        self.__compartment = FrameCompartment('__systemone_state_Active', None, None, None, None)
+        self.__compartment = FrameCompartment('__isolatedsystem_state_Idle', None, None, None, None)
         self.__next_compartment = None
         self.return_stack = [None]
+        # Initialize domain variables
+        self.internal_data: str = "INTERNAL"
         
         # Send system start event
         frame_event = FrameEvent("$>", None)
@@ -37,13 +70,13 @@ class SystemOne:
     
     # ==================== Operations Block ================== #
     
-    def internal_one(self):
-        print("SystemOne internal operation")
+    def internal_operation(self):
+        print("Internal operation - should not be callable from functions")
     # ==================== Interface Block ================== #
     
-    def test_public(self,):
+    def public_interface(self,):
         self.return_stack.append(None)
-        __e = FrameEvent("test_public",None)
+        __e = FrameEvent("public_interface",None)
         self.__kernel(__e)
         return self.return_stack.pop(-1)
     
@@ -51,26 +84,24 @@ class SystemOne:
     
     
     # ----------------------------------------
-    # $Active
+    # $Idle
     
-    def __systemone_state_Active(self, __e, compartment):
-        if __e._message == "test_public":
-            print("SystemOne public method")
-            self.internal_one()
-            self.action_one_do()
-            other = SystemTwo()
-            other.test_public()
+    def __isolatedsystem_state_Idle(self, __e, compartment):
+        if __e._message == "public_interface":
+            print("Public interface called")
+            self.internal_operation()
+            self.private_action_do()
             return
     
     # ===================== State Dispatchers =================== #
     
-    def _sActive(self, __e):
-        return self.__systemone_state_Active(__e, None)
+    def _sIdle(self, __e):
+        return self.__isolatedsystem_state_Idle(__e, None)
     # ===================== Actions Block =================== #
     
-    def action_one_do(self):
+    def private_action_do(self):
         
-        print("SystemOne action")
+        print("Private action - should not be callable from functions")
         return
         
     
@@ -104,31 +135,26 @@ class SystemOne:
     
     def __router(self, __e, compartment=None):
         target_compartment = compartment or self.__compartment
-        if target_compartment.state == '__systemone_state_Active':
-            self.__systemone_state_Active(__e, target_compartment)
+        if target_compartment.state == '__isolatedsystem_state_Idle':
+            self.__isolatedsystem_state_Idle(__e, target_compartment)
     
     def __transition(self, next_compartment):
         self.__next_compartment = next_compartment
-class SystemTwo:
+class AnotherSystem:
     def __init__(self):
         # Create and initialize start state compartment
-        self.__compartment = FrameCompartment('__systemtwo_state_Ready', None, None, None, None)
+        self.__compartment = FrameCompartment('__anothersystem_state_Ready', None, None, None, None)
         self.__next_compartment = None
         self.return_stack = [None]
         
         # Send system start event
         frame_event = FrameEvent("$>", None)
         self.__kernel(frame_event)
-    
-    # ==================== Operations Block ================== #
-    
-    def internal_two(self):
-        print("SystemTwo internal operation")
     # ==================== Interface Block ================== #
     
-    def test_public(self,):
+    def another_interface(self,):
         self.return_stack.append(None)
-        __e = FrameEvent("test_public",None)
+        __e = FrameEvent("another_interface",None)
         self.__kernel(__e)
         return self.return_stack.pop(-1)
     
@@ -138,26 +164,17 @@ class SystemTwo:
     # ----------------------------------------
     # $Ready
     
-    def __systemtwo_state_Ready(self, __e, compartment):
-        if __e._message == "test_public":
-            print("SystemTwo public method")
-            self.internal_two()
-            self.action_two_do()
-            other = SystemOne()
-            other.test_public()
+    def __anothersystem_state_Ready(self, __e, compartment):
+        if __e._message == "another_interface":
+            print("Another system's interface")
+            other = IsolatedSystem()
+            other.public_interface()
             return
     
     # ===================== State Dispatchers =================== #
     
     def _sReady(self, __e):
-        return self.__systemtwo_state_Ready(__e, None)
-    # ===================== Actions Block =================== #
-    
-    def action_two_do(self):
-        
-        print("SystemTwo action")
-        return
-        
+        return self.__anothersystem_state_Ready(__e, None)
     
     # ==================== System Runtime =================== #
     
@@ -189,8 +206,8 @@ class SystemTwo:
     
     def __router(self, __e, compartment=None):
         target_compartment = compartment or self.__compartment
-        if target_compartment.state == '__systemtwo_state_Ready':
-            self.__systemtwo_state_Ready(__e, target_compartment)
+        if target_compartment.state == '__anothersystem_state_Ready':
+            self.__anothersystem_state_Ready(__e, target_compartment)
     
     def __transition(self, next_compartment):
         self.__next_compartment = next_compartment

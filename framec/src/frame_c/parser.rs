@@ -250,17 +250,8 @@ impl<'a> Parser<'a> {
             
             // Now check what entity type we have
             if self.match_token(&[TokenType::System]) {
-                // Parse system (first system gets module elements, others get empty module)
-                let module_for_system = if systems.is_empty() {
-                    // First system gets the module elements
-                    match module_elements_opt.take() {
-                        Some(elements) => Module::new(elements),
-                        None => Module::new(vec![]),
-                    }
-                } else {
-                    // Additional systems get empty module
-                    Module::new(vec![])
-                };
+                // v0.30: All individual systems get empty modules - module elements belong to FrameModule
+                let module_for_system = Module::new(vec![]);
                 
                 let system = self.system_scope(Some(module_for_system), entity_attributes_opt, None)?;
                 systems.push(system);

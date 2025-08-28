@@ -15,6 +15,11 @@ class FrameCompartment:
         self.enter_args = enter_args
         self.parent_compartment = parent_compartment
 
+
+class Grocery_Fruit(Enum):
+    Peach = 0
+    Pear = 1
+    Banana = 2
 class Grocery:
     def __init__(self):
         # Create and initialize start state compartment
@@ -54,15 +59,9 @@ class Grocery:
     
     def getRandomFruit_do(self):
         
-        return self.Grocery_Fruit.Peach
+        return Grocery_Fruit.Peach
         return
         
-    
-    class Grocery_Fruit(Enum):
-        Peach = 0
-        Pear = 1
-        Banana = 2
-    
     
     # ==================== System Runtime =================== #
     

@@ -50,7 +50,7 @@ class BlocksTest:
         if __e._message == "$>":
             print("machine: start entered")
             self.work()
-            finish()
+            self.finish_do()
             return
         elif __e._message == "go":
             print("machine: go interface called")

@@ -13,7 +13,7 @@ use crate::frame_c::scanner::{Token, TokenType};
 use crate::frame_c::symbol_table::*;
 use crate::frame_c::visitors::*;
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 // use yaml_rust::{YamlLoader, Yaml};
@@ -70,6 +70,7 @@ pub struct PythonVisitor {
     system_node_rcref_opt: Option<Rc<RefCell<SystemNode>>>,
     in_standalone_function: bool,  // Track if we're currently in a standalone function context
     current_system_operations: Vec<String>,  // Track operations defined in the current system
+    current_system_actions: Vec<String>,     // Track actions defined in the current system
 }
 
 impl PythonVisitor {
@@ -163,6 +164,7 @@ impl PythonVisitor {
             system_node_rcref_opt: None,
             in_standalone_function: false,
             current_system_operations: Vec::new(),
+            current_system_actions: Vec::new(),
         }
     }
 
@@ -747,6 +749,14 @@ impl PythonVisitor {
         self.add_code("from enum import Enum");
         self.newline();
         
+        // v0.30: Process module-level CodeBlocks (backtick statements like imports)
+        for module_element in &frame_module.module.module_elements {
+            if let ModuleElement::CodeBlock { code_block } = module_element {
+                self.newline();
+                self.add_code(code_block);
+            }
+        }
+        
         // Generate FrameEvent class (common to all systems)
         self.newline();
         self.add_code("class FrameEvent:");
@@ -783,6 +793,9 @@ impl PythonVisitor {
         self.outdent();
         self.newline();
         self.newline();
+        
+        // v0.30: Generate all enums at module level first (before functions and systems)
+        self.generate_all_enums();
         
         // Generate module-level functions (like main)
         for function_rcref in &frame_module.functions {
@@ -1028,6 +1041,14 @@ impl PythonVisitor {
             interface_block_node.accept(self);
         }
         
+        // Pre-populate actions list before processing machine block (for call resolution)
+        if let Some(ref actions_block_node) = system_node.actions_block_node_opt {
+            for action_node_rcref in &actions_block_node.actions {
+                let action_node = action_node_rcref.borrow();
+                self.current_system_actions.push(action_node.name.clone());
+            }
+        }
+        
         // Generate machine block
         if let Some(ref machine_block_node) = system_node.machine_block_node_opt {
             machine_block_node.accept(self);
@@ -1043,10 +1064,8 @@ impl PythonVisitor {
             domain_block_node.accept(self);
         }
         
-        // Generate enums from domain block
-        if let Some(ref domain_block_node) = system_node.domain_block_node_opt {
-            domain_block_node.accept_enums(self);
-        }
+        // v0.30: Enums are now generated at module level in generate_all_enums()
+        // No longer generate them inside system classes to avoid forward reference issues
         
         // Generate system runtime (__kernel, __router, __transition)
         // This is essential for systems to auto-start with enter events
@@ -2666,12 +2685,62 @@ impl PythonVisitor {
         }
     }
 
-    // v0.30: Generate all enums from the primary system for now
-    // TODO: Extend to handle multiple systems when AST node references are available
+    // v0.30: Generate all enums from all systems at module level
+    // This ensures enums can be referenced from functions and anywhere in the module
     fn generate_all_enums(&mut self) {
-        // For now, try to access enums from the first system we have access to
-        // This is a temporary solution until we can access AST nodes from symbols
-        // The enums will be generated in the legacy system processing if available
+        let mut generated_enums = HashSet::new();
+        
+        // Iterate through all systems and collect their enums
+        let system_symbols = self.arcanium.get_systems().clone();
+        if system_symbols.is_empty() {
+            return;
+        }
+        
+        for system_symbol_rcref in system_symbols {
+            let system_symbol = system_symbol_rcref.borrow();
+            let system_name = &system_symbol.name;
+            
+            // Check if this system has a domain block with enums
+            if let Some(domain_block_symbol_rcref) = &system_symbol.domain_block_symbol_opt {
+                let domain_block_symbol = domain_block_symbol_rcref.borrow();
+                let domain_symbol_table = domain_block_symbol.symtab_rcref.borrow();
+                
+                // Iterate through all symbols in the domain block
+                for (name, symbol_type_rcref) in &domain_symbol_table.symbols {
+                    let symbol_type = symbol_type_rcref.borrow();
+                    match &*symbol_type {
+                        SymbolType::EnumDeclSymbolT { enum_symbol_rcref } => {
+                            let enum_symbol = enum_symbol_rcref.borrow();
+                            if let Some(ast_node_rcref) = &enum_symbol.ast_node_opt {
+                                let enum_decl_node = ast_node_rcref.borrow();
+                                
+                                // Generate unique enum name: SystemName_EnumName  
+                                let full_enum_name = format!("{}_{}", system_name, enum_decl_node.name);
+                                
+                                // Avoid duplicate generation
+                                if !generated_enums.contains(&full_enum_name) {
+                                    generated_enums.insert(full_enum_name.clone());
+                                    
+                                    // Generate the enum at module level
+                                    self.newline();
+                                    self.add_code(&format!("class {}(Enum):", full_enum_name));
+                                    self.indent();
+                                    
+                                    for (index, enumerator_decl_node) in enum_decl_node.enums.iter().enumerate() {
+                                        self.newline();
+                                        self.add_code(&format!("{} = {}", enumerator_decl_node.name, index));
+                                    }
+                                    
+                                    self.outdent();
+                                    self.newline();
+                                }
+                            }
+                        }
+                        _ => {} // Not an enum, skip
+                    }
+                }
+            }
+        }
     }
 
     // v0.30: Generate all systems from the Arcanum
@@ -3114,9 +3183,11 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_system_node(&mut self, system_node: &SystemNode) {
+        // NOTE: This method is LEGACY and not used in v0.30 run_v2() flow
         
-        // Reset operations list for this system
+        // Reset operations and actions lists for this system
         self.current_system_operations.clear();
+        self.current_system_actions.clear();
         
         self.add_code(&format!("#{}", self.compiler_version));
         self.newline();
@@ -3132,8 +3203,9 @@ impl AstVisitor for PythonVisitor {
         // v0.30: Generate all functions from Arcanum
         self.generate_all_functions();
 
-        // v0.30: Generate all systems from Arcanum  
-        self.generate_all_systems();
+        // v0.30: Legacy enum and system generation (unused in run_v2 flow)
+        // self.generate_all_enums(); // Now called from run_v2()
+        // self.generate_all_systems(); // Now handled by run_v2() with frame_module
 
         // Note: Enums will be generated per system in generate_system_from_node()
 
@@ -4226,13 +4298,21 @@ impl AstVisitor for PythonVisitor {
         // Only add self. if there's no existing call chain
         let method_name = &method_call.identifier.name.lexeme;
         
-        // Check if it's an action (needs self. prefix if not present and _do suffix)
+        // Check if it's an action (needs _do suffix always, self. prefix if not present)
         if let Some(_action_symbol) = self.arcanium.lookup_action(method_name) {
             self.debug_print("Found action - generating self.action_do call");
-            if !has_call_chain && !self.in_call_chain {
-                self.add_code("self.");
+            // For actions, we ALWAYS want self.action_do format
+            // Clear any existing code and regenerate the full call  
+            if has_call_chain {
+                // If we already output "self.", that's correct, just add action_do
+                self.add_code(&format!("{}_do", method_name));
+            } else if !self.in_call_chain {
+                // No call chain, add full self.action_do
+                self.add_code(&format!("self.{}_do", method_name));
+            } else {
+                // In call chain context, just add action_do  
+                self.add_code(&format!("{}_do", method_name));
             }
-            self.add_code(&format!("{}_do", method_name));
         }
         // Check if it's an operation (needs self. prefix if not present)
         else if let Some((_operation_symbol, _system_symbol)) = self.arcanium.lookup_operation_in_all_systems(method_name) {
@@ -4249,6 +4329,21 @@ impl AstVisitor for PythonVisitor {
                 self.add_code("self.");
             }
             self.add_code(method_name);
+        }
+        // Fallback: check if it's in our tracked actions list (when symbol table fails)
+        else if self.current_system_actions.contains(&method_name.to_string()) {
+            self.debug_print("Found action in tracked list - generating self.action_do call");
+            // For actions, we ALWAYS want self.action_do format
+            if has_call_chain {
+                // If we already output "self.", that's correct, just add action_do
+                self.add_code(&format!("{}_do", method_name));
+            } else if !self.in_call_chain {
+                // No call chain, add full self.action_do
+                self.add_code(&format!("self.{}_do", method_name));
+            } else {
+                // In call chain context, just add action_do  
+                self.add_code(&format!("{}_do", method_name));
+            }
         }
         // Otherwise output as-is (external function call)
         else {
@@ -4298,11 +4393,12 @@ impl AstVisitor for PythonVisitor {
         // Only add self. if there's no existing call chain
         let method_name = &method_call.identifier.name.lexeme;
         
-        // Check if it's an action (needs self. prefix if not present and _do suffix)
+        // Check if it's an action (needs _do suffix always, self. prefix if not present)
         if let Some(_action_symbol) = self.arcanium.lookup_action(method_name) {
             if !has_call_chain {
                 output.push_str("self.");
             }
+            // Always add _do suffix for actions, regardless of call chain
             output.push_str(&format!("{}_do", method_name));
         }
         // Check if it's an operation (needs self. prefix if not present)
@@ -4318,6 +4414,17 @@ impl AstVisitor for PythonVisitor {
                 output.push_str("self.");
             }
             output.push_str(method_name);
+        }
+        // Fallback: check if it's in our tracked actions list (when symbol table fails)
+        else if self.current_system_actions.contains(&method_name.to_string()) {
+            // For actions, we ALWAYS want self.action_do format
+            if has_call_chain {
+                // If we already output "self.", that's correct, just add action_do
+                output.push_str(&format!("{}_do", method_name));
+            } else {
+                // No call chain, add full self.action_do
+                output.push_str(&format!("self.{}_do", method_name));
+            }
         }
         // Otherwise output as-is (external function call)
         else {
@@ -4368,16 +4475,11 @@ impl AstVisitor for PythonVisitor {
         
         self.debug_print(&format!("visit_action_call_expression_node({}) - in_standalone_function: {}", action_name, self.in_standalone_function));
         
-        if self.in_standalone_function {
-            // In standalone functions, treat action calls as external function calls
-            self.debug_print("In standalone function context - generating external call");
-            self.add_code(action_name);
-        } else {
-            // In system context, use self. prefix and _do suffix
-            self.debug_print("In system context - generating self.action_do call");
-            let formatted_action_name = self.format_action_name(action_name);
-            self.add_code(&format!("self.{}", formatted_action_name));
-        }
+        // ActionCallExprNode represents explicit action calls like self.action_one()
+        // These should ALWAYS generate self.action_do() format, regardless of context
+        self.debug_print("ActionCallExprNode - generating self.action_do call");
+        let formatted_action_name = self.format_action_name(action_name);
+        self.add_code(&format!("self.{}", formatted_action_name));
 
         action_call.call_expr_list.accept(self);
     }
@@ -4391,14 +4493,10 @@ impl AstVisitor for PythonVisitor {
     ) {
         let action_name = &action_call.identifier.name.lexeme;
         
-        if self.in_standalone_function {
-            // In standalone functions, treat action calls as external function calls
-            output.push_str(action_name);
-        } else {
-            // In system context, use self. prefix and _do suffix
-            let formatted_action_name = self.format_action_name(action_name);
-            output.push_str(&format!("self.{}", formatted_action_name));
-        }
+        // ActionCallExprNode represents explicit action calls like self.action_one()
+        // These should ALWAYS generate self.action_do() format, regardless of context
+        let formatted_action_name = self.format_action_name(action_name);
+        output.push_str(&format!("self.{}", formatted_action_name));
 
         action_call.call_expr_list.accept_to_string(self, output);
     }
@@ -6293,6 +6391,9 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_action_node(&mut self, action_node: &ActionNode) {
         self.action_scope_depth += 1;
+        
+        // Track this action name for method call resolution
+        self.current_system_actions.push(action_node.name.clone());
 
         let mut subclass_code = String::new();
 
@@ -6416,19 +6517,12 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_enumerator_expr_node(&mut self, enum_expr_node: &EnumeratorExprNode) {
-        // Within system methods (actions/operations), use self.EnumName
-        // At module level (functions), use SystemName_EnumName directly
-        if self.is_in_action_or_operation() {
-            self.add_code(&format!(
-                "self.{}_{}.{}",
-                self.system_name, enum_expr_node.enum_type, enum_expr_node.enumerator
-            ));
-        } else {
-            self.add_code(&format!(
-                "{}_{}.{}",
-                self.system_name, enum_expr_node.enum_type, enum_expr_node.enumerator
-            ));
-        }
+        // v0.30: All enums are now generated at module level, so always use direct reference
+        // No need for self. prefix since enums are module-level classes
+        self.add_code(&format!(
+            "{}_{}.{}",
+            self.system_name, enum_expr_node.enum_type, enum_expr_node.enumerator
+        ));
     }
 
     //* --------------------------------------------------------------------- *//
@@ -6438,19 +6532,12 @@ impl AstVisitor for PythonVisitor {
         enum_expr_node: &EnumeratorExprNode,
         output: &mut String,
     ) {
-        // Within system methods (actions/operations), use self.EnumName
-        // At module level (functions), use SystemName_EnumName directly
-        if self.is_in_action_or_operation() {
-            output.push_str(&format!(
-                "self.{}_{}.{}",
-                self.system_name, enum_expr_node.enum_type, enum_expr_node.enumerator
-            ));
-        } else {
-            output.push_str(&format!(
-                "{}_{}.{}",
-                self.system_name, enum_expr_node.enum_type, enum_expr_node.enumerator
-            ));
-        }
+        // v0.30: All enums are now generated at module level, so always use direct reference
+        // No need for self. prefix since enums are module-level classes
+        output.push_str(&format!(
+            "{}_{}.{}",
+            self.system_name, enum_expr_node.enum_type, enum_expr_node.enumerator
+        ));
     }
 
     //* --------------------------------------------------------------------- *//

@@ -58,7 +58,7 @@ class TextAnalyzer:
             if __e._parameters["text"] == "":
                 self.return_stack[-1] = "empty input"
                 return
-            category = categorizeText(__e._parameters["text"])
+            category = self.categorizeText_do(__e._parameters["text"])
             print("Category from action: " + category)
             if category == "short":
                 self.return_stack[-1] = "short text: " + __e._parameters["text"]
@@ -76,7 +76,7 @@ class TextAnalyzer:
     
     def categorizeText_do(self,text):
         
-        if len(text) < 10:
+        if self.len_do(text) < 10:
             return "short"
         if text == text.upper() and text != text.lower():
             return "caps"

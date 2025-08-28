@@ -15,19 +15,18 @@ class FrameCompartment:
         self.enter_args = enter_args
         self.parent_compartment = parent_compartment
 
+
+class CalendarSystem_Days(Enum):
+    SUNDAY = 0
+    monday = 1
+    Tuesday = 2
+    WEDNESDAY = 3
+    tHuRsDaY = 4
+    FRIDAY = 5
+    SATURDAY = 6
+    SUNDAY = 7
 class CalendarSystem:
     def __init__(self):
         self.__compartment = None
         self.return_stack = [None]
-    
-    class CalendarSystem_Days(Enum):
-        SUNDAY = 0
-        monday = 1
-        Tuesday = 2
-        WEDNESDAY = 3
-        tHuRsDaY = 4
-        FRIDAY = 5
-        SATURDAY = 6
-        SUNDAY = 7
-    
 

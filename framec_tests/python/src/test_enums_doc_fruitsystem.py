@@ -15,6 +15,11 @@ class FrameCompartment:
         self.enter_args = enter_args
         self.parent_compartment = parent_compartment
 
+
+class FruitSystem_Fruit(Enum):
+    Peach = 0
+    Pear = 1
+    Banana = 2
 class FruitSystem:
     def __init__(self):
         self.__compartment = None
@@ -23,14 +28,8 @@ class FruitSystem:
     
     def getFruitOfTheDay_do(self):
         
-        fruit_of_the_day: FruitSystem_Fruit = self.FruitSystem_Fruit.Pear
+        fruit_of_the_day: FruitSystem_Fruit = FruitSystem_Fruit.Pear
         return fruit_of_the_day
         return
         
-    
-    class FruitSystem_Fruit(Enum):
-        Peach = 0
-        Pear = 1
-        Banana = 2
-    
 

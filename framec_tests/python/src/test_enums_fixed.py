@@ -2,6 +2,8 @@
 
 from enum import Enum
 
+from enum import Enum
+import random
 class FrameEvent:
     def __init__(self, message, parameters):
         self._message = message
@@ -15,28 +17,33 @@ class FrameCompartment:
         self.enter_args = enter_args
         self.parent_compartment = parent_compartment
 
-class ValidationTest:
+
+class Grocery_Fruit(Enum):
+    Peach = 0
+    Pear = 1
+    Banana = 2
+
+def main():
+    grocery = Grocery()
+    print("We are selling " + grocery.getFruitOfTheDay() + " today.")
+    print("We sold " + grocery.getFruitOfTheDay() + " yesterday.")
+    print("We are selling " + grocery.getFruitOfTheDay() + " tomorrow.")
+    return
+class Grocery:
     def __init__(self):
         # Create and initialize start state compartment
-        self.__compartment = FrameCompartment('__validationtest_state_Start', None, None, None, None)
+        self.__compartment = FrameCompartment('__grocery_state_Start', None, None, None, None)
         self.__next_compartment = None
         self.return_stack = [None]
-        # Initialize domain variables
-        self.counter: int = 42
         
         # Send system start event
         frame_event = FrameEvent("$>", None)
         self.__kernel(frame_event)
-    
-    # ==================== Operations Block ================== #
-    
-    def do_work(self):
-        print("Operations: do_work called")
     # ==================== Interface Block ================== #
     
-    def test_interface(self,):
+    def getFruitOfTheDay(self,):
         self.return_stack.append(None)
-        __e = FrameEvent("test_interface",None)
+        __e = FrameEvent("getFruitOfTheDay",None)
         self.__kernel(__e)
         return self.return_stack.pop(-1)
     
@@ -46,27 +53,37 @@ class ValidationTest:
     # ----------------------------------------
     # $Start
     
-    def __validationtest_state_Start(self, __e, compartment):
-        if __e._message == "$>":
-            print("Machine: Start state entered")
-            self.do_work()
-            print("Actions: calling finish_work")
-            self.finish_work_do()
-            return
-        elif __e._message == "test_interface":
-            print("Machine: test_interface called")
-            return
+    def __grocery_state_Start(self, __e, compartment):
+        if __e._message == "getFruitOfTheDay":
+            f: Grocery_Fruit = self.getRandomFruit_do()
+            if f == Grocery_Fruit.Peach:
+                print("Found a Peach.")
+                return "Peaches"
+            elif f == Grocery_Fruit.Pear:
+                print("Found a Pear.")
+                return "Pears"
+            elif f == Grocery_Fruit.Banana:
+                print("Found a Banana.")
+                return "Bananas"
+            return "None"
     
     # ===================== State Dispatchers =================== #
     
     def _sStart(self, __e):
-        return self.__validationtest_state_Start(__e, None)
+        return self.__grocery_state_Start(__e, None)
     # ===================== Actions Block =================== #
     
-    def finish_work_do(self):
+    def getRandomFruit_do(self):
         
-        print("Actions: finish_work called")
-        print("Domain: counter = " + str(self.counter))
+        val = random.randint(1,3)
+        if val == 1:
+            return Grocery_Fruit.Peach
+        elif val == 2:
+            return Grocery_Fruit.Pear
+        elif val == 3:
+            return Grocery_Fruit.Banana
+        else:
+            return Grocery_Fruit.Peach
         return
         
     
@@ -100,9 +117,11 @@ class ValidationTest:
     
     def __router(self, __e, compartment=None):
         target_compartment = compartment or self.__compartment
-        if target_compartment.state == '__validationtest_state_Start':
-            self.__validationtest_state_Start(__e, target_compartment)
+        if target_compartment.state == '__grocery_state_Start':
+            self.__grocery_state_Start(__e, target_compartment)
     
     def __transition(self, next_compartment):
         self.__next_compartment = next_compartment
 
+if __name__ == '__main__':
+    main()
