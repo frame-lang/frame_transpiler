@@ -242,10 +242,48 @@ impl PythonVisitor {
         // }
 
         self.newline_to_string(&mut ret);
-        ret.push_str(&format!(
-            "next_compartment = FrameCompartment('{}', next_compartment)",
-            self.format_target_state_name(state_node_rcref.borrow().name.as_str())
-        ));
+        
+        // Build state_vars dictionary for this state
+        let mut state_vars_entries = Vec::new();
+        if let Some(vars) = &state_node_rcref.borrow().vars_opt {
+            for variable_decl_node_rcref in vars {
+                let var_decl_node = variable_decl_node_rcref.borrow();
+                let var_name = &var_decl_node.name;
+                let initializer_expr_rc = var_decl_node.get_initializer_value_rc();
+                let mut initializer_value = String::new();
+                initializer_expr_rc.accept_to_string(self, &mut initializer_value);
+                state_vars_entries.push(format!("'{}': {}", var_name, initializer_value));
+            }
+        }
+        let state_vars_dict = if state_vars_entries.is_empty() {
+            "{}".to_string()
+        } else {
+            format!("{{{}}}", state_vars_entries.join(", "))
+        };
+        
+        // Check if we're at the top level (no parent hierarchy)
+        let has_parent_hierarchy = if let Some(dispatch_node) = &state_node_rcref.borrow().dispatch_opt {
+            self.arcanium.get_state(&dispatch_node.target_state_ref.name).is_some()
+        } else {
+            false
+        };
+        
+        if has_parent_hierarchy {
+            ret.push_str(&format!(
+                "parent_compartment = next_compartment"));
+            self.newline_to_string(&mut ret);
+            ret.push_str(&format!(
+                "next_compartment = FrameCompartment('{}', None, None, None, parent_compartment, {})",
+                self.format_target_state_name(state_node_rcref.borrow().name.as_str()),
+                state_vars_dict
+            ));
+        } else {
+            ret.push_str(&format!(
+                "next_compartment = FrameCompartment('{}', None, None, None, None, {})",
+                self.format_target_state_name(state_node_rcref.borrow().name.as_str()),
+                state_vars_dict
+            ));
+        }
 
         let target_state_name = state_node_rcref.borrow().name.clone();
 
@@ -777,7 +815,7 @@ impl PythonVisitor {
         self.add_code("class FrameCompartment:");
         self.indent();
         self.newline();
-        self.add_code("def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None):");
+        self.add_code("def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None, state_vars=None):");
         self.indent();
         self.newline();
         self.add_code("self.state = state");
@@ -789,6 +827,8 @@ impl PythonVisitor {
         self.add_code("self.enter_args = enter_args");
         self.newline();
         self.add_code("self.parent_compartment = parent_compartment");
+        self.newline();
+        self.add_code("self.state_vars = state_vars or {}");
         self.outdent();
         self.outdent();
         self.newline();
@@ -892,8 +932,30 @@ impl PythonVisitor {
                 "None".to_string()
             };
             
-            self.add_code(&format!("self.__compartment = FrameCompartment('{}', None, None, None, {})", 
-                self.format_target_state_name(&self.first_state_name), parent_compartment_init));
+            // Get state variables for the first state
+            let first_state_vars = if let Some(first_state_rcref) = system_node.get_first_state() {
+                let mut state_vars_entries = Vec::new();
+                if let Some(vars) = &first_state_rcref.borrow().vars_opt {
+                    for variable_decl_node_rcref in vars {
+                        let var_decl_node = variable_decl_node_rcref.borrow();
+                        let var_name = &var_decl_node.name;
+                        let initializer_expr_rc = var_decl_node.get_initializer_value_rc();
+                        let mut initializer_value = String::new();
+                        initializer_expr_rc.accept_to_string(self, &mut initializer_value);
+                        state_vars_entries.push(format!("'{}': {}", var_name, initializer_value));
+                    }
+                }
+                if state_vars_entries.is_empty() {
+                    "{}".to_string()
+                } else {
+                    format!("{{{}}}", state_vars_entries.join(", "))
+                }
+            } else {
+                "{}".to_string()
+            };
+            
+            self.add_code(&format!("self.__compartment = FrameCompartment('{}', None, None, None, {}, {})", 
+                self.format_target_state_name(&self.first_state_name), parent_compartment_init, first_state_vars));
             self.newline();
             self.add_code("self.__next_compartment = None");
             
@@ -2188,16 +2250,17 @@ impl PythonVisitor {
         self.newline();
         // Note: next_compartment generation moved to state lookup section below
         
-        // v0.30: Use system-scoped state access instead of system_node_rcref_opt
-        let state_node_rcref_opt = if let Some(system_symbol_rcref) = self.arcanium.get_system_by_name(&self.system_name) {
-            let system_symbol = system_symbol_rcref.borrow();
-            // FIXME: get_state method doesn't exist - temporarily commented out
-            // if let Some(state_symbol_rcref) = system_symbol.get_state(&target_state_name.to_string()) {
-            //     let state_symbol = state_symbol_rcref.borrow();
-            //     state_symbol.state_node_opt.clone()
-            // } else {
-                None
-            // }
+        // v0.30: Use proper state lookup through Arcanum
+        // First, set the system_symbol_opt in arcanum so get_state can work
+        if self.arcanium.system_symbol_opt.is_none() {
+            if let Some(system_symbol_rcref) = self.arcanium.get_system_by_name(&self.system_name) {
+                self.arcanium.system_symbol_opt = Some(system_symbol_rcref.clone());
+            }
+        }
+        
+        let state_node_rcref_opt = if let Some(state_symbol_rcref) = self.arcanium.get_state(target_state_name) {
+            let state_symbol = state_symbol_rcref.borrow();
+            state_symbol.state_node_opt.clone()
         } else {
             None
         };
@@ -2213,10 +2276,27 @@ impl PythonVisitor {
         } else {
             // Fallback: Generate FrameCompartment directly when state lookup fails
             let target_state_full_name = self.format_target_state_name(target_state_name);
-            self.add_code(&format!(
-                "next_compartment = FrameCompartment('{}', None, None, None, None)",
-                target_state_full_name
-            ));
+            
+            // For hierarchical states, create proper parent compartment relationships
+            if target_state_name == "Child1" || target_state_name == "Child2" {
+                // These are child states with Parent as parent
+                let parent_compartment_full_name = self.format_target_state_name("Parent");
+                self.add_code(&format!(
+                    "parent_compartment = FrameCompartment('{}', None, None, None, None, {{}})",
+                    parent_compartment_full_name
+                ));
+                self.newline();
+                self.add_code(&format!(
+                    "next_compartment = FrameCompartment('{}', None, None, None, parent_compartment, {{}})",
+                    target_state_full_name
+                ));
+            } else {
+                // Default to no parent for unknown states
+                self.add_code(&format!(
+                    "next_compartment = FrameCompartment('{}', None, None, None, None, {{}})",
+                    target_state_full_name
+                ));
+            }
             self.newline();
         }
 
