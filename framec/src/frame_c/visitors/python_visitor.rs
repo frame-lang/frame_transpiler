@@ -1624,11 +1624,15 @@ impl PythonVisitor {
                                     action_call_stmt_node,
                                 } => action_call_stmt_node.accept(self), // // TODO
                                 ExprStmtType::CallStmtT { call_stmt_node } => {
+                                    self.debug_print("STMT_DEBUG: Processing CallStmtT");
                                     call_stmt_node.accept(self);
                                 }
                                 ExprStmtType::CallChainStmtT {
                                     call_chain_literal_stmt_node: call_chain_stmt_node,
-                                } => call_chain_stmt_node.accept(self),
+                                } => {
+                                    self.debug_print("STMT_DEBUG: Processing CallChainStmtT");
+                                    call_chain_stmt_node.accept(self);
+                                }
                                 ExprStmtType::AssignmentStmtT {
                                     assignment_stmt_node,
                                 } => assignment_stmt_node.accept(self),
@@ -1652,6 +1656,7 @@ impl PythonVisitor {
                                     binary_stmt_node.accept(self)
                                 }
                                 _ => {
+                                    self.debug_print("STMT_DEBUG: Processing UNHANDLED ExprStmtType - this might be the print() issue!");
                                     // Unhandled ExprStmtType
                                 }
                             }
@@ -4393,9 +4398,50 @@ impl AstVisitor for PythonVisitor {
         // Only apply action resolution when NOT in standalone function context
         if !self.in_standalone_function {
             if let Some(_action_symbol) = self.arcanium.lookup_action(method_name) {
-                self.debug_print("Found action - generating self.action_do call");
+                self.debug_print(&format!("CALL_DEBUG: Found action '{}' - has_call_chain={}, in_call_chain={}", method_name, has_call_chain, self.in_call_chain));
                 // For actions, we ALWAYS want self.action_do format
                 // Clear any existing code and regenerate the full call  
+                if has_call_chain {
+                    // If we already output "self.", that's correct, just add action_do
+                    self.debug_print(&format!("CALL_DEBUG: Adding suffix {}_do (has_call_chain path)", method_name));
+                    self.add_code(&format!("{}_do", method_name));
+                } else if !self.in_call_chain {
+                    // No call chain, add full self.action_do
+                    self.debug_print(&format!("CALL_DEBUG: Adding full self.{}_do (no call chain path)", method_name));
+                    self.add_code(&format!("self.{}_do", method_name));
+                } else {
+                    // In call chain context, just add action_do  
+                    self.debug_print(&format!("CALL_DEBUG: Adding suffix {}_do (in_call_chain path)", method_name));
+                    self.add_code(&format!("{}_do", method_name));
+                }
+                method_call.call_expr_list.accept(self);
+                return; // CRITICAL: Early return to prevent fallback processing
+            }
+            // Check if it's an operation (needs self. prefix if not present)  
+            // Only apply operation resolution when NOT in standalone function context
+            else if let Some((_operation_symbol, _system_symbol)) = self.arcanium.lookup_operation_in_all_systems(method_name) {
+                self.debug_print("Found operation - generating self.operation call");
+                if !has_call_chain && !self.in_call_chain {
+                    self.add_code("self.");
+                }
+                self.add_code(method_name);
+                method_call.call_expr_list.accept(self);
+                return; // CRITICAL: Early return to prevent fallback processing
+            }
+            // Fallback: check if it's in our tracked operations list (when symbol table fails)
+            else if self.current_system_operations.contains(&method_name.to_string()) {
+                self.debug_print("Found operation in tracked list - generating self.operation call");
+                if !has_call_chain && !self.in_call_chain {
+                    self.add_code("self.");
+                }
+                self.add_code(method_name);
+                method_call.call_expr_list.accept(self);
+                return;
+            }
+            // Fallback: check if it's in our tracked actions list (when symbol table fails)
+            else if self.current_system_actions.contains(&method_name.to_string()) {
+                self.debug_print(&format!("CALL_DEBUG: Found action '{}' in tracked list - generating self.action_do call", method_name));
+                // For actions, we ALWAYS want self.action_do format
                 if has_call_chain {
                     // If we already output "self.", that's correct, just add action_do
                     self.add_code(&format!("{}_do", method_name));
@@ -4406,48 +4452,18 @@ impl AstVisitor for PythonVisitor {
                     // In call chain context, just add action_do  
                     self.add_code(&format!("{}_do", method_name));
                 }
-            }
-            // Check if it's an operation (needs self. prefix if not present)  
-            // Only apply operation resolution when NOT in standalone function context
-            else if let Some((_operation_symbol, _system_symbol)) = self.arcanium.lookup_operation_in_all_systems(method_name) {
-                self.debug_print("Found operation - generating self.operation call");
-                if !has_call_chain && !self.in_call_chain {
-                    self.add_code("self.");
-                }
-                self.add_code(method_name);
+                method_call.call_expr_list.accept(self);
+                return;
             }
         }
-        // Fallback: check if it's in our tracked operations list (when symbol table fails)
-        // Only apply when NOT in standalone function context
-        if !self.in_standalone_function && self.current_system_operations.contains(&method_name.to_string()) {
-            self.debug_print("Found operation in tracked list - generating self.operation call");
-            if !has_call_chain && !self.in_call_chain {
-                self.add_code("self.");
-            }
-            self.add_code(method_name);
-        }
-        // Fallback: check if it's in our tracked actions list (when symbol table fails)
-        // Only apply when NOT in standalone function context
-        if !self.in_standalone_function && self.current_system_actions.contains(&method_name.to_string()) {
-            self.debug_print("Found action in tracked list - generating self.action_do call");
-            // For actions, we ALWAYS want self.action_do format
-            if has_call_chain {
-                // If we already output "self.", that's correct, just add action_do
-                self.add_code(&format!("{}_do", method_name));
-            } else if !self.in_call_chain {
-                // No call chain, add full self.action_do
-                self.add_code(&format!("self.{}_do", method_name));
-            } else {
-                // In call chain context, just add action_do  
-                self.add_code(&format!("{}_do", method_name));
-            }
-        }
-        // Otherwise output as-is (external function call)
-        else {
-            self.debug_print("Found nothing - generating external call");
-            self.add_code(method_name);
-        }
+        
+        // External function call (for all contexts - functions, operations, actions)
+        self.debug_print(&format!("CALL_DEBUG: Found nothing for '{}' - generating external call", method_name));
+        self.debug_print(&format!("CALL_DEBUG: Context - in_standalone_function={}, operation_depth={}, action_depth={}", 
+            self.in_standalone_function, self.operation_scope_depth, self.action_scope_depth));
+        self.add_code(method_name);
 
+        // Process call parameters for external calls only (internal calls handled above)
         method_call.call_expr_list.accept(self);
         
         self.debug_exit("visit_call_expression_node");
@@ -6323,6 +6339,7 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_expr_list_stmt_node(&mut self, expr_list_stmt_node: &ExprListStmtNode) {
+        self.debug_print("EXPR_LIST_DEBUG: Processing ExprListStmt - this might be the print() issue!");
         let ref expr_list_node = expr_list_stmt_node.expr_list_node;
         self.test_skip_newline();
         expr_list_node.accept(self);
