@@ -1,19 +1,25 @@
 # Frame v0.30 Test Matrix
 
 **Generated**: 2025-01-28  
-**Total Tests**: 134  
+**Total Tests**: 135  
 **Current Branch**: v0.30  
 
 ## Summary Statistics
 
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| **Total Tests** | 134 | 100% |
-| **Transpilation Success** | 134 | 100% ✅ |
-| **Execution Success** | 114 | 85.1% ⬆️ |
-| **Complete Success** | 114 | 85.1% ⬆️ |
+| **Total Tests** | 135 | 100% |
+| **Transpilation Success** | 134 | 99.3% ✅ |
+| **Execution Success** | 121 | 89.6% ⬆️ |
+| **Complete Success** | 121 | 89.6% ⬆️ |
 
 ## Recent Improvements (2025-01-28)
+
+✅ **ACTION NAMING CONVENTION CHANGED**: Actions now use Python underscore prefix convention instead of _do suffix
+- **Change**: Actions generate as `def _actionName(self):` instead of `def actionName_do(self):`
+- **Calls**: Action calls generate as `self._actionName()` instead of `self.actionName_do()`
+- **Impact**: Success rate improved from 85.1% to 89.6% (+4.5% improvement)
+- **Benefits**: Aligns with Python privacy conventions, cleaner code generation
 
 ✅ **EMPTY METHOD CALL SYNTAX FIXED**: Method calls like `other.public_interface()` now generate correctly
 - **Issue**: Generated `other.()` instead of `other.public_interface()`
@@ -32,19 +38,19 @@
 
 ## Remaining Issues Identified
 
-🔄 **Function-to-System Action Calls**: Functions calling system actions need design clarification
-- **Issue**: `main()` calling `add(5,3)` where `add` is a system action
-- **Error**: `NameError: name 'add' is not defined`
-- **Analysis**: Functions cannot access system internals per Frame semantics, but tests expect this to work
-- **Next Step**: Resolve design ambiguity - should functions call system actions as utilities?
-
 ⏱️ **Infinite Loop Timeouts**: Some tests enter infinite loops during execution
 - **Tests**: `test_single_system_transitions.py`, `test_your_example.py`  
 - **Impact**: Tests timeout after 30 seconds
 - **Analysis**: Likely HSM state machine logic or loop condition issues
 
-🔧 **Other Runtime Errors**: Various execution-time failures in remaining 20 tests
-- **Types**: AttributeErrors, state variable access issues, type errors
+🔧 **Runtime Errors**: Various execution-time failures in remaining 11 tests
+- **Count**: Down from 20 to 11 after underscore prefix fix
+- **Tests with errors**: 
+  - `test_system_isolation.py` - Runtime error
+  - `test_v030_edge_cases.py` - Runtime error
+  - `test_v030_functions_only.py` - Runtime error  
+  - `test_v030_mixed_entities.py` - Runtime error
+  - Plus 7 others
 - **Analysis**: Need individual investigation of each failure type
 
 ## Test Status Legend
@@ -178,6 +184,7 @@
 | test_two_systems_print | ✅ PASS | ✅ PASS | |
 | test_type_annotation_fix | ✅ PASS | ✅ PASS | |
 | test_type_fix | ✅ PASS | ✅ PASS | |
+| test_underscore_actions | ✅ PASS | ✅ PASS | New test for underscore prefix |
 | test_v030_edge_cases | ✅ PASS | ❌ FAIL | Runtime error |
 | test_v030_functions_only | ✅ PASS | ❌ FAIL | Runtime error |
 | test_v030_hierarchical_systems | ✅ PASS | ✅ PASS | |
@@ -194,30 +201,23 @@
 
 ## Failure Analysis
 
-### Transpilation Failures (0 tests - 0%)
-🎉 **PERFECT TRANSPILATION SUCCESS: 100% (134/134)**
+### Transpilation Failures (1 test - 0.7%)
+- test_controlled_hsm_loop_verbose: Parser error with hierarchical state definitions
 
-### Execution Failures (21 tests - 15.7%)
+### Execution Failures (13 tests - 9.6%)
 
-#### Syntax Errors (3 tests)
-- test_function_scope_isolation: `other.()` - Empty method call
-- test_system_isolation: `other.()` - Empty method call
-- test_system_scope_isolation: `other.()` - Empty method call
-
-#### Runtime Errors (16 tests)
-- test_controlled_hsm_loop_verbose
+#### Runtime Errors (11 tests)
 - test_enums_doc_function
 - test_functions_simple
 - test_functions_with_system
 - test_if_elif_returns
 - test_legb_scope_resolution
 - test_mixed_returns
-- test_state_vars_complex
-- test_state_vars_simple
-- test_state_vars_transition
+- test_system_isolation
 - test_v030_edge_cases
 - test_v030_functions_only
 - test_v030_mixed_entities
+- test_controlled_hsm_loop_verbose (also has transpilation issues)
 
 #### Timeout/Infinite Loops (2 tests)
 - test_single_system_transitions
@@ -239,18 +239,19 @@
 
 ## Priority Issues
 
-### 🎉 **PERFECT: 100% Transpilation Success**
-- **All 134 tests transpile successfully**
-- **No transpilation regressions** from call chain bug fix
-- Frame v0.30 transpiler is production-ready for parsing and code generation
+### 🎉 **MAJOR SUCCESS: 89.6% Overall Success Rate**
+- **Up from 85.1%** after underscore prefix implementation
+- **121 out of 135 tests** fully passing
+- Frame v0.30 transpiler approaching production readiness
 
-### 🔴 **HIGH: Empty Method Call Syntax**
-- 3 tests generate invalid `other.()` syntax
-- Affects scope isolation tests
+### 🟢 **RESOLVED: Action Naming Convention**
+- Successfully migrated from `_do` suffix to Python underscore prefix
+- All actions now follow Python privacy conventions  
+- Fixed multiple test failures related to action calls
 
-### 🟡 **MEDIUM: State Variables Runtime Issues**
-- 3 out of 4 state variable tests fail at runtime
-- Core Frame feature with 75% failure rate
+### 🟡 **MEDIUM: Runtime Errors**
+- 11 tests still have runtime errors (down from 20)
+- Most appear to be encapsulation violations or state management issues
 
 ### 🟢 **LOW: Infinite Loops**
 - 2 tests timeout due to infinite loops
@@ -258,17 +259,19 @@
 
 ## Notes
 
+- **Underscore Prefix**: Actions now use Python's underscore prefix convention (`_actionName`) instead of `_do` suffix
 - **Call Chain Bug**: Successfully fixed in test_comprehensive_v0_20_features
 - **State Arguments**: Successfully fixed with FrameCompartment.state_args addition
 - **Enum Deduplication**: Working correctly across all enum tests
 - **Multi-Entity Support**: Generally working well (75% success rate)
+- **Privacy Model**: Documented in `docs/framelang_design/frame_privacy_model.md`
 
 ## Next Steps
 
-1. **IMMEDIATE**: Fix test_operations_call_bug transpilation failure
-2. **HIGH**: Investigate and fix empty method call generation
-3. **MEDIUM**: Debug state variables runtime errors
-4. **LOW**: Analyze infinite loop timeouts
+1. **HIGH**: Investigate remaining 11 runtime errors (focus on encapsulation violations)
+2. **MEDIUM**: Fix test_controlled_hsm_loop_verbose transpilation failure
+3. **LOW**: Analyze infinite loop timeouts in 2 tests
+4. **FUTURE**: Consider enforcing interface/action name uniqueness in parser
 
 ---
 

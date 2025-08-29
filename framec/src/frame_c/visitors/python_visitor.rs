@@ -759,7 +759,7 @@ impl PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn format_action_name(&self, action_name: &String) -> String {
-        format!("{}_do", action_name)
+        format!("_{}", action_name)
     }
     //* --------------------------------------------------------------------- *//
 
@@ -4394,25 +4394,25 @@ impl AstVisitor for PythonVisitor {
         // Only add self. if there's no existing call chain
         let method_name = &method_call.identifier.name.lexeme;
         
-        // Check if it's an action (needs _do suffix always, self. prefix if not present)
+        // Check if it's an action (needs _ prefix always, self. prefix if not present)
         // Only apply action resolution when NOT in standalone function context
         if !self.in_standalone_function {
             if let Some(_action_symbol) = self.arcanium.lookup_action(method_name) {
                 self.debug_print(&format!("CALL_DEBUG: Found action '{}' - has_call_chain={}, in_call_chain={}", method_name, has_call_chain, self.in_call_chain));
-                // For actions, we ALWAYS want self.action_do format
+                // For actions, we ALWAYS want self._action format
                 // Clear any existing code and regenerate the full call  
                 if has_call_chain {
-                    // If we already output "self.", that's correct, just add action_do
-                    self.debug_print(&format!("CALL_DEBUG: Adding suffix {}_do (has_call_chain path)", method_name));
-                    self.add_code(&format!("{}_do", method_name));
+                    // If we already output "self.", that's correct, just add _action
+                    self.debug_print(&format!("CALL_DEBUG: Adding suffix _{} (has_call_chain path)", method_name));
+                    self.add_code(&format!("_{}", method_name));
                 } else if !self.in_call_chain {
-                    // No call chain, add full self.action_do
-                    self.debug_print(&format!("CALL_DEBUG: Adding full self.{}_do (no call chain path)", method_name));
-                    self.add_code(&format!("self.{}_do", method_name));
+                    // No call chain, add full self._action
+                    self.debug_print(&format!("CALL_DEBUG: Adding full self._{} (no call chain path)", method_name));
+                    self.add_code(&format!("self._{}", method_name));
                 } else {
-                    // In call chain context, just add action_do  
-                    self.debug_print(&format!("CALL_DEBUG: Adding suffix {}_do (in_call_chain path)", method_name));
-                    self.add_code(&format!("{}_do", method_name));
+                    // In call chain context, just add _action  
+                    self.debug_print(&format!("CALL_DEBUG: Adding suffix _{} (in_call_chain path)", method_name));
+                    self.add_code(&format!("_{}", method_name));
                 }
                 method_call.call_expr_list.accept(self);
                 return; // CRITICAL: Early return to prevent fallback processing
@@ -4440,17 +4440,17 @@ impl AstVisitor for PythonVisitor {
             }
             // Fallback: check if it's in our tracked actions list (when symbol table fails)
             else if self.current_system_actions.contains(&method_name.to_string()) {
-                self.debug_print(&format!("CALL_DEBUG: Found action '{}' in tracked list - generating self.action_do call", method_name));
-                // For actions, we ALWAYS want self.action_do format
+                self.debug_print(&format!("CALL_DEBUG: Found action '{}' in tracked list - generating self._action call", method_name));
+                // For actions, we ALWAYS want self._action format
                 if has_call_chain {
-                    // If we already output "self.", that's correct, just add action_do
-                    self.add_code(&format!("{}_do", method_name));
+                    // If we already output "self.", that's correct, just add _action
+                    self.add_code(&format!("_{}", method_name));
                 } else if !self.in_call_chain {
-                    // No call chain, add full self.action_do
-                    self.add_code(&format!("self.{}_do", method_name));
+                    // No call chain, add full self._action
+                    self.add_code(&format!("self._{}", method_name));
                 } else {
-                    // In call chain context, just add action_do  
-                    self.add_code(&format!("{}_do", method_name));
+                    // In call chain context, just add _action  
+                    self.add_code(&format!("_{}", method_name));
                 }
                 method_call.call_expr_list.accept(self);
                 return;
@@ -4506,13 +4506,13 @@ impl AstVisitor for PythonVisitor {
         // Only add self. if there's no existing call chain
         let method_name = &method_call.identifier.name.lexeme;
         
-        // Check if it's an action (needs _do suffix always, self. prefix if not present)
+        // Check if it's an action (needs _ prefix always, self. prefix if not present)
         if let Some(_action_symbol) = self.arcanium.lookup_action(method_name) {
             if !has_call_chain {
                 output.push_str("self.");
             }
-            // Always add _do suffix for actions, regardless of call chain
-            output.push_str(&format!("{}_do", method_name));
+            // Always add _ prefix for actions, regardless of call chain
+            output.push_str(&format!("_{}", method_name));
         }
         // Check if it's an operation (needs self. prefix if not present)
         else if let Some((_operation_symbol, _system_symbol)) = self.arcanium.lookup_operation_in_all_systems(method_name) {
@@ -4530,13 +4530,13 @@ impl AstVisitor for PythonVisitor {
         }
         // Fallback: check if it's in our tracked actions list (when symbol table fails)
         else if self.current_system_actions.contains(&method_name.to_string()) {
-            // For actions, we ALWAYS want self.action_do format
+            // For actions, we ALWAYS want self._action format
             if has_call_chain {
-                // If we already output "self.", that's correct, just add action_do
-                output.push_str(&format!("{}_do", method_name));
+                // If we already output "self.", that's correct, just add _action
+                output.push_str(&format!("_{}", method_name));
             } else {
-                // No call chain, add full self.action_do
-                output.push_str(&format!("self.{}_do", method_name));
+                // No call chain, add full self._action
+                output.push_str(&format!("self._{}", method_name));
             }
         }
         // Otherwise output as-is (external function call)
@@ -4589,8 +4589,8 @@ impl AstVisitor for PythonVisitor {
         self.debug_print(&format!("visit_action_call_expression_node({}) - in_standalone_function: {}", action_name, self.in_standalone_function));
         
         // ActionCallExprNode represents explicit action calls like self.action_one()
-        // These should ALWAYS generate self.action_do() format, regardless of context
-        self.debug_print("ActionCallExprNode - generating self.action_do call");
+        // These should ALWAYS generate self._action() format, regardless of context
+        self.debug_print("ActionCallExprNode - generating self._action call");
         let formatted_action_name = self.format_action_name(action_name);
         self.add_code(&format!("self.{}", formatted_action_name));
 
@@ -4607,7 +4607,7 @@ impl AstVisitor for PythonVisitor {
         let action_name = &action_call.identifier.name.lexeme;
         
         // ActionCallExprNode represents explicit action calls like self.action_one()
-        // These should ALWAYS generate self.action_do() format, regardless of context
+        // These should ALWAYS generate self._action() format, regardless of context
         let formatted_action_name = self.format_action_name(action_name);
         output.push_str(&format!("self.{}", formatted_action_name));
 

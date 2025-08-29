@@ -81,7 +81,7 @@ operations:
 - **Transitions**: **Prohibited** - Actions cannot contain state transitions (handled by event handlers)
 - **Method Calls**: Internal calls use `self.` prefix, external calls don't
 - **Return Handling**: No return values (actions are side effects)
-- **Naming Convention**: Generated with `_do` suffix (e.g., `start_do()`)
+- **Naming Convention**: Generated with underscore prefix (e.g., `_start()`) to indicate privacy
 
 **Example**:
 ```frame
@@ -131,7 +131,7 @@ for item in collection {
 
 #### Internal Method Calls (Operations/Actions)
 
-1. **Action Calls**: `actionName()` → `self.actionName_do()`
+1. **Action Calls**: `actionName()` → `self._actionName()`
 2. **Operation Calls**: `operationName()` → `self.operationName()`
 3. **Static Operation Calls**: `staticOperation()` → `ClassName.staticOperation()`
 
@@ -183,9 +183,10 @@ def staticOperationName(param1, param2):
 
 #### Action Generation
 ```python
-def actionName_do(self, param1, param2):
+def _actionName(self, param1, param2):
     # Side effects only
     # No return value
+    # Underscore prefix indicates private method
 ```
 
 ## Error Prevention
