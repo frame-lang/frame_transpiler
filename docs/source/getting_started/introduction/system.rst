@@ -6,17 +6,17 @@ Systems Engineering methodology describes two broad categories of aspects to a s
 **structure** and **behavior**.
 
 Frame is a **Domain Specific Language (DSL)** for for defining system behavior.
-In Frame notation a Frame system specification starts with the `#` token and the name of the system
-and terminated with the `##` token:
+In Frame notation a Frame system specification starts with the `system` keyword followed by the name of the system
+and terminated with a closing brace `}`:
 
 ``Frame``
 
 .. code-block::
 
-    #Lamp
-    ##
+    system Lamp {
+    }
 
-`#Lamp` is an empty system spec and has no behavior. However, when sent to the
+`system Lamp` is an empty system spec and has no behavior. However, when sent to the
 Framepiler it still generates code:
 
 ``C#``
@@ -54,14 +54,12 @@ as we just saw, but if present must be implemented in a specified order.
 
 .. code-block::
 
-    #Lamp
-
-    -interface-
-    -machine-
-    -actions-
-    -domain-
-
-    ##
+    system Lamp {
+        interface:
+        machine:
+        actions:
+        domain:
+    }
 
 We will next investigate each of these blocks, starting with the domain and
 working back to the interface.

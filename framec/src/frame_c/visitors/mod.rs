@@ -69,7 +69,7 @@ impl TryFrom<&str> for TargetLanguage {
         } else if value == "graphviz" {
             Ok(TargetLanguage::Graphviz)
         } else {
-            Err(format!("Unrecognized target language {}", value))
+            Err(format!("Unrecognized target language {}. Valid values are: python_3, graphviz", value))
         }
     }
 }

@@ -22,21 +22,24 @@ With Frame, anyone with a text editor can quickly sketch out a system design con
 
 ..  code-block::
 
-   #Lamp
-
-       -interface-
-
-       turnOn
-       turnOff
-
-       -machine-
-
-       $Off
-           |turnOn| -> $On ^
-
-       $On
-           |turnOff| -> $Off ^
-   ##
+   system Lamp {
+       interface:
+           turnOn()
+           turnOff()
+           
+       machine:
+           $Off {
+               turnOn() {
+                   -> $On
+               }
+           }
+           
+           $On {
+               turnOff() {
+                   -> $Off
+               }
+           }
+   }
 
 The true power of Frame, however, is realized by the ability to generate both documentation and code from Frame specification documents:
 
@@ -50,22 +53,20 @@ The true power of Frame, however, is realized by the ability to generate both do
 
     public partial class Lamp {
         public Lamp() {
-
             _state_ = _sOff_;
         }
 
         //===================== Interface Block ===================//
 
         public void turnOn() {
-            FrameEvent e = new FrameEvent("turnOn",null);
+            FrameEvent e = new FrameEvent("turnOn", null);
             _state_(e);
         }
 
         public void turnOff() {
-            FrameEvent e = new FrameEvent("turnOff",null);
+            FrameEvent e = new FrameEvent("turnOff", null);
             _state_(e);
         }
-
 
         //===================== Machine Block ===================//
 
@@ -89,13 +90,12 @@ The true power of Frame, however, is realized by the ability to generate both do
         private FrameState _state_;
 
         private void _transition_(FrameState newState) {
-            FrameEvent exitEvent = new FrameEvent("<",null);
+            FrameEvent exitEvent = new FrameEvent("<", null);
             _state_(exitEvent);
             _state_ = newState;
-            FrameEvent enterEvent = new FrameEvent(">",null);
+            FrameEvent enterEvent = new FrameEvent(">", null);
             _state_(enterEvent);
         }
-
     }
 
 .. toctree::
