@@ -28,16 +28,13 @@ State identifiers in Frame are indicated by a `$` prefix.
 
 .. code-block::
 
-    #BrokenLamp
-
-    -machine-
-
-    $Off
-
-    ##
+    system BrokenLamp {
+        machine:
+            $Off
+    }
 
 
-Although rather useless to read by, the #BrokenLamp does illuminate an important
+Although rather useless to read by, the BrokenLamp system does illuminate an important
 point - a state machine can have just a single state. However it won't be
  very exciting. We will increase the wattage on it very soon and add some more.
 
@@ -56,20 +53,19 @@ with... event handlers.
 
 .. code-block::
 
-    #BrokenLamp
+    system BrokenLamp {
+        machine:
+            $Off {
+                turnOn() {
+                    print("I'm broken.")
+                    return
+                }
+            }
+    }
 
-    -machine-
+Event handlers are now defined as methods within state blocks and use standard function syntax with `return` statements.
 
-    $Off
-        |turnOn|
-            print("I'm broken.") ^
-
-    ##
-
-Event handlers start with a *message selector* (`|msg|`) and end with either a
-*return* (**^**) or *continue* (**:>**) token.
-
-Here we see that the `$Off` state handles the `|turnOn|` event by calling the
+Here we see that the `$Off` state handles the `turnOn()` event by calling the
 print function and then returning. In general, states can be described as
 mapping events to **behavior**. Behavior comes in two big categories -
 **taking action** and **transitioning**.
@@ -101,16 +97,20 @@ to make a working lamp.
 
 .. code-block::
 
-    #Lamp
-
-    -machine-
-
-    $Off
-        |turnOn| -> $On ^
-
-    $On
-        |turnOff| -> $Off ^
-    ##
+    system Lamp {
+        machine:
+            $Off {
+                turnOn() {
+                    -> $On
+                }
+            }
+            
+            $On {
+                turnOff() {
+                    -> $Off
+                }
+            }
+    }
 
 .. image:: ../../images/getting_started/lamp1.png
 
