@@ -93,22 +93,23 @@ system Utils {
 ## Systems
 
 ```bnf
-system: 'system' IDENTIFIER system_params? '{' system_component* '}'
+system: 'system' IDENTIFIER system_params? '{' 
+        operations_block?
+        interface_block?
+        machine_block?
+        actions_block?
+        domain_block?
+        '}'
+
 system_params: '(' system_param_list ')'
 system_param_list: system_param (',' system_param)*
 system_param: start_state_param | enter_event_param | domain_param
 start_state_param: '$(' parameter_list ')'
 enter_event_param: '$>(' parameter_list ')'
 domain_param: IDENTIFIER type?
-
-system_component: operations_block
-                | interface_block
-                | machine_block
-                | actions_block
-                | domain_block
 ```
 
-**Component Order**: System components must appear in the specified order when present: `operations:`, `interface:`, `machine:`, `actions:`, `domain:`. Components are optional but order is enforced by the parser.
+**Block Order**: System blocks must appear in the specified order when present: `operations:`, `interface:`, `machine:`, `actions:`, `domain:`. Blocks are optional but order is enforced by the parser.
 
 ### System Examples
 
