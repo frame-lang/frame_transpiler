@@ -117,18 +117,35 @@ domain_param: IDENTIFIER type?
 ```frame
 system TrafficLight {
     interface:
-        start()
-        stop()
-        
+        tick()
+    
     machine:
         $Red {
-            start() {
+            $>() {
+                print("Red")
+            }
+            
+            tick() {
                 -> $Green
             }
         }
         
         $Green {
-            stop() {
+            $>() {
+                print("Green")
+            }
+            
+            tick() {
+                -> $Yellow
+            }
+        }
+        
+        $Yellow {
+            $>() {
+                print("Yellow")
+            }
+            
+            tick() {
                 -> $Red
             }
         }
@@ -253,6 +270,8 @@ attribute: '@' IDENTIFIER  // Python-style attributes (e.g., @staticmethod)
 
 **v0.30 Implementation Note**: Operations and actions are resolved at code generation time through symbol table lookup. Calls to operations generate with `self.` prefix for instance methods, while static operations use `ClassName.method()` syntax. Actions automatically receive the `_do` suffix in generated code.
 
+**v0.31 Self Expression Support**: The `self` keyword can now be used as a standalone expression (e.g., `jsonpickle.encode(self)`), not just in dotted access (`self.variable`). Static operations marked with `@staticmethod` cannot use `self` - this is validated at parse time.
+
 ### Operations Examples
 
 #### Instance Operations
@@ -261,7 +280,12 @@ system Calculator {
     operations:
         // Instance operation - includes implicit 'self' parameter
         getResult(): int {
-            return currentValue
+            return self.currentValue  // Must use self. to access domain vars
+        }
+        
+        // Instance operation using self as expression
+        serialize(): String {
+            return jsonpickle.encode(self)  // self as standalone expression (v0.31)
         }
     
     domain:
@@ -282,6 +306,13 @@ system MathUtils {
         @staticmethod
         multiply(x: int, y: int): int {
             return x * y
+        }
+        
+        // Static operations CANNOT use self - parse error
+        @staticmethod
+        invalid(): int {
+            // return self.value  // ERROR: Cannot use 'self' in static operation
+            return 0
         }
 }
 ```
@@ -1028,7 +1059,7 @@ actions:
 ## Expressions
 
 ```bnf
-expr: binary_expr | unary_expr | primary_expr | call_expr
+expr: binary_expr | unary_expr | primary_expr | call_expr | self_expr
 
 binary_expr: expr operator expr
 operator: '+' | '-' | '*' | '/' | '%'
@@ -1041,11 +1072,15 @@ primary_expr: IDENTIFIER | NUMBER | STRING | SUPERSTRING
             | 'true' | 'false' | 'nil'
             | '(' expr ')' | '@'
 
+self_expr: 'self' | 'self' '.' IDENTIFIER  // v0.31: self as standalone or dotted access
+
 call_expr: IDENTIFIER '(' arg_list? ')' | '_' IDENTIFIER '(' arg_list? ')'
 arg_list: expr (',' expr)*
 ```
 
 **Action Call Syntax**: Action calls use underscore prefix syntax `_actionName()` to distinguish them from interface method calls. This generates with proper `self._actionName()` syntax in Python target language.
+
+**Self Expression (v0.31)**: The `self` keyword can be used as a standalone expression (e.g., as a function argument) or with dotted access to reference instance members. Static methods cannot use `self` in any form.
 
 **Call Chain Support**: Multi-node call chains like `sys.methodName()` correctly generate interface method calls on system instances without adding action prefixes.
 

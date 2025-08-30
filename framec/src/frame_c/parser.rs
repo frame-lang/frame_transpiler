@@ -125,6 +125,7 @@ pub struct Parser<'a> {
     event_handler_has_transition: bool,
     is_action_scope: bool,
     operation_scope_depth: i32,
+    is_static_operation: bool,
     is_function_scope: bool,
     is_system_scope: bool,
     is_loop_scope: bool,
@@ -182,6 +183,7 @@ impl<'a> Parser<'a> {
             generate_transition_state: false,
             is_action_scope: false,
             operation_scope_depth: 0,
+            is_static_operation: false,
             is_function_scope: false,
             is_system_scope: false,
             is_loop_scope: false,
@@ -2662,6 +2664,13 @@ impl<'a> Parser<'a> {
         // to be called in the context of an operation. Transitions, for example, are not
         // allowed.
         self.operation_scope_depth += 1;
+        
+        // Check if this is a static operation
+        if let Some(ref attrs) = attributes_opt {
+            if attrs.contains_key("staticmethod") {
+                self.is_static_operation = true;
+            }
+        }
 
         if self.is_building_symbol_table {
             // lexical pass
@@ -2704,6 +2713,7 @@ impl<'a> Parser<'a> {
         self.arcanum.exit_scope();
 
         self.operation_scope_depth -= 1;
+        self.is_static_operation = false;
 
         ret
     }
@@ -9591,13 +9601,40 @@ impl<'a> Parser<'a> {
     
     // ===================== Frame v0.31 Explicit Self/System Support =====================
     
-    /// Parse self.method() or self.variable syntax
+    /// Parse self, self.method() or self.variable syntax
     fn parse_self_context(&mut self) -> Result<Option<ExprType>, ParseError> {
+        // Check if we're in a static operation - if so, self is not allowed
+        if self.is_static_operation {
+            let err_msg = "Cannot use 'self' in a static operation (marked with @staticmethod)";
+            self.error_at_previous(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        
         // We've already consumed 'self' token
         if !self.match_token(&[TokenType::Dot]) {
-            let err_msg = "Expected '.' after 'self'";
-            self.error_at_current(err_msg);
-            return Err(ParseError::new(err_msg));
+            // Standalone 'self' - create a special variable node representing the system instance
+            let self_token = Token {
+                token_type: TokenType::Self_,
+                lexeme: "self".to_string(),
+                literal: TokenLiteral::None,
+                line: self.previous().line,
+                start: self.previous().start,
+                length: 4,  // "self" is 4 characters
+            };
+            let id_node = IdentifierNode::new(
+                self_token,
+                None,
+                IdentifierDeclScope::SystemScope,
+                false,
+                self.previous().line,
+            );
+            let var_node = VariableNode::new_with_self(
+                id_node,
+                IdentifierDeclScope::SystemScope,
+                None,  // Symbol will be resolved later
+                true,  // is_self = true
+            );
+            return Ok(Some(ExprType::VariableExprT { var_node }));
         }
         
         if !self.match_token(&[TokenType::Identifier]) {

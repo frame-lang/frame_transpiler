@@ -1,0 +1,44 @@
+system TrafficLight {
+    
+    interface:
+        tick()
+
+    machine:
+        $Red {
+            $>() {
+                print("Red")
+            }
+
+            tick() {
+                -> $Green
+            }
+        }
+
+        $Green {
+            $>() {
+                print("Green")
+            }
+
+            tick() {
+                -> $Yellow
+            }
+        }
+
+        $Yellow {
+            $>() {
+                print("Yellow")
+            }
+
+            tick() {
+                -> $Red
+            }
+        }
+}
+
+fn main() {
+    var tl = TrafficLight()
+    tl.tick()
+    tl.tick()
+    tl.tick()
+    tl.tick()
+}

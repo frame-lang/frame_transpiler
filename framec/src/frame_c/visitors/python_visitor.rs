@@ -559,8 +559,14 @@ impl PythonVisitor {
         
         // Frame v0.31: Handle explicit self.variable syntax
         if variable_node.is_self {
-            // Explicit self.variable access
-            code.push_str(&format!("self.{}", variable_node.id_node.name.lexeme));
+            // Check if this is standalone 'self' or 'self.something'
+            if variable_node.id_node.name.lexeme == "self" {
+                // Standalone 'self' - just output 'self'
+                code.push_str("self");
+            } else {
+                // Explicit self.variable access
+                code.push_str(&format!("self.{}", variable_node.id_node.name.lexeme));
+            }
             return code;
         }
 
@@ -3971,12 +3977,28 @@ impl AstVisitor for PythonVisitor {
         self.newline();
         let operation_name = self.format_operation_name(&operation_node.name);
         
-        // Always generate operations as static methods since they can be called from functions
-        // and they should be pure utility functions
-        self.add_code("@staticmethod");
-        self.newline();
+        // Check if operation is static
+        let is_static = if let Some(attributes) = &operation_node.attributes_opt {
+            attributes.contains_key("staticmethod")
+        } else {
+            false
+        };
+        
+        // Only generate @staticmethod if the operation has the attribute
+        if is_static {
+            self.add_code("@staticmethod");
+            self.newline();
+        }
         self.add_code(&format!("def {}(", operation_name));
 
+        // Add self parameter for non-static operations
+        if !is_static {
+            self.add_code("self");
+            if operation_node.params.is_some() && !operation_node.params.as_ref().unwrap().is_empty() {
+                self.add_code(",");
+            }
+        }
+        
         match &operation_node.params {
             Some(params) => {
                 self.format_operations_parameter_list(params);

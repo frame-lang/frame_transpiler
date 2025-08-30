@@ -1,6 +1,29 @@
-# Frame v0.30 Development Notes
+# Frame v0.31 Development Notes
 
 ## Development History
+
+### 2025-01-31: Self Expression Support & Static Operation Validation
+
+#### Self as Standalone Expression
+- **Achievement**: The `self` keyword can now be used as a standalone expression, not just with dotted access
+- **Issue**: Parser required `self.something` syntax, preventing use of bare `self` as function argument
+- **Solution**: 
+  - Modified `parse_self_context()` to allow standalone `self` when not followed by a dot
+  - Creates special variable node representing the system instance
+  - Updated Python visitor to handle standalone `self` correctly
+- **Use Case**: Enables `jsonpickle.encode(self)` without backticks in persistence operations
+- **Files Modified**: `framec/src/frame_c/parser.rs` (lines 9605-9619), `framec/src/frame_c/visitors/python_visitor.rs` (lines 562-570)
+
+#### Static Operation Improvements
+- **Achievement**: Operations are only static when explicitly declared with `@staticmethod`
+- **Previous Behavior**: All operations were generated as static methods
+- **New Behavior**: 
+  - Operations without `@staticmethod` are instance methods with implicit `self` parameter
+  - Operations with `@staticmethod` are static methods without `self` parameter
+  - Static operations that use `self` trigger a parse error
+- **Validation**: Parser checks `is_static_operation` flag and errors if `self` is used in static context
+- **Error Message**: "Cannot use 'self' in a static operation (marked with @staticmethod)"
+- **Files Modified**: `framec/src/frame_c/parser.rs` (lines 2668-2672, 9607-9611), `framec/src/frame_c/visitors/python_visitor.rs` (lines 3980-4000)
 
 ### 2025-01-30: Function-System Scope Interaction & Complete Multi-Entity Support
 
