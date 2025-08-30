@@ -12,6 +12,7 @@ use std::collections::VecDeque;
 use super::scanner::*;
 use super::symbol_table::*;
 use crate::frame_c::ast::ModuleElement::*;
+use crate::frame_c::ast::CallContextType;
 use crate::frame_c::utils::SystemHierarchy;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -5940,26 +5941,20 @@ impl<'a> Parser<'a> {
                 Err(parse_err) => return Err(parse_err),
             }
         } else if self.match_token(&[TokenType::Self_]) {
-            // Parsing syntax related to a call to self (system).
-
-            // consume self and . if present
-            //
-            // if !self.match_token(&[TokenType::Identifier]) {
-            //     let msg = &format!("Error - expected identifier.");
-            //     self.error_at_current(msg);
-            //     return Err(ParseError::new(msg));
-            // }
-            //
-
-            match self.call(IdentifierDeclScope::SystemScope) {
-                Ok(Some(expr_t)) => return Ok(Some(expr_t)),
-                Ok(None) => {
-                    // TODO v.20 is this correct?
-                    return Ok(None)
-                }
-                Err(parse_error) => return Err(parse_error),
+            // Frame v0.31: Handle explicit self.method() and self.variable syntax
+            return self.parse_self_context();
+        } else if self.match_token(&[TokenType::System]) {
+                // Frame v0.31: Check if this is a system.method() call
+            if self.match_token(&[TokenType::Dot]) {
+                // This is system.method() - interface call
+                return self.parse_system_interface_call();
+            } else {
+                // 'system' keyword without dot - this is an error in expression context
+                let err_msg = "Expected '.' after 'system' keyword in expression";
+                self.error_at_current(err_msg);
+                return Err(ParseError::new(err_msg));
             }
-
+        
         //     // self.
         //     if self.match_token(&[TokenType::Dot]) {
         //         // #.foo expression
@@ -7475,7 +7470,6 @@ impl<'a> Parser<'a> {
                 // Use V2 only for: External functions (first node, empty chain)
                 // Do NOT use V2 for method calls as it breaks the object-method relationship
                 if (is_first_node && call_chain.is_empty()) {
-                    
                     // Rewind the LParen token since build_call_chain_v2 expects to parse it
                     self.current -= 1;
                     
@@ -8460,7 +8454,16 @@ impl<'a> Parser<'a> {
             Ok(None) => call_expr_list_node = CallExprListNode::new(Vec::new()),
         }
 
-        let call_expr_node = CallExprNode::new(identifer_node, call_expr_list_node, None);
+        // Determine call context based on identifier prefix
+        let call_context = if identifer_node.name.lexeme.starts_with("system.") {
+                CallContextType::SystemCall
+        } else if identifer_node.name.lexeme.starts_with("self.") {
+            CallContextType::SelfCall
+        } else {
+            CallContextType::ExternalCall  // Default
+        };
+
+        let call_expr_node = CallExprNode::new_with_context(identifer_node, call_expr_list_node, None, call_context);
         //        let method_call_expression_type = ExpressionType::MethodCallExprType {method_call_expr_node};
         Ok(call_expr_node)
     }
@@ -9584,5 +9587,109 @@ impl<'a> Parser<'a> {
                 false
             }
         }
+    }
+    
+    // ===================== Frame v0.31 Explicit Self/System Support =====================
+    
+    /// Parse self.method() or self.variable syntax
+    fn parse_self_context(&mut self) -> Result<Option<ExprType>, ParseError> {
+        // We've already consumed 'self' token
+        if !self.match_token(&[TokenType::Dot]) {
+            let err_msg = "Expected '.' after 'self'";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        
+        if !self.match_token(&[TokenType::Identifier]) {
+            let err_msg = "Expected identifier after 'self.'";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        
+        let identifier_token = self.previous().clone();
+        let id_node = IdentifierNode::new(
+            identifier_token.clone(),
+            None,
+            IdentifierDeclScope::SystemScope,
+            false,
+            identifier_token.line,
+        );
+        
+        // Check if this is a method call or variable access
+        if self.match_token(&[TokenType::LParen]) {
+            // self.method() - parse as method call
+            let params = match self.expr_list() {
+                Ok(Some(ExprListT { expr_list_node })) => expr_list_node.exprs_t,
+                Ok(None) => Vec::new(),  // Empty parameter list
+                Ok(Some(_)) => Vec::new(),  // Other expression types - treat as empty
+                Err(err) => return Err(err),
+            };
+            
+            // NOTE: expr_list() already consumes the RParen token, so we don't need to consume it again
+            
+            let call_expr_list = CallExprListNode::new(params);
+            let call_expr = CallExprNode::new_with_context(
+                id_node,
+                call_expr_list,
+                None,
+                CallContextType::SelfCall,
+            );
+            
+            return Ok(Some(ExprType::CallExprT { call_expr_node: call_expr }));
+        } else {
+            // self.variable - create variable node with is_self = true
+            let var_node = VariableNode::new_with_self(
+                id_node,
+                IdentifierDeclScope::DomainBlockScope,
+                None,  // Symbol will be resolved later
+                true,  // is_self = true
+            );
+            
+            return Ok(Some(ExprType::VariableExprT { var_node }));
+        }
+    }
+    
+    /// Parse system.method() syntax for interface calls
+    fn parse_system_interface_call(&mut self) -> Result<Option<ExprType>, ParseError> {
+        // We've already consumed 'system.'
+        if !self.match_token(&[TokenType::Identifier]) {
+            let err_msg = "Expected interface method name after 'system.'";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        
+        let identifier_token = self.previous().clone();
+        let id_node = IdentifierNode::new(
+            identifier_token.clone(),
+            None,
+            IdentifierDeclScope::InterfaceBlockScope,
+            false,
+            identifier_token.line,
+        );
+        
+        if !self.match_token(&[TokenType::LParen]) {
+            let err_msg = "Expected '(' after interface method name";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        
+        let params = match self.expr_list() {
+            Ok(Some(ExprListT { expr_list_node })) => expr_list_node.exprs_t,
+            Ok(None) => Vec::new(),  // Empty parameter list
+            Ok(Some(_)) => Vec::new(),  // Other expression types - treat as empty
+            Err(err) => return Err(err),
+        };
+        
+        // NOTE: expr_list() already consumes the RParen token, so we don't need to consume it again
+        
+        let call_expr_list = CallExprListNode::new(params);
+        let call_expr = CallExprNode::new_with_context(
+            id_node,
+            call_expr_list,
+            None,
+            CallContextType::SelfCall,
+        );
+        
+        return Ok(Some(ExprType::CallExprT { call_expr_node: call_expr }));
     }
 }

@@ -8,12 +8,14 @@ class FrameEvent:
         self._parameters = parameters
 
 class FrameCompartment:
-    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None):
+    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None, state_vars=None, state_args=None):
         self.state = state
         self.forward_event = forward_event
         self.exit_args = exit_args
         self.enter_args = enter_args
         self.parent_compartment = parent_compartment
+        self.state_vars = state_vars or {}
+        self.state_args = state_args or {}
 
 
 def main():
@@ -31,7 +33,7 @@ def main():
 class AdvancedProcessor:
     def __init__(self):
         # Create and initialize start state compartment
-        self.__compartment = FrameCompartment('__advancedprocessor_state_Idle', None, None, None, None)
+        self.__compartment = FrameCompartment('__advancedprocessor_state_Idle', None, None, None, None, {}, {})
         self.__next_compartment = None
         self.return_stack = [None]
         
@@ -76,17 +78,21 @@ class AdvancedProcessor:
             if __e._parameters["input"] == "":
                 self.return_stack[-1] = "error: empty input"
                 return
-            next_compartment = FrameCompartment('__advancedprocessor_state_Processing', None, None, None, None)
+            
+            next_compartment = FrameCompartment('__advancedprocessor_state_Processing', None, None, None, None, {}, {})
+            next_compartment.state_args["data"] = __e._parameters["input"]
             self.__transition(next_compartment)
             return
         elif __e._message == "configure":
             if __e._parameters["mode"] == "debug":
                 print("Enabling debug mode")
-                next_compartment = FrameCompartment('__advancedprocessor_state_Debug', None, None, None, None)
+                
+                next_compartment = FrameCompartment('__advancedprocessor_state_Debug', None, None, None, None, {}, {})
                 self.__transition(next_compartment)
             elif __e._parameters["mode"] == "fast":
                 print("Enabling fast mode")
-                next_compartment = FrameCompartment('__advancedprocessor_state_FastProcessing', None, None, None, None)
+                
+                next_compartment = FrameCompartment('__advancedprocessor_state_FastProcessing', None, None, None, None, {}, {})
                 self.__transition(next_compartment)
             else:
                 print("Unknown mode: " + __e._parameters["mode"])
@@ -102,23 +108,27 @@ class AdvancedProcessor:
     def __advancedprocessor_state_Processing(self, __e, compartment):
         if __e._message == "$>":
             print("Processing: " + (compartment.state_args["data"]))
-            result = self.processText_do(compartment.state_args["data"])
+            result = processText(compartment.state_args["data"])
             if result == "error":
                 self.return_stack[-1] = "processing failed"
-                next_compartment = FrameCompartment('__advancedprocessor_state_Idle', None, None, None, None)
+                
+                next_compartment = FrameCompartment('__advancedprocessor_state_Idle', None, None, None, None, {}, {})
                 self.__transition(next_compartment)
             elif result == "warning":
                 self.return_stack[-1] = "processed with warnings"
-                next_compartment = FrameCompartment('__advancedprocessor_state_Idle', None, None, None, None)
+                
+                next_compartment = FrameCompartment('__advancedprocessor_state_Idle', None, None, None, None, {}, {})
                 self.__transition(next_compartment)
             else:
                 self.return_stack[-1] = "success: " + result
-                next_compartment = FrameCompartment('__advancedprocessor_state_Idle', None, None, None, None)
+                
+                next_compartment = FrameCompartment('__advancedprocessor_state_Idle', None, None, None, None, {}, {})
                 self.__transition(next_compartment)
             return
         elif __e._message == "reset":
             print("Resetting from processing state")
-            next_compartment = FrameCompartment('__advancedprocessor_state_Idle', None, None, None, None)
+            
+            next_compartment = FrameCompartment('__advancedprocessor_state_Idle', None, None, None, None, {}, {})
             self.__transition(next_compartment)
             return
     
@@ -139,7 +149,8 @@ class AdvancedProcessor:
             return
         elif __e._message == "reset":
             print("Exiting debug mode")
-            next_compartment = FrameCompartment('__advancedprocessor_state_Idle', None, None, None, None)
+            
+            next_compartment = FrameCompartment('__advancedprocessor_state_Idle', None, None, None, None, {}, {})
             self.__transition(next_compartment)
             return
     
@@ -150,11 +161,13 @@ class AdvancedProcessor:
     def __advancedprocessor_state_FastProcessing(self, __e, compartment):
         if __e._message == "processData":
             self.return_stack[-1] = "fast: " + __e._parameters["input"]
-            next_compartment = FrameCompartment('__advancedprocessor_state_Idle', None, None, None, None)
+            
+            next_compartment = FrameCompartment('__advancedprocessor_state_Idle', None, None, None, None, {}, {})
             self.__transition(next_compartment)
             return
         elif __e._message == "reset":
-            next_compartment = FrameCompartment('__advancedprocessor_state_Idle', None, None, None, None)
+            
+            next_compartment = FrameCompartment('__advancedprocessor_state_Idle', None, None, None, None, {}, {})
             self.__transition(next_compartment)
             return
     
@@ -170,11 +183,11 @@ class AdvancedProcessor:
         return self.__advancedprocessor_state_FastProcessing(__e, None)
     # ===================== Actions Block =================== #
     
-    def processText_do(self,text):
+    def _processText(self,text):
         
         if text == "ERROR":
             return "error"
-        if self.len_do(text) > 50:
+        if len(text) > 50:
             return "warning"
         if text == "test":
             return "validated"
@@ -182,7 +195,7 @@ class AdvancedProcessor:
         return
         
     
-    def len_do(self,s):
+    def _len(self,s):
         
         count = 0
         for c in s:

@@ -2,18 +2,22 @@
 
 from enum import Enum
 
+from enum import Enum
+import random
 class FrameEvent:
     def __init__(self, message, parameters):
         self._message = message
         self._parameters = parameters
 
 class FrameCompartment:
-    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None):
+    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None, state_vars=None, state_args=None):
         self.state = state
         self.forward_event = forward_event
         self.exit_args = exit_args
         self.enter_args = enter_args
         self.parent_compartment = parent_compartment
+        self.state_vars = state_vars or {}
+        self.state_args = state_args or {}
 
 
 class Grocery_Fruit(Enum):
@@ -30,7 +34,7 @@ def main():
 class Grocery:
     def __init__(self):
         # Create and initialize start state compartment
-        self.__compartment = FrameCompartment('__grocery_state_Start', None, None, None, None)
+        self.__compartment = FrameCompartment('__grocery_state_Start', None, None, None, None, {}, {})
         self.__next_compartment = None
         self.return_stack = [None]
         
@@ -53,17 +57,21 @@ class Grocery:
     
     def __grocery_state_Start(self, __e, compartment):
         if __e._message == "getFruitOfTheDay":
-            f: Grocery_Fruit = self.getRandomFruit_do()
+            f: Grocery_Fruit = getRandomFruit()
             if f == Grocery_Fruit.Peach:
                 print("Found a Peach.")
-                return "Peaches"
+                self.return_stack[-1] = "Peaches"
+                return
             elif f == Grocery_Fruit.Pear:
                 print("Found a Pear.")
-                return "Pears"
+                self.return_stack[-1] = "Pears"
+                return
             elif f == Grocery_Fruit.Banana:
                 print("Found a Banana.")
-                return "Bananas"
-            return "None"
+                self.return_stack[-1] = "Bananas"
+                return
+            self.return_stack[-1] = "None"
+            return
     
     # ===================== State Dispatchers =================== #
     
@@ -71,7 +79,7 @@ class Grocery:
         return self.__grocery_state_Start(__e, None)
     # ===================== Actions Block =================== #
     
-    def getRandomFruit_do(self):
+    def _getRandomFruit(self):
         
         val = random.randint(1,3)
         if val == 1:

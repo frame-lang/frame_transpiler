@@ -75,30 +75,20 @@ pub struct PythonVisitor {
 
 impl PythonVisitor {
     // Debug helper methods
-    fn debug_print(&self, msg: &str) {
-        if self.debug_enabled {
-            eprintln!("{}[VISITOR DEBUG] {}", "  ".repeat(self.debug_indent), msg);
-        }
+    fn debug_print(&self, _msg: &str) {
+        // Debug output disabled
     }
     
-    fn debug_enter(&mut self, method_name: &str) {
-        if self.debug_enabled {
-            eprintln!("{}[VISITOR ENTER] {}", "  ".repeat(self.debug_indent), method_name);
-            self.debug_indent += 1;
-        }
+    fn debug_enter(&mut self, _method_name: &str) {
+        // Debug output disabled
     }
     
-    fn debug_exit(&mut self, method_name: &str) {
-        if self.debug_enabled {
-            self.debug_indent = self.debug_indent.saturating_sub(1);
-            eprintln!("{}[VISITOR EXIT] {}", "  ".repeat(self.debug_indent), method_name);
-        }
+    fn debug_exit(&mut self, _method_name: &str) {
+        // Debug output disabled  
     }
     
-    fn debug_node_info<T: std::fmt::Debug>(&self, label: &str, node: &T) {
-        if self.debug_enabled {
-            eprintln!("{}[NODE INFO] {}: {:?}", "  ".repeat(self.debug_indent), label, node);
-        }
+    fn debug_node_info<T: std::fmt::Debug>(&self, _label: &str, _node: &T) {
+        // Debug output disabled
     }
 
     //* --------------------------------------------------------------------- *//
@@ -174,6 +164,14 @@ impl PythonVisitor {
     /// an action or operation.
     pub fn is_in_action_or_operation(&self) -> bool {
         self.operation_scope_depth > 0 || self.action_scope_depth > 0
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    /// Returns true if we should use direct return instead of return stack
+    /// This includes functions, actions, and operations but excludes event handlers
+    pub fn should_use_direct_return(&self) -> bool {
+        self.in_standalone_function || self.operation_scope_depth > 0 || self.action_scope_depth > 0
     }
 
     //* --------------------------------------------------------------------- *//
@@ -558,10 +556,18 @@ impl PythonVisitor {
 
     fn format_variable_expr(&mut self, variable_node: &VariableNode) -> String {
         let mut code = String::new();
+        
+        // Frame v0.31: Handle explicit self.variable syntax
+        if variable_node.is_self {
+            // Explicit self.variable access
+            code.push_str(&format!("self.{}", variable_node.id_node.name.lexeme));
+            return code;
+        }
 
         match variable_node.scope {
             IdentifierDeclScope::SystemScope => {
-                code.push_str("self");
+                // For system-scoped variables (system instances), use the variable name
+                code.push_str(&variable_node.id_node.name.lexeme);
             }
             IdentifierDeclScope::DomainBlockScope => {
                 code.push_str(&format!("self.{}", variable_node.id_node.name.lexeme));
@@ -625,7 +631,8 @@ impl PythonVisitor {
 
         match list_element_node.scope {
             IdentifierDeclScope::SystemScope => {
-                code.push_str("self");
+                // For system-scoped variables (system instances), use the variable name
+                code.push_str(&list_element_node.identifier.name.lexeme);
             }
             IdentifierDeclScope::DomainBlockScope => {
                 code.push_str(&format!(
@@ -3220,7 +3227,67 @@ impl PythonVisitor {
     }
     
     //* --------------------------------------------------------------------- *//
+    // ===================== Frame v0.31 Explicit Self/System Context =====================
+    
+    /// Handle self.method() calls - explicit action/operation calls
+    fn handle_self_call(&mut self, method_call: &CallExprNode) {
+        let method_name = &method_call.identifier.name.lexeme;
+        
+        // Check if it's an action (highest precedence) - look across all systems
+        if let Some((_action_symbol, _system_symbol)) = self.arcanium.lookup_action_in_all_systems(method_name) {
+            self.add_code(&format!("self._{}", method_name));
+        }
+        // Check if it's an operation - look across all systems
+        else if let Some((_operation_symbol, _system_symbol)) = self.arcanium.lookup_operation_in_all_systems(method_name) {
+            self.add_code(&format!("self.{}", method_name));
+        }
+        // Domain method or error
+        else {
+            // Could be domain variable access in future or error
+            self.add_code(&format!("self.{}", method_name));
+        }
+        
+        method_call.call_expr_list.accept(self);
+    }
+    
+    /// Debug helper to show available action names
+    fn get_debug_action_names(&self) -> Vec<String> {
+        // This is a debug helper - we'll try to get action names from current system
+        Vec::new() // Placeholder for now
+    }
+    
+    /// Handle system.method() calls - interface method calls
+    fn handle_system_call(&mut self, method_call: &CallExprNode) {
+        let full_name = &method_call.identifier.name.lexeme;
+        
+        // Extract method name from 'system.methodName'
+        let method_name = if full_name.starts_with("system.") {
+            &full_name[7..] // Remove 'system.' prefix
+        } else {
+            full_name
+        };
+        
+        // Generate interface method call
+        self.add_code(&format!("self.{}", method_name));
+        method_call.call_expr_list.accept(self);
+    }
+    
+    /// Check if a method name is an interface method in any system
+    fn is_interface_method(&self, method_name: &str) -> bool {
+        self.arcanium.lookup_interface_method_in_all_systems(method_name).is_some()
+    }
+
+    /// Handle ClassName.method() calls - static operation calls  
+    fn handle_static_call(&mut self, method_call: &CallExprNode, class_name: &str) {
+        let method_name = &method_call.identifier.name.lexeme;
+        
+        // Generate static method call
+        self.add_code(&format!("{}.{}", class_name, method_name));
+        method_call.call_expr_list.accept(self);
+    }
 }
+
+//* --------------------------------------------------------------------- *//
 
 //* --------------------------------------------------------------------- *//
 
@@ -3626,39 +3693,17 @@ impl AstVisitor for PythonVisitor {
     fn visit_system_type_expr_node(&mut self, system_type_expr_node: &SystemTypeExprNode) {
         let system_name = &system_type_expr_node.identifier.name.lexeme;
         self.add_code(&format!("{}", system_name));
+        
+        // In Frame v0.30, SystemTypeExprNode is used for system instantiation
+        // Always add parentheses for constructor call
+        self.add_code("()");
+        
+        // Handle any method calls after instantiation
         if let Some(call_chain) = &*(system_type_expr_node.call_chain_opt) {
             let mut output = String::new();
             call_chain.accept_to_string(self, &mut output);
             self.add_code(&format!(".{}", output));
         }
-        // self.add_code("(");
-        // let mut separator = "";
-        // if let Some(start_state_state_args) = &system_type_expr_node.start_state_state_args_opt
-        // {
-        //     for expr_t in &start_state_state_args.exprs_t {
-        //         self.add_code(separator);
-        //         expr_t.accept(self);
-        //         separator = ",";
-        //     }
-        // }
-        //
-        // if let Some(start_state_enter_args) = &system_type_expr_node.start_state_enter_args_opt
-        // {
-        //     for expr_t in &start_state_enter_args.exprs_t {
-        //         self.add_code(separator);
-        //         expr_t.accept(self);
-        //         separator = ",";
-        //     }
-        // }
-        //
-        // if let Some(domain_args) = &system_type_expr_node.domain_args_opt {
-        //     for expr_t in &domain_args.exprs_t {
-        //         self.add_code(separator);
-        //         expr_t.accept(self);
-        //         separator = ",";
-        //     }
-        // }
-        // self.add_code(")");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -3670,40 +3715,18 @@ impl AstVisitor for PythonVisitor {
     ) {
         let system_name = &system_type_expr_node.identifier.name.lexeme;
         output.push_str(&format!("{}", system_name));
+        
+        // In Frame v0.30, SystemTypeExprNode is used for system instantiation
+        // Always add parentheses for constructor call
+        output.push_str("()");
+        
+        // Handle any method calls after instantiation
         if let Some(call_chain) = &*(system_type_expr_node.call_chain_opt) {
             // let mut output = String::new();
             output.push_str(".");
             call_chain.accept_to_string(self, output);
             // output.push_str(&format!(".{}", output));
         }
-        // output.push_str("(");
-        // let mut separator = "";
-        // if let Some(start_state_state_args) = &system_type_expr_node.start_state_state_args_opt
-        // {
-        //     for expr_t in &start_state_state_args.exprs_t {
-        //         output.push_str(separator);
-        //         expr_t.accept_to_string(self, output);
-        //         separator = ",";
-        //     }
-        // }
-        //
-        // if let Some(start_state_enter_args) = &system_type_expr_node.start_state_enter_args_opt
-        // {
-        //     for expr_t in &start_state_enter_args.exprs_t {
-        //         output.push_str(separator);
-        //         expr_t.accept_to_string(self, output);
-        //         separator = ",";
-        //     }
-        // }
-        //
-        // if let Some(domain_args) = &system_type_expr_node.domain_args_opt {
-        //     for expr_t in &domain_args.exprs_t {
-        //         output.push_str(separator);
-        //         expr_t.accept_to_string(self, output);
-        //         separator = ",";
-        //     }
-        // }
-        // output.push_str(")");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -4340,7 +4363,7 @@ impl AstVisitor for PythonVisitor {
                 Some(expr_t) => {
                     // expr_t.auto_pre_inc_dec(self);
                     self.newline();
-                    if self.is_in_action_or_operation() {
+                    if self.should_use_direct_return() {
                         self.add_code("return = ");
                     } else {
                         self.add_code("self.return_stack[-1] = ");
@@ -4372,101 +4395,39 @@ impl AstVisitor for PythonVisitor {
     fn visit_call_expression_node(&mut self, method_call: &CallExprNode) {
         self.debug_enter(&format!("visit_call_expression_node({})", method_call.identifier.name.lexeme));
         
-        // Check if call chain already has content (like "self.")
-        let has_call_chain = if let Some(call_chain) = &method_call.call_chain {
-            self.debug_print(&format!("Call chain has {} items", call_chain.len()));
-            if !call_chain.is_empty() {
-                for (i, callable) in call_chain.iter().enumerate() {
-                    self.debug_print(&format!("Processing call chain item {}", i));
-                    callable.callable_accept(self);
-                    self.add_code(".");
-                }
-                true
-            } else {
-                false
-            }
-        } else {
-            self.debug_print("No call chain");
-            false
-        };
-
-        // Check if this is an action or operation call that needs special handling
-        // Only add self. if there's no existing call chain
-        let method_name = &method_call.identifier.name.lexeme;
-        
-        // Check if it's an action (needs _ prefix always, self. prefix if not present)
-        // Only apply action resolution when NOT in standalone function context
-        if !self.in_standalone_function {
-            if let Some(_action_symbol) = self.arcanium.lookup_action(method_name) {
-                self.debug_print(&format!("CALL_DEBUG: Found action '{}' - has_call_chain={}, in_call_chain={}", method_name, has_call_chain, self.in_call_chain));
-                // For actions, we ALWAYS want self._action format
-                // Clear any existing code and regenerate the full call  
-                if has_call_chain {
-                    // If we already output "self.", that's correct, just add _action
-                    self.debug_print(&format!("CALL_DEBUG: Adding suffix _{} (has_call_chain path)", method_name));
-                    self.add_code(&format!("_{}", method_name));
-                } else if !self.in_call_chain {
-                    // No call chain, add full self._action
-                    self.debug_print(&format!("CALL_DEBUG: Adding full self._{} (no call chain path)", method_name));
-                    self.add_code(&format!("self._{}", method_name));
-                } else {
-                    // In call chain context, just add _action  
-                    self.debug_print(&format!("CALL_DEBUG: Adding suffix _{} (in_call_chain path)", method_name));
-                    self.add_code(&format!("_{}", method_name));
-                }
-                method_call.call_expr_list.accept(self);
-                return; // CRITICAL: Early return to prevent fallback processing
-            }
-            // Check if it's an operation (needs self. prefix if not present)  
-            // Only apply operation resolution when NOT in standalone function context
-            else if let Some((_operation_symbol, _system_symbol)) = self.arcanium.lookup_operation_in_all_systems(method_name) {
-                self.debug_print("Found operation - generating self.operation call");
-                if !has_call_chain && !self.in_call_chain {
-                    self.add_code("self.");
-                }
-                self.add_code(method_name);
-                method_call.call_expr_list.accept(self);
-                return; // CRITICAL: Early return to prevent fallback processing
-            }
-            // Fallback: check if it's in our tracked operations list (when symbol table fails)
-            else if self.current_system_operations.contains(&method_name.to_string()) {
-                self.debug_print("Found operation in tracked list - generating self.operation call");
-                if !has_call_chain && !self.in_call_chain {
-                    self.add_code("self.");
-                }
-                self.add_code(method_name);
-                method_call.call_expr_list.accept(self);
+        // Frame v0.31: Handle explicit self/system context
+        match &method_call.context {
+            CallContextType::SelfCall => {
+                self.handle_self_call(method_call);
                 return;
             }
-            // Fallback: check if it's in our tracked actions list (when symbol table fails)
-            else if self.current_system_actions.contains(&method_name.to_string()) {
-                self.debug_print(&format!("CALL_DEBUG: Found action '{}' in tracked list - generating self._action call", method_name));
-                // For actions, we ALWAYS want self._action format
-                if has_call_chain {
-                    // If we already output "self.", that's correct, just add _action
-                    self.add_code(&format!("_{}", method_name));
-                } else if !self.in_call_chain {
-                    // No call chain, add full self._action
-                    self.add_code(&format!("self._{}", method_name));
-                } else {
-                    // In call chain context, just add _action  
-                    self.add_code(&format!("_{}", method_name));
+            CallContextType::SystemCall => {
+                self.handle_system_call(method_call);
+                return;
+            }
+            CallContextType::StaticCall(class_name) => {
+                self.handle_static_call(method_call, class_name);
+                return;
+            }
+            CallContextType::ExternalCall => {
+                // ExternalCall means it's a call on an external object (e.g., worker.start())
+                // We should NOT add self. prefix even if the method name matches an interface method
+                // Process call chain first (for object.method() syntax)
+                if let Some(call_chain) = &method_call.call_chain {
+                    if !call_chain.is_empty() {
+                        for callable in call_chain {
+                            callable.callable_accept(self);
+                            self.add_code(".");
+                        }
+                    }
                 }
+                // Add method name directly (no self. prefix for external calls)
+                self.add_code(&method_call.identifier.name.lexeme);
                 method_call.call_expr_list.accept(self);
+                self.debug_exit("visit_call_expression_node");
                 return;
             }
         }
-        
-        // External function call (for all contexts - functions, operations, actions)
-        self.debug_print(&format!("CALL_DEBUG: Found nothing for '{}' - generating external call", method_name));
-        self.debug_print(&format!("CALL_DEBUG: Context - in_standalone_function={}, operation_depth={}, action_depth={}", 
-            self.in_standalone_function, self.operation_scope_depth, self.action_scope_depth));
-        self.add_code(method_name);
-
-        // Process call parameters for external calls only (internal calls handled above)
-        method_call.call_expr_list.accept(self);
-        
-        self.debug_exit("visit_call_expression_node");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -4476,6 +4437,31 @@ impl AstVisitor for PythonVisitor {
         method_call: &CallExprNode,
         output: &mut String,
     ) {
+        
+        // Handle call context first - if it's an external call, don't add self prefix
+        if let CallContextType::ExternalCall = &method_call.context {
+            // ExternalCall means it's a call on an external object (e.g., sys.test_interface())
+            // We should NOT add self. prefix even if the method name matches an interface method
+            // Process call chain first (for object.method() syntax)
+            if let Some(call_chain) = &method_call.call_chain {
+                if !call_chain.is_empty() {
+                    for callable in call_chain {
+                        let saved_code = self.code.clone();
+                        self.code.clear();
+                        callable.callable_accept(self);
+                        output.push_str(&self.code);
+                        output.push('.');
+                        self.code = saved_code;
+                    }
+                }
+            }
+            // Add method name directly (no self. prefix for external calls)
+            output.push_str(&method_call.identifier.name.lexeme);
+            // IMPORTANT: Must still add parentheses for the call!
+            method_call.call_expr_list.accept_to_string(self, output);
+            return; // Early return to skip all the self/interface method logic below
+        }
+        
         // Check if call chain already has content (like "self.")
         let has_call_chain = if let Some(call_chain) = &method_call.call_chain {
             if !call_chain.is_empty() {
@@ -4538,6 +4524,11 @@ impl AstVisitor for PythonVisitor {
                 // No call chain, add full self._action
                 output.push_str(&format!("self._{}", method_name));
             }
+        }
+        // Check if it's an interface method (needs self. prefix) - only when inside system context AND no call chain
+        else if !self.in_standalone_function && !has_call_chain && self.is_interface_method(method_name) && !output.ends_with('.') {
+            output.push_str("self.");
+            output.push_str(method_name);
         }
         // Otherwise output as-is (external function call)
         else {
@@ -4789,7 +4780,7 @@ impl AstVisitor for PythonVisitor {
                 // Leaving here in case there is an unconsidered edge case.
                 // Needs to be directly solved by the mandatory event handler solution,
                 // whatever that is going to be.
-                if !self.is_in_action_or_operation() {
+                if !self.should_use_direct_return() {
                     self.generate_return();
                 }
 
@@ -4833,13 +4824,19 @@ impl AstVisitor for PythonVisitor {
         
         for (i, node) in call_l_chain_expression_node.call_chain.iter().enumerate() {
             let node_type = match &node {
-                CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => format!("UndeclaredIdentifier({})", id_node.name.lexeme),
-                CallChainNodeType::UndeclaredCallT { call_node } => format!("UndeclaredCall({})", call_node.identifier.name.lexeme),
+                CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
+                    format!("UndeclaredIdentifier({})", id_node.name.lexeme)
+                },
+                CallChainNodeType::UndeclaredCallT { call_node } => {
+                    format!("UndeclaredCall({})", call_node.identifier.name.lexeme)
+                },
                 CallChainNodeType::InterfaceMethodCallT { interface_method_call_expr_node } => format!("InterfaceMethodCall({})", interface_method_call_expr_node.identifier.name.lexeme),
                 CallChainNodeType::OperationCallT { operation_call_expr_node } => format!("OperationCall({})", operation_call_expr_node.identifier.name.lexeme),
                 CallChainNodeType::OperationRefT { operation_ref_expr_node } => format!("OperationRef({})", operation_ref_expr_node.name),
                 CallChainNodeType::ActionCallT { action_call_expr_node } => format!("ActionCall({})", action_call_expr_node.identifier.name.lexeme),
-                CallChainNodeType::VariableNodeT { var_node } => format!("Variable({})", var_node.id_node.name.lexeme),
+                CallChainNodeType::VariableNodeT { var_node } => {
+                    format!("Variable({})", var_node.id_node.name.lexeme)
+                },
                 CallChainNodeType::ListElementNodeT { .. } => "ListElement".to_string(),
                 CallChainNodeType::UndeclaredListElementT { .. } => "UndeclaredListElement".to_string(),
             };
@@ -5137,7 +5134,14 @@ impl AstVisitor for PythonVisitor {
     ) {
         let mut separator = "";
 
-        for node in &call_chain_expression_node.call_chain {
+        for (i, node) in call_chain_expression_node.call_chain.iter().enumerate() {
+            let node_desc = match &node {
+                CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => 
+                    format!("UndeclaredIdentifier({})", id_node.name.lexeme),
+                CallChainNodeType::UndeclaredCallT { call_node } => 
+                    format!("UndeclaredCall({})", call_node.identifier.name.lexeme),
+                _ => "Other".to_string()
+            };
             output.push_str(separator);
             match &node {
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
@@ -5497,7 +5501,7 @@ impl AstVisitor for PythonVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            if self.is_in_action_or_operation() {
+                            if self.should_use_direct_return() {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
@@ -5561,7 +5565,7 @@ impl AstVisitor for PythonVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            if self.is_in_action_or_operation() {
+                            if self.should_use_direct_return() {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
@@ -5707,7 +5711,7 @@ impl AstVisitor for PythonVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            if self.is_in_action_or_operation() {
+                            if self.should_use_direct_return() {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
@@ -5773,7 +5777,7 @@ impl AstVisitor for PythonVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            if self.is_in_action_or_operation() {
+                            if self.should_use_direct_return() {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
@@ -5895,7 +5899,7 @@ impl AstVisitor for PythonVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            if self.is_in_action_or_operation() {
+                            if self.should_use_direct_return() {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
@@ -5934,7 +5938,7 @@ impl AstVisitor for PythonVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            if self.is_in_action_or_operation() {
+                            if self.should_use_direct_return() {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
@@ -6085,7 +6089,7 @@ impl AstVisitor for PythonVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            if self.is_in_action_or_operation() {
+                            if self.should_use_direct_return() {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
@@ -6147,7 +6151,7 @@ impl AstVisitor for PythonVisitor {
                 match &branch_terminator_expr.terminator_type {
                     TerminatorType::Return => match &branch_terminator_expr.return_expr_t_opt {
                         Some(expr_t) => {
-                            if self.is_in_action_or_operation() {
+                            if self.should_use_direct_return() {
                                 self.add_code("return ");
                                 expr_t.accept(self);
                             } else {
@@ -6188,8 +6192,8 @@ impl AstVisitor for PythonVisitor {
     fn visit_return_stmt_node(&mut self, return_stmt_node: &ReturnStmtNode) {
         self.newline();
         if let Some(expr_t) = &return_stmt_node.expr_t_opt {
-            if self.is_in_action_or_operation() {
-                // In actions/operations: direct return
+            if self.should_use_direct_return() {
+                // In functions/actions/operations: direct return
                 let mut output = String::new();
                 expr_t.accept_to_string(self, &mut output);
                 self.add_code(&format!("return {}", output));
@@ -6399,7 +6403,18 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_identifier_node(&mut self, identifier_node: &IdentifierNode) {
-        self.add_code(&identifier_node.name.lexeme.to_string());
+        let name = &identifier_node.name.lexeme;
+        
+        // Frame v0.31: Handle system.method calls - convert to self.method
+        if name.starts_with("system.") {
+            let method_name = &name[7..]; // Remove 'system.' prefix  
+            self.add_code(&format!("self.{}", method_name));
+        } else {
+            // Check if this is a system type that needs parentheses
+            if name == "SimpleHSM" {
+            }
+            self.add_code(name);
+        }
     }
 
     //* --------------------------------------------------------------------- *//
@@ -6409,6 +6424,7 @@ impl AstVisitor for PythonVisitor {
         identifier_node: &IdentifierNode,
         output: &mut String,
     ) {
+        let name = &identifier_node.name.lexeme;
         output.push_str(&identifier_node.name.lexeme.to_string());
     }
 
@@ -6697,6 +6713,14 @@ impl AstVisitor for PythonVisitor {
         };
         let var_name = &variable_decl_node.name;
         let var_init_expr = &variable_decl_node.get_initializer_value_rc();
+        let init_type_name = match &**var_init_expr {
+            ExprType::CallChainExprT { .. } => "CallChain",
+            ExprType::SystemTypeExprT { .. } => "SystemType",
+            ExprType::SystemInstanceExprT { .. } => "SystemInstance",
+            ExprType::VariableExprT { .. } => "Variable",
+            ExprType::LiteralExprT { .. } => "Literal",
+            _ => "Other"
+        };
         //self.newline();
         let mut code = String::new();
         var_init_expr.accept_to_string(self, &mut code);
@@ -7027,4 +7051,5 @@ impl AstVisitor for PythonVisitor {
             OperatorType::Unknown => output.push_str(" <Unknown> "),
         }
     }
+    
 }

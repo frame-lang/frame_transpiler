@@ -8,12 +8,14 @@ class FrameEvent:
         self._parameters = parameters
 
 class FrameCompartment:
-    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None):
+    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None, state_vars=None, state_args=None):
         self.state = state
         self.forward_event = forward_event
         self.exit_args = exit_args
         self.enter_args = enter_args
         self.parent_compartment = parent_compartment
+        self.state_vars = state_vars or {}
+        self.state_args = state_args or {}
 
 
 def helper(msg):
@@ -42,7 +44,7 @@ def main():
 class ToggleSwitch:
     def __init__(self):
         # Create and initialize start state compartment
-        self.__compartment = FrameCompartment('__toggleswitch_state_Off', None, None, None, None)
+        self.__compartment = FrameCompartment('__toggleswitch_state_Off', None, None, None, None, {}, {})
         self.__next_compartment = None
         self.return_stack = [None]
         
@@ -66,7 +68,8 @@ class ToggleSwitch:
     def __toggleswitch_state_Off(self, __e, compartment):
         if __e._message == "flip":
             log_event("Switch: OFF -> ON")
-            next_compartment = FrameCompartment('__toggleswitch_state_On', None, None, None, None)
+            
+            next_compartment = FrameCompartment('__toggleswitch_state_On', None, None, None, None, {}, {})
             self.__transition(next_compartment)
             return
         elif __e._message == "$>":
@@ -80,7 +83,8 @@ class ToggleSwitch:
     def __toggleswitch_state_On(self, __e, compartment):
         if __e._message == "flip":
             log_event("Switch: ON -> OFF")
-            next_compartment = FrameCompartment('__toggleswitch_state_Off', None, None, None, None)
+            
+            next_compartment = FrameCompartment('__toggleswitch_state_Off', None, None, None, None, {}, {})
             self.__transition(next_compartment)
             return
         elif __e._message == "$>":
@@ -134,7 +138,7 @@ class ToggleSwitch:
 class SimpleStateMachine:
     def __init__(self):
         # Create and initialize start state compartment
-        self.__compartment = FrameCompartment('__simplestatemachine_state_StateA', None, None, None, None)
+        self.__compartment = FrameCompartment('__simplestatemachine_state_StateA', None, None, None, None, {}, {})
         self.__next_compartment = None
         self.return_stack = [None]
         
@@ -158,7 +162,7 @@ class SimpleStateMachine:
     def __simplestatemachine_state_StateA(self, __e, compartment):
         if __e._message == "advance":
             print("State A -> B")
-            next_compartment = FrameCompartment('__simplestatemachine_state_StateB', None, None, None, None)
+            next_compartment = FrameCompartment('__simplestatemachine_state_StateB', None, None, None, None, {}, {})
             self.__transition(next_compartment)
             return
         elif __e._message == "$>":
@@ -172,7 +176,7 @@ class SimpleStateMachine:
     def __simplestatemachine_state_StateB(self, __e, compartment):
         if __e._message == "advance":
             print("State B -> C")
-            next_compartment = FrameCompartment('__simplestatemachine_state_StateC', None, None, None, None)
+            next_compartment = FrameCompartment('__simplestatemachine_state_StateC', None, None, None, None, {}, {})
             self.__transition(next_compartment)
             return
         elif __e._message == "$>":
@@ -186,7 +190,7 @@ class SimpleStateMachine:
     def __simplestatemachine_state_StateC(self, __e, compartment):
         if __e._message == "advance":
             print("State C -> A (cycling back)")
-            next_compartment = FrameCompartment('__simplestatemachine_state_StateA', None, None, None, None)
+            next_compartment = FrameCompartment('__simplestatemachine_state_StateA', None, None, None, None, {}, {})
             self.__transition(next_compartment)
             return
         elif __e._message == "$>":

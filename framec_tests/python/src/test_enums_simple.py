@@ -8,12 +8,14 @@ class FrameEvent:
         self._parameters = parameters
 
 class FrameCompartment:
-    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None):
+    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None, state_vars=None, state_args=None):
         self.state = state
         self.forward_event = forward_event
         self.exit_args = exit_args
         self.enter_args = enter_args
         self.parent_compartment = parent_compartment
+        self.state_vars = state_vars or {}
+        self.state_args = state_args or {}
 
 
 class Grocery_Fruit(Enum):
@@ -23,7 +25,7 @@ class Grocery_Fruit(Enum):
 class Grocery:
     def __init__(self):
         # Create and initialize start state compartment
-        self.__compartment = FrameCompartment('__grocery_state_Start', None, None, None, None)
+        self.__compartment = FrameCompartment('__grocery_state_Start', None, None, None, None, {}, {})
         self.__next_compartment = None
         self.return_stack = [None]
         
@@ -48,8 +50,10 @@ class Grocery:
         if __e._message == "getFruitOfTheDay":
             f: Grocery_Fruit = Grocery_Fruit.Peach
             if f == Grocery_Fruit.Peach:
-                return "Peaches"
-            return "None"
+                self.return_stack[-1] = "Peaches"
+                return
+            self.return_stack[-1] = "None"
+            return
     
     # ===================== State Dispatchers =================== #
     
@@ -57,7 +61,7 @@ class Grocery:
         return self.__grocery_state_Start(__e, None)
     # ===================== Actions Block =================== #
     
-    def getRandomFruit_do(self):
+    def _getRandomFruit(self):
         
         return Grocery_Fruit.Peach
         return

@@ -8,12 +8,14 @@ class FrameEvent:
         self._parameters = parameters
 
 class FrameCompartment:
-    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None):
+    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None, state_vars=None, state_args=None):
         self.state = state
         self.forward_event = forward_event
         self.exit_args = exit_args
         self.enter_args = enter_args
         self.parent_compartment = parent_compartment
+        self.state_vars = state_vars or {}
+        self.state_args = state_args or {}
 
 
 def main():
@@ -30,7 +32,7 @@ def main():
 class TextAnalyzer:
     def __init__(self):
         # Create and initialize start state compartment
-        self.__compartment = FrameCompartment('__textanalyzer_state_Analyzing', None, None, None, None)
+        self.__compartment = FrameCompartment('__textanalyzer_state_Analyzing', None, None, None, None, {}, {})
         self.__next_compartment = None
         self.return_stack = [None]
         
@@ -58,7 +60,7 @@ class TextAnalyzer:
             if __e._parameters["text"] == "":
                 self.return_stack[-1] = "empty input"
                 return
-            category = self.categorizeText_do(__e._parameters["text"])
+            category = categorizeText(__e._parameters["text"])
             print("Category from action: " + category)
             if category == "short":
                 self.return_stack[-1] = "short text: " + __e._parameters["text"]
@@ -74,9 +76,9 @@ class TextAnalyzer:
         return self.__textanalyzer_state_Analyzing(__e, None)
     # ===================== Actions Block =================== #
     
-    def categorizeText_do(self,text):
+    def _categorizeText(self,text):
         
-        if self.len_do(text) < 10:
+        if len(text) < 10:
             return "short"
         if text == text.upper() and text != text.lower():
             return "caps"
@@ -84,7 +86,7 @@ class TextAnalyzer:
         return
         
     
-    def len_do(self,s):
+    def _len(self,s):
         
         count = 0
         for c in s:

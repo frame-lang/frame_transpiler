@@ -8,12 +8,14 @@ class FrameEvent:
         self._parameters = parameters
 
 class FrameCompartment:
-    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None):
+    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None, state_vars=None, state_args=None):
         self.state = state
         self.forward_event = forward_event
         self.exit_args = exit_args
         self.enter_args = enter_args
         self.parent_compartment = parent_compartment
+        self.state_vars = state_vars or {}
+        self.state_args = state_args or {}
 
 
 def main():
@@ -49,7 +51,7 @@ def helper():
 class SystemA:
     def __init__(self):
         # Create and initialize start state compartment
-        self.__compartment = FrameCompartment('__systema_state_StateA', None, None, None, None)
+        self.__compartment = FrameCompartment('__systema_state_StateA', None, None, None, None, {}, {})
         self.__next_compartment = None
         self.return_stack = [None]
         
@@ -73,7 +75,8 @@ class SystemA:
     def __systema_state_StateA(self, __e, compartment):
         if __e._message == "interface_a":
             print("SystemA interface")
-            self.action_a_do()
+            self._action_a()
+            
             return
     
     # ===================== State Dispatchers =================== #
@@ -82,7 +85,7 @@ class SystemA:
         return self.__systema_state_StateA(__e, None)
     # ===================== Actions Block =================== #
     
-    def action_a_do(self):
+    def _action_a(self):
         
         print("SystemA action")
         return
@@ -126,7 +129,7 @@ class SystemA:
 class SystemB:
     def __init__(self):
         # Create and initialize start state compartment
-        self.__compartment = FrameCompartment('__systemb_state_StateB', None, None, None, None)
+        self.__compartment = FrameCompartment('__systemb_state_StateB', None, None, None, None, {}, {})
         self.__next_compartment = None
         self.return_stack = [None]
         
@@ -150,7 +153,8 @@ class SystemB:
     def __systemb_state_StateB(self, __e, compartment):
         if __e._message == "interface_b":
             print("SystemB interface")
-            self.action_b_do()
+            self._action_b()
+            
             return
     
     # ===================== State Dispatchers =================== #
@@ -159,7 +163,7 @@ class SystemB:
         return self.__systemb_state_StateB(__e, None)
     # ===================== Actions Block =================== #
     
-    def action_b_do(self):
+    def _action_b(self):
         
         print("SystemB action")
         return

@@ -8,12 +8,14 @@ class FrameEvent:
         self._parameters = parameters
 
 class FrameCompartment:
-    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None):
+    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None, state_vars=None, state_args=None):
         self.state = state
         self.forward_event = forward_event
         self.exit_args = exit_args
         self.enter_args = enter_args
         self.parent_compartment = parent_compartment
+        self.state_vars = state_vars or {}
+        self.state_args = state_args or {}
 
 
 def main():
@@ -25,7 +27,7 @@ def main():
 class SimpleSystem:
     def __init__(self):
         # Create and initialize start state compartment
-        self.__compartment = FrameCompartment('__simplesystem_state_Start', None, None, None, None)
+        self.__compartment = FrameCompartment('__simplesystem_state_Start', None, None, None, None, {}, {})
         self.__next_compartment = None
         self.return_stack = [None]
         
@@ -52,7 +54,8 @@ class SimpleSystem:
             return
         elif __e._message == "test":
             print("In test()")
-            next_compartment = FrameCompartment('__simplesystem_state_End', None, None, None, None)
+            
+            next_compartment = FrameCompartment('__simplesystem_state_End', None, None, None, None, {}, {})
             self.__transition(next_compartment)
             return
     

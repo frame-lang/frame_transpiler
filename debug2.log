@@ -1,0 +1,47 @@
+DEBUG: Starting first pass - building symbol table
+DEBUG: Created syntactic parser with is_building_symbol_table=true
+DEBUG: Building symbol table for function: main
+DEBUG: Entering function scope for: main
+DEBUG: Inserting function symbol 'main' into symbol table
+DEBUG: Function symbol 'main' inserted successfully. Total symbols: 1
+DEBUG: Function symbol table building complete for: main
+DEBUG: First pass parsing succeeded
+DEBUG: Extracted arcanum from first pass
+DEBUG: Symbols in arcanum after first pass: ["TwoState", "main"]
+DEBUG: Starting second pass - semantic analysis
+DEBUG: Symbols in module scope before second pass: ["TwoState", "main"]
+DEBUG: Created semantic parser with is_building_symbol_table=false
+DEBUG: Looking for symbol 'main' in scope 'module'. Available symbols: ["TwoState", "main"]
+DEBUG: Found symbol 'main' in scope 'module'
+DEBUG: Looking for symbol '-parameters-' in scope 'main'. Available symbols: ["-parameters-", "fsm"]
+DEBUG: Found symbol '-parameters-' in scope 'main'
+DEBUG: Looking for symbol 'TwoState' in scope 'module'. Available symbols: ["TwoState", "main"]
+DEBUG: Found symbol 'TwoState' in scope 'module'
+DEBUG: Retrieved system 'TwoState' in semantic pass
+  Has actions block: false
+  Has machine block: true
+  Has interface block: true
+DEBUG: Looking for symbol 'TwoState' in scope 'TwoState'. Available symbols: ["TwoState"]
+DEBUG: Found symbol 'TwoState' in scope 'TwoState'
+DEBUG: Looking for symbol 'StateA' in scope '-machine-block-'. Available symbols: ["StateB", "StateA"]
+DEBUG: Found symbol 'StateA' in scope '-machine-block-'
+DEBUG: Looking for symbol '-state-local-' in scope 'StateA'. Available symbols: ["-state-local-"]
+DEBUG: Found symbol '-state-local-' in scope 'StateA'
+DEBUG: Looking for symbol 'go' in scope '-state-local-'. Available symbols: ["go", "countA"]
+DEBUG: Found symbol 'go' in scope '-state-local-'
+DEBUG: Looking for symbol '-event-handler-local-' in scope 'go'. Available symbols: ["-event-handler-local-"]
+DEBUG: Found symbol '-event-handler-local-' in scope 'go'
+DEBUG: Looking for symbol 'StateB' in scope '-machine-block-'. Available symbols: ["StateB", "StateA"]
+DEBUG: Found symbol 'StateB' in scope '-machine-block-'
+DEBUG: Looking for symbol '-state-local-' in scope 'StateB'. Available symbols: ["-state-local-"]
+DEBUG: Found symbol '-state-local-' in scope 'StateB'
+DEBUG: Looking for symbol 'back' in scope '-state-local-'. Available symbols: ["countB", "back"]
+DEBUG: Found symbol 'back' in scope '-state-local-'
+DEBUG: Looking for symbol '-event-handler-local-' in scope 'back'. Available symbols: ["-event-handler-local-"]
+DEBUG: Found symbol '-event-handler-local-' in scope 'back'
+DEBUG: Looking for state 'StateB' in system 'TwoState'
+DEBUG: Available states in system 'TwoState': ["StateB", "StateA"]
+DEBUG: State 'StateB' NOT FOUND in symbol table
+DEBUG: Looking for state 'StateA' in system 'TwoState'
+DEBUG: Available states in system 'TwoState': ["StateB", "StateA"]
+DEBUG: State 'StateA' NOT FOUND in symbol table

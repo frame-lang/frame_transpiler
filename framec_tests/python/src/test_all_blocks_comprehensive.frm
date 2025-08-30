@@ -27,7 +27,7 @@ system AllBlocksTest {
         $>() {
             print("Machine: Processing state entered")
             result = self.process_data("test_data")
-            self.test_result = result
+            test_result = result
             print("Machine: result stored as " + self.test_result)
             -> $Complete
         }

@@ -55,8 +55,7 @@ def helper_function():
     return
 
 def compute_value(a,b):
-    self.return_stack[-1] = a + b
-    return
+    return a + b
     return
 class IsolatedSystem:
     def __init__(self):
@@ -93,7 +92,9 @@ class IsolatedSystem:
         if __e._message == "public_interface":
             print("Public interface called")
             self.internal_operation()
-            self.private_action_do()
+            
+            self._private_action()
+            
             return
     
     # ===================== State Dispatchers =================== #
@@ -102,7 +103,7 @@ class IsolatedSystem:
         return self.__isolatedsystem_state_Idle(__e, None)
     # ===================== Actions Block =================== #
     
-    def private_action_do(self):
+    def _private_action(self):
         
         print("Private action - should not be callable from functions")
         return

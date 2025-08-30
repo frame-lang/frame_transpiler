@@ -5,6 +5,23 @@ fn main() {
 }
 
 system TestSystem {
+    interface:
+        testFruit()
+        describeFruit(fruit_value: Fruit)
+        
+    machine:
+        $Ready {
+            testFruit() {
+                _testFruit()
+                return
+            }
+            
+            describeFruit(fruit_value: Fruit) {
+                _describeFruit(fruit_value)
+                return
+            }
+        }
+        
     actions:
         testFruit() {
             var f: Fruit = Fruit.Pear

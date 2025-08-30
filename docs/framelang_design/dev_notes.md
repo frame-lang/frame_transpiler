@@ -2,6 +2,27 @@
 
 ## Development History
 
+### 2025-01-30: Critical Code Generation Fixes
+
+#### System Instantiation Bug Fixed
+- **Issue**: System instantiation calls like `SimpleHSM()` generated as `SimpleHSM` without parentheses
+- **Root Cause**: `visit_call_expression_node_to_string` returned early for ExternalCall without generating parentheses
+- **Solution**: Added `call_expr_list.accept_to_string()` before early return to generate parentheses
+- **Impact**: System instantiation now works correctly, enabling proper object creation
+- **Files Modified**: `framec/src/frame_c/visitors/python_visitor.rs` (line 4475)
+
+#### Interface Method Call Generation Fixed  
+- **Issue**: System-scoped variables generated `sys.self.test()` instead of `sys.test()`
+- **Solution**: Modified `format_variable_expr` and `format_list_element_expr` to use variable name for SystemScope
+- **Impact**: Interface method calls on system instances now generate correctly
+- **Files Modified**: `framec/src/frame_c/visitors/python_visitor.rs` (lines 579-580, 644-645)
+
+#### Test Success Rate Improvement
+- **Before**: 64.4% success rate (94 passed, 52 failed)
+- **After**: 89.7% success rate (131 passed, 14 failed)
+- **Improvement**: +25.3% success rate improvement with forced re-transpilation
+- **Validation**: Comprehensive test suite run with all fixes applied
+
 ### 2025-01-28: Python Privacy Convention & External Function Fixes
 
 #### Action Naming Convention Changed to Python Standards

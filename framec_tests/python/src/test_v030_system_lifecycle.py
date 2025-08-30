@@ -8,12 +8,14 @@ class FrameEvent:
         self._parameters = parameters
 
 class FrameCompartment:
-    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None):
+    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None, state_vars=None, state_args=None):
         self.state = state
         self.forward_event = forward_event
         self.exit_args = exit_args
         self.enter_args = enter_args
         self.parent_compartment = parent_compartment
+        self.state_vars = state_vars or {}
+        self.state_args = state_args or {}
 
 
 def main():
@@ -40,7 +42,7 @@ def main():
 class MainSystem:
     def __init__(self):
         # Create and initialize start state compartment
-        self.__compartment = FrameCompartment('__mainsystem_state_StateA', None, None, None, None)
+        self.__compartment = FrameCompartment('__mainsystem_state_StateA', None, None, None, None, {'sysA': None}, {})
         self.__next_compartment = None
         self.return_stack = [None]
         
@@ -76,7 +78,9 @@ class MainSystem:
             continueProcessing = compartment.state_vars["sysA"].next()
             if ( not continueProcessing):
                 print("MainSystem: SystemA complete, transitioning to StateB")
-                next_compartment = FrameCompartment('__mainsystem_state_StateB', None, None, None, None)
+                
+                next_compartment = FrameCompartment('__mainsystem_state_StateB', None, None, None, None, {'sysB': None}, {})
+                next_compartment.state_vars["sysB"] = None
                 self.__transition(next_compartment)
             return
     
@@ -99,7 +103,9 @@ class MainSystem:
             continueProcessing = compartment.state_vars["sysB"].next()
             if ( not continueProcessing):
                 print("MainSystem: SystemB complete, transitioning to StateA")
-                next_compartment = FrameCompartment('__mainsystem_state_StateA', None, None, None, None)
+                
+                next_compartment = FrameCompartment('__mainsystem_state_StateA', None, None, None, None, {'sysA': None}, {})
+                next_compartment.state_vars["sysA"] = None
                 self.__transition(next_compartment)
             return
     
@@ -150,7 +156,7 @@ class MainSystem:
 class SystemA:
     def __init__(self):
         # Create and initialize start state compartment
-        self.__compartment = FrameCompartment('__systema_state_Start', None, None, None, None)
+        self.__compartment = FrameCompartment('__systema_state_Start', None, None, None, None, {}, {})
         self.__next_compartment = None
         self.return_stack = [None]
         
@@ -181,7 +187,7 @@ class SystemA:
         elif __e._message == "next":
             print("SystemA: Start.next() -> Working (returning true)")
             self.return_stack[-1] = True
-            next_compartment = FrameCompartment('__systema_state_Working', None, None, None, None)
+            next_compartment = FrameCompartment('__systema_state_Working', None, None, None, None, {}, {})
             self.__transition(next_compartment)
             return
     
@@ -199,7 +205,7 @@ class SystemA:
         elif __e._message == "next":
             print("SystemA: Working.next() -> End (returning true)")
             self.return_stack[-1] = True
-            next_compartment = FrameCompartment('__systema_state_End', None, None, None, None)
+            next_compartment = FrameCompartment('__systema_state_End', None, None, None, None, {}, {})
             self.__transition(next_compartment)
             return
     
@@ -270,7 +276,7 @@ class SystemA:
 class SystemB:
     def __init__(self):
         # Create and initialize start state compartment
-        self.__compartment = FrameCompartment('__systemb_state_Start', None, None, None, None)
+        self.__compartment = FrameCompartment('__systemb_state_Start', None, None, None, None, {}, {})
         self.__next_compartment = None
         self.return_stack = [None]
         
@@ -301,7 +307,7 @@ class SystemB:
         elif __e._message == "next":
             print("SystemB: Start.next() -> Working (returning true)")
             self.return_stack[-1] = True
-            next_compartment = FrameCompartment('__systemb_state_Working', None, None, None, None)
+            next_compartment = FrameCompartment('__systemb_state_Working', None, None, None, None, {}, {})
             self.__transition(next_compartment)
             return
     
@@ -319,7 +325,7 @@ class SystemB:
         elif __e._message == "next":
             print("SystemB: Working.next() -> End (returning true)")
             self.return_stack[-1] = True
-            next_compartment = FrameCompartment('__systemb_state_End', None, None, None, None)
+            next_compartment = FrameCompartment('__systemb_state_End', None, None, None, None, {}, {})
             self.__transition(next_compartment)
             return
     

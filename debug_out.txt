@@ -1,38 +1,288 @@
 DEBUG: Starting first pass - building symbol table
 DEBUG: Created syntactic parser with is_building_symbol_table=true
-DEBUG: Setting system_symbol_opt to 'SimpleOperationsTest'
-DEBUG: Setting system_symbol_opt to 'SimpleOperationsTest'
-DEBUG: Setting operations block symbol on system 'SimpleOperationsTest'
+DEBUG: Building symbol table for function: main
+DEBUG: Entering function scope for: main
+DEBUG: Inserting function symbol 'main' into symbol table
+DEBUG: Function symbol 'main' inserted successfully. Total symbols: 1
+DEBUG: Function symbol table building complete for: main
 DEBUG: First pass parsing succeeded
 DEBUG: Extracted arcanum from first pass
-DEBUG: Symbols in arcanum after first pass: ["SimpleOperationsTest"]
+DEBUG: Symbols in arcanum after first pass: ["ParentDispatchTest", "main"]
 DEBUG: Starting second pass - semantic analysis
-DEBUG: Symbols in module scope before second pass: ["SimpleOperationsTest"]
+DEBUG: Symbols in module scope before second pass: ["ParentDispatchTest", "main"]
 DEBUG: Created semantic parser with is_building_symbol_table=false
-DEBUG: Looking for symbol 'SimpleOperationsTest' in scope 'module'. Available symbols: ["SimpleOperationsTest"]
-DEBUG: Found symbol 'SimpleOperationsTest' in scope 'module'
-DEBUG: get_system_by_name('SimpleOperationsTest') - searching 2 systems
-  System[0]: 'SimpleOperationsTest', has_actions: false, has_operations: false
-  System[1]: 'SimpleOperationsTest', has_actions: false, has_operations: true
-DEBUG: Retrieved system 'SimpleOperationsTest' in semantic pass
+DEBUG: Looking for symbol 'main' in scope 'module'. Available symbols: ["ParentDispatchTest", "main"]
+DEBUG: Found symbol 'main' in scope 'module'
+DEBUG: Looking for symbol '-parameters-' in scope 'main'. Available symbols: ["hsm", "-parameters-"]
+DEBUG: Found symbol '-parameters-' in scope 'main'
+DEBUG: Looking for symbol 'ParentDispatchTest' in scope 'module'. Available symbols: ["ParentDispatchTest", "main"]
+DEBUG: Found symbol 'ParentDispatchTest' in scope 'module'
+DEBUG: Retrieved system 'ParentDispatchTest' in semantic pass
   Has actions block: false
   Has machine block: true
-  Has interface block: false
-DEBUG: Looking for symbol 'SimpleOperationsTest' in scope 'SimpleOperationsTest'. Available symbols: ["SimpleOperationsTest"]
-DEBUG: Found symbol 'SimpleOperationsTest' in scope 'SimpleOperationsTest'
-DEBUG: Looking for symbol 'test_operation' in scope '-operations-block-'. Available symbols: ["operation_with_param", "test_operation"]
-DEBUG: Found symbol 'test_operation' in scope '-operations-block-'
-DEBUG: Looking for symbol '-parameters-' in scope 'test_operation'. Available symbols: ["-parameters-"]
-DEBUG: Found symbol '-parameters-' in scope 'test_operation'
-DEBUG: Looking for symbol 'operation_with_param' in scope '-operations-block-'. Available symbols: ["operation_with_param", "test_operation"]
-DEBUG: Found symbol 'operation_with_param' in scope '-operations-block-'
-DEBUG: Looking for symbol '-parameters-' in scope 'operation_with_param'. Available symbols: ["-parameters-"]
-DEBUG: Found symbol '-parameters-' in scope 'operation_with_param'
-DEBUG: Looking for symbol 'Start' in scope '-machine-block-'. Available symbols: ["Start"]
-DEBUG: Found symbol 'Start' in scope '-machine-block-'
-DEBUG: Looking for symbol '-state-local-' in scope 'Start'. Available symbols: ["-state-local-"]
-DEBUG: Found symbol '-state-local-' in scope 'Start'
-DEBUG: Looking for symbol '$>' in scope '-state-local-'. Available symbols: ["$>"]
+  Has interface block: true
+DEBUG: Looking for symbol 'ParentDispatchTest' in scope 'ParentDispatchTest'. Available symbols: ["ParentDispatchTest"]
+DEBUG: Found symbol 'ParentDispatchTest' in scope 'ParentDispatchTest'
+DEBUG: Looking for symbol 'Parent' in scope '-machine-block-'. Available symbols: ["Child1", "Child2", "Parent"]
+DEBUG: Found symbol 'Parent' in scope '-machine-block-'
+DEBUG: Looking for symbol '-state-local-' in scope 'Parent'. Available symbols: ["-state-local-"]
+DEBUG: Found symbol '-state-local-' in scope 'Parent'
+DEBUG: Looking for symbol 'test1' in scope '-state-local-'. Available symbols: ["test1", "test3", "test2"]
+DEBUG: Found symbol 'test1' in scope '-state-local-'
+DEBUG: Looking for symbol '-event-handler-local-' in scope 'test1'. Available symbols: ["-event-handler-local-"]
+DEBUG: Found symbol '-event-handler-local-' in scope 'test1'
+DEBUG: Looking for symbol 'test2' in scope '-state-local-'. Available symbols: ["test1", "test3", "test2"]
+DEBUG: Found symbol 'test2' in scope '-state-local-'
+DEBUG: Looking for symbol '-event-handler-local-' in scope 'test2'. Available symbols: ["-event-handler-local-"]
+DEBUG: Found symbol '-event-handler-local-' in scope 'test2'
+DEBUG: Looking for symbol 'test3' in scope '-state-local-'. Available symbols: ["test1", "test3", "test2"]
+DEBUG: Found symbol 'test3' in scope '-state-local-'
+DEBUG: Looking for symbol '-event-handler-local-' in scope 'test3'. Available symbols: ["-event-handler-local-"]
+DEBUG: Found symbol '-event-handler-local-' in scope 'test3'
+DEBUG: Looking for symbol 'Child1' in scope '-machine-block-'. Available symbols: ["Child1", "Child2", "Parent"]
+DEBUG: Found symbol 'Child1' in scope '-machine-block-'
+DEBUG: Looking for symbol '-state-local-' in scope 'Child1'. Available symbols: ["-state-local-"]
+DEBUG: Found symbol '-state-local-' in scope 'Child1'
+DEBUG: Looking for symbol 'test1' in scope '-state-local-'. Available symbols: ["$>", "test2", "test3", "<$", "next", "test1"]
+DEBUG: Found symbol 'test1' in scope '-state-local-'
+DEBUG: Looking for symbol '-event-handler-local-' in scope 'test1'. Available symbols: ["-event-handler-local-"]
+DEBUG: Found symbol '-event-handler-local-' in scope 'test1'
+DEBUG: Looking for symbol 'test2' in scope '-state-local-'. Available symbols: ["$>", "test2", "test3", "<$", "next", "test1"]
+DEBUG: Found symbol 'test2' in scope '-state-local-'
+DEBUG: Looking for symbol '-event-handler-local-' in scope 'test2'. Available symbols: ["-event-handler-local-"]
+DEBUG: Found symbol '-event-handler-local-' in scope 'test2'
+DEBUG: Looking for symbol 'test3' in scope '-state-local-'. Available symbols: ["$>", "test2", "test3", "<$", "next", "test1"]
+DEBUG: Found symbol 'test3' in scope '-state-local-'
+DEBUG: Looking for symbol '-event-handler-local-' in scope 'test3'. Available symbols: ["-event-handler-local-"]
+DEBUG: Found symbol '-event-handler-local-' in scope 'test3'
+DEBUG: Looking for symbol '$>' in scope '-state-local-'. Available symbols: ["$>", "test2", "test3", "<$", "next", "test1"]
 DEBUG: Found symbol '$>' in scope '-state-local-'
 DEBUG: Looking for symbol '-event-handler-local-' in scope '$>'. Available symbols: ["-event-handler-local-"]
 DEBUG: Found symbol '-event-handler-local-' in scope '$>'
+DEBUG: Looking for symbol '<$' in scope '-state-local-'. Available symbols: ["$>", "test2", "test3", "<$", "next", "test1"]
+DEBUG: Found symbol '<$' in scope '-state-local-'
+DEBUG: Looking for symbol '-event-handler-local-' in scope '<$'. Available symbols: ["-event-handler-local-"]
+DEBUG: Found symbol '-event-handler-local-' in scope '<$'
+DEBUG: Looking for symbol 'next' in scope '-state-local-'. Available symbols: ["$>", "test2", "test3", "<$", "next", "test1"]
+DEBUG: Found symbol 'next' in scope '-state-local-'
+DEBUG: Looking for symbol '-event-handler-local-' in scope 'next'. Available symbols: ["-event-handler-local-"]
+DEBUG: Found symbol '-event-handler-local-' in scope 'next'
+DEBUG: Looking for symbol 'Child2' in scope '-machine-block-'. Available symbols: ["Child1", "Child2", "Parent"]
+DEBUG: Found symbol 'Child2' in scope '-machine-block-'
+DEBUG: Looking for symbol '-state-local-' in scope 'Child2'. Available symbols: ["-state-local-"]
+DEBUG: Found symbol '-state-local-' in scope 'Child2'
+DEBUG: Looking for symbol '$>' in scope '-state-local-'. Available symbols: ["next", "$>", "<$"]
+DEBUG: Found symbol '$>' in scope '-state-local-'
+DEBUG: Looking for symbol '-event-handler-local-' in scope '$>'. Available symbols: ["-event-handler-local-"]
+DEBUG: Found symbol '-event-handler-local-' in scope '$>'
+DEBUG: Looking for symbol '<$' in scope '-state-local-'. Available symbols: ["next", "$>", "<$"]
+DEBUG: Found symbol '<$' in scope '-state-local-'
+DEBUG: Looking for symbol '-event-handler-local-' in scope '<$'. Available symbols: ["-event-handler-local-"]
+DEBUG: Found symbol '-event-handler-local-' in scope '<$'
+DEBUG: Looking for symbol 'next' in scope '-state-local-'. Available symbols: ["next", "$>", "<$"]
+DEBUG: Found symbol 'next' in scope '-state-local-'
+DEBUG: Looking for symbol '-event-handler-local-' in scope 'next'. Available symbols: ["-event-handler-local-"]
+DEBUG: Found symbol '-event-handler-local-' in scope 'next'
+#Emitted from framec_v0.30.0
+
+from enum import Enum
+
+class FrameEvent:
+    def __init__(self, message, parameters):
+        self._message = message
+        self._parameters = parameters
+
+class FrameCompartment:
+    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None):
+        self.state = state
+        self.forward_event = forward_event
+        self.exit_args = exit_args
+        self.enter_args = enter_args
+        self.parent_compartment = parent_compartment
+
+
+def main():
+    hsm = ParentDispatchTest()
+    hsm.test1()
+    hsm.test2()
+    hsm.test3()
+    hsm.next()
+    return
+class ParentDispatchTest:
+    def __init__(self):
+        # Create and initialize start state compartment
+        self.__compartment = FrameCompartment('__parentdispatchtest_state_Parent', None, None, None, None)
+        self.__next_compartment = None
+        self.return_stack = [None]
+        
+        # Send system start event
+        frame_event = FrameEvent("$>", None)
+        self.__kernel(frame_event)
+    # ==================== Interface Block ================== #
+    
+    def test1(self,):
+        self.return_stack.append(None)
+        __e = FrameEvent("test1",None)
+        self.__kernel(__e)
+        return self.return_stack.pop(-1)
+    
+    def test2(self,):
+        self.return_stack.append(None)
+        __e = FrameEvent("test2",None)
+        self.__kernel(__e)
+        return self.return_stack.pop(-1)
+    
+    def test3(self,):
+        self.return_stack.append(None)
+        __e = FrameEvent("test3",None)
+        self.__kernel(__e)
+        return self.return_stack.pop(-1)
+    
+    def next(self,):
+        self.return_stack.append(None)
+        __e = FrameEvent("next",None)
+        self.__kernel(__e)
+        return self.return_stack.pop(-1)
+    
+    # ===================== Machine Block =================== #
+    
+    
+    # ----------------------------------------
+    # $Parent
+    
+    def __parentdispatchtest_state_Parent(self, __e, compartment):
+        if __e._message == "test1":
+            print("test1 handled in parent")
+            return
+        elif __e._message == "test2":
+            print("test2 handled in parent")
+            return
+        elif __e._message == "test3":
+            print("test3 parent triggers transition")
+            next_compartment = FrameCompartment('__parentdispatchtest_state_Child2', None, None, None, None)
+            self.__transition(next_compartment)
+            return
+    
+    
+    # ----------------------------------------
+    # $Child1
+    
+    def __parentdispatchtest_state_Child1(self, __e, compartment):
+        if __e._message == "test1":
+            # => $^ parent dispatch
+            self.__router(__e, compartment.parent_compartment)
+            if self.__next_compartment is not None:
+                return
+            return
+        elif __e._message == "test2":
+            print("test2 in child before dispatch")
+            # => $^ parent dispatch
+            self.__router(__e, compartment.parent_compartment)
+            if self.__next_compartment is not None:
+                return
+            print("test2 in child after dispatch - should execute")
+            return
+        elif __e._message == "test3":
+            print("test3 in child before dispatch")
+            # => $^ parent dispatch
+            self.__router(__e, compartment.parent_compartment)
+            if self.__next_compartment is not None:
+                return
+            print("test3 in child after dispatch - should NOT execute due to transition")
+            return
+        elif __e._message == "$>":
+            print("enter child1")
+            # => $^ parent dispatch
+            self.__router(__e, compartment.parent_compartment)
+            if self.__next_compartment is not None:
+                return
+            print("enter child1 - after parent dispatch")
+            return
+        elif __e._message == "<$":
+            print("exit child1")
+            # => $^ parent dispatch
+            self.__router(__e, compartment.parent_compartment)
+            if self.__next_compartment is not None:
+                return
+            print("exit child1 - after parent dispatch")
+            return
+        elif __e._message == "next":
+            next_compartment = FrameCompartment('__parentdispatchtest_state_Child2', None, None, None, None)
+            self.__transition(next_compartment)
+            return
+    
+    
+    # ----------------------------------------
+    # $Child2
+    
+    def __parentdispatchtest_state_Child2(self, __e, compartment):
+        if __e._message == "$>":
+            print("enter child2")
+            # => $^ parent dispatch
+            self.__router(__e, compartment.parent_compartment)
+            if self.__next_compartment is not None:
+                return
+            return
+        elif __e._message == "<$":
+            print("exit child2")
+            # => $^ parent dispatch
+            self.__router(__e, compartment.parent_compartment)
+            if self.__next_compartment is not None:
+                return
+            return
+        elif __e._message == "next":
+            next_compartment = FrameCompartment('__parentdispatchtest_state_Child1', None, None, None, None)
+            self.__transition(next_compartment)
+            return
+    
+    # ===================== State Dispatchers =================== #
+    
+    def _sParent(self, __e):
+        return self.__parentdispatchtest_state_Parent(__e, None)
+    def _sChild1(self, __e):
+        return self.__parentdispatchtest_state_Child1(__e, None)
+    def _sChild2(self, __e):
+        return self.__parentdispatchtest_state_Child2(__e, None)
+    
+    # ==================== System Runtime =================== #
+    
+    def __kernel(self, __e):
+        # send event to current state
+        self.__router(__e)
+        
+        # loop until no transitions occur
+        while self.__next_compartment != None:
+            next_compartment = self.__next_compartment
+            self.__next_compartment = None
+            
+            # exit current state
+            self.__router(FrameEvent("<$", self.__compartment.exit_args))
+            # change state
+            self.__compartment = next_compartment
+            
+            if next_compartment.forward_event is None:
+                # send normal enter event
+                self.__router(FrameEvent("$>", self.__compartment.enter_args))
+            else:
+                # forwarded event
+                if next_compartment.forward_event._message == "$>":
+                    self.__router(next_compartment.forward_event)
+                else:
+                    self.__router(FrameEvent("$>", self.__compartment.enter_args))
+                    self.__router(next_compartment.forward_event)
+                next_compartment.forward_event = None
+    
+    def __router(self, __e, compartment=None):
+        target_compartment = compartment or self.__compartment
+        if target_compartment.state == '__parentdispatchtest_state_Parent':
+            self.__parentdispatchtest_state_Parent(__e, target_compartment)
+        elif target_compartment.state == '__parentdispatchtest_state_Child1':
+            self.__parentdispatchtest_state_Child1(__e, target_compartment)
+        elif target_compartment.state == '__parentdispatchtest_state_Child2':
+            self.__parentdispatchtest_state_Child2(__e, target_compartment)
+    
+    def __transition(self, next_compartment):
+        self.__next_compartment = next_compartment
+
+if __name__ == '__main__':
+    main()

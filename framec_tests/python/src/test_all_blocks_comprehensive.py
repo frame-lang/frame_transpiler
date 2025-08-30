@@ -8,17 +8,19 @@ class FrameEvent:
         self._parameters = parameters
 
 class FrameCompartment:
-    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None):
+    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None, state_vars=None, state_args=None):
         self.state = state
         self.forward_event = forward_event
         self.exit_args = exit_args
         self.enter_args = enter_args
         self.parent_compartment = parent_compartment
+        self.state_vars = state_vars or {}
+        self.state_args = state_args or {}
 
 class AllBlocksTest:
     def __init__(self):
         # Create and initialize start state compartment
-        self.__compartment = FrameCompartment('__allblockstest_state_Start', None, None, None, None)
+        self.__compartment = FrameCompartment('__allblockstest_state_Start', None, None, None, None, {}, {})
         self.__next_compartment = None
         self.return_stack = [None]
         # Initialize domain variables
@@ -60,7 +62,9 @@ class AllBlocksTest:
         if __e._message == "$>":
             print("Machine: Start state entered")
             self.setup()
-            next_compartment = FrameCompartment('__allblockstest_state_Processing', None, None, None, None)
+            
+            
+            next_compartment = FrameCompartment('__allblockstest_state_Processing', None, None, None, None, {}, {})
             self.__transition(next_compartment)
             return
     
@@ -74,7 +78,8 @@ class AllBlocksTest:
             result = self.process_data("test_data")
             self.test_result = result
             print("Machine: result stored as " + self.test_result)
-            next_compartment = FrameCompartment('__allblockstest_state_Complete', None, None, None, None)
+            
+            next_compartment = FrameCompartment('__allblockstest_state_Complete', None, None, None, None, {}, {})
             self.__transition(next_compartment)
             return
     
@@ -86,11 +91,13 @@ class AllBlocksTest:
         if __e._message == "$>":
             print("Machine: Complete state entered")
             print("Actions: calling complete_process")
-            self.complete_process_do()
+            self._complete_process()
+            
             return
         elif __e._message == "start_test":
             print("Machine: start_test interface called")
-            next_compartment = FrameCompartment('__allblockstest_state_Start', None, None, None, None)
+            
+            next_compartment = FrameCompartment('__allblockstest_state_Start', None, None, None, None, {}, {})
             self.__transition(next_compartment)
             return
         elif __e._message == "get_result":
@@ -108,7 +115,7 @@ class AllBlocksTest:
         return self.__allblockstest_state_Complete(__e, None)
     # ===================== Actions Block =================== #
     
-    def complete_process_do(self):
+    def _complete_process(self):
         
         print("Actions: complete_process called")
         print("Actions: stored result is " + self.test_result)

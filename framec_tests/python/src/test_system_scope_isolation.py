@@ -70,7 +70,8 @@ class SystemOne:
             print("\n=== SystemOne Public Method ===")
             result = self.internal_op_one()
             print("Own operation: " + result)
-            self.private_action_one_do()
+            self._private_action_one()
+            
             print("Own domain: " + self.domain_one)
             return
         elif __e._message == "try_cross_call":
@@ -86,7 +87,7 @@ class SystemOne:
         return self.__systemone_state_Active(__e, None)
     # ===================== Actions Block =================== #
     
-    def private_action_one_do(self):
+    def _private_action_one(self):
         
         print("SystemOne private action")
         self.domain_one = "Modified by SystemOne"
@@ -176,7 +177,8 @@ class SystemTwo:
             print("\n=== SystemTwo Public Method ===")
             result = self.internal_op_two()
             print("Own operation: " + result)
-            self.private_action_two_do()
+            self._private_action_two()
+            
             print("Own domain: " + self.domain_two)
             return
         elif __e._message == "try_cross_call":
@@ -195,7 +197,7 @@ class SystemTwo:
         return self.__systemtwo_state_Running(__e, None)
     # ===================== Actions Block =================== #
     
-    def private_action_two_do(self):
+    def _private_action_two(self):
         
         print("SystemTwo private action")
         self.domain_two = "Modified by SystemTwo"
@@ -270,7 +272,8 @@ class SystemThree:
             s2.public_method()
             value = s2.get_value()
             print("Got value from SystemTwo: " + value)
-            self.own_action_do()
+            self._own_action()
+            
             return
     
     # ===================== State Dispatchers =================== #
@@ -279,7 +282,7 @@ class SystemThree:
         return self.__systemthree_state_Waiting(__e, None)
     # ===================== Actions Block =================== #
     
-    def own_action_do(self):
+    def _own_action(self):
         
         print("SystemThree own action")
         return

@@ -8,12 +8,14 @@ class FrameEvent:
         self._parameters = parameters
 
 class FrameCompartment:
-    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None):
+    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None, state_vars=None, state_args=None):
         self.state = state
         self.forward_event = forward_event
         self.exit_args = exit_args
         self.enter_args = enter_args
         self.parent_compartment = parent_compartment
+        self.state_vars = state_vars or {}
+        self.state_args = state_args or {}
 
 
 def main():
@@ -76,7 +78,7 @@ def final_test():
 class FirstSystem:
     def __init__(self):
         # Create and initialize start state compartment
-        self.__compartment = FrameCompartment('__firstsystem_state_StateOne', None, None, None, None)
+        self.__compartment = FrameCompartment('__firstsystem_state_StateOne', None, None, None, None, {}, {})
         self.__next_compartment = None
         self.return_stack = [None]
         # Initialize domain variables
@@ -108,7 +110,9 @@ class FirstSystem:
         if __e._message == "test_scope":
             print("\n=== FirstSystem Scope ===")
             self.system_operation()
-            self.system_action_do()
+            
+            self._system_action()
+            
             print("Domain: " + self.first_domain)
             return
     
@@ -118,7 +122,7 @@ class FirstSystem:
         return self.__firstsystem_state_StateOne(__e, None)
     # ===================== Actions Block =================== #
     
-    def system_action_do(self):
+    def _system_action(self):
         
         print("FirstSystem action")
         self.first_domain = "Modified"
@@ -163,7 +167,7 @@ class FirstSystem:
 class SecondSystem:
     def __init__(self):
         # Create and initialize start state compartment
-        self.__compartment = FrameCompartment('__secondsystem_state_StateTwo', None, None, None, None)
+        self.__compartment = FrameCompartment('__secondsystem_state_StateTwo', None, None, None, None, {}, {})
         self.__next_compartment = None
         self.return_stack = [None]
         # Initialize domain variables
@@ -195,7 +199,9 @@ class SecondSystem:
         if __e._message == "test_scope":
             print("\n=== SecondSystem Scope ===")
             self.second_operation()
-            self.second_action_do()
+            
+            self._second_action()
+            
             print("Domain: " + self.second_domain)
             return
     
@@ -205,7 +211,7 @@ class SecondSystem:
         return self.__secondsystem_state_StateTwo(__e, None)
     # ===================== Actions Block =================== #
     
-    def second_action_do(self):
+    def _second_action(self):
         
         print("SecondSystem action")
         self.second_domain = "Modified"

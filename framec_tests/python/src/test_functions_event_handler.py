@@ -8,12 +8,14 @@ class FrameEvent:
         self._parameters = parameters
 
 class FrameCompartment:
-    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None):
+    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None, state_vars=None, state_args=None):
         self.state = state
         self.forward_event = forward_event
         self.exit_args = exit_args
         self.enter_args = enter_args
         self.parent_compartment = parent_compartment
+        self.state_vars = state_vars or {}
+        self.state_args = state_args or {}
 
 
 def main():
@@ -24,7 +26,7 @@ def main():
 class GradeProcessor:
     def __init__(self):
         # Create and initialize start state compartment
-        self.__compartment = FrameCompartment('__gradeprocessor_state_Start', None, None, None, None)
+        self.__compartment = FrameCompartment('__gradeprocessor_state_Start', None, None, None, None, {}, {})
         self.__next_compartment = None
         self.return_stack = [None]
         
@@ -50,19 +52,26 @@ class GradeProcessor:
     def __gradeprocessor_state_Start(self, __e, compartment):
         if __e._message == "processScore":
             if __e._parameters["score"] < 0:
-                return "Invalid"
+                self.return_stack[-1] = "Invalid"
+                return
             elif __e._parameters["score"] > 100:
-                return "Invalid"
+                self.return_stack[-1] = "Invalid"
+                return
             if __e._parameters["score"] >= 90:
-                return "A"
+                self.return_stack[-1] = "A"
+                return
             elif __e._parameters["score"] >= 80:
-                return "B"
+                self.return_stack[-1] = "B"
+                return
             elif __e._parameters["score"] >= 70:
-                return "C"
+                self.return_stack[-1] = "C"
+                return
             elif __e._parameters["score"] >= 60:
-                return "D"
+                self.return_stack[-1] = "D"
+                return
             else:
-                return "F"
+                self.return_stack[-1] = "F"
+                return
             return
     
     # ===================== State Dispatchers =================== #

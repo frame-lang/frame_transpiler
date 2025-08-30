@@ -1,70 +1,94 @@
 DEBUG: Starting first pass - building symbol table
 DEBUG: Created syntactic parser with is_building_symbol_table=true
-DEBUG: Building symbol table for function: testFruit
-DEBUG: Entering function scope for: testFruit
-DEBUG: Inserting function symbol 'testFruit' into symbol table
-DEBUG: Function symbol 'testFruit' inserted successfully. Total symbols: 4
-DEBUG: Function symbol table building complete for: testFruit
-DEBUG: Building symbol table for function: describeFruit
-DEBUG: Entering function scope for: describeFruit
-DEBUG: Inserting function symbol 'describeFruit' into symbol table
-DEBUG: Function symbol 'describeFruit' inserted successfully. Total symbols: 5
-DEBUG: Function symbol table building complete for: describeFruit
+DEBUG: Building symbol table for function: main
+DEBUG: Entering function scope for: main
+DEBUG: Inserting function symbol 'main' into symbol table
+DEBUG: Function symbol 'main' inserted successfully. Total symbols: 1
+DEBUG: Function symbol table building complete for: main
 DEBUG: First pass parsing succeeded
 DEBUG: Extracted arcanum from first pass
-DEBUG: Symbols in arcanum after first pass: ["EnumValueSystem", "CalendarSystem", "describeFruit", "FruitSystem", "testFruit"]
+DEBUG: Symbols in arcanum after first pass: ["main", "ParentDispatchTest"]
 DEBUG: Starting second pass - semantic analysis
-DEBUG: Symbols in module scope before second pass: ["EnumValueSystem", "CalendarSystem", "describeFruit", "FruitSystem", "testFruit"]
+DEBUG: Symbols in module scope before second pass: ["main", "ParentDispatchTest"]
 DEBUG: Created semantic parser with is_building_symbol_table=false
-DEBUG: Looking for symbol 'CalendarSystem' in scope 'module'. Available symbols: ["EnumValueSystem", "CalendarSystem", "describeFruit", "FruitSystem", "testFruit"]
-DEBUG: Found symbol 'CalendarSystem' in scope 'module'
-DEBUG: Retrieved system 'CalendarSystem' in semantic pass
+DEBUG: Looking for symbol 'main' in scope 'module'. Available symbols: ["main", "ParentDispatchTest"]
+DEBUG: Found symbol 'main' in scope 'module'
+DEBUG: Looking for symbol '-parameters-' in scope 'main'. Available symbols: ["-parameters-", "hsm"]
+DEBUG: Found symbol '-parameters-' in scope 'main'
+DEBUG: Looking for symbol 'ParentDispatchTest' in scope 'module'. Available symbols: ["main", "ParentDispatchTest"]
+DEBUG: Found symbol 'ParentDispatchTest' in scope 'module'
+DEBUG: Retrieved system 'ParentDispatchTest' in semantic pass
   Has actions block: false
-  Has machine block: false
-  Has interface block: false
-DEBUG: Looking for symbol 'CalendarSystem' in scope 'CalendarSystem'. Available symbols: ["CalendarSystem"]
-DEBUG: Found symbol 'CalendarSystem' in scope 'CalendarSystem'
-DEBUG: Looking for symbol 'EnumValueSystem' in scope 'module'. Available symbols: ["EnumValueSystem", "CalendarSystem", "describeFruit", "FruitSystem", "testFruit"]
-DEBUG: Found symbol 'EnumValueSystem' in scope 'module'
-DEBUG: Retrieved system 'EnumValueSystem' in semantic pass
-  Has actions block: false
-  Has machine block: false
-  Has interface block: false
-DEBUG: Looking for symbol 'EnumValueSystem' in scope 'EnumValueSystem'. Available symbols: ["EnumValueSystem"]
-DEBUG: Found symbol 'EnumValueSystem' in scope 'EnumValueSystem'
-DEBUG: Looking for symbol 'FruitSystem' in scope 'module'. Available symbols: ["EnumValueSystem", "CalendarSystem", "describeFruit", "FruitSystem", "testFruit"]
-DEBUG: Found symbol 'FruitSystem' in scope 'module'
-DEBUG: Retrieved system 'FruitSystem' in semantic pass
-  Has actions block: true
-  Has machine block: false
-  Has interface block: false
-DEBUG: Looking for symbol 'FruitSystem' in scope 'FruitSystem'. Available symbols: ["FruitSystem"]
-DEBUG: Found symbol 'FruitSystem' in scope 'FruitSystem'
-DEBUG: Looking for symbol 'getFruitOfTheDay' in scope '-actions-block-'. Available symbols: ["getFruitOfTheDay"]
-DEBUG: Found symbol 'getFruitOfTheDay' in scope '-actions-block-'
-DEBUG: Looking for symbol '-parameters-' in scope 'getFruitOfTheDay'. Available symbols: ["-parameters-", "fruit_of_the_day"]
-DEBUG: Found symbol '-parameters-' in scope 'getFruitOfTheDay'
-DEBUG: Looking for symbol 'testFruit' in scope 'module'. Available symbols: ["EnumValueSystem", "CalendarSystem", "describeFruit", "FruitSystem", "testFruit"]
-DEBUG: Found symbol 'testFruit' in scope 'module'
-DEBUG: Looking for symbol '-parameters-' in scope 'testFruit'. Available symbols: ["elif_block_9", "else_block_11", "f", "elif_block_7", "-parameters-", "if_block_5"]
-DEBUG: Found symbol '-parameters-' in scope 'testFruit'
-DEBUG: Looking for symbol 'if_block_5' in scope 'testFruit'. Available symbols: ["elif_block_9", "else_block_11", "f", "elif_block_7", "-parameters-", "if_block_5"]
-DEBUG: Found symbol 'if_block_5' in scope 'testFruit'
-DEBUG: Looking for symbol 'elif_block_7' in scope 'testFruit'. Available symbols: ["elif_block_9", "else_block_11", "f", "elif_block_7", "-parameters-", "if_block_5"]
-DEBUG: Found symbol 'elif_block_7' in scope 'testFruit'
-DEBUG: Looking for symbol 'elif_block_9' in scope 'testFruit'. Available symbols: ["elif_block_9", "else_block_11", "f", "elif_block_7", "-parameters-", "if_block_5"]
-DEBUG: Found symbol 'elif_block_9' in scope 'testFruit'
-DEBUG: Looking for symbol 'else_block_11' in scope 'testFruit'. Available symbols: ["elif_block_9", "else_block_11", "f", "elif_block_7", "-parameters-", "if_block_5"]
-DEBUG: Found symbol 'else_block_11' in scope 'testFruit'
-DEBUG: Looking for symbol 'describeFruit' in scope 'module'. Available symbols: ["EnumValueSystem", "CalendarSystem", "describeFruit", "FruitSystem", "testFruit"]
-DEBUG: Found symbol 'describeFruit' in scope 'module'
-DEBUG: Looking for symbol '-parameters-' in scope 'describeFruit'. Available symbols: ["-parameters-", "elif_block_17", "if_block_15", "else_block_21", "elif_block_19"]
-DEBUG: Found symbol '-parameters-' in scope 'describeFruit'
-DEBUG: Looking for symbol 'if_block_15' in scope 'describeFruit'. Available symbols: ["-parameters-", "elif_block_17", "if_block_15", "else_block_21", "elif_block_19"]
-DEBUG: Found symbol 'if_block_15' in scope 'describeFruit'
-DEBUG: Looking for symbol 'elif_block_17' in scope 'describeFruit'. Available symbols: ["-parameters-", "elif_block_17", "if_block_15", "else_block_21", "elif_block_19"]
-DEBUG: Found symbol 'elif_block_17' in scope 'describeFruit'
-DEBUG: Looking for symbol 'elif_block_19' in scope 'describeFruit'. Available symbols: ["-parameters-", "elif_block_17", "if_block_15", "else_block_21", "elif_block_19"]
-DEBUG: Found symbol 'elif_block_19' in scope 'describeFruit'
-DEBUG: Looking for symbol 'else_block_21' in scope 'describeFruit'. Available symbols: ["-parameters-", "elif_block_17", "if_block_15", "else_block_21", "elif_block_19"]
-DEBUG: Found symbol 'else_block_21' in scope 'describeFruit'
+  Has machine block: true
+  Has interface block: true
+DEBUG: Looking for symbol 'ParentDispatchTest' in scope 'ParentDispatchTest'. Available symbols: ["ParentDispatchTest"]
+DEBUG: Found symbol 'ParentDispatchTest' in scope 'ParentDispatchTest'
+DEBUG: Looking for symbol 'Parent' in scope '-machine-block-'. Available symbols: ["Parent", "Child1", "Child2"]
+DEBUG: Found symbol 'Parent' in scope '-machine-block-'
+DEBUG: Looking for symbol '-state-local-' in scope 'Parent'. Available symbols: ["-state-local-"]
+DEBUG: Found symbol '-state-local-' in scope 'Parent'
+DEBUG: Looking for symbol 'test1' in scope '-state-local-'. Available symbols: ["test1", "test2", "test3"]
+DEBUG: Found symbol 'test1' in scope '-state-local-'
+DEBUG: Looking for symbol '-event-handler-local-' in scope 'test1'. Available symbols: ["-event-handler-local-"]
+DEBUG: Found symbol '-event-handler-local-' in scope 'test1'
+DEBUG: Looking for symbol 'test2' in scope '-state-local-'. Available symbols: ["test1", "test2", "test3"]
+DEBUG: Found symbol 'test2' in scope '-state-local-'
+DEBUG: Looking for symbol '-event-handler-local-' in scope 'test2'. Available symbols: ["-event-handler-local-"]
+DEBUG: Found symbol '-event-handler-local-' in scope 'test2'
+DEBUG: Looking for symbol 'test3' in scope '-state-local-'. Available symbols: ["test1", "test2", "test3"]
+DEBUG: Found symbol 'test3' in scope '-state-local-'
+DEBUG: Looking for symbol '-event-handler-local-' in scope 'test3'. Available symbols: ["-event-handler-local-"]
+DEBUG: Found symbol '-event-handler-local-' in scope 'test3'
+DEBUG: Looking for symbol 'Child1' in scope '-machine-block-'. Available symbols: ["Parent", "Child1", "Child2"]
+DEBUG: Found symbol 'Child1' in scope '-machine-block-'
+DEBUG: Looking for symbol '-state-local-' in scope 'Child1'. Available symbols: ["-state-local-"]
+DEBUG: Found symbol '-state-local-' in scope 'Child1'
+DEBUG: Looking for symbol 'test1' in scope '-state-local-'. Available symbols: ["<$", "next", "test1", "test3", "test2", "$>"]
+DEBUG: Found symbol 'test1' in scope '-state-local-'
+DEBUG: Looking for symbol '-event-handler-local-' in scope 'test1'. Available symbols: ["-event-handler-local-"]
+DEBUG: Found symbol '-event-handler-local-' in scope 'test1'
+DEBUG: Looking for symbol 'test2' in scope '-state-local-'. Available symbols: ["<$", "next", "test1", "test3", "test2", "$>"]
+DEBUG: Found symbol 'test2' in scope '-state-local-'
+DEBUG: Looking for symbol '-event-handler-local-' in scope 'test2'. Available symbols: ["-event-handler-local-"]
+DEBUG: Found symbol '-event-handler-local-' in scope 'test2'
+DEBUG: Looking for symbol 'test3' in scope '-state-local-'. Available symbols: ["<$", "next", "test1", "test3", "test2", "$>"]
+DEBUG: Found symbol 'test3' in scope '-state-local-'
+DEBUG: Looking for symbol '-event-handler-local-' in scope 'test3'. Available symbols: ["-event-handler-local-"]
+DEBUG: Found symbol '-event-handler-local-' in scope 'test3'
+DEBUG: Looking for symbol '$>' in scope '-state-local-'. Available symbols: ["<$", "next", "test1", "test3", "test2", "$>"]
+DEBUG: Found symbol '$>' in scope '-state-local-'
+DEBUG: Looking for symbol '-event-handler-local-' in scope '$>'. Available symbols: ["-event-handler-local-"]
+DEBUG: Found symbol '-event-handler-local-' in scope '$>'
+DEBUG: Looking for symbol '<$' in scope '-state-local-'. Available symbols: ["<$", "next", "test1", "test3", "test2", "$>"]
+DEBUG: Found symbol '<$' in scope '-state-local-'
+DEBUG: Looking for symbol '-event-handler-local-' in scope '<$'. Available symbols: ["-event-handler-local-"]
+DEBUG: Found symbol '-event-handler-local-' in scope '<$'
+DEBUG: Looking for symbol 'next' in scope '-state-local-'. Available symbols: ["<$", "next", "test1", "test3", "test2", "$>"]
+DEBUG: Found symbol 'next' in scope '-state-local-'
+DEBUG: Looking for symbol '-event-handler-local-' in scope 'next'. Available symbols: ["-event-handler-local-"]
+DEBUG: Found symbol '-event-handler-local-' in scope 'next'
+DEBUG: Looking for symbol 'Child2' in scope '-machine-block-'. Available symbols: ["Parent", "Child1", "Child2"]
+DEBUG: Found symbol 'Child2' in scope '-machine-block-'
+DEBUG: Looking for symbol '-state-local-' in scope 'Child2'. Available symbols: ["-state-local-"]
+DEBUG: Found symbol '-state-local-' in scope 'Child2'
+DEBUG: Looking for symbol '$>' in scope '-state-local-'. Available symbols: ["next", "$>", "<$"]
+DEBUG: Found symbol '$>' in scope '-state-local-'
+DEBUG: Looking for symbol '-event-handler-local-' in scope '$>'. Available symbols: ["-event-handler-local-"]
+DEBUG: Found symbol '-event-handler-local-' in scope '$>'
+DEBUG: Looking for symbol '<$' in scope '-state-local-'. Available symbols: ["next", "$>", "<$"]
+DEBUG: Found symbol '<$' in scope '-state-local-'
+DEBUG: Looking for symbol '-event-handler-local-' in scope '<$'. Available symbols: ["-event-handler-local-"]
+DEBUG: Found symbol '-event-handler-local-' in scope '<$'
+DEBUG: Looking for symbol 'next' in scope '-state-local-'. Available symbols: ["next", "$>", "<$"]
+DEBUG: Found symbol 'next' in scope '-state-local-'
+DEBUG: Looking for symbol '-event-handler-local-' in scope 'next'. Available symbols: ["-event-handler-local-"]
+DEBUG: Found symbol '-event-handler-local-' in scope 'next'
+DEBUG: Using fallback FrameCompartment generation for state: Child2
+DEBUG: Using simplified parent relationship lookup for state: Child2
+DEBUG: State 'Child2' has known parent 'Parent'
+DEBUG: Using fallback FrameCompartment generation for state: Child2
+DEBUG: Using simplified parent relationship lookup for state: Child2
+DEBUG: State 'Child2' has known parent 'Parent'
+DEBUG: Using fallback FrameCompartment generation for state: Child1
+DEBUG: Using simplified parent relationship lookup for state: Child1
+DEBUG: State 'Child1' has known parent 'Parent'

@@ -10,7 +10,7 @@ system TestSystem {
     machine:
         $Start {
             test() {
-                print(domain_var)
+                print(self.domain_var)
             }
         }
         

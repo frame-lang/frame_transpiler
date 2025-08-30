@@ -8,17 +8,19 @@ class FrameEvent:
         self._parameters = parameters
 
 class FrameCompartment:
-    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None):
+    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None, state_vars=None, state_args=None):
         self.state = state
         self.forward_event = forward_event
         self.exit_args = exit_args
         self.enter_args = enter_args
         self.parent_compartment = parent_compartment
+        self.state_vars = state_vars or {}
+        self.state_args = state_args or {}
 
 class ValidationTest:
     def __init__(self):
         # Create and initialize start state compartment
-        self.__compartment = FrameCompartment('__validationtest_state_Start', None, None, None, None)
+        self.__compartment = FrameCompartment('__validationtest_state_Start', None, None, None, None, {}, {})
         self.__next_compartment = None
         self.return_stack = [None]
         # Initialize domain variables
@@ -50,8 +52,10 @@ class ValidationTest:
         if __e._message == "$>":
             print("Machine: Start state entered")
             self.do_work()
+            
             print("Actions: calling finish_work")
-            self.finish_work_do()
+            self._finish_work()
+            
             return
         elif __e._message == "test_interface":
             print("Machine: test_interface called")
@@ -63,7 +67,7 @@ class ValidationTest:
         return self.__validationtest_state_Start(__e, None)
     # ===================== Actions Block =================== #
     
-    def finish_work_do(self):
+    def _finish_work(self):
         
         print("Actions: finish_work called")
         print("Domain: counter = " + str(self.counter))

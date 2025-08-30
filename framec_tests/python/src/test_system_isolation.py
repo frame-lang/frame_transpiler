@@ -59,7 +59,9 @@ class SystemOne:
         if __e._message == "test_public":
             print("SystemOne public method")
             self.internal_one()
-            self.action_one_do()
+            
+            self._action_one()
+            
             other = SystemTwo()
             other.test_public()
             return
@@ -70,7 +72,7 @@ class SystemOne:
         return self.__systemone_state_Active(__e, None)
     # ===================== Actions Block =================== #
     
-    def action_one_do(self):
+    def _action_one(self):
         
         print("SystemOne action")
         return
@@ -144,7 +146,9 @@ class SystemTwo:
         if __e._message == "test_public":
             print("SystemTwo public method")
             self.internal_two()
-            self.action_two_do()
+            
+            self._action_two()
+            
             other = SystemOne()
             other.test_public()
             return
@@ -155,7 +159,7 @@ class SystemTwo:
         return self.__systemtwo_state_Ready(__e, None)
     # ===================== Actions Block =================== #
     
-    def action_two_do(self):
+    def _action_two(self):
         
         print("SystemTwo action")
         return

@@ -8,17 +8,19 @@ class FrameEvent:
         self._parameters = parameters
 
 class FrameCompartment:
-    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None):
+    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None, state_vars=None, state_args=None):
         self.state = state
         self.forward_event = forward_event
         self.exit_args = exit_args
         self.enter_args = enter_args
         self.parent_compartment = parent_compartment
+        self.state_vars = state_vars or {}
+        self.state_args = state_args or {}
 
 class SystemA:
     def __init__(self):
         # Create and initialize start state compartment
-        self.__compartment = FrameCompartment('__systema_state_Start', None, None, None, None)
+        self.__compartment = FrameCompartment('__systema_state_Start', None, None, None, None, {}, {})
         self.__next_compartment = None
         self.return_stack = [None]
         
@@ -41,7 +43,8 @@ class SystemA:
     
     def __systema_state_Start(self, __e, compartment):
         if __e._message == "activate":
-            next_compartment = FrameCompartment('__systema_state_Active', None, None, None, None)
+            
+            next_compartment = FrameCompartment('__systema_state_Active', None, None, None, None, {}, {})
             self.__transition(next_compartment)
             return
     
@@ -101,7 +104,7 @@ class SystemA:
 class SystemB:
     def __init__(self):
         # Create and initialize start state compartment
-        self.__compartment = FrameCompartment('__systemb_state_Begin', None, None, None, None)
+        self.__compartment = FrameCompartment('__systemb_state_Begin', None, None, None, None, {}, {})
         self.__next_compartment = None
         self.return_stack = [None]
         
@@ -124,7 +127,7 @@ class SystemB:
     
     def __systemb_state_Begin(self, __e, compartment):
         if __e._message == "run":
-            next_compartment = FrameCompartment('__systemb_state_Running', None, None, None, None)
+            next_compartment = FrameCompartment('__systemb_state_Running', None, None, None, None, {}, {})
             self.__transition(next_compartment)
             return
     
@@ -183,7 +186,7 @@ class SystemB:
 class SystemC:
     def __init__(self):
         # Create and initialize start state compartment
-        self.__compartment = FrameCompartment('__systemc_state_Initial', None, None, None, None)
+        self.__compartment = FrameCompartment('__systemc_state_Initial', None, None, None, None, {}, {})
         self.__next_compartment = None
         self.return_stack = [None]
         

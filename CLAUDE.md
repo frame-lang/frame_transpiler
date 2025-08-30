@@ -14,18 +14,10 @@ Frame is a state machine language that transpiles to multiple target languages. 
 ## Current State
 
 **Branch**: `v0.30`  
-**Status**: ✅ **89.6% TEST SUCCESS RATE (121/135 tests passing)**  
-**Latest**: Actions now use Python underscore prefix convention (2025-01-28)
-**See**: `docs/framelang_design/dev_notes.md` for development history
+**Status**: ✅ **89.7% TEST SUCCESS RATE** (131/146 tests passing)
 
-## Key v0.30 Features Working
-- ✅ Multi-entity support (functions and systems in same file)
-- ✅ Python underscore convention for private actions
-- ✅ External function calls in all contexts
-- ✅ Hierarchical state machines with parent dispatch
-- ✅ Enum deduplication and module-level generation
-- ✅ State parameters and compartment arguments
-- ✅ Frame privacy model enforcement
+📋 **For release notes and development status, see**: [`docs/framelang_design/dev_notes.md`](docs/framelang_design/dev_notes.md)
+📊 **For v0.30 achievements summary, see**: [`docs/v0.30_achievements.md`](docs/v0.30_achievements.md)
 
 ## Architecture
 

@@ -216,6 +216,15 @@ pub enum CallTargetType {
     Function,       // Functions
 }
 
+// Context for method/variable access in Frame v0.31
+#[derive(Debug, Clone, PartialEq)]
+pub enum CallContextType {
+    SelfCall,           // self.method() - calls action or operation
+    SystemCall,         // system.method() - calls interface method
+    StaticCall(String), // ClassName.method() - static operation call
+    ExternalCall,       // function() - external function or local
+}
+
 // New simplified call chain node types
 // These will eventually replace CallChainNodeType
 pub enum CallChainNodeTypeV2 {
@@ -794,6 +803,7 @@ pub struct VariableNode {
     pub id_node: IdentifierNode,
     pub scope: IdentifierDeclScope,
     pub symbol_type_rcref_opt: Option<Rc<RefCell<SymbolType>>>, // TODO: consider a new enum for just variable types
+    pub is_self: bool,  // NEW: true for self.variable access
 }
 impl VariableNode {
     pub fn new(
@@ -805,6 +815,21 @@ impl VariableNode {
             id_node,
             scope, // TODO: consider accessor or moving out of IdentifierNode
             symbol_type_rcref_opt,
+            is_self: false,  // Default to false
+        }
+    }
+    
+    pub fn new_with_self(
+        id_node: IdentifierNode,
+        scope: IdentifierDeclScope,
+        symbol_type_rcref_opt: Option<Rc<RefCell<SymbolType>>>,
+        is_self: bool,
+    ) -> VariableNode {
+        VariableNode {
+            id_node,
+            scope,
+            symbol_type_rcref_opt,
+            is_self,
         }
     }
 
@@ -3035,6 +3060,7 @@ pub struct CallExprNode {
     pub identifier: IdentifierNode,
     pub call_expr_list: CallExprListNode,
     pub call_chain: Option<Vec<Box<dyn CallableExpr>>>,
+    pub context: CallContextType,  // NEW: explicit self/system context
 }
 
 impl CallExprNode {
@@ -3047,6 +3073,21 @@ impl CallExprNode {
             identifier,
             call_expr_list,
             call_chain,
+            context: CallContextType::ExternalCall,  // Default to external
+        }
+    }
+    
+    pub fn new_with_context(
+        identifier: IdentifierNode,
+        call_expr_list: CallExprListNode,
+        call_chain: Option<Vec<Box<dyn CallableExpr>>>,
+        context: CallContextType,
+    ) -> CallExprNode {
+        CallExprNode {
+            identifier,
+            call_expr_list,
+            call_chain,
+            context,
         }
     }
 }
@@ -3137,7 +3178,7 @@ impl NodeElement for ExprListNode {
 // TODO!!: why aren't there MachineBlock, InterfaceBlock etc?
 // there is a misalignment of ParseScope vs IdentiferDeclScope?
 // for instance States have a IdentiferDeclScope of None. Should be machine
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum IdentifierDeclScope {
     //     GlobalScope,  TODO!
     UnknownScope, // TODO - should this module or global scope?

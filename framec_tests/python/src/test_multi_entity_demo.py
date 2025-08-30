@@ -8,12 +8,14 @@ class FrameEvent:
         self._parameters = parameters
 
 class FrameCompartment:
-    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None):
+    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None, state_vars=None, state_args=None):
         self.state = state
         self.forward_event = forward_event
         self.exit_args = exit_args
         self.enter_args = enter_args
         self.parent_compartment = parent_compartment
+        self.state_vars = state_vars or {}
+        self.state_args = state_args or {}
 
 
 def format_message(prefix,msg):
@@ -51,7 +53,7 @@ def main():
 class CounterSystem:
     def __init__(self):
         # Create and initialize start state compartment
-        self.__compartment = FrameCompartment('__countersystem_state_Counting', None, None, None, None)
+        self.__compartment = FrameCompartment('__countersystem_state_Counting', None, None, None, None, {}, {})
         self.__next_compartment = None
         self.return_stack = [None]
         # Initialize domain variables
@@ -144,7 +146,7 @@ class CounterSystem:
 class ToggleSystem:
     def __init__(self):
         # Create and initialize start state compartment
-        self.__compartment = FrameCompartment('__togglesystem_state_Off', None, None, None, None)
+        self.__compartment = FrameCompartment('__togglesystem_state_Off', None, None, None, None, {}, {})
         self.__next_compartment = None
         self.return_stack = [None]
         
@@ -169,7 +171,8 @@ class ToggleSystem:
         if __e._message == "switch":
             log_event("ToggleSystem","switch_to_on")
             print("Toggle: OFF -> ON")
-            next_compartment = FrameCompartment('__togglesystem_state_On', None, None, None, None)
+            
+            next_compartment = FrameCompartment('__togglesystem_state_On', None, None, None, None, {}, {})
             self.__transition(next_compartment)
             return
     
@@ -181,7 +184,8 @@ class ToggleSystem:
         if __e._message == "switch":
             log_event("ToggleSystem","switch_to_off")
             print("Toggle: ON -> OFF")
-            next_compartment = FrameCompartment('__togglesystem_state_Off', None, None, None, None)
+            
+            next_compartment = FrameCompartment('__togglesystem_state_Off', None, None, None, None, {}, {})
             self.__transition(next_compartment)
             return
     
@@ -232,7 +236,7 @@ class ToggleSystem:
 class TrafficLight:
     def __init__(self):
         # Create and initialize start state compartment
-        self.__compartment = FrameCompartment('__trafficlight_state_Green', None, None, None, None)
+        self.__compartment = FrameCompartment('__trafficlight_state_Green', None, None, None, None, {}, {})
         self.__next_compartment = None
         self.return_stack = [None]
         
@@ -263,12 +267,12 @@ class TrafficLight:
         if __e._message == "next":
             log_event("TrafficLight","green_to_yellow")
             print("Traffic Light: GREEN -> YELLOW")
-            next_compartment = FrameCompartment('__trafficlight_state_Yellow', None, None, None, None)
+            next_compartment = FrameCompartment('__trafficlight_state_Yellow', None, None, None, None, {}, {})
             self.__transition(next_compartment)
             return
         elif __e._message == "emergency":
             print("EMERGENCY: Going to RED")
-            next_compartment = FrameCompartment('__trafficlight_state_Red', None, None, None, None)
+            next_compartment = FrameCompartment('__trafficlight_state_Red', None, None, None, None, {}, {})
             self.__transition(next_compartment)
             return
         elif __e._message == "$>":
@@ -283,12 +287,12 @@ class TrafficLight:
         if __e._message == "next":
             log_event("TrafficLight","yellow_to_red")
             print("Traffic Light: YELLOW -> RED")
-            next_compartment = FrameCompartment('__trafficlight_state_Red', None, None, None, None)
+            next_compartment = FrameCompartment('__trafficlight_state_Red', None, None, None, None, {}, {})
             self.__transition(next_compartment)
             return
         elif __e._message == "emergency":
             print("EMERGENCY: Going to RED")
-            next_compartment = FrameCompartment('__trafficlight_state_Red', None, None, None, None)
+            next_compartment = FrameCompartment('__trafficlight_state_Red', None, None, None, None, {}, {})
             self.__transition(next_compartment)
             return
         elif __e._message == "$>":
@@ -303,7 +307,7 @@ class TrafficLight:
         if __e._message == "next":
             log_event("TrafficLight","red_to_green")
             print("Traffic Light: RED -> GREEN")
-            next_compartment = FrameCompartment('__trafficlight_state_Green', None, None, None, None)
+            next_compartment = FrameCompartment('__trafficlight_state_Green', None, None, None, None, {}, {})
             self.__transition(next_compartment)
             return
         elif __e._message == "emergency":
