@@ -19,3 +19,6 @@ docs/tmp/
 # Claude-specific files (AI assistant context)
 CLAUDE.md
 CLAUDE.local.md
+
+# Generated test files
+framec_tests/**/*.py
