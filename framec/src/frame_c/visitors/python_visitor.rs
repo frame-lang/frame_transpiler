@@ -4395,6 +4395,18 @@ impl AstVisitor for PythonVisitor {
     fn visit_call_expression_node(&mut self, method_call: &CallExprNode) {
         self.debug_enter(&format!("visit_call_expression_node({})", method_call.identifier.name.lexeme));
         
+        // Debug: log the call chain to understand what's happening
+        if let Some(call_chain) = &method_call.call_chain {
+            eprintln!("DEBUG visit_call_expression_node: method={}, call_chain length={}, context={:?}", 
+                method_call.identifier.name.lexeme, call_chain.len(), method_call.context);
+            for (i, callable) in call_chain.iter().enumerate() {
+                eprintln!("  Call chain[{}]: <callable>", i);
+            }
+        } else {
+            eprintln!("DEBUG visit_call_expression_node: method={}, NO call_chain, context={:?}", 
+                method_call.identifier.name.lexeme, method_call.context);
+        }
+        
         // Frame v0.31: Handle explicit self/system context
         match &method_call.context {
             CallContextType::SelfCall => {
@@ -4410,18 +4422,84 @@ impl AstVisitor for PythonVisitor {
                 return;
             }
             CallContextType::ExternalCall => {
-                // ExternalCall means it's a call on an external object (e.g., worker.start())
-                // We should NOT add self. prefix even if the method name matches an interface method
                 // Process call chain first (for object.method() syntax)
-                if let Some(call_chain) = &method_call.call_chain {
+                let has_call_chain = if let Some(call_chain) = &method_call.call_chain {
                     if !call_chain.is_empty() {
                         for callable in call_chain {
                             callable.callable_accept(self);
                             self.add_code(".");
                         }
+                        true
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                };
+                
+                // Even for ExternalCall, check if it's actually an action or operation
+                // BUT ONLY if there's no call chain (actions/operations are internal only)
+                let method_name = &method_call.identifier.name.lexeme;
+                
+                eprintln!("DEBUG REGULAR: method_name={}, has_call_chain={}", method_name, has_call_chain);
+                
+                // If there's a call chain, it's an external call (e.g., sys.testFruit())
+                // Don't apply action/operation transformations
+                if !has_call_chain {
+                    // If the method name starts with underscore, it's an action call in Frame syntax
+                    // Strip the underscore to look up the actual action name
+                    let action_name = if method_name.starts_with('_') {
+                        &method_name[1..]
+                    } else {
+                        method_name
+                    };
+                    
+                    // Check if it's an action first
+                    if let Some((_action_symbol, _system_symbol)) = self.arcanium.lookup_action_in_all_systems(action_name) {
+                        // Only add self. prefix if we're in a system context (not in a standalone function)
+                        if !self.in_standalone_function {
+                            self.add_code("self.");
+                        }
+                        // For standalone functions, we'd need to call it on a system instance
+                        // For now, just generate the action name without self
+                        self.add_code(&format!("_{}", action_name));
+                        method_call.call_expr_list.accept(self);
+                        self.debug_exit("visit_call_expression_node");
+                        return;
+                    }
+                    // Check if it's an operation (operations typically don't have underscore prefix)
+                    else if let Some((_operation_symbol, _system_symbol)) = self.arcanium.lookup_operation_in_all_systems(action_name) {
+                        // Only add self. prefix if we're in a system context (not in a standalone function)
+                        if !self.in_standalone_function {
+                            self.add_code("self.");
+                        }
+                        self.add_code(action_name);
+                        method_call.call_expr_list.accept(self);
+                        self.debug_exit("visit_call_expression_node");
+                        return;
+                    }
+                    // Check tracked lists as fallback
+                    else if self.current_system_actions.contains(&method_name.to_string()) {
+                        if !self.in_standalone_function {
+                            self.add_code("self.");
+                        }
+                        self.add_code(&format!("_{}", method_name));
+                        method_call.call_expr_list.accept(self);
+                        self.debug_exit("visit_call_expression_node");
+                        return;
+                    }
+                    else if self.current_system_operations.contains(&method_name.to_string()) {
+                        if !self.in_standalone_function {
+                            self.add_code("self.");
+                        }
+                        self.add_code(method_name);
+                        method_call.call_expr_list.accept(self);
+                        self.debug_exit("visit_call_expression_node");
+                        return;
                     }
                 }
-                // Add method name directly (no self. prefix for external calls)
+                
+                // Only treat as true external call if not an action or operation
                 self.add_code(&method_call.identifier.name.lexeme);
                 method_call.call_expr_list.accept(self);
                 self.debug_exit("visit_call_expression_node");
@@ -4438,12 +4516,10 @@ impl AstVisitor for PythonVisitor {
         output: &mut String,
     ) {
         
-        // Handle call context first - if it's an external call, don't add self prefix
+        // Handle call context first - but still check for actions/operations even for ExternalCall
         if let CallContextType::ExternalCall = &method_call.context {
-            // ExternalCall means it's a call on an external object (e.g., sys.test_interface())
-            // We should NOT add self. prefix even if the method name matches an interface method
             // Process call chain first (for object.method() syntax)
-            if let Some(call_chain) = &method_call.call_chain {
+            let has_call_chain = if let Some(call_chain) = &method_call.call_chain {
                 if !call_chain.is_empty() {
                     for callable in call_chain {
                         let saved_code = self.code.clone();
@@ -4453,13 +4529,72 @@ impl AstVisitor for PythonVisitor {
                         output.push('.');
                         self.code = saved_code;
                     }
+                    true
+                } else {
+                    false
+                }
+            } else {
+                false
+            };
+            
+            // Even for ExternalCall, check if it's actually an action or operation
+            // BUT ONLY if there's no call chain (actions/operations are internal only)
+            let method_name = &method_call.identifier.name.lexeme;
+            
+            eprintln!("DEBUG: method_name={}, has_call_chain={}, output so far='{}'", method_name, has_call_chain, output);
+            
+            // If there's a call chain, it's an external call (e.g., sys.testFruit())
+            // Don't apply action/operation transformations
+            if !has_call_chain {
+                // If the method name starts with underscore, it's an action call in Frame syntax
+                // Strip the underscore to look up the actual action name
+                let action_name = if method_name.starts_with('_') {
+                    &method_name[1..]
+                } else {
+                    method_name
+                };
+                
+                // Check if it's an action first
+                if let Some((_action_symbol, _system_symbol)) = self.arcanium.lookup_action_in_all_systems(action_name) {
+                    if !self.in_standalone_function {
+                        output.push_str("self.");
+                    }
+                    output.push_str(&format!("_{}", action_name));
+                    method_call.call_expr_list.accept_to_string(self, output);
+                    return;
+                }
+                // Check if it's an operation (operations typically don't have underscore prefix)
+                else if let Some((_operation_symbol, _system_symbol)) = self.arcanium.lookup_operation_in_all_systems(action_name) {
+                    if !self.in_standalone_function {
+                        output.push_str("self.");
+                    }
+                    output.push_str(action_name);
+                    method_call.call_expr_list.accept_to_string(self, output);
+                    return;
+                }
+                // Check tracked lists as fallback
+                else if self.current_system_actions.contains(&method_name.to_string()) {
+                    if !self.in_standalone_function {
+                        output.push_str("self.");
+                    }
+                    output.push_str(&format!("_{}", method_name));
+                    method_call.call_expr_list.accept_to_string(self, output);
+                    return;
+                }
+                else if self.current_system_operations.contains(&method_name.to_string()) {
+                    if !self.in_standalone_function {
+                        output.push_str("self.");
+                    }
+                    output.push_str(method_name);
+                    method_call.call_expr_list.accept_to_string(self, output);
+                    return;
                 }
             }
-            // Add method name directly (no self. prefix for external calls)
+            
+            // Only treat as true external call if not an action or operation
             output.push_str(&method_call.identifier.name.lexeme);
-            // IMPORTANT: Must still add parentheses for the call!
             method_call.call_expr_list.accept_to_string(self, output);
-            return; // Early return to skip all the self/interface method logic below
+            return;
         }
         
         // Check if call chain already has content (like "self.")
@@ -4493,7 +4628,7 @@ impl AstVisitor for PythonVisitor {
         let method_name = &method_call.identifier.name.lexeme;
         
         // Check if it's an action (needs _ prefix always, self. prefix if not present)
-        if let Some(_action_symbol) = self.arcanium.lookup_action(method_name) {
+        if let Some((_action_symbol, _system_symbol)) = self.arcanium.lookup_action_in_all_systems(method_name) {
             if !has_call_chain {
                 output.push_str("self.");
             }
@@ -4764,6 +4899,9 @@ impl AstVisitor for PythonVisitor {
     // simplifying the implementation and reasoning about Frame programs.
 
     fn visit_call_chain_statement_node(&mut self, method_call_chain_stmt_node: &CallChainStmtNode) {
+        eprintln!("DEBUG visit_call_chain_statement_node: {} nodes", 
+            method_call_chain_stmt_node.call_chain_literal_expr_node.call_chain.len());
+        
         self.skip_next_newline();
         // special case for interface method calls
         let call_chain = &method_call_chain_stmt_node
@@ -4789,7 +4927,8 @@ impl AstVisitor for PythonVisitor {
         }
 
         // standard case
-
+        eprintln!("DEBUG: Processing standard case with {} nodes", call_chain.len());
+        
         method_call_chain_stmt_node
             .call_chain_literal_expr_node
             .accept(self);
@@ -4822,12 +4961,15 @@ impl AstVisitor for PythonVisitor {
             return;
         }
         
+        eprintln!("DEBUG visit_call_chain_expr_node: Processing {} nodes", call_l_chain_expression_node.call_chain.len());
+        
         for (i, node) in call_l_chain_expression_node.call_chain.iter().enumerate() {
             let node_type = match &node {
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                     format!("UndeclaredIdentifier({})", id_node.name.lexeme)
                 },
                 CallChainNodeType::UndeclaredCallT { call_node } => {
+                    eprintln!("DEBUG: Processing UndeclaredCall '{}' at index {}", call_node.identifier.name.lexeme, i);
                     format!("UndeclaredCall({})", call_node.identifier.name.lexeme)
                 },
                 CallChainNodeType::InterfaceMethodCallT { interface_method_call_expr_node } => format!("InterfaceMethodCall({})", interface_method_call_expr_node.identifier.name.lexeme),
@@ -4835,6 +4977,7 @@ impl AstVisitor for PythonVisitor {
                 CallChainNodeType::OperationRefT { operation_ref_expr_node } => format!("OperationRef({})", operation_ref_expr_node.name),
                 CallChainNodeType::ActionCallT { action_call_expr_node } => format!("ActionCall({})", action_call_expr_node.identifier.name.lexeme),
                 CallChainNodeType::VariableNodeT { var_node } => {
+                    eprintln!("DEBUG: Processing Variable '{}' at index {}", var_node.id_node.name.lexeme, i);
                     format!("Variable({})", var_node.id_node.name.lexeme)
                 },
                 CallChainNodeType::ListElementNodeT { .. } => "ListElement".to_string(),
@@ -4847,10 +4990,23 @@ impl AstVisitor for PythonVisitor {
             
             match &node {
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
+                    eprintln!("DEBUG: Accepting UndeclaredIdentifier '{}'", id_node.name.lexeme);
                     id_node.accept(self);
                 }
                 CallChainNodeType::UndeclaredCallT { call_node: call } => {
-                    call.accept(self);
+                    eprintln!("DEBUG: Processing UndeclaredCall '{}' in call chain, in_call_chain={}", call.identifier.name.lexeme, self.in_call_chain);
+                    // For multi-node chains (e.g., sys.testFruit()), don't add self._ prefix
+                    // For single-node chains (e.g., _testFruit()), let it go through normal processing
+                    if self.in_call_chain {
+                        // Multi-node chain - just output the method name and parameters
+                        eprintln!("DEBUG: Multi-node chain - outputting directly");
+                        self.add_code(&call.identifier.name.lexeme);
+                        call.call_expr_list.accept(self);
+                    } else {
+                        // Single-node chain - go through normal processing which might add self._ prefix
+                        eprintln!("DEBUG: Single-node chain - calling accept");
+                        call.accept(self);
+                    }
                 }
                 CallChainNodeType::InterfaceMethodCallT {
                     interface_method_call_expr_node,
