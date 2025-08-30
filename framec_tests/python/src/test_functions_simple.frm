@@ -1,13 +1,13 @@
 fn main() {
-    var result = add(5, 3)
+    var result = Utils.add(5, 3)
     print("5 + 3 = " + str(result))
     
-    var category = categorizeNumber(42)
+    var category = Utils.categorizeNumber(42)
     print("42 is " + category)
 }
 
 system Utils {
-    actions:
+    operations:
         add(x: int, y: int): int {
             return x + y
         }

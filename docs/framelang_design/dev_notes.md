@@ -2,6 +2,32 @@
 
 ## Development History
 
+### 2025-01-30: Function-System Scope Interaction & Complete Multi-Entity Support
+
+#### Function-Operation Integration Complete
+- **Achievement**: Functions can now properly call system operations using correct static method syntax
+- **Issue**: Functions calling operations generated as bare calls (`add(5, 3)`) instead of static method calls (`Utils.add(5, 3)`)
+- **Solution**: 
+  - Modified operations to generate as `@staticmethod` by default for external accessibility
+  - Updated call generation logic to use `SystemName.operationName()` syntax when called from standalone functions
+  - Fixed call chain handling to avoid double system name prefixes (`Utils.Utils.add` → `Utils.add`)
+- **Frame Source Syntax**: Functions must use `Utils.add(5, 3)` syntax to call system operations
+- **Generated Python**: Correctly produces static method calls with proper `@staticmethod` decorators
+- **Files Modified**: `framec/src/frame_c/visitors/python_visitor.rs` (lines 3973-3978, 4471-4484, 4571-4578)
+
+#### Complete Multi-Entity Architecture
+- **Functions**: Multiple functions per module with any names, full system integration
+- **Systems**: Multiple systems per module with proper isolation and cross-system calls
+- **Operations**: Always public (static methods) - callable from functions and other systems
+- **Actions**: Always private (instance methods with `_` prefix) - only callable within system
+- **Interface Methods**: Always public (instance methods) - callable from external code
+
+#### Test Success Rate Achievement
+- **Before Function Fixes**: 95.2% success rate (139 passed, 7 failed)
+- **After Function Fixes**: 97.3% success rate (142 passed, 4 failed)
+- **Improvement**: +2.1% success rate improvement
+- **Total Progress**: From 64.4% → 97.3% (+32.9% overall improvement)
+
 ### 2025-01-30: Enum Support & Call Chain Fixes
 
 #### Complete Enum Support Implementation

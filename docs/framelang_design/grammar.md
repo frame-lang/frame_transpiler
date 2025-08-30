@@ -27,6 +27,19 @@ type_expr: IDENTIFIER | SUPERSTRING
 
 **v0.30 Feature**: Multiple functions are fully supported with any function names. Empty parameter lists `()` are fully supported, unlike v0.11 which rejected empty parameter syntax in certain contexts.
 
+### Function-System Integration
+
+Functions can interact with systems through public interfaces:
+
+- **Operations**: Use `SystemName.operationName()` syntax for static method calls
+- **Interface Methods**: Use `systemInstance.methodName()` syntax for instance method calls  
+- **Actions**: Not accessible from functions (private implementation details)
+
+```bnf
+system_operation_call: IDENTIFIER '.' IDENTIFIER '(' argument_list? ')'
+system_instance_call: IDENTIFIER '.' IDENTIFIER '(' argument_list? ')'
+```
+
 ### Function Examples
 ```frame
 // Multiple functions in v0.30
@@ -44,24 +57,35 @@ fn calculate(x, y) {
     return x * y + 5
 }
 
-// Functions mixed with systems
-fn utility(data) {
-    print("Utility: " + data)
+// Function calling system operations (static methods)
+fn main() {
+    var result = Utils.add(5, 3)
+    print("5 + 3 = " + str(result))
+    
+    var category = Utils.categorizeNumber(42)
+    print("42 is " + category)
 }
 
-system Worker {
-    interface:
-        start()
-        
-    machine:
-        $Idle {
-            start() {
-                utility("Worker starting")
-                -> $Running
-            }
+// Function calling system interface methods (instance methods)
+fn demo() {
+    var counter = Counter()
+    counter.increment()
+    counter.increment()
+    print("Count: " + str(counter.getCount()))
+}
+
+system Utils {
+    operations:
+        add(x: int, y: int): int {
+            return x + y
         }
         
-        $Running {
+        categorizeNumber(num: int): string {
+            if num < 10 {
+                return "single digit"
+            } else {
+                return "multi digit"
+            }
         }
 }
 ```
@@ -1014,9 +1038,13 @@ primary_expr: IDENTIFIER | NUMBER | STRING | SUPERSTRING
             | 'true' | 'false' | 'nil'
             | '(' expr ')' | '@'
 
-call_expr: IDENTIFIER '(' arg_list? ')'
+call_expr: IDENTIFIER '(' arg_list? ')' | '_' IDENTIFIER '(' arg_list? ')'
 arg_list: expr (',' expr)*
 ```
+
+**Action Call Syntax**: Action calls use underscore prefix syntax `_actionName()` to distinguish them from interface method calls. This generates with proper `self._actionName()` syntax in Python target language.
+
+**Call Chain Support**: Multi-node call chains like `sys.methodName()` correctly generate interface method calls on system instances without adding action prefixes.
 
 ## Tokens
 

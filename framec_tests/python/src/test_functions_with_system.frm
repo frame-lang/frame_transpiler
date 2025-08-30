@@ -7,7 +7,7 @@ fn main() {
         counter.increment()
     }
     
-    print("Final count: " + counter.getCount())
+    print("Final count: " + str(counter.getCount()))
 }
 
 system Counter {

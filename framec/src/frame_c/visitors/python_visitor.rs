@@ -3238,8 +3238,13 @@ impl PythonVisitor {
             self.add_code(&format!("self._{}", method_name));
         }
         // Check if it's an operation - look across all systems
-        else if let Some((_operation_symbol, _system_symbol)) = self.arcanium.lookup_operation_in_all_systems(method_name) {
-            self.add_code(&format!("self.{}", method_name));
+        else if let Some((_operation_symbol, system_symbol)) = self.arcanium.lookup_operation_in_all_systems(method_name) {
+            if !self.in_standalone_function {
+                self.add_code(&format!("self.{}", method_name));
+            } else {
+                let system_name = &system_symbol.borrow().name;
+                self.add_code(&format!("{}.{}", system_name, method_name));
+            }
         }
         // Domain method or error
         else {
@@ -3965,20 +3970,15 @@ impl AstVisitor for PythonVisitor {
         self.newline();
         self.newline();
         let operation_name = self.format_operation_name(&operation_node.name);
-        if operation_node.is_static() {
-            self.add_code("@staticmethod");
-            self.newline();
-            self.add_code(&format!("def {}(", operation_name));
-        } else {
-            self.add_code(&format!("def {}(self", operation_name));
-        }
+        
+        // Always generate operations as static methods since they can be called from functions
+        // and they should be pure utility functions
+        self.add_code("@staticmethod");
+        self.newline();
+        self.add_code(&format!("def {}(", operation_name));
 
         match &operation_node.params {
             Some(params) => {
-                if !operation_node.is_static() {
-                    self.add_code(",");
-                }
-
                 self.format_operations_parameter_list(params);
             }
             None => {}
@@ -4468,10 +4468,14 @@ impl AstVisitor for PythonVisitor {
                         return;
                     }
                     // Check if it's an operation (operations typically don't have underscore prefix)
-                    else if let Some((_operation_symbol, _system_symbol)) = self.arcanium.lookup_operation_in_all_systems(action_name) {
-                        // Only add self. prefix if we're in a system context (not in a standalone function)
+                    else if let Some((_operation_symbol, system_symbol)) = self.arcanium.lookup_operation_in_all_systems(action_name) {
                         if !self.in_standalone_function {
+                            // In system context, use instance method
                             self.add_code("self.");
+                        } else {
+                            // In standalone function, use static method call
+                            let system_name = &system_symbol.borrow().name;
+                            self.add_code(&format!("{}.", system_name));
                         }
                         self.add_code(action_name);
                         method_call.call_expr_list.accept(self);
@@ -4568,6 +4572,7 @@ impl AstVisitor for PythonVisitor {
                     if !self.in_standalone_function {
                         output.push_str("self.");
                     }
+                    // For standalone functions, don't add system prefix here - it's already in the call chain
                     output.push_str(action_name);
                     method_call.call_expr_list.accept_to_string(self, output);
                     return;
@@ -4636,9 +4641,14 @@ impl AstVisitor for PythonVisitor {
             output.push_str(&format!("_{}", method_name));
         }
         // Check if it's an operation (needs self. prefix if not present)
-        else if let Some((_operation_symbol, _system_symbol)) = self.arcanium.lookup_operation_in_all_systems(method_name) {
+        else if let Some((_operation_symbol, system_symbol)) = self.arcanium.lookup_operation_in_all_systems(method_name) {
             if !has_call_chain {
-                output.push_str("self.");
+                if !self.in_standalone_function {
+                    output.push_str("self.");
+                } else {
+                    let system_name = &system_symbol.borrow().name;
+                    output.push_str(&format!("{}.", system_name));
+                }
             }
             output.push_str(method_name);
         }
