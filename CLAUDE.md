@@ -1,8 +1,14 @@
 # Frame Transpiler - Claude Context
 
+⚠️ **IMPORTANT: When starting a new session, ALWAYS read these documents first:**
+1. This file (CLAUDE.md) - Project structure and conventions
+2. `docs/framelang_design/dev_notes.md` - Latest development status
+3. `docs/v0.31_achievements.md` - Current release features
+4. `framec_tests/reports/test_matrix_v031.md` - Current test results
+
 ## Project Overview
 
-Frame is a state machine language that transpiles to multiple target languages. This project has completed the v0.20 syntax migration and is now working on v0.30 enhancements, including multi-entity support and deprecated feature cleanup while preserving its unique event-driven state machine capabilities.
+Frame is a state machine language that transpiles to multiple target languages. The project has evolved through v0.20 (syntax modernization), v0.30 (multi-entity support), and v0.31 (import statements and self expression enhancements).
 
 ## File Locations
 
@@ -13,11 +19,13 @@ Frame is a state machine language that transpiles to multiple target languages. 
 
 ## Current State
 
-**Branch**: `v0.30`  
-**Status**: ✅ **89.7% TEST SUCCESS RATE** (131/146 tests passing)
+**Branch**: `v0.31`  
+**Status**: ✅ **94.1% TEST SUCCESS RATE** (143/152 tests passing)
 
 📋 **For release notes and development status, see**: [`docs/framelang_design/dev_notes.md`](docs/framelang_design/dev_notes.md)
-📊 **For v0.30 achievements summary, see**: [`docs/v0.30_achievements.md`](docs/v0.30_achievements.md)
+📊 **For v0.30 achievements, see**: [`docs/v0.30_achievements.md`](docs/v0.30_achievements.md)
+📊 **For v0.31 achievements, see**: [`docs/v0.31_achievements.md`](docs/v0.31_achievements.md)
+📊 **For latest test results, see**: [`framec_tests/reports/test_matrix_v031.md`](framec_tests/reports/test_matrix_v031.md)
 
 ## Architecture
 
@@ -34,6 +42,23 @@ Visitors (Code Generation) → framec/src/frame_c/visitors/
     ↓
 Target Code (Python, C#, etc.)
 ```
+
+### v0.31 Latest Features
+
+#### Import Statements (NEW in v0.31)
+- **Simple imports**: `import math`
+- **Aliased imports**: `import numpy as np`
+- **From imports**: `from collections import defaultdict`
+- **Wildcard imports**: `from typing import *`
+
+#### Self Expression (NEW in v0.31)
+- **Standalone self**: Can use `self` as complete expression
+- **Example**: `jsonpickle.encode(self)` works without backticks
+
+#### Static Methods (FIXED in v0.31)
+- **Operations default**: Instance methods by default
+- **Static declaration**: Use `@staticmethod` for static operations
+- **Validation**: Parser validates no `self` in static operations
 
 ### v0.30 Modular AST Structure
 
@@ -159,13 +184,66 @@ python3 framec_tests/python/src/test.py
 
 **Note**: Generation-only checks are useful for syntax validation but cannot be called "passing tests".
 
+## Test Infrastructure
+
+### Test Organization
+```
+framec_tests/
+├── runner/                    # Test execution infrastructure
+│   ├── frame_test_runner.py   # Main test runner script
+│   └── configs/               # Test configuration files
+│       ├── all_tests.json
+│       ├── hsm_tests.json
+│       ├── multi_entity_tests.json
+│       └── scope_tests.json
+├── reports/                   # Test results and matrices
+│   ├── test_matrix_v031.md   # Latest test results
+│   └── test_results_v031.json
+├── docs/                      # Test documentation
+│   └── test_runner_guide.md
+└── python/
+    ├── src/                   # Frame test files (.frm)
+    ├── models/                # Test model diffs
+    └── scripts/               # Helper scripts
+```
+
+### Running Tests
+
+#### Standard Test Validation Process
+```bash
+cd framec_tests
+# Run all tests with matrix generation and JSON output
+python3 runner/frame_test_runner.py --all --matrix --json --verbose
+
+# After running, always check:
+# 1. Test matrix saved to: reports/test_matrix_v0.31.md
+# 2. JSON results saved to: reports/test_results_v0.31.json
+```
+
+#### Test Reporting Requirements
+After EVERY test run, you MUST:
+1. **Run the test suite** with `--matrix --json` flags
+2. **Update the standard test log** at `reports/test_log.md` with:
+   - Last run date/time
+   - Total tests, passed, failed, success rate
+   - Summary of passing categories
+   - Table of failed tests with issue type
+   - Any recent fixes applied
+3. **Keep these files updated**:
+   - `reports/test_log.md` - Main test status report (always overwrite)
+   - `reports/test_matrix_v0.31.md` - Detailed test matrix (auto-generated)
+   - `reports/test_results_v0.31.json` - JSON results (auto-generated)
+4. **Categorize failures** as:
+   - Environment issues (missing dependencies)
+   - Test design issues (infinite loops, etc.)
+   - Actual transpiler bugs
+   - Expected failures (error validation tests)
+
 ### Test Files Location
 **ALWAYS PUT TEST FILES HERE:**
 - `/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/` - ALL Frame test files (.frm) go here
 - **Generated Python files (.py)**: Generated next to source files in `/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/`
 - NEVER put test files in the main project directory
-- NEVER use test5 directory - it's deprecated
-- **Note**: The `/generated/` folder has been removed - all transpiled output goes directly to the `src/` directory
 
 ## Code Conventions
 
@@ -297,8 +375,39 @@ find . -name "*.frm"
 cargo build && ./target/debug/framec -l python_3 test_file.frm
 ```
 
-## Notes
-- Always indent the code in the frame blocks (operations: interface: machine: etc) in the samples that are generated or updated.
+## Known Limitations & Issues
+
+### Module-Level Statements Not Supported
+- **No module-level variables**: Cannot declare variables at module scope
+- **No bare instantiations**: `SystemName()` at module level won't generate code
+- **Workaround**: Always use a `main()` function for program entry point
+
+### Current Test Failures (v0.31)
+- `test_controlled_hsm_loop.frm` - Transpilation error
+- `test_functions_simple.frm` - Runtime error
+- `test_import_statements.frm` - Syntax error in generated code
+- `test_legb_scope_resolution.frm` - Runtime error
+- `test_single_system_transitions.frm` - Timeout during execution
+- `test_static_self_error.frm` - Expected error test
+
+## Important Notes for Development
+
+### Code Style
+- Always indent the code in the frame blocks (operations: interface: machine: etc)
 - Do not add attribution to claude on the commit messages
-- Full validation or comprehensive testing means running every test
-- Put transient documents we work on like reports and findings in docs/tmp
+- DO NOT add comments to generated code unless explicitly requested
+
+### Testing Requirements
+- **Generation != Validation**: Generating code is not the same as validating it works
+- **Full validation** means: 
+  1. Generate the Python code from .frm file
+  2. RUN the generated Python code 
+  3. Verify output matches expected behavior
+  4. Report specific functionality verified
+- Use the test runner for comprehensive testing
+- Put transient documents in `docs/tmp/`
+
+### Debug Output
+- Debug output goes to stderr (eprintln! in Rust)
+- Use `FRAME_TRANSPILER_DEBUG=1` environment variable to enable debug output
+- Never send debug output to stdout (it contaminates generated code)

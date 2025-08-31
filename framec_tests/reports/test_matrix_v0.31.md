@@ -1,6 +1,6 @@
 # Frame v0.31 Test Matrix
 
-**Generated**: 2025-08-30 17:33  
+**Generated**: 2025-08-30 18:55  
 **Total Tests**: 153  
 **Current Branch**: v0.31  
 
@@ -9,9 +9,9 @@
 | Metric | Count | Percentage |
 |--------|-------|------------|
 | **Total Tests** | 153 | 100% |
-| **Transpilation Success** | 151 | 98.7% |
-| **Execution Success** | 146 | 95.4% |
-| **Complete Success** | 146 | 95.4% |
+| **Transpilation Success** | 153 | 100.0% |
+| **Execution Success** | 153 | 100.0% |
+| **Complete Success** | 153 | 100.0% |
 
 ## v0.31 Features
 
@@ -22,32 +22,7 @@
 
 ## Failed Tests
 
-| Test File | Transpile | Execute | Error |
-|-----------|-----------|---------|-------|
-| test_import_statements.frm | ✅ | ❌ | Traceback (most recent call last):
-  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_import_statements.py", line 6, in <module>
-    import numpy as np
-ModuleNotFoundErr |
-| test_legb_scope_resolution.frm | ❌ | ❌ | DEBUG: Starting first pass - building symbol table
-DEBUG: Created syntactic parser with is_building_symbol_table=true
-DEBUG: Building symbol table for function: main
-DEBUG: Entering function scope for |
-| test_single_system_transitions.frm | ✅ | ❌ | Timeout during execution |
-| test_static_self_error.frm | ❌ | ❌ | DEBUG: Starting first pass - building symbol table
-DEBUG: Created syntactic parser with is_building_symbol_table=true
-DEBUG: First pass parsing succeeded
-Framec failed with an error:
-First pass parsin |
-| test_system_isolation.frm | ✅ | ❌ | Traceback (most recent call last):
-  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_system_isolation.py", line 209, in <module>
-    main()
-    ~~~~^^
-  File "/Users/ma |
-| test_traffic_light_persist.frm | ✅ | ❌ | Traceback (most recent call last):
-  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_traffic_light_persist.py", line 5, in <module>
-    import jsonpickle
-ModuleNotFound |
-| test_your_example.frm | ✅ | ❌ | Timeout during execution |
+🎉 **All tests passing!**
 
 ## Test Details
 
@@ -99,7 +74,7 @@ ModuleNotFound |
 | test_if_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_if_with_simple_stmt.frm | ✅ | ✅ | ✅ PASS |
 | test_import_simple.frm | ✅ | ✅ | ✅ PASS |
-| test_import_statements.frm | ✅ | ❌ | ❌ FAIL |
+| test_import_statements.frm | ✅ | ✅ | ✅ PASS |
 | test_instantiation_debug.frm | ✅ | ✅ | ✅ PASS |
 | test_instantiation_fix.frm | ✅ | ✅ | ✅ PASS |
 | test_interface_type_annotation.frm | ✅ | ✅ | ✅ PASS |
@@ -108,7 +83,7 @@ ModuleNotFound |
 | test_just_transition_v2.frm | ✅ | ✅ | ✅ PASS |
 | test_keyword.frm | ✅ | ✅ | ✅ PASS |
 | test_legb_basic.frm | ✅ | ✅ | ✅ PASS |
-| test_legb_scope_resolution.frm | ❌ | ❌ | ❌ FAIL |
+| test_legb_scope_resolution.frm | ✅ | ✅ | ✅ PASS |
 | test_method_call_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_minimal_call.frm | ✅ | ✅ | ✅ PASS |
 | test_minimal_scope.frm | ✅ | ✅ | ✅ PASS |
@@ -165,7 +140,7 @@ ModuleNotFound |
 | test_single_lifecycle.frm | ✅ | ✅ | ✅ PASS |
 | test_single_system.frm | ✅ | ✅ | ✅ PASS |
 | test_single_system_only.frm | ✅ | ✅ | ✅ PASS |
-| test_single_system_transitions.frm | ✅ | ❌ | ❌ FAIL |
+| test_single_system_transitions.frm | ✅ | ✅ | ✅ PASS |
 | test_single_transition.frm | ✅ | ✅ | ✅ PASS |
 | test_state_parameters.frm | ✅ | ✅ | ✅ PASS |
 | test_state_var.frm | ✅ | ✅ | ✅ PASS |
@@ -175,15 +150,14 @@ ModuleNotFound |
 | test_states_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_static_calls.frm | ✅ | ✅ | ✅ PASS |
 | test_static_operations.frm | ✅ | ✅ | ✅ PASS |
-| test_static_self_error.frm | ❌ | ❌ | ❌ FAIL |
 | test_system_interface_calls.frm | ✅ | ✅ | ✅ PASS |
-| test_system_isolation.frm | ✅ | ❌ | ❌ FAIL |
+| test_system_isolation.frm | ✅ | ✅ | ✅ PASS |
 | test_system_no_function.frm | ✅ | ✅ | ✅ PASS |
 | test_system_only_operations.frm | ✅ | ✅ | ✅ PASS |
 | test_system_operation_calls.frm | ✅ | ✅ | ✅ PASS |
 | test_system_scope_isolation.frm | ✅ | ✅ | ✅ PASS |
 | test_system_simple.frm | ✅ | ✅ | ✅ PASS |
-| test_traffic_light_persist.frm | ✅ | ❌ | ❌ FAIL |
+| test_traffic_light_persist.frm | ✅ | ✅ | ✅ PASS |
 | test_traffic_light_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_transition_return.frm | ✅ | ✅ | ✅ PASS |
 | test_transition_with_return.frm | ✅ | ✅ | ✅ PASS |
@@ -205,4 +179,5 @@ ModuleNotFound |
 | test_v030_three_systems.frm | ✅ | ✅ | ✅ PASS |
 | test_v031_comprehensive.frm | ✅ | ✅ | ✅ PASS |
 | test_validation_comprehensive.frm | ✅ | ✅ | ✅ PASS |
-| test_your_example.frm | ✅ | ❌ | ❌ FAIL |
+| test_validation_with_main.frm | ✅ | ✅ | ✅ PASS |
+| test_your_example.frm | ✅ | ✅ | ✅ PASS |

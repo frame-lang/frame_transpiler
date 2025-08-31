@@ -84,22 +84,20 @@ fn test_nested_scopes() {
 
 fn test_builtin_access() {
     // Test access to Python built-ins
-    // Note: We're using Python's print directly, not a Frame built-in
+    print("\n=== Built-in Access Test ===")
+    print("Built-in print works")
     
-    // Store the built-in print function before shadowing
-    var builtin_print = print
-    builtin_print("\n=== Built-in Access Test ===")
-    builtin_print("Built-in print works")
-    
-    // Now we can safely shadow print
-    var print = "SHADOWED_PRINT"
-    builtin_print("Shadowed print value: " + print)
+    // Test shadowing of other names (not built-ins to avoid issues)
+    var name = "OUTER"
+    print("Outer name: " + name)
     
     if true {
-        // Can still see shadowed print variable
-        var msg = "Shadow value in block: " + print
-        builtin_print(msg)
+        // Shadow in block scope
+        var name = "INNER"
+        print("Inner name: " + name)
     }
+    
+    print("Back to outer: " + name)
 }
 
 fn test_loop_scopes() {

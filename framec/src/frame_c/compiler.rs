@@ -8,16 +8,14 @@ use crate::frame_c::visitors::graphviz_visitor::GraphVizVisitor;
 
 use exitcode::USAGE;
 use sha2::{Digest, Sha256};
-use std::cell::RefCell;
 use std::fs;
 use std::io;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::rc::Rc;
 
 // Re-export this enum here since it's part of the interface for the run functions. The definition
 // lives with visitors since adding a new visitor requires extending the enum and its trait impls.
-use crate::frame_c::ast::{AttributeNode, FrameModule, SystemNode};
+use crate::frame_c::ast::{AttributeNode, SystemNode};
 pub use crate::frame_c::visitors::TargetLanguage;
 use std::convert::TryFrom;
 
@@ -42,7 +40,7 @@ impl Exe {
             return;
         }
 
-        println!("{}", msg);
+        eprintln!("{}", msg);
     }
 
     /* --------------------------------------------------------------------- */

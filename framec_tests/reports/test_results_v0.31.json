@@ -1,0 +1,1084 @@
+{
+  "timestamp": "2025-08-30T18:55:51.960934",
+  "version": "v0.31",
+  "summary": {
+    "total": 153,
+    "transpile_success": 153,
+    "execute_success": 153,
+    "complete_success": 153,
+    "success_rate": "100.0%"
+  },
+  "results": [
+    {
+      "file": "test_all_blocks_comprehensive.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_basic_scope.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Basic Scope Test ===\nMODULE\n=== Function Scope ===\nFUNCTION\nBLOCK\nFUNCTION\nFUNCTION\nModule var after function:\nMODULE\n",
+      "error": null
+    },
+    {
+      "file": "test_basic_scope_working.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Testing basic scope\nmodule_value\nIn test function\nfunction_value\nBack in main\n",
+      "error": null
+    },
+    {
+      "file": "test_blocks_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_builtin_access.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Built-in Access Test ===\nFunction can access built-ins\nBlock can access built-ins\nNested block can access built-ins\nSystem can access built-ins\nSystem block can access built-ins\nAction can access ",
+      "error": null
+    },
+    {
+      "file": "test_call_chain_debug.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "running\ninternal\n",
+      "error": null
+    },
+    {
+      "file": "test_call_chain_scope.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "test\nOperation called\n",
+      "error": null
+    },
+    {
+      "file": "test_comprehensive_scope_validation.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Module Level (main function) ===\n=== Function Scope ===\nfunction_variable\nif_block_variable\nnested_if_variable\nloop_variable\nLoop iteration\nloop_variable\nLoop iteration\nloop_variable\nLoop iteratio",
+      "error": null
+    },
+    {
+      "file": "test_comprehensive_v0_20_features.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Frame v0.20 Comprehensive Feature Test ===\nProcessor ready in Idle state\nProcessing: test\nProcessor ready in Idle state\nProcessing: ERROR\nProcessor ready in Idle state\nProcessing: Hello World\nProc",
+      "error": null
+    },
+    {
+      "file": "test_controlled_hsm_loop.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_controlled_hsm_loop_verbose.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Parent enter event\nParent.trigger() called\nCount is now: 1\nTransitioning to Child\nChild enter - dispatching to parent\nParent enter event\nAfter parent dispatch\nDone!\n",
+      "error": null
+    },
+    {
+      "file": "test_correct_transition.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_debug.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_domain_assignment.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_domain_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_domain_type_debug.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "test\n",
+      "error": null
+    },
+    {
+      "file": "test_elif_with_return.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_empty_params.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_enum_basic.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_enums.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "error": null
+    },
+    {
+      "file": "test_enums_doc_calendar.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_enums_doc_fruitsystem.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_enums_doc_function.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Found a Pear\nBananas\n",
+      "error": null
+    },
+    {
+      "file": "test_enums_doc_grocery_demo.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "error": null
+    },
+    {
+      "file": "test_enums_doc_grocery_full.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "error": null
+    },
+    {
+      "file": "test_enums_doc_values.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_enums_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_enums_terminator.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_explicit_self_syntax.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Working with total: 0\n",
+      "error": null
+    },
+    {
+      "file": "test_explicit_self_system_comprehensive.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Logging task: task1\nPublic operation\nHash: 210\nInternal helper called\nPublic operation\nTotal updated to: 40\n",
+      "error": null
+    },
+    {
+      "file": "test_first_plus_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_first_system_only.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_force_syntactic.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_forward_event.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "in child\nin parent\n",
+      "error": null
+    },
+    {
+      "file": "test_function_call.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_function_isolation.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Function Isolation Test ===\nPublic interface called\nInternal operation\nIn test_isolation function\nPublic interface called\nInternal operation\nCan only use public interfaces\nFunction isolation test ",
+      "error": null
+    },
+    {
+      "file": "test_function_scope_isolation.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Function Scope Isolation Test ===\nPublic interface called\nInternal operation - should not be callable from functions\nPrivate action - should not be callable from functions\n\n=== Function Cannot Acc",
+      "error": null
+    },
+    {
+      "file": "test_functions_basic.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "5 + 3 = 8\n42 is: double digit\n",
+      "error": null
+    },
+    {
+      "file": "test_functions_event_handler.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Grade: B\n",
+      "error": null
+    },
+    {
+      "file": "test_functions_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "5 + 3 = 8\n42 is double digit\n",
+      "error": null
+    },
+    {
+      "file": "test_functions_with_system.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Final count: 3\n",
+      "error": null
+    },
+    {
+      "file": "test_history.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "In $A\n$A pushing to stack and going to $C\nIn $C\nPopping from stack and returning\nIn $A\n",
+      "error": null
+    },
+    {
+      "file": "test_if_elif_returns.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Grade System Tests ===\nScore 95 -> Grade: A+\nScore 85 -> Grade: B\nScore 75 -> Grade: C\nScore 65 -> Grade: D\nScore 55 -> Grade: F\nScore -5 -> Grade: Invalid: negative score\nScore 105 -> Grade: Inva",
+      "error": null
+    },
+    {
+      "file": "test_if_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_if_with_simple_stmt.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_import_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Testing imports...\nPi: 3.141592653589793\nSquare root of 16: 4.0\nImports completed successfully\n",
+      "error": null
+    },
+    {
+      "file": "test_import_statements.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Testing imports...\nPi: 3.141592653589793\nSquare root of 16: 4.0\nCreated defaultdict and OrderedDict\nJSON: {\"name\": \"Frame\", \"version\": \"0.31\"}\n",
+      "error": null
+    },
+    {
+      "file": "test_instantiation_debug.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Test called\n",
+      "error": null
+    },
+    {
+      "file": "test_instantiation_fix.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "TestSystem.do() called\n",
+      "error": null
+    },
+    {
+      "file": "test_interface_type_annotation.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "hello\n",
+      "error": null
+    },
+    {
+      "file": "test_just_return_assign.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_just_transition.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_just_transition_v2.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_keyword.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_legb_basic.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Basic LEGB Test ===\nMODULE\n=== Function Scope ===\nFUNCTION\nBLOCK\nFUNCTION\nFUNCTION\nBack in main\nMODULE\n",
+      "error": null
+    },
+    {
+      "file": "test_legb_scope_resolution.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== LEGB Scope Resolution Test ===\nModule scope: name=MODULE\n\n=== Function Scope Test ===\nFunction scope: name=FUNCTION\nFunction local: LOCAL_VAR\nBlock scope: name=BLOCK\nBlock local: BLOCK_VAR\nNested ",
+      "error": null
+    },
+    {
+      "file": "test_method_call_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "running\n",
+      "error": null
+    },
+    {
+      "file": "test_minimal_call.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "test\n",
+      "error": null
+    },
+    {
+      "file": "test_minimal_scope.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "test\n",
+      "error": null
+    },
+    {
+      "file": "test_minimal_syntax.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "test\nvalue\n",
+      "error": null
+    },
+    {
+      "file": "test_minimal_transition.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_minimal_transition_single.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_minimal_two_systems.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_mixed_entities.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Mixed Entity Test ===\nMODULE\nFunction One\nF1\nHelper function\nFunction Two\nF2\nHelper function\nSystemA interface\nSystemA action\nSystemB interface\nSystemB action\nMixed entity test completed\n",
+      "error": null
+    },
+    {
+      "file": "test_mixed_function_system.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "System initialized\nHelper function called\n",
+      "error": null
+    },
+    {
+      "file": "test_mixed_returns.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Empty: empty input\nCategory from action: short\nhello: short text: hello\nCategory from action: caps\nHELLO WORLD: LOUD TEXT: HELLO WORLD\nCategory from action: normal\nFrame v0.20 is great!: normal text: ",
+      "error": null
+    },
+    {
+      "file": "test_mixed_system_states.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_module_function_calls.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Main function calling helper\nHelper function called\nBack in main\n",
+      "error": null
+    },
+    {
+      "file": "test_module_scope_basic.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_module_var_access.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_module_var_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_multi_entity_demo.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Starting Multi-Entity Demo\n---------------------------\n=== TEST: helper_works ===\nResult: TEST_helper_works\n[LOG] System: CounterSystem, Event: increment\nCount incremented to: 1\n[LOG] System: CounterS",
+      "error": null
+    },
+    {
+      "file": "test_multi_entity_scopes.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Multi-Entity Scope Test ===\nModule var: MODULE_SHARED\n\n=== Function One ===\nF1_LOCAL\nHelper called\n\n=== Function Two ===\nF2_LOCAL\nHelper called\n\n=== Function Three ===\nF3_NESTED\nF3_LOCAL\n\n=== Firs",
+      "error": null
+    },
+    {
+      "file": "test_multi_entity_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Simple Multi-Entity Demo ===\nHelper says: hello\nResult: processed\nSwitch initialized to OFF\n[LOG] Switch: OFF -> ON\nNow ON\n[LOG] Switch: ON -> OFF\nSwitch initialized to OFF\n[LOG] Switch: OFF -> ON",
+      "error": null
+    },
+    {
+      "file": "test_multi_systems_with_interface.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_multi_systems_with_main.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "FirstSystem starting\nFirstSystem running\nSecondSystem activating\nSecondSystem active\n",
+      "error": null
+    },
+    {
+      "file": "test_multi_systems_with_transitions.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_multiple_systems_valid.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_native_print.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Testing native Python print\nNo Frame built-in needed!\nHello from Frame\nx + y = 15\n",
+      "error": null
+    },
+    {
+      "file": "test_operations.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_operations_call_bug.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Operation called correctly\n",
+      "error": null
+    },
+    {
+      "file": "test_operations_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_operations_single_entity.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_parent_dispatch.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "test1 handled in parent\ntest2 handled in parent\ntest3 parent triggers transition\nenter child2\nexit child2\nenter child1\nenter child1 - after parent dispatch\n",
+      "error": null
+    },
+    {
+      "file": "test_parent_dispatch_complete.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "test1 handled in parent\ntest2 handled in parent\ntest3 parent triggers transition\nenter child2\nexit child2\nenter child1\nenter child1 - after parent dispatch\ntest4 in child\ntest4 handled in parent - no ",
+      "error": null
+    },
+    {
+      "file": "test_parent_transition_detection.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Testing parent transition detection ===\nChild: Before parent dispatch\nParent: Triggering transition to NewState\nSUCCESS: We are correctly in NewState after parent transition\n",
+      "error": null
+    },
+    {
+      "file": "test_python_style.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_return_assign.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_return_assign_actions.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Action returned: validation_passed\nInterface return: success: processed test data\n",
+      "error": null
+    },
+    {
+      "file": "test_return_assign_event_handler.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Default value: default_value\nCalculated sum: 15\n10 + 5 = 15\n10 / 0 = error: division by zero\n10 / 2 = 5.0\n",
+      "error": null
+    },
+    {
+      "file": "test_scope_operations.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Testing Operations Call Scope Bug ===\nOperation executed successfully - no self.self bug!\n=== Testing Function Scope ===\nIn function scope\nfunction_variable\nOperation executed successfully - no se",
+      "error": null
+    },
+    {
+      "file": "test_seat_booking_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== CultureTicks Seat Booking Workflow Test ===\n### Phase 1: Core Business Rules - Seat State Management\nTesting seat state transitions and business logic\n=== Workflow Test Complete ===\n",
+      "error": null
+    },
+    {
+      "file": "test_seat_booking_simple_working.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Simple Seat Booking Test ===\nSeat manager started\nTesting operations...\nCreating seat: A1\nProcessing booking for seat: A1 user: user123\n=== Test Complete ===\n",
+      "error": null
+    },
+    {
+      "file": "test_seat_booking_workflow.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== CultureTicks Seat Booking Workflow Test ===\n### Phase 1: Core Business Rules - Seat State Management\nRule 1.1: Testing seat states: Available, Reserved, Sold\nCreating seat: A1 with state: Availabl",
+      "error": null
+    },
+    {
+      "file": "test_self_call.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_self_call_debug.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "System started\nRun called\n",
+      "error": null
+    },
+    {
+      "file": "test_self_domain_vars.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Count is: 10\nCount after increment: 11\nDoubled: 22\nMessage: Hello from self\n",
+      "error": null
+    },
+    {
+      "file": "test_simple_call.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "test\n",
+      "error": null
+    },
+    {
+      "file": "test_simple_call_chain_debug.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "test method called\n",
+      "error": null
+    },
+    {
+      "file": "test_simple_condition.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_simple_elif.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_simple_hsm_loop.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_simple_multi.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_simple_operation.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_simple_print.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_simple_scope.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Testing basic scope\nmodule\nIn function\nfunction\n",
+      "error": null
+    },
+    {
+      "file": "test_simple_seat.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Simple Seat Test ===\nSelected seat: A1\nSeat is now selected\n",
+      "error": null
+    },
+    {
+      "file": "test_simple_system.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Testing\n",
+      "error": null
+    },
+    {
+      "file": "test_simple_validation.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_single_lifecycle.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Single System Test ===\nEntering Start\nStart.next() -> Working\nExiting Start\nEntering Working\nWorking.next() -> End\nExiting Working\nEntering End\nEnd.next() - complete\n=== Test Complete ===\n",
+      "error": null
+    },
+    {
+      "file": "test_single_system.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_single_system_only.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_single_system_transitions.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Init enter\nA enter, total_loops=0\n  Transitioning to B (loop 1 of 2)\nB enter, total_loops=1\n  Transitioning to A (loop 2 of 2)\nA enter, total_loops=2\n  Staying in A (max_loops 2 reached)\nTest complete",
+      "error": null
+    },
+    {
+      "file": "test_single_transition.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_state_parameters.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "0\n1\n",
+      "error": null
+    },
+    {
+      "file": "test_state_var.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_state_vars_complex.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Starting system (attempt #1)\nProcessed item #1, total time: 2.5s\nProcessed item #2, total time: 5.0s\nFinishing work. Processed 2 items in 5.0s\nWork completed at: 2024-08-28T10:30:00Z\nResetting from do",
+      "error": null
+    },
+    {
+      "file": "test_state_vars_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Count incremented to: 1\nCount incremented to: 2\nCount incremented to: 3\nCurrent count is: 3\n",
+      "error": null
+    },
+    {
+      "file": "test_state_vars_transition.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "StateA: countA = 5\nStateB: countB = 10\n",
+      "error": null
+    },
+    {
+      "file": "test_states_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "entering $Begin\nexiting $Begin\nentering $Working\nexiting $Working\nentering $End\n",
+      "error": null
+    },
+    {
+      "file": "test_static_calls.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_static_operations.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_system_interface_calls.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Starting system\nProcessing: external call\nCalculating for: 42\nCalculated: 84\nProcessing: recursive\nCalculating for: 42\nCalculated: 84\n",
+      "error": null
+    },
+    {
+      "file": "test_system_isolation.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== System Isolation Test ===\nSystemOne public method\nSystemOne internal operation\nSystemOne action\nSystemTwo public method\nSystemTwo internal operation\nSystemTwo action\nSystemOne public method\nSystem",
+      "error": null
+    },
+    {
+      "file": "test_system_no_function.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_system_only_operations.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_system_operation_calls.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_system_scope_isolation.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== System Scope Isolation Test ===\n\n=== SystemOne Public Method ===\nOwn operation: SystemOne internal operation\nSystemOne private action\nOwn domain: Modified by SystemOne\n\n=== SystemTwo Public Method",
+      "error": null
+    },
+    {
+      "file": "test_system_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Got: Hello from helper\n",
+      "error": null
+    },
+    {
+      "file": "test_traffic_light_persist.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Red\nGreen\nYellow\nRed\nGreen\n",
+      "error": null
+    },
+    {
+      "file": "test_traffic_light_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Red\nGreen\nYellow\nRed\nGreen\n",
+      "error": null
+    },
+    {
+      "file": "test_transition_return.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "In error state\n",
+      "error": null
+    },
+    {
+      "file": "test_transition_with_return.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_two_systems_no_function.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_two_systems_print.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_type_annotation_fix.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "hello\ndomain test\n",
+      "error": null
+    },
+    {
+      "file": "test_type_fix.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_underscore_actions.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Working with underscore prefix...\n",
+      "error": null
+    },
+    {
+      "file": "test_v030_edge_cases.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_v030_functions_only.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Main function\nHelper: test\n30\n",
+      "error": null
+    },
+    {
+      "file": "test_v030_hierarchical_systems.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_v030_lifecycle_demo.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== System Lifecycle Management Demo ===\n\nThis demonstrates the v0.30 multi-entity architecture\nwith MainSystem managing the lifecycle of SystemA and SystemB\n\nCreating MainSystem...\nTransition:  -> St",
+      "error": null
+    },
+    {
+      "file": "test_v030_mixed_entities.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Called from: Worker\nTask: task1, Result: 35\nCalled from: Processor\nProcessing complete\nCalled from: main\n",
+      "error": null
+    },
+    {
+      "file": "test_v030_multi_system_basic.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_v030_simple_lifecycle.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Starting test\nTesting SystemA:\nSystemA: Start -> Middle\nSystemA: Middle -> End\nTesting SystemB:\nSystemB: Start -> Middle\nSystemB: Middle -> End\nTest complete\n",
+      "error": null
+    },
+    {
+      "file": "test_v030_system_lifecycle.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Starting System Lifecycle Test ===\nMainSystem: Entering StateA\nSystemA: Entering Start state\nMainSystem: Created SystemA instance\n\n--- Cycle 1: StateA ---\nSystemA: Start.next() -> Working (returni",
+      "error": null
+    },
+    {
+      "file": "test_v030_system_lifecycle_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Starting simple lifecycle test\nEntering Start\nIn test()\nEntering End\nTest complete\n",
+      "error": null
+    },
+    {
+      "file": "test_v030_system_with_functions.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Utility: Starting system\nUtility: test\n",
+      "error": null
+    },
+    {
+      "file": "test_v030_three_systems.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_v031_comprehensive.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_validation_comprehensive.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Helper function works\nparameter\ntest\nSystemB active\nSystemC operation running\n",
+      "error": null
+    },
+    {
+      "file": "test_validation_with_main.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Machine: Start state entered\nOperations: do_work called\nActions: calling finish_work\nActions: finish_work called\nDomain: counter = 42\n",
+      "error": null
+    },
+    {
+      "file": "test_your_example.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Parent: handling trigger, transitioning to Child\nChild: entered\nTest completed successfully\n",
+      "error": null
+    }
+  ]
+}

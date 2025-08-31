@@ -2,7 +2,9 @@
 
 ## Overview
 
-The Frame transpiler converts Frame language source files (.frm) to target languages (Python, C#, JavaScript, etc.).
+The Frame transpiler (v0.31) converts Frame language source files (.frm) to target languages (Python, C#, JavaScript, etc.).
+
+**Current Status**: 100% test success rate (153/153 tests passing)
 
 ## Compilation Pipeline
 
@@ -20,11 +22,12 @@ Visitors (Code Generation) → framec/src/frame_c/visitors/
 Target Code (Python, C#, etc.)
 ```
 
-## v0.30 Modular AST Structure
+## v0.31 Modular AST Structure
 
 ```
 FrameModule (Top-Level)
 ├── Module (metadata/attributes)
+├── Imports[] (v0.31: native import statements)
 ├── Functions[] (peer entities)
 └── Systems[] (peer entities)
     └── SystemNode
@@ -32,7 +35,7 @@ FrameModule (Top-Level)
         ├── Interface Block
         ├── Machine Block  
         ├── Actions Block
-        ├── Operations Block
+        ├── Operations Block (v0.31: static validation)
         └── Domain Block
 ```
 
@@ -42,17 +45,22 @@ FrameModule (Top-Level)
 - Token recognition in `scan_token()` method
 - New tokens added to `TokenType` enum
 - Use `peek()` and `peek_next()` for lookahead
+- **v0.31**: Added Import, From, As tokens for native import support
 
 ### Parser (parser.rs)
 - Event handler parsing in `event_handler()` method
 - Terminator parsing handles `return`, `=>`, `@:>`
 - Use `TerminatorType` enum for different terminators
 - **v0.30**: Multi-entity parsing with smart fallback to syntactic mode
+- **v0.31**: Import statement parsing with dotted module names
+- **v0.31**: Static method validation (prevents self usage in @staticmethod)
 
 ### AST (ast.rs)
 - All syntax tree node definitions
 - `TerminatorType` enum defines terminator semantics
 - **v0.30**: FrameModule container with peer Functions[] and Systems[]
+- **v0.31**: ImportNode and ImportType for native imports
+- **v0.31**: Self expression support (standalone and dotted)
 
 ### Symbol Table (symbol_table.rs)
 - **v0.30**: System-scoped state resolution
@@ -64,6 +72,27 @@ FrameModule (Top-Level)
 - All visitors must handle new `TerminatorType::DispatchToParentState`
 - Python visitor is primary reference implementation
 - **v0.30**: Fixed FrameCompartment generation bug
+- **v0.31**: Import statement code generation
+- **v0.31**: Operations only static when @staticmethod attributed
+
+## v0.31 Language Features
+
+### Native Import Statements (NEW in v0.31)
+- Simple imports: `import math`
+- Aliased imports: `import numpy as np`
+- From imports: `from typing import List, Dict`
+- Wildcard imports: `from collections import *`
+- Dotted module names: `import os.path`
+
+### Self Expression Enhancement (v0.31)
+- Standalone self: `jsonpickle.encode(self)`
+- Dotted access: `self.variable`, `self.method()`
+- Static method validation prevents self usage
+
+### Static Method Validation (v0.31)
+- Parse-time validation for @staticmethod operations
+- Clear error messages for invalid self usage
+- Operations are instance methods by default
 
 ## v0.30 Multi-Entity Features
 

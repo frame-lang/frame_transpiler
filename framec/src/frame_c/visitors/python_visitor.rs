@@ -3394,15 +3394,8 @@ impl AstVisitor for PythonVisitor {
 
         // v0.30: Return early to avoid legacy single-system processing
         return;
-
-        // v0.30: Functions moved to module level - handled by Arcanum
-        // if let Some(vec) = &system_node.functions_opt {
-        //     for function_node_rcref in vec {
-        //         let function_node = function_node_rcref.borrow();
-        //         function_node.accept(self);
-        //     }
-        // }
-        self.newline();
+        
+        /* Legacy single-system processing - preserved for reference
         // TODO!!: This is a hack until we rework modules to detect if there
         // was no system parsed
         if system_node.name == "" {
@@ -3608,6 +3601,7 @@ impl AstVisitor for PythonVisitor {
 
         // TODO: Remove subclass code.
         //  self.generate_subclass();
+        */
     }
 
     //* --------------------------------------------------------------------- *//
@@ -6846,7 +6840,7 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_enum_decl_node(&mut self, enum_decl_node: &EnumDeclNode) {
-        println!("DEBUG: Generating enum: {}", enum_decl_node.name);
+        eprintln!("DEBUG: Generating enum: {}", enum_decl_node.name);
         self.newline();
         self.newline();
 
@@ -6866,7 +6860,7 @@ impl AstVisitor for PythonVisitor {
                 enumerator_decl_node.accept(self);
             } else {
                 // DEBUG: Log when we skip a duplicate
-                println!("DEBUG: Skipping duplicate enum entry: {}", enumerator_decl_node.name);
+                eprintln!("DEBUG: Skipping duplicate enum entry: {}", enumerator_decl_node.name);
             }
         }
 

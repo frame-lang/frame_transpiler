@@ -1,15 +1,6 @@
-# Frame v0.31 Grammar (BNF)
+# Frame Language Grammar (v0.31)
 
-This grammar specification has been comprehensively validated with the Frame v0.31 transpiler including multi-entity module support, runtime architecture with auto-start functionality, state stack operations, hierarchical state machines, native import statements, and major v0.31 language features. 
-
-**v0.31 ACHIEVEMENTS** (2025-08-31):
-- ✅ Native import statements (Python modules directly accessible)
-- ✅ Self expression support (standalone `self` usage)
-- ✅ Static method validation at parse time
-- ✅ Native Python print (no Frame built-in needed)
-- ✅ 95.4% test success rate (146/153 tests passing)
-
-**CRITICAL SCOPE BUG RESOLVED** (2025-08-24): Fixed transpiler bug where external object method calls (`obj.method()`) incorrectly generated `obj.self.method()` in Python output. The transpiler now correctly handles both external object calls and internal operation calls with proper scoping.
+This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
 ## Module Structure
 
