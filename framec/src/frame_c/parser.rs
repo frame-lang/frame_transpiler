@@ -308,6 +308,26 @@ impl<'a> Parser<'a> {
                 let tok = self.previous();
                 code_block.push_str(&tok.lexeme.clone());
                 module_elements.push(CodeBlock { code_block });
+            } else if self.match_token(&[TokenType::Import]) {
+                // Parse import statement: import module [as alias]
+                match self.parse_import_statement() {
+                    Ok(import_node) => {
+                        module_elements.push(ModuleElement::Import { import_node });
+                    }
+                    Err(err) => {
+                        return Err(err);
+                    }
+                }
+            } else if self.match_token(&[TokenType::From]) {
+                // Parse from import: from module import ...
+                match self.parse_from_import_statement() {
+                    Ok(import_node) => {
+                        module_elements.push(ModuleElement::Import { import_node });
+                    }
+                    Err(err) => {
+                        return Err(err);
+                    }
+                }
             }
             // else if self.match_token(&[TokenType::ThreeTicks]) {
             //     // Parse code_block ```whatever```
@@ -9728,5 +9748,125 @@ impl<'a> Parser<'a> {
         );
         
         return Ok(Some(ExprType::CallExprT { call_expr_node: call_expr }));
+    }
+    
+    // ===================== Frame v0.31 Import Support =====================
+    
+    /// Parse import statement: import module [as alias]
+    fn parse_import_statement(&mut self) -> Result<ImportNode, ParseError> {
+        // We've already consumed 'import' token
+        if !self.match_token(&[TokenType::Identifier]) {
+            let err_msg = "Expected module name after 'import'";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        
+        let mut module_name = self.previous().lexeme.clone();
+        let line = self.previous().line;
+        
+        // Handle dotted module names (e.g., os.path)
+        while self.match_token(&[TokenType::Dot]) {
+            if !self.match_token(&[TokenType::Identifier]) {
+                let err_msg = "Expected identifier after '.' in module name";
+                self.error_at_current(err_msg);
+                return Err(ParseError::new(err_msg));
+            }
+            module_name.push('.');
+            module_name.push_str(&self.previous().lexeme);
+        }
+        
+        // Check for 'as alias' syntax
+        if self.match_token(&[TokenType::As]) {
+            if !self.match_token(&[TokenType::Identifier]) {
+                let err_msg = "Expected alias name after 'as'";
+                self.error_at_current(err_msg);
+                return Err(ParseError::new(err_msg));
+            }
+            let alias = self.previous().lexeme.clone();
+            
+            Ok(ImportNode::new(
+                ImportType::Aliased { 
+                    module: module_name, 
+                    alias 
+                },
+                line
+            ))
+        } else {
+            Ok(ImportNode::new(
+                ImportType::Simple { 
+                    module: module_name 
+                },
+                line
+            ))
+        }
+    }
+    
+    /// Parse from import: from module import item1, item2 or from module import *
+    fn parse_from_import_statement(&mut self) -> Result<ImportNode, ParseError> {
+        // We've already consumed 'from' token
+        if !self.match_token(&[TokenType::Identifier]) {
+            let err_msg = "Expected module name after 'from'";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        
+        let mut module_name = self.previous().lexeme.clone();
+        let line = self.previous().line;
+        
+        // Handle dotted module names (e.g., os.path)
+        while self.match_token(&[TokenType::Dot]) {
+            if !self.match_token(&[TokenType::Identifier]) {
+                let err_msg = "Expected identifier after '.' in module name";
+                self.error_at_current(err_msg);
+                return Err(ParseError::new(err_msg));
+            }
+            module_name.push('.');
+            module_name.push_str(&self.previous().lexeme);
+        }
+        
+        if !self.match_token(&[TokenType::Import]) {
+            let err_msg = "Expected 'import' after module name";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        
+        // Check for wildcard import
+        if self.match_token(&[TokenType::Star]) {
+            return Ok(ImportNode::new(
+                ImportType::FromImportAll { 
+                    module: module_name 
+                },
+                line
+            ));
+        }
+        
+        // Parse list of imported items
+        let mut items = Vec::new();
+        
+        if !self.match_token(&[TokenType::Identifier]) {
+            let err_msg = "Expected identifier or '*' after 'import'";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        
+        items.push(self.previous().lexeme.clone());
+        
+        // Parse additional items separated by commas
+        while self.match_token(&[TokenType::Comma]) {
+            if !self.match_token(&[TokenType::Identifier]) {
+                let err_msg = "Expected identifier after ','";
+                self.error_at_current(err_msg);
+                return Err(ParseError::new(err_msg));
+            }
+            items.push(self.previous().lexeme.clone());
+        }
+        
+        Ok(ImportNode::new(
+            ImportType::FromImport { 
+                module: module_name, 
+                items 
+            },
+            line
+        ))
     }
 }

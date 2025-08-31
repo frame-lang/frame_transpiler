@@ -16,9 +16,12 @@ system SimpleHSM {
             
             trigger() {
                 count = count + 1
-                if count < 10:
+                if count < 10 {
                     -> $Child
+                } else {
+                    print("Count reached 10")
                 }
+                return
             }
         }
         

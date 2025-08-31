@@ -800,11 +800,17 @@ impl PythonVisitor {
         self.add_code("from enum import Enum");
         self.newline();
         
-        // v0.30: Process module-level CodeBlocks (backtick statements like imports)
+        // v0.30: Process module-level elements (imports and CodeBlocks)
         for module_element in &frame_module.module.module_elements {
-            if let ModuleElement::CodeBlock { code_block } = module_element {
-                self.newline();
-                self.add_code(code_block);
+            match module_element {
+                ModuleElement::Import { import_node } => {
+                    import_node.accept(self);
+                }
+                ModuleElement::CodeBlock { code_block } => {
+                    self.newline();
+                    self.add_code(code_block);
+                }
+                _ => {} // Functions and Systems handled separately
             }
         }
         
@@ -3334,6 +3340,9 @@ impl AstVisitor for PythonVisitor {
                 ModuleElement::System { .. } => {
                     // Systems are handled separately by Arcanum
                 }
+                ModuleElement::Import { import_node } => {
+                    import_node.accept(self);
+                }
             }
         }
 
@@ -3737,6 +3746,29 @@ impl AstVisitor for PythonVisitor {
             output.push_str(".");
             call_chain.accept_to_string(self, output);
             // output.push_str(&format!(".{}", output));
+        }
+    }
+
+    //* --------------------------------------------------------------------- *//
+    
+    fn visit_import_node(&mut self, import_node: &ImportNode) {
+        match &import_node.import_type {
+            ImportType::Simple { module } => {
+                self.add_code(&format!("import {}", module));
+                self.newline();
+            }
+            ImportType::Aliased { module, alias } => {
+                self.add_code(&format!("import {} as {}", module, alias));
+                self.newline();
+            }
+            ImportType::FromImport { module, items } => {
+                self.add_code(&format!("from {} import {}", module, items.join(", ")));
+                self.newline();
+            }
+            ImportType::FromImportAll { module } => {
+                self.add_code(&format!("from {} import *", module));
+                self.newline();
+            }
         }
     }
 

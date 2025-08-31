@@ -45,6 +45,9 @@ impl Scanner {
             ("domain:".to_string(), TokenType::DomainBlock),
             ("self".to_string(), TokenType::Self_),
             ("return".to_string(), TokenType::Return_),
+            ("import".to_string(), TokenType::Import),
+            ("from".to_string(), TokenType::From),
+            ("as".to_string(), TokenType::As),
         ]
         .iter()
         .cloned()
@@ -761,6 +764,9 @@ pub enum TokenType {
     In,       // 'in' keyword
     Enum,     // 'enum' keyword
     Function, // 'fn' keyword
+    Import,   // 'import' keyword
+    From,     // 'from' keyword
+    As,       // 'as' keyword
     // SingleLineComment, // --- comment
     MultiLineComment, // {-- comments --}
     OpenBrace,        // {

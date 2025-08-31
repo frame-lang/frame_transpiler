@@ -83,20 +83,22 @@ fn test_nested_scopes() {
 }
 
 fn test_builtin_access() {
-    print("\n=== Built-in Access Test ===")
+    // Test access to Python built-ins
+    // Note: We're using Python's print directly, not a Frame built-in
     
-    // Built-ins should be accessible everywhere
-    print("Built-in print works")
+    // Store the built-in print function before shadowing
+    var builtin_print = print
+    builtin_print("\n=== Built-in Access Test ===")
+    builtin_print("Built-in print works")
     
-    // Shadow built-in (generally bad practice but should work)
+    // Now we can safely shadow print
     var print = "SHADOWED_PRINT"
-    // Now print is a variable, not a function
-    // This would fail: print("test")
+    builtin_print("Shadowed print value: " + print)
     
     if true {
-        // Can still see shadowed print
-        var msg = "Shadow value: " + print
-        // Need different way to output since print is shadowed
+        // Can still see shadowed print variable
+        var msg = "Shadow value in block: " + print
+        builtin_print(msg)
     }
 }
 

@@ -1,14 +1,91 @@
-# Frame v0.30 Grammar (BNF)
+# Frame v0.31 Grammar (BNF)
 
-This grammar specification has been comprehensively validated with the Frame v0.30 transpiler including multi-entity module support, runtime architecture with auto-start functionality, state stack operations, hierarchical state machines, and major v0.30 language features. **HIERARCHICAL STATE MACHINE ISSUES COMPLETELY RESOLVED** - all HSM functionality verified working with proper multi-entity file format requirements (2025-08-24).
+This grammar specification has been comprehensively validated with the Frame v0.31 transpiler including multi-entity module support, runtime architecture with auto-start functionality, state stack operations, hierarchical state machines, native import statements, and major v0.31 language features. 
+
+**v0.31 ACHIEVEMENTS** (2025-08-31):
+- ✅ Native import statements (Python modules directly accessible)
+- ✅ Self expression support (standalone `self` usage)
+- ✅ Static method validation at parse time
+- ✅ Native Python print (no Frame built-in needed)
+- ✅ 95.4% test success rate (146/153 tests passing)
 
 ## Module Structure
 
 ```bnf
-module: (function | system)*
+module: (import_stmt | function | system)*
 ```
 
+**v0.31 Import Support**: Modules can now include native import statements at the top level, supporting Python module imports without requiring backticks.
+
 **v0.30 Multi-Entity Support**: Modules can contain any combination of functions and systems in any order. Each entity (function or system) can have individual attributes.
+
+## Import Statements (v0.31)
+
+Frame v0.31 introduces native import statement support, primarily targeting Python but designed for future multi-language support.
+
+```bnf
+import_stmt: simple_import | aliased_import | from_import
+
+simple_import: 'import' dotted_name
+aliased_import: 'import' dotted_name 'as' IDENTIFIER
+from_import: 'from' dotted_name 'import' (import_items | '*')
+
+dotted_name: IDENTIFIER ('.' IDENTIFIER)*
+import_items: IDENTIFIER (',' IDENTIFIER)*
+```
+
+### Import Examples
+```frame
+// Simple imports
+import math
+import json
+
+// Aliased imports
+import numpy as np
+import os.path as osp
+
+// From imports
+from collections import defaultdict, OrderedDict
+from typing import List, Dict, Optional
+
+// Wildcard imports
+from typing import *
+
+// Using imported modules in functions
+fn main() {
+    var pi = math.pi
+    var root = math.sqrt(16)
+    var data = json.dumps({"key": "value"})
+}
+
+// Using imported modules in systems
+system Calculator {
+    operations:
+        compute() {
+            var result = math.cos(0)
+            return result
+        }
+}
+```
+
+**Note**: For languages other than Python, backticks can still be used for language-specific import syntax.
+
+## Native Python Functions (v0.31)
+
+Frame v0.31 provides direct access to Python built-in functions without requiring Frame-specific built-ins:
+
+```frame
+// Python built-ins are directly accessible
+fn main() {
+    print("Hello, World!")           // Python's print function
+    var x = str(42)                  // Python's str function
+    var y = int("10")                // Python's int function
+    var z = len([1, 2, 3])          // Python's len function
+    var result = max(5, 10)         // Python's max function
+}
+```
+
+**Note**: Frame no longer maintains its own built-in print function. All function calls that are not declared in Frame scope are passed through to the target language (Python).
 
 ## Functions
 

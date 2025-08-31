@@ -8,10 +8,12 @@ fn main() {
 
 system Utils {
     operations:
+        @staticmethod
         add(x: int, y: int): int {
             return x + y
         }
 
+        @staticmethod
         categorizeNumber(num: int): string {
             if num < 0 {
                 return "negative"

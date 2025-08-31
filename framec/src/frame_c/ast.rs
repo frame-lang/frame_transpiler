@@ -127,6 +127,8 @@ pub enum ModuleElement {
     // v0.30: Multi-entity support
     Function { function_node: Rc<RefCell<FunctionNode>> },
     System { system_node: SystemNode },
+    // v0.31: Import support
+    Import { import_node: ImportNode },
 }
 
 // TODO: is this a good name for Identifier and Call expressions?
@@ -558,6 +560,38 @@ impl NodeElement for ParameterNode {
 //         return true;
 //     }
 // }
+
+//-----------------------------------------------------//
+
+// v0.31: Import support
+#[derive(Clone, Debug)]
+pub enum ImportType {
+    // import math
+    Simple { module: String },
+    // import numpy as np
+    Aliased { module: String, alias: String },
+    // from math import sqrt, pi
+    FromImport { module: String, items: Vec<String> },
+    // from math import *
+    FromImportAll { module: String },
+}
+
+pub struct ImportNode {
+    pub import_type: ImportType,
+    pub line: usize,
+}
+
+impl ImportNode {
+    pub fn new(import_type: ImportType, line: usize) -> ImportNode {
+        ImportNode { import_type, line }
+    }
+}
+
+impl NodeElement for ImportNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_import_node(self);
+    }
+}
 
 //-----------------------------------------------------//
 

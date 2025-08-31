@@ -23,6 +23,8 @@ system SystemOne {
         
     machine:
         $Active {
+            var call_count = 0
+            
             test_public() {
                 print("SystemOne public method")
                 
@@ -30,9 +32,14 @@ system SystemOne {
                 self.internal_one()
                 self.action_one()
                 
-                // Cannot call SystemTwo internals (should fail)
-                var other = SystemTwo()
-                other.test_public()
+                // Prevent infinite recursion in test
+                call_count = call_count + 1
+                if call_count <= 1 {
+                    // Test cross-system call
+                    var other = SystemTwo()
+                    other.test_public()
+                }
+                return
             }
         }
         
@@ -53,6 +60,8 @@ system SystemTwo {
         
     machine:
         $Ready {
+            var call_count = 0
+            
             test_public() {
                 print("SystemTwo public method")
                 
@@ -60,9 +69,14 @@ system SystemTwo {
                 self.internal_two()
                 self.action_two()
                 
-                // Cannot call SystemOne internals (should fail)  
-                var other = SystemOne()
-                other.test_public()
+                // Prevent infinite recursion in test
+                call_count = call_count + 1
+                if call_count <= 1 {
+                    // Test cross-system call
+                    var other = SystemOne()
+                    other.test_public()
+                }
+                return
             }
         }
         
