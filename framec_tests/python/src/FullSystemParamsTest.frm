@@ -12,6 +12,6 @@ system SystemInitializationDemo ($(A,B), $>(C,D), E, F) {
         }
     
     domain:
-        var E = nil
-        var F = nil 
+        var E = None
+        var F = None 
 }

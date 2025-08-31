@@ -205,6 +205,9 @@ pub enum SymbolType {
     EventHandlerParam {
         event_handler_param_symbol_rcref: Rc<RefCell<ParameterSymbol>>,
     },
+    ModuleVariable {
+        module_variable_symbol_rcref: Rc<RefCell<VariableSymbol>>,
+    },
 }
 
 impl SymbolType {
@@ -247,6 +250,14 @@ impl SymbolType {
                 event_handler_variable_symbol_rcref,
             } => {
                 let variable_symbol = event_handler_variable_symbol_rcref.borrow_mut();
+                let mut var_decl_node = variable_symbol.ast_node_rcref.borrow_mut();
+                var_decl_node.value_rc = r_value;
+                Ok(())
+            }
+            SymbolType::ModuleVariable {
+                module_variable_symbol_rcref,
+            } => {
+                let variable_symbol = module_variable_symbol_rcref.borrow_mut();
                 let mut var_decl_node = variable_symbol.ast_node_rcref.borrow_mut();
                 var_decl_node.value_rc = r_value;
                 Ok(())
@@ -298,6 +309,13 @@ impl SymbolType {
                 block_variable_symbol_rcref,
             } => {
                 block_variable_symbol_rcref
+                    .borrow_mut()
+                    .set_ast_node(variable_decl_node_rcref.clone());
+            }
+            SymbolType::ModuleVariable {
+                module_variable_symbol_rcref,
+            } => {
+                module_variable_symbol_rcref
                     .borrow_mut()
                     .set_ast_node(variable_decl_node_rcref.clone());
             }
@@ -355,6 +373,14 @@ impl SymbolType {
                     .get_ast_node()
                     .clone(),
             )),
+            SymbolType::ModuleVariable {
+                module_variable_symbol_rcref,
+            } => Ok(Some(
+                module_variable_symbol_rcref
+                    .borrow_mut()
+                    .get_ast_node()
+                    .clone(),
+            )),
             SymbolType::ParamSymbol { .. } => Ok(None),
             SymbolType::StateParam { .. } => Ok(None),
             SymbolType::EventHandlerParam { .. } => Ok(None),
@@ -396,6 +422,7 @@ impl SymbolType {
             SymbolType::StateParam { .. } => "StateParam",
             SymbolType::EventHandlerParam { .. } => "EventHandlerParam",
             SymbolType::StateVariable { .. } => "StateVariable",
+            SymbolType::ModuleVariable { .. } => "ModuleVariable",
         }
     }
 }
@@ -483,6 +510,9 @@ impl Symbol for SymbolType {
             SymbolType::ParamSymbol { param_symbol_rcref } => {
                 param_symbol_rcref.borrow().get_name()
             }
+            SymbolType::ModuleVariable {
+                module_variable_symbol_rcref,
+            } => module_variable_symbol_rcref.borrow().get_name(),
         }
     }
 }
@@ -579,6 +609,9 @@ impl ScopeSymbol for SymbolType {
             }
             SymbolType::EventHandlerParam { .. } => {
                 panic!("Fatal error - EventHandlerParam scope does not have a symbol table.")
+            }
+            SymbolType::ModuleVariable { .. } => {
+                panic!("Fatal error - ModuleVariable does not have a symbol table.")
             } // _ => {
               //     panic!("Could not find SymbolType. Giving up.")
               // }
@@ -1003,6 +1036,20 @@ impl SymbolTable {
                 }
                 let symbol_type_rcref = Rc::new(RefCell::new(SymbolType::ParamSymbol {
                     param_symbol_rcref: Rc::clone(param_symbol_rcref),
+                }));
+                self.symbols.insert(name, symbol_type_rcref);
+                Ok(())
+            }
+            SymbolType::ModuleVariable {
+                module_variable_symbol_rcref,
+            } => {
+                let name = module_variable_symbol_rcref.borrow().name.clone();
+                if self.symbols.get(&name[..]).is_some() {
+                    let msg = format!("redeclaration of {}", name).to_string();
+                    return Err(msg);
+                }
+                let symbol_type_rcref = Rc::new(RefCell::new(SymbolType::ModuleVariable {
+                    module_variable_symbol_rcref: Rc::clone(module_variable_symbol_rcref),
                 }));
                 self.symbols.insert(name, symbol_type_rcref);
                 Ok(())

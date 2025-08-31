@@ -238,20 +238,37 @@ impl<'a> Parser<'a> {
 
         let mut module_elements_opt = self.header()?;
 
-        // v0.30: Parse multiple functions and systems in sequence
+        // v0.31: Parse module-level variables, functions, systems, and statements
         let mut functions = Vec::new();
         let mut systems = Vec::new();
+        let mut variables = Vec::new();
+        let mut statements = Vec::new();
         
         // Parse all entities in sequence
         loop {
-            // First check for attributes that might precede a system
+            // Check for module-level variable declarations
+            if self.match_token(&[TokenType::Var, TokenType::Const]) {
+                match self.var_declaration(IdentifierDeclScope::ModuleScope) {
+                    Ok(var_decl) => {
+                        variables.push(var_decl.clone());
+                        // Also add to module elements for backward compatibility
+                        if let Some(ref mut elements) = module_elements_opt {
+                            elements.push(ModuleElement::Variable { var_decl_node: var_decl });
+                        }
+                    }
+                    Err(e) => return Err(e),
+                }
+                continue;
+            }
+            
+            // Check for attributes that might precede a system
             let entity_attributes_opt = if self.check(TokenType::OuterAttributeOrDomainParams) {
                 self.entity_attributes()?
             } else {
                 None
             };
             
-            // Now check what entity type we have
+            // Check what entity type we have
             if self.match_token(&[TokenType::System]) {
                 // v0.30: All individual systems get empty modules - module elements belong to FrameModule
                 let module_for_system = Module::new(vec![]);
@@ -268,19 +285,37 @@ impl<'a> Parser<'a> {
             } else if entity_attributes_opt.is_some() {
                 // We parsed attributes but found no system or function - this is an error
                 return Err(ParseError::new("Expected 'system' after attributes. Functions do not support attributes."));
+            } else if self.check(TokenType::Identifier) {
+                // Check for module-level statements (like function calls)
+                // This handles things like: main() at module scope
+                match self.statement() {
+                    Ok(Some(stmt)) => {
+                        let decl_or_stmt = DeclOrStmtType::StmtT { stmt_t: stmt };
+                        statements.push(decl_or_stmt);
+                        // TODO: Fix when Clone is available
+                        // Also add to module elements
+                        // if let Some(ref mut elements) = module_elements_opt {
+                        //     elements.push(ModuleElement::Statement { stmt_node: decl_or_stmt });
+                        // }
+                    }
+                    Ok(None) => {
+                        // No statement found, continue
+                    }
+                    Err(e) => return Err(e),
+                }
             } else {
-                // No more systems or functions found - exit loop
+                // No more entities found - exit loop
                 break;
             }
         }
         
-        // v0.30: Create FrameModule with parsed functions and systems
+        // v0.31: Create FrameModule with all parsed elements
         let final_module = match module_elements_opt {
             Some(module_elements) => Module::new(module_elements),
             None => Module::new(vec![]),
         };
         
-        Ok(FrameModule::new(final_module, functions, systems))
+        Ok(FrameModule::new(final_module, functions, systems, variables, statements))
     }
 
     /* --------------------------------------------------------------------- */
@@ -3257,6 +3292,9 @@ impl<'a> Parser<'a> {
                 },
                 IdentifierDeclScope::BlockVarScope => SymbolType::BlockVar {
                     block_variable_symbol_rcref: variable_symbol_rcref,
+                },
+                IdentifierDeclScope::ModuleScope => SymbolType::ModuleVariable {
+                    module_variable_symbol_rcref: variable_symbol_rcref,
                 },
                 _ => {
                     let err_msg = "Unrecognized variable scope.";
@@ -8493,6 +8531,11 @@ impl<'a> Parser<'a> {
                         block_variable_symbol_rcref,
                     } => {
                         scope = block_variable_symbol_rcref.borrow().scope.clone();
+                    }
+                    SymbolType::ModuleVariable {
+                        module_variable_symbol_rcref,
+                    } => {
+                        scope = module_variable_symbol_rcref.borrow().scope.clone();
                     }
                     SymbolType::EventHandlerScope { .. } => {
                         // TODO - what??

@@ -1,12 +1,12 @@
 {
-  "timestamp": "2025-08-30T18:55:51.960934",
+  "timestamp": "2025-08-31T16:03:14.402913",
   "version": "v0.31",
   "summary": {
-    "total": 153,
-    "transpile_success": 153,
-    "execute_success": 153,
-    "complete_success": 153,
-    "success_rate": "100.0%"
+    "total": 165,
+    "transpile_success": 162,
+    "execute_success": 161,
+    "complete_success": 161,
+    "success_rate": "97.6%"
   },
   "results": [
     {
@@ -73,6 +73,13 @@
       "error": null
     },
     {
+      "file": "test_const.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "3.14159\n0\n",
+      "error": null
+    },
+    {
       "file": "test_controlled_hsm_loop.frm",
       "transpile": true,
       "execute": true,
@@ -101,11 +108,17 @@
       "error": null
     },
     {
-      "file": "test_domain_assignment.frm",
+      "file": "test_debug_nil.frm",
       "transpile": true,
       "execute": true,
-      "output": null,
+      "output": "Testing\n",
       "error": null
+    },
+    {
+      "file": "test_domain_assignment.frm",
+      "transpile": false,
+      "execute": false,
+      "error": "DEBUG: Starting first pass - building symbol table\nDEBUG: Created syntactic parser with is_building_symbol_table=true\nDEBUG: Building symbol table for function: main\nDEBUG: Entering function scope for"
     },
     {
       "file": "test_domain_simple.frm",
@@ -146,7 +159,7 @@
       "file": "test_enums.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
@@ -174,14 +187,14 @@
       "file": "test_enums_doc_grocery_demo.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
       "file": "test_enums_doc_grocery_full.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
@@ -395,6 +408,13 @@
       "error": null
     },
     {
+      "file": "test_legb_resolution.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== LEGB Resolution Test ===\n\n--- Testing Local Shadowing ---\nLocal shadowing: local_shadowed\nBuilt-in print still works\n\n--- Testing Enclosing Scope ---\nOuter var: outer_scope\nInner can see outer: ou",
+      "error": null
+    },
+    {
       "file": "test_legb_scope_resolution.frm",
       "transpile": true,
       "execute": true,
@@ -493,11 +513,32 @@
       "error": null
     },
     {
-      "file": "test_module_var_access.frm",
+      "file": "test_module_scope_comprehensive.frm",
       "transpile": true,
       "execute": true,
-      "output": null,
+      "output": "Module loading - initializing module variables\nInitial shared_counter: 0\n\n==== MODULE SCOPE COMPREHENSIVE TEST ====\n\n=== test_read_access ===\nmodule_string: initial_string\nmodule_int: 42\nmodule_bool: ",
       "error": null
+    },
+    {
+      "file": "test_module_scope_variables.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "[LOG] Module initialized\nPI = 3.14159\nVERSION = 1.0.0\ncounter = 1\ninitialized = True\n[LOG] Main function called\nFinal counter = 2\nPI = 3.14159\nVERSION = 1.0.0\ncounter = 2\ninitialized = True\n[LOG] Main",
+      "error": null
+    },
+    {
+      "file": "test_module_system.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "System started\n",
+      "error": null
+    },
+    {
+      "file": "test_module_var_access.frm",
+      "transpile": true,
+      "execute": false,
+      "output": "In main function:\n",
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_module_var_access.py\", line 99, in <module>\n    main()\n    ~~~~^^\n  File \"/Users/ma"
     },
     {
       "file": "test_module_var_simple.frm",
@@ -560,6 +601,13 @@
       "transpile": true,
       "execute": true,
       "output": "Testing native Python print\nNo Frame built-in needed!\nHello from Frame\nx + y = 15\n",
+      "error": null
+    },
+    {
+      "file": "test_none_keyword.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "x is None\nFunction returned None\nReceived None\nReceived value: 42\nSystem returned None\nTest complete\nx is None\nFunction returned None\nReceived None\nReceived value: 42\nSystem returned None\nTest complet",
       "error": null
     },
     {
@@ -637,6 +685,13 @@
       "transpile": true,
       "execute": true,
       "output": "Default value: default_value\nCalculated sum: 15\n10 + 5 = 15\n10 / 0 = error: division by zero\n10 / 2 = 5.0\n",
+      "error": null
+    },
+    {
+      "file": "test_scope_isolation.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Scope Isolation Test ===\nTesting function scope isolation\nadd(5, 3) = 8\nmath.pi = 3.141592653589793\nSystemA test()\nSystemA privateAction\nSystemA publicOperation\nSystemB test()\nSystemB ownAction\nSy",
       "error": null
     },
     {
@@ -724,6 +779,13 @@
       "error": null
     },
     {
+      "file": "test_simple_module.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Hello, world!\n",
+      "error": null
+    },
+    {
       "file": "test_simple_multi.frm",
       "transpile": true,
       "execute": true,
@@ -769,7 +831,7 @@
       "file": "test_simple_validation.frm",
       "transpile": true,
       "execute": true,
-      "output": null,
+      "output": "Machine: Start state entered\nOperations: do_work called\nActions: calling finish_work\nActions: finish_work called\nDomain: counter = 42\n",
       "error": null
     },
     {
@@ -851,10 +913,9 @@
     },
     {
       "file": "test_static_calls.frm",
-      "transpile": true,
-      "execute": true,
-      "output": null,
-      "error": null
+      "transpile": false,
+      "execute": false,
+      "error": "DEBUG: Starting first pass - building symbol table\nDEBUG: Created syntactic parser with is_building_symbol_table=true\nDEBUG: Building symbol table for function: main\nDEBUG: Entering function scope for"
     },
     {
       "file": "test_static_operations.frm",
@@ -896,6 +957,27 @@
       "transpile": true,
       "execute": true,
       "output": null,
+      "error": null
+    },
+    {
+      "file": "test_system_return.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "getValue result: 200\ncheck result: False\nprocess completed\n",
+      "error": null
+    },
+    {
+      "file": "test_system_return_comprehensive.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Test 1 - Interface default: 42\n  PASS: Got interface default 42\nTest 2 - Handler override: 99\n  PASS: Got handler override 99\nTest 3 - Action sets return: from_action\n  PASS: Got action value 'from_ac",
+      "error": null
+    },
+    {
+      "file": "test_system_return_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "getValue result: 100\nSUCCESS: system.return override works!\n",
       "error": null
     },
     {
@@ -1054,10 +1136,9 @@
     },
     {
       "file": "test_v031_comprehensive.frm",
-      "transpile": true,
-      "execute": true,
-      "output": null,
-      "error": null
+      "transpile": false,
+      "execute": false,
+      "error": "DEBUG: Starting first pass - building symbol table\nDEBUG: Created syntactic parser with is_building_symbol_table=true\nDEBUG: Building symbol table for function: main\nDEBUG: Entering function scope for"
     },
     {
       "file": "test_validation_comprehensive.frm",

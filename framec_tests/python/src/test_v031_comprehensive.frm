@@ -1,4 +1,4 @@
-function main() {
+fn main() {
     var test = TestSystem()
     test.run_test()
     return

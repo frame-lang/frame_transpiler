@@ -59,7 +59,7 @@ system MainSystem {
     machine:
         // StateA manages SystemA lifecycle
         $StateA {
-            var sysA = nil  // State-scoped variable
+            var sysA = None  // State-scoped variable
             
             $>() {
                 // Would create SystemA here
@@ -79,7 +79,7 @@ system MainSystem {
         
         // StateB manages SystemB lifecycle
         $StateB {
-            var sysB = nil  // State-scoped variable
+            var sysB = None  // State-scoped variable
             
             $>() {
                 // Would create SystemB here

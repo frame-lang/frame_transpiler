@@ -5,8 +5,10 @@ This document provides the formal grammar specification for the Frame language u
 ## Module Structure
 
 ```bnf
-module: (import_stmt | function | system)*
+module: (import_stmt | var_decl | function | system)*
 ```
+
+**v0.31 Module Variables**: Modules can declare module-level variables that are accessible from all functions and systems. The transpiler automatically generates appropriate scope declarations (e.g., `global` in Python) when these variables are modified.
 
 **v0.31 Import Support**: Modules can now include native import statements at the top level, supporting Python module imports without requiring backticks.
 
@@ -43,6 +45,76 @@ from typing import List, Dict, Optional
 
 // Wildcard imports
 from typing import *
+```
+
+## Module Variables (v0.31)
+
+Module-level variables can be declared at the top level and are accessible from all functions and systems within the module.
+
+```bnf
+var_decl: 'var' IDENTIFIER '=' expr
+```
+
+### Module Variable Features
+
+1. **Automatic Scope Management**: The transpiler automatically generates appropriate scope declarations (`global` in Python) when module variables are modified in functions or systems
+2. **Conditional Import Generation**: Import statements (e.g., `from enum import Enum`) are only generated when actually used
+3. **Shadowing Protection**: For Python target, local variables cannot shadow module variables (enforced at transpilation)
+
+### Module Variable Examples
+
+```frame
+// Module-level variable declarations
+var counter = 0
+var config = None
+var data = [1, 2, 3]
+var message = "Hello"
+
+fn increment() {
+    // Reading module variable (no special declaration needed)
+    print("Current: " + str(counter))
+    
+    // Modifying module variable (global declaration auto-generated)
+    counter = counter + 1
+}
+
+system Monitor {
+    machine:
+        $Active {
+            update() {
+                // Systems can also modify module variables
+                // Global declaration is auto-generated
+                counter = counter + 10
+                message = "Updated"
+            }
+        }
+}
+
+// Module initialization code
+counter = 100  // Initialize at module load time
+print("Module loaded with counter: " + str(counter))
+```
+
+The transpiler generates proper Python code with `global` declarations:
+
+```python
+# Module variables
+counter = 0
+config = None
+data = [1, 2, 3]
+message = "Hello"
+
+def increment():
+    global counter  # Auto-generated
+    print("Current: " + str(counter))
+    counter = counter + 1
+
+class Monitor:
+    def __monitor_state_Active(self, __e, compartment):
+        global counter, message  # Auto-generated for systems
+        if __e._message == "update":
+            counter = counter + 10
+            message = "Updated"
 ```
 
 ## Functions

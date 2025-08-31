@@ -35,7 +35,7 @@ system MainSystem {
         
     machine:
         $StateA {
-            var sysA = nil
+            var sysA = None
             
             $>() {
                 print("MainSystem: Entering StateA")
@@ -45,7 +45,7 @@ system MainSystem {
             
             <$() {
                 print("MainSystem: Exiting StateA")
-                sysA = nil
+                sysA = None
                 print("MainSystem: Destroyed SystemA instance")
             }
             
@@ -59,7 +59,7 @@ system MainSystem {
         }
         
         $StateB {
-            var sysB = nil
+            var sysB = None
             
             $>() {
                 print("MainSystem: Entering StateB")
@@ -69,7 +69,7 @@ system MainSystem {
             
             <$() {
                 print("MainSystem: Exiting StateB")
-                sysB = nil
+                sysB = None
                 print("MainSystem: Destroyed SystemB instance")
             }
             

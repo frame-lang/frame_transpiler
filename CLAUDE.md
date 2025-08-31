@@ -19,8 +19,8 @@ Frame is a state machine language that transpiles to multiple target languages. 
 
 ## Current State
 
-**Branch**: `v0.31`  
-**Status**: ✅ **94.1% TEST SUCCESS RATE** (143/152 tests passing)
+**Branch**: `v0.30`  
+**Status**: ✅ **97.6% TEST SUCCESS RATE** (161/165 tests passing)
 
 📋 **For release notes and development status, see**: [`docs/framelang_design/dev_notes.md`](docs/framelang_design/dev_notes.md)
 📊 **For v0.30 achievements, see**: [`docs/v0.30_achievements.md`](docs/v0.30_achievements.md)
@@ -63,6 +63,14 @@ Target Code (Python, C#, etc.)
 #### Null Value Standardization (v0.31)
 - **Standard**: `None` is the only keyword for null values
 - **Removed**: `null` and `nil` are no longer supported (breaking change)
+
+#### Module Variables with Auto-Global Generation (v0.31)
+- **Declaration**: `var counter = 0` at module level
+- **Auto-Global**: Transpiler automatically generates `global` declarations for modified module variables
+- **Functions**: Global declarations added when module variables are modified in functions
+- **Systems**: Global declarations also generated for system state methods
+- **Shadowing Protection**: Local variables cannot shadow module variables (Python target)
+- **Conditional Imports**: Only generates imports (e.g., `from enum import Enum`) when actually used
 
 ### v0.30 Modular AST Structure
 
@@ -190,28 +198,38 @@ python3 framec_tests/python/src/test.py
 
 ## Test Infrastructure
 
+📚 **READ THE COMPLETE TESTING GUIDE**: [`framec_tests/docs/test_runner_guide.md`](framec_tests/docs/test_runner_guide.md)
+
 ### Test Organization
 ```
 framec_tests/
 ├── runner/                    # Test execution infrastructure
 │   ├── frame_test_runner.py   # Main test runner script
 │   └── configs/               # Test configuration files
-│       ├── all_tests.json
-│       ├── hsm_tests.json
-│       ├── multi_entity_tests.json
-│       └── scope_tests.json
+│       ├── all_tests.json    # Complete test suite
+│       ├── hsm_tests.json    # Hierarchical state machines
+│       ├── multi_entity_tests.json  # Multi-system/function tests
+│       └── scope_tests.json  # Scope resolution tests
 ├── reports/                   # Test results and matrices
-│   ├── test_matrix_v031.md   # Latest test results
-│   └── test_results_v031.json
+│   ├── test_matrix_v031.md   # Latest detailed test matrix
+│   ├── test_results_v031.json # Machine-readable results
+│   └── test_log.md           # Standard test status report
 ├── docs/                      # Test documentation
-│   └── test_runner_guide.md
+│   └── test_runner_guide.md  # Complete testing guide
 └── python/
     ├── src/                   # Frame test files (.frm)
-    ├── models/                # Test model diffs
-    └── scripts/               # Helper scripts
+    ├── models/                # Expected output models
+    └── scripts/               # Legacy helper scripts
 ```
 
+**Key Directories:**
+- **`runner/`**: Contains the official test runner and all configuration files for different test suites
+- **`reports/`**: Stores all test results, matrices, and status reports - critical for tracking project health  
+- **`docs/`**: Complete documentation including the comprehensive test runner guide
+
 ### Running Tests
+
+⚠️ **ALWAYS READ THE TESTING GUIDE FIRST**: See [`framec_tests/docs/test_runner_guide.md`](framec_tests/docs/test_runner_guide.md) for complete details on usage, configuration options, and output formats.
 
 #### Standard Test Validation Process
 ```bash

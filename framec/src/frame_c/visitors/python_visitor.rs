@@ -71,6 +71,8 @@ pub struct PythonVisitor {
     in_standalone_function: bool,  // Track if we're currently in a standalone function context
     current_system_operations: Vec<String>,  // Track operations defined in the current system
     current_system_actions: Vec<String>,     // Track actions defined in the current system
+    required_imports: HashSet<String>,       // Track imports that are actually needed
+    global_vars_in_function: HashSet<String>, // Track global variables accessed in current function
 }
 
 impl PythonVisitor {
@@ -155,6 +157,8 @@ impl PythonVisitor {
             in_standalone_function: false,
             current_system_operations: Vec::new(),
             current_system_actions: Vec::new(),
+            required_imports: HashSet::new(),
+            global_vars_in_function: HashSet::new(),
         }
     }
 
@@ -801,9 +805,8 @@ impl PythonVisitor {
         self.newline();
         self.newline();
         
-        // Add enum import for domain enums
-        self.add_code("from enum import Enum");
-        self.newline();
+        // Process all content first to determine required imports
+        let header_len = self.code.len();
         
         // v0.30: Process module-level elements (imports and CodeBlocks)
         for module_element in &frame_module.module.module_elements {
@@ -870,10 +873,96 @@ impl PythonVisitor {
             self.newline();
         }
         
-        // Generate each system as a separate class
+        // Generate each system as a separate class (before variables that might instantiate them)
         for system_node in &frame_module.systems {
             // Generate just the system class, not a full program
             self.generate_system_from_node(system_node);
+            self.newline();
+        }
+        
+        // Generate module-level variables (after systems are defined)
+        for var_decl_rcref in &frame_module.variables {
+            let var_decl_node = var_decl_rcref.borrow();
+            var_decl_node.accept(self);
+            self.newline();
+        }
+        
+        // Generate module-level statements (after functions and systems are defined)
+        if !frame_module.statements.is_empty() {
+            self.newline();
+            self.add_code("# Module initialization");
+            self.newline();
+            for stmt in &frame_module.statements {
+                match stmt {
+                    DeclOrStmtType::StmtT { stmt_t } => {
+                        // Visit the statement directly
+                        match stmt_t {
+                            StatementType::ExpressionStmt { expr_stmt_t } => {
+                                // Handle expression statements
+                                match expr_stmt_t {
+                                    ExprStmtType::CallChainStmtT { call_chain_literal_stmt_node } => {
+                                        call_chain_literal_stmt_node.accept(self);
+                                    }
+                                    _ => {
+                                        // TODO: Handle other expression statement types
+                                    }
+                                }
+                            }
+                            StatementType::TransitionStmt { transition_statement_node } => {
+                                transition_statement_node.accept(self);
+                            }
+                            StatementType::TestStmt { test_stmt_node } => {
+                                test_stmt_node.accept(self);
+                            }
+                            StatementType::BlockStmt { block_stmt_node } => {
+                                block_stmt_node.accept(self);
+                            }
+                            StatementType::IfStmt { if_stmt_node } => {
+                                if_stmt_node.accept(self);
+                            }
+                            StatementType::LoopStmt { loop_stmt_node } => {
+                                loop_stmt_node.accept(self);
+                            }
+                            StatementType::ContinueStmt { continue_stmt_node } => {
+                                continue_stmt_node.accept(self);
+                            }
+                            StatementType::BreakStmt { break_stmt_node } => {
+                                break_stmt_node.accept(self);
+                            }
+                            StatementType::SuperStringStmt { super_string_stmt_node } => {
+                                super_string_stmt_node.accept(self);
+                            }
+                            StatementType::ParentDispatchStmt { parent_dispatch_stmt_node } => {
+                                parent_dispatch_stmt_node.accept(self);
+                            }
+                            StatementType::ReturnStmt { return_stmt_node } => {
+                                return_stmt_node.accept(self);
+                            }
+                            StatementType::ReturnAssignStmt { return_assign_stmt_node } => {
+                                return_assign_stmt_node.accept(self);
+                            }
+                            StatementType::NoStmt => {
+                                // Do nothing
+                            }
+                            StatementType::StateStackStmt { state_stack_operation_statement_node } => {
+                                state_stack_operation_statement_node.accept(self);
+                            }
+                            StatementType::ForStmt { for_stmt_node } => {
+                                for_stmt_node.accept(self);
+                            }
+                            StatementType::WhileStmt { while_stmt_node } => {
+                                while_stmt_node.accept(self);
+                            }
+                        }
+                        self.newline();
+                    }
+                    DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
+                        let var_decl_node = var_decl_t_rcref.borrow();
+                        var_decl_node.accept(self);
+                        self.newline();
+                    }
+                }
+            }
             self.newline();
         }
         
@@ -886,6 +975,145 @@ impl PythonVisitor {
             self.newline();
             self.add_code("main()");
             self.outdent();
+        }
+        
+        // Insert required imports after header
+        if !self.required_imports.is_empty() {
+            let imports: Vec<String> = self.required_imports.iter().cloned().collect();
+            let mut import_code = String::new();
+            for import in imports {
+                import_code.push_str(&import);
+                import_code.push('\n');
+            }
+            import_code.push('\n');
+            
+            // Insert imports right after the header
+            self.code.insert_str(header_len, &import_code);
+        }
+    }
+    
+    fn collect_global_assignments(&mut self, statements: &Vec<DeclOrStmtType>) {
+        // Two-pass approach to handle shadowing correctly
+        let mut local_vars = HashSet::<String>::new();
+        
+        // First pass: Find all local variable declarations
+        for stmt in statements {
+            if let DeclOrStmtType::VarDeclT { var_decl_t_rcref } = stmt {
+                let var_name = var_decl_t_rcref.borrow().name.clone();
+                local_vars.insert(var_name.clone());
+                eprintln!("DEBUG: Found local variable declaration: {}", var_name);
+            }
+        }
+        
+        // Second pass: Collect module-level variables that are assigned to
+        // but exclude any that are shadowed by local declarations
+        for stmt in statements {
+            self.collect_global_assignments_from_stmt(stmt);
+        }
+        
+        // Remove any shadowed variables from the global set
+        // Note: Python doesn't support true shadowing - if a variable is assigned
+        // anywhere in the function, it's treated as local throughout the entire function
+        for local_var in &local_vars {
+            if self.global_vars_in_function.contains(local_var) {
+                eprintln!("WARNING: Removing '{}' from globals due to local shadowing", local_var);
+                eprintln!("WARNING: This will cause UnboundLocalError if the module variable is accessed before the local declaration!");
+                self.global_vars_in_function.remove(local_var);
+            }
+        }
+    }
+    
+    fn collect_global_assignments_from_stmt(&mut self, stmt: &DeclOrStmtType) {
+        eprintln!("DEBUG collect_global_assignments_from_stmt: Checking statement type");
+        match stmt {
+            DeclOrStmtType::StmtT { stmt_t } => {
+                eprintln!("DEBUG: Found StmtT");
+                match &*stmt_t {
+                    StatementType::ExpressionStmt { expr_stmt_t } => {
+                        eprintln!("DEBUG: Found ExpressionStmt");
+                        match &*expr_stmt_t {
+                            ExprStmtType::AssignmentStmtT { assignment_stmt_node } => {
+                                eprintln!("DEBUG: Found AssignmentStmtT!");
+                                // Check if this is a module variable assignment
+                                // In v0.30, assignments use CallChainExprT not VariableExprT
+                                match &*assignment_stmt_node.assignment_expr_node.l_value_box {
+                                    ExprType::CallChainExprT { call_chain_expr_node } => {
+                                        eprintln!("DEBUG: It's a CallChainExprT!");
+                                        // Check if this is a simple variable (single node in call chain)
+                                        if call_chain_expr_node.call_chain.len() == 1 {
+                                            if let CallChainNodeType::UndeclaredIdentifierNodeT { id_node } = &call_chain_expr_node.call_chain[0] {
+                                                let var_name = &id_node.name.lexeme;
+                                                eprintln!("DEBUG: Found assignment to variable: {}", var_name);
+                                    
+                                                // Check if this variable is a module-level variable
+                                                // Check if the variable exists in module scope  
+                                                eprintln!("DEBUG collect_global: Looking for variable '{}' in module scope", var_name);
+                                                eprintln!("DEBUG collect_global: Module symbols: {:?}", 
+                                                        self.arcanium.module_symtab.borrow().symbols.keys().collect::<Vec<_>>());
+                                                
+                                                for (symbol_name, symbol_type_rcref) in &self.arcanium.module_symtab.borrow().symbols {
+                                                    if symbol_name == var_name {
+                                                        // Check if it's actually a module variable (not a function or system)
+                                                        match &*symbol_type_rcref.borrow() {
+                                                            SymbolType::ModuleVariable { .. } => {
+                                                                eprintln!("DEBUG: Found module variable '{}' being assigned in function", var_name);
+                                                                self.global_vars_in_function.insert(var_name.clone());
+                                                            },
+                                                            other => {
+                                                                eprintln!("DEBUG: Found '{}' but it's not a ModuleVariable, it's: {:?}", 
+                                                                        var_name, std::mem::discriminant(other));
+                                                            }
+                                                        }
+                                                        break;
+                                                    }
+                                                }
+                                                // Debug if not found
+                                                if !self.global_vars_in_function.contains(var_name) {
+                                                    eprintln!("DEBUG: Variable '{}' not found in module scope at all", var_name);
+                                                }
+                                            }
+                                        }
+                                    }
+                                    ExprType::VariableExprT { var_node } => {
+                                        // Legacy compatibility - handle old style VariableExprT
+                                        let var_name = &var_node.id_node.name.lexeme;
+                                        eprintln!("DEBUG: Found assignment to variable (legacy): {}", var_name);
+                                        
+                                        // Same logic as above
+                                        for (symbol_name, symbol_type_rcref) in &self.arcanium.module_symtab.borrow().symbols {
+                                            if symbol_name == var_name {
+                                                if let SymbolType::ModuleVariable { .. } = &*symbol_type_rcref.borrow() {
+                                                    self.global_vars_in_function.insert(var_name.clone());
+                                                }
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    _ => {
+                                        eprintln!("DEBUG: Assignment l_value is neither CallChainExprT nor VariableExprT");
+                                    }
+                                }
+                            }
+                            ExprStmtType::CallChainStmtT { call_chain_literal_stmt_node } => {
+                                eprintln!("DEBUG: Found CallChainStmtT - might be assignment!");
+                                // CallChainStmtT can also contain assignments
+                                // Need to check if this is an assignment expression
+                            }
+                            _ => {
+                                eprintln!("DEBUG: Found other ExprStmtType");
+                            }
+                        }
+                    }
+                    _ => {
+                        eprintln!("DEBUG: Found other StatementType");
+                    }
+                }
+            }
+            DeclOrStmtType::VarDeclT { .. } => {
+                // Local variable declarations are handled in the first pass
+                // to detect shadowing
+            }
+            _ => {}
         }
     }
     
@@ -2832,6 +3060,9 @@ impl PythonVisitor {
                                 if !generated_enums.contains(&full_enum_name) {
                                     generated_enums.insert(full_enum_name.clone());
                                     
+                                    // Mark enum import as required
+                                    self.required_imports.insert("from enum import Enum".to_string());
+                                    
                                     // Generate the enum at module level
                                     self.newline();
                                     self.add_code(&format!("class {}(Enum):", full_enum_name));
@@ -3348,6 +3579,13 @@ impl AstVisitor for PythonVisitor {
                 ModuleElement::Import { import_node } => {
                     import_node.accept(self);
                 }
+                ModuleElement::Variable { var_decl_node: _ } => {
+                    // Module-level variables are handled after functions/systems
+                    // to maintain proper initialization order
+                }
+                ModuleElement::Statement { stmt_node: _ } => {
+                    // Module-level statements are handled after variables
+                }
             }
         }
 
@@ -3791,6 +4029,25 @@ impl AstVisitor for PythonVisitor {
         } else {
             // Generate statements
                 if !function_node.statements.is_empty() {
+                    // Clear global vars tracking for this function
+                    self.global_vars_in_function.clear();
+                    
+                    // First pass: collect global variables used in assignments
+                    self.collect_global_assignments(&function_node.statements);
+                    
+                    // Debug: print what we found
+                    eprintln!("DEBUG: Function '{}' modifies module variables: {:?}", 
+                             function_node.name, self.global_vars_in_function);
+                    
+                    // Generate global declarations if needed
+                    if !self.global_vars_in_function.is_empty() {
+                        self.indent();
+                        self.newline();
+                        let global_vars: Vec<String> = self.global_vars_in_function.iter().cloned().collect();
+                        self.add_code(&format!("global {}", global_vars.join(", ")));
+                        self.outdent();
+                    }
+                    
                     self.indent();
                     self.visit_decl_stmts(&function_node.statements);
                     self.outdent();
@@ -4276,6 +4533,24 @@ impl AstVisitor for PythonVisitor {
             self.format_target_state_name(&state_node.name)
         ));
         self.indent();
+        
+        // Clear global vars tracking for this state
+        self.global_vars_in_function.clear();
+        
+        // Collect global variables from all event handlers
+        for evt_handler_rcref in &state_node.evt_handlers_rcref {
+            let evt_handler = evt_handler_rcref.borrow();
+            if !evt_handler.statements.is_empty() {
+                self.collect_global_assignments(&evt_handler.statements);
+            }
+        }
+        
+        // Generate global declarations if needed
+        if !self.global_vars_in_function.is_empty() {
+            self.newline();
+            let global_vars: Vec<String> = self.global_vars_in_function.iter().cloned().collect();
+            self.add_code(&format!("global {}", global_vars.join(", ")));
+        }
 
         // self.serialize.push(format!(
         //     "\tif (self._state_ == _s{}_) stateName = \"{}\"",
@@ -6938,6 +7213,21 @@ impl AstVisitor for PythonVisitor {
             None => String::from(""),
         };
         let var_name = &variable_decl_node.name;
+        
+        // Check for shadowing of module variables when in functions or event handlers
+        // This is a Python-specific limitation that we enforce at transpilation time
+        if self.in_standalone_function || self.current_state_name_opt.is_some() {
+            // Check if this variable shadows a module-level variable
+            if self.arcanium.module_symtab.borrow().lookup(var_name, &IdentifierDeclScope::ModuleScope).is_some() {
+                // For Python target, we don't allow shadowing of module variables
+                // because Python's scoping rules would cause runtime errors
+                eprintln!("Error: Cannot shadow module-level variable '{}' with local variable.", var_name);
+                eprintln!("       Module variables cannot be shadowed in functions or event handlers.");
+                eprintln!("       Please use a different variable name.");
+                std::process::exit(1);
+            }
+        }
+        
         let var_init_expr = &variable_decl_node.get_initializer_value_rc();
         let init_type_name = match &**var_init_expr {
             ExprType::CallChainExprT { .. } => "CallChain",
@@ -6979,6 +7269,13 @@ impl AstVisitor for PythonVisitor {
                 self.add_code(&format!(" = {}", code));
             }
             IdentifierDeclScope::BlockVarScope => {
+                self.add_code(&format!("{}", var_name));
+                if !var_type.is_empty() {
+                    self.add_code(&format!(": {}", var_type));
+                }
+                self.add_code(&format!(" = {}", code));
+            }
+            IdentifierDeclScope::ModuleScope => {
                 self.add_code(&format!("{}", var_name));
                 if !var_type.is_empty() {
                     self.add_code(&format!(": {}", var_type));

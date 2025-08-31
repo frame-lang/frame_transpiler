@@ -80,7 +80,7 @@ fn main() {
     // Test 4: No default
     var result4 = tester.getNoDefault()
     print("Test 4 - No default: " + str(result4))
-    if result4 == null {
+    if result4 == None {
         print("  PASS: Got null/None as expected")
     } else {
         print("  FAIL: Expected null/None, got " + str(result4))

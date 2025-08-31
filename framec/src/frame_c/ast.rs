@@ -55,19 +55,24 @@ pub struct Module {
 }
 
 // v0.30: Top-level Frame module containing systems and functions
+// v0.31: Added module-level variables and statements
 pub struct FrameModule {
     pub module: Module,
     pub functions: Vec<Rc<RefCell<FunctionNode>>>,
     pub systems: Vec<SystemNode>,
+    pub variables: Vec<Rc<RefCell<VariableDeclNode>>>,
+    pub statements: Vec<DeclOrStmtType>,
 }
 
 impl FrameModule {
     pub fn new(
         module: Module, 
         functions: Vec<Rc<RefCell<FunctionNode>>>, 
-        systems: Vec<SystemNode>
+        systems: Vec<SystemNode>,
+        variables: Vec<Rc<RefCell<VariableDeclNode>>>,
+        statements: Vec<DeclOrStmtType>,
     ) -> FrameModule {
-        FrameModule { module, functions, systems }
+        FrameModule { module, functions, systems, variables, statements }
     }
     
     // v0.30: Backward compatibility - get primary system for legacy visitors
@@ -89,10 +94,22 @@ impl FrameModule {
                 1,
             )
         } else {
-            // Return first system with module attached
-            let mut primary = self.systems[0].clone();
-            primary.module = self.module.clone();
-            primary
+            // TODO: Fix when Clone is resolved - for now create new system
+            // Cannot clone systems without Clone trait
+            SystemNode::new(
+                self.systems[0].name.clone(),
+                self.module.clone(),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                1,
+            )
         }
     }
 }
@@ -129,6 +146,9 @@ pub enum ModuleElement {
     System { system_node: SystemNode },
     // v0.31: Import support
     Import { import_node: ImportNode },
+    // v0.31: Module-scope variables and statements
+    Variable { var_decl_node: Rc<RefCell<VariableDeclNode>> },
+    Statement { stmt_node: DeclOrStmtType },
 }
 
 // TODO: is this a good name for Identifier and Call expressions?
@@ -948,6 +968,7 @@ impl NodeElement for EnumeratorDeclNode {
     }
 }
 
+#[derive(Clone)]
 pub struct EnumeratorExprNode {
     pub enum_type: String,
     pub enumerator: String,
@@ -1157,6 +1178,7 @@ impl NodeElement for StateNode {
 
 //-----------------------------------------------------//
 
+#[derive(Clone)]
 pub struct StateRefNode {
     pub name: String,
 }
@@ -1993,6 +2015,7 @@ impl NodeElement for ActionCallStmtNode {
 
 //-----------------------------------------------------//
 
+#[derive(Clone)]
 pub struct EnumeratorStmtNode {
     pub enumerator_expr_node: EnumeratorExprNode,
 }
@@ -2415,6 +2438,7 @@ impl NodeElement for TestStatementNode {
 
 //-----------------------------------------------------//
 //
+#[derive(Clone)]
 pub struct StateStackOperationStatementNode {
     pub state_stack_operation_node: StateStackOperationNode,
 }
@@ -2438,6 +2462,7 @@ impl NodeElement for StateStackOperationStatementNode {
 //-----------------------------------------------------//
 
 #[derive(PartialEq)]
+#[derive(Clone)]
 pub enum CallOrigin {
     External,
     Internal,
@@ -2779,6 +2804,7 @@ impl NodeElement for BlockStmtNode {
 
 //-----------------------------------------------------//
 
+#[derive(Clone)]
 pub struct ContinueStmtNode {}
 
 impl ContinueStmtNode {
@@ -2795,6 +2821,7 @@ impl NodeElement for ContinueStmtNode {
 
 //-----------------------------------------------------//
 
+#[derive(Clone)]
 pub struct BreakStmtNode {}
 
 impl BreakStmtNode {
@@ -2811,6 +2838,7 @@ impl NodeElement for BreakStmtNode {
 
 //-----------------------------------------------------//
 
+#[derive(Clone)]
 pub struct SuperStringStmtNode {
     pub literal_expr_node: LiteralExprNode,
 }
@@ -2983,6 +3011,7 @@ impl fmt::Display for CallChainExprNode {
 }
 //-----------------------------------------------------//
 #[derive(PartialEq)]
+#[derive(Clone)]
 pub enum OperatorType {
     Plus,
     Minus,
@@ -3217,7 +3246,7 @@ impl NodeElement for ExprListNode {
 // for instance States have a IdentiferDeclScope of None. Should be machine
 #[derive(Clone, PartialEq, Debug)]
 pub enum IdentifierDeclScope {
-    //     GlobalScope,  TODO!
+    ModuleScope,  // v0.31: Module-level variables
     UnknownScope, // TODO - should this module or global scope?
     SystemScope,
     InterfaceBlockScope,
@@ -4017,6 +4046,7 @@ impl NodeElement for ReturnStmtNode {
 
 //-----------------------------------------------------//
 
+#[derive(Clone)]
 pub struct ParentDispatchStmtNode {
     pub target_state_ref_opt: Option<StateRefNode>,
     pub line: usize,

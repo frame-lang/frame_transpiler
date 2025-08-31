@@ -2,6 +2,33 @@
 
 ## Development History
 
+### 2025-01-31: Module Variables with Automatic Global Declarations
+
+#### Overview
+Implemented comprehensive support for module-level variables with automatic `global` declaration generation for Python target. This eliminates UnboundLocalError runtime errors and provides a clean, natural syntax for module variable access.
+
+#### Key Features
+- **Automatic Global Generation**: Transpiler detects when module variables are modified and generates `global` declarations
+- **Function Support**: Works for all standalone functions that modify module variables  
+- **System Support**: Also generates globals for system state methods
+- **Conditional Imports**: Only generates imports (like `from enum import Enum`) when actually used
+- **Shadowing Protection**: Prevents local variables from shadowing module variables (Python limitation)
+
+#### Technical Implementation
+- **Two-Pass Analysis**: First identifies local declarations, then detects module variable modifications
+- **CallChainExprT Support**: Handles v0.30's assignment syntax properly
+- **HashSet Tracking**: Uses `global_vars_in_function` and `required_imports` HashSets for efficient tracking
+
+#### Test Results
+- **Success Rate**: Improved to 97.6% (161/165 tests passing)
+- **New Test**: `test_module_scope_comprehensive.frm` validates all features
+- **Fixed Tests**: Module variable tests now pass with proper global declarations
+
+#### Files Modified
+- `framec/src/frame_c/visitors/python_visitor.rs`: Added global declaration generation logic
+- `docs/source/language/grammar.md`: Documented module variable syntax and features
+- `CLAUDE.md`: Updated with implementation details
+
 ### 2025-08-31: None Keyword Standardization
 
 #### Overview

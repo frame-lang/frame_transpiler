@@ -4,13 +4,33 @@
 
 The Frame Test Runner is the standard testing tool for the Frame language transpiler project. It provides comprehensive testing capabilities including transpilation validation, execution testing, and detailed reporting.
 
-## Location
+## Critical Directory Structure
 
-- **Test Runner**: `framec_tests/runner/frame_test_runner.py`
-- **Test Files**: `framec_tests/python/src/`
-- **Test Reports**: `framec_tests/reports/`
-- **Config Files**: `framec_tests/runner/configs/`
-- **Documentation**: `framec_tests/docs/`
+### `framec_tests/runner/`
+**Contains the official test execution infrastructure:**
+- **`frame_test_runner.py`** - Main test runner script with comprehensive features
+- **`configs/`** - Pre-configured test suites:
+  - `all_tests.json` - Complete test suite (all test_*.frm files)
+  - `hsm_tests.json` - Hierarchical state machine tests  
+  - `multi_entity_tests.json` - Multi-system/function tests
+  - `scope_tests.json` - Scope resolution tests
+- **`validate_*.sh`** - Shell scripts for quick validation
+
+### `framec_tests/reports/`
+**Critical for tracking project health and test status:**
+- **`test_matrix_v031.md`** - Latest detailed test matrix with pass/fail breakdown
+- **`test_results_v031.json`** - Machine-readable test results for automation
+- **`test_log.md`** - Standard test status report (always overwrite after runs)
+- Historical matrices for version tracking
+
+### `framec_tests/docs/`
+**Complete testing documentation:**
+- **`test_runner_guide.md`** - This comprehensive guide (YOU MUST READ THIS)
+
+### Other Key Directories
+- **`framec_tests/python/src/`** - ALL Frame test files (.frm) and generated Python (.py)
+- **`framec_tests/python/models/`** - Expected output models for validation
+- **`framec_tests/python/scripts/`** - Legacy helper scripts (use runner/ instead)
 
 ## Features
 

@@ -1,4 +1,4 @@
-function main() {
+fn main() {
     var test = DomainTest()
     test.run_test()
     return
