@@ -3329,8 +3329,7 @@ impl AstVisitor for Java8Visitor {
             TokenType::String => self.add_code(&format!("\"{}\"", literal_expression_node.value)),
             TokenType::True => self.add_code("true"),
             TokenType::False => self.add_code("false"),
-            TokenType::Null => self.add_code("null"),
-            TokenType::Nil => self.add_code("null"),
+            TokenType::None_ => self.add_code("null"),  // Java uses null
             _ => self
                 .errors
                 .push("TODO: visit_literal_expression_node".to_string()),
@@ -3356,11 +3355,8 @@ impl AstVisitor for Java8Visitor {
             TokenType::False => {
                 output.push_str("false");
             }
-            TokenType::Nil => {
-                output.push_str("null");
-            }
-            TokenType::Null => {
-                output.push_str("null");
+            TokenType::None_ => {
+                output.push_str("null");  // Java uses null
             }
             TokenType::SuperString => {
                 output.push_str(&literal_expression_node.value.to_string());

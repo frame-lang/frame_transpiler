@@ -20,8 +20,7 @@ pub(crate) struct Scanner {
 impl Scanner {
     pub(crate) fn new(source: String) -> Scanner {
         let keywords: HashMap<String, TokenType> = [
-            ("null".to_string(), TokenType::Null),
-            ("nil".to_string(), TokenType::Nil),
+            ("None".to_string(), TokenType::None_),
             ("true".to_string(), TokenType::True),
             ("false".to_string(), TokenType::False),
             ("var".to_string(), TokenType::Var),
@@ -773,8 +772,7 @@ pub enum TokenType {
     CloseBrace,       // }
     True,             // true
     False,            // false
-    Null,             // null
-    Nil,              // nil
+    None_,            // None (standard null value)
     Colon,            // :
     Semicolon,        // ;
     Comma,            // ,

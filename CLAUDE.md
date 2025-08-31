@@ -60,6 +60,10 @@ Target Code (Python, C#, etc.)
 - **Static declaration**: Use `@staticmethod` for static operations
 - **Validation**: Parser validates no `self` in static operations
 
+#### Null Value Standardization (v0.31)
+- **Standard**: `None` is the only keyword for null values
+- **Removed**: `null` and `nil` are no longer supported (breaking change)
+
 ### v0.30 Modular AST Structure
 
 ```

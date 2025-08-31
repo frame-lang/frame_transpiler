@@ -2132,8 +2132,7 @@ impl AstVisitor for PlantUmlVisitor {
             TokenType::String => self.add_code(&format!("\"{}\"", literal_expression_node.value)),
             TokenType::True => self.add_code("true"),
             TokenType::False => self.add_code("false"),
-            TokenType::Null => self.add_code("null"),
-            TokenType::Nil => self.add_code("null"),
+            TokenType::None_ => self.add_code("null"),
             _ => panic!("TODO"),
         }
     }
@@ -2157,10 +2156,7 @@ impl AstVisitor for PlantUmlVisitor {
             TokenType::False => {
                 output.push_str("false");
             }
-            TokenType::Nil => {
-                output.push_str("null");
-            }
-            TokenType::Null => {
+            TokenType::None_ => {
                 output.push_str("null");
             }
             _ => panic!("TODO"),

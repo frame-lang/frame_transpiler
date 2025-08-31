@@ -3405,8 +3405,7 @@ impl AstVisitor for CppVisitor {
             TokenType::String => self.add_code(&format!("\"{}\"", literal_expression_node.value)),
             TokenType::True => self.add_code("true"),
             TokenType::False => self.add_code("false"),
-            TokenType::Null => self.add_code("null"),
-            TokenType::Nil => self.add_code("null"),
+            TokenType::None_ => self.add_code("nullptr"),  // C++ uses nullptr
             _ => panic!("TODO"),
         }
     }
@@ -3430,11 +3429,8 @@ impl AstVisitor for CppVisitor {
             TokenType::False => {
                 output.push_str("false");
             }
-            TokenType::Nil => {
-                output.push_str("null");
-            }
-            TokenType::Null => {
-                output.push_str("null");
+            TokenType::None_ => {
+                output.push_str("nullptr");  // C++ uses nullptr
             }
             TokenType::SuperString => {
                 output.push_str(&literal_expression_node.value.to_string());

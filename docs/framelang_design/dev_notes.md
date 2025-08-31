@@ -2,6 +2,23 @@
 
 ## Development History
 
+### 2025-08-31: None Keyword Standardization
+
+#### Overview
+Standardized on `None` as the single null value keyword in Frame, completely removing support for `null` and `nil`. This aligns Frame with Python conventions and simplifies the language.
+
+#### Changes Made
+- **Scanner**: Removed `null` and `nil` from keywords map
+- **TokenType**: Removed `Null` and `Nil` enum variants
+- **Parser**: Removed deprecated keyword handling
+- **All Visitors**: Updated to only recognize `None_` token
+- **Documentation**: Updated all references to reflect None-only syntax
+
+#### Migration Impact
+- **Breaking Change**: Code using `null` or `nil` will no longer compile
+- **Migration Path**: Replace all instances of `null` and `nil` with `None`
+- **Error Behavior**: `null` and `nil` are now treated as undefined identifiers
+
 ### 2025-08-31: Scope Handling Implementation Complete
 
 #### Overview

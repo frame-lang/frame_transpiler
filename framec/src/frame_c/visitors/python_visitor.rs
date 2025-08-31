@@ -6585,8 +6585,7 @@ impl AstVisitor for PythonVisitor {
             TokenType::String => self.add_code(&format!("\"{}\"", literal_expression_node.value)),
             TokenType::True => self.add_code("True"),
             TokenType::False => self.add_code("False"),
-            TokenType::Null => self.add_code("None"),
-            TokenType::Nil => self.add_code("None"),
+            TokenType::None_ => self.add_code("None"),
             _ => self
                 .errors
                 .push("TODO: visit_literal_expression_node".to_string()),
@@ -6612,10 +6611,7 @@ impl AstVisitor for PythonVisitor {
             TokenType::False => {
                 output.push_str("False");
             }
-            TokenType::Nil => {
-                output.push_str("None");
-            }
-            TokenType::Null => {
+            TokenType::None_ => {
                 output.push_str("None");
             }
             TokenType::SuperString => {

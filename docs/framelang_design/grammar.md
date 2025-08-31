@@ -293,7 +293,7 @@ system StartStateEnterParameters ($>(msg)) {
 // System with domain parameters
 system DomainParameters (msg) {
     domain:
-        var msg = nil
+        var msg = None
         
     machine:
         $Start {
@@ -307,8 +307,8 @@ system DomainParameters (msg) {
 // System with all parameter types
 system AllParameterTypes ($(A,B), $>(C,D), E,F) {
     domain:
-        var E = nil
-        var F = nil
+        var E = None
+        var F = None
     
     machine:
         $Start(A,B) {
@@ -1204,7 +1204,7 @@ operator: '+' | '-' | '*' | '/' | '%'
 unary_expr: ('-' | '!' | '~') expr
 
 primary_expr: IDENTIFIER | NUMBER | STRING | SUPERSTRING
-            | 'true' | 'false' | 'nil'
+            | 'true' | 'false' | 'None'
             | '(' expr ')' | '@'
 
 self_expr: 'self' | 'self' '.' IDENTIFIER  // v0.31: self as standalone or dotted access
@@ -1234,7 +1234,23 @@ SUPERSTRING: '`' ~[`]* '`' | '```' ~* '```'
 system interface machine actions operations domain
 fn var return
 if elif else for while loop in break continue
-true false nil
+true false None
+```
+
+## Null Value (v0.31)
+
+Frame v0.31 uses `None` as the single null value keyword, aligning with Python conventions:
+
+- **Standard**: `None` - The only keyword for null/undefined values
+- **Removed**: `null` and `nil` are no longer supported
+
+Example:
+```frame
+var x = None        // The only way to represent null values
+
+if value == None {  // Standard null comparison
+    print("Value is None")
+}
 ```
 
 ## Deprecated Features (v0.11 → v0.20)

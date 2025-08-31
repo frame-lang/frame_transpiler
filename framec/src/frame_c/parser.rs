@@ -8574,8 +8574,7 @@ impl<'a> Parser<'a> {
             TokenType::Number,
             TokenType::True,
             TokenType::False,
-            TokenType::Null,
-            TokenType::Nil,
+            TokenType::None_,
         ];
 
         for literal_tok in literal_tokens {

@@ -2987,8 +2987,7 @@ impl AstVisitor for JavaScriptVisitor {
             TokenType::String => self.add_code(&format!("\"{}\"", literal_expression_node.value)),
             TokenType::True => self.add_code("true"),
             TokenType::False => self.add_code("false"),
-            TokenType::Null => self.add_code("null"),
-            TokenType::Nil => self.add_code("null"),
+            TokenType::None_ => self.add_code("null"),  // JavaScript uses null
             _ => panic!("TODO"),
         }
     }
@@ -3012,11 +3011,8 @@ impl AstVisitor for JavaScriptVisitor {
             TokenType::False => {
                 output.push_str("false");
             }
-            TokenType::Nil => {
-                output.push_str("null");
-            }
-            TokenType::Null => {
-                output.push_str("null");
+            TokenType::None_ => {
+                output.push_str("null");  // JavaScript uses null
             }
             TokenType::SuperString => {
                 output.push_str(&literal_expression_node.value.to_string());

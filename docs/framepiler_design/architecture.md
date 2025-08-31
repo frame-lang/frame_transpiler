@@ -46,6 +46,7 @@ FrameModule (Top-Level)
 - New tokens added to `TokenType` enum
 - Use `peek()` and `peek_next()` for lookahead
 - **v0.31**: Added Import, From, As tokens for native import support
+- **v0.31**: Added None_ token, removed Null and Nil tokens
 
 ### Parser (parser.rs)
 - Event handler parsing in `event_handler()` method
@@ -97,6 +98,11 @@ FrameModule (Top-Level)
 - Standalone self: `jsonpickle.encode(self)`
 - Dotted access: `self.variable`, `self.method()`
 - Static method validation prevents self usage
+
+### Null Value Standardization (v0.31)
+- `None` is the only null keyword
+- `null` and `nil` removed from language
+- All target languages map None appropriately
 
 ### Static Method Validation (v0.31)
 - Parse-time validation for @staticmethod operations
