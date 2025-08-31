@@ -4,7 +4,7 @@
 
 The Frame transpiler (v0.31) converts Frame language source files (.frm) to target languages (Python, C#, JavaScript, etc.).
 
-**Current Status**: 100% test success rate (153/153 tests passing)
+**Current Status**: 100% test success rate (156/156 tests passing)
 
 ## Compilation Pipeline
 
@@ -54,6 +54,8 @@ FrameModule (Top-Level)
 - **v0.30**: Multi-entity parsing with smart fallback to syntactic mode
 - **v0.31**: Import statement parsing with dotted module names
 - **v0.31**: Static method validation (prevents self usage in @staticmethod)
+- **v0.31**: System.return parsing as special variable for interface returns
+- **v0.31**: Default return value parsing (`: type = value`) for all contexts
 
 ### AST (ast.rs)
 - All syntax tree node definitions
@@ -61,6 +63,7 @@ FrameModule (Top-Level)
 - **v0.30**: FrameModule container with peer Functions[] and Systems[]
 - **v0.31**: ImportNode and ImportType for native imports
 - **v0.31**: Self expression support (standalone and dotted)
+- **v0.31**: return_init_expr_opt for default return values in all contexts
 
 ### Symbol Table (symbol_table.rs)
 - **v0.30**: System-scoped state resolution
@@ -74,6 +77,8 @@ FrameModule (Top-Level)
 - **v0.30**: Fixed FrameCompartment generation bug
 - **v0.31**: Import statement code generation
 - **v0.31**: Operations only static when @staticmethod attributed
+- **v0.31**: System.return generates as return_stack mechanism
+- **v0.31**: Event handler default values override interface defaults
 
 ## v0.31 Language Features
 
@@ -93,6 +98,14 @@ FrameModule (Top-Level)
 - Parse-time validation for @staticmethod operations
 - Clear error messages for invalid self usage
 - Operations are instance methods by default
+
+### System Return Semantics (v0.31)
+- Interface methods can specify default return values: `getValue(): int = 42`
+- Event handlers can override defaults: `getValue(): int = 99 {`
+- `system.return` special variable sets interface return values from anywhere
+- Actions can set system.return while returning different values to caller
+- Operations cannot use system.return (enforced at parse time)
+- Return stack mechanism preserves values through call chains
 
 ## v0.30 Multi-Entity Features
 

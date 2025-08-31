@@ -1674,9 +1674,35 @@ impl<'a> Parser<'a> {
                 Ok(type_node) => return_type_opt = Some(type_node),
                 Err(parse_error) => return Err(parse_error),
             }
+            
+            // Parse default return value: = value (with type)
+            if self.match_token(&[TokenType::Equals]) {
+                let return_expr_result = self.expression();
+                match return_expr_result {
+                    Ok(Some(expr_type)) => {
+                        return_init_expr_opt = Some(expr_type);
+                    }
+                    Ok(None) => {}
+                    Err(err) => {
+                        return Err(err);
+                    }
+                }
+            }
+        } else if self.match_token(&[TokenType::Equals]) {
+            // Parse default return value: = value (without type, type inferred)
+            let return_expr_result = self.expression();
+            match return_expr_result {
+                Ok(Some(expr_type)) => {
+                    return_init_expr_opt = Some(expr_type);
+                }
+                Ok(None) => {}
+                Err(err) => {
+                    return Err(err);
+                }
+            }
         }
 
-        // Parse initializer expression group ^("foo")
+        // Parse initializer expression group ^("foo") - DEPRECATED but still supported
         if self.match_token(&[TokenType::Caret]) {
             if let Err(parse_error) = self.consume(TokenType::LParen, "Expected '('.") {
                 return Err(parse_error);
@@ -2448,12 +2474,27 @@ impl<'a> Parser<'a> {
         };
 
         let mut type_opt: Option<TypeNode> = None;
+        let mut default_return_expr_opt: Option<ExprType> = None;
 
         // foo(...) : type
         if self.match_token(&[TokenType::Colon]) {
             match self.type_decl() {
                 Ok(type_node) => type_opt = Some(type_node),
                 Err(parse_error) => return Err(parse_error),
+            }
+            
+            // Parse default return value: = value
+            if self.match_token(&[TokenType::Equals]) {
+                let return_expr_result = self.expression();
+                match return_expr_result {
+                    Ok(Some(expr_type)) => {
+                        default_return_expr_opt = Some(expr_type);
+                    }
+                    Ok(None) => {}
+                    Err(err) => {
+                        return Err(err);
+                    }
+                }
             }
         }
 
@@ -2758,12 +2799,27 @@ impl<'a> Parser<'a> {
         };
 
         let mut type_opt: Option<TypeNode> = None;
+        let mut default_return_expr_opt: Option<ExprType> = None;
 
         // foo(...) : type
         if self.match_token(&[TokenType::Colon]) {
             match self.type_decl() {
                 Ok(type_node) => type_opt = Some(type_node),
                 Err(parse_error) => return Err(parse_error),
+            }
+            
+            // Parse default return value: = value
+            if self.match_token(&[TokenType::Equals]) {
+                let return_expr_result = self.expression();
+                match return_expr_result {
+                    Ok(Some(expr_type)) => {
+                        default_return_expr_opt = Some(expr_type);
+                    }
+                    Ok(None) => {}
+                    Err(err) => {
+                        return Err(err);
+                    }
+                }
             }
         }
 
@@ -4113,35 +4169,27 @@ impl<'a> Parser<'a> {
                     self.arcanum.get_event(&*msg, &self.state_name_opt).unwrap();
                 event_symbol_rcref.borrow_mut().ret_type_opt = return_type_opt;
             } else {
-                let event_symbol_rcref =
-                    self.arcanum.get_event(&*msg, &self.state_name_opt).unwrap();
-                let symbol_rettype_node_opt = &event_symbol_rcref.borrow().ret_type_opt;
-                if symbol_rettype_node_opt.is_none() != return_type_opt.is_none() {
-                    self.error_at_current(&format!(
-                        "Event handler {} return type does not match a previous declaration.",
-                        msg
-                    ));
-                } else {
-                    let symbol_return_type = symbol_rettype_node_opt.as_ref().unwrap();
-                    let event_handler_return_type = return_type_opt.as_ref().unwrap();
-                    if symbol_return_type != event_handler_return_type {
-                        self.error_at_previous(&format!(
-                            "Event handler {} return type does not match a previous declaration.",
-                            msg
-                        ));
-                    }
-                }
+                // Event handlers can have their own return type declarations for overriding
+                // the default system.return value, so we don't need to match interface types
+                // Just store the return type for the event handler
             }
         } else {
-            // no declared return type
-            let event_symbol_rcref = self.arcanum.get_event(&*msg, &self.state_name_opt).unwrap();
-            let symbol_rettype_node_opt = &event_symbol_rcref.borrow().ret_type_opt;
-
-            if symbol_rettype_node_opt.is_some() {
-                self.error_at_current(&format!(
-                    "Event handler {} return type does not match a previous declaration.",
-                    msg
-                ));
+            // no declared return type - this is OK for event handlers
+            // Event handlers work with system.return, they don't need to match interface return types
+        }
+        
+        // Parse default return value for event handler: = value
+        let mut event_handler_return_init_expr_opt: Option<ExprType> = None;
+        if self.match_token(&[TokenType::Equals]) {
+            let return_expr_result = self.expression();
+            match return_expr_result {
+                Ok(Some(expr_type)) => {
+                    event_handler_return_init_expr_opt = Some(expr_type);
+                }
+                Ok(None) => {}
+                Err(err) => {
+                    return Err(err);
+                }
             }
         }
 
@@ -4264,6 +4312,7 @@ impl<'a> Parser<'a> {
             ret_event_symbol_rcref,
             self.event_handler_has_transition,
             line_number,
+            event_handler_return_init_expr_opt,
         )))
     }
 
@@ -9485,6 +9534,19 @@ impl<'a> Parser<'a> {
         if name_opt.is_some() {
             // this is a variable so update value
             let l_value_name = name_opt.unwrap();
+            
+            // Special case for system.return
+            if l_value_name == "system.return" {
+                // Check if we're in a context where system.return is allowed
+                if self.operation_scope_depth > 0 && self.is_static_operation {
+                    let err_msg = "Operations marked with @staticmethod cannot use system.return";
+                    self.error_at_previous(&err_msg);
+                    return Err(ParseError::new(err_msg));
+                }
+                // system.return is valid, just return Ok
+                return Ok(());
+            }
+            
             let symbol_t_opt = self
                 .arcanum
                 .lookup(l_value_name.as_str(), &IdentifierDeclScope::UnknownScope);
@@ -9706,11 +9768,36 @@ impl<'a> Parser<'a> {
         }
     }
     
-    /// Parse system.method() syntax for interface calls
+    /// Parse system.method() syntax for interface calls or system.return
     fn parse_system_interface_call(&mut self) -> Result<Option<ExprType>, ParseError> {
         // We've already consumed 'system.'
+        
+        // Check for system.return special case
+        if self.match_token(&[TokenType::Return_]) {
+            // This is system.return - create a special variable node for it
+            // We'll use a special identifier name "system.return" that the visitor can recognize
+            let mut return_token = self.previous().clone();
+            let line_number = return_token.line;
+            return_token.lexeme = "system.return".to_string();  // Set special identifier name
+            
+            let system_return_node = VariableNode::new(
+                IdentifierNode::new(
+                    return_token,
+                    None,
+                    IdentifierDeclScope::UnknownScope,  // Special scope for system.return
+                    false,
+                    line_number,
+                ),
+                IdentifierDeclScope::UnknownScope,
+                None,
+            );
+            return Ok(Some(ExprType::VariableExprT { 
+                var_node: system_return_node 
+            }));
+        }
+        
         if !self.match_token(&[TokenType::Identifier]) {
-            let err_msg = "Expected interface method name after 'system.'";
+            let err_msg = "Expected interface method name or 'return' after 'system.'";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }

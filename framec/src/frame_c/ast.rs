@@ -1208,6 +1208,7 @@ pub struct EventHandlerNode {
     // top of the event handler.
     pub event_handler_has_transition: bool,
     pub line: usize,
+    pub return_init_expr_opt: Option<ExprType>,  // Default return value for event handler
 }
 
 impl EventHandlerNode {
@@ -1220,6 +1221,7 @@ impl EventHandlerNode {
         event_symbol_rcref: Rc<RefCell<EventSymbol>>,
         event_handler_has_transition: bool,
         line: usize,
+        return_init_expr_opt: Option<ExprType>,
     ) -> EventHandlerNode {
         EventHandlerNode {
             //  event_handler_type,
@@ -1230,6 +1232,7 @@ impl EventHandlerNode {
             event_symbol_rcref,
             event_handler_has_transition,
             line,
+            return_init_expr_opt,
         }
     }
 

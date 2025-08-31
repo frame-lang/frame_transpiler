@@ -622,7 +622,12 @@ impl PythonVisitor {
             }
             IdentifierDeclScope::UnknownScope => {
                 // TODO: Explore labeling Variables as "extern" scope
-                code.push_str(&variable_node.id_node.name.lexeme.to_string());
+                // Handle system.return special case
+                if variable_node.id_node.name.lexeme == "system.return" {
+                    code.push_str("self.return_stack[-1]");
+                } else {
+                    code.push_str(&variable_node.id_node.name.lexeme.to_string());
+                }
             } // Actions?
             _ => self.errors.push("Illegal scope.".to_string()),
         }
@@ -4375,6 +4380,14 @@ impl AstVisitor for PythonVisitor {
             _ => {}
         }
 
+        // If event handler has a default return value, override the interface default
+        if let Some(return_init_expr) = &evt_handler_node.return_init_expr_opt {
+            self.newline();
+            let mut output = String::new();
+            return_init_expr.accept_to_string(self, &mut output);
+            self.add_code(&format!("self.return_stack[-1] = {}", output));
+        }
+
         // Generate statements
         self.event_handler_has_code = !evt_handler_node.statements.is_empty();
         if self.event_handler_has_code {
@@ -6619,8 +6632,11 @@ impl AstVisitor for PythonVisitor {
     fn visit_identifier_node(&mut self, identifier_node: &IdentifierNode) {
         let name = &identifier_node.name.lexeme;
         
-        // Frame v0.31: Handle system.method calls - convert to self.method
-        if name.starts_with("system.") {
+        // Frame v0.31: Handle system.return - convert to return stack
+        if name == "system.return" {
+            self.add_code("self.return_stack[-1]");
+        } else if name.starts_with("system.") {
+            // Handle other system.method calls - convert to self.method
             let method_name = &name[7..]; // Remove 'system.' prefix  
             self.add_code(&format!("self.{}", method_name));
         } else {

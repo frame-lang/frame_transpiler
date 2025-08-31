@@ -303,8 +303,10 @@ fn main() {
 
 ```bnf
 interface_block: 'interface:' interface_method*
-interface_method: IDENTIFIER '(' parameter_list? ')' type?
+interface_method: IDENTIFIER '(' parameter_list? ')' (type ('=' expr)?)?
 ```
+
+**v0.31 Default Return Values**: Interface methods can specify default return values using the syntax `: type = value`. This value is returned unless overridden by event handlers or system.return assignments.
 
 ## Machine Block
 
@@ -312,7 +314,7 @@ interface_method: IDENTIFIER '(' parameter_list? ')' type?
 machine_block: 'machine:' state*
 state: '$' IDENTIFIER ('=>' '$' IDENTIFIER)? '{' event_handler* state_var* '}'
 event_handler: event_selector '{' stmt* terminator? '}'
-event_selector: IDENTIFIER '(' parameter_list? ')' type?
+event_selector: IDENTIFIER '(' parameter_list? ')' (type ('=' expr)?)?
                | '$>' '(' parameter_list? ')'  // Enter handler
                | '<$' '(' parameter_list? ')'  // Exit handler
 terminator: 'return' expr?
@@ -334,9 +336,11 @@ domain_var: 'var' IDENTIFIER type? '=' expr
 
 ```bnf
 operations_block: 'operations:' operation*
-operation: attribute* IDENTIFIER '(' parameter_list? ')' type? '{' stmt* '}'
+operation: attribute* IDENTIFIER '(' parameter_list? ')' (type ('=' expr)?)? '{' stmt* '}'
 attribute: '@' IDENTIFIER  // Python-style attributes (e.g., @staticmethod)
 ```
+
+**v0.31 System Return Restriction**: Operations cannot use `system.return` as they may be called from contexts without an interface (e.g., directly from outside or from functions). This is enforced at parse time.
 
 **v0.30 Implementation Note**: Operations and actions are resolved at code generation time through symbol table lookup. Calls to operations generate with `self.` prefix for instance methods, while static operations use `ClassName.method()` syntax. Actions automatically receive the `_do` suffix in generated code.
 
@@ -499,12 +503,14 @@ else {
 ### Action Grammar
 ```bnf
 actions_block: 'actions:' action*
-action: IDENTIFIER '(' parameter_list? ')' type? action_body
+action: IDENTIFIER '(' parameter_list? ')' (type ('=' expr)?)? action_body
 action_body: '{' stmt* '}'
 parameter_list: parameter (',' parameter)*
 parameter: IDENTIFIER type?
 type: ':' IDENTIFIER
 ```
+
+**v0.31 Default Values**: Actions can specify default return values for their return to the caller (not system.return). Actions can set system.return explicitly.
 
 ### Design Decisions
 
@@ -1089,39 +1095,54 @@ closeModal() {
 - Enter/exit event handling with stack operations
 - Complex state context preservation
 
-### Interface Return Assignment
+### System Return Assignment (v0.31)
 
-Frame v0.20 introduces the `return = expr` syntax for setting interface return values anywhere within event handlers or action methods:
+Frame v0.31 introduces the `system.return` special variable for setting interface return values anywhere within event handlers or action methods:
 
 ```frame
-// Setting interface return values in event handlers
+// Setting interface return values with system.return
+interface:
+    validateInput(data: string): bool = false  // Default return value
+
 machine:
     $ProcessingState {
-        validateInput(data: string): bool {
+        validateInput(data: string) {  // Can override with : bool = true
             if data == "" {
-                return = false  // Set interface return value
-                return          // Exit event handler  
+                system.return = false  // Set interface return value
+                return                 // Exit event handler  
             }
             
             if checkFormat(data) {
-                return = true   // Set interface return value
-                return          // Exit event handler
+                system.return = true   // Set interface return value
+                return                 // Exit event handler
             }
             
-            return = false      // Default case
+            system.return = false      // Default case
             return
         }
     }
 
-// Setting interface return values in action methods
+// Event handler default overrides interface default
+machine:
+    $Start {
+        getStatus(): int = 99 {  // Override interface default
+            // Implicit system.return = 99 on entry
+            if someCondition {
+                system.return = 200  // Further override
+            }
+            return
+        }
+    }
+
+// Actions can also set system.return
 actions:
     processData(input: string): string {
         if input == "error" {
-            return = "failed"   // Set interface return value
+            system.return = "failed"   // Set interface return value
             return "internal"   // Return value to caller (action method)
         }
         
-        return = "success"      // Set interface return value
+        system.return = "success"      // Set interface return value
         return input            // Return value to caller (action method)
     }
 ```
