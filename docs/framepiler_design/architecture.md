@@ -4,7 +4,7 @@
 
 The Frame transpiler (v0.31) converts Frame language source files (.frm) to target languages (Python, C#, JavaScript, etc.).
 
-**Current Status**: 100% test success rate (156/156 tests passing)
+**Current Status**: 100% test success rate (158/158 tests passing)
 
 ## Compilation Pipeline
 
@@ -56,6 +56,7 @@ FrameModule (Top-Level)
 - **v0.31**: Static method validation (prevents self usage in @staticmethod)
 - **v0.31**: System.return parsing as special variable for interface returns
 - **v0.31**: Default return value parsing (`: type = value`) for all contexts
+- **v0.31**: Scope context checking prevents ActionCallExprNode in function scope
 
 ### AST (ast.rs)
 - All syntax tree node definitions
@@ -69,6 +70,9 @@ FrameModule (Top-Level)
 - **v0.30**: System-scoped state resolution
 - Arcanum provides system.get_state() pattern
 - Proper isolation between multiple systems
+- **v0.31**: LEGB scope resolution with legb_lookup() method
+- **v0.31**: ScopeContext enum tracks parsing context (Global/Function/System)
+- **v0.31**: is_symbol_accessible() enforces scope isolation rules
 
 ### Visitors (visitors/)
 - Each target language has its own visitor

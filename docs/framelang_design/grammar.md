@@ -1,5 +1,8 @@
 # Frame Language Grammar (v0.31)
 
+**Last Updated**: 2025-08-31  
+**Status**: Complete with scope handling and system.return semantics
+
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
 ## Module Structure
@@ -11,6 +14,47 @@ module: (import_stmt | function | system)*
 **v0.31 Import Support**: Modules can now include native import statements at the top level, supporting Python module imports without requiring backticks.
 
 **v0.30 Multi-Entity Support**: Modules can contain any combination of functions and systems in any order. Each entity (function or system) can have individual attributes.
+
+## Scope Rules (v0.31)
+
+Frame implements LEGB (Local, Enclosing, Global, Built-in) scope resolution with strict isolation between functions and systems:
+
+### Scope Hierarchy
+1. **Local**: Current function/system scope, block variables
+2. **Enclosing**: Parent scopes up to module level
+3. **Global**: Module-level declarations (functions, systems)
+4. **Built-in**: Language built-ins (print, str, int, len)
+
+### Scope Isolation Rules
+- **Functions cannot access system internals**: Actions and operations are private to their system
+- **Systems cannot access other systems' internals**: Each system is fully encapsulated
+- **Module-level functions are globally accessible**: Can be called from any function or system
+- **Built-ins are universally accessible**: Available in all contexts
+
+### Example
+```frame
+fn moduleFunc() { return "global" }  // Module-level, accessible everywhere
+
+system SystemA {
+    actions:
+        privateAction() { }  // Only accessible within SystemA
+}
+
+system SystemB {
+    machine:
+        $Start {
+            test() {
+                moduleFunc()     // ✅ Can call module function
+                // privateAction()  // ❌ Cannot access SystemA's action
+            }
+        }
+}
+
+fn main() {
+    moduleFunc()         // ✅ Can call module function
+    // privateAction()      // ❌ Cannot access system action
+}
+```
 
 ## Import Statements (v0.31)
 

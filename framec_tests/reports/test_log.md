@@ -2,14 +2,14 @@
 
 **Last Run**: 2025-08-31  
 **Branch**: v0.31  
-**Total Tests**: 156  
-**Passed**: 156  
+**Total Tests**: 158  
+**Passed**: 158  
 **Failed**: 0  
 **Success Rate**: 100%
 
 ## Test Summary
 
-### ✅ All Tests Passing (156/156)
+### ✅ All Tests Passing (158/158)
 - Core functionality: All passing
 - Scope & LEGB resolution: All passing
 - Enums: All passing
@@ -26,8 +26,14 @@
 - Self expression tests: All passing
 - Domain variable tests: All passing
 - **System.return tests**: 3/3 ALL PASSING ✅
+- **Scope isolation tests**: 2/2 ALL PASSING ✅
 
 ## Recent Changes
+- **2025-08-31**: Completed scope handling implementation
+  - ✅ Added test_scope_isolation.frm and test_legb_resolution.frm
+  - ✅ Fixed parser to prevent ActionCallExprNode in function scope
+  - ✅ Implemented full LEGB scope resolution
+  - ✅ Fixed string concatenation issues in system.return tests
 - **2025-08-31**: Added complete system.return functionality
   - ✅ Implemented interface default return values
   - ✅ Added system.return as special variable for setting interface returns

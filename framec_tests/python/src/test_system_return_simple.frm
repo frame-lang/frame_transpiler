@@ -16,12 +16,12 @@ system SimpleReturn {
 fn main() {
     var sr = SimpleReturn()
     var result = sr.getValue()
-    print("getValue result: " + result)
+    print("getValue result: " + str(result))
     
     // Expect 100 from system.return override
     if result == 100 {
         print("SUCCESS: system.return override works!")
     } else {
-        print("FAIL: Expected 100, got " + result)
+        print("FAIL: Expected 100, got " + str(result))
     }
 }

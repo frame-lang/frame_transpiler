@@ -42,10 +42,10 @@ system SystemReturnTest {
 fn main() {
     var tester = SystemReturnTest()
     var result = tester.getValue()
-    print("getValue result: " + result)
+    print("getValue result: " + str(result))
     
     var check_result = tester.check()
-    print("check result: " + check_result)
+    print("check result: " + str(check_result))
     
     tester.process()
     print("process completed")

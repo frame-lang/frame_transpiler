@@ -7813,75 +7813,90 @@ impl<'a> Parser<'a> {
                                 match action_decl_symbol_opt {
                                     Some(ads) => {
                                         eprintln!("DEBUG PARSER: Found action, processing...");
-                                        // first node is an action
-
-                                        let action_symbol_opt =
-                                            self.arcanum.lookup_action(&method_name);
-
-                                        match action_symbol_opt {
-                                            Some(action_scope_symbol_rcref) => {
-                                                // TODO - factor out arg/param validation into a utility function.
-                                                // validate args/params
-
-                                                let action_scope_symbol =
-                                                    action_scope_symbol_rcref.borrow();
-                                                let action_node_rcref = action_scope_symbol
-                                                    .ast_node_opt
-                                                    .as_ref()
-                                                    .unwrap();
-                                                let parameter_node_vec_opt =
-                                                    &action_node_rcref.borrow().params;
-                                                // check if difference in the existance of parameters
-                                                if (!parameter_node_vec_opt.is_none()
-                                                    && call_expr_node
-                                                        .call_expr_list
-                                                        .exprs_t
-                                                        .is_empty())
-                                                    || (parameter_node_vec_opt.is_none()
-                                                        && !call_expr_node
-                                                            .call_expr_list
-                                                            .exprs_t
-                                                            .is_empty())
-                                                {
-                                                    let err_msg = format!("Incorrect number of arguments for action '{}'.", method_name);
-                                                    self.error_at_previous(&err_msg);
-                                                    // let parse_error =
-                                                    //     ParseError::new(err_msg.as_str());
-                                                    // return Err(parse_error);
-                                                } else {
-                                                    // check parameter count equals argument count
-                                                    match &parameter_node_vec_opt {
-                                                        Some(symbol_params) => {
-                                                            if symbol_params.len()
-                                                                != call_expr_node
-                                                                    .call_expr_list
-                                                                    .exprs_t
-                                                                    .len()
-                                                            {
-                                                                let err_msg = format!("Number of arguments does not match parameters for action '{}'.", method_name);
-                                                                self.error_at_previous(&err_msg);
-                                                            }
-                                                        }
-                                                        None => {}
-                                                    }
-                                                }
-
-                                                let mut action_call_expr_node =
-                                                    ActionCallExprNode::new(call_expr_node);
-                                                action_call_expr_node
-                                                    .set_action_symbol(&Rc::clone(&ads));
-                                                call_chain.push_back(
-                                                    CallChainNodeType::ActionCallT {
-                                                        action_call_expr_node,
-                                                    },
-                                                );
-                                            }
-                                            None => {
-                                                // first node is not an action or interface call.
+                                        
+                                        // SCOPE CHECK: Functions cannot call actions
+                                        match self.arcanum.scope_context {
+                                            ScopeContext::Function(_) => {
+                                                // Functions cannot call actions - treat as undeclared call
+                                                eprintln!("DEBUG PARSER: In function scope, cannot call action '{}', treating as undeclared", method_name);
                                                 let call_t = CallChainNodeType::UndeclaredCallT {
                                                     call_node: call_expr_node,
                                                 };
                                                 call_chain.push_back(call_t);
+                                            }
+                                            _ => {
+                                                // In system or global context, can call actions
+                                                // first node is an action
+
+                                                let action_symbol_opt =
+                                                    self.arcanum.lookup_action(&method_name);
+
+                                                match action_symbol_opt {
+                                                    Some(action_scope_symbol_rcref) => {
+                                                        // TODO - factor out arg/param validation into a utility function.
+                                                        // validate args/params
+
+                                                        let action_scope_symbol =
+                                                            action_scope_symbol_rcref.borrow();
+                                                        let action_node_rcref = action_scope_symbol
+                                                            .ast_node_opt
+                                                            .as_ref()
+                                                            .unwrap();
+                                                        let parameter_node_vec_opt =
+                                                            &action_node_rcref.borrow().params;
+                                                        // check if difference in the existance of parameters
+                                                        if (!parameter_node_vec_opt.is_none()
+                                                            && call_expr_node
+                                                                .call_expr_list
+                                                                .exprs_t
+                                                                .is_empty())
+                                                            || (parameter_node_vec_opt.is_none()
+                                                                && !call_expr_node
+                                                                    .call_expr_list
+                                                                    .exprs_t
+                                                                    .is_empty())
+                                                        {
+                                                            let err_msg = format!("Incorrect number of arguments for action '{}'.", method_name);
+                                                            self.error_at_previous(&err_msg);
+                                                            // let parse_error =
+                                                            //     ParseError::new(err_msg.as_str());
+                                                            // return Err(parse_error);
+                                                        } else {
+                                                            // check parameter count equals argument count
+                                                            match &parameter_node_vec_opt {
+                                                                Some(symbol_params) => {
+                                                                    if symbol_params.len()
+                                                                        != call_expr_node
+                                                                            .call_expr_list
+                                                                            .exprs_t
+                                                                            .len()
+                                                                    {
+                                                                        let err_msg = format!("Number of arguments does not match parameters for action '{}'.", method_name);
+                                                                        self.error_at_previous(&err_msg);
+                                                                    }
+                                                                }
+                                                                None => {}
+                                                            }
+                                                        }
+
+                                                        let mut action_call_expr_node =
+                                                            ActionCallExprNode::new(call_expr_node);
+                                                        action_call_expr_node
+                                                            .set_action_symbol(&Rc::clone(&ads));
+                                                        call_chain.push_back(
+                                                            CallChainNodeType::ActionCallT {
+                                                                action_call_expr_node,
+                                                            },
+                                                        );
+                                                    }
+                                                    None => {
+                                                        // first node is not an action or interface call.
+                                                        let call_t = CallChainNodeType::UndeclaredCallT {
+                                                            call_node: call_expr_node,
+                                                        };
+                                                        call_chain.push_back(call_t);
+                                                    }
+                                                }
                                             }
                                         }
                                     }

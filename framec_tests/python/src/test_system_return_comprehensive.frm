@@ -52,38 +52,38 @@ fn main() {
     
     // Test 1: Interface default
     var result1 = tester.getDefault()
-    print("Test 1 - Interface default: " + result1)
+    print("Test 1 - Interface default: " + str(result1))
     if result1 == 42 {
         print("  PASS: Got interface default 42")
     } else {
-        print("  FAIL: Expected 42, got " + result1)
+        print("  FAIL: Expected 42, got " + str(result1))
     }
     
     // Test 2: Handler override
     var result2 = tester.getOverride()
-    print("Test 2 - Handler override: " + result2)
+    print("Test 2 - Handler override: " + str(result2))
     if result2 == 99 {
         print("  PASS: Got handler override 99")
     } else {
-        print("  FAIL: Expected 99, got " + result2)
+        print("  FAIL: Expected 99, got " + str(result2))
     }
     
     // Test 3: Action sets return
     var result3 = tester.getFromAction()
-    print("Test 3 - Action sets return: " + result3)
+    print("Test 3 - Action sets return: " + str(result3))
     if result3 == "from_action" {
         print("  PASS: Got action value 'from_action'")
     } else {
-        print("  FAIL: Expected 'from_action', got " + result3)
+        print("  FAIL: Expected 'from_action', got " + str(result3))
     }
     
     // Test 4: No default
     var result4 = tester.getNoDefault()
-    print("Test 4 - No default: " + result4)
+    print("Test 4 - No default: " + str(result4))
     if result4 == null {
         print("  PASS: Got null/None as expected")
     } else {
-        print("  FAIL: Expected null/None, got " + result4)
+        print("  FAIL: Expected null/None, got " + str(result4))
     }
     
     print("\n=== Test Summary ===")
