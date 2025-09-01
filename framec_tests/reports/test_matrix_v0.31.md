@@ -1,6 +1,6 @@
 # Frame v0.31 Test Matrix
 
-**Generated**: 2025-08-31 16:03  
+**Generated**: 2025-09-01 05:48  
 **Total Tests**: 165  
 **Current Branch**: v0.31  
 
@@ -9,9 +9,9 @@
 | Metric | Count | Percentage |
 |--------|-------|------------|
 | **Total Tests** | 165 | 100% |
-| **Transpilation Success** | 162 | 98.2% |
-| **Execution Success** | 161 | 97.6% |
-| **Complete Success** | 161 | 97.6% |
+| **Transpilation Success** | 163 | 98.8% |
+| **Execution Success** | 162 | 98.2% |
+| **Complete Success** | 162 | 98.2% |
 
 ## v0.31 Features
 
@@ -24,12 +24,8 @@
 
 | Test File | Transpile | Execute | Error |
 |-----------|-----------|---------|-------|
-| test_domain_assignment.frm | ❌ | ❌ | DEBUG: Starting first pass - building symbol table
-DEBUG: Created syntactic parser with is_building_symbol_table=true
-DEBUG: Building symbol table for function: main
-DEBUG: Entering function scope for |
-| test_module_var_access.frm | ✅ | ❌ | Traceback (most recent call last):
-  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_module_var_access.py", line 99, in <module>
+| test_self_domain_vars.frm | ✅ | ❌ | Traceback (most recent call last):
+  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_self_domain_vars.py", line 104, in <module>
     main()
     ~~~~^^
   File "/Users/ma |
@@ -61,7 +57,7 @@ DEBUG: Entering function scope for |
 | test_correct_transition.frm | ✅ | ✅ | ✅ PASS |
 | test_debug.frm | ✅ | ✅ | ✅ PASS |
 | test_debug_nil.frm | ✅ | ✅ | ✅ PASS |
-| test_domain_assignment.frm | ❌ | ❌ | ❌ FAIL |
+| test_domain_assignment.frm | ✅ | ✅ | ✅ PASS |
 | test_domain_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_domain_type_debug.frm | ✅ | ✅ | ✅ PASS |
 | test_elif_with_return.frm | ✅ | ✅ | ✅ PASS |
@@ -121,7 +117,7 @@ DEBUG: Entering function scope for |
 | test_module_scope_comprehensive.frm | ✅ | ✅ | ✅ PASS |
 | test_module_scope_variables.frm | ✅ | ✅ | ✅ PASS |
 | test_module_system.frm | ✅ | ✅ | ✅ PASS |
-| test_module_var_access.frm | ✅ | ❌ | ❌ FAIL |
+| test_module_var_access.frm | ✅ | ✅ | ✅ PASS |
 | test_module_var_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_multi_entity_demo.frm | ✅ | ✅ | ✅ PASS |
 | test_multi_entity_scopes.frm | ✅ | ✅ | ✅ PASS |
@@ -150,7 +146,7 @@ DEBUG: Entering function scope for |
 | test_seat_booking_workflow.frm | ✅ | ✅ | ✅ PASS |
 | test_self_call.frm | ✅ | ✅ | ✅ PASS |
 | test_self_call_debug.frm | ✅ | ✅ | ✅ PASS |
-| test_self_domain_vars.frm | ✅ | ✅ | ✅ PASS |
+| test_self_domain_vars.frm | ✅ | ❌ | ❌ FAIL |
 | test_simple_call.frm | ✅ | ✅ | ✅ PASS |
 | test_simple_call_chain_debug.frm | ✅ | ✅ | ✅ PASS |
 | test_simple_condition.frm | ✅ | ✅ | ✅ PASS |

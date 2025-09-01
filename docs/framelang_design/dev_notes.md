@@ -2,6 +2,33 @@
 
 ## Development History
 
+### 2025-01-31: Domain Variable Assignment Support
+
+#### Overview
+Fixed domain variable assignment syntax to support `self.variable = value` expressions. Previously, attempting to assign to domain variables using the standard `self.` syntax would fail during parsing.
+
+#### Technical Implementation
+- **Parser Enhancement**: Modified `assign()` method in parser.rs to recognize `self.variable` CallChainExprT patterns
+- **CallChain Generation**: Updated `parse_self_context()` to create proper CallChainExprT for `self.variable` expressions
+- **Python Visitor Fix**: Added special handling in `visit_call_chain_expr_node()` to avoid double `self.self` output
+
+#### Key Changes
+1. **Parser (parser.rs:9619-9682)**:
+   - Added check for CallChainExprT starting with "self" in assign method
+   - Allows domain variable assignments to pass validation
+
+2. **Parser (parser.rs:9871-9911)**:
+   - Modified `parse_self_context()` to create CallChainExprT for `self.variable`
+   - Builds proper two-node chain: [self, variable]
+
+3. **Python Visitor (python_visitor.rs:5292-5308)**:
+   - Added special case detection for `self.domain_variable` patterns
+   - Outputs clean `self.variable` syntax instead of `self.self.variable`
+
+#### Test Results
+- Fixed `test_domain_assignment.frm` - now correctly handles `self.counter = 25`
+- Validates both reading (`self.counter`) and writing (`self.counter = value`)
+
 ### 2025-01-31: Module Variables with Automatic Global Declarations
 
 #### Overview

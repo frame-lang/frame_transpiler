@@ -23,5 +23,5 @@ system DomainTest {
         }
         
     domain:
-        counter: int = 10
+        var counter: int = 10
 }

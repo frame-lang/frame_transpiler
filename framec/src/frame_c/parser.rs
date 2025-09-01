@@ -9621,6 +9621,21 @@ impl<'a> Parser<'a> {
         l_value: &mut ExprType,
         r_value_rc: Rc<ExprType>,
     ) -> Result<(), ParseError> {
+        // Check if this is a self.variable assignment (domain variable)
+        if let ExprType::CallChainExprT { call_chain_expr_node } = l_value {
+            if call_chain_expr_node.call_chain.len() >= 2 {
+                // Check if first element is "self"
+                if let Some(CallChainNodeType::VariableNodeT { var_node }) = 
+                    call_chain_expr_node.call_chain.get(0) {
+                    if var_node.id_node.name.lexeme == "self" {
+                        // This is a self.variable assignment - allow it
+                        // Domain variable assignments are handled by the code generator
+                        return Ok(());
+                    }
+                }
+            }
+        }
+        
         // Now get the variable and assign new value
         // let debug_expr_name = l_value.expr_type_name();
         let name_opt = l_value.get_name();
@@ -9849,15 +9864,46 @@ impl<'a> Parser<'a> {
             
             return Ok(Some(ExprType::CallExprT { call_expr_node: call_expr }));
         } else {
-            // self.variable - create variable node with is_self = true
-            let var_node = VariableNode::new_with_self(
-                id_node,
-                IdentifierDeclScope::DomainBlockScope,
-                None,  // Symbol will be resolved later
-                true,  // is_self = true
+            // self.variable - create a CallChainExprT to represent self.variable access
+            // This is needed so that assignments can recognize self.variable patterns
+            
+            // First create the 'self' node
+            let self_token = Token {
+                token_type: TokenType::Self_,
+                lexeme: "self".to_string(),
+                literal: TokenLiteral::None,
+                line: identifier_token.line,
+                start: identifier_token.start - 5,  // Adjust for "self."
+                length: 4,
+            };
+            let self_id_node = IdentifierNode::new(
+                self_token,
+                None,
+                IdentifierDeclScope::SystemScope,
+                false,
+                identifier_token.line,
+            );
+            let self_var_node = VariableNode::new(
+                self_id_node,
+                IdentifierDeclScope::SystemScope,
+                None,
             );
             
-            return Ok(Some(ExprType::VariableExprT { var_node }));
+            // Then create the variable node
+            let var_node = VariableNode::new(
+                id_node,
+                IdentifierDeclScope::DomainBlockScope,
+                None,
+            );
+            
+            // Build the call chain
+            let mut call_chain = VecDeque::new();
+            call_chain.push_back(CallChainNodeType::VariableNodeT { var_node: self_var_node });
+            call_chain.push_back(CallChainNodeType::VariableNodeT { var_node });
+            
+            let call_chain_expr_node = CallChainExprNode::new(call_chain);
+            
+            return Ok(Some(ExprType::CallChainExprT { call_chain_expr_node }));
         }
     }
     

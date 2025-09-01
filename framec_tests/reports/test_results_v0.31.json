@@ -1,12 +1,12 @@
 {
-  "timestamp": "2025-08-31T16:03:14.402913",
+  "timestamp": "2025-09-01T05:48:25.032847",
   "version": "v0.31",
   "summary": {
     "total": 165,
-    "transpile_success": 162,
-    "execute_success": 161,
-    "complete_success": 161,
-    "success_rate": "97.6%"
+    "transpile_success": 163,
+    "execute_success": 162,
+    "complete_success": 162,
+    "success_rate": "98.2%"
   },
   "results": [
     {
@@ -116,9 +116,10 @@
     },
     {
       "file": "test_domain_assignment.frm",
-      "transpile": false,
-      "execute": false,
-      "error": "DEBUG: Starting first pass - building symbol table\nDEBUG: Created syntactic parser with is_building_symbol_table=true\nDEBUG: Building symbol table for function: main\nDEBUG: Entering function scope for"
+      "transpile": true,
+      "execute": true,
+      "output": "Initial counter: 10\nUpdated counter: 25\n",
+      "error": null
     },
     {
       "file": "test_domain_simple.frm",
@@ -159,7 +160,7 @@
       "file": "test_enums.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
@@ -187,14 +188,14 @@
       "file": "test_enums_doc_grocery_demo.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
       "file": "test_enums_doc_grocery_full.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
@@ -536,9 +537,9 @@
     {
       "file": "test_module_var_access.frm",
       "transpile": true,
-      "execute": false,
-      "output": "In main function:\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_module_var_access.py\", line 99, in <module>\n    main()\n    ~~~~^^\n  File \"/Users/ma"
+      "execute": true,
+      "output": "In main function:\nI am at module level\nLocal variable:\nI am local\nModule variable again:\nI am at module level\nIn test_function:\nI am at module level\n",
+      "error": null
     },
     {
       "file": "test_module_var_simple.frm",
@@ -739,9 +740,9 @@
     {
       "file": "test_self_domain_vars.frm",
       "transpile": true,
-      "execute": true,
-      "output": "Count is: 10\nCount after increment: 11\nDoubled: 22\nMessage: Hello from self\n",
-      "error": null
+      "execute": false,
+      "output": "Count is: 10\nCount after increment: 11\n",
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_self_domain_vars.py\", line 104, in <module>\n    main()\n    ~~~~^^\n  File \"/Users/ma"
     },
     {
       "file": "test_simple_call.frm",

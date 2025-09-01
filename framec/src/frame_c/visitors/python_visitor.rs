@@ -5289,6 +5289,24 @@ impl AstVisitor for PythonVisitor {
     fn visit_call_chain_expr_node(&mut self, call_l_chain_expression_node: &CallChainExprNode) {
         self.debug_enter(&format!("visit_call_chain_expr_node({} nodes)", call_l_chain_expression_node.call_chain.len()));
         
+        // Special handling for self.domain_variable patterns
+        // Check if this is a 2-node chain starting with "self"
+        let is_self_domain_access = call_l_chain_expression_node.call_chain.len() == 2 &&
+            matches!(call_l_chain_expression_node.call_chain.get(0), 
+                Some(CallChainNodeType::VariableNodeT { var_node }) 
+                    if var_node.id_node.name.lexeme == "self");
+        
+        if is_self_domain_access {
+            // This is self.domain_variable - just output "self.variable"
+            if let Some(CallChainNodeType::VariableNodeT { var_node }) = 
+                call_l_chain_expression_node.call_chain.get(1) {
+                self.add_code("self.");
+                self.add_code(&var_node.id_node.name.lexeme);
+                self.debug_exit("visit_call_chain_expr_node (self.domain_var)");
+                return;
+            }
+        }
+        
         // Set flag to indicate we're processing within a call chain
         // Only set this for multi-node chains (single-node chains still need self. prefix)
         if call_l_chain_expression_node.call_chain.len() > 1 {

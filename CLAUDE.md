@@ -17,6 +17,21 @@ Frame is a state machine language that transpiles to multiple target languages. 
 - **DO NOT** create test files in the project root directory
 - All `.frm` test files must go in the framec_tests/python/src/ directory
 
+## Test Validation
+
+⚠️ **CRITICAL: ALWAYS USE THE OFFICIAL TEST RUNNER - NEVER CREATE ONE-OFF VALIDATION SCRIPTS** ⚠️
+
+**Use the existing test runner at:** `framec_tests/runner/frame_test_runner.py`
+- DO NOT create custom validation scripts like `validate_all_tests.sh`
+- DO NOT write one-off test scripts
+- ALWAYS use the official runner for ALL test validation needs
+
+**Standard test validation command:**
+```bash
+cd framec_tests
+python3 runner/frame_test_runner.py --all --matrix --json --verbose
+```
+
 ## Current State
 
 **Branch**: `v0.30`  
