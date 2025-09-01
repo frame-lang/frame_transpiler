@@ -1,17 +1,17 @@
 # Frame v0.31 Test Matrix
 
-**Generated**: 2025-09-01 05:48  
-**Total Tests**: 165  
+**Generated**: 2025-09-01 07:39  
+**Total Tests**: 166  
 **Current Branch**: v0.31  
 
 ## Summary Statistics
 
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| **Total Tests** | 165 | 100% |
-| **Transpilation Success** | 163 | 98.8% |
-| **Execution Success** | 162 | 98.2% |
-| **Complete Success** | 162 | 98.2% |
+| **Total Tests** | 166 | 100% |
+| **Transpilation Success** | 166 | 100.0% |
+| **Execution Success** | 166 | 100.0% |
+| **Complete Success** | 166 | 100.0% |
 
 ## v0.31 Features
 
@@ -22,21 +22,7 @@
 
 ## Failed Tests
 
-| Test File | Transpile | Execute | Error |
-|-----------|-----------|---------|-------|
-| test_self_domain_vars.frm | ✅ | ❌ | Traceback (most recent call last):
-  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_self_domain_vars.py", line 104, in <module>
-    main()
-    ~~~~^^
-  File "/Users/ma |
-| test_static_calls.frm | ❌ | ❌ | DEBUG: Starting first pass - building symbol table
-DEBUG: Created syntactic parser with is_building_symbol_table=true
-DEBUG: Building symbol table for function: main
-DEBUG: Entering function scope for |
-| test_v031_comprehensive.frm | ❌ | ❌ | DEBUG: Starting first pass - building symbol table
-DEBUG: Created syntactic parser with is_building_symbol_table=true
-DEBUG: Building symbol table for function: main
-DEBUG: Entering function scope for |
+🎉 **All tests passing!**
 
 ## Test Details
 
@@ -146,7 +132,8 @@ DEBUG: Entering function scope for |
 | test_seat_booking_workflow.frm | ✅ | ✅ | ✅ PASS |
 | test_self_call.frm | ✅ | ✅ | ✅ PASS |
 | test_self_call_debug.frm | ✅ | ✅ | ✅ PASS |
-| test_self_domain_vars.frm | ✅ | ❌ | ❌ FAIL |
+| test_self_domain_vars.frm | ✅ | ✅ | ✅ PASS |
+| test_self_variable_exhaustive.frm | ✅ | ✅ | ✅ PASS |
 | test_simple_call.frm | ✅ | ✅ | ✅ PASS |
 | test_simple_call_chain_debug.frm | ✅ | ✅ | ✅ PASS |
 | test_simple_condition.frm | ✅ | ✅ | ✅ PASS |
@@ -171,7 +158,7 @@ DEBUG: Entering function scope for |
 | test_state_vars_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_state_vars_transition.frm | ✅ | ✅ | ✅ PASS |
 | test_states_simple.frm | ✅ | ✅ | ✅ PASS |
-| test_static_calls.frm | ❌ | ❌ | ❌ FAIL |
+| test_static_calls.frm | ✅ | ✅ | ✅ PASS |
 | test_static_operations.frm | ✅ | ✅ | ✅ PASS |
 | test_system_interface_calls.frm | ✅ | ✅ | ✅ PASS |
 | test_system_isolation.frm | ✅ | ✅ | ✅ PASS |
@@ -203,7 +190,7 @@ DEBUG: Entering function scope for |
 | test_v030_system_lifecycle_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_v030_system_with_functions.frm | ✅ | ✅ | ✅ PASS |
 | test_v030_three_systems.frm | ✅ | ✅ | ✅ PASS |
-| test_v031_comprehensive.frm | ❌ | ❌ | ❌ FAIL |
+| test_v031_comprehensive.frm | ✅ | ✅ | ✅ PASS |
 | test_validation_comprehensive.frm | ✅ | ✅ | ✅ PASS |
 | test_validation_with_main.frm | ✅ | ✅ | ✅ PASS |
 | test_your_example.frm | ✅ | ✅ | ✅ PASS |

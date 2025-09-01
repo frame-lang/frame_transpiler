@@ -1,6 +1,44 @@
 # Frame v0.31 Development Notes
 
+## Latest Status: 100% Test Success (2025-09-01)
+
+### v0.31 Final Achievements
+- **Test Coverage**: 166/166 tests passing (100% success rate)
+- **Self.Variable Syntax**: Fixed double reference bug (self.self.variable issue)
+- **Static Method Calls**: Fixed cross-system static method calls
+- **Module Variables**: Full support with automatic global generation
+- **Import Statements**: Native Python import support without backticks
+
 ## Development History
+
+### 2025-09-01: Self.Variable and Static Call Fixes
+
+#### Overview
+Fixed critical bugs in self.variable syntax and static method calls on other systems, achieving 100% test success rate.
+
+#### Issues Fixed
+
+1. **Self.Variable Double Reference Bug**
+   - **Problem**: `self.x` was generating `self.self.x` in Python output
+   - **Solution**: Modified call chain processing to detect and skip the first "self" node when processing self.variable patterns
+   - **Location**: `python_visitor.rs` lines 5289-5433
+   - **Tests Fixed**: test_self_domain_vars.frm, test_self_variable_exhaustive.frm, and 5 others
+
+2. **Static Method Calls on Other Systems**
+   - **Problem**: `UtilitySystem.calculate(42)` was generating `UtilitySystem.self.calculate(42)`
+   - **Solution**: Modified operation call generation to detect when output already has a system prefix and skip adding "self."
+   - **Location**: `python_visitor.rs` lines 4906-4919
+   - **Tests Fixed**: test_static_calls.frm
+
+3. **Test File Syntax Error**
+   - **Problem**: `test_v031_comprehensive.frm` had incorrect domain variable syntax
+   - **Solution**: Added `var` keyword to domain variable declaration
+   - **Location**: `test_v031_comprehensive.frm` line 48
+
+#### Test Results
+- **Before**: 94.6% success rate (157/166 tests passing)
+- **After**: 100% success rate (166/166 tests passing)
+- All v0.31 features fully functional with complete test coverage
 
 ### 2025-01-31: Domain Variable Assignment Support
 

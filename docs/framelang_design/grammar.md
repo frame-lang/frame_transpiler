@@ -1,7 +1,7 @@
 # Frame Language Grammar (v0.31)
 
-**Last Updated**: 2025-08-31  
-**Status**: Complete with scope handling and system.return semantics
+**Last Updated**: 2025-09-01  
+**Status**: Complete with module variables, self.variable syntax, and 100% test coverage
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -204,6 +204,59 @@ system Utils {
 }
 ```
 
+## Module Variables (v0.31)
+
+Module-level variables can be declared at the top level of a Frame module, making them accessible from all functions and systems in the module.
+
+```bnf
+module_var: 'var' IDENTIFIER type? '=' expr
+```
+
+### Module Variable Features
+
+- **Global Accessibility**: Module variables are accessible from any function or system in the module
+- **Automatic Global Declaration**: The transpiler automatically generates `global` declarations in Python when module variables are modified
+- **Shadowing Protection**: Local variables cannot shadow module variables (enforced at transpilation for Python target)
+- **Type Annotations**: Optional type annotations for better code clarity
+
+### Module Variable Examples
+
+```frame
+// Module-level variables
+var counter = 0
+var message: string = "Hello"
+var data = []
+
+fn increment() {
+    counter = counter + 1  // Automatic 'global counter' in Python
+    return counter
+}
+
+fn getMessage() {
+    return message  // Read access doesn't need global declaration
+}
+
+system DataCollector {
+    interface:
+        collect(value)
+    
+    machine:
+        $Start {
+            collect(value) {
+                data.append(value)  // Automatic 'global data' in Python
+                counter = counter + 1  // Automatic 'global counter' in Python
+                return
+            }
+        }
+}
+```
+
+### Implementation Notes
+
+- **Python Target**: The transpiler performs two-pass analysis to identify module variable modifications and automatically insert `global` declarations where needed
+- **Read vs Write**: Only modifications require global declarations; read-only access works without them
+- **Conditional Imports**: Import statements like `from enum import Enum` are only generated when actually used
+
 ## Systems
 
 ```bnf
@@ -375,6 +428,73 @@ state_var: 'var' IDENTIFIER type? '=' expr
 domain_block: 'domain:' domain_var*
 domain_var: 'var' IDENTIFIER type? '=' expr
 ```
+
+### Domain Variable Access (v0.31)
+
+Domain variables are accessed using the `self.variable` syntax, which clearly distinguishes them from local variables and parameters.
+
+```frame
+system Counter {
+    domain:
+        var count: int = 0
+        var message: string = "Count"
+    
+    interface:
+        increment()
+        getValue(): int
+    
+    machine:
+        $Start {
+            increment() {
+                // Using self.variable for domain access
+                self.count = self.count + 1
+                print(self.message + ": " + str(self.count))
+                return
+            }
+            
+            getValue(): int {
+                return = self.count  // self.variable in return assignment
+            }
+        }
+}
+```
+
+### Self.Variable Features (v0.31)
+
+- **Explicit Domain Access**: `self.` prefix required for all domain variable access
+- **Lvalue and Rvalue**: Works in both assignment targets and expressions
+- **Nested Expressions**: Fully supported in complex expressions
+- **Method Arguments**: Can be passed as arguments to methods
+- **All Contexts**: Works in operations, actions, and event handlers
+
+### Self.Variable Examples
+
+```frame
+system SelfVariableDemo {
+    domain:
+        var x: int = 0
+        var y: int = 0
+        var data = []
+    
+    operations:
+        process() {
+            // Lvalue assignment
+            self.x = 100
+            
+            // Rvalue in expression
+            var doubled = self.x * 2
+            
+            // Complex expressions
+            self.y = (self.x + 10) * 2
+            
+            // Method arguments
+            self.data.append(self.x)
+            print("Value: " + str(self.y))
+            
+            // Chained assignment
+            self.x = self.y = 50
+        }
+}
 
 ## Operations Block
 

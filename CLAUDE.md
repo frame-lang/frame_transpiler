@@ -34,8 +34,8 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose
 
 ## Current State
 
-**Branch**: `v0.30`  
-**Status**: ✅ **98.2% TEST SUCCESS RATE** (162/165 tests passing)
+**Branch**: `v0.31`  
+**Status**: ✅ **100% TEST SUCCESS RATE** (166/166 tests passing)
 
 📋 **For release notes and development status, see**: [`docs/framelang_design/dev_notes.md`](docs/framelang_design/dev_notes.md)
 📊 **For v0.30 achievements, see**: [`docs/v0.30_achievements.md`](docs/v0.30_achievements.md)

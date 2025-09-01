@@ -1,12 +1,12 @@
 {
-  "timestamp": "2025-09-01T05:48:25.032847",
+  "timestamp": "2025-09-01T07:39:42.151018",
   "version": "v0.31",
   "summary": {
-    "total": 165,
-    "transpile_success": 163,
-    "execute_success": 162,
-    "complete_success": 162,
-    "success_rate": "98.2%"
+    "total": 166,
+    "transpile_success": 166,
+    "execute_success": 166,
+    "complete_success": 166,
+    "success_rate": "100.0%"
   },
   "results": [
     {
@@ -160,7 +160,7 @@
       "file": "test_enums.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
@@ -188,14 +188,14 @@
       "file": "test_enums_doc_grocery_demo.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
       "file": "test_enums_doc_grocery_full.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
@@ -740,9 +740,16 @@
     {
       "file": "test_self_domain_vars.frm",
       "transpile": true,
-      "execute": false,
-      "output": "Count is: 10\nCount after increment: 11\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_self_domain_vars.py\", line 104, in <module>\n    main()\n    ~~~~^^\n  File \"/Users/ma"
+      "execute": true,
+      "output": "Count is: 10\nCount after increment: 11\nDoubled: 22\nMessage: Hello from self\n",
+      "error": null
+    },
+    {
+      "file": "test_self_variable_exhaustive.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== EXHAUSTIVE self.variable TESTS ===\n\n--- LVALUE TESTS ---\nL1: self.x = 100 -> 100\nL2: self.x = 50 + 25 -> 75\nL3: self.x = temp -> 200\nL4: self.x = self.y -> 300\nL5: self.x = self.y + 100 -> 400\nL6:",
+      "error": null
     },
     {
       "file": "test_simple_call.frm",
@@ -914,9 +921,10 @@
     },
     {
       "file": "test_static_calls.frm",
-      "transpile": false,
-      "execute": false,
-      "error": "DEBUG: Starting first pass - building symbol table\nDEBUG: Created syntactic parser with is_building_symbol_table=true\nDEBUG: Building symbol table for function: main\nDEBUG: Entering function scope for"
+      "transpile": true,
+      "execute": true,
+      "output": "Result: 84\nMessage: Formatted: Hello\n",
+      "error": null
     },
     {
       "file": "test_static_operations.frm",
@@ -1137,9 +1145,10 @@
     },
     {
       "file": "test_v031_comprehensive.frm",
-      "transpile": false,
-      "execute": false,
-      "error": "DEBUG: Starting first pass - building symbol table\nDEBUG: Created syntactic parser with is_building_symbol_table=true\nDEBUG: Building symbol table for function: main\nDEBUG: Entering function scope for"
+      "transpile": true,
+      "execute": true,
+      "output": "Doing work...\nCounter: 10\nGot: Test value from interface\n",
+      "error": null
     },
     {
       "file": "test_validation_comprehensive.frm",

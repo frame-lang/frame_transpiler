@@ -4905,7 +4905,11 @@ impl AstVisitor for PythonVisitor {
                 }
                 // Check if it's an operation (operations typically don't have underscore prefix)
                 else if let Some((_operation_symbol, _system_symbol)) = self.arcanium.lookup_operation_in_all_systems(action_name) {
-                    if !self.in_standalone_function {
+                    // Only add self. if we're not calling a static method on another system
+                    // Check if output already ends with a system name (e.g., "UtilitySystem.")
+                    let is_static_call_on_other_system = output.ends_with(".");
+                    
+                    if !self.in_standalone_function && !is_static_call_on_other_system {
                         output.push_str("self.");
                     }
                     // For standalone functions, don't add system prefix here - it's already in the call chain
@@ -5298,6 +5302,12 @@ impl AstVisitor for PythonVisitor {
             matches!(call_l_chain_expression_node.call_chain.get(1),
                 Some(CallChainNodeType::VariableNodeT { .. }));
         
+        // Check if this is a static method call on a system (SystemName.method())
+        let is_static_system_call = call_l_chain_expression_node.call_chain.len() >= 2 &&
+            matches!(call_l_chain_expression_node.call_chain.get(0),
+                Some(CallChainNodeType::UndeclaredIdentifierNodeT { id_node })
+                    if id_node.name.lexeme.chars().next().map_or(false, |c| c.is_uppercase()));
+        
         // Set flag to indicate we're processing within a call chain
         // Only set this for multi-node chains (single-node chains still need self. prefix)
         if call_l_chain_expression_node.call_chain.len() > 1 {
@@ -5414,7 +5424,15 @@ impl AstVisitor for PythonVisitor {
                     // unnecessary groups e.g.:
                     // (compartment.state_vars["x"]) = compartment.state_vars["x"] + 1
                     self.visiting_call_chain_literal_variable = true;
-                    var_node.accept(self);
+                    
+                    // Special case: if this is the second node in a self.variable pattern,
+                    // we've already output "self." above, so just output the variable name
+                    if starts_with_self_var && i == 1 {
+                        // This case should have been handled above, but just in case
+                        self.add_code(&var_node.id_node.name.lexeme);
+                    } else {
+                        var_node.accept(self);
+                    }
                     self.visiting_call_chain_literal_variable = false;
                 }
                 CallChainNodeType::ListElementNodeT { list_elem_node } => {
@@ -5427,7 +5445,9 @@ impl AstVisitor for PythonVisitor {
         }
         
         // Reset the flag
-        self.in_call_chain = false;
+        if call_l_chain_expression_node.call_chain.len() > 1 {
+            self.in_call_chain = false;
+        }
         
         self.debug_exit("visit_call_chain_expr_node");
     }
@@ -5670,6 +5690,18 @@ impl AstVisitor for PythonVisitor {
             matches!(call_chain_expression_node.call_chain.get(1),
                 Some(CallChainNodeType::VariableNodeT { .. }));
         
+        // Check if this is a static method call on a system (SystemName.method())
+        let is_static_system_call = call_chain_expression_node.call_chain.len() >= 2 &&
+            matches!(call_chain_expression_node.call_chain.get(0),
+                Some(CallChainNodeType::UndeclaredIdentifierNodeT { id_node })
+                    if id_node.name.lexeme.chars().next().map_or(false, |c| c.is_uppercase()));
+        
+        // Set flag to indicate we're processing within a call chain
+        // Only set this for multi-node chains (single-node chains still need self. prefix)
+        if call_chain_expression_node.call_chain.len() > 1 {
+            self.in_call_chain = true;
+        }
+        
         let mut separator = "";
 
         for (i, node) in call_chain_expression_node.call_chain.iter().enumerate() {
@@ -5742,6 +5774,11 @@ impl AstVisitor for PythonVisitor {
                 }
             }
             separator = ".";
+        }
+        
+        // Reset the flag
+        if call_chain_expression_node.call_chain.len() > 1 {
+            self.in_call_chain = false;
         }
     }
 

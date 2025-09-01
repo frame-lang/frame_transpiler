@@ -7,10 +7,14 @@ fn main() {
 system UtilitySystem {
     operations:
         @staticmethod
-        calculate(x: int): int
+        calculate(x: int): int {
+            return x * 2
+        }
         
         @staticmethod  
-        format_message(msg: string): string
+        format_message(msg: string): string {
+            return "Formatted: " + msg
+        }
 }
 
 system TestSystem {

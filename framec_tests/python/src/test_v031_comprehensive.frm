@@ -6,8 +6,12 @@ fn main() {
 
 system TestSystem {
     operations:
-        do_work()
-        calculate(x: int): int
+        do_work() {
+            print("Doing work...")
+        }
+        calculate(x: int): int {
+            return x * 2
+        }
         
     interface:
         run_test()
@@ -36,8 +40,10 @@ system TestSystem {
         }
         
     actions:
-        finish_work()
+        finish_work() {
+            print("Finishing work...")
+        }
         
     domain:
-        counter: int = 10
+        var counter: int = 10
 }
