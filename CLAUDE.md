@@ -157,10 +157,11 @@ FrameModule (Top-Level)
 - **Multiple Systems**: Support for multiple system definitions per file
 - **Module Architecture**: Foundation for comprehensive module system
 
-#### Deprecated Features (v0.30)
-- **Conditional Testing**: `?`, `?!`, `?~`, `?#`, `?:` patterns deprecated
-- **Migration Path**: Use modern if/elif/else statements instead
-- **Error Messages**: Helpful deprecation warnings guide users to new syntax
+#### Removed Features (v0.31)
+- **Ternary Operators**: `?`, `?!`, `?~`, `?#`, `?:` patterns **REMOVED**
+- **Test Terminators**: `:|` and `::` **REMOVED**
+- **Migration**: All conditional logic must use if/elif/else statements
+- **Compilation**: Using ternary syntax now causes compilation errors
 
 ### v0.31 Enhancements
 

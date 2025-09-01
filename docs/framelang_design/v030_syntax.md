@@ -65,10 +65,11 @@ Frame is a state machine language that transpiles to multiple target languages. 
 - **Multi-Entity Required**: Functions and systems must coexist in proper multi-entity format
 - **Legacy Support**: System-only files may cause parsing issues
 
-### Deprecated Features (v0.30)
-- **Conditional Testing**: `?`, `?!`, `?~`, `?#`, `?:` patterns deprecated
-- **Migration Path**: Use modern if/elif/else statements instead
-- **Error Messages**: Helpful deprecation warnings guide users to new syntax
+### Removed Features (v0.31)
+- **Ternary Operators**: `?`, `?!`, `?~`, `?#`, `?:` patterns **REMOVED** (not just deprecated)
+- **Test Terminators**: `:|` and `::` **REMOVED**
+- **Migration**: All conditional logic must use if/elif/else statements
+- **Compilation**: Using ternary syntax now causes compilation errors
 
 ## System Block Structure
 

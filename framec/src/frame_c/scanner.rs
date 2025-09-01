@@ -262,22 +262,9 @@ impl Scanner {
                 }
             }
             '?' => {
-                if self.match_char('!') {
-                    self.add_token(TokenType::BoolTestFalse);
-                    self.error(self.line, "Boolean test syntax '?!' is deprecated in v0.30. Use if/elif/else statements instead.");
-                } else if self.match_char('~') {
-                    self.add_token(TokenType::StringTest);
-                    self.error(self.line, "String test syntax '?~' is deprecated in v0.30. Use if/elif/else statements instead.");
-                } else if self.match_char('#') {
-                    self.add_token(TokenType::NumberTest);
-                    self.error(self.line, "Number test syntax '?#' is deprecated in v0.30. Use if/elif/else statements instead.");
-                } else if self.match_char(':') {
-                    self.add_token(TokenType::EnumTest);
-                    self.error(self.line, "Enum test syntax '?:' is deprecated in v0.30. Use if/elif/else statements instead.");
-                } else {
-                    self.add_token(TokenType::BoolTestTrue);
-                    self.error(self.line, "Boolean test syntax '?' is deprecated in v0.30. Use if/elif/else statements instead.");
-                }
+                // Question mark is no longer used for ternary operators
+                // Could potentially be used for optional types in the future
+                self.error(self.line, "Unexpected character '?'. Ternary operators have been removed. Use if/elif/else statements instead.");
             }
             '~' => {
                 if self.match_char('/') {
@@ -784,15 +771,10 @@ pub enum TokenType {
     MatchEmptyString,        // '~//'
     MatchNull,               // '!//'
     SingleLineComment,       // '//'
-    // Deprecated test tokens - kept for parser compatibility but generate errors
-    BoolTestTrue,            // '?' - DEPRECATED: use if statements
-    BoolTestFalse,           // '?!' - DEPRECATED: use if statements  
-    StringTest,              // '?~' - DEPRECATED: use if statements
-    StringMatchStart,        // '~/' - DEPRECATED
-    NumberTest,              // '?#' - DEPRECATED: use if statements
-    NumberMatchStart,        // '#/' - DEPRECATED
-    EnumTest,                // '?:' - DEPRECATED: use if statements
-    EnumMatchStart,          // ':/' - DEPRECATED
+    // String and pattern matching tokens (still used for other purposes)
+    StringMatchStart,        // '~/' - for string patterns
+    NumberMatchStart,        // '#/' - for number patterns
+    EnumMatchStart,          // ':/' - for enum patterns
     ColonBar,                // '::' - DEPRECATED
     StateStackOperationPush, // $$[+]
     StateStackOperationPop,  // $$[-]

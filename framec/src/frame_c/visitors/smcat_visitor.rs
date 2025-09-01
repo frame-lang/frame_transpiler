@@ -99,9 +99,9 @@ impl SmcatVisitor {
                         } => {
                             transition_statement.accept(self);
                         }
-                        StatementType::TestStmt { test_stmt_node } => {
-                            test_stmt_node.accept(self);
-                        }
+//                         StatementType::TestStmt { test_stmt_node } => {
+//                             test_stmt_node.accept(self);
+//                         }
                         StatementType::StateStackStmt {
                             state_stack_operation_statement_node,
                         } => {

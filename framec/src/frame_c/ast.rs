@@ -1878,9 +1878,7 @@ pub enum StatementType {
     // ChangeStateStmt {
     //     change_state_stmt_node: ChangeStateStatementNode,
     // },
-    TestStmt {
-        test_stmt_node: TestStatementNode,
-    },
+    // REMOVED: TestStmt variant for deprecated ternary syntax
     StateStackStmt {
         state_stack_operation_statement_node: StateStackOperationStatementNode,
     },

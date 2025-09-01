@@ -4645,6 +4645,10 @@ impl<'a> Parser<'a> {
 
         match expr_t_opt {
             Some(expr_t) => {
+                // REMOVED: Ternary test syntax (?, ?!, ?~, ?#, ?:) has been deprecated
+                // Use if/elif/else statements instead
+                // The code below was removed as part of v0.31 cleanup
+                /*
                 if self.is_bool_test() {
                     if !self.is_testable_expression(&expr_t) {
                         self.error_at_current("Not a testable expression.");
@@ -4724,6 +4728,7 @@ impl<'a> Parser<'a> {
                         }
                     };
                 }
+                */
 
                 // Not a test statement. Now see if we are at an expression statement.
 
@@ -5095,28 +5100,37 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
+    // REMOVED: Deprecated ternary test functions
+    /*
     fn is_bool_test(&self) -> bool {
         self.peek().token_type == TokenType::BoolTestTrue
             || self.peek().token_type == TokenType::BoolTestFalse
     }
+    */
 
     /* --------------------------------------------------------------------- */
 
+    /*
     fn is_string_match_test(&self) -> bool {
         self.peek().token_type == TokenType::StringTest
     }
+    */
 
     /* --------------------------------------------------------------------- */
 
+    /*
     fn is_number_match_test(&self) -> bool {
         self.peek().token_type == TokenType::NumberTest
     }
+    */
 
     /* --------------------------------------------------------------------- */
 
+    /*
     fn is_enum_match_test(&self) -> bool {
         self.peek().token_type == TokenType::EnumTest
     }
+    */
 
     /* --------------------------------------------------------------------- */
 
@@ -5136,16 +5150,9 @@ impl<'a> Parser<'a> {
 
         self.sync_tokens_from_error_context = vec![TokenType::ColonBar];
 
-        // '?'
-        if self.match_token(&[TokenType::BoolTestTrue]) {
-            is_negated = false;
-
-            // ?!
-        } else if self.match_token(&[TokenType::BoolTestFalse]) {
-            is_negated = true;
-        } else {
-            return Err(ParseError::new("TODO"));
-        }
+        // REMOVED: Deprecated ternary test syntax
+        // '?' and '?!' tokens removed in v0.30
+        return Err(ParseError::new("Ternary operators have been removed. Use if/elif/else statements instead."));
 
         let mut conditional_branches: Vec<BoolTestConditionalBranchNode> = Vec::new();
 
@@ -5202,20 +5209,14 @@ impl<'a> Parser<'a> {
 
         let is_negated: bool;
 
-        // '?'
-        if self.match_token(&[TokenType::BoolTestTrue]) {
-            is_negated = false;
+        // REMOVED: Deprecated ternary test syntax
+        // '?' and '?!' tokens removed in v0.30
+        let err_msg = "Ternary operators have been removed. Use if/elif/else statements instead.";
+        self.error_at_current(&&err_msg);
+        return Err(ParseError::new(err_msg));
 
-            // ?!
-        } else if self.match_token(&[TokenType::BoolTestFalse]) {
-            is_negated = true;
-        } else {
-            let err_msg = "Expected '?' test token for else-continue next test.";
-            self.error_at_current(&&err_msg);
-            return Err(ParseError::new(err_msg));
-        }
-
-        self.bool_test_conditional_branch_statements_scope(is_negated, expr_t)
+        // Original code commented out:
+        // self.bool_test_conditional_branch_statements_scope(is_negated, expr_t)
     }
 
     /* --------------------------------------------------------------------- */
@@ -5349,6 +5350,8 @@ impl<'a> Parser<'a> {
 
     // string_match_test -> '?~'  ('/' match_string ('|' match_string)* '/' (statement* branch_terminator?) ':>')+ ':' (statement* branch_terminator?) '::'
 
+    // REMOVED: Deprecated ternary string match test function
+    /*
     fn string_match_test(&mut self, expr_t: ExprType) -> Result<StringMatchTestNode, ParseError> {
         if let Err(parse_error) = self.consume(TokenType::StringTest, "Expected '?~'.") {
             return Err(parse_error);
@@ -5385,6 +5388,7 @@ impl<'a> Parser<'a> {
             else_branch_opt,
         ))
     }
+    */
 
     /* --------------------------------------------------------------------- */
 
@@ -9021,6 +9025,8 @@ impl<'a> Parser<'a> {
 
     // match_number_test -> '?#'  ('/' match_number_pattern  ('|' match_number_pattern)* '/' (statement* branch_terminator?) ':>')+ ':' (statement* branch_terminator?) '::'
 
+    // REMOVED: Deprecated ternary number match test function
+    /*
     fn number_match_test(&mut self, expr_t: ExprType) -> Result<NumberMatchTestNode, ParseError> {
         if let Err(parse_error) = self.consume(TokenType::NumberTest, "Expected '?#'.") {
             return Err(parse_error);
@@ -9071,6 +9077,7 @@ impl<'a> Parser<'a> {
             else_branch_opt,
         ))
     }
+    */
 
     /* --------------------------------------------------------------------- */
 
@@ -9144,6 +9151,8 @@ impl<'a> Parser<'a> {
 
     // match_enum_test -> '?:' '(' enum_type ')  ('/' match_enum_pattern  ('|' match_enum_pattern)* '/' (statement* branch_terminator?) ':>')+ ':' (statement* branch_terminator?) '::'
 
+    // REMOVED: Deprecated ternary enum match test function  
+    /*
     fn enum_match_test(&mut self, expr_t: ExprType) -> Result<EnumMatchTestNode, ParseError> {
         if let Err(parse_error) = self.consume(TokenType::EnumTest, "Expected '?:'.") {
             return Err(parse_error);
@@ -9251,6 +9260,7 @@ impl<'a> Parser<'a> {
             else_branch_opt,
         ))
     }
+    */
 
     /* --------------------------------------------------------------------- */
 

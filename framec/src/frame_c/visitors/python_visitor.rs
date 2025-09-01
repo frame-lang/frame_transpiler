@@ -911,9 +911,7 @@ impl PythonVisitor {
                             StatementType::TransitionStmt { transition_statement_node } => {
                                 transition_statement_node.accept(self);
                             }
-                            StatementType::TestStmt { test_stmt_node } => {
-                                test_stmt_node.accept(self);
-                            }
+                            // REMOVED: TestStmt for deprecated ternary syntax
                             StatementType::BlockStmt { block_stmt_node } => {
                                 block_stmt_node.accept(self);
                             }
@@ -1918,9 +1916,7 @@ impl PythonVisitor {
                         } => {
                             transition_statement.accept(self);
                         }
-                        StatementType::TestStmt { test_stmt_node } => {
-                            test_stmt_node.accept(self);
-                        }
+                        // REMOVED: TestStmt for deprecated ternary syntax
                         StatementType::StateStackStmt {
                             state_stack_operation_statement_node,
                         } => {

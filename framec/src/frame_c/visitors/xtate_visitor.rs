@@ -353,19 +353,19 @@ impl XStateVisitor {
                         StatementType::TransitionStmt { transition_statement } => {
                             transition_statement.accept(self);
                         }
-                        StatementType::TestStmt { test_stmt_node } => {
-                            test_stmt_node.accept(self);
-                        },
-                        StatementType::StateStackStmt {state_stack_operation_statement_node} => {
-                            state_stack_operation_statement_node.accept(self);
-                        },
-                        StatementType::ChangeStateStmt {change_state_stmt} => {
-                            change_state_stmt.accept(self);
-                        },
-                        StatementType::NoStmt => {
-                            // TODO
-                            panic!("todo");
-                        }
+//                         StatementType::TestStmt { test_stmt_node } => {
+//                             test_stmt_node.accept(self);
+//                         },
+//                         StatementType::StateStackStmt {state_stack_operation_statement_node} => {
+//                             state_stack_operation_statement_node.accept(self);
+//                         },
+//                         StatementType::ChangeStateStmt {change_state_stmt} => {
+//                             change_state_stmt.accept(self);
+//                         },
+//                         StatementType::NoStmt => {
+//                             // TODO
+//                             panic!("todo");
+//                         }
                     }
                 }
             }
