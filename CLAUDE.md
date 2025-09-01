@@ -20,7 +20,7 @@ Frame is a state machine language that transpiles to multiple target languages. 
 ## Current State
 
 **Branch**: `v0.30`  
-**Status**: ✅ **97.6% TEST SUCCESS RATE** (161/165 tests passing)
+**Status**: ✅ **98.2% TEST SUCCESS RATE** (162/165 tests passing)
 
 📋 **For release notes and development status, see**: [`docs/framelang_design/dev_notes.md`](docs/framelang_design/dev_notes.md)
 📊 **For v0.30 achievements, see**: [`docs/v0.30_achievements.md`](docs/v0.30_achievements.md)
@@ -146,6 +146,16 @@ FrameModule (Top-Level)
 - **Conditional Testing**: `?`, `?!`, `?~`, `?#`, `?:` patterns deprecated
 - **Migration Path**: Use modern if/elif/else statements instead
 - **Error Messages**: Helpful deprecation warnings guide users to new syntax
+
+### v0.31 Enhancements
+
+#### Module Variables (NEW in v0.31)
+- **Module-level Variables**: Declare variables at module scope accessible from all functions/systems
+- **Automatic Global Generation**: Transpiler detects modifications and generates `global` declarations for Python
+- **Shadowing Protection**: Local variables cannot shadow module variables (enforced at transpilation)
+- **Conditional Imports**: Only generates imports when actually used (e.g., `from enum import Enum`)
+- **Two-Pass Analysis**: First identifies locals, then detects module variable modifications
+- **System Support**: Works in both functions and system state methods
 
 ## Build & Test
 

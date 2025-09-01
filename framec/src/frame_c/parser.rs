@@ -3321,6 +3321,42 @@ impl<'a> Parser<'a> {
                 .debug_print_current_symbols(self.arcanum.get_current_symtab());
         } else {
             // semantic pass
+            
+            // Check for variable shadowing in functions/event handlers
+            // This is a limitation for Python code generation where module variables
+            // cannot be shadowed by local variables due to Python's scoping rules
+            match identifier_decl_scope {
+                IdentifierDeclScope::EventHandlerVarScope | 
+                IdentifierDeclScope::BlockVarScope | 
+                IdentifierDeclScope::LoopVarScope => {
+                    // Check if this shadows a module-level variable
+                    // Try looking up with UnknownScope to search all parent scopes
+                    let lookup_result = self.arcanum.lookup(&name, &IdentifierDeclScope::UnknownScope);
+                    
+                    // If found, check if it's a module variable
+                    let shadows_module_var = if let Some(symbol_rcref) = lookup_result {
+                        let symbol = symbol_rcref.borrow();
+                        match &*symbol {
+                            SymbolType::ModuleVariable { .. } => true,
+                            _ => false
+                        }
+                    } else {
+                        false
+                    };
+                    
+                    if shadows_module_var {
+                        let err_msg = format!(
+                            "Cannot shadow module-level variable '{}' with local variable. \
+                            Module variables cannot be shadowed in functions or event handlers. \
+                            Please use a different variable name.", 
+                            name
+                        );
+                        self.error_at_previous(&err_msg);
+                        return Err(ParseError::new(&err_msg));
+                    }
+                }
+                _ => {}
+            }
 
             // TODO
             self.arcanum

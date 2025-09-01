@@ -7214,19 +7214,8 @@ impl AstVisitor for PythonVisitor {
         };
         let var_name = &variable_decl_node.name;
         
-        // Check for shadowing of module variables when in functions or event handlers
-        // This is a Python-specific limitation that we enforce at transpilation time
-        if self.in_standalone_function || self.current_state_name_opt.is_some() {
-            // Check if this variable shadows a module-level variable
-            if self.arcanium.module_symtab.borrow().lookup(var_name, &IdentifierDeclScope::ModuleScope).is_some() {
-                // For Python target, we don't allow shadowing of module variables
-                // because Python's scoping rules would cause runtime errors
-                eprintln!("Error: Cannot shadow module-level variable '{}' with local variable.", var_name);
-                eprintln!("       Module variables cannot be shadowed in functions or event handlers.");
-                eprintln!("       Please use a different variable name.");
-                std::process::exit(1);
-            }
-        }
+        // Note: Shadowing check is now performed in the parser during semantic analysis
+        // This ensures consistent error checking regardless of code generation order
         
         let var_init_expr = &variable_decl_node.get_initializer_value_rc();
         let init_type_name = match &**var_init_expr {

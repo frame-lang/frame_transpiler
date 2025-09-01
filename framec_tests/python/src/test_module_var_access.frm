@@ -9,9 +9,13 @@ fn main() {
     print("In main function:")
     print(module_var)
     
-    // Also test local variable shadowing
-    var module_var = "Local shadow"
-    print("After shadowing:")
+    // Test local variable (no shadowing allowed)
+    var local_var = "I am local"
+    print("Local variable:")
+    print(local_var)
+    
+    // Module variable is still accessible
+    print("Module variable again:")
     print(module_var)
     
     // Call another function to test

@@ -202,7 +202,7 @@ system AdvancedModuleTest {
             
             query() : int {
                 print("Advanced system querying counter: " + str(shared_counter))
-                return = shared_counter
+                system.return = shared_counter
             }
         }
         

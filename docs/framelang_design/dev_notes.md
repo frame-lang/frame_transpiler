@@ -18,9 +18,13 @@ Implemented comprehensive support for module-level variables with automatic `glo
 - **Two-Pass Analysis**: First identifies local declarations, then detects module variable modifications
 - **CallChainExprT Support**: Handles v0.30's assignment syntax properly
 - **HashSet Tracking**: Uses `global_vars_in_function` and `required_imports` HashSets for efficient tracking
+- **Shadowing Check in Parser**: Added semantic analysis check in `var_declaration` method (parser.rs:3325-3356)
+  - Uses `arcanum.lookup` with `UnknownScope` to search entire scope chain
+  - Only triggers error for `ModuleVariable` type symbols
+  - Provides clear error message at transpilation time
 
 #### Test Results
-- **Success Rate**: Improved to 97.6% (161/165 tests passing)
+- **Success Rate**: Improved to 98.2% (162/165 tests passing)
 - **New Test**: `test_module_scope_comprehensive.frm` validates all features
 - **Fixed Tests**: Module variable tests now pass with proper global declarations
 
