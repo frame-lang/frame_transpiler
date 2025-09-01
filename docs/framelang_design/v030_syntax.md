@@ -1,55 +1,44 @@
-# Frame Language v0.30 Syntax Reference
+# Frame Language v0.31 Syntax Reference
 
 ## Overview
 
-Frame is a state machine language that transpiles to multiple target languages. This document covers the v0.30 syntax evolution from earlier versions.
+Frame is a state machine language that transpiles to multiple target languages. This document covers the current v0.31 syntax after the complete removal of legacy v0.11 features.
 
-## Syntax Evolution (v0.11 → v0.20 → v0.30)
+## Current Syntax (v0.31)
 
 ### System Declaration
-- **Old (v0.11)**: `#SystemName ... ##`
-- **New (v0.20+)**: `system SystemName { ... }`
+- **Syntax**: `system SystemName { ... }`
 
 ### Block Keywords
-- **Old (v0.11)**: `-interface-`, `-machine-`, `-actions-`, `-domain-`
-- **New (v0.20+)**: `interface:`, `machine:`, `actions:`, `domain:`
+- `interface:` - Interface methods
+- `machine:` - State machine definition
+- `actions:` - Action implementations
+- `operations:` - Helper operations
+- `domain:` - Domain variables
 
 ### Parameters
-- **Old (v0.11)**: `[param1, param2]`
-- **New (v0.20+)**: `(param1, param2)`
+- **Syntax**: `(param1, param2)`
 
 ### Event Handlers
-- **Old (v0.11)**: `|eventName|`
-- **New (v0.20+)**: `eventName()`
-
-### Enter/Exit Events
-- **Old (v0.11)**: `|>|` and `|<|`
-- **New (v0.20+)**: `$>()` and `<$()`
+- **Method Events**: `eventName()`
+- **Enter Event**: `$>()`
+- **Exit Event**: `<$()`
 
 ### Return Statements
-- **Old (v0.11)**: `^` and `^(value)`
-- **New (v0.20+)**: `return` and `return value`
+- **Simple Return**: `return`
+- **Return with Value**: `return value`
+- **Interface Return Assignment**: `return = value`
 
-### Event Forwarding to Parent
-- **Old (v0.11)**: `:>` (deprecated), `@:>` (terminator - deprecated)
-- **New (v0.20+)**: `=> $^` (statement - can appear anywhere in event handler)
+### Event Forwarding
+- **To Parent State**: `=> $^` (statement - can appear anywhere in event handler)
+- **Current Event Reference**: `$@`
 
 ### Attributes
-- **Old (v0.11)**: `#[static]` (Rust-style)
-- **New (v0.20+)**: `@staticmethod` (Python-style)
-
-### Current Event Reference
-- **Old (v0.20)**: `@` for current event
-- **New (v0.20+)**: `$@` for current event
-- **Note**: Single `@` now reserved for Python-style attributes
+- **Syntax**: `@staticmethod` (Python-style attributes only)
 
 ### System Parameters
-- **Old (v0.11)**: `#System [$[start], >[enter], #[domain]]`
-- **New (v0.20+)**: `system System ($(start), $>(enter), domain)`
-
-### System Instantiation
-- **Old (v0.11)**: `System($("a"), >("b"), #("c"))`
-- **New (v0.20+)**: `System("a", "b", "c")` (flattened arguments)
+- **Declaration**: `system System ($(start), $>(enter), domain)`
+- **Instantiation**: `System("a", "b", "c")` (flattened arguments)
 
 ## v0.30 Enhancements
 
@@ -65,11 +54,29 @@ Frame is a state machine language that transpiles to multiple target languages. 
 - **Multi-Entity Required**: Functions and systems must coexist in proper multi-entity format
 - **Legacy Support**: System-only files may cause parsing issues
 
-### Removed Features (v0.31)
-- **Ternary Operators**: `?`, `?!`, `?~`, `?#`, `?:` patterns **REMOVED** (not just deprecated)
-- **Test Terminators**: `:|` and `::` **REMOVED**
-- **Migration**: All conditional logic must use if/elif/else statements
-- **Compilation**: Using ternary syntax now causes compilation errors
+## v0.31 Breaking Changes - Complete Legacy Syntax Removal
+
+### All v0.11 Syntax Removed
+The following legacy syntax has been **completely removed** from the language and will cause compilation errors:
+
+#### Removed Operators and Tokens
+- **Return Operators**: `^` and `^(value)` → Use `return` or `return value`
+- **Return Assignment**: `^=` → Use `return = value`
+- **Ternary Operators**: `?`, `?!`, `?~`, `?#`, `?:` → Use if/elif/else statements
+- **Test Terminators**: `:|` and `::` → No longer needed
+- **Pattern Matching**: `~/` (string), `#/` (number), `:/` (enum) → Use if/elif/else with comparisons
+
+#### Removed Syntax Constructs
+- **Old System Declaration**: `#SystemName ... ##` → Use `system Name { }`
+- **Old Block Markers**: `-interface-`, `-machine-`, etc. → Use `interface:`, `machine:`, etc.
+- **Old Parameters**: `[param1, param2]` → Use `(param1, param2)`
+- **Old Event Handlers**: `|eventName|` → Use `eventName()`
+- **Old Attributes**: `#[attr]` → Use `@attr`
+
+#### Migration Requirements
+- All code using old syntax must be migrated before compilation
+- Compiler provides clear error messages for deprecated syntax
+- No backward compatibility mode available
 
 ## System Block Structure
 
@@ -87,7 +94,6 @@ Blocks can be omitted if not needed. Order is enforced by parser.
 All event handlers MUST end with a terminator:
 - `return` - Return from event handler
 - `=> $^` - Forward event to parent state (hierarchical systems)
-- `@:>` - Legacy parent forward (deprecated, use `=> $^`)
 
 ## Hierarchical State Machines
 

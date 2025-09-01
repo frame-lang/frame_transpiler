@@ -230,11 +230,8 @@ impl Scanner {
                 }
             }
             '^' => {
-                if self.match_char('=') {
-                    self.add_token(TokenType::ReturnAssign)
-                } else {
-                    self.add_token(TokenType::Caret)
-                }
+                // Old caret return syntax removed - use 'return' keyword
+                self.error(self.line, "Unexpected character '^'. Old return syntax has been removed. Use 'return' or 'return value' instead.");
             }
             '>' => {
                 if self.match_char('=') {
@@ -271,8 +268,8 @@ impl Scanner {
                     if self.match_char('/') {
                         self.add_token(TokenType::MatchEmptyString);
                     } else {
-                        self.add_token_sync_start(TokenType::StringMatchStart);
-                        self.scan_string_match();
+                        // String match syntax removed
+                        self.error(self.line, "String match syntax '~/' has been removed. Use if/elif/else statements instead.");
                     }
                 } else {
                     self.error(self.line, &format!("Found unexpected character '{}'.", c));
@@ -319,11 +316,11 @@ impl Scanner {
             }
             ':' => {
                 if self.match_char('|') {
-                    self.add_token(TokenType::ColonBar);
-                    self.error(self.line, "Test terminator ':|' is deprecated in v0.30. Tests have been replaced by if/elif/else statements.");
+                    // Test terminator removed
+                    self.error(self.line, "Test terminator ':|' has been removed. Use if/elif/else statements instead.");
                 } else if self.match_char('/') {
-                    self.add_token(TokenType::EnumMatchStart);
-                    self.error(self.line, "Enum match syntax ':/' is deprecated in v0.30. Use if/elif/else statements instead.");
+                    // Enum match syntax removed
+                    self.error(self.line, "Enum match syntax ':/' has been removed. Use if/elif/else statements instead.");
                 } else {
                     self.add_token(TokenType::Colon);
                 }
@@ -332,8 +329,7 @@ impl Scanner {
             '"' => self.string(),
             '`' => self.super_string(),
             '#' => {
-                // if self.match_char('#') {
-                //     self.add_token(TokenType::SystemEnd);
+                // Hash is only used for attributes now
                 if self.match_char('[') {
                     self.add_token(TokenType::OuterAttributeOrDomainParams) // #[
                 } else if self.match_char('!') {
@@ -344,11 +340,11 @@ impl Scanner {
                         self.error(self.line, &format!("Unexpected character {}.", c));
                     }
                 } else if self.match_char('/') {
-                    self.add_token(TokenType::NumberMatchStart);
-                    self.error(self.line, "Number match syntax '#/' is deprecated in v0.30. Use if/elif/else statements instead.");
-                }
-                else {
-                    self.add_token(TokenType::Hash);
+                    // Number match syntax removed
+                    self.error(self.line, "Number match syntax '#/' has been removed. Use if/elif/else statements instead.");
+                } else {
+                    // Old system declaration syntax removed
+                    self.error(self.line, "Unexpected character '#'. Old system declaration syntax has been removed. Use 'system Name { }' instead.");
                 }
             }
             '=' => {
@@ -710,11 +706,11 @@ pub enum TokenType {
     // LTx3,                         // <<<
     Ampersand,                    // &
     Pipe,                         // |
-    Caret,                        // ^
-    ReturnAssign,                 // ^= (deprecated in v0.30, use "return = expr")
+    // REMOVED: Caret (^) - use 'return' keyword
+    // REMOVED: ReturnAssign (^=) - use 'return = value'
     LogicalAnd,                   // &&
     LogicalXor,                   // &|
-    System,                       // # (deprecated v0.30 - use "system Name {}" syntax)
+    System,                       // 'system' keyword for modern syntax
     Self_,                        // self
     Return_,                      // return
     EnterStateMsg,                   // $>
@@ -733,7 +729,7 @@ pub enum TokenType {
     Transition,                   // ->
     //    ChangeState,                  // ->>
     String,      // "foo"
-    ThreeTicks,  // ```
+    // REMOVED: ThreeTicks (```) - not used
     SuperString, // `stuff + "stuff"`
     Number,                 // 1, 1.01
     Var,                    // var keyword
@@ -771,11 +767,11 @@ pub enum TokenType {
     MatchEmptyString,        // '~//'
     MatchNull,               // '!//'
     SingleLineComment,       // '//'
-    // String and pattern matching tokens (still used for other purposes)
-    StringMatchStart,        // '~/' - for string patterns
-    NumberMatchStart,        // '#/' - for number patterns
-    EnumMatchStart,          // ':/' - for enum patterns
-    ColonBar,                // '::' - DEPRECATED
+    // REMOVED: Pattern matching tokens
+    // REMOVED: StringMatchStart ('~/') - string patterns removed
+    // REMOVED: NumberMatchStart ('#/') - number patterns removed  
+    // REMOVED: EnumMatchStart (':/') - enum patterns removed
+    // REMOVED: ColonBar (:|) - test terminator removed
     StateStackOperationPush, // $$[+]
     StateStackOperationPop,  // $$[-]
     ParentState,             // $^ - parent state reference
@@ -786,7 +782,7 @@ pub enum TokenType {
     PipePipe,                // ||
     PipePipeDot,             // ||.
     PipePipeLBracket,        // ||[
-    Hash,                    // #
+    // REMOVED: Hash (#) - old system syntax removed
     Error,
 }
 

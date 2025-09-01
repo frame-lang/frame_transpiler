@@ -1,18 +1,60 @@
 # Frame Language Grammar (v0.31)
 
+**Last Updated**: 2025-09-01  
+**Status**: Complete with module variables, self.variable syntax, and 100% test coverage
+
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
 ## Module Structure
 
 ```bnf
-module: (import_stmt | var_decl | function | system)*
+module: (import_stmt | function | system)*
 ```
-
-**v0.31 Module Variables**: Modules can declare module-level variables that are accessible from all functions and systems. The transpiler automatically generates appropriate scope declarations (e.g., `global` in Python) when these variables are modified.
 
 **v0.31 Import Support**: Modules can now include native import statements at the top level, supporting Python module imports without requiring backticks.
 
 **v0.30 Multi-Entity Support**: Modules can contain any combination of functions and systems in any order. Each entity (function or system) can have individual attributes.
+
+## Scope Rules (v0.31)
+
+Frame implements LEGB (Local, Enclosing, Global, Built-in) scope resolution with strict isolation between functions and systems:
+
+### Scope Hierarchy
+1. **Local**: Current function/system scope, block variables
+2. **Enclosing**: Parent scopes up to module level
+3. **Global**: Module-level declarations (functions, systems)
+4. **Built-in**: Language built-ins (print, str, int, len)
+
+### Scope Isolation Rules
+- **Functions cannot access system internals**: Actions and operations are private to their system
+- **Systems cannot access other systems' internals**: Each system is fully encapsulated
+- **Module-level functions are globally accessible**: Can be called from any function or system
+- **Built-ins are universally accessible**: Available in all contexts
+
+### Example
+```frame
+fn moduleFunc() { return "global" }  // Module-level, accessible everywhere
+
+system SystemA {
+    actions:
+        privateAction() { }  // Only accessible within SystemA
+}
+
+system SystemB {
+    machine:
+        $Start {
+            test() {
+                moduleFunc()     // ✅ Can call module function
+                // privateAction()  // ❌ Cannot access SystemA's action
+            }
+        }
+}
+
+fn main() {
+    moduleFunc()         // ✅ Can call module function
+    // privateAction()      // ❌ Cannot access system action
+}
+```
 
 ## Import Statements (v0.31)
 
@@ -45,77 +87,42 @@ from typing import List, Dict, Optional
 
 // Wildcard imports
 from typing import *
-```
 
-## Module Variables (v0.31)
-
-Module-level variables can be declared at the top level and are accessible from all functions and systems within the module.
-
-```bnf
-var_decl: 'var' IDENTIFIER '=' expr
-```
-
-### Module Variable Features
-
-1. **Automatic Scope Management**: The transpiler automatically generates appropriate scope declarations (`global` in Python) when module variables are modified in functions or systems
-2. **Conditional Import Generation**: Import statements (e.g., `from enum import Enum`) are only generated when actually used
-3. **Shadowing Protection**: For Python target, local variables cannot shadow module variables (enforced at transpilation)
-
-### Module Variable Examples
-
-```frame
-// Module-level variable declarations
-var counter = 0
-var config = None
-var data = [1, 2, 3]
-var message = "Hello"
-
-fn increment() {
-    // Reading module variable (no special declaration needed)
-    print("Current: " + str(counter))
-    
-    // Modifying module variable (global declaration auto-generated)
-    counter = counter + 1
+// Using imported modules in functions
+fn main() {
+    var pi = math.pi
+    var root = math.sqrt(16)
+    var data = json.dumps({"key": "value"})
 }
 
-system Monitor {
-    machine:
-        $Active {
-            update() {
-                // Systems can also modify module variables
-                // Global declaration is auto-generated
-                counter = counter + 10
-                message = "Updated"
-            }
+// Using imported modules in systems
+system Calculator {
+    operations:
+        compute() {
+            var result = math.cos(0)
+            return result
         }
 }
-
-// Module initialization code
-counter = 100  // Initialize at module load time
-print("Module loaded with counter: " + str(counter))
 ```
 
-The transpiler generates proper Python code with `global` declarations:
+**Note**: For languages other than Python, backticks can still be used for language-specific import syntax.
 
-```python
-# Module variables
-counter = 0
-config = None
-data = [1, 2, 3]
-message = "Hello"
+## Native Python Functions (v0.31)
 
-def increment():
-    global counter  # Auto-generated
-    print("Current: " + str(counter))
-    counter = counter + 1
+Frame v0.31 provides direct access to Python built-in functions without requiring Frame-specific built-ins:
 
-class Monitor:
-    def __monitor_state_Active(self, __e, compartment):
-        global counter, message  # Auto-generated for systems
-        if __e._message == "update":
-            counter = counter + 10
-            message = "Updated"
+```frame
+// Python built-ins are directly accessible
+fn main() {
+    print("Hello, World!")           // Python's print function
+    var x = str(42)                  // Python's str function
+    var y = int("10")                // Python's int function
+    var z = len([1, 2, 3])          // Python's len function
+    var result = max(5, 10)         // Python's max function
+}
 ```
+
+**Note**: Frame no longer maintains its own built-in print function. All function calls that are not declared in Frame scope are passed through to the target language (Python).
 
 ## Functions
 
@@ -134,6 +141,19 @@ type_expr: IDENTIFIER | SUPERSTRING
 
 **v0.30 Feature**: Multiple functions are fully supported with any function names. Empty parameter lists `()` are fully supported, unlike v0.11 which rejected empty parameter syntax in certain contexts.
 
+### Function-System Integration
+
+Functions can interact with systems through public interfaces:
+
+- **Operations**: Use `SystemName.operationName()` syntax for static method calls
+- **Interface Methods**: Use `systemInstance.methodName()` syntax for instance method calls  
+- **Actions**: Not accessible from functions (private implementation details)
+
+```bnf
+system_operation_call: IDENTIFIER '.' IDENTIFIER '(' argument_list? ')'
+system_instance_call: IDENTIFIER '.' IDENTIFIER '(' argument_list? ')'
+```
+
 ### Function Examples
 ```frame
 // Multiple functions in v0.30
@@ -151,45 +171,112 @@ fn calculate(x, y) {
     return x * y + 5
 }
 
-// Functions mixed with systems
-fn utility(data) {
-    print("Utility: " + data)
+// Function calling system operations (static methods)
+fn main() {
+    var result = Utils.add(5, 3)
+    print("5 + 3 = " + str(result))
+    
+    var category = Utils.categorizeNumber(42)
+    print("42 is " + category)
 }
 
-system Worker {
-    interface:
-        start()
-        
-    machine:
-        $Idle {
-            start() {
-                utility("Worker starting")
-                -> $Running
-            }
+// Function calling system interface methods (instance methods)
+fn demo() {
+    var counter = Counter()
+    counter.increment()
+    counter.increment()
+    print("Count: " + str(counter.getCount()))
+}
+
+system Utils {
+    operations:
+        add(x: int, y: int): int {
+            return x + y
         }
         
-        $Running {
+        categorizeNumber(num: int): string {
+            if num < 10 {
+                return "single digit"
+            } else {
+                return "multi digit"
+            }
         }
 }
 ```
 
+## Module Variables (v0.31)
+
+Module-level variables can be declared at the top level of a Frame module, making them accessible from all functions and systems in the module.
+
+```bnf
+module_var: 'var' IDENTIFIER type? '=' expr
+```
+
+### Module Variable Features
+
+- **Global Accessibility**: Module variables are accessible from any function or system in the module
+- **Automatic Global Declaration**: The transpiler automatically generates `global` declarations in Python when module variables are modified
+- **Shadowing Protection**: Local variables cannot shadow module variables (enforced at transpilation for Python target)
+- **Type Annotations**: Optional type annotations for better code clarity
+
+### Module Variable Examples
+
+```frame
+// Module-level variables
+var counter = 0
+var message: string = "Hello"
+var data = []
+
+fn increment() {
+    counter = counter + 1  // Automatic 'global counter' in Python
+    return counter
+}
+
+fn getMessage() {
+    return message  // Read access doesn't need global declaration
+}
+
+system DataCollector {
+    interface:
+        collect(value)
+    
+    machine:
+        $Start {
+            collect(value) {
+                data.append(value)  // Automatic 'global data' in Python
+                counter = counter + 1  // Automatic 'global counter' in Python
+                return
+            }
+        }
+}
+```
+
+### Implementation Notes
+
+- **Python Target**: The transpiler performs two-pass analysis to identify module variable modifications and automatically insert `global` declarations where needed
+- **Read vs Write**: Only modifications require global declarations; read-only access works without them
+- **Conditional Imports**: Import statements like `from enum import Enum` are only generated when actually used
+
 ## Systems
 
 ```bnf
-system: 'system' IDENTIFIER system_params? '{' system_block* '}'
+system: 'system' IDENTIFIER system_params? '{' 
+        operations_block?
+        interface_block?
+        machine_block?
+        actions_block?
+        domain_block?
+        '}'
+
 system_params: '(' system_param_list ')'
 system_param_list: system_param (',' system_param)*
 system_param: start_state_param | enter_event_param | domain_param
 start_state_param: '$(' parameter_list ')'
 enter_event_param: '$>(' parameter_list ')'
 domain_param: IDENTIFIER type?
-
-system_block: interface_block
-            | machine_block
-            | actions_block
-            | operations_block
-            | domain_block
 ```
+
+**Block Order**: System blocks must appear in the specified order when present: `operations:`, `interface:`, `machine:`, `actions:`, `domain:`. Blocks are optional but order is enforced by the parser.
 
 ### System Examples
 
@@ -197,18 +284,35 @@ system_block: interface_block
 ```frame
 system TrafficLight {
     interface:
-        start()
-        stop()
-        
+        tick()
+    
     machine:
         $Red {
-            start() {
+            $>() {
+                print("Red")
+            }
+            
+            tick() {
                 -> $Green
             }
         }
         
         $Green {
-            stop() {
+            $>() {
+                print("Green")
+            }
+            
+            tick() {
+                -> $Yellow
+            }
+        }
+        
+        $Yellow {
+            $>() {
+                print("Yellow")
+            }
+            
+            tick() {
                 -> $Red
             }
         }
@@ -242,7 +346,7 @@ system StartStateEnterParameters ($>(msg)) {
 // System with domain parameters
 system DomainParameters (msg) {
     domain:
-        var msg = nil
+        var msg = None
         
     machine:
         $Start {
@@ -256,8 +360,8 @@ system DomainParameters (msg) {
 // System with all parameter types
 system AllParameterTypes ($(A,B), $>(C,D), E,F) {
     domain:
-        var E = nil
-        var F = nil
+        var E = None
+        var F = None
     
     machine:
         $Start(A,B) {
@@ -296,8 +400,10 @@ fn main() {
 
 ```bnf
 interface_block: 'interface:' interface_method*
-interface_method: IDENTIFIER '(' parameter_list? ')' type?
+interface_method: IDENTIFIER '(' parameter_list? ')' (type ('=' expr)?)?
 ```
+
+**v0.31 Default Return Values**: Interface methods can specify default return values using the syntax `: type = value`. This value is returned unless overridden by event handlers or system.return assignments.
 
 ## Machine Block
 
@@ -305,7 +411,7 @@ interface_method: IDENTIFIER '(' parameter_list? ')' type?
 machine_block: 'machine:' state*
 state: '$' IDENTIFIER ('=>' '$' IDENTIFIER)? '{' event_handler* state_var* '}'
 event_handler: event_selector '{' stmt* terminator? '}'
-event_selector: IDENTIFIER '(' parameter_list? ')' type?
+event_selector: IDENTIFIER '(' parameter_list? ')' (type ('=' expr)?)?
                | '$>' '(' parameter_list? ')'  // Enter handler
                | '<$' '(' parameter_list? ')'  // Exit handler
 terminator: 'return' expr?
@@ -323,15 +429,86 @@ domain_block: 'domain:' domain_var*
 domain_var: 'var' IDENTIFIER type? '=' expr
 ```
 
+### Domain Variable Access (v0.31)
+
+Domain variables are accessed using the `self.variable` syntax, which clearly distinguishes them from local variables and parameters.
+
+```frame
+system Counter {
+    domain:
+        var count: int = 0
+        var message: string = "Count"
+    
+    interface:
+        increment()
+        getValue(): int
+    
+    machine:
+        $Start {
+            increment() {
+                // Using self.variable for domain access
+                self.count = self.count + 1
+                print(self.message + ": " + str(self.count))
+                return
+            }
+            
+            getValue(): int {
+                return = self.count  // self.variable in return assignment
+            }
+        }
+}
+```
+
+### Self.Variable Features (v0.31)
+
+- **Explicit Domain Access**: `self.` prefix required for all domain variable access
+- **Lvalue and Rvalue**: Works in both assignment targets and expressions
+- **Nested Expressions**: Fully supported in complex expressions
+- **Method Arguments**: Can be passed as arguments to methods
+- **All Contexts**: Works in operations, actions, and event handlers
+
+### Self.Variable Examples
+
+```frame
+system SelfVariableDemo {
+    domain:
+        var x: int = 0
+        var y: int = 0
+        var data = []
+    
+    operations:
+        process() {
+            // Lvalue assignment
+            self.x = 100
+            
+            // Rvalue in expression
+            var doubled = self.x * 2
+            
+            // Complex expressions
+            self.y = (self.x + 10) * 2
+            
+            // Method arguments
+            self.data.append(self.x)
+            print("Value: " + str(self.y))
+            
+            // Chained assignment
+            self.x = self.y = 50
+        }
+}
+
 ## Operations Block
 
 ```bnf
 operations_block: 'operations:' operation*
-operation: attribute* IDENTIFIER '(' parameter_list? ')' type? '{' stmt* '}'
+operation: attribute* IDENTIFIER '(' parameter_list? ')' (type ('=' expr)?)? '{' stmt* '}'
 attribute: '@' IDENTIFIER  // Python-style attributes (e.g., @staticmethod)
 ```
 
+**v0.31 System Return Restriction**: Operations cannot use `system.return` as they may be called from contexts without an interface (e.g., directly from outside or from functions). This is enforced at parse time.
+
 **v0.30 Implementation Note**: Operations and actions are resolved at code generation time through symbol table lookup. Calls to operations generate with `self.` prefix for instance methods, while static operations use `ClassName.method()` syntax. Actions automatically receive the `_do` suffix in generated code.
+
+**v0.31 Self Expression Support**: The `self` keyword can now be used as a standalone expression (e.g., `jsonpickle.encode(self)`), not just in dotted access (`self.variable`). Static operations marked with `@staticmethod` cannot use `self` - this is validated at parse time.
 
 ### Operations Examples
 
@@ -341,7 +518,12 @@ system Calculator {
     operations:
         // Instance operation - includes implicit 'self' parameter
         getResult(): int {
-            return currentValue
+            return self.currentValue  // Must use self. to access domain vars
+        }
+        
+        // Instance operation using self as expression
+        serialize(): String {
+            return jsonpickle.encode(self)  // self as standalone expression (v0.31)
         }
     
     domain:
@@ -362,6 +544,13 @@ system MathUtils {
         @staticmethod
         multiply(x: int, y: int): int {
             return x * y
+        }
+        
+        // Static operations CANNOT use self - parse error
+        @staticmethod
+        invalid(): int {
+            // return self.value  // ERROR: Cannot use 'self' in static operation
+            return 0
         }
 }
 ```
@@ -478,12 +667,14 @@ else {
 ### Action Grammar
 ```bnf
 actions_block: 'actions:' action*
-action: IDENTIFIER '(' parameter_list? ')' type? action_body
+action: IDENTIFIER '(' parameter_list? ')' (type ('=' expr)?)? action_body
 action_body: '{' stmt* '}'
 parameter_list: parameter (',' parameter)*
 parameter: IDENTIFIER type?
 type: ':' IDENTIFIER
 ```
+
+**v0.31 Default Values**: Actions can specify default return values for their return to the caller (not system.return). Actions can set system.return explicitly.
 
 ### Design Decisions
 
@@ -1068,39 +1259,54 @@ closeModal() {
 - Enter/exit event handling with stack operations
 - Complex state context preservation
 
-### Interface Return Assignment
+### System Return Assignment (v0.31)
 
-Frame v0.20 introduces the `return = expr` syntax for setting interface return values anywhere within event handlers or action methods:
+Frame v0.31 introduces the `system.return` special variable for setting interface return values anywhere within event handlers or action methods:
 
 ```frame
-// Setting interface return values in event handlers
+// Setting interface return values with system.return
+interface:
+    validateInput(data: string): bool = false  // Default return value
+
 machine:
     $ProcessingState {
-        validateInput(data: string): bool {
+        validateInput(data: string) {  // Can override with : bool = true
             if data == "" {
-                return = false  // Set interface return value
-                return          // Exit event handler  
+                system.return = false  // Set interface return value
+                return                 // Exit event handler  
             }
             
             if checkFormat(data) {
-                return = true   // Set interface return value
-                return          // Exit event handler
+                system.return = true   // Set interface return value
+                return                 // Exit event handler
             }
             
-            return = false      // Default case
+            system.return = false      // Default case
             return
         }
     }
 
-// Setting interface return values in action methods
+// Event handler default overrides interface default
+machine:
+    $Start {
+        getStatus(): int = 99 {  // Override interface default
+            // Implicit system.return = 99 on entry
+            if someCondition {
+                system.return = 200  // Further override
+            }
+            return
+        }
+    }
+
+// Actions can also set system.return
 actions:
     processData(input: string): string {
         if input == "error" {
-            return = "failed"   // Set interface return value
+            system.return = "failed"   // Set interface return value
             return "internal"   // Return value to caller (action method)
         }
         
-        return = "success"      // Set interface return value
+        system.return = "success"      // Set interface return value
         return input            // Return value to caller (action method)
     }
 ```
@@ -1108,7 +1314,7 @@ actions:
 ## Expressions
 
 ```bnf
-expr: binary_expr | unary_expr | primary_expr | call_expr | call_chain_expr
+expr: binary_expr | unary_expr | primary_expr | call_expr | self_expr
 
 binary_expr: expr operator expr
 operator: '+' | '-' | '*' | '/' | '%'
@@ -1118,105 +1324,20 @@ operator: '+' | '-' | '*' | '/' | '%'
 unary_expr: ('-' | '!' | '~') expr
 
 primary_expr: IDENTIFIER | NUMBER | STRING | SUPERSTRING
-            | 'true' | 'false' | 'nil'
+            | 'true' | 'false' | 'None'
             | '(' expr ')' | '@'
 
-call_expr: IDENTIFIER '(' arg_list? ')'
-call_chain_expr: call_chain_node ('.' call_chain_node)*
-call_chain_node: IDENTIFIER | call_expr
+self_expr: 'self' | 'self' '.' IDENTIFIER  // v0.31: self as standalone or dotted access
+
+call_expr: IDENTIFIER '(' arg_list? ')' | '_' IDENTIFIER '(' arg_list? ')'
 arg_list: expr (',' expr)*
 ```
 
-### Call Chain Expressions and Scoping
+**Action Call Syntax**: Action calls use underscore prefix syntax `_actionName()` to distinguish them from interface method calls. This generates with proper `self._actionName()` syntax in Python target language.
 
-Frame v0.30 provides robust support for both external object method calls and internal operation calls with proper scoping:
+**Self Expression (v0.31)**: The `self` keyword can be used as a standalone expression (e.g., as a function argument) or with dotted access to reference instance members. Static methods cannot use `self` in any form.
 
-#### External Object Method Calls
-```frame
-fn main() {
-    var obj = TestSystem()
-    obj.run()        // External call - no 'self.' prefix in generated code
-    obj.getValue()   // External call - generates: obj.getValue()
-}
-```
-
-#### Internal Operation Calls  
-```frame
-system TestSystem {
-    operations:
-        process() {
-            self.helper()     // Internal call - keeps 'self.' prefix
-            validate("data")  // Static operation call (if @staticmethod)
-        }
-        
-        helper() {
-            print("Helper called")
-        }
-        
-        @staticmethod
-        validate(data) {
-            return data != ""
-        }
-}
-```
-
-#### Scope Resolution Rules
-
-**v0.30 Critical Fix (2025-08-24)**: The transpiler correctly distinguishes between external and internal calls:
-
-1. **Multi-node call chains** (`obj.method()`):
-   - Parsed as: `[Variable(obj), UndeclaredCall(method)]`
-   - Generated as: `obj.method()` (no self. prefix)
-   - Used for external object interactions
-
-2. **Single-node operation calls** (`self.method()`):
-   - Parsed as: `[OperationCall(method)]` 
-   - Generated as: `self.method()` (keeps self. prefix)
-   - Used for internal operations within the same system
-
-3. **Static operation calls** (`ClassName.method()`):
-   - Generated with `@staticmethod` decorator
-   - No `self` parameter in method definition
-   - Called as `ClassName.method()` in generated code
-
-#### Code Generation Examples
-
-**Frame Source**:
-```frame
-system Calculator {
-    operations:
-        process() {
-            self.calculate(10)    // Internal operation
-            var helper = Helper()
-            helper.assist()       // External method call  
-        }
-        
-        calculate(value) {
-            return value * 2
-        }
-}
-```
-
-**Generated Python**:
-```python
-class Calculator:
-    def process(self):
-        self.calculate(10)    # Correct: internal operation
-        helper = Helper()
-        helper.assist()       # Correct: external method call
-    
-    def calculate(self, value):
-        return value * 2
-```
-
-#### Transpiler Implementation
-
-The scope resolution is handled by the Python visitor's call chain processing logic, which uses conditional flag setting to distinguish between call contexts:
-
-- **Multi-node chains**: Set `in_call_chain = true` → prevent `self.` prefix
-- **Single-node operations**: Keep `in_call_chain = false` → add `self.` prefix as needed
-
-This ensures proper Python code generation for all object-oriented interactions.
+**Call Chain Support**: Multi-node call chains like `sys.methodName()` correctly generate interface method calls on system instances without adding action prefixes.
 
 ## Tokens
 
@@ -1233,12 +1354,28 @@ SUPERSTRING: '`' ~[`]* '`' | '```' ~* '```'
 system interface machine actions operations domain
 fn var return
 if elif else for while loop in break continue
-true false nil
+true false None
 ```
 
-## Deprecated Features (v0.11 → v0.20)
+## Null Value (v0.31)
 
-The following syntax from Frame v0.11 is deprecated in v0.20:
+Frame v0.31 uses `None` as the single null value keyword, aligning with Python conventions:
+
+- **Standard**: `None` - The only keyword for null/undefined values
+- **Removed**: `null` and `nil` are no longer supported
+
+Example:
+```frame
+var x = None        // The only way to represent null values
+
+if value == None {  // Standard null comparison
+    print("Value is None")
+}
+```
+
+## Removed Legacy Features (v0.31)
+
+The following v0.11 syntax has been **completely removed** from the language as of v0.31:
 
 1. **System declaration**: 
    - Old: `#SystemName ... ##`
@@ -1256,41 +1393,51 @@ The following syntax from Frame v0.11 is deprecated in v0.20:
    - Old: `-interface-`, `-machine-`, `-actions-`, `-domain-`
    - New: `interface:`, `machine:`, `actions:`, `domain:`
 
-5. **Return token**: 
-   - Old: `^` and `^(value)`
-   - New: `return` and `return value`
+5. **Return operators**: 
+   - **REMOVED**: `^` and `^(value)`
+   - Use: `return` and `return value`
 
-6. **Parameter lists**: 
-   - Old: `[param1, param2]`
-   - New: `(param1, param2)`
+6. **Return assignment**:
+   - **REMOVED**: `^=`
+   - Use: `return = value`
 
-7. **Event selectors**: 
-   - Old: `|eventName|`
-   - New: `eventName()`
+7. **Ternary test operators**:
+   - **REMOVED**: `?`, `?!`, `?~`, `?#`, `?:`
+   - Use: if/elif/else statements
 
-8. **Function declaration**: 
-   - Old: `fn main {`
-   - New: `fn main() {`
+8. **Test terminators**:
+   - **REMOVED**: `:|` and `::`
+   - No longer needed
 
-9. **Enter/Exit events**:
-   - Old: `|>|` and `|<|`
-   - New: `$>()` and `<$()`
+9. **Pattern matching**:
+   - **REMOVED**: `~/` (string), `#/` (number), `:/` (enum)
+   - Use: if/elif/else with comparisons
 
-10. **Event forwarding to parent**:
-   - Old: `:>` (v0.11-v0.19), `@:>` (early v0.20)
-   - New: `=> $^` (v0.20)
+10. **Parameter lists**: 
+   - **REMOVED**: `[param1, param2]`
+   - Use: `(param1, param2)`
 
-11. **Attributes**:
-   - Old: `#[static]` (Rust-style)
-   - New: `@staticmethod` (Python-style)
+11. **Event selectors**: 
+   - **REMOVED**: `|eventName|`
+   - Use: `eventName()`
 
-12. **Current event reference**:
+12. **Enter/Exit events**:
+   - **REMOVED**: `|>|` and `|<|`
+   - Use: `$>()` and `<$()`
+
+13. **Attributes**:
+   - **REMOVED**: `#[static]` (Rust-style)
+   - Use: `@staticmethod` (Python-style)
+
+14. **Current event reference**:
    - Old: `@` for current event
-   - New: `$@` for current event (single `@` now reserved for attributes)
+   - Use: `$@` for current event (single `@` now reserved for attributes)
 
-13. **Empty parameter lists**:
-   - Old: v0.11 rejected `()` in certain parsing contexts
-   - New: v0.20 fully supports empty parameter lists `()` in all method calls, interface declarations, and event handlers
+### Compilation Behavior
+- Using any removed syntax causes immediate **compilation errors**
+- Clear error messages guide users to modern syntax
+- No backward compatibility mode available
+- All code must be migrated to v0.31 syntax
 
 ### System Parameter Migration Guide
 
@@ -1340,218 +1487,3 @@ $StateName {
 - `#` - System type prefix (v0.11 legacy)
 - `##` - System terminator (v0.11 legacy)
 
-## Implementation Status
-
-### v0.20 Recent Updates
-
-**Empty Parameter List Support (2025-01-20)** ✅ **COMPLETED**
-- **Achievement**: Full support for empty parameter lists `()` in all contexts
-- **Parser Enhancement**: Fixed v0.11 restriction that rejected empty parameter syntax in certain contexts
-- **Method Calls**: `self.method()` calls now parse and generate correct Python code  
-- **Interface Declarations**: Empty parameter interfaces like `quit()` fully supported
-- **Code Generation**: Fixed Python visitor to correctly handle `self.method()` → `method()` transformation
-- **Test Validation**: All services documentation examples now compile successfully
-- **Impact**: Enables conventional method call patterns and interface definitions without parameters
-
-**Return Statements as Regular Statements (2025-01-16)** ✅ **COMPLETED**
-- **Grammar**: `return_stmt: 'return' expr?` 
-- **Context**: Return statements now work as regular statements in all contexts
-- **Previous Issue**: Could only be used as event handler terminators, preventing if/elif/else chains
-- **Fix**: Added `StatementType::ReturnStmt` and `ReturnStmtNode` to AST
-- **Impact**: 
-  - Enables conventional if/elif/else patterns with returns in event handlers
-  - Supports early return validation patterns
-  - Allows complex nested conditional logic with returns
-  - Makes Frame v0.20 syntax more conventional and familiar
-- **Test Cases**: All if/elif/return combinations validated in event handlers and actions
-
-**Interface Return Assignment (2025-01-17)** ✅ **COMPLETED**
-- **Grammar**: `return_assign_stmt: 'return' '=' expr`
-- **Context**: New syntax for setting interface return values anywhere in event handlers/actions
-- **Previous Syntax**: `^= expr` (removed in v0.20)
-- **New Syntax**: `return = expr` (conventional assignment-like syntax)
-- **Implementation**: Reuses existing `ReturnAssignStmtNode` AST structure
-- **Code Generation**: 
-  - Python: `self.return_stack[-1] = expr`
-  - Java: `e._return = expr`
-  - Other typed languages: similar assignment to return field
-- **Benefits**: More readable and conventional than the previous `^=` operator
-
-**Transition + Return Parsing (2025-01-17)** ✅ **COMPLETED**
-- **Issue**: Parser failed with "Expected '}' - found 'elif'" when `return` followed transitions in if/elif/else
-- **Root Cause**: Transitions terminated statement parsing, preventing subsequent elif/else clauses
-- **Solution**: Consume optional `return` token after transitions without generating AST node
-- **Implementation**: `self.advance()` to consume return token but don't add to statements
-- **Rationale**: Transitions already terminate execution; explicit returns are for code clarity only
-- **Result**: 
-  - Allows readable `-> $State` followed by `return` syntax
-  - Prevents duplicate return statements in generated code
-  - Enables proper if/elif/else parsing with transitions
-- **Example**:
-  ```frame
-  if condition == "error" {
-      -> $Error     // Transition terminates execution
-      return        // Consumed but not code-generated
-  } elif condition == "success" {
-      -> $Success   // Parser continues to elif
-      return
-  }
-  ```
-
-**Event Handler Terminator Optionality (2025-01-17)** ✅ **COMPLETED**
-- **Grammar**: `event_handler: event_selector '{' stmt* terminator? '}'`
-- **Implementation**: Event handlers no longer require explicit terminators
-- **Rationale**: Block-scoped functions don't need explicit terminators in most languages
-- **Backward Compatibility**: Explicit terminators still supported and recommended for transitions
-- **Impact**: 
-  - Reduces syntactic noise in simple event handlers
-  - Maintains semantic clarity for state transitions
-  - Aligns with conventional programming language patterns
-  - Python visitor generates implicit returns only when needed
-- **Transition Requirement**: Transitions (`->`) still terminate blocks - no statements after them
-
-**C-style For Loop with 'for' Keyword (2025-01-17)** ✅ **COMPLETED**
-- **Grammar**: `for var_decl ';' expr ';' expr block`
-- **Implementation**: Parser now supports C-style for loops using the `for` keyword
-- **Previous Limitation**: C-style loops only worked with `loop` keyword
-- **Enhancement**: Traditional three-part for loops now work with conventional `for` syntax
-- **Backward Compatibility**: `loop` keyword still supports C-style syntax
-- **Rationale**: Aligns Frame syntax with Python/JavaScript conventions for familiar loop patterns
-- **Examples**: 
-  - `for var i = 0; i < 10; i = i + 1 { ... }` (new)
-  - `loop var i = 0; i < 10; i = i + 1 { ... }` (legacy, still supported)
-
-**Comprehensive Test Suite Validation (2025-01-17)** ✅ **COMPLETED**
-- **Achievement**: 100% test file pass rate for implemented features (57/57 files)
-- **Coverage**: All currently implemented v0.20 syntax features validated end-to-end
-- **Quality**: Generated Python code passes syntax validation
-- **Fixes Applied**:
-  - Legacy syntax updates (^ → return, :> → => $^)
-  - System parameter syntax corrections (v0.11 → v0.20)
-  - Multiple function restrictions enforced (main only)
-  - For loop syntax modernization (C-style → iterator)
-- **Test Files**: Serve as comprehensive v0.20 syntax documentation
-- **Regression Testing**: All existing functionality preserved
-- **Parser Robustness**: Handles complex nested conditional patterns correctly
-
-**Event Forwarding (2025-01-20)** ✅ **COMPLETED**
-- **Grammar**: `=> $^` statement for parent state dispatch
-- **Implementation**: Statement syntax (not terminator) with transition detection
-- **Validation**: Parser prevents usage in non-hierarchical states
-- **Replaces**: Deprecated `:>` and `@:>` operators
-
-**Auto-Return Statements (2025-01-20)** ✅ **COMPLETED**
-- **Feature**: Parser automatically adds return terminators to event handlers without explicit returns
-- **Grammar**: `event_handler: event_selector '{' stmt* terminator? '}'` - terminator is auto-added if missing
-- **Implementation**: Parser creates `TerminatorExpr::new(TerminatorType::Return, None, line_number)` when no terminator provided
-- **Benefit**: Event handlers can omit explicit return statements for cleaner syntax
-- **Compatibility**: Works with all event handler types including enter/exit handlers
-
-### Grammar Coverage
-
-- ✅ **Core Syntax**: System declarations, event handlers, actions, interfaces, domains
-- ✅ **Control Flow**: if/elif/else, for/while/loop, return statements, break/continue
-- ✅ **State Management**: Transitions, hierarchical states, enter/exit events, state variables
-- ✅ **Modern Syntax**: Conventional parameter syntax, block structure, flattened arguments
-- ✅ **System Parameters**: Start state, enter event, and domain parameter syntax
-- ✅ **Function Limitations**: Single main function restriction properly enforced
-- ✅ **Event Forwarding**: => $^ statement for parent state dispatch with router-based architecture
-- ✅ **Return Mechanisms**: Both return statements and return assignment (return = expr)
-- ✅ **Test Coverage**: 100% of comprehensive test files passing for v0.20 features (98/98 files)
-- ✅ **Empty Parameter Lists**: Full support for `()` syntax in all contexts (methods, interfaces, event handlers)
-- ✅ **Router Architecture**: Unified parent dispatch through dynamic router infrastructure
-- 🔄 **Legacy Support**: v0.11 syntax documented but deprecated (parser rejects old syntax)
-
-### Frame v0.30 Runtime Architecture (2025-08-23)
-
-**Auto-Start System Implementation** ✅ **COMPLETED**
-- **Achievement**: Frame systems now automatically initialize and trigger enter events during construction
-- **Runtime Methods**: All systems generate proper `__kernel`, `__router`, and `__transition` methods
-- **FrameCompartment**: Enhanced with `parent_compartment` parameter for hierarchical state machine support
-- **Generated Constructor**:
-  ```python
-  def __init__(self, *args):
-      # Initialize compartment and runtime
-      self.__compartment = FrameCompartment('_systemname_state_Start', None, None, None, None)
-      self.__next_compartment = None
-      self.return_stack = [None]
-      
-      # Auto-start system
-      frame_event = FrameEvent("$>", None)
-      self.__kernel(frame_event)
-  ```
-- **Breaking Change**: Manual event triggers (e.g., `sys._sStart(FrameEvent("$>", []))`) now cause double execution
-- **Migration**: Remove manual triggers from all Frame code - systems now start automatically
-
-**Comprehensive Testing Framework** ✅ **COMPLETED**
-- **Location**: `framec_tests/python/scripts/comprehensive_test.sh`
-- **Test Results**: 57/108 files transpile successfully, 34/57 execute without errors, 1 validation passes
-- **Validation Pattern**: Files with `// EXPECTED_OUTPUT: <expected>` are automatically validated
-- **Integration**: Combines transpilation, execution, and behavioral validation in single workflow
-
-**Multi-Entity Module System** ✅ **COMPLETED**
-- **Architecture**: Proper `FrameModule` container with peer `Functions[]` and `Systems[]`
-- **Parser**: Sequential entity parsing supporting any combination of functions and systems
-- **Backward Compatibility**: Legacy single-entity access maintained during transition
-
-**HSM Hierarchical State Machine Support (2025-08-23)** ✅ **COMPLETED**
-- **Achievement**: Complete fix for HSM parent dispatch infinite recursion issues
-- **Compartment Initialization**: Proper parent compartment references in hierarchical states
-- **Parent Dispatch**: `=> $^` statement works correctly without infinite recursion
-- **Syntax Restrictions**: `-> $^` transitions blocked, only `=> $^` dispatch allowed
-- **Validation**: TestHSM.frm successfully demonstrates parent dispatch functionality
-- **Generated Code**: Proper compartment hierarchy: `FrameCompartment('Child', ..., FrameCompartment('Parent', ...))`
-- **Router Integration**: Parent dispatch uses unified `__router` infrastructure
-- **Error Prevention**: Parser prevents `=> $^` usage in non-hierarchical states
-
-### Current Test Status (2025-08-23)
-
-**Transpilation Results**: 57/108 (52.8% success rate)
-**Execution Results**: 34/57 (59.6% success rate) 
-**Validation Results**: ✅ **COMPLETE HIERARCHICAL STATE MACHINE VALIDATION** 
-- TestHSM.frm: Parent dispatch working perfectly ✅
-- Custom hierarchical test cases: All functionality verified ✅  
-- File format requirements: Multi-entity format validated ✅
-- Parser status: All hierarchical parsing issues resolved ✅
-- Generated code: Clean Python output with proper compartment hierarchy ✅
-
-**Priority Issues Identified**:
-1. **System Parameter Constructors**: Generated constructors don't accept parameters
-2. **Array Syntax**: Multi-dimensional array transpilation failures (e.g., `[4][2]int{{...}}` Go syntax)
-3. **Multi-Entity Support**: 51 files fail transpilation (parser/visitor issues)
-
-**Next Steps**:
-- Remove manual triggers from ALL test files (legacy cleanup)
-- Fix system parameter constructor generation
-- Improve array syntax transpilation (Python list initialization)
-- Investigate multi-entity transpilation failures
-
-### Known Limitations
-
-**Dead Code Generation**
-- Event handlers always generate a default return terminator after statements
-- This can result in unreachable return statements after exhaustive if/elif/else chains
-- Functional correctness is maintained; this is a code generation optimization for future work
-
-**Manual Trigger Compatibility (Breaking Change)**
-- Systems with manual event triggers like `sys._sStart(FrameEvent("$>", []))` will execute enter events twice
-- Manual triggers must be removed as systems now auto-start
-- Test files require cleanup to remove legacy manual trigger patterns
-
-### Frame v0.30 Scope Resolution Fix (2025-08-24)
-
-**Call Chain Scope Bug Resolution** ✅ **CRITICAL FIX COMPLETED**
-- **Issue**: External object method calls (`obj.method()`) incorrectly generated `obj.self.method()` in Python output
-- **Impact**: Broke external object interactions, caused `NameError: name 'obj.self.method' is not defined`
-- **Root Cause**: Python visitor's `visiting_call_chain_operation` flag set for ALL operation calls in call chains, including single-node chains
-- **Solution**: Conditional flag setting - only set for multi-node chains (`obj.method()`), not single-node operations (`self.method()`)
-- **Technical Details**:
-  - **Multi-node chains**: `[Variable(obj), UndeclaredCall(method)]` → generates `obj.method()` ✅
-  - **Single-node operations**: `[OperationCall(internal_op)]` → generates `self.internal_op()` ✅
-  - **Files Modified**: `framec/src/frame_c/visitors/python_visitor.rs` (lines 4481-4492, 4772-4783)
-- **Validation**: 
-  - Simple debug test: External and internal calls work correctly ✅
-  - Complex workflow: CultureTicks seat booking system runs successfully ✅
-  - All operation calls within operations maintain proper `self.` prefix ✅
-- **Production Impact**: Frame v0.30 now supports reliable object-oriented Python integration
-- **Debug Infrastructure**: Added `FRAME_DEBUG` environment variable for visitor debugging

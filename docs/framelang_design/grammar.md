@@ -1373,9 +1373,9 @@ if value == None {  // Standard null comparison
 }
 ```
 
-## Deprecated Features (v0.11 → v0.20)
+## Removed Legacy Features (v0.31)
 
-The following syntax from Frame v0.11 is deprecated in v0.20:
+The following v0.11 syntax has been **completely removed** from the language as of v0.31:
 
 1. **System declaration**: 
    - Old: `#SystemName ... ##`
@@ -1393,41 +1393,51 @@ The following syntax from Frame v0.11 is deprecated in v0.20:
    - Old: `-interface-`, `-machine-`, `-actions-`, `-domain-`
    - New: `interface:`, `machine:`, `actions:`, `domain:`
 
-5. **Return token**: 
-   - Old: `^` and `^(value)`
-   - New: `return` and `return value`
+5. **Return operators**: 
+   - **REMOVED**: `^` and `^(value)`
+   - Use: `return` and `return value`
 
-6. **Parameter lists**: 
-   - Old: `[param1, param2]`
-   - New: `(param1, param2)`
+6. **Return assignment**:
+   - **REMOVED**: `^=`
+   - Use: `return = value`
 
-7. **Event selectors**: 
-   - Old: `|eventName|`
-   - New: `eventName()`
+7. **Ternary test operators**:
+   - **REMOVED**: `?`, `?!`, `?~`, `?#`, `?:`
+   - Use: if/elif/else statements
 
-8. **Function declaration**: 
-   - Old: `fn main {`
-   - New: `fn main() {`
+8. **Test terminators**:
+   - **REMOVED**: `:|` and `::`
+   - No longer needed
 
-9. **Enter/Exit events**:
-   - Old: `|>|` and `|<|`
-   - New: `$>()` and `<$()`
+9. **Pattern matching**:
+   - **REMOVED**: `~/` (string), `#/` (number), `:/` (enum)
+   - Use: if/elif/else with comparisons
 
-10. **Event forwarding to parent**:
-   - Old: `:>` (v0.11-v0.19), `@:>` (early v0.20)
-   - New: `=> $^` (v0.20)
+10. **Parameter lists**: 
+   - **REMOVED**: `[param1, param2]`
+   - Use: `(param1, param2)`
 
-11. **Attributes**:
-   - Old: `#[static]` (Rust-style)
-   - New: `@staticmethod` (Python-style)
+11. **Event selectors**: 
+   - **REMOVED**: `|eventName|`
+   - Use: `eventName()`
 
-12. **Current event reference**:
+12. **Enter/Exit events**:
+   - **REMOVED**: `|>|` and `|<|`
+   - Use: `$>()` and `<$()`
+
+13. **Attributes**:
+   - **REMOVED**: `#[static]` (Rust-style)
+   - Use: `@staticmethod` (Python-style)
+
+14. **Current event reference**:
    - Old: `@` for current event
-   - New: `$@` for current event (single `@` now reserved for attributes)
+   - Use: `$@` for current event (single `@` now reserved for attributes)
 
-13. **Empty parameter lists**:
-   - Old: v0.11 rejected `()` in certain parsing contexts
-   - New: v0.20 fully supports empty parameter lists `()` in all method calls, interface declarations, and event handlers
+### Compilation Behavior
+- Using any removed syntax causes immediate **compilation errors**
+- Clear error messages guide users to modern syntax
+- No backward compatibility mode available
+- All code must be migrated to v0.31 syntax
 
 ### System Parameter Migration Guide
 

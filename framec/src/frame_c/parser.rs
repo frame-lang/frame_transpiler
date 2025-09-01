@@ -1687,7 +1687,7 @@ impl<'a> Parser<'a> {
         if self.consume(TokenType::RParen, "Expected ')'").is_err() {
             let sync_tokens = vec![
                 TokenType::Colon,
-                TokenType::Caret,
+                // TokenType::Caret, // Removed - old return syntax
                 TokenType::At,
             ];
             self.synchronize(&sync_tokens);
@@ -1737,28 +1737,8 @@ impl<'a> Parser<'a> {
             }
         }
 
-        // Parse initializer expression group ^("foo") - DEPRECATED but still supported
-        if self.match_token(&[TokenType::Caret]) {
-            if let Err(parse_error) = self.consume(TokenType::LParen, "Expected '('.") {
-                return Err(parse_error);
-            }
-
-            // TODO: I think equality() should be called instead of expression()
-            // See operation() return pattern
-            let return_expr_result = self.expression();
-            match return_expr_result {
-                Ok(Some(expr_type)) => {
-                    return_init_expr_opt = Some(expr_type);
-                }
-                Ok(None) => {}
-                Err(err) => {
-                    return Err(err);
-                }
-            }
-            if let Err(parse_error) = self.consume(TokenType::RParen, "Expected ')'.") {
-                return Err(parse_error);
-            }
-        }
+        // REMOVED: Old return syntax ^("foo") has been completely removed
+        // Use 'return value' instead
 
         // Parse alias
         if self.match_token(&[TokenType::At]) {
@@ -4405,33 +4385,9 @@ impl<'a> Parser<'a> {
         //     None => None,
         // };
 
-        // TODO: align/factor return statements into a function
-        if self.match_token(&[TokenType::Caret]) {
-            if self.match_token(&[TokenType::LParen]) {
-                let expr_t = match self.equality() {
-                    Ok(Some(expr_t)) => expr_t,
-                    _ => {
-                        // TODO - err_msg everywhere for ParseErrors
-                        self.error_at_current("Expected expression as return value.");
-                        return Err(ParseError::new("TODO"));
-                    }
-                };
-
-                if let Err(parse_error) = self.consume(TokenType::RParen, "Expected ')'.") {
-                    return Err(parse_error);
-                }
-
-                Ok(TerminatorExpr::new(
-                    Return,
-                    Some(expr_t),
-                    self.previous().line,
-                ))
-            } else {
-                Ok(TerminatorExpr::new(Return, None, self.previous().line))
-            }
-        } else {
-            Ok(TerminatorExpr::new(Return, None, self.previous().line))
-        }
+        // REMOVED: Old caret return syntax (^ and ^(value))
+        // Now just return None since Caret token is removed
+        Ok(TerminatorExpr::new(Return, None, self.previous().line))
     }
 
     /* --------------------------------------------------------------------- */
@@ -4554,7 +4510,7 @@ impl<'a> Parser<'a> {
                 let sync_tokens = vec![
                     TokenType::Identifier,
                     TokenType::LParen,
-                    TokenType::Caret,
+                    // TokenType::Caret, // Removed - old return syntax
                     TokenType::GT,
                     TokenType::State,
                     TokenType::PipePipe,
@@ -4629,7 +4585,7 @@ impl<'a> Parser<'a> {
             Err(_) => {
                 let sync_tokens = vec![
                     TokenType::CloseBrace,
-                    TokenType::Caret,
+                    // TokenType::Caret, // Removed - old return syntax
                     TokenType::Identifier,
                     TokenType::Pipe,
                     TokenType::State,
@@ -5148,12 +5104,14 @@ impl<'a> Parser<'a> {
     fn bool_test(&mut self, expr_t: ExprType) -> Result<BoolTestNode, ParseError> {
         let is_negated: bool;
 
-        self.sync_tokens_from_error_context = vec![TokenType::ColonBar];
+        // self.sync_tokens_from_error_context = vec![TokenType::ColonBar]; // Removed with ternary syntax
 
         // REMOVED: Deprecated ternary test syntax
         // '?' and '?!' tokens removed in v0.30
         return Err(ParseError::new("Ternary operators have been removed. Use if/elif/else statements instead."));
 
+        // All code below is unreachable - ternary syntax removed
+        /*
         let mut conditional_branches: Vec<BoolTestConditionalBranchNode> = Vec::new();
 
         let first_branch_node =
@@ -5184,6 +5142,7 @@ impl<'a> Parser<'a> {
             conditional_branches,
             bool_test_else_node_opt,
         ))
+        */
     }
 
     /* --------------------------------------------------------------------- */
@@ -5307,34 +5266,9 @@ impl<'a> Parser<'a> {
 
     // TODO: explore returning a TerminatorType rather than node
     fn branch_terminator(&mut self) -> Result<Option<TerminatorExpr>, ParseError> {
-        if self.match_token(&[TokenType::Caret]) {
-            if self.match_token(&[TokenType::LParen]) {
-                let expr_t = match self.unary_expression() {
-                    Ok(Some(expr_t)) => expr_t,
-                    _ => {
-                        self.error_at_current("Expected expression as return value.");
-                        return Err(ParseError::new("TODO"));
-                    }
-                };
-
-                if let Err(parse_error) = self.consume(TokenType::RParen, "Expected ')'.") {
-                    return Err(parse_error);
-                }
-                return Ok(Some(TerminatorExpr::new(
-                    Return,
-                    Some(expr_t),
-                    self.previous().line,
-                )));
-            } else {
-                return Ok(Some(TerminatorExpr::new(
-                    Return,
-                    None,
-                    self.previous().line,
-                )));
-            }
-        } else {
-            Ok(None)
-        }
+        // REMOVED: Old caret return syntax (^ and ^(value))
+        // The caret syntax has been completely removed
+        Ok(None)
     }
 
     /* --------------------------------------------------------------------- */
@@ -5399,6 +5333,8 @@ impl<'a> Parser<'a> {
     // Match null
     // string_match_test ->  ('!/!' (statement* branch_terminator?) ':>')+  '::'
 
+    // REMOVED: string_match_test_match_branch - part of deprecated ternary syntax
+    /*
     fn string_match_test_match_branch(
         &mut self,
     ) -> Result<StringMatchTestMatchBranchNode, ParseError> {
@@ -5460,6 +5396,7 @@ impl<'a> Parser<'a> {
             Err(parse_error) => Err(parse_error),
         }
     }
+    */
 
     /* --------------------------------------------------------------------- */
 

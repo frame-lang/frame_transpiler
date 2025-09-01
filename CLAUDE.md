@@ -103,65 +103,70 @@ FrameModule (Top-Level)
         └── Domain Block
 ```
 
-## Frame Syntax Evolution (v0.11 → v0.20 → v0.30)
+## Frame Syntax (Current v0.31)
 
-### System Declaration
-- **Old**: `#SystemName ... ##`
-- **New**: `system SystemName { ... }`
+### Core Language Features
 
-### Block Keywords
-- **Old**: `-interface-`, `-machine-`, `-actions-`, `-domain-`
-- **New**: `interface:`, `machine:`, `actions:`, `domain:`
+#### System Declaration
+- **Syntax**: `system SystemName { ... }`
 
-### Parameters
-- **Old**: `[param1, param2]`
-- **New**: `(param1, param2)`
+#### Block Keywords
+- `interface:` - Interface methods
+- `machine:` - State machine definition  
+- `actions:` - Action implementations
+- `operations:` - Helper operations
+- `domain:` - Domain variables
 
-### Event Handlers
-- **Old**: `|eventName|`
-- **New**: `eventName()`
+#### Parameters
+- **Syntax**: `(param1, param2)`
 
-### Enter/Exit Events
-- **Old**: `|>|` and `|<|`
-- **New**: `$>()` and `<$()`
+#### Event Handlers
+- **Syntax**: `eventName()`
+- **Enter Event**: `$>()`
+- **Exit Event**: `<$()`
 
-### Return Statements
-- **Old**: `^` and `^(value)`
-- **New**: `return` and `return value`
+#### Return Statements
+- **Simple**: `return`
+- **With Value**: `return value`
+- **Interface Return**: `return = value`
 
-### Event Forwarding to Parent (NEW in v0.20)
-- **Old**: `:>` (deprecated), `@:>` (terminator - deprecated)
-- **New**: `=> $^` (statement - can appear anywhere in event handler)
+#### Event Forwarding
+- **To Parent State**: `=> $^` (statement - can appear anywhere in event handler)
+- **Current Event**: `$@`
 
-### Attributes (NEW in v0.20)
-- **Old**: `#[static]` (Rust-style)
-- **New**: `@staticmethod` (Python-style)
+#### Attributes
+- **Syntax**: `@staticmethod` (Python-style)
 
-### Current Event Reference (NEW in v0.20)
-- **Old**: `@` for current event
-- **New**: `$@` for current event
-- **Note**: Single `@` now reserved for Python-style attributes
-
-### System Parameters
-- **Old**: `#System [$[start], >[enter], #[domain]]`
-- **New**: `system System ($(start), $>(enter), domain)`
-
-### System Instantiation
-- **Old**: `System($("a"), >("b"), #("c"))`
-- **New**: `System("a", "b", "c")` (flattened arguments)
+#### System Parameters
+- **Declaration**: `system System ($(start), $>(enter), domain)`
+- **Instantiation**: `System("a", "b", "c")` (flattened arguments)
 
 ### v0.30 Enhancements
 
-#### Multi-Entity Support (NEW in v0.30)
+#### Multi-Entity Support
 - **Multiple Functions**: Support for multiple functions with any names
 - **Multiple Systems**: Support for multiple system definitions per file
 - **Module Architecture**: Foundation for comprehensive module system
 
-#### Removed Features (v0.31)
-- **Ternary Operators**: `?`, `?!`, `?~`, `?#`, `?:` patterns **REMOVED**
-- **Test Terminators**: `:|` and `::` **REMOVED**
-- **Migration**: All conditional logic must use if/elif/else statements
-- **Compilation**: Using ternary syntax now causes compilation errors
+### v0.31 Breaking Changes
+
+#### Completely Removed Legacy Syntax
+The following v0.11 syntax has been **completely removed** and will cause compilation errors:
+
+##### Removed Tokens
+- `^` and `^(value)` - Old return syntax → Use `return` or `return value`
+- `^=` - Old return assignment → Use `return = value`
+- `#SystemName ... ##` - Old system declaration → Use `system Name { }`
+- `?`, `?!`, `?~`, `?#`, `?:` - Ternary operators → Use if/elif/else
+- `:|` and `::` - Test terminators → No longer needed
+- `~/`, `#/`, `:/` - Pattern matching → Use if/elif/else with comparisons
+- `#[attr]` - Rust-style attributes → Use `@attr`
+- `[params]` - Bracket parameters → Use `(params)`
+- `|event|` - Pipe event handlers → Use `event()`
+- `-block-` - Dash block markers → Use `block:`
+
+##### Migration Required
+All code using old syntax must be migrated to modern syntax before compilation.
 
 ### v0.31 Enhancements
 
