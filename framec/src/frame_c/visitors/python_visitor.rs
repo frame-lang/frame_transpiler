@@ -5290,22 +5290,13 @@ impl AstVisitor for PythonVisitor {
         self.debug_enter(&format!("visit_call_chain_expr_node({} nodes)", call_l_chain_expression_node.call_chain.len()));
         
         // Special handling for self.domain_variable patterns
-        // Check if this is a 2-node chain starting with "self"
-        let is_self_domain_access = call_l_chain_expression_node.call_chain.len() == 2 &&
+        // Check if this is a chain starting with "self" followed by a variable
+        let starts_with_self_var = call_l_chain_expression_node.call_chain.len() >= 2 &&
             matches!(call_l_chain_expression_node.call_chain.get(0), 
                 Some(CallChainNodeType::VariableNodeT { var_node }) 
-                    if var_node.id_node.name.lexeme == "self");
-        
-        if is_self_domain_access {
-            // This is self.domain_variable - just output "self.variable"
-            if let Some(CallChainNodeType::VariableNodeT { var_node }) = 
-                call_l_chain_expression_node.call_chain.get(1) {
-                self.add_code("self.");
-                self.add_code(&var_node.id_node.name.lexeme);
-                self.debug_exit("visit_call_chain_expr_node (self.domain_var)");
-                return;
-            }
-        }
+                    if var_node.id_node.name.lexeme == "self") &&
+            matches!(call_l_chain_expression_node.call_chain.get(1),
+                Some(CallChainNodeType::VariableNodeT { .. }));
         
         // Set flag to indicate we're processing within a call chain
         // Only set this for multi-node chains (single-node chains still need self. prefix)
@@ -5326,8 +5317,15 @@ impl AstVisitor for PythonVisitor {
         }
         
         eprintln!("DEBUG visit_call_chain_expr_node: Processing {} nodes", call_l_chain_expression_node.call_chain.len());
+        eprintln!("DEBUG: starts_with_self_var = {}", starts_with_self_var);
         
         for (i, node) in call_l_chain_expression_node.call_chain.iter().enumerate() {
+            // Skip the first "self" node in self.variable patterns
+            if starts_with_self_var && i == 0 {
+                eprintln!("DEBUG: Skipping 'self' node at index 0");
+                continue;
+            }
+            
             let node_type = match &node {
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                     format!("UndeclaredIdentifier({})", id_node.name.lexeme)
@@ -5348,6 +5346,17 @@ impl AstVisitor for PythonVisitor {
                 CallChainNodeType::UndeclaredListElementT { .. } => "UndeclaredListElement".to_string(),
             };
             self.debug_print(&format!("Chain node[{}]: {}", i, node_type));
+            
+            // Special handling for the first variable after self in self.variable patterns
+            if starts_with_self_var && i == 1 {
+                // For self.variable, we already have the context, just output the variable name
+                if let CallChainNodeType::VariableNodeT { var_node } = &node {
+                    eprintln!("DEBUG: Outputting self.variable pattern: self.{}", var_node.id_node.name.lexeme);
+                    self.add_code(&format!("self.{}", var_node.id_node.name.lexeme));
+                    separator = ".";
+                    continue;
+                }
+            }
             
             self.add_code(separator);
             separator = ".";
@@ -5652,9 +5661,33 @@ impl AstVisitor for PythonVisitor {
         call_chain_expression_node: &CallChainExprNode,
         output: &mut String,
     ) {
+        // Special handling for self.domain_variable patterns
+        // Check if this is a chain starting with "self" followed by a variable
+        let starts_with_self_var = call_chain_expression_node.call_chain.len() >= 2 &&
+            matches!(call_chain_expression_node.call_chain.get(0), 
+                Some(CallChainNodeType::VariableNodeT { var_node }) 
+                    if var_node.id_node.name.lexeme == "self") &&
+            matches!(call_chain_expression_node.call_chain.get(1),
+                Some(CallChainNodeType::VariableNodeT { .. }));
+        
         let mut separator = "";
 
         for (i, node) in call_chain_expression_node.call_chain.iter().enumerate() {
+            // Skip the first "self" node in self.variable patterns
+            if starts_with_self_var && i == 0 {
+                continue;
+            }
+            
+            // Special handling for the first variable after self in self.variable patterns
+            if starts_with_self_var && i == 1 {
+                // For self.variable, we already have the context, just output the variable name
+                if let CallChainNodeType::VariableNodeT { var_node } = &node {
+                    output.push_str(&format!("self.{}", var_node.id_node.name.lexeme));
+                    separator = ".";
+                    continue;
+                }
+            }
+            
             let node_desc = match &node {
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => 
                     format!("UndeclaredIdentifier({})", id_node.name.lexeme),
