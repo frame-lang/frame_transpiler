@@ -3,12 +3,12 @@
 ⚠️ **IMPORTANT: When starting a new session, ALWAYS read these documents first:**
 1. This file (CLAUDE.md) - Project structure and conventions
 2. `docs/framelang_design/dev_notes.md` - Latest development status
-3. `docs/v0.31_achievements.md` - Current release features
-4. `framec_tests/reports/test_matrix_v031.md` - Current test results
+3. `docs/v0.32_achievements.md` - Current release features
+4. `framec_tests/reports/test_matrix_v0.31.md` - Current test results
 
 ## Project Overview
 
-Frame is a state machine language that transpiles to multiple target languages. The project has evolved through v0.20 (syntax modernization), v0.30 (multi-entity support), and v0.31 (import statements and self expression enhancements).
+Frame is a state machine language that transpiles to multiple target languages. The project has evolved through v0.20 (syntax modernization), v0.30 (multi-entity support), v0.31 (import statements and self expression enhancements), and v0.32 (advanced enum features).
 
 ## File Locations
 
@@ -34,13 +34,15 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose
 
 ## Current State
 
-**Branch**: `v0.31`  
-**Status**: ✅ **100% TEST SUCCESS RATE** (166/166 tests passing)
+**Branch**: `v0.30`  
+**Version**: `v0.32`  
+**Status**: ✅ **100% TEST SUCCESS RATE** (170/170 tests passing)
 
 📋 **For release notes and development status, see**: [`docs/framelang_design/dev_notes.md`](docs/framelang_design/dev_notes.md)
 📊 **For v0.30 achievements, see**: [`docs/v0.30_achievements.md`](docs/v0.30_achievements.md)
 📊 **For v0.31 achievements, see**: [`docs/v0.31_achievements.md`](docs/v0.31_achievements.md)
-📊 **For latest test results, see**: [`framec_tests/reports/test_matrix_v031.md`](framec_tests/reports/test_matrix_v031.md)
+📊 **For v0.32 achievements, see**: [`docs/v0.32_achievements.md`](docs/v0.32_achievements.md)
+📊 **For latest test results, see**: [`framec_tests/reports/test_matrix_v0.31.md`](framec_tests/reports/test_matrix_v0.31.md)
 
 ## Architecture
 
@@ -58,7 +60,19 @@ Visitors (Code Generation) → framec/src/frame_c/visitors/
 Target Code (Python, C#, etc.)
 ```
 
-### v0.31 Latest Features
+### v0.32 Latest Features (NEW)
+
+#### Advanced Enum Support (NEW in v0.32)
+- **Custom Integer Values**: `enum Status { Ok = 200, NotFound = 404 }`
+- **String Enums**: `enum Color : string { Red = "red", Blue = "blue" }`
+- **Auto String Values**: `enum LogLevel : string { Debug, Info }` → Debug="Debug", Info="Info"
+- **Mixed Values**: Explicit values with auto-increment continuation
+- **Negative Values**: `enum Priority { Low = -1, High = 10 }`
+- **Module-Scope Enums**: Enums can be declared at module level (outside systems)
+- **Enum Iteration**: `for status in StatusEnum { ... }`
+- **Property Access**: `.name` and `.value` properties on enum members
+
+### v0.31 Features
 
 #### Import Statements (NEW in v0.31)
 - **Simple imports**: `import math`
@@ -93,17 +107,19 @@ Target Code (Python, C#, etc.)
 FrameModule (Top-Level)
 ├── Module (metadata/attributes)
 ├── Functions[] (peer entities)
-└── Systems[] (peer entities)
+├── Systems[] (peer entities)
+├── Enums[] (module-level enums) - v0.32
+└── Variables[] (module variables)
     └── SystemNode
         ├── Module (system-specific metadata)
         ├── Interface Block
         ├── Machine Block  
         ├── Actions Block
         ├── Operations Block
-        └── Domain Block
+        └── Domain Block (can contain system-scoped enums)
 ```
 
-## Frame Syntax (Current v0.31)
+## Frame Syntax (Current v0.32)
 
 ### Core Language Features
 

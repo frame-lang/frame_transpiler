@@ -1,14 +1,14 @@
-# Frame Language Grammar (v0.31)
+# Frame Language Grammar (v0.32)
 
-**Last Updated**: 2025-09-01  
-**Status**: Complete with module variables, self.variable syntax, and 100% test coverage
+**Last Updated**: 2025-09-02  
+**Status**: Complete with advanced enum features, module variables, self.variable syntax, and 100% test coverage
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
 ## Module Structure
 
 ```bnf
-module: (import_stmt | function | system)*
+module: (import_stmt | enum_decl | var_decl | function | system)*
 ```
 
 **v0.31 Import Support**: Modules can now include native import statements at the top level, supporting Python module imports without requiring backticks.
@@ -257,6 +257,125 @@ system DataCollector {
 - **Read vs Write**: Only modifications require global declarations; read-only access works without them
 - **Conditional Imports**: Import statements like `from enum import Enum` are only generated when actually used
 
+## Enumerations (v0.32)
+
+Frame v0.32 introduces advanced enum support with custom values, string enums, and iteration capabilities.
+
+```bnf
+enum_decl: 'enum' IDENTIFIER enum_type? '{' enum_member_list '}'
+enum_type: ':' ('int' | 'string')
+enum_member_list: enum_member (',' enum_member)* ','?
+enum_member: IDENTIFIER ('=' enum_value)?
+enum_value: integer_literal | string_literal | negative_integer
+negative_integer: '-' integer_literal
+```
+
+### Integer Enums
+
+Integer enums support custom values, negative values, and auto-increment:
+
+```frame
+// Default auto-increment from 0
+enum Status {
+    Idle,      // 0
+    Running,   // 1
+    Complete   // 2
+}
+
+// Custom values
+enum HttpStatus {
+    Ok = 200,
+    NotFound = 404,
+    ServerError = 500
+}
+
+// Mixed explicit and auto values
+enum Priority {
+    Low = -1,    // -1
+    Normal,      // 0 (auto continues from -1)
+    High = 10,   // 10
+    Critical     // 11 (auto continues from 10)
+}
+```
+
+### String Enums
+
+String enums use the `: string` type annotation:
+
+```frame
+// Explicit string values
+enum Color : string {
+    Red = "red",
+    Green = "green",
+    Blue = "blue"
+}
+
+// Auto string values (uses member name)
+enum LogLevel : string {
+    Debug,    // "Debug"
+    Info,     // "Info"
+    Warning,  // "Warning"
+    Error     // "Error"
+}
+```
+
+### Module-Scope Enums
+
+Enums can be declared at module level (outside systems):
+
+```frame
+// Module-level enum
+enum GlobalStatus {
+    Active,
+    Inactive
+}
+
+fn main() {
+    var status = GlobalStatus.Active
+    print(status.name)  // "Active"
+}
+
+system Monitor {
+    machine:
+        $Idle {
+            check() {
+                if state == GlobalStatus.Active {
+                    // ...
+                }
+            }
+        }
+}
+```
+
+### Enum Iteration
+
+Enums support iteration using for-in loops:
+
+```frame
+enum MenuOption {
+    NewFile,
+    OpenFile,
+    SaveFile,
+    Exit
+}
+
+fn displayMenu() {
+    for option in MenuOption {
+        print(option.name + " = " + option.value)
+    }
+}
+```
+
+### Enum Properties
+
+Enum members have `.name` and `.value` properties:
+
+```frame
+var status = HttpStatus.NotFound
+print(status.name)   // "NotFound"
+print(status.value)  // 404
+```
+
 ## Systems
 
 ```bnf
@@ -425,7 +544,7 @@ state_var: 'var' IDENTIFIER type? '=' expr
 ## Domain Block
 
 ```bnf
-domain_block: 'domain:' domain_var*
+domain_block: 'domain:' (domain_var | enum_decl)*
 domain_var: 'var' IDENTIFIER type? '=' expr
 ```
 

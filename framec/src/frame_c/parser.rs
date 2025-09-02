@@ -242,10 +242,26 @@ impl<'a> Parser<'a> {
         let mut functions = Vec::new();
         let mut systems = Vec::new();
         let mut variables = Vec::new();
+        let mut enums = Vec::new();
         let mut statements = Vec::new();
         
         // Parse all entities in sequence
         loop {
+            // Check for module-level enum declarations
+            if self.match_token(&[TokenType::Enum]) {
+                match self.enum_decl() {
+                    Ok(enum_decl) => {
+                        enums.push(enum_decl.clone());
+                        // Also add to module elements for backward compatibility
+                        if let Some(ref mut elements) = module_elements_opt {
+                            elements.push(ModuleElement::Enum { enum_decl_node: enum_decl });
+                        }
+                    }
+                    Err(e) => return Err(e),
+                }
+                continue;
+            }
+            
             // Check for module-level variable declarations
             if self.match_token(&[TokenType::Var, TokenType::Const]) {
                 match self.var_declaration(IdentifierDeclScope::ModuleScope) {
@@ -315,7 +331,7 @@ impl<'a> Parser<'a> {
             None => Module::new(vec![]),
         };
         
-        Ok(FrameModule::new(final_module, functions, systems, variables, statements))
+        Ok(FrameModule::new(final_module, functions, systems, variables, enums, statements))
     }
 
     /* --------------------------------------------------------------------- */
@@ -2989,35 +3005,93 @@ impl<'a> Parser<'a> {
             true => self.previous().lexeme.clone(),
         };
 
+        // Check for type annotation (: string or : int)
+        let enum_type = if self.match_token(&[TokenType::Colon]) {
+            if self.match_token(&[TokenType::Identifier]) {
+                match self.previous().lexeme.as_str() {
+                    "string" => EnumType::String,
+                    "int" => EnumType::Integer,
+                    _ => {
+                        self.error_at_current("Invalid enum type. Use 'string' or 'int'");
+                        EnumType::Integer
+                    }
+                }
+            } else {
+                self.error_at_current("Expected type after ':'");
+                EnumType::Integer
+            }
+        } else {
+            EnumType::Integer  // Default to integer
+        };
+
         if !self.match_token(&[TokenType::OpenBrace]) {
             self.error_at_current("Expected enum {identifier} '{'.");
             return Err(ParseError::new("TODO"));
         }
 
         let mut enums = Vec::new();
-        let mut enum_value = 0;
+        let mut enum_value = 0;  // For auto-incrementing integers
+        
         while self.match_token(&[TokenType::Identifier]) {
             let identifier = self.previous().lexeme.clone();
-            if self.match_token(&[TokenType::Equals]) {
-                if self.match_token(&[TokenType::Number]) {
-                    let tok = self.previous();
-                    let tok_lit = &tok.literal;
-                    if let TokenLiteral::Integer(value) = tok_lit {
-                        enum_value = *value;
-                    } else {
-                        let err_msg = "Expected integer in enum assignment. Found float.";
-                        self.error_at_current(&&err_msg);
-                        return Err(ParseError::new(err_msg));
+            let value = if self.match_token(&[TokenType::Equals]) {
+                // Explicit value provided
+                match enum_type {
+                    EnumType::Integer => {
+                        // Handle negative numbers
+                        let is_negative = self.match_token(&[TokenType::Dash]);
+                        
+                        if self.match_token(&[TokenType::Number]) {
+                            let tok = self.previous();
+                            let tok_lit = &tok.literal;
+                            if let TokenLiteral::Integer(val) = tok_lit {
+                                let final_value = if is_negative { -val } else { *val };
+                                enum_value = final_value;
+                                EnumValue::Integer(final_value)
+                            } else {
+                                let err_msg = "Expected integer in enum assignment. Found float.";
+                                self.error_at_current(&err_msg);
+                                return Err(ParseError::new(err_msg));
+                            }
+                        } else {
+                            let err_msg = "Expected number after '='.";
+                            self.error_at_current(&err_msg);
+                            return Err(ParseError::new(err_msg));
+                        }
                     }
-                } else {
-                    let err_msg = "Expected number after '='.";
-                    self.error_at_current(&&err_msg);
-                    return Err(ParseError::new(err_msg));
+                    EnumType::String => {
+                        if self.match_token(&[TokenType::String]) {
+                            let string_value = self.previous().lexeme.clone();
+                            EnumValue::String(string_value)
+                        } else {
+                            let err_msg = "Expected string value for string enum";
+                            self.error_at_current(&err_msg);
+                            return Err(ParseError::new(err_msg));
+                        }
+                    }
                 }
+            } else {
+                // Auto value
+                match enum_type {
+                    EnumType::Integer => {
+                        let val = EnumValue::Integer(enum_value);
+                        enum_value += 1;
+                        val
+                    }
+                    EnumType::String => {
+                        // For string enums without explicit values, use the member name
+                        EnumValue::String(identifier.clone())
+                    }
+                }
+            };
+            
+            // For explicit integer values, update the auto-increment counter
+            if let EnumValue::Integer(val) = &value {
+                enum_value = val + 1;
             }
-            let enumerator_node = Rc::new(EnumeratorDeclNode::new(identifier, enum_value));
+            
+            let enumerator_node = Rc::new(EnumeratorDeclNode::new(identifier, value));
             enums.push(enumerator_node);
-            enum_value = enum_value + 1;
         }
 
         if !self.match_token(&[TokenType::CloseBrace]) {
@@ -3025,7 +3099,7 @@ impl<'a> Parser<'a> {
             return Err(ParseError::new("TODO"));
         }
 
-        let enum_decl_node = EnumDeclNode::new(identifier.clone(), enums);
+        let enum_decl_node = EnumDeclNode::new(identifier.clone(), enum_type, enums);
         let enum_decl_node_rcref = Rc::new(RefCell::new(enum_decl_node));
 
         if self.is_building_symbol_table {
@@ -4907,6 +4981,22 @@ impl<'a> Parser<'a> {
             };
         }
 
+        if self.match_token(&[TokenType::Try]) {
+            return match self.try_statement() {
+                Ok(Some(try_stmt_t)) => Ok(Some(try_stmt_t)),
+                Ok(None) => Err(ParseError::new("Expected try statement")),
+                Err(parse_error) => Err(parse_error),
+            };
+        }
+
+        if self.match_token(&[TokenType::Raise]) {
+            return match self.raise_statement() {
+                Ok(Some(raise_stmt_t)) => Ok(Some(raise_stmt_t)),
+                Ok(None) => Err(ParseError::new("Expected raise statement")),
+                Err(parse_error) => Err(parse_error),
+            };
+        }
+
         if self.match_token(&[TokenType::For]) {
             return match self.for_statement() {
                 Ok(Some(for_stmt_t)) => Ok(Some(for_stmt_t)),
@@ -6549,6 +6639,185 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
+    fn try_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
+        // Parse the try block
+        if !self.match_token(&[TokenType::OpenBrace]) {
+            self.error_at_current("Expected '{' after 'try'.");
+            return Err(ParseError::new("Expected '{' after 'try'."));
+        }
+
+        let try_block = match self.parse_braced_block("try_block") {
+            Ok(block) => block,
+            Err(e) => return Err(e),
+        };
+
+        // Parse except clauses (at least one required for now)
+        let mut except_clauses = Vec::new();
+        
+        if !self.match_token(&[TokenType::Except]) {
+            self.error_at_current("Expected 'except' after try block.");
+            return Err(ParseError::new("Expected 'except' after try block."));
+        }
+
+        loop {
+            // Parse exception specification (optional)
+            let mut exception_types = None;
+            let mut var_name = None;
+
+            // Check if there's an exception type specified
+            if self.check(TokenType::Identifier) || self.check(TokenType::LParen) {
+                // Could be:
+                // 1. except ValueError
+                // 2. except ValueError as e
+                // 3. except (ValueError, TypeError)
+                // 4. except (ValueError, TypeError) as e
+                // 5. except e  (just binding, no type)
+                
+                if self.match_token(&[TokenType::LParen]) {
+                    // Multiple exception types
+                    let mut types = Vec::new();
+                    loop {
+                        if self.peek().token_type == TokenType::Identifier {
+                            types.push(self.peek().lexeme.clone());
+                            self.advance();
+                        } else {
+                            break;
+                        }
+                        
+                        if !self.match_token(&[TokenType::Comma]) {
+                            break;
+                        }
+                    }
+                    
+                    if !self.match_token(&[TokenType::RParen]) {
+                        self.error_at_current("Expected ')' after exception types.");
+                        return Err(ParseError::new("Expected ')' after exception types."));
+                    }
+                    
+                    if !types.is_empty() {
+                        exception_types = Some(types);
+                    }
+                } else if self.peek().token_type == TokenType::Identifier {
+                    // Check if next token is 'as' to determine if this is a type or just a binding
+                    let ident = self.peek().lexeme.clone();
+                    self.advance();
+                    
+                    if self.match_token(&[TokenType::As]) {
+                        // This was an exception type, now get the variable name
+                        exception_types = Some(vec![ident]);
+                        
+                        if self.peek().token_type == TokenType::Identifier {
+                            var_name = Some(self.peek().lexeme.clone());
+                            self.advance();
+                        }
+                    } else if self.check(TokenType::OpenBrace) {
+                        // Just a variable binding (except e {})
+                        var_name = Some(ident);
+                    } else {
+                        // Just an exception type (except ValueError {})
+                        exception_types = Some(vec![ident]);
+                    }
+                }
+                
+                // Check for 'as' if we haven't processed it yet
+                if exception_types.is_some() && var_name.is_none() && self.match_token(&[TokenType::As]) {
+                    if self.peek().token_type == TokenType::Identifier {
+                        var_name = Some(self.peek().lexeme.clone());
+                        self.advance();
+                    }
+                }
+            }
+
+            // Parse the except block
+            if !self.match_token(&[TokenType::OpenBrace]) {
+                self.error_at_current("Expected '{' after except clause.");
+                return Err(ParseError::new("Expected '{' after except clause."));
+            }
+
+            let except_block = match self.parse_braced_block("except_block") {
+                Ok(block) => block,
+                Err(e) => return Err(e),
+            };
+
+            except_clauses.push(ExceptClauseNode::new(
+                exception_types,
+                var_name,
+                except_block,
+            ));
+
+            // Check for more except clauses
+            if !self.match_token(&[TokenType::Except]) {
+                break;
+            }
+        }
+
+        // Parse optional else block
+        let else_block = if self.match_token(&[TokenType::Else]) {
+            if !self.match_token(&[TokenType::OpenBrace]) {
+                self.error_at_current("Expected '{' after 'else'.");
+                return Err(ParseError::new("Expected '{' after 'else'."));
+            }
+
+            Some(match self.parse_braced_block("else_block") {
+                Ok(block) => block,
+                Err(e) => return Err(e),
+            })
+        } else {
+            None
+        };
+
+        // Parse optional finally block
+        let finally_block = if self.match_token(&[TokenType::Finally]) {
+            if !self.match_token(&[TokenType::OpenBrace]) {
+                self.error_at_current("Expected '{' after 'finally'.");
+                return Err(ParseError::new("Expected '{' after 'finally'."));
+            }
+
+            Some(match self.parse_braced_block("finally_block") {
+                Ok(block) => block,
+                Err(e) => return Err(e),
+            })
+        } else {
+            None
+        };
+
+        let try_stmt_node = TryStmtNode::new(
+            try_block,
+            except_clauses,
+            else_block,
+            finally_block,
+        );
+
+        Ok(Some(StatementType::TryStmt { try_stmt_node }))
+    }
+
+    fn raise_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
+        // Parse optional exception expression
+        let exception_expr = match self.expression() {
+            Ok(Some(expr)) => Some(expr),
+            Ok(None) => None,  // bare 'raise' for re-raising
+            Err(e) => return Err(e),
+        };
+
+        // Parse optional 'from' clause
+        let from_expr = if self.match_token(&[TokenType::From]) {
+            match self.expression() {
+                Ok(Some(expr)) => Some(expr),
+                Ok(None) => {
+                    self.error_at_current("Expected expression after 'from'.");
+                    return Err(ParseError::new("Expected expression after 'from'."));
+                }
+                Err(e) => return Err(e),
+            }
+        } else {
+            None
+        };
+
+        let raise_stmt_node = RaiseStmtNode::new(exception_expr, from_expr);
+
+        Ok(Some(StatementType::RaiseStmt { raise_stmt_node }))
+    }
+
     fn if_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
         // Parse the condition expression
         let condition = match self.expression() {
@@ -6824,6 +7093,62 @@ impl<'a> Parser<'a> {
             Err(e) => return Err(e),
         };
 
+        // Check if iterating over an enum type
+        let mut is_enum_iteration = false;
+        let mut enum_type_name = None;
+        
+        // eprintln!("DEBUG: Checking iterable for enum iteration");
+        match &iterable {
+            VariableExprT { ref var_node } => {
+                // eprintln!("  Iterable is VariableExprT");
+                // Check if this variable refers to an enum type
+                let var_name = &var_node.id_node.name.lexeme;
+                // eprintln!("  Variable name: {}", var_name);
+                
+                // Look up the symbol to see if it's an enum
+                if let Some(symbol_type_rcref) = self.arcanum.lookup(var_name, &IdentifierDeclScope::UnknownScope) {
+                    let symbol_type = symbol_type_rcref.borrow();
+                    // eprintln!("  Found symbol type: {:?}", &*symbol_type);
+                    if let SymbolType::EnumDeclSymbolT { .. } = &*symbol_type {
+                        // eprintln!("  It's an enum! Setting is_enum_iteration=true");
+                        is_enum_iteration = true;
+                        enum_type_name = Some(var_name.clone());
+                    }
+                }
+            }
+            CallChainExprT { ref call_chain_expr_node } => {
+                // eprintln!("  Iterable is CallChainExprT with {} nodes", call_chain_expr_node.call_chain.len());
+                // Check if it's a single-node chain with an enum variable
+                if call_chain_expr_node.call_chain.len() == 1 {
+                    if let Some(first_node) = call_chain_expr_node.call_chain.front() {
+                        match first_node {
+                            CallChainNodeType::VariableNodeT { ref var_node } => {
+                                let var_name = &var_node.id_node.name.lexeme;
+                                // eprintln!("  Single VariableNodeT in chain: {}", var_name);
+                                
+                                // Check if the variable's symbol type is an enum
+                                if let Some(ref symbol_type_opt) = var_node.symbol_type_rcref_opt {
+                                    let symbol_type = symbol_type_opt.borrow();
+                                    // eprintln!("  Symbol type from var_node: {:?}", &*symbol_type);
+                                    if let SymbolType::EnumDeclSymbolT { .. } = &*symbol_type {
+                                        // eprintln!("  It's an enum! Setting is_enum_iteration=true");
+                                        is_enum_iteration = true;
+                                        enum_type_name = Some(var_name.clone());
+                                    }
+                                }
+                            }
+                            _ => {
+                                // eprintln!("  First node is not a VariableNodeT");
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {
+                // eprintln!("  Iterable is neither VariableExprT nor CallChainExprT");
+            }
+        }
+
         // Parse the for block - check for colon (Python-style) or braces
         let for_block = if self.match_token(&[TokenType::Colon]) {
             // Python-style: for x in items: statement
@@ -6841,7 +7166,17 @@ impl<'a> Parser<'a> {
             Err(e) => return Err(e),
         };
 
-        let for_stmt_node = ForStmtNode::new(variable, identifier, iterable, for_block);
+        let for_stmt_node = if is_enum_iteration {
+            ForStmtNode::new_enum_iteration(
+                variable,
+                identifier,
+                iterable,
+                for_block,
+                enum_type_name.unwrap(),
+            )
+        } else {
+            ForStmtNode::new(variable, identifier, iterable, for_block)
+        };
         Ok(Some(StatementType::ForStmt { for_stmt_node }))
     }
 
@@ -8088,17 +8423,20 @@ impl<'a> Parser<'a> {
 
                                         let enum_decl_node =
                                             enum_symbol.ast_node_opt.as_ref().unwrap().borrow();
-                                        // match '.'
+                                        
+                                        // Check if there's a dot for enum member access
+                                        // If not, this is a reference to the enum type itself (e.g., for iteration)
                                         if !self.match_token(&[TokenType::Dot]) {
-                                            let msg = &format!(
-                                                "Expected '.' after enum {} identifier.",
-                                                enum_symbol.name
+                                            // Return just the enum type identifier (for iteration over enum)
+                                            let var_node = VariableNode::new(
+                                                id_node,
+                                                IdentifierDeclScope::UnknownScope,
+                                                symbol_type_rcref_opt.clone(),
                                             );
-                                            self.error_at_current(msg);
-                                            return Err(ParseError::new(msg));
-                                        }
-
-                                        if self.match_token(&[TokenType::Identifier]) {
+                                            CallChainNodeType::VariableNodeT { var_node }
+                                        } else {
+                                            // Enum member access (e.g., MenuOption.Start)
+                                            if self.match_token(&[TokenType::Identifier]) {
                                             let enumerator_name = &self.previous().lexeme;
                                             let mut found_enumerator = false;
                                             for enum_decl_node in &enum_symbol
@@ -8122,15 +8460,22 @@ impl<'a> Parser<'a> {
                                                 return Err(ParseError::new(msg));
                                             }
 
-                                            let enum_expr_node = EnumeratorExprNode::new(
-                                                enum_decl_node.name.clone(),
-                                                enumerator_name.clone(),
-                                            );
-                                            return Ok(Some(ExprType::EnumeratorExprT {
-                                                enum_expr_node,
-                                            }));
-                                        } else {
-                                            return Err(ParseError::new("TODO"));
+                                                // Create an EnumeratorExprNode for the enum member access
+                                                // This is the proper way to represent enum member access in the AST
+                                                // The visitor will then properly qualify the enum name with the system name
+                                                let enum_expr_node = EnumeratorExprNode::new(
+                                                    enum_symbol.name.clone(),
+                                                    enumerator_name.clone(),
+                                                );
+                                                
+                                                // Store this so we can return it as an EnumeratorExprT
+                                                // We need to break out of the normal call chain processing
+                                                // and return the enum expression directly
+                                                call_chain.clear(); // Clear any nodes we've collected
+                                                return Ok(Some(EnumeratorExprT { enum_expr_node }));
+                                            } else {
+                                                return Err(ParseError::new("Expected enum member name after '.'"));
+                                            }
                                         }
                                     }
                                     // TODO!!! Need to figure out how parameters should work wrt
@@ -9023,9 +9368,9 @@ impl<'a> Parser<'a> {
     fn number_match_test_match_branch(
         &mut self,
     ) -> Result<NumberMatchTestMatchBranchNode, ParseError> {
-        if let Err(parse_error) = self.consume(TokenType::NumberMatchStart, "Expected '#/'.") {
-            return Err(parse_error);
-        }
+        // NumberMatchStart token was removed in v0.31
+        self.error_at_current("Number pattern matching has been removed. Use if/else statements instead.");
+        return Err(ParseError::new("Number pattern matching removed"));
 
         let mut match_numbers = Vec::new();
 
@@ -9207,11 +9552,11 @@ impl<'a> Parser<'a> {
         &mut self,
         enum_symbol_rcref_opt: &Option<Rc<RefCell<EnumSymbol>>>,
     ) -> Result<EnumMatchTestMatchBranchNode, ParseError> {
-        if !self.match_token(&[TokenType::EnumMatchStart]) {
-            let err_msg = "Expected enumeration match.";
-            self.error_at_current(&err_msg);
-            return Err(ParseError::new(err_msg));
-        }
+        // EnumMatchStart token was removed in v0.31
+        // Enum pattern matching has been removed - use if/else instead
+        let err_msg = "Enum pattern matching has been removed. Use if/else statements instead.";
+        self.error_at_current(&err_msg);
+        return Err(ParseError::new(err_msg));
 
         let mut enum_match_pattern_nodes = Vec::new();
 

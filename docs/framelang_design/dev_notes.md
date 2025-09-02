@@ -1,6 +1,14 @@
-# Frame v0.31 Development Notes
+# Frame v0.32 Development Notes
 
-## Latest Status: Legacy Syntax Completely Removed (2025-09-01)
+## Latest Status: Enum Enhancements Complete with 100% Test Coverage (2025-09-02)
+
+### v0.32 Final Status - COMPLETE ✅
+- **Enum Features**: Custom values, string enums, iteration, module-scope support
+- **Test Coverage**: 170/170 tests passing (100% success rate)
+- **Bug Fix**: Fixed enum qualification bug in Python code generation
+- **Type System**: Enhanced with EnumType (Integer/String) and flexible EnumValue
+- **Module Support**: Enums can be declared at module level, accessible everywhere
+- **Iteration**: Full support for `for...in` loops over enum values
 
 ### v0.31 Final Status
 - **Test Coverage**: 166/166 tests passing (100% success rate)
@@ -11,6 +19,106 @@
 - **Import Statements**: Native Python import support without backticks
 
 ## Development History
+
+### 2025-09-02: Comprehensive Enum Enhancements (v0.32)
+
+#### Overview
+Implemented major enhancements to Frame's enum system, adding support for custom values, string enums, iteration, and module-scope declarations. This brings Frame's enums to feature parity with modern languages while maintaining backward compatibility.
+
+#### New Features
+
+1. **Custom Integer Values**:
+   - Explicit value assignment with `= number` syntax
+   - Support for negative values
+   - Auto-increment from last explicit value
+   ```frame
+   enum HttpStatus {
+       Ok = 200
+       Created = 201
+       BadRequest = 400
+   }
+   ```
+
+2. **String Enums**:
+   - Type annotation with `: string` syntax
+   - String literal values with quotes
+   - Auto-generation of string values from names
+   ```frame
+   enum Environment : string {
+       Development = "dev"
+       Staging = "staging"
+       Production  // Auto: "Production"
+   }
+   ```
+
+3. **Enum Iteration**:
+   - `for...in` loops over enum values
+   - Automatic detection of enum types in iteration
+   - Access to `.name` and `.value` properties
+   ```frame
+   for status in HttpStatus {
+       print(status.name + ": " + status.value)
+   }
+   ```
+
+4. **Module-Level Enums**:
+   - Declare enums outside systems at module scope
+   - Accessible from all functions and systems
+   - Proper scoping and type checking
+   ```frame
+   enum GlobalStatus {
+       Active
+       Inactive
+   }
+   
+   fn main() {
+       var s = GlobalStatus.Active
+   }
+   ```
+
+#### Technical Implementation
+
+1. **AST Changes** (`ast.rs`):
+   - Added `EnumType` enum: `Integer` | `String`
+   - Added `EnumValue` enum: `Integer(i32)` | `String(String)` | `Auto`
+   - Modified `EnumDeclNode` to include `enum_type` field
+   - Updated `EnumeratorDeclNode` to use `EnumValue` instead of `i32`
+   - Added `enums` field to `FrameModule` struct
+   - Extended `ForStmtNode` with enum iteration tracking
+
+2. **Parser Updates** (`parser.rs`):
+   - Enhanced `enum_decl()` to parse type annotations
+   - Added support for string literals and negative numbers
+   - Modified `for_in_statement()` to detect enum iteration
+   - Added proper symbol table integration for enum types
+
+3. **Python Visitor** (`python_visitor.rs`):
+   - Updated enum value generation for different types
+   - Modified for loop generation for enum iteration
+   - Added module-level enum processing
+   - Proper `from enum import Enum` import generation
+   - **Bug Fix**: Fixed enum member qualification in `visit_identifier_node`
+     - Detects dot-notation enum references (e.g., "HttpStatus.Ok")
+     - Properly qualifies with system name (e.g., "HttpServer_HttpStatus.Ok")
+     - Distinguishes between module-level and system-level enums
+
+4. **Symbol Table**:
+   - Proper tracking of enum types in symbol table
+   - Enum iteration detection in for loops
+   - Module vs system scope handling
+
+#### Test Coverage
+- `test_enum_custom_values.frm`: Integer enums with custom/negative values
+- `test_enum_string_values.frm`: String enums with explicit/auto values
+- `test_enum_iteration.frm`: For loop iteration over enums
+- `test_enum_module_scope.frm`: Module-level enum declarations
+
+#### Files Modified
+- `framec/src/frame_c/ast.rs`: AST structure updates
+- `framec/src/frame_c/parser.rs`: Parser enhancements
+- `framec/src/frame_c/visitors/python_visitor.rs`: Code generation
+- `docs/source/language/grammar.md`: Grammar documentation
+- `CLAUDE.md`: Project documentation updates
 
 ### 2025-09-01: Complete Removal of Legacy v0.11 Syntax
 
@@ -389,7 +497,7 @@ system Validator {
 ### Version Numbering
 - v0.30: Multi-entity support, HSM improvements, state stack operations
 - v0.31: Import statements, self expression, static validation, 100% test success
-- v0.32: (Planned) System return semantics, default return values
+- v0.32: Comprehensive enum enhancements (custom values, string enums, iteration, module-scope)
 
 ### Test Success Tracking
 - Track both transpilation success and execution success

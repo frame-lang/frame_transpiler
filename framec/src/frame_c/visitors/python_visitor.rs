@@ -73,6 +73,8 @@ pub struct PythonVisitor {
     current_system_actions: Vec<String>,     // Track actions defined in the current system
     required_imports: HashSet<String>,       // Track imports that are actually needed
     global_vars_in_function: HashSet<String>, // Track global variables accessed in current function
+    current_system_enums: HashSet<String>,   // Track enum names defined in the current system
+    module_level_enums: HashSet<String>,     // Track enum names defined at module level
 }
 
 impl PythonVisitor {
@@ -159,6 +161,8 @@ impl PythonVisitor {
             current_system_actions: Vec::new(),
             required_imports: HashSet::new(),
             global_vars_in_function: HashSet::new(),
+            current_system_enums: HashSet::new(),
+            module_level_enums: HashSet::new(),
         }
     }
 
@@ -864,7 +868,7 @@ impl PythonVisitor {
         self.newline();
         
         // v0.30: Generate all enums at module level first (before functions and systems)
-        self.generate_all_enums();
+        self.generate_all_enums(frame_module);
         
         // Generate module-level functions (like main)
         for function_rcref in &frame_module.functions {
@@ -950,6 +954,12 @@ impl PythonVisitor {
                             }
                             StatementType::WhileStmt { while_stmt_node } => {
                                 while_stmt_node.accept(self);
+                            }
+                            StatementType::TryStmt { try_stmt_node } => {
+                                try_stmt_node.accept(self);
+                            }
+                            StatementType::RaiseStmt { raise_stmt_node } => {
+                                raise_stmt_node.accept(self);
                             }
                         }
                         self.newline();
@@ -1121,6 +1131,15 @@ impl PythonVisitor {
         
         // Set up necessary state for visitor methods
         self.system_name = system_node.name.clone();
+        
+        // Clear and populate enum names from this system's domain block
+        self.current_system_enums.clear();
+        if let Some(ref domain_block_node) = system_node.domain_block_node_opt {
+            for enum_decl_node_rcref in &domain_block_node.enums {
+                let enum_decl_node = enum_decl_node_rcref.borrow();
+                self.current_system_enums.insert(enum_decl_node.name.clone());
+            }
+        }
         
         // Get first state name if it exists
         if let Some(ref machine_block_node) = system_node.machine_block_node_opt {
@@ -1630,6 +1649,12 @@ impl PythonVisitor {
                                                 _ => {}
                                             }
                                         }
+                                        StatementType::TryStmt { try_stmt_node } => {
+                                            try_stmt_node.accept(self);
+                                        }
+                                        StatementType::RaiseStmt { raise_stmt_node } => {
+                                            raise_stmt_node.accept(self);
+                                        }
                                         _ => {}
                                     }
                                 }
@@ -1645,9 +1670,6 @@ impl PythonVisitor {
                                 TerminatorType::Return => {
                                     self.newline();
                                     self.add_code("return");
-                                }
-                                _ => {
-                                    // Continue to next handler
                                 }
                             }
                         }
@@ -1963,6 +1985,12 @@ impl PythonVisitor {
                         }
                         StatementType::ParentDispatchStmt { parent_dispatch_stmt_node } => {
                             parent_dispatch_stmt_node.accept(self);
+                        }
+                        StatementType::TryStmt { try_stmt_node } => {
+                            try_stmt_node.accept(self);
+                        }
+                        StatementType::RaiseStmt { raise_stmt_node } => {
+                            raise_stmt_node.accept(self);
                         }
                         StatementType::NoStmt => {
                             // TODO
@@ -3022,10 +3050,41 @@ impl PythonVisitor {
 
     // v0.30: Generate all enums from all systems at module level
     // This ensures enums can be referenced from functions and anywhere in the module
-    fn generate_all_enums(&mut self) {
+    fn generate_all_enums(&mut self, frame_module: &FrameModule) {
         let mut generated_enums = HashSet::new();
         
-        // Iterate through all systems and collect their enums
+        // v0.32: First generate module-level enums
+        for enum_rcref in &frame_module.enums {
+            let enum_decl_node = enum_rcref.borrow();
+            
+            // Module-level enums don't need system prefix
+            let full_enum_name = enum_decl_node.name.clone();
+            
+            // Track module-level enum names
+            self.module_level_enums.insert(full_enum_name.clone());
+            
+            if !generated_enums.contains(&full_enum_name) {
+                generated_enums.insert(full_enum_name.clone());
+                
+                // Mark enum import as required
+                self.required_imports.insert("from enum import Enum".to_string());
+                
+                // Generate the enum at module level
+                self.newline();
+                self.add_code(&format!("class {}(Enum):", full_enum_name));
+                self.indent();
+                
+                // Generate enum members with proper values
+                for enumerator_decl_node in &enum_decl_node.enums {
+                    enumerator_decl_node.accept(self);
+                }
+                
+                self.outdent();
+                self.newline();
+            }
+        }
+        
+        // Then iterate through all systems and collect their enums
         let system_symbols = self.arcanium.get_systems().clone();
         if system_symbols.is_empty() {
             return;
@@ -3066,15 +3125,12 @@ impl PythonVisitor {
                                     
                                     // Track duplicate enum names to avoid Python enum conflicts
                                     let mut enum_names_seen = HashSet::new();
-                                    let mut enum_index = 0;
                                     
                                     for enumerator_decl_node in &enum_decl_node.enums {
                                         // Only generate if we haven't seen this name before
                                         if !enum_names_seen.contains(&enumerator_decl_node.name) {
                                             enum_names_seen.insert(enumerator_decl_node.name.clone());
-                                            self.newline();
-                                            self.add_code(&format!("{} = {}", enumerator_decl_node.name, enum_index));
-                                            enum_index += 1;
+                                            enumerator_decl_node.accept(self);
                                         }
                                     }
                                     
@@ -3581,6 +3637,9 @@ impl AstVisitor for PythonVisitor {
                 }
                 ModuleElement::Statement { stmt_node: _ } => {
                     // Module-level statements are handled after variables
+                }
+                ModuleElement::Enum { enum_decl_node: _ } => {
+                    // Module-level enums are handled in generate_all_enums
                 }
             }
         }
@@ -5370,7 +5429,40 @@ impl AstVisitor for PythonVisitor {
             match &node {
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                     eprintln!("DEBUG: Accepting UndeclaredIdentifier '{}'", id_node.name.lexeme);
-                    id_node.accept(self);
+                    eprintln!("  Current system enums: {:?}", self.current_system_enums);
+                    eprintln!("  Checking if '{}' is in enum set", id_node.name.lexeme);
+                    
+                    // Check if this is an enum member reference (e.g., "HttpStatus.Ok")
+                    if id_node.name.lexeme.contains('.') {
+                        let parts: Vec<&str> = id_node.name.lexeme.split('.').collect();
+                        if parts.len() == 2 {
+                            let enum_name = parts[0];
+                            let member_name = parts[1];
+                            
+                            // Check if this enum is defined in the current system
+                            if self.current_system_enums.contains(enum_name) {
+                                eprintln!("  Found enum member reference: {}.{} - qualifying with system name", enum_name, member_name);
+                                self.add_code(&format!("{}_{}.{}", self.system_name, enum_name, member_name));
+                            } else if self.module_level_enums.contains(enum_name) {
+                                eprintln!("  Found module-level enum member reference: {}.{}", enum_name, member_name);
+                                self.add_code(&id_node.name.lexeme);
+                            } else {
+                                eprintln!("  Enum member reference but enum not found - using as-is");
+                                id_node.accept(self);
+                            }
+                        } else {
+                            // More than one dot - not an enum reference
+                            id_node.accept(self);
+                        }
+                    } else if self.current_system_enums.contains(&id_node.name.lexeme) {
+                        // Check if this identifier is an enum defined in the current system
+                        // If so, qualify it with the system name
+                        eprintln!("  YES - qualifying with system name: {}_{}", self.system_name, id_node.name.lexeme);
+                        self.add_code(&format!("{}_{}", self.system_name, id_node.name.lexeme));
+                    } else {
+                        eprintln!("  NO - using unqualified name");
+                        id_node.accept(self);
+                    }
                 }
                 CallChainNodeType::UndeclaredCallT { call_node: call } => {
                     eprintln!("DEBUG: Processing UndeclaredCall '{}' in call chain, in_call_chain={}", call.identifier.name.lexeme, self.in_call_chain);
@@ -5427,7 +5519,15 @@ impl AstVisitor for PythonVisitor {
                         // This case should have been handled above, but just in case
                         self.add_code(&var_node.id_node.name.lexeme);
                     } else {
-                        var_node.accept(self);
+                        // Check if this variable is actually an enum type defined in the current system
+                        // If so, qualify it with the system name
+                        if self.current_system_enums.contains(&var_node.id_node.name.lexeme) {
+                            eprintln!("  Variable '{}' is an enum - qualifying with system name: {}_{}", 
+                                      var_node.id_node.name.lexeme, self.system_name, var_node.id_node.name.lexeme);
+                            self.add_code(&format!("{}_{}", self.system_name, var_node.id_node.name.lexeme));
+                        } else {
+                            var_node.accept(self);
+                        }
                     }
                     self.visiting_call_chain_literal_variable = false;
                 }
@@ -5726,7 +5826,17 @@ impl AstVisitor for PythonVisitor {
             output.push_str(separator);
             match &node {
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
-                    id_node.accept_to_string(self, output);
+                    eprintln!("DEBUG _to_string: UndeclaredIdentifier '{}'", id_node.name.lexeme);
+                    eprintln!("  Current system enums: {:?}", self.current_system_enums);
+                    // Check if this identifier is an enum defined in the current system
+                    // If so, qualify it with the system name
+                    if self.current_system_enums.contains(&id_node.name.lexeme) {
+                        eprintln!("  YES - qualifying: {}_{}", self.system_name, id_node.name.lexeme);
+                        output.push_str(&format!("{}_{}", self.system_name, id_node.name.lexeme));
+                    } else {
+                        eprintln!("  NO - using unqualified");
+                        id_node.accept_to_string(self, output);
+                    }
                 }
                 CallChainNodeType::UndeclaredCallT { call_node: call } => {
                     call.accept_to_string(self, output);
@@ -5760,7 +5870,13 @@ impl AstVisitor for PythonVisitor {
                     action_call_expr_node.accept_to_string(self, output);
                 }
                 CallChainNodeType::VariableNodeT { var_node } => {
-                    var_node.accept_to_string(self, output);
+                    // Check if this variable is actually an enum type defined in the current system
+                    // If so, qualify it with the system name
+                    if self.current_system_enums.contains(&var_node.id_node.name.lexeme) {
+                        output.push_str(&format!("{}_{}", self.system_name, var_node.id_node.name.lexeme));
+                    } else {
+                        var_node.accept_to_string(self, output);
+                    }
                 }
                 CallChainNodeType::ListElementNodeT { list_elem_node } => {
                     list_elem_node.accept_to_string(self, output);
@@ -5816,7 +5932,34 @@ impl AstVisitor for PythonVisitor {
         }
         
         self.add_code(" in ");
-        for_stmt_node.iterable.accept(self);
+        
+        // Special handling for enum iteration
+        if for_stmt_node.is_enum_iteration {
+            // Debug output removed
+            
+            // Generate the qualified enum name for iteration
+            if let Some(ref enum_name) = for_stmt_node.enum_type_name {
+                // Check if we're in a system context
+                if !self.system_name.is_empty() {
+                    // Use system-prefixed enum name
+                    let qualified_name = format!("{}_{}", self.system_name, enum_name);
+                    // eprintln!("  Using qualified enum name: {}", qualified_name);
+                    self.add_code(&qualified_name);
+                } else {
+                    // Module-level enum, use directly
+                    // eprintln!("  Using module-level enum name: {}", enum_name);
+                    self.add_code(enum_name);
+                }
+            } else {
+                // eprintln!("  No enum_type_name, falling back to regular iterable");
+                // Fallback to regular iterable
+                for_stmt_node.iterable.accept(self);
+            }
+        } else {
+            // Regular iterable
+            for_stmt_node.iterable.accept(self);
+        }
+        
         self.add_code(":");
         for_stmt_node.block.accept(self);
     }
@@ -6815,6 +6958,94 @@ impl AstVisitor for PythonVisitor {
     }
     
     //* --------------------------------------------------------------------- *//
+    
+    fn visit_try_stmt_node(&mut self, try_stmt_node: &TryStmtNode) {
+        self.newline();
+        self.add_code("try:");
+        self.indent();
+        try_stmt_node.try_block.accept(self);
+        self.outdent();
+        
+        for except_clause in &try_stmt_node.except_clauses {
+            except_clause.accept(self);
+        }
+        
+        if let Some(else_block) = &try_stmt_node.else_block {
+            self.newline();
+            self.add_code("else:");
+            self.indent();
+            else_block.accept(self);
+            self.outdent();
+        }
+        
+        if let Some(finally_block) = &try_stmt_node.finally_block {
+            self.newline();
+            self.add_code("finally:");
+            self.indent();
+            finally_block.accept(self);
+            self.outdent();
+        }
+    }
+    
+    //* --------------------------------------------------------------------- *//
+    
+    fn visit_except_clause_node(&mut self, except_clause_node: &ExceptClauseNode) {
+        self.newline();
+        self.add_code("except");
+        
+        // Handle the various except clause forms
+        if let Some(exception_types) = &except_clause_node.exception_types {
+            if exception_types.len() == 1 {
+                self.add_code(&format!(" {}", exception_types[0]));
+            } else if exception_types.len() > 1 {
+                let types_str = exception_types.join(", ");
+                self.add_code(&format!(" ({})", types_str));
+            }
+            
+            // Add variable binding if present
+            if let Some(var_name) = &except_clause_node.var_name {
+                self.add_code(&format!(" as {}", var_name));
+            }
+        }
+        // Note: If we have no exception types but have a var_name, that means
+        // it was actually meant to be an exception type without binding.
+        // The parser couldn't distinguish between `except ValueError` and `except e`
+        // In Python, `except e` would be invalid syntax anyway (need `except Exception as e`)
+        // So if we have just a var_name and no exception_types, treat it as an exception type
+        else if let Some(var_name) = &except_clause_node.var_name {
+            // This is actually an exception type without variable binding
+            self.add_code(&format!(" {}", var_name));
+        }
+        // else: bare except clause (catches everything)
+        
+        self.add_code(":");
+        self.indent();
+        except_clause_node.block.accept(self);
+        self.outdent();
+    }
+    
+    //* --------------------------------------------------------------------- *//
+    
+    fn visit_raise_stmt_node(&mut self, raise_stmt_node: &RaiseStmtNode) {
+        self.newline();
+        self.add_code("raise");
+        
+        if let Some(exception_expr) = &raise_stmt_node.exception_expr {
+            self.add_code(" ");
+            let mut expr_str = String::new();
+            exception_expr.accept_to_string(self, &mut expr_str);
+            self.add_code(&expr_str);
+        }
+        
+        if let Some(from_expr) = &raise_stmt_node.from_expr {
+            self.add_code(" from ");
+            let mut from_str = String::new();
+            from_expr.accept_to_string(self, &mut from_str);
+            self.add_code(&from_str);
+        }
+    }
+    
+    //* --------------------------------------------------------------------- *//
 
     fn visit_enum_match_test_pattern_node(
         &mut self,
@@ -6994,6 +7225,26 @@ impl AstVisitor for PythonVisitor {
             // Handle other system.method calls - convert to self.method
             let method_name = &name[7..]; // Remove 'system.' prefix  
             self.add_code(&format!("self.{}", method_name));
+        } else if name.contains('.') {
+            // Check if this is an enum member reference (e.g., "HttpStatus.Ok")
+            let parts: Vec<&str> = name.split('.').collect();
+            if parts.len() == 2 {
+                let enum_name = parts[0];
+                let member_name = parts[1];
+                
+                // Check if this enum is defined in the current system
+                if self.current_system_enums.contains(enum_name) {
+                    self.add_code(&format!("{}_{}.{}", self.system_name, enum_name, member_name));
+                } else if self.module_level_enums.contains(enum_name) {
+                    self.add_code(name);
+                } else {
+                    // Not an enum we know about - output as-is
+                    self.add_code(name);
+                }
+            } else {
+                // More than one dot - not an enum reference
+                self.add_code(name);
+            }
         } else {
             // Check if this is a system type that needs parentheses
             if name == "SimpleHSM" {
@@ -7242,22 +7493,38 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_enumerator_decl_node(&mut self, enumerator_decl_node: &EnumeratorDeclNode) {
+        use crate::frame_c::ast::EnumValue;
+        
         self.newline();
+        let value_str = match &enumerator_decl_node.value {
+            EnumValue::Integer(val) => val.to_string(),
+            EnumValue::String(val) => format!("\"{}\"", val),
+            EnumValue::Auto => unreachable!("Auto values should be resolved during parsing"),
+        };
+        
         self.add_code(&format!(
             "{} = {}",
-            enumerator_decl_node.name, enumerator_decl_node.value
+            enumerator_decl_node.name, value_str
         ));
     }
 
     //* --------------------------------------------------------------------- *//
 
     fn visit_enumerator_expr_node(&mut self, enum_expr_node: &EnumeratorExprNode) {
-        // v0.30: All enums are now generated at module level, so always use direct reference
-        // No need for self. prefix since enums are module-level classes
-        self.add_code(&format!(
-            "{}_{}.{}",
-            self.system_name, enum_expr_node.enum_type, enum_expr_node.enumerator
-        ));
+        // v0.32: Check if this is a module-level enum or system enum
+        if self.module_level_enums.contains(&enum_expr_node.enum_type) {
+            // Module-level enum - use directly without system prefix
+            self.add_code(&format!(
+                "{}.{}",
+                enum_expr_node.enum_type, enum_expr_node.enumerator
+            ));
+        } else {
+            // System enum - qualify with system name
+            self.add_code(&format!(
+                "{}_{}.{}",
+                self.system_name, enum_expr_node.enum_type, enum_expr_node.enumerator
+            ));
+        }
     }
 
     //* --------------------------------------------------------------------- *//
@@ -7267,12 +7534,20 @@ impl AstVisitor for PythonVisitor {
         enum_expr_node: &EnumeratorExprNode,
         output: &mut String,
     ) {
-        // v0.30: All enums are now generated at module level, so always use direct reference
-        // No need for self. prefix since enums are module-level classes
-        output.push_str(&format!(
-            "{}_{}.{}",
-            self.system_name, enum_expr_node.enum_type, enum_expr_node.enumerator
-        ));
+        // v0.32: Check if this is a module-level enum or system enum
+        if self.module_level_enums.contains(&enum_expr_node.enum_type) {
+            // Module-level enum - use directly without system prefix
+            output.push_str(&format!(
+                "{}.{}",
+                enum_expr_node.enum_type, enum_expr_node.enumerator
+            ));
+        } else {
+            // System enum - qualify with system name
+            output.push_str(&format!(
+                "{}_{}.{}",
+                self.system_name, enum_expr_node.enum_type, enum_expr_node.enumerator
+            ));
+        }
     }
 
     //* --------------------------------------------------------------------- *//
@@ -7310,9 +7585,11 @@ impl AstVisitor for PythonVisitor {
             ExprType::LiteralExprT { .. } => "Literal",
             _ => "Other"
         };
+        eprintln!("DEBUG visit_variable_decl_node: var {} init type: {}", var_name, init_type_name);
         //self.newline();
         let mut code = String::new();
         var_init_expr.accept_to_string(self, &mut code);
+        eprintln!("DEBUG visit_variable_decl_node: var {} = {}", var_name, code);
         match &variable_decl_node.identifier_decl_scope {
             IdentifierDeclScope::DomainBlockScope => {
                 self.add_code(&format!("self.{} ", var_name));

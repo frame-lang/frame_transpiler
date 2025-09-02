@@ -1,17 +1,17 @@
 # Frame v0.31 Test Matrix
 
-**Generated**: 2025-09-01 16:17  
-**Total Tests**: 166  
+**Generated**: 2025-09-02 11:53  
+**Total Tests**: 173  
 **Current Branch**: v0.31  
 
 ## Summary Statistics
 
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| **Total Tests** | 166 | 100% |
-| **Transpilation Success** | 166 | 100.0% |
-| **Execution Success** | 166 | 100.0% |
-| **Complete Success** | 166 | 100.0% |
+| **Total Tests** | 173 | 100% |
+| **Transpilation Success** | 173 | 100.0% |
+| **Execution Success** | 173 | 100.0% |
+| **Complete Success** | 173 | 100.0% |
 
 ## v0.31 Features
 
@@ -49,6 +49,10 @@
 | test_elif_with_return.frm | ✅ | ✅ | ✅ PASS |
 | test_empty_params.frm | ✅ | ✅ | ✅ PASS |
 | test_enum_basic.frm | ✅ | ✅ | ✅ PASS |
+| test_enum_custom_values.frm | ✅ | ✅ | ✅ PASS |
+| test_enum_iteration.frm | ✅ | ✅ | ✅ PASS |
+| test_enum_module_scope.frm | ✅ | ✅ | ✅ PASS |
+| test_enum_string_values.frm | ✅ | ✅ | ✅ PASS |
 | test_enums.frm | ✅ | ✅ | ✅ PASS |
 | test_enums_doc_calendar.frm | ✅ | ✅ | ✅ PASS |
 | test_enums_doc_fruitsystem.frm | ✅ | ✅ | ✅ PASS |
@@ -174,6 +178,9 @@
 | test_traffic_light_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_transition_return.frm | ✅ | ✅ | ✅ PASS |
 | test_transition_with_return.frm | ✅ | ✅ | ✅ PASS |
+| test_try_except.frm | ✅ | ✅ | ✅ PASS |
+| test_try_except_javascript.frm | ✅ | ✅ | ✅ PASS |
+| test_try_except_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_two_systems_no_function.frm | ✅ | ✅ | ✅ PASS |
 | test_two_systems_print.frm | ✅ | ✅ | ✅ PASS |
 | test_type_annotation_fix.frm | ✅ | ✅ | ✅ PASS |

@@ -454,6 +454,12 @@ impl JavaScriptVisitor {
                             // TODO
                             panic!("todo");
                         }
+                        StatementType::TryStmt { try_stmt_node } => {
+                            try_stmt_node.accept(self);
+                        }
+                        StatementType::RaiseStmt { raise_stmt_node } => {
+                            raise_stmt_node.accept(self);
+                        }
                     }
                 }
             }
@@ -3436,5 +3442,197 @@ impl AstVisitor for JavaScriptVisitor {
             OperatorType::LogicalOr => output.push_str(" || "),
             OperatorType::LogicalXor => output.push_str(""),
         }
+    }
+
+    //* --------------------------------------------------------------------- *//
+    
+    fn visit_try_stmt_node(&mut self, try_stmt_node: &TryStmtNode) {
+        // JavaScript requires different handling than Python
+        // We'll need to simulate multiple except clauses and else clause
+        
+        let has_else = try_stmt_node.else_block.is_some();
+        let needs_catch = !try_stmt_node.except_clauses.is_empty();
+        
+        if has_else {
+            // Use a success flag to track if we need to run else block
+            self.newline();
+            self.add_code("let __succeeded = false;");
+        }
+        
+        self.newline();
+        self.add_code("try {");
+        self.indent();
+        try_stmt_node.try_block.accept(self);
+        
+        if has_else {
+            self.newline();
+            self.add_code("__succeeded = true;");
+        }
+        
+        self.outdent();
+        
+        if needs_catch {
+            self.newline();
+            self.add_code("} catch (__e) {");
+            self.indent();
+            
+            // Generate if-else chain for multiple exception types
+            let mut first = true;
+            for except_clause in &try_stmt_node.except_clauses {
+                if !first {
+                    self.add_code(" else ");
+                } else {
+                    self.newline();
+                }
+                
+                if let Some(exception_types) = &except_clause.exception_types {
+                    self.add_code("if (");
+                    let mut first_type = true;
+                    for exception_type in exception_types {
+                        if !first_type {
+                            self.add_code(" || ");
+                        }
+                        self.add_code(&format!("__e instanceof {}", exception_type));
+                        first_type = false;
+                    }
+                    self.add_code(") {");
+                    
+                    if let Some(var_name) = &except_clause.var_name {
+                        self.indent();
+                        self.newline();
+                        self.add_code(&format!("let {} = __e;", var_name));
+                        except_clause.block.accept(self);
+                        self.outdent();
+                    } else {
+                        self.indent();
+                        except_clause.block.accept(self);
+                        self.outdent();
+                    }
+                    
+                    self.newline();
+                    self.add_code("}");
+                } else {
+                    // Bare except clause - catches everything
+                    if !first {
+                        self.add_code("{");
+                    }
+                    
+                    if let Some(var_name) = &except_clause.var_name {
+                        self.newline();
+                        self.add_code(&format!("let {} = __e;", var_name));
+                    }
+                    
+                    except_clause.block.accept(self);
+                    
+                    if !first {
+                        self.newline();
+                        self.add_code("}");
+                    }
+                }
+                
+                first = false;
+            }
+            
+            // If there were specific exception types, re-throw unhandled exceptions
+            if try_stmt_node.except_clauses.iter().any(|ec| ec.exception_types.is_some()) 
+                && !try_stmt_node.except_clauses.iter().any(|ec| ec.exception_types.is_none()) {
+                self.add_code(" else {");
+                self.indent();
+                self.newline();
+                self.add_code("throw __e;");
+                self.outdent();
+                self.newline();
+                self.add_code("}");
+            }
+            
+            self.outdent();
+        }
+        
+        if let Some(finally_block) = &try_stmt_node.finally_block {
+            self.newline();
+            self.add_code("} finally {");
+            self.indent();
+            
+            if let Some(else_block) = &try_stmt_node.else_block {
+                // Run else block in finally if no exception occurred
+                self.newline();
+                self.add_code("if (__succeeded) {");
+                self.indent();
+                else_block.accept(self);
+                self.outdent();
+                self.newline();
+                self.add_code("}");
+            }
+            
+            finally_block.accept(self);
+            self.outdent();
+        } else if let Some(else_block) = &try_stmt_node.else_block {
+            // No finally block but has else block
+            self.newline();
+            self.add_code("} finally {");
+            self.indent();
+            self.newline();
+            self.add_code("if (__succeeded) {");
+            self.indent();
+            else_block.accept(self);
+            self.outdent();
+            self.newline();
+            self.add_code("}");
+            self.outdent();
+        }
+        
+        self.newline();
+        self.add_code("}");
+    }
+    
+    //* --------------------------------------------------------------------- *//
+    
+    fn visit_except_clause_node(&mut self, _except_clause_node: &ExceptClauseNode) {
+        // This is handled inline in visit_try_stmt_node for JavaScript
+        // since JavaScript doesn't have separate except clauses
+    }
+    
+    //* --------------------------------------------------------------------- *//
+    
+    fn visit_raise_stmt_node(&mut self, raise_stmt_node: &RaiseStmtNode) {
+        self.newline();
+        
+        if let Some(exception_expr) = &raise_stmt_node.exception_expr {
+            self.add_code("throw ");
+            
+            if let Some(from_expr) = &raise_stmt_node.from_expr {
+                // Modern JavaScript supports Error.cause for exception chaining
+                // We'll need to construct the error with a cause property
+                let mut exception_str = String::new();
+                self.generate_expr_to_string(exception_expr, &mut exception_str);
+                
+                // Check if it's a constructor call or just an error object
+                if exception_str.contains("new ") {
+                    // It's a constructor, we need to add the cause option
+                    let mut from_str = String::new();
+                    self.generate_expr_to_string(from_expr, &mut from_str);
+                    
+                    // Remove the closing parenthesis and add cause option
+                    if let Some(pos) = exception_str.rfind(')') {
+                        exception_str.truncate(pos);
+                        if exception_str.contains('(') && !exception_str.ends_with('(') {
+                            exception_str.push_str(", ");
+                        }
+                        exception_str.push_str(&format!("{{ cause: {} }})", from_str));
+                    }
+                    self.add_code(&exception_str);
+                } else {
+                    // It's an existing error object, can't easily add cause
+                    exception_expr.accept(self);
+                }
+            } else {
+                exception_expr.accept(self);
+            }
+        } else {
+            // Bare raise - re-throw current exception
+            self.add_code("throw __e");
+        }
+        
+        self.add_code(";");
     }
 }

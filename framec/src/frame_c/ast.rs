@@ -61,6 +61,7 @@ pub struct FrameModule {
     pub functions: Vec<Rc<RefCell<FunctionNode>>>,
     pub systems: Vec<SystemNode>,
     pub variables: Vec<Rc<RefCell<VariableDeclNode>>>,
+    pub enums: Vec<Rc<RefCell<EnumDeclNode>>>,
     pub statements: Vec<DeclOrStmtType>,
 }
 
@@ -70,9 +71,10 @@ impl FrameModule {
         functions: Vec<Rc<RefCell<FunctionNode>>>, 
         systems: Vec<SystemNode>,
         variables: Vec<Rc<RefCell<VariableDeclNode>>>,
+        enums: Vec<Rc<RefCell<EnumDeclNode>>>,
         statements: Vec<DeclOrStmtType>,
     ) -> FrameModule {
-        FrameModule { module, functions, systems, variables, statements }
+        FrameModule { module, functions, systems, variables, enums, statements }
     }
     
     // v0.30: Backward compatibility - get primary system for legacy visitors
@@ -149,6 +151,8 @@ pub enum ModuleElement {
     // v0.31: Module-scope variables and statements
     Variable { var_decl_node: Rc<RefCell<VariableDeclNode>> },
     Statement { stmt_node: DeclOrStmtType },
+    // v0.32: Module-scope enums
+    Enum { enum_decl_node: Rc<RefCell<EnumDeclNode>> },
 }
 
 // TODO: is this a good name for Identifier and Call expressions?
@@ -931,15 +935,30 @@ impl fmt::Display for VariableNode {
 
 //-----------------------------------------------------//
 
+#[derive(Clone, Debug, PartialEq)]
+pub enum EnumType {
+    Integer,
+    String,
+}
+
+#[derive(Clone, Debug)]
+pub enum EnumValue {
+    Integer(i32),
+    String(String),
+    Auto,  // Compiler determines based on enum type
+}
+
 pub struct EnumDeclNode {
     pub name: String,
+    pub enum_type: EnumType,
     pub enums: Vec<Rc<EnumeratorDeclNode>>,
 }
 
 impl EnumDeclNode {
-    pub fn new(identifier: String, enums: Vec<Rc<EnumeratorDeclNode>>) -> EnumDeclNode {
+    pub fn new(identifier: String, enum_type: EnumType, enums: Vec<Rc<EnumeratorDeclNode>>) -> EnumDeclNode {
         EnumDeclNode {
             name: identifier,
+            enum_type,
             enums,
         }
     }
@@ -953,11 +972,11 @@ impl NodeElement for EnumDeclNode {
 
 pub struct EnumeratorDeclNode {
     pub name: String,
-    pub value: i32,
+    pub value: EnumValue,
 }
 
 impl EnumeratorDeclNode {
-    pub fn new(name: String, value: i32) -> EnumeratorDeclNode {
+    pub fn new(name: String, value: EnumValue) -> EnumeratorDeclNode {
         EnumeratorDeclNode { name, value }
     }
 }
@@ -1900,6 +1919,12 @@ pub enum StatementType {
     BreakStmt {
         break_stmt_node: BreakStmtNode,
     },
+    TryStmt {
+        try_stmt_node: TryStmtNode,
+    },
+    RaiseStmt {
+        raise_stmt_node: RaiseStmtNode,
+    },
     SuperStringStmt {
         super_string_stmt_node: SuperStringStmtNode,
     },
@@ -2244,6 +2269,8 @@ pub struct ForStmtNode {
     pub identifier: Option<IdentifierNode>, // for x in items
     pub iterable: ExprType,
     pub block: BlockStmtNode,
+    pub is_enum_iteration: bool, // v0.32: Track if iterating over enum
+    pub enum_type_name: Option<String>, // v0.32: Name of enum being iterated
 }
 
 impl ForStmtNode {
@@ -2258,6 +2285,25 @@ impl ForStmtNode {
             identifier,
             iterable,
             block,
+            is_enum_iteration: false,
+            enum_type_name: None,
+        }
+    }
+    
+    pub fn new_enum_iteration(
+        variable: Option<VariableNode>,
+        identifier: Option<IdentifierNode>,
+        iterable: ExprType,
+        block: BlockStmtNode,
+        enum_type_name: String,
+    ) -> ForStmtNode {
+        ForStmtNode {
+            variable,
+            identifier,
+            iterable,
+            block,
+            is_enum_iteration: true,
+            enum_type_name: Some(enum_type_name),
         }
     }
 }
@@ -2831,6 +2877,90 @@ impl BreakStmtNode {
 impl NodeElement for BreakStmtNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         ast_visitor.visit_break_stmt_node(self);
+    }
+}
+
+//-----------------------------------------------------//
+
+pub struct TryStmtNode {
+    pub try_block: BlockStmtNode,
+    pub except_clauses: Vec<ExceptClauseNode>,
+    pub else_block: Option<BlockStmtNode>,
+    pub finally_block: Option<BlockStmtNode>,
+}
+
+impl TryStmtNode {
+    pub fn new(
+        try_block: BlockStmtNode,
+        except_clauses: Vec<ExceptClauseNode>,
+        else_block: Option<BlockStmtNode>,
+        finally_block: Option<BlockStmtNode>,
+    ) -> TryStmtNode {
+        TryStmtNode {
+            try_block,
+            except_clauses,
+            else_block,
+            finally_block,
+        }
+    }
+}
+
+impl NodeElement for TryStmtNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_try_stmt_node(self);
+    }
+}
+
+//-----------------------------------------------------//
+
+pub struct ExceptClauseNode {
+    pub exception_types: Option<Vec<String>>,  // None means catch all
+    pub var_name: Option<String>,              // Variable to bind exception to
+    pub block: BlockStmtNode,
+}
+
+impl ExceptClauseNode {
+    pub fn new(
+        exception_types: Option<Vec<String>>,
+        var_name: Option<String>,
+        block: BlockStmtNode,
+    ) -> ExceptClauseNode {
+        ExceptClauseNode {
+            exception_types,
+            var_name,
+            block,
+        }
+    }
+}
+
+impl NodeElement for ExceptClauseNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_except_clause_node(self);
+    }
+}
+
+//-----------------------------------------------------//
+
+pub struct RaiseStmtNode {
+    pub exception_expr: Option<ExprType>,      // What to raise
+    pub from_expr: Option<ExprType>,           // Optional 'from' expression for chaining
+}
+
+impl RaiseStmtNode {
+    pub fn new(
+        exception_expr: Option<ExprType>,
+        from_expr: Option<ExprType>,
+    ) -> RaiseStmtNode {
+        RaiseStmtNode {
+            exception_expr,
+            from_expr,
+        }
+    }
+}
+
+impl NodeElement for RaiseStmtNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_raise_stmt_node(self);
     }
 }
 

@@ -1,11 +1,11 @@
 {
-  "timestamp": "2025-09-01T16:17:12.567151",
+  "timestamp": "2025-09-02T11:53:18.835042",
   "version": "v0.31",
   "summary": {
-    "total": 166,
-    "transpile_success": 166,
-    "execute_success": 166,
-    "complete_success": 166,
+    "total": 173,
+    "transpile_success": 173,
+    "execute_success": 173,
+    "complete_success": 173,
     "success_rate": "100.0%"
   },
   "results": [
@@ -157,10 +157,38 @@
       "error": null
     },
     {
+      "file": "test_enum_custom_values.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "OK code: 200\nNotFound code: 404\nServerError code: 500\nOK status is correctly 200\nNotFound status is correctly 404\nServerError status is correctly 500\nSilent priority: -1\nLow priority: 1\nHigh priority:",
+      "error": null
+    },
+    {
+      "file": "test_enum_iteration.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Menu Options ===\n1. NewFile\n2. OpenFile\n3. SaveFile\n4. SaveAs\n5. Exit\nSaveFile is a valid menu option\nInvalidOption is NOT a valid menu option\n=== Processing All Statuses ===\nStatus: Error (code: ",
+      "error": null
+    },
+    {
+      "file": "test_enum_module_scope.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Global status: Active\nPriority value: 10\nEnvironment: prod\nAll environments:\n  - Development: dev\n  - Staging: staging\n  - Production: prod\nSystem checking status: Active\nStatus is ACTIVE\nSetting prio",
+      "error": null
+    },
+    {
+      "file": "test_enum_string_values.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Red color: red\nGreen color: green\nBlue color: blue\nRed value is correctly 'red'\nDebug level: Debug\nInfo level: Info\nError level: Error\nDebug auto-value is correctly 'Debug'\nDisconnected state: disconn",
+      "error": null
+    },
+    {
       "file": "test_enums.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
@@ -188,7 +216,7 @@
       "file": "test_enums_doc_grocery_demo.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
@@ -1029,6 +1057,27 @@
       "transpile": true,
       "execute": true,
       "output": null,
+      "error": null
+    },
+    {
+      "file": "test_try_except.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Frame Exception Handling Test Suite ===\n\nTest 1: Basic try-except\n  Trying division by zero\n  Caught ZeroDivisionError\n\nTest 2: Exception with variable binding\n  Caught exception: division by zero",
+      "error": null
+    },
+    {
+      "file": "test_try_except_javascript.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Test 1: Basic try-catch\n  In try block\n  Caught exception\n  After try-catch\n\nTest 2: Specific exception\n  Forcing ZeroDivisionError\n  Caught ZeroDivisionError: division by zero\n\nTest 3: Multiple excep",
+      "error": null
+    },
+    {
+      "file": "test_try_except_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Test 1: Basic try-catch\n  In try block\n  Caught exception\n  After try-catch\nTest 2: Specific exception\n  Forcing ZeroDivisionError\n  Caught ZeroDivisionError\nTest 3: Else clause\n  Try block - no excep",
       "error": null
     },
     {

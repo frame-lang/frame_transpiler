@@ -457,6 +457,12 @@ impl GraphVizVisitor {
                         StatementType::ParentDispatchStmt { parent_dispatch_stmt_node } => {
                             parent_dispatch_stmt_node.accept(self);
                         }
+                        StatementType::TryStmt { .. } => {
+                            // TODO: Implement try statement visualization
+                        }
+                        StatementType::RaiseStmt { .. } => {
+                            // TODO: Implement raise statement visualization
+                        }
                         StatementType::NoStmt => {
                             // TODO
                             panic!("todo");

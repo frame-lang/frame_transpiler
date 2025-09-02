@@ -1,0 +1,494 @@
+DEBUG: Starting first pass - building symbol table
+DEBUG: Created syntactic parser with is_building_symbol_table=true
+DEBUG: Building symbol table for function: main
+DEBUG: Entering function scope for: main
+DEBUG: Inserting function symbol 'main' into symbol table
+DEBUG: Function symbol 'main' inserted successfully. Total symbols: 1
+DEBUG: Function symbol table building complete for: main
+DEBUG: First pass parsing succeeded
+DEBUG: Extracted arcanum from first pass
+DEBUG: Symbols in arcanum after first pass: ["main", "HttpServer", "Logger"]
+DEBUG: Starting second pass - semantic analysis
+DEBUG: Symbols in module scope before second pass: ["main", "HttpServer", "Logger"]
+DEBUG: Created semantic parser with is_building_symbol_table=false
+DEBUG: Looking for symbol 'main' in scope 'module'. Available symbols: ["main", "HttpServer", "Logger"]
+DEBUG: Found symbol 'main' in scope 'module'
+DEBUG: Looking for symbol '-parameters-' in scope 'main'. Available symbols: ["-parameters-", "http", "logger"]
+DEBUG: Found symbol '-parameters-' in scope 'main'
+DEBUG: Looking for symbol 'HttpServer' in scope 'module'. Available symbols: ["main", "HttpServer", "Logger"]
+DEBUG: Found symbol 'HttpServer' in scope 'module'
+DEBUG: Retrieved system 'HttpServer' in semantic pass
+  Has actions block: false
+  Has machine block: true
+  Has interface block: true
+DEBUG: Looking for symbol 'HttpServer' in scope 'HttpServer'. Available symbols: ["HttpServer"]
+DEBUG: Found symbol 'HttpServer' in scope 'HttpServer'
+DEBUG: Looking for symbol 'Ready' in scope '-machine-block-'. Available symbols: ["Ready"]
+DEBUG: Found symbol 'Ready' in scope '-machine-block-'
+DEBUG: Looking for symbol '-state-local-' in scope 'Ready'. Available symbols: ["-state-local-"]
+DEBUG: Found symbol '-state-local-' in scope 'Ready'
+DEBUG: Looking for symbol 'testStatusCodes' in scope '-state-local-'. Available symbols: ["testStatusCodes"]
+DEBUG: Found symbol 'testStatusCodes' in scope '-state-local-'
+DEBUG: Looking for symbol '-event-handler-local-' in scope 'testStatusCodes'. Available symbols: ["-event-handler-local-"]
+DEBUG: Found symbol '-event-handler-local-' in scope 'testStatusCodes'
+DEBUG: Looking for symbol 'if_block_12' in scope '-event-handler-local-'. Available symbols: ["if_block_18", "ok", "serverError", "if_block_12", "notFound", "if_block_15"]
+DEBUG: Found symbol 'if_block_12' in scope '-event-handler-local-'
+DEBUG: Looking for symbol 'if_block_15' in scope '-event-handler-local-'. Available symbols: ["if_block_18", "ok", "serverError", "if_block_12", "notFound", "if_block_15"]
+DEBUG: Found symbol 'if_block_15' in scope '-event-handler-local-'
+DEBUG: Looking for symbol 'if_block_18' in scope '-event-handler-local-'. Available symbols: ["if_block_18", "ok", "serverError", "if_block_12", "notFound", "if_block_15"]
+DEBUG: Found symbol 'if_block_18' in scope '-event-handler-local-'
+DEBUG: Looking for symbol 'Logger' in scope 'module'. Available symbols: ["main", "HttpServer", "Logger"]
+DEBUG: Found symbol 'Logger' in scope 'module'
+DEBUG: Retrieved system 'Logger' in semantic pass
+  Has actions block: false
+  Has machine block: true
+  Has interface block: true
+DEBUG: Looking for symbol 'Logger' in scope 'Logger'. Available symbols: ["Logger"]
+DEBUG: Found symbol 'Logger' in scope 'Logger'
+DEBUG: Looking for symbol 'Active' in scope '-machine-block-'. Available symbols: ["Active"]
+DEBUG: Found symbol 'Active' in scope '-machine-block-'
+DEBUG: Looking for symbol '-state-local-' in scope 'Active'. Available symbols: ["-state-local-"]
+DEBUG: Found symbol '-state-local-' in scope 'Active'
+DEBUG: Looking for symbol 'testLogLevels' in scope '-state-local-'. Available symbols: ["testLogLevels"]
+DEBUG: Found symbol 'testLogLevels' in scope '-state-local-'
+DEBUG: Looking for symbol '-event-handler-local-' in scope 'testLogLevels'. Available symbols: ["-event-handler-local-"]
+DEBUG: Found symbol '-event-handler-local-' in scope 'testLogLevels'
+DEBUG: Found local variable declaration: http
+DEBUG: Found local variable declaration: logger
+DEBUG collect_global_assignments_from_stmt: Checking statement type
+DEBUG collect_global_assignments_from_stmt: Checking statement type
+DEBUG: Found StmtT
+DEBUG: Found ExpressionStmt
+DEBUG: Found CallChainStmtT - might be assignment!
+DEBUG collect_global_assignments_from_stmt: Checking statement type
+DEBUG collect_global_assignments_from_stmt: Checking statement type
+DEBUG: Found StmtT
+DEBUG: Found ExpressionStmt
+DEBUG: Found CallChainStmtT - might be assignment!
+DEBUG: Function 'main' modifies module variables: {}
+DEBUG visit_variable_decl_node: var http init type: CallChain
+DEBUG: method_name=HttpServer, has_call_chain=false, output so far=''
+DEBUG visit_variable_decl_node: var http = HttpServer()
+DEBUG visit_call_chain_statement_node: 2 nodes
+DEBUG: Processing standard case with 2 nodes
+DEBUG visit_call_chain_expr_node: Processing 2 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing Variable 'http' at index 0
+DEBUG: Processing UndeclaredCall 'testStatusCodes' at index 1
+DEBUG: Processing UndeclaredCall 'testStatusCodes' in call chain, in_call_chain=true
+DEBUG: Multi-node chain - outputting directly
+DEBUG visit_variable_decl_node: var logger init type: CallChain
+DEBUG: method_name=Logger, has_call_chain=false, output so far=''
+DEBUG visit_variable_decl_node: var logger = Logger()
+DEBUG visit_call_chain_statement_node: 2 nodes
+DEBUG: Processing standard case with 2 nodes
+DEBUG visit_call_chain_expr_node: Processing 2 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing Variable 'logger' at index 0
+DEBUG: Processing UndeclaredCall 'testLogLevels' at index 1
+DEBUG: Processing UndeclaredCall 'testLogLevels' in call chain, in_call_chain=true
+DEBUG: Multi-node chain - outputting directly
+DEBUG: Found local variable declaration: ok
+DEBUG: Found local variable declaration: notFound
+DEBUG: Found local variable declaration: serverError
+DEBUG collect_global_assignments_from_stmt: Checking statement type
+DEBUG collect_global_assignments_from_stmt: Checking statement type
+DEBUG collect_global_assignments_from_stmt: Checking statement type
+DEBUG collect_global_assignments_from_stmt: Checking statement type
+DEBUG: Found StmtT
+DEBUG: Found ExpressionStmt
+DEBUG: Found CallChainStmtT - might be assignment!
+DEBUG collect_global_assignments_from_stmt: Checking statement type
+DEBUG: Found StmtT
+DEBUG: Found ExpressionStmt
+DEBUG: Found CallChainStmtT - might be assignment!
+DEBUG collect_global_assignments_from_stmt: Checking statement type
+DEBUG: Found StmtT
+DEBUG: Found ExpressionStmt
+DEBUG: Found CallChainStmtT - might be assignment!
+DEBUG collect_global_assignments_from_stmt: Checking statement type
+DEBUG: Found StmtT
+DEBUG: Found other StatementType
+DEBUG collect_global_assignments_from_stmt: Checking statement type
+DEBUG: Found StmtT
+DEBUG: Found other StatementType
+DEBUG collect_global_assignments_from_stmt: Checking statement type
+DEBUG: Found StmtT
+DEBUG: Found other StatementType
+DEBUG collect_global_assignments_from_stmt: Checking statement type
+DEBUG: Found StmtT
+DEBUG: Found other StatementType
+DEBUG visit_variable_decl_node: var ok init type: Other
+DEBUG visit_variable_decl_node: var ok = HttpServer_HttpStatus.Ok
+DEBUG visit_variable_decl_node: var notFound init type: Other
+DEBUG visit_variable_decl_node: var notFound = HttpServer_HttpStatus.NotFound
+DEBUG visit_variable_decl_node: var serverError init type: Other
+DEBUG visit_variable_decl_node: var serverError = HttpServer_HttpStatus.ServerError
+DEBUG visit_call_chain_statement_node: 1 nodes
+DEBUG: Processing standard case with 1 nodes
+DEBUG visit_call_chain_expr_node: Processing 1 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing UndeclaredCall 'print' at index 0
+DEBUG: Processing UndeclaredCall 'print' in call chain, in_call_chain=false
+DEBUG: Single-node chain - calling accept
+DEBUG visit_call_expression_node: method=print, NO call_chain, context=ExternalCall
+DEBUG REGULAR: method_name=print, has_call_chain=false
+DEBUG visit_call_chain_expr_node: Processing 1 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing UndeclaredCall 'str' at index 0
+DEBUG: Processing UndeclaredCall 'str' in call chain, in_call_chain=false
+DEBUG: Single-node chain - calling accept
+DEBUG visit_call_expression_node: method=str, NO call_chain, context=ExternalCall
+DEBUG REGULAR: method_name=str, has_call_chain=false
+DEBUG visit_call_chain_expr_node: Processing 2 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing Variable 'ok' at index 0
+DEBUG: Accepting UndeclaredIdentifier 'value'
+  Current system enums: {"HttpStatus"}
+  Checking if 'value' is in enum set
+  NO - using unqualified name
+DEBUG visit_call_chain_statement_node: 1 nodes
+DEBUG: Processing standard case with 1 nodes
+DEBUG visit_call_chain_expr_node: Processing 1 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing UndeclaredCall 'print' at index 0
+DEBUG: Processing UndeclaredCall 'print' in call chain, in_call_chain=false
+DEBUG: Single-node chain - calling accept
+DEBUG visit_call_expression_node: method=print, NO call_chain, context=ExternalCall
+DEBUG REGULAR: method_name=print, has_call_chain=false
+DEBUG visit_call_chain_expr_node: Processing 1 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing UndeclaredCall 'str' at index 0
+DEBUG: Processing UndeclaredCall 'str' in call chain, in_call_chain=false
+DEBUG: Single-node chain - calling accept
+DEBUG visit_call_expression_node: method=str, NO call_chain, context=ExternalCall
+DEBUG REGULAR: method_name=str, has_call_chain=false
+DEBUG visit_call_chain_expr_node: Processing 2 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing Variable 'notFound' at index 0
+DEBUG: Accepting UndeclaredIdentifier 'value'
+  Current system enums: {"HttpStatus"}
+  Checking if 'value' is in enum set
+  NO - using unqualified name
+DEBUG visit_call_chain_statement_node: 1 nodes
+DEBUG: Processing standard case with 1 nodes
+DEBUG visit_call_chain_expr_node: Processing 1 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing UndeclaredCall 'print' at index 0
+DEBUG: Processing UndeclaredCall 'print' in call chain, in_call_chain=false
+DEBUG: Single-node chain - calling accept
+DEBUG visit_call_expression_node: method=print, NO call_chain, context=ExternalCall
+DEBUG REGULAR: method_name=print, has_call_chain=false
+DEBUG visit_call_chain_expr_node: Processing 1 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing UndeclaredCall 'str' at index 0
+DEBUG: Processing UndeclaredCall 'str' in call chain, in_call_chain=false
+DEBUG: Single-node chain - calling accept
+DEBUG visit_call_expression_node: method=str, NO call_chain, context=ExternalCall
+DEBUG REGULAR: method_name=str, has_call_chain=false
+DEBUG visit_call_chain_expr_node: Processing 2 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing Variable 'serverError' at index 0
+DEBUG: Accepting UndeclaredIdentifier 'value'
+  Current system enums: {"HttpStatus"}
+  Checking if 'value' is in enum set
+  NO - using unqualified name
+DEBUG visit_call_chain_expr_node: Processing 2 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing Variable 'ok' at index 0
+DEBUG: Accepting UndeclaredIdentifier 'value'
+  Current system enums: {"HttpStatus"}
+  Checking if 'value' is in enum set
+  NO - using unqualified name
+DEBUG visit_call_chain_statement_node: 1 nodes
+DEBUG: Processing standard case with 1 nodes
+DEBUG visit_call_chain_expr_node: Processing 1 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing UndeclaredCall 'print' at index 0
+DEBUG: Processing UndeclaredCall 'print' in call chain, in_call_chain=false
+DEBUG: Single-node chain - calling accept
+DEBUG visit_call_expression_node: method=print, NO call_chain, context=ExternalCall
+DEBUG REGULAR: method_name=print, has_call_chain=false
+DEBUG visit_call_chain_expr_node: Processing 2 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing Variable 'notFound' at index 0
+DEBUG: Accepting UndeclaredIdentifier 'value'
+  Current system enums: {"HttpStatus"}
+  Checking if 'value' is in enum set
+  NO - using unqualified name
+DEBUG visit_call_chain_statement_node: 1 nodes
+DEBUG: Processing standard case with 1 nodes
+DEBUG visit_call_chain_expr_node: Processing 1 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing UndeclaredCall 'print' at index 0
+DEBUG: Processing UndeclaredCall 'print' in call chain, in_call_chain=false
+DEBUG: Single-node chain - calling accept
+DEBUG visit_call_expression_node: method=print, NO call_chain, context=ExternalCall
+DEBUG REGULAR: method_name=print, has_call_chain=false
+DEBUG visit_call_chain_expr_node: Processing 2 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing Variable 'serverError' at index 0
+DEBUG: Accepting UndeclaredIdentifier 'value'
+  Current system enums: {"HttpStatus"}
+  Checking if 'value' is in enum set
+  NO - using unqualified name
+DEBUG visit_call_chain_statement_node: 1 nodes
+DEBUG: Processing standard case with 1 nodes
+DEBUG visit_call_chain_expr_node: Processing 1 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing UndeclaredCall 'print' at index 0
+DEBUG: Processing UndeclaredCall 'print' in call chain, in_call_chain=false
+DEBUG: Single-node chain - calling accept
+DEBUG visit_call_expression_node: method=print, NO call_chain, context=ExternalCall
+DEBUG REGULAR: method_name=print, has_call_chain=false
+DEBUG: Found local variable declaration: silent
+DEBUG: Found local variable declaration: low
+DEBUG: Found local variable declaration: high
+DEBUG: Found local variable declaration: unknown
+DEBUG: Found local variable declaration: idle
+DEBUG: Found local variable declaration: running
+DEBUG: Found local variable declaration: complete
+DEBUG: Found local variable declaration: error
+DEBUG collect_global_assignments_from_stmt: Checking statement type
+DEBUG collect_global_assignments_from_stmt: Checking statement type
+DEBUG collect_global_assignments_from_stmt: Checking statement type
+DEBUG collect_global_assignments_from_stmt: Checking statement type
+DEBUG: Found StmtT
+DEBUG: Found ExpressionStmt
+DEBUG: Found CallChainStmtT - might be assignment!
+DEBUG collect_global_assignments_from_stmt: Checking statement type
+DEBUG: Found StmtT
+DEBUG: Found ExpressionStmt
+DEBUG: Found CallChainStmtT - might be assignment!
+DEBUG collect_global_assignments_from_stmt: Checking statement type
+DEBUG: Found StmtT
+DEBUG: Found ExpressionStmt
+DEBUG: Found CallChainStmtT - might be assignment!
+DEBUG collect_global_assignments_from_stmt: Checking statement type
+DEBUG collect_global_assignments_from_stmt: Checking statement type
+DEBUG collect_global_assignments_from_stmt: Checking statement type
+DEBUG collect_global_assignments_from_stmt: Checking statement type
+DEBUG collect_global_assignments_from_stmt: Checking statement type
+DEBUG collect_global_assignments_from_stmt: Checking statement type
+DEBUG: Found StmtT
+DEBUG: Found ExpressionStmt
+DEBUG: Found CallChainStmtT - might be assignment!
+DEBUG collect_global_assignments_from_stmt: Checking statement type
+DEBUG: Found StmtT
+DEBUG: Found ExpressionStmt
+DEBUG: Found CallChainStmtT - might be assignment!
+DEBUG collect_global_assignments_from_stmt: Checking statement type
+DEBUG: Found StmtT
+DEBUG: Found ExpressionStmt
+DEBUG: Found CallChainStmtT - might be assignment!
+DEBUG collect_global_assignments_from_stmt: Checking statement type
+DEBUG: Found StmtT
+DEBUG: Found ExpressionStmt
+DEBUG: Found CallChainStmtT - might be assignment!
+DEBUG collect_global_assignments_from_stmt: Checking statement type
+DEBUG: Found StmtT
+DEBUG: Found ExpressionStmt
+DEBUG: Found CallChainStmtT - might be assignment!
+DEBUG collect_global_assignments_from_stmt: Checking statement type
+DEBUG: Found StmtT
+DEBUG: Found other StatementType
+DEBUG visit_variable_decl_node: var silent init type: Other
+DEBUG visit_variable_decl_node: var silent = Logger_Priority.Silent
+DEBUG visit_variable_decl_node: var low init type: Other
+DEBUG visit_variable_decl_node: var low = Logger_Priority.Low
+DEBUG visit_variable_decl_node: var high init type: Other
+DEBUG visit_variable_decl_node: var high = Logger_Priority.High
+DEBUG visit_call_chain_statement_node: 1 nodes
+DEBUG: Processing standard case with 1 nodes
+DEBUG visit_call_chain_expr_node: Processing 1 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing UndeclaredCall 'print' at index 0
+DEBUG: Processing UndeclaredCall 'print' in call chain, in_call_chain=false
+DEBUG: Single-node chain - calling accept
+DEBUG visit_call_expression_node: method=print, NO call_chain, context=ExternalCall
+DEBUG REGULAR: method_name=print, has_call_chain=false
+DEBUG visit_call_chain_expr_node: Processing 1 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing UndeclaredCall 'str' at index 0
+DEBUG: Processing UndeclaredCall 'str' in call chain, in_call_chain=false
+DEBUG: Single-node chain - calling accept
+DEBUG visit_call_expression_node: method=str, NO call_chain, context=ExternalCall
+DEBUG REGULAR: method_name=str, has_call_chain=false
+DEBUG visit_call_chain_expr_node: Processing 2 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing Variable 'silent' at index 0
+DEBUG: Accepting UndeclaredIdentifier 'value'
+  Current system enums: {"MixedEnum", "Priority"}
+  Checking if 'value' is in enum set
+  NO - using unqualified name
+DEBUG visit_call_chain_statement_node: 1 nodes
+DEBUG: Processing standard case with 1 nodes
+DEBUG visit_call_chain_expr_node: Processing 1 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing UndeclaredCall 'print' at index 0
+DEBUG: Processing UndeclaredCall 'print' in call chain, in_call_chain=false
+DEBUG: Single-node chain - calling accept
+DEBUG visit_call_expression_node: method=print, NO call_chain, context=ExternalCall
+DEBUG REGULAR: method_name=print, has_call_chain=false
+DEBUG visit_call_chain_expr_node: Processing 1 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing UndeclaredCall 'str' at index 0
+DEBUG: Processing UndeclaredCall 'str' in call chain, in_call_chain=false
+DEBUG: Single-node chain - calling accept
+DEBUG visit_call_expression_node: method=str, NO call_chain, context=ExternalCall
+DEBUG REGULAR: method_name=str, has_call_chain=false
+DEBUG visit_call_chain_expr_node: Processing 2 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing Variable 'low' at index 0
+DEBUG: Accepting UndeclaredIdentifier 'value'
+  Current system enums: {"MixedEnum", "Priority"}
+  Checking if 'value' is in enum set
+  NO - using unqualified name
+DEBUG visit_call_chain_statement_node: 1 nodes
+DEBUG: Processing standard case with 1 nodes
+DEBUG visit_call_chain_expr_node: Processing 1 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing UndeclaredCall 'print' at index 0
+DEBUG: Processing UndeclaredCall 'print' in call chain, in_call_chain=false
+DEBUG: Single-node chain - calling accept
+DEBUG visit_call_expression_node: method=print, NO call_chain, context=ExternalCall
+DEBUG REGULAR: method_name=print, has_call_chain=false
+DEBUG visit_call_chain_expr_node: Processing 1 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing UndeclaredCall 'str' at index 0
+DEBUG: Processing UndeclaredCall 'str' in call chain, in_call_chain=false
+DEBUG: Single-node chain - calling accept
+DEBUG visit_call_expression_node: method=str, NO call_chain, context=ExternalCall
+DEBUG REGULAR: method_name=str, has_call_chain=false
+DEBUG visit_call_chain_expr_node: Processing 2 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing Variable 'high' at index 0
+DEBUG: Accepting UndeclaredIdentifier 'value'
+  Current system enums: {"MixedEnum", "Priority"}
+  Checking if 'value' is in enum set
+  NO - using unqualified name
+DEBUG visit_variable_decl_node: var unknown init type: Other
+DEBUG visit_variable_decl_node: var unknown = Logger_MixedEnum.Unknown
+DEBUG visit_variable_decl_node: var idle init type: Other
+DEBUG visit_variable_decl_node: var idle = Logger_MixedEnum.Idle
+DEBUG visit_variable_decl_node: var running init type: Other
+DEBUG visit_variable_decl_node: var running = Logger_MixedEnum.Running
+DEBUG visit_variable_decl_node: var complete init type: Other
+DEBUG visit_variable_decl_node: var complete = Logger_MixedEnum.Complete
+DEBUG visit_variable_decl_node: var error init type: Other
+DEBUG visit_variable_decl_node: var error = Logger_MixedEnum.Error
+DEBUG visit_call_chain_statement_node: 1 nodes
+DEBUG: Processing standard case with 1 nodes
+DEBUG visit_call_chain_expr_node: Processing 1 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing UndeclaredCall 'print' at index 0
+DEBUG: Processing UndeclaredCall 'print' in call chain, in_call_chain=false
+DEBUG: Single-node chain - calling accept
+DEBUG visit_call_expression_node: method=print, NO call_chain, context=ExternalCall
+DEBUG REGULAR: method_name=print, has_call_chain=false
+DEBUG visit_call_chain_expr_node: Processing 1 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing UndeclaredCall 'str' at index 0
+DEBUG: Processing UndeclaredCall 'str' in call chain, in_call_chain=false
+DEBUG: Single-node chain - calling accept
+DEBUG visit_call_expression_node: method=str, NO call_chain, context=ExternalCall
+DEBUG REGULAR: method_name=str, has_call_chain=false
+DEBUG visit_call_chain_expr_node: Processing 2 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing Variable 'unknown' at index 0
+DEBUG: Accepting UndeclaredIdentifier 'value'
+  Current system enums: {"MixedEnum", "Priority"}
+  Checking if 'value' is in enum set
+  NO - using unqualified name
+DEBUG visit_call_chain_statement_node: 1 nodes
+DEBUG: Processing standard case with 1 nodes
+DEBUG visit_call_chain_expr_node: Processing 1 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing UndeclaredCall 'print' at index 0
+DEBUG: Processing UndeclaredCall 'print' in call chain, in_call_chain=false
+DEBUG: Single-node chain - calling accept
+DEBUG visit_call_expression_node: method=print, NO call_chain, context=ExternalCall
+DEBUG REGULAR: method_name=print, has_call_chain=false
+DEBUG visit_call_chain_expr_node: Processing 1 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing UndeclaredCall 'str' at index 0
+DEBUG: Processing UndeclaredCall 'str' in call chain, in_call_chain=false
+DEBUG: Single-node chain - calling accept
+DEBUG visit_call_expression_node: method=str, NO call_chain, context=ExternalCall
+DEBUG REGULAR: method_name=str, has_call_chain=false
+DEBUG visit_call_chain_expr_node: Processing 2 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing Variable 'idle' at index 0
+DEBUG: Accepting UndeclaredIdentifier 'value'
+  Current system enums: {"MixedEnum", "Priority"}
+  Checking if 'value' is in enum set
+  NO - using unqualified name
+DEBUG visit_call_chain_statement_node: 1 nodes
+DEBUG: Processing standard case with 1 nodes
+DEBUG visit_call_chain_expr_node: Processing 1 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing UndeclaredCall 'print' at index 0
+DEBUG: Processing UndeclaredCall 'print' in call chain, in_call_chain=false
+DEBUG: Single-node chain - calling accept
+DEBUG visit_call_expression_node: method=print, NO call_chain, context=ExternalCall
+DEBUG REGULAR: method_name=print, has_call_chain=false
+DEBUG visit_call_chain_expr_node: Processing 1 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing UndeclaredCall 'str' at index 0
+DEBUG: Processing UndeclaredCall 'str' in call chain, in_call_chain=false
+DEBUG: Single-node chain - calling accept
+DEBUG visit_call_expression_node: method=str, NO call_chain, context=ExternalCall
+DEBUG REGULAR: method_name=str, has_call_chain=false
+DEBUG visit_call_chain_expr_node: Processing 2 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing Variable 'running' at index 0
+DEBUG: Accepting UndeclaredIdentifier 'value'
+  Current system enums: {"MixedEnum", "Priority"}
+  Checking if 'value' is in enum set
+  NO - using unqualified name
+DEBUG visit_call_chain_statement_node: 1 nodes
+DEBUG: Processing standard case with 1 nodes
+DEBUG visit_call_chain_expr_node: Processing 1 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing UndeclaredCall 'print' at index 0
+DEBUG: Processing UndeclaredCall 'print' in call chain, in_call_chain=false
+DEBUG: Single-node chain - calling accept
+DEBUG visit_call_expression_node: method=print, NO call_chain, context=ExternalCall
+DEBUG REGULAR: method_name=print, has_call_chain=false
+DEBUG visit_call_chain_expr_node: Processing 1 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing UndeclaredCall 'str' at index 0
+DEBUG: Processing UndeclaredCall 'str' in call chain, in_call_chain=false
+DEBUG: Single-node chain - calling accept
+DEBUG visit_call_expression_node: method=str, NO call_chain, context=ExternalCall
+DEBUG REGULAR: method_name=str, has_call_chain=false
+DEBUG visit_call_chain_expr_node: Processing 2 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing Variable 'complete' at index 0
+DEBUG: Accepting UndeclaredIdentifier 'value'
+  Current system enums: {"MixedEnum", "Priority"}
+  Checking if 'value' is in enum set
+  NO - using unqualified name
+DEBUG visit_call_chain_statement_node: 1 nodes
+DEBUG: Processing standard case with 1 nodes
+DEBUG visit_call_chain_expr_node: Processing 1 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing UndeclaredCall 'print' at index 0
+DEBUG: Processing UndeclaredCall 'print' in call chain, in_call_chain=false
+DEBUG: Single-node chain - calling accept
+DEBUG visit_call_expression_node: method=print, NO call_chain, context=ExternalCall
+DEBUG REGULAR: method_name=print, has_call_chain=false
+DEBUG visit_call_chain_expr_node: Processing 1 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing UndeclaredCall 'str' at index 0
+DEBUG: Processing UndeclaredCall 'str' in call chain, in_call_chain=false
+DEBUG: Single-node chain - calling accept
+DEBUG visit_call_expression_node: method=str, NO call_chain, context=ExternalCall
+DEBUG REGULAR: method_name=str, has_call_chain=false
+DEBUG visit_call_chain_expr_node: Processing 2 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing Variable 'error' at index 0
+DEBUG: Accepting UndeclaredIdentifier 'value'
+  Current system enums: {"MixedEnum", "Priority"}
+  Checking if 'value' is in enum set
+  NO - using unqualified name

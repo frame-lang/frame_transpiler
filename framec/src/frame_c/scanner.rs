@@ -47,6 +47,10 @@ impl Scanner {
             ("import".to_string(), TokenType::Import),
             ("from".to_string(), TokenType::From),
             ("as".to_string(), TokenType::As),
+            ("try".to_string(), TokenType::Try),
+            ("except".to_string(), TokenType::Except),
+            ("finally".to_string(), TokenType::Finally),
+            ("raise".to_string(), TokenType::Raise),
         ]
         .iter()
         .cloned()
@@ -749,6 +753,10 @@ pub enum TokenType {
     Import,   // 'import' keyword
     From,     // 'from' keyword
     As,       // 'as' keyword
+    Try,      // 'try' keyword
+    Except,   // 'except' keyword
+    Finally,  // 'finally' keyword
+    Raise,    // 'raise' keyword
     // SingleLineComment, // --- comment
     MultiLineComment, // {-- comments --}
     OpenBrace,        // {

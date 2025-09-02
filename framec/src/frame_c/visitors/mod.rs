@@ -179,6 +179,9 @@ pub trait AstVisitor {
     fn visit_loop_infinite_stmt_node(&mut self, _loop_infinite_stmt_node: &LoopInfiniteStmtNode) {}
     fn visit_break_stmt_node(&mut self, _break_expr_node: &BreakStmtNode) {}
     fn visit_continue_stmt_node(&mut self, _continue_expr_node: &ContinueStmtNode) {}
+    fn visit_try_stmt_node(&mut self, _try_stmt_node: &TryStmtNode) {}
+    fn visit_except_clause_node(&mut self, _except_clause_node: &ExceptClauseNode) {}
+    fn visit_raise_stmt_node(&mut self, _raise_stmt_node: &RaiseStmtNode) {}
     fn visit_superstring_stmt_node(&mut self, _continue_expr_node: &SuperStringStmtNode) {}
     fn visit_block_stmt_node(&mut self, _block_stmt_node: &BlockStmtNode) {}
     fn visit_literal_expression_node(&mut self, _node: &LiteralExprNode) {}

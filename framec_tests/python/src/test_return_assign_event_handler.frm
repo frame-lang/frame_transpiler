@@ -20,7 +20,7 @@ fn main() {
 
 system Calculator {
     interface:
-        getDefault(): str ^("default_value")
+        getDefault(): str 
         calculate(a: int, b: int): int
         divide(a: int, b: int)
         
@@ -28,6 +28,7 @@ system Calculator {
         $Ready {
             getDefault(): str {
                 // Should return the default "default_value"
+                return = "default_value"
                 return
             }
             
