@@ -2,11 +2,11 @@
 
 **Release Date**: September 2, 2025  
 **Version**: v0.32  
-**Status**: Production Ready - 100% Test Coverage
+**Status**: Production Ready
 
 ## Executive Summary
 
-Frame v0.32 delivers comprehensive enum enhancements that bring the language to feature parity with modern programming languages. This release introduces custom values, string enums, negative values, module-scope declarations, and iteration support, all while maintaining 100% backward compatibility and achieving perfect test coverage.
+Frame v0.32 delivers comprehensive enum enhancements and improved system.return token handling. This release introduces custom enum values, string enums, negative values, module-scope declarations, and iteration support, plus a more efficient implementation of the `system.return` special variable through greedy token scanning.
 
 ## New Features
 
@@ -108,6 +108,14 @@ print(status.value)  // 404
 - **Impact**: All enum tests now pass (6 previously failing tests fixed)
 
 ## Technical Improvements
+
+### SystemReturn Token Implementation
+- **Scanner Enhancement**: Greedily matches "system.return" as single `TokenType::SystemReturn` token
+- **Parser Simplification**: Removed complex `parse_system_interface_call()` method
+- **AST Cleanup**: Removed unused `CallContextType::SystemCall` variant
+- **Error Handling**: Clear error message for bare `system` keyword (reserved for future use)
+- **Important Clarification**: `system.return` is the ONLY valid use of the `system` keyword
+- **Invalid Syntax**: `system.method()` is NOT supported - use `self.method()` for interface calls
 
 ### AST Enhancements
 - New `EnumType` enum: `Integer` | `String`

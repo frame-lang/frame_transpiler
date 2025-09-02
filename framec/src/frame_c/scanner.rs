@@ -490,9 +490,32 @@ impl Scanner {
         // See if the identifier is a reserved word.
         let text = &self.source[self.start..self.current].to_owned();
 
-        let kw = &self.keywords.get(text);
-        if let Some(keyword) = kw {
-            let tok_type = *(*keyword);
+        // Special handling for "system" keyword
+        if text == "system" {
+            // Check if this is "system.return"
+            let saved_current = self.current;
+            if self.peek() == '.' {
+                self.advance(); // consume '.'
+                // Check if next word is "return"
+                if self.peek() == 'r' {
+                    let start_of_return = self.current;
+                    while self.is_alpha_numeric(self.peek()) {
+                        self.advance();
+                    }
+                    let next_word = &self.source[start_of_return..self.current];
+                    if next_word == "return" {
+                        // This is "system.return" - make it a single token
+                        self.add_token(TokenType::SystemReturn);
+                        return;
+                    }
+                }
+                // Not "system.return", restore position
+                self.current = saved_current;
+            }
+            // Just "system" by itself
+            self.add_token(TokenType::System);
+        } else if let Some(keyword) = self.keywords.get(text) {
+            let tok_type = *keyword;
             self.add_token(tok_type);
         } else {
             self.add_token(TokenType::Identifier);
@@ -714,7 +737,8 @@ pub enum TokenType {
     // REMOVED: ReturnAssign (^=) - use 'return = value'
     LogicalAnd,                   // &&
     LogicalXor,                   // &|
-    System,                       // 'system' keyword for modern syntax
+    System,                       // 'system' keyword for modern syntax (reserved)
+    SystemReturn,                 // 'system.return' for setting interface return value
     Self_,                        // self
     Return_,                      // return
     EnterStateMsg,                   // $>

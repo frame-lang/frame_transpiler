@@ -1303,6 +1303,7 @@ stmt: expr_stmt
     | raise_stmt
     | return_stmt
     | return_assign_stmt
+    | system_return_stmt
     | parent_dispatch_stmt
     | transition_stmt
     | state_stack_op
@@ -1321,6 +1322,7 @@ finally_clause: 'finally' block
 raise_stmt: 'raise' expr? ('from' expr)?
 return_stmt: 'return' expr?
 return_assign_stmt: 'return' '=' expr
+system_return_stmt: 'system.return' '=' expr
 parent_dispatch_stmt: '=>' '$^'
 transition_stmt: '->' '$' IDENTIFIER
 state_stack_op: '$$[' '+' ']' | '$$[' '-' ']'
@@ -1463,7 +1465,9 @@ closeModal() {
 
 ### System Return Assignment (v0.31)
 
-Frame v0.31 introduces the `system.return` special variable for setting interface return values anywhere within event handlers or action methods:
+Frame v0.31 introduces the `system.return` special variable for setting interface return values anywhere within event handlers or action methods.
+
+**IMPORTANT**: `system.return` is the ONLY valid use of the `system` keyword. The syntax `system.method()` is NOT supported - use `self.method()` for calling interface methods from within the system.
 
 ```frame
 // Setting interface return values with system.return
@@ -1558,6 +1562,12 @@ fn var return
 if elif else for while loop in break continue
 true false None
 ```
+
+**Note on `system` keyword**: 
+- Reserved keyword used ONLY in the compound token `system.return`
+- `system.return` is used to set interface method return values
+- `system.method()` syntax is NOT supported - use `self.method()` instead
+- Bare `system` keyword will produce an error
 
 ## Null Value (v0.31)
 

@@ -1,6 +1,16 @@
 # Frame v0.32 Development Notes
 
-## Latest Status: Enum Enhancements Complete with 100% Test Coverage (2025-09-02)
+## Latest Status: SystemReturn Token Implementation (2025-09-02)
+
+### SystemReturn Token Enhancement - COMPLETE ✅
+- **Scanner Enhancement**: Greedily matches "system.return" as single `TokenType::SystemReturn`
+- **Parser Simplification**: Removed complex `parse_system_interface_call()` method
+- **Error Handling**: Clear error for bare `system` keyword - reserved for future use
+- **AST Cleanup**: Removed `CallContextType::SystemCall` variant
+- **Important**: `system.return` is the ONLY valid use of `system` keyword
+- **Test Results**: 170/173 tests passing (3 tests use invalid `system.method()` syntax)
+
+## Previous Status: Enum Enhancements Complete with 100% Test Coverage (2025-09-02)
 
 ### v0.32 Final Status - COMPLETE ✅
 - **Enum Features**: Custom values, string enums, iteration, module-scope support

@@ -6127,17 +6127,38 @@ impl<'a> Parser<'a> {
         } else if self.match_token(&[TokenType::Self_]) {
             // Frame v0.31: Handle explicit self.method() and self.variable syntax
             return self.parse_self_context();
+        } else if self.match_token(&[TokenType::SystemReturn]) {
+            // Frame v0.31: Handle system.return special variable
+            // Create a special variable node for system.return
+            let system_return_token = self.previous().clone();
+            let line_number = system_return_token.line;
+            
+            let system_return_node = VariableNode::new(
+                IdentifierNode::new(
+                    Token {
+                        token_type: system_return_token.token_type,
+                        lexeme: "system.return".to_string(),
+                        literal: system_return_token.literal,
+                        line: line_number,
+                        start: system_return_token.start,
+                        length: "system.return".len(),
+                    },
+                    None,
+                    IdentifierDeclScope::UnknownScope,  // Special scope for system.return
+                    false,
+                    line_number,
+                ),
+                IdentifierDeclScope::UnknownScope,
+                None,
+            );
+            return Ok(Some(ExprType::VariableExprT { 
+                var_node: system_return_node 
+            }));
         } else if self.match_token(&[TokenType::System]) {
-                // Frame v0.31: Check if this is a system.method() call
-            if self.match_token(&[TokenType::Dot]) {
-                // This is system.method() - interface call
-                return self.parse_system_interface_call();
-            } else {
-                // 'system' keyword without dot - this is an error in expression context
-                let err_msg = "Expected '.' after 'system' keyword in expression";
-                self.error_at_current(err_msg);
-                return Err(ParseError::new(err_msg));
-            }
+            // Bare 'system' keyword is not allowed - reserved for future use
+            let err_msg = "The 'system' keyword is reserved. Only 'system.return' is currently supported for setting interface return values.";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
         
         //     // self.
         //     if self.match_token(&[TokenType::Dot]) {
@@ -8914,9 +8935,8 @@ impl<'a> Parser<'a> {
         }
 
         // Determine call context based on identifier prefix
-        let call_context = if identifer_node.name.lexeme.starts_with("system.") {
-                CallContextType::SystemCall
-        } else if identifer_node.name.lexeme.starts_with("self.") {
+        // Note: "system." is no longer possible here as it's handled by SystemReturn token
+        let call_context = if identifer_node.name.lexeme.starts_with("self.") {
             CallContextType::SelfCall
         } else {
             CallContextType::ExternalCall  // Default
@@ -10197,75 +10217,6 @@ impl<'a> Parser<'a> {
             
             return Ok(Some(ExprType::CallChainExprT { call_chain_expr_node }));
         }
-    }
-    
-    /// Parse system.method() syntax for interface calls or system.return
-    fn parse_system_interface_call(&mut self) -> Result<Option<ExprType>, ParseError> {
-        // We've already consumed 'system.'
-        
-        // Check for system.return special case
-        if self.match_token(&[TokenType::Return_]) {
-            // This is system.return - create a special variable node for it
-            // We'll use a special identifier name "system.return" that the visitor can recognize
-            let mut return_token = self.previous().clone();
-            let line_number = return_token.line;
-            return_token.lexeme = "system.return".to_string();  // Set special identifier name
-            
-            let system_return_node = VariableNode::new(
-                IdentifierNode::new(
-                    return_token,
-                    None,
-                    IdentifierDeclScope::UnknownScope,  // Special scope for system.return
-                    false,
-                    line_number,
-                ),
-                IdentifierDeclScope::UnknownScope,
-                None,
-            );
-            return Ok(Some(ExprType::VariableExprT { 
-                var_node: system_return_node 
-            }));
-        }
-        
-        if !self.match_token(&[TokenType::Identifier]) {
-            let err_msg = "Expected interface method name or 'return' after 'system.'";
-            self.error_at_current(err_msg);
-            return Err(ParseError::new(err_msg));
-        }
-        
-        let identifier_token = self.previous().clone();
-        let id_node = IdentifierNode::new(
-            identifier_token.clone(),
-            None,
-            IdentifierDeclScope::InterfaceBlockScope,
-            false,
-            identifier_token.line,
-        );
-        
-        if !self.match_token(&[TokenType::LParen]) {
-            let err_msg = "Expected '(' after interface method name";
-            self.error_at_current(err_msg);
-            return Err(ParseError::new(err_msg));
-        }
-        
-        let params = match self.expr_list() {
-            Ok(Some(ExprListT { expr_list_node })) => expr_list_node.exprs_t,
-            Ok(None) => Vec::new(),  // Empty parameter list
-            Ok(Some(_)) => Vec::new(),  // Other expression types - treat as empty
-            Err(err) => return Err(err),
-        };
-        
-        // NOTE: expr_list() already consumes the RParen token, so we don't need to consume it again
-        
-        let call_expr_list = CallExprListNode::new(params);
-        let call_expr = CallExprNode::new_with_context(
-            id_node,
-            call_expr_list,
-            None,
-            CallContextType::SelfCall,
-        );
-        
-        return Ok(Some(ExprType::CallExprT { call_expr_node: call_expr }));
     }
     
     // ===================== Frame v0.31 Import Support =====================

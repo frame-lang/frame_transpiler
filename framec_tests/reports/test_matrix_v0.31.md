@@ -1,6 +1,6 @@
 # Frame v0.31 Test Matrix
 
-**Generated**: 2025-09-02 11:53  
+**Generated**: 2025-09-02 12:53  
 **Total Tests**: 173  
 **Current Branch**: v0.31  
 
@@ -9,9 +9,9 @@
 | Metric | Count | Percentage |
 |--------|-------|------------|
 | **Total Tests** | 173 | 100% |
-| **Transpilation Success** | 173 | 100.0% |
-| **Execution Success** | 173 | 100.0% |
-| **Complete Success** | 173 | 100.0% |
+| **Transpilation Success** | 170 | 98.3% |
+| **Execution Success** | 170 | 98.3% |
+| **Complete Success** | 170 | 98.3% |
 
 ## v0.31 Features
 
@@ -22,7 +22,20 @@
 
 ## Failed Tests
 
-🎉 **All tests passing!**
+| Test File | Transpile | Execute | Error |
+|-----------|-----------|---------|-------|
+| test_system_interface_calls.frm | ❌ | ❌ | DEBUG: Starting first pass - building symbol table
+DEBUG: Created syntactic parser with is_building_symbol_table=true
+DEBUG: Building symbol table for function: main
+DEBUG: Entering function scope for |
+| test_system_simple.frm | ❌ | ❌ | DEBUG: Starting first pass - building symbol table
+DEBUG: Created syntactic parser with is_building_symbol_table=true
+DEBUG: Building symbol table for function: main
+DEBUG: Entering function scope for |
+| test_v031_comprehensive.frm | ❌ | ❌ | DEBUG: Starting first pass - building symbol table
+DEBUG: Created syntactic parser with is_building_symbol_table=true
+DEBUG: Building symbol table for function: main
+DEBUG: Entering function scope for |
 
 ## Test Details
 
@@ -164,7 +177,7 @@
 | test_states_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_static_calls.frm | ✅ | ✅ | ✅ PASS |
 | test_static_operations.frm | ✅ | ✅ | ✅ PASS |
-| test_system_interface_calls.frm | ✅ | ✅ | ✅ PASS |
+| test_system_interface_calls.frm | ❌ | ❌ | ❌ FAIL |
 | test_system_isolation.frm | ✅ | ✅ | ✅ PASS |
 | test_system_no_function.frm | ✅ | ✅ | ✅ PASS |
 | test_system_only_operations.frm | ✅ | ✅ | ✅ PASS |
@@ -173,7 +186,7 @@
 | test_system_return_comprehensive.frm | ✅ | ✅ | ✅ PASS |
 | test_system_return_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_system_scope_isolation.frm | ✅ | ✅ | ✅ PASS |
-| test_system_simple.frm | ✅ | ✅ | ✅ PASS |
+| test_system_simple.frm | ❌ | ❌ | ❌ FAIL |
 | test_traffic_light_persist.frm | ✅ | ✅ | ✅ PASS |
 | test_traffic_light_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_transition_return.frm | ✅ | ✅ | ✅ PASS |
@@ -197,7 +210,7 @@
 | test_v030_system_lifecycle_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_v030_system_with_functions.frm | ✅ | ✅ | ✅ PASS |
 | test_v030_three_systems.frm | ✅ | ✅ | ✅ PASS |
-| test_v031_comprehensive.frm | ✅ | ✅ | ✅ PASS |
+| test_v031_comprehensive.frm | ❌ | ❌ | ❌ FAIL |
 | test_validation_comprehensive.frm | ✅ | ✅ | ✅ PASS |
 | test_validation_with_main.frm | ✅ | ✅ | ✅ PASS |
 | test_your_example.frm | ✅ | ✅ | ✅ PASS |

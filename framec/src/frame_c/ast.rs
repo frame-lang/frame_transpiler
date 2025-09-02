@@ -246,7 +246,6 @@ pub enum CallTargetType {
 #[derive(Debug, Clone, PartialEq)]
 pub enum CallContextType {
     SelfCall,           // self.method() - calls action or operation
-    SystemCall,         // system.method() - calls interface method
     StaticCall(String), // ClassName.method() - static operation call
     ExternalCall,       // function() - external function or local
 }

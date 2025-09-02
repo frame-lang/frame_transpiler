@@ -1,12 +1,12 @@
 {
-  "timestamp": "2025-09-02T11:53:18.835042",
+  "timestamp": "2025-09-02T12:53:46.154636",
   "version": "v0.31",
   "summary": {
     "total": 173,
-    "transpile_success": 173,
-    "execute_success": 173,
-    "complete_success": 173,
-    "success_rate": "100.0%"
+    "transpile_success": 170,
+    "execute_success": 170,
+    "complete_success": 170,
+    "success_rate": "98.3%"
   },
   "results": [
     {
@@ -188,7 +188,7 @@
       "file": "test_enums.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
@@ -223,7 +223,7 @@
       "file": "test_enums_doc_grocery_full.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
@@ -963,10 +963,9 @@
     },
     {
       "file": "test_system_interface_calls.frm",
-      "transpile": true,
-      "execute": true,
-      "output": "Starting system\nProcessing: external call\nCalculating for: 42\nCalculated: 84\nProcessing: recursive\nCalculating for: 42\nCalculated: 84\n",
-      "error": null
+      "transpile": false,
+      "execute": false,
+      "error": "DEBUG: Starting first pass - building symbol table\nDEBUG: Created syntactic parser with is_building_symbol_table=true\nDEBUG: Building symbol table for function: main\nDEBUG: Entering function scope for"
     },
     {
       "file": "test_system_isolation.frm",
@@ -1026,10 +1025,9 @@
     },
     {
       "file": "test_system_simple.frm",
-      "transpile": true,
-      "execute": true,
-      "output": "Got: Hello from helper\n",
-      "error": null
+      "transpile": false,
+      "execute": false,
+      "error": "DEBUG: Starting first pass - building symbol table\nDEBUG: Created syntactic parser with is_building_symbol_table=true\nDEBUG: Building symbol table for function: main\nDEBUG: Entering function scope for"
     },
     {
       "file": "test_traffic_light_persist.frm",
@@ -1194,10 +1192,9 @@
     },
     {
       "file": "test_v031_comprehensive.frm",
-      "transpile": true,
-      "execute": true,
-      "output": "Doing work...\nCounter: 10\nGot: Test value from interface\n",
-      "error": null
+      "transpile": false,
+      "execute": false,
+      "error": "DEBUG: Starting first pass - building symbol table\nDEBUG: Created syntactic parser with is_building_symbol_table=true\nDEBUG: Building symbol table for function: main\nDEBUG: Entering function scope for"
     },
     {
       "file": "test_validation_comprehensive.frm",

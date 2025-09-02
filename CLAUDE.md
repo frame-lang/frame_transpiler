@@ -144,7 +144,8 @@ FrameModule (Top-Level)
 #### Return Statements
 - **Simple**: `return`
 - **With Value**: `return value`
-- **Interface Return**: `return = value`
+- **Interface Return Assignment**: `return = value` (sets return value directly in event handler)
+- **System Return Variable**: `system.return = value` (sets interface return value from anywhere)
 
 #### Event Forwarding
 - **To Parent State**: `=> $^` (statement - can appear anywhere in event handler)
@@ -185,6 +186,14 @@ The following v0.11 syntax has been **completely removed** and will cause compil
 All code using old syntax must be migrated to modern syntax before compilation.
 
 ### v0.31 Enhancements
+
+#### System Return Variable (NEW in v0.31)
+- **Syntax**: `system.return = value`
+- **Purpose**: Sets the interface method return value from anywhere in event handlers or actions
+- **Scope**: Can be used in machine states and action methods
+- **Important**: This is the ONLY valid use of the `system` keyword
+- **Invalid**: `system.method()` calls are NOT supported - use `self.method()` for interface calls
+- **Implementation**: Scanner greedily matches "system.return" as a single token for efficiency
 
 #### Module Variables (NEW in v0.31)
 - **Module-level Variables**: Declare variables at module scope accessible from all functions/systems

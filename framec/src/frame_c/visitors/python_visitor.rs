@@ -3561,22 +3561,6 @@ impl PythonVisitor {
         Vec::new() // Placeholder for now
     }
     
-    /// Handle system.method() calls - interface method calls
-    fn handle_system_call(&mut self, method_call: &CallExprNode) {
-        let full_name = &method_call.identifier.name.lexeme;
-        
-        // Extract method name from 'system.methodName'
-        let method_name = if full_name.starts_with("system.") {
-            &full_name[7..] // Remove 'system.' prefix
-        } else {
-            full_name
-        };
-        
-        // Generate interface method call
-        self.add_code(&format!("self.{}", method_name));
-        method_call.call_expr_list.accept(self);
-    }
-    
     /// Check if a method name is an interface method in any system
     fn is_interface_method(&self, method_name: &str) -> bool {
         self.arcanium.lookup_interface_method_in_all_systems(method_name).is_some()
@@ -4802,10 +4786,6 @@ impl AstVisitor for PythonVisitor {
         match &method_call.context {
             CallContextType::SelfCall => {
                 self.handle_self_call(method_call);
-                return;
-            }
-            CallContextType::SystemCall => {
-                self.handle_system_call(method_call);
                 return;
             }
             CallContextType::StaticCall(class_name) => {
