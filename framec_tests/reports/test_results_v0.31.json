@@ -1,12 +1,12 @@
 {
-  "timestamp": "2025-09-02T12:53:46.154636",
+  "timestamp": "2025-09-02T16:36:11.186446",
   "version": "v0.31",
   "summary": {
     "total": 173,
-    "transpile_success": 170,
-    "execute_success": 170,
-    "complete_success": 170,
-    "success_rate": "98.3%"
+    "transpile_success": 173,
+    "execute_success": 173,
+    "complete_success": 173,
+    "success_rate": "100.0%"
   },
   "results": [
     {
@@ -188,7 +188,7 @@
       "file": "test_enums.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
@@ -216,14 +216,14 @@
       "file": "test_enums_doc_grocery_demo.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
       "file": "test_enums_doc_grocery_full.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
@@ -448,6 +448,20 @@
       "transpile": true,
       "execute": true,
       "output": "=== LEGB Scope Resolution Test ===\nModule scope: name=MODULE\n\n=== Function Scope Test ===\nFunction scope: name=FUNCTION\nFunction local: LOCAL_VAR\nBlock scope: name=BLOCK\nBlock local: BLOCK_VAR\nNested ",
+      "error": null
+    },
+    {
+      "file": "test_list_features.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "First number: 1\nLast string: frame\n\n=== Iterating numbers ===\nNumber: 1\nNumber: 2\nNumber: 3\nNumber: 4\nNumber: 5\n\n=== Iterating strings ===\nString: hello\nString: world\nString: frame\n\n=== Matrix ===\nRow",
+      "error": null
+    },
+    {
+      "file": "test_list_native_methods.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "After append: [1, 2, 3, 4, 5]\nLength: 5\nEmpty list is_empty: True\nNumbers is_empty: False\nAfter clear: []\nPopped: 40\nAfter pop: [10, 20, 30]\nPopped at 1: 20\nAfter pop(1): [10, 30]\nChain test: [1, 2, 3",
       "error": null
     },
     {
@@ -962,12 +976,6 @@
       "error": null
     },
     {
-      "file": "test_system_interface_calls.frm",
-      "transpile": false,
-      "execute": false,
-      "error": "DEBUG: Starting first pass - building symbol table\nDEBUG: Created syntactic parser with is_building_symbol_table=true\nDEBUG: Building symbol table for function: main\nDEBUG: Entering function scope for"
-    },
-    {
       "file": "test_system_isolation.frm",
       "transpile": true,
       "execute": true,
@@ -1022,12 +1030,6 @@
       "execute": true,
       "output": "=== System Scope Isolation Test ===\n\n=== SystemOne Public Method ===\nOwn operation: SystemOne internal operation\nSystemOne private action\nOwn domain: Modified by SystemOne\n\n=== SystemTwo Public Method",
       "error": null
-    },
-    {
-      "file": "test_system_simple.frm",
-      "transpile": false,
-      "execute": false,
-      "error": "DEBUG: Starting first pass - building symbol table\nDEBUG: Created syntactic parser with is_building_symbol_table=true\nDEBUG: Building symbol table for function: main\nDEBUG: Entering function scope for"
     },
     {
       "file": "test_traffic_light_persist.frm",
@@ -1192,9 +1194,10 @@
     },
     {
       "file": "test_v031_comprehensive.frm",
-      "transpile": false,
-      "execute": false,
-      "error": "DEBUG: Starting first pass - building symbol table\nDEBUG: Created syntactic parser with is_building_symbol_table=true\nDEBUG: Building symbol table for function: main\nDEBUG: Entering function scope for"
+      "transpile": true,
+      "execute": true,
+      "output": "Doing work...\nCounter: 10\nGot: Test value from interface\n",
+      "error": null
     },
     {
       "file": "test_validation_comprehensive.frm",

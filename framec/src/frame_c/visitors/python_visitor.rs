@@ -6164,7 +6164,7 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_superstring_stmt_node(&mut self, super_string_stmt_node: &SuperStringStmtNode) {
-        //        self.newline();
+        self.newline();
         super_string_stmt_node.literal_expr_node.accept(self);
     }
 

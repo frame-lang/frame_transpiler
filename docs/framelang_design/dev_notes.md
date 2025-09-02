@@ -1,6 +1,14 @@
-# Frame v0.32 Development Notes
+# Frame v0.33 Development Notes
 
-## Latest Status: SystemReturn Token Implementation (2025-09-02)
+## Latest Status: List Enhancement Planning (2025-09-02)
+
+### List Support Enhancements - IN PROGRESS 🚧
+- **Analysis Complete**: Comprehensive analysis of list support across all target languages
+- **C Support Confirmed**: Runtime library approach ensures full C compatibility
+- **Portability**: Core features work across all languages with appropriate adaptations
+- **Implementation Plan**: Phased approach starting with core operations
+
+## Previous Status: SystemReturn Token Implementation (2025-09-02)
 
 ### SystemReturn Token Enhancement - COMPLETE ✅
 - **Scanner Enhancement**: Greedily matches "system.return" as single `TokenType::SystemReturn`
@@ -27,6 +35,177 @@
 - **Static Method Calls**: Fixed cross-system static method calls
 - **Module Variables**: Full support with automatic global generation
 - **Import Statements**: Native Python import support without backticks
+
+## Development History
+
+### 2025-09-02: List Support Enhancements (v0.33)
+
+#### Overview
+Enhancing Frame's list support to provide native syntax for common operations while maintaining portability across all target languages including C.
+
+#### Current State
+Frame already supports:
+- List literals: `[1, 2, 3]`
+- List indexing: `list[0]`
+- List iteration: `for item in list`
+- Lists as variables, parameters, returns
+
+Current limitations:
+- Must use backticks for methods: `` `list.append(x)` ``
+- No slicing support
+- No negative indexing
+- No list comprehensions
+
+#### Implementation Plan
+
+##### Phase 1: Core List Operations (Priority: HIGH)
+**Timeline**: 2-3 days
+
+Add native Frame syntax for essential list operations:
+
+```frame
+// Native list methods (no backticks needed)
+list.append(item)       // Add to end
+list.length            // Get size (property)
+list.is_empty         // Check if empty (property)
+list.clear()           // Remove all items
+list.pop()            // Remove and return last
+list.pop(index)       // Remove and return at index
+```
+
+**AST Changes**:
+- Add `ListMethodCallNode` for list-specific method calls
+- Add `ListPropertyNode` for `.length` and `.is_empty`
+
+**Parser Changes**:
+- Recognize `identifier.method()` where identifier is known to be a list
+- Special handling for list properties
+
+**Code Generation**:
+- Python: Direct method calls
+- JavaScript: Map to appropriate methods (`push`, `length` property)
+- C: Call runtime library functions
+- Java: ArrayList methods
+- Go: Slice operations
+
+##### Phase 2: List Indexing Enhancements (Priority: HIGH)
+**Timeline**: 2 days
+
+Support negative indexing and bounds checking:
+
+```frame
+var last = list[-1]        // Last element
+var second_last = list[-2]  // Second to last
+```
+
+**Implementation**:
+- Extend `ListElementNode` to handle negative indices
+- Generate appropriate index calculation per target
+
+##### Phase 3: List Slicing (Priority: MEDIUM)
+**Timeline**: 3 days
+
+Implement Python-style slicing:
+
+```frame
+var sublist = list[1:4]    // Elements 1, 2, 3
+var tail = list[1:]        // All but first
+var head = list[:3]        // First 3 elements
+var copy = list[:]         // Full copy
+var reversed = list[::-1]  // Reverse
+```
+
+**AST Changes**:
+- Add `ListSliceNode` with start, stop, step expressions
+- Extend parser to recognize `:` in bracket expressions
+
+**Code Generation**:
+- Python: Native slice syntax
+- JavaScript: `slice()` method
+- C: `frame_list_slice()` function
+- Java: `subList()` method
+- Go: Native slice syntax
+
+##### Phase 4: Additional Operations (Priority: MEDIUM)
+**Timeline**: 2 days
+
+```frame
+list.insert(index, item)   // Insert at position
+list.remove(item)         // Remove first occurrence
+list.contains(item)       // Check membership
+list.index_of(item)       // Find position
+list.extend(other_list)   // Add all items from another list
+```
+
+##### Phase 5: List Comprehensions (Priority: LOW)
+**Timeline**: 4 days
+
+Support Python-style comprehensions:
+
+```frame
+var squares = [x * x for x in range(10)]
+var evens = [x for x in numbers if x % 2 == 0]
+```
+
+**AST Changes**:
+- Add `ListComprehensionNode`
+- Support for comprehension clauses
+
+**Code Generation**:
+- Python: Native comprehension
+- JavaScript: `map()`/`filter()` chains
+- C: Expand to loops
+- Java: Stream API
+- Go: Expand to loops
+
+#### C Runtime Library Design
+
+Create `frame_runtime/lists.h`:
+
+```c
+typedef struct {
+    void** items;
+    size_t length;
+    size_t capacity;
+    size_t item_size;
+} frame_list_t;
+
+// Core operations
+frame_list_t* frame_list_new(size_t item_size);
+void frame_list_free(frame_list_t* list);
+void frame_list_append(frame_list_t* list, void* item);
+void* frame_list_get(frame_list_t* list, size_t index);
+size_t frame_list_length(frame_list_t* list);
+// ... etc
+```
+
+Generate type-safe macros:
+```c
+#define FRAME_LIST_INT_NEW() frame_list_new(sizeof(int))
+#define FRAME_LIST_INT_APPEND(list, val) /* ... */
+#define FRAME_LIST_INT_GET(list, idx) (*(int*)frame_list_get(list, idx))
+```
+
+#### Testing Strategy
+
+1. **Unit Tests**: Each new operation gets tests
+2. **Cross-Language Tests**: Verify identical behavior across targets
+3. **Performance Tests**: Ensure efficient code generation
+4. **Memory Tests**: For C target, use Valgrind
+
+Test files to create:
+- `test_list_operations.frm` - Core operations
+- `test_list_slicing.frm` - Slicing features
+- `test_list_comprehensions.frm` - Comprehensions
+- `test_list_memory.frm` - C memory management
+
+#### Breaking Changes
+None - all existing list code continues to work.
+
+#### Migration Path
+- Backtick syntax remains supported
+- New native syntax is preferred
+- Linter can suggest updates
 
 ## Development History
 
