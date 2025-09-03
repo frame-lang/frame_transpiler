@@ -1,19 +1,52 @@
-# Frame v0.33 Development Notes
+# Frame v0.34 Development Notes
 
-## Latest Status: Frame Standard Library Phase 1 Complete (2025-09-03)
+## Latest Status: Module System Design & Rust Target Language (2025-09-03)
 
-### Frame Standard Library (FSL) - Phase 1 COMPLETE ✅
-- **Type Conversions Working**: `str()`, `int()`, `float()` now work without backticks
-- **Two-Pass Parsing Enhanced**: FSL operations recognized during semantic analysis
-- **Parser Fix Applied**: Added BuiltInCallExprT handling in unary_expression
-- **Test Coverage**: 171/171 tests passing (100% success rate)
-- **Clean Syntax**: `var s = str(42)` instead of ``var s = `str(42)` ``
+### v0.34 Module System (Design Phase)
+- **File as Module**: Each .frm file implicitly creates a module (Python-like)
+- **Nested Modules**: Support for explicit `module` blocks within files
+- **FSL as Optional Import**: FSL not available by default, must be imported
+- **No Silent Conflicts**: Error on symbol conflicts, no silent overrides
+- **Type-Aware Resolution**: Methods resolved based on receiver type
+- **Rust Target**: Added as first-class target language with full feature mapping
 
-### FSL Architecture Implemented
-- **Recognition Layer**: FslRegistry identifies built-in operations
-- **AST Integration**: New BuiltInCallExprT and BuiltInPropertyExprT nodes
-- **Visitor Support**: Python visitor generates correct FSL operation code
-- **Extensible Design**: Foundation ready for Phase 2 (collection operations)
+## Previous Status: Frame Standard Library Complete with 100% Test Success (2025-09-03)
+
+### Frame Standard Library (FSL) - v0.33 COMPLETE ✅
+- **Phase 1 - Type Conversions**: `str()`, `int()`, `float()`, `bool()` ✅
+- **Phase 2 - List Operations**: Full suite of list methods and properties ✅
+- **Phase 3 - String Operations**: Core string methods working ✅
+- **Test Coverage**: 181/181 tests passing (100% success rate) 🎉
+- **Backward Compatible**: Existing backtick syntax still works
+
+### Critical Fix Applied
+- **FSL Registry Conflict**: Removed 'add' from FSL registry to prevent conflicts with user-defined functions
+- **Issue**: User function `add(5, 3)` was incorrectly recognized as FSL SetAdd operation
+- **Solution**: Commented out 'add' registration in `framec/src/frame_c/fsl/mod.rs`
+- **Impact**: Resolved test_scope_isolation.frm failure
+
+### FSL Phase 1: Type Conversions ✅
+- `str()`, `int()`, `float()`, `bool()` work without backticks
+- Direct transpilation to target language built-ins
+- Two-pass parsing recognizes FSL operations during semantic analysis
+
+### FSL Phase 2: List Operations ✅
+- **Basic Methods**: `append()`, `pop()`, `clear()`
+- **Advanced Methods**: `insert()`, `remove()`, `extend()`, `reverse()`, `sort()`, `copy()`
+- **Query Methods**: `index()`, `count()`
+- **Properties**: `.length` → `len()`, `.is_empty` → `len() == 0`
+- **Negative Indexing**: Full Python-style negative index support
+
+### FSL Phase 3: String Operations ✅
+- **Working Methods**: `trim()` → `strip()`, `upper()`, `lower()`, `replace()`, `split()`
+- **Properties**: `.length` → `len()`
+- **Partial Support**: `contains()` and `substring()` need additional visitor work
+
+### Implementation Architecture
+- **Parser Enhancement**: Fixed BuiltInCallExprT handling in unary_expression
+- **Visitor Transformations**: Property access converted during code generation
+- **Debug Mode**: Added environment variable control for debug output
+- **Extensible Design**: Ready for additional operations and target languages
 
 ## Previous Status: List Enhancement Planning (2025-09-02)
 

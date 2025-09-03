@@ -1,15 +1,17 @@
-# Frame Language Grammar (v0.33)
+# Frame Language Grammar (v0.34)
 
 **Last Updated**: 2025-09-03  
-**Status**: Complete with Frame Standard Library (FSL), advanced enum features, module variables, self.variable syntax, and 100% test coverage
+**Status**: Complete with Frame Standard Library (FSL), module system design, and Rust as first-class target language. 100% test coverage (181/181 tests passing)
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
 ## Module Structure
 
 ```bnf
-module: (import_stmt | enum_decl | var_decl | function | system)*
+module: (import_stmt | module_decl | enum_decl | var_decl | function | system)*
 ```
+
+**v0.34 Module System (Planned)**: Files implicitly create modules. Explicit nested modules supported within files. FSL becomes an optional import, not default.
 
 **v0.31 Import Support**: Modules can now include native import statements at the top level, supporting Python module imports without requiring backticks.
 
@@ -106,6 +108,72 @@ system Calculator {
 ```
 
 **Note**: For languages other than Python, backticks can still be used for language-specific import syntax.
+
+## Module System (v0.34 - Planned)
+
+Frame will adopt a Python-like module system where files implicitly create modules, with support for explicit nested modules within files.
+
+### File as Module
+```bnf
+// Each .frm file automatically creates a module named after the file
+// File: math_utils.frm creates module 'math_utils'
+```
+
+### Explicit Nested Modules
+```bnf
+module_decl: 'module' IDENTIFIER '{' module_body '}'
+module_body: (import_stmt | module_decl | function | system | var_decl | enum_decl)*
+```
+
+### Module Examples
+```frame
+// File: math_utils.frm - implicitly creates 'math_utils' module
+
+fn add(a: int, b: int): int {
+    return a + b
+}
+
+// Explicit nested module
+module advanced {
+    fn factorial(n: int): int {
+        if n <= 1 { return 1 }
+        return n * factorial(n - 1)
+    }
+}
+
+// File: main.frm
+import math_utils                    // Import entire module
+import math_utils.{add}              // Import specific function
+import math_utils.advanced.factorial // Import from nested module
+
+fn main() {
+    var sum = math_utils.add(5, 3)  // Qualified access
+    var sum2 = add(5, 3)            // Direct access (imported)
+    var fact = factorial(5)         // Direct access (imported)
+}
+```
+
+### FSL as Optional Import
+```frame
+// FSL is not available by default - must be explicitly imported
+import fsl.{str, int, list, map}
+
+fn main() {
+    var s = str(42)        // FSL's str - only works if imported
+    var nums = list()      // FSL's list constructor
+}
+
+// Without FSL import, users can define their own versions
+fn str(x: any): string {
+    return custom_stringify(x)
+}
+```
+
+### Symbol Resolution Rules
+1. **Type methods** have priority when type is known: `mySet.add()` calls Set's add method
+2. **No silent conflicts**: Importing a symbol that exists locally causes an error
+3. **Qualification always works**: `module.function()` always accesses the module's function
+4. **No special cases**: All modules (including FSL) follow the same rules
 
 ## Native Python Functions (v0.31)
 
@@ -1453,8 +1521,11 @@ arg_list: expr (',' expr)*
 
 fsl_expr: fsl_conversion | fsl_property | fsl_method  // v0.33: Frame Standard Library
 fsl_conversion: ('str' | 'int' | 'float' | 'bool') '(' expr ')'
-fsl_property: expr '.' ('length' | 'size' | 'capacity' | 'name' | 'value')
-fsl_method: expr '.' ('append' | 'pop' | 'clear' | 'remove') '(' arg_list? ')'
+fsl_property: expr '.' ('length' | 'is_empty' | 'name' | 'value')
+fsl_list_method: expr '.' ('append' | 'pop' | 'clear' | 'insert' | 'remove' | 'extend' | 
+                           'reverse' | 'sort' | 'copy' | 'index' | 'count') '(' arg_list? ')'
+fsl_string_method: expr '.' ('trim' | 'upper' | 'lower' | 'replace' | 'split' | 
+                             'contains' | 'substring') '(' arg_list? ')'
 ```
 
 **Action Call Syntax**: Action calls use underscore prefix syntax `_actionName()` to distinguish them from interface method calls. This generates with proper `self._actionName()` syntax in Python target language.
@@ -1469,38 +1540,101 @@ fsl_method: expr '.' ('append' | 'pop' | 'clear' | 'remove') '(' arg_list? ')'
 
 The Frame Standard Library provides native built-in operations that work consistently across all target languages without requiring backticks.
 
-### Type Conversion Operations
+### Phase 1: Type Conversion Operations ✅
 ```frame
 fn example() {
     var x = 42
-    var s = str(x)      // Convert to string: "42"
-    var i = int("123")  // Convert to integer: 123
+    var s = str(x)        // Convert to string: "42"
+    var i = int("123")    // Convert to integer: 123
     var f = float("3.14") // Convert to float: 3.14
-    var b = bool(1)     // Convert to boolean: true
+    var b = bool(0)       // Convert to boolean: false
 }
 ```
 
-### Collection Properties (Planned)
-```frame
-fn listExample() {
-    var items = [1, 2, 3]
-    var count = items.length  // Get list length
-    var size = items.size     // Alternative syntax
-}
-```
+### Phase 2: List Operations ✅
 
-### Collection Methods (Planned)
+#### List Methods
 ```frame
 fn listOperations() {
-    var items = []
-    items.append(42)      // Add to end
-    var last = items.pop() // Remove and return last
-    items.clear()         // Remove all elements
-    items.remove(42)      // Remove specific value
+    var items = [1, 2, 3]
+    
+    // Basic operations
+    items.append(4)           // Add to end: [1, 2, 3, 4]
+    var last = items.pop()    // Remove and return last: 4
+    items.clear()            // Remove all elements: []
+    
+    // Advanced operations
+    items = [1, 2, 3, 4]
+    items.insert(2, 99)      // Insert at index: [1, 2, 99, 3, 4]
+    items.remove(99)         // Remove first occurrence: [1, 2, 3, 4]
+    items.reverse()          // Reverse in place: [4, 3, 2, 1]
+    items.sort()             // Sort in place: [1, 2, 3, 4]
+    
+    // Query operations
+    var idx = items.index(3) // Find index: 2
+    var cnt = items.count(2) // Count occurrences: 1
+    
+    // Copying
+    var copy = items.copy()  // Shallow copy
+    
+    // Extending
+    items.extend([5, 6])     // Add all from another list: [1, 2, 3, 4, 5, 6]
 }
 ```
 
-### Enum Properties (v0.32)
+#### List Properties
+```frame
+fn listProperties() {
+    var items = [1, 2, 3]
+    var len = items.length    // Get list length: 3 (converts to len() in Python)
+    
+    var empty = []
+    var is_empty = empty.is_empty  // Check if empty: true (converts to len() == 0)
+}
+```
+
+#### Negative Indexing ✅
+```frame
+fn negativeIndexing() {
+    var items = [10, 20, 30, 40, 50]
+    var last = items[-1]      // Last element: 50
+    var second_last = items[-2] // Second to last: 40
+    items[-1] = 99           // Set last element: [10, 20, 30, 40, 99]
+}
+```
+
+### Phase 3: String Operations ✅
+
+#### Fully Supported String Methods
+```frame
+fn stringOperations() {
+    var text = "  Hello World  "
+    
+    // Case conversion
+    var upper = text.upper()     // "  HELLO WORLD  "
+    var lower = text.lower()     // "  hello world  "
+    
+    // String manipulation
+    var trimmed = text.trim()    // "Hello World" (converts to strip() in Python)
+    var replaced = text.replace("World", "Frame")  // "  Hello Frame  "
+    var parts = text.split(" ")  // ["", "", "Hello", "World", "", ""]
+}
+```
+
+#### String Properties
+```frame
+fn stringProperties() {
+    var text = "Hello"
+    var len = text.length        // Get string length: 5 (converts to len() in Python)
+}
+```
+
+#### Pending String Operations
+The following operations are recognized by FSL but require additional visitor implementation:
+- `contains(substring)` - Will transform to Python's `in` operator
+- `substring(start, end)` - Will transform to Python's slice syntax `[start:end]`
+
+### Enum Properties (v0.32) ✅
 ```frame
 enum Status { Active, Inactive }
 
@@ -1512,10 +1646,10 @@ fn enumExample() {
 ```
 
 **Implementation Status:**
-- ✅ Type conversions (str, int, float) - Phase 1 Complete
-- 🚧 Boolean conversion - In progress
-- 📋 Collection properties - Planned for Phase 2
-- 📋 Collection methods - Planned for Phase 2
+- ✅ Phase 1: Type conversions (str, int, float, bool) - Complete
+- ✅ Phase 2: List operations and properties - Complete
+- ⚠️ Phase 3: String operations - Partial (trim, upper, lower, replace, split working)
+- 📋 Phase 4: Additional string operations (contains, substring) - Planned
 
 ## Tokens
 
@@ -1664,4 +1798,37 @@ $StateName {
 - `$@` - Current event reference
 - `#` - System type prefix (v0.11 legacy)
 - `##` - System terminator (v0.11 legacy)
+
+## Target Languages
+
+Frame transpiles to multiple target languages with full feature support:
+
+### Currently Implemented
+- **Python 3**: Primary target with 100% feature coverage
+- **Graphviz**: For state machine visualization
+
+### Planned Implementation
+- **Rust**: First-class support with ownership inference and zero-cost abstractions
+- **JavaScript/TypeScript**: ES6 modules and class-based systems
+- **C#**: Full .NET integration with namespaces
+- **Java**: Package-based module system
+- **Go**: Struct-based systems with interfaces
+- **C**: Function prefixing for module simulation
+- **C++**: Class-based with namespace support
+
+### Target Language Feature Matrix
+
+| Feature | Python | Rust | JS/TS | C# | Java | Go | C |
+|---------|--------|------|-------|-----|------|----|----|
+| Modules | ✅ | ✅ mod | ✅ ES6 | ✅ namespace | ✅ package | ✅ package | 🔄 prefix |
+| Systems | ✅ | ✅ struct | ✅ class | ✅ class | ✅ class | ✅ struct | ✅ struct |
+| FSL | ✅ | ✅ crate | ✅ runtime | ✅ runtime | ✅ runtime | ✅ runtime | ✅ runtime |
+| Enums | ✅ | ✅ enum | ✅ object | ✅ enum | ✅ enum | ✅ const | 🔄 define |
+| Async | ✅ | ✅ tokio | ✅ promise | ✅ async | ✅ future | ✅ goroutine | ❌ |
+| Generics | ✅ | ✅ native | ✅ TS | ✅ native | ✅ native | ✅ native | ❌ |
+
+Legend:
+- ✅ Full support
+- 🔄 Requires transformation
+- ❌ Not supported
 

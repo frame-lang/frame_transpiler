@@ -3,12 +3,12 @@
 ⚠️ **IMPORTANT: When starting a new session, ALWAYS read these documents first:**
 1. This file (CLAUDE.md) - Project structure and conventions
 2. `docs/framelang_design/dev_notes.md` - Latest development status
-3. `docs/v0.33_achievements.md` - Current release features
-4. `framec_tests/reports/test_matrix_v0.31.md` - Current test results
+3. `docs/v0.34_roadmap.md` - Module system and Rust target plans
+4. `framec_tests/reports/test_log.md` - Current test results
 
 ## Project Overview
 
-Frame is a state machine language that transpiles to multiple target languages. The project has evolved through v0.20 (syntax modernization), v0.30 (multi-entity support), v0.31 (import statements and self expression enhancements), v0.32 (advanced enum features), and v0.33 (Frame Standard Library).
+Frame is a state machine language that transpiles to multiple target languages. The project has evolved through v0.20 (syntax modernization), v0.30 (multi-entity support), v0.31 (import statements and self expression enhancements), v0.32 (advanced enum features), v0.33 (Frame Standard Library), and v0.34 (Module System & Rust target - planned).
 
 ## File Locations
 
@@ -29,21 +29,23 @@ Frame is a state machine language that transpiles to multiple target languages. 
 **Standard test validation command:**
 ```bash
 cd framec_tests
-python3 runner/frame_test_runner.py --all --matrix --json --verbose
+# Use release build for FSL features
+python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Users/marktruluck/projects/frame_transpiler/target/release/framec
 ```
 
 ## Current State
 
 **Branch**: `v0.30`  
 **Version**: `v0.33`  
-**Status**: ✅ **100% TEST SUCCESS RATE** (171/171 tests passing)
+**Status**: ✅ **100% TEST SUCCESS RATE** (181/181 tests passing) 🎉
 
 📋 **For release notes and development status, see**: [`docs/framelang_design/dev_notes.md`](docs/framelang_design/dev_notes.md)
 📊 **For v0.30 achievements, see**: [`docs/v0.30_achievements.md`](docs/v0.30_achievements.md)
 📊 **For v0.31 achievements, see**: [`docs/v0.31_achievements.md`](docs/v0.31_achievements.md)
 📊 **For v0.32 achievements, see**: [`docs/v0.32_achievements.md`](docs/v0.32_achievements.md)
 📊 **For v0.33 achievements, see**: [`docs/v0.33_achievements.md`](docs/v0.33_achievements.md)
-📊 **For latest test results, see**: [`framec_tests/reports/test_matrix_v0.31.md`](framec_tests/reports/test_matrix_v0.31.md)
+📋 **For v0.34 roadmap, see**: [`docs/v0.34_roadmap.md`](docs/v0.34_roadmap.md)
+📊 **For latest test results, see**: [`framec_tests/reports/test_log.md`](framec_tests/reports/test_log.md)
 
 ## Architecture
 
@@ -58,17 +60,71 @@ AST (FrameModule) → framec/src/frame_c/ast.rs
     ↓
 Visitors (Code Generation) → framec/src/frame_c/visitors/
     ↓
-Target Code (Python, C#, etc.)
+Target Code (Python, JavaScript, C#, Java, Go, C, Rust*)
+```
+*Rust support planned for v0.34
+
+### v0.33 Frame Standard Library (FSL) - COMPLETE ✅
+
+The Frame Standard Library provides native built-in operations that work consistently across all target languages without requiring backticks.
+
+**Critical Fix**: Removed 'add' from FSL registry to prevent conflicts with user-defined functions.
+
+#### Phase 1 - Type Conversions ✅
+```frame
+var x = 42
+var s = str(x)        // "42" - no backticks needed!
+var i = int("123")    // 123
+var f = float("3.14") // 3.14
+var b = bool(0)       // false
 ```
 
-### v0.33 Latest Features (NEW)
+#### Phase 2 - List Operations ✅
+```frame
+// All list methods work natively
+var list = [1, 2, 3]
+list.append(4)           // Add to end
+list.insert(1, 99)       // Insert at index
+list.remove(99)          // Remove first occurrence
+var last = list.pop()    // Remove and return last
+list.extend([5, 6])      // Add all from another list
+list.reverse()           // Reverse in place
+list.sort()              // Sort in place
+list.clear()            // Remove all
 
-#### Frame Standard Library (FSL) Support (NEW in v0.33)
-- **Type Conversions**: Native `str()`, `int()`, `float()` without backticks
+// Query operations
+var idx = list.index(3)  // Find index
+var cnt = list.count(2)  // Count occurrences
+var copy = list.copy()   // Shallow copy
+
+// Properties
+var len = list.length    // Converts to len(list)
+var empty = list.is_empty // Converts to len(list) == 0
+
+// Negative indexing works!
+var last_item = list[-1]
+```
+
+#### Phase 3 - String Operations ✅
+```frame
+var text = "  Hello World  "
+var upper = text.upper()     // "  HELLO WORLD  "
+var lower = text.lower()     // "  hello world  "
+var trimmed = text.trim()    // "Hello World" (→ strip())
+var replaced = text.replace("World", "Frame")
+var parts = text.split(" ")
+var len = text.length        // Converts to len(text)
+
+// Pending (need visitor work):
+// text.contains("world")    // Will convert to "world" in text
+// text.substring(0, 5)      // Will convert to text[0:5]
+```
+
+#### Implementation Details
 - **Two-Pass Parsing**: FSL operations recognized in semantic analysis pass
-- **Clean Syntax**: `var s = str(42)` instead of ``var s = `str(42)` ``
-- **Extensible Architecture**: Foundation for future collection and property operations
-- **Target Independence**: FSL operations transpile correctly to all target languages
+- **Parser Fix**: Added BuiltInCallExprT handling in unary_expression
+- **Visitor Transformations**: Properties like `.length` converted during code generation
+- **Debug Control**: `FRAME_TRANSPILER_DEBUG=1` environment variable for debug output
 
 ### v0.32 Features
 
@@ -110,6 +166,34 @@ Target Code (Python, C#, etc.)
 - **Systems**: Global declarations also generated for system state methods
 - **Shadowing Protection**: Local variables cannot shadow module variables (Python target)
 - **Conditional Imports**: Only generates imports (e.g., `from enum import Enum`) when actually used
+
+### v0.34 Module System Architecture (Planned)
+
+#### File-as-Module Pattern
+- Each `.frm` file automatically creates a module namespace
+- Module name derived from filename (e.g., `utils.frm` → `utils` module)
+- No explicit module declaration needed at file level
+
+#### Explicit Nested Modules
+```frame
+// File: utils.frm
+module string {
+    fn format(s: str): str { }  // utils.string.format
+}
+
+module math {
+    fn calculate(x: int): int { }  // utils.math.calculate
+}
+```
+
+#### FSL as Optional Import
+```frame
+import fsl.{str, int, list}  // Must explicitly import FSL (not default)
+
+fn main() {
+    var s = str(42)  // Now works with FSL import
+}
+```
 
 ### v0.30 Modular AST Structure
 
