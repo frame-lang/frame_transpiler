@@ -9,7 +9,8 @@
 - **Symbol Table Scoping**: NamedModule scope type added, proper scope entry/exit
 - **FSL as Optional Import**: FSL operations require explicit `from fsl import ...`
 - **Import Tracking**: HashMap tracks which FSL operations are imported
-- **Test Coverage**: Basic module parsing working, empty modules compile
+- **FSL Import Filtering**: Python visitor filters out FSL imports (built into Python)
+- **Test Coverage**: FSL import/no-import cases working, empty modules compile successfully
 
 ### Pending Implementation
 - **Qualified Names**: `module.function()` syntax not yet implemented
@@ -122,10 +123,18 @@ Implemented the foundation for Frame's module system, adding module declarations
    - Prevents namespace conflicts with user-defined functions
 
 #### Test Results
-- Empty module declarations parse successfully
-- Module syntax recognized by parser
-- FSL import requirement working correctly
-- Qualified name resolution pending future implementation
+- ✅ Empty module declarations parse successfully
+- ✅ Module syntax recognized by parser  
+- ✅ FSL import requirement working correctly
+- ✅ FSL imports filtered from Python output (no ModuleNotFoundError)
+- ✅ FSL operations work with explicit import
+- ✅ External function calls work without FSL import
+- ❌ Qualified name resolution pending future implementation
+
+#### Latest Fix (2025-01-20)
+- **Python Visitor Update**: Added FSL import filtering to prevent `ModuleNotFoundError`
+- **Implementation**: FSL imports starting with "fsl" are not output to Python code
+- **Rationale**: FSL operations map to Python built-ins, no actual module needed
 
 ### 2025-09-03: Frame Standard Library Phase 1 (v0.33)
 

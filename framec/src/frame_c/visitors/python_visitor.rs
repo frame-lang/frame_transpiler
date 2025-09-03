@@ -4032,22 +4032,31 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
     
     fn visit_import_node(&mut self, import_node: &ImportNode) {
+        // v0.34: Filter out FSL imports - they're built into Python
         match &import_node.import_type {
             ImportType::Simple { module } => {
-                self.add_code(&format!("import {}", module));
-                self.newline();
+                if !module.starts_with("fsl") {
+                    self.add_code(&format!("import {}", module));
+                    self.newline();
+                }
             }
             ImportType::Aliased { module, alias } => {
-                self.add_code(&format!("import {} as {}", module, alias));
-                self.newline();
+                if !module.starts_with("fsl") {
+                    self.add_code(&format!("import {} as {}", module, alias));
+                    self.newline();
+                }
             }
             ImportType::FromImport { module, items } => {
-                self.add_code(&format!("from {} import {}", module, items.join(", ")));
-                self.newline();
+                if !module.starts_with("fsl") {
+                    self.add_code(&format!("from {} import {}", module, items.join(", ")));
+                    self.newline();
+                }
             }
             ImportType::FromImportAll { module } => {
-                self.add_code(&format!("from {} import *", module));
-                self.newline();
+                if !module.starts_with("fsl") {
+                    self.add_code(&format!("from {} import *", module));
+                    self.newline();
+                }
             }
         }
     }

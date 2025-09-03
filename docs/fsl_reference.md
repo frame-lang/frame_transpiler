@@ -73,12 +73,22 @@ To update existing code for v0.34:
 
 ## Type Conversion Operations
 
+**IMPORTANT**: All examples below require FSL import:
+```frame
+from fsl import str, int, float, bool  // Required for v0.34
+```
+
 ### str(expr)
 Converts any expression to a string.
 
 ```frame
-var x = 42
-var s = str(x)  // "42"
+from fsl import str  // Required import
+
+fn example() {
+    var x = 42
+    var s = str(x)  // "42"
+    print(s)        // Works in Python: outputs "42"
+}
 ```
 
 **Target Mappings:**
@@ -91,8 +101,13 @@ var s = str(x)  // "42"
 Converts expression to integer.
 
 ```frame
-var s = "123"
-var i = int(s)  // 123
+from fsl import int  // Required import
+
+fn example() {
+    var s = "123"
+    var i = int(s)  // 123
+    print(i)        // Works in Python: outputs 123
+}
 ```
 
 **Target Mappings:**
@@ -397,3 +412,54 @@ var s2 = `str(42)`    // Legacy backtick style
 | String operations | ✅ | Planned | Planned | Planned | Planned | Planned | Planned |
 
 Currently, only the Python visitor has full FSL support. Other target languages will be added in future releases.
+
+## v0.34 Working Examples
+
+### Complete FSL Import Test
+```frame
+from fsl import str, int, float
+
+fn test_with_import() {
+    x = 42
+    s = str(x)        // FSL conversion
+    i = int("123")    // FSL conversion  
+    f = float("3.14") // FSL conversion
+    print(s)          // Built-in print
+    print(i)
+    print(f)
+}
+
+fn main() {
+    test_with_import()
+}
+```
+
+**Generated Python** (FSL import filtered out):
+```python
+def test_with_import():
+    x = 42
+    s = str(x)        # Uses Python built-in str()
+    i = int("123")    # Uses Python built-in int()
+    f = float("3.14") # Uses Python built-in float()
+    print(s)
+    print(i) 
+    print(f)
+    return
+
+def main():
+    test_with_import()
+    return
+```
+
+**Test Output**: `42`, `123`, `3.14` ✅
+
+### External Function Call (No FSL Import)
+```frame
+fn test_without_import() {
+    x = 42
+    s = str(x)  // Treated as external str() call
+    print(s)
+}
+```
+
+This also works because Python has a built-in `str()` function, demonstrating the seamless integration.

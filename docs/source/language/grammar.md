@@ -14,11 +14,12 @@ module_decl: 'module' IDENTIFIER '{' module_content '}'
 module_content: (module_decl | enum_decl | var_decl | function | system)*
 ```
 
-**v0.34 Module System**: 
-- Module keyword and nested module declarations implemented
-- FSL requires explicit import (`from fsl import str, int, float`)
-- Symbol table supports nested module scopes
-- Qualified name resolution (`module.function()`) pending future implementation
+**v0.34 Module System (IMPLEMENTED)**: 
+- ✅ Module keyword and nested module declarations working
+- ✅ FSL requires explicit import (`from fsl import str, int, float`)
+- ✅ Symbol table supports nested module scopes
+- ✅ FSL imports filtered from generated code (Python target)
+- ❌ Qualified name resolution (`module.function()`) not yet implemented
 
 **v0.31 Import Support**: Modules can now include native import statements at the top level, supporting Python module imports without requiring backticks.
 
@@ -63,7 +64,17 @@ module config {
 }
 ```
 
-**Note**: Qualified name access (`module.function()`) is not yet implemented. Currently, modules provide namespace organization but functions must still be accessed directly.
+**Current Limitations**: 
+- Functions inside modules cannot be called from outside the module yet
+- Qualified name access (`module.function()`) syntax not implemented
+- Module variables not accessible from outside
+- Code generation doesn't create module structures
+
+**Working Features**:
+- Module syntax parsing
+- Nested module declarations  
+- FSL import requirement and filtering
+- Namespace conflict prevention
 
 ## Scope Rules (v0.31)
 
@@ -1593,20 +1604,26 @@ fsl_string_method: expr '.' ('trim' | 'upper' | 'lower' | 'replace' | 'split' |
 
 The Frame Standard Library provides native built-in operations that work consistently across all target languages. 
 
-**v0.34 Change**: FSL operations now require explicit import to avoid namespace conflicts:
+**v0.34 Changes (IMPLEMENTED)**: 
+- ✅ FSL operations require explicit import to prevent namespace conflicts
+- ✅ FSL imports filtered from generated Python code (built into Python)
+- ✅ Without import, operations treated as external function calls
 
 ```frame
 // Import specific FSL operations
 from fsl import str, int, float, bool
 
-// Import all FSL operations
-from fsl import *
+fn withImport() {
+    var s = str(42)  // Uses FSL type conversion
+}
 
 // Without import, str() is treated as external function
-fn noImport() {
-    var s = str(42)  // Calls external str(), not FSL
+fn withoutImport() {
+    var s = str(42)  // Calls external str() function
 }
 ```
+
+**Test Results**: Both import and no-import cases working correctly.
 
 ### Phase 1: Type Conversion Operations ✅
 ```frame
