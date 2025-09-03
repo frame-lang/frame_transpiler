@@ -47,6 +47,7 @@ impl Scanner {
             ("import".to_string(), TokenType::Import),
             ("from".to_string(), TokenType::From),
             ("as".to_string(), TokenType::As),
+            ("module".to_string(), TokenType::Module),
             ("try".to_string(), TokenType::Try),
             ("except".to_string(), TokenType::Except),
             ("finally".to_string(), TokenType::Finally),
@@ -777,6 +778,7 @@ pub enum TokenType {
     Import,   // 'import' keyword
     From,     // 'from' keyword
     As,       // 'as' keyword
+    Module,   // 'module' keyword
     Try,      // 'try' keyword
     Except,   // 'except' keyword
     Finally,  // 'finally' keyword

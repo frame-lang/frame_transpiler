@@ -3625,6 +3625,10 @@ impl AstVisitor for PythonVisitor {
                 ModuleElement::Enum { enum_decl_node: _ } => {
                     // Module-level enums are handled in generate_all_enums
                 }
+                ModuleElement::Module { module_node: _ } => {
+                    // v0.34: Nested modules - need qualified access implementation
+                    // For now, skip nested modules as we need name resolution first
+                }
             }
         }
 
@@ -5412,6 +5416,33 @@ impl AstVisitor for PythonVisitor {
                     eprintln!("  Current system enums: {:?}", self.current_system_enums);
                     eprintln!("  Checking if '{}' is in enum set", id_node.name.lexeme);
                     
+                    // Check for FSL property access (e.g., list.length)
+                    // This is a special case where we need to transform the property access
+                    // to a function call in the target language
+                    if id_node.name.lexeme == "length" && i > 0 {
+                        // This is a .length property access
+                        // We need to transform variable.length to len(variable)
+                        // But we've already output the variable and the dot, so we need to backtrack
+                        
+                        // Remove the trailing dot that was added
+                        if self.code.ends_with('.') {
+                            self.code.pop();
+                        }
+                        
+                        // Find where the variable name starts (everything after the last space or start)
+                        let var_start = self.code.rfind(' ').map(|pos| pos + 1).unwrap_or(0);
+                        let var_name = self.code[var_start..].to_string();
+                        
+                        // Remove the variable from the output
+                        self.code.truncate(var_start);
+                        
+                        // Output len(variable) instead
+                        self.add_code(&format!("len({})", var_name));
+                        
+                        // Skip normal processing
+                        continue;
+                    }
+                    
                     // Check if this is an enum member reference (e.g., "HttpStatus.Ok")
                     if id_node.name.lexeme.contains('.') {
                         let parts: Vec<&str> = id_node.name.lexeme.split('.').collect();
@@ -5449,10 +5480,55 @@ impl AstVisitor for PythonVisitor {
                     // For multi-node chains (e.g., sys.testFruit()), don't add self._ prefix
                     // For single-node chains (e.g., _testFruit()), let it go through normal processing
                     if self.in_call_chain {
-                        // Multi-node chain - just output the method name and parameters
-                        eprintln!("DEBUG: Multi-node chain - outputting directly");
-                        self.add_code(&call.identifier.name.lexeme);
-                        call.call_expr_list.accept(self);
+                        // Multi-node chain - check for string method transformations
+                        eprintln!("DEBUG: Multi-node chain - checking for FSL string operations");
+                        
+                        // Check if this is a string method that needs transformation (v0.33 Phase 3)
+                        match call.identifier.name.lexeme.as_str() {
+                            "trim" => {
+                                // Transform trim() to strip()
+                                self.add_code("strip");
+                                call.call_expr_list.accept(self);
+                            }
+                            "upper" => {
+                                // upper() is already correct in Python
+                                self.add_code("upper");
+                                call.call_expr_list.accept(self);
+                            }
+                            "lower" => {
+                                // lower() is already correct in Python  
+                                self.add_code("lower");
+                                call.call_expr_list.accept(self);
+                            }
+                            "contains" => {
+                                // Transform s.contains(x) to (x in s)
+                                // This is complex - need the target and argument
+                                // For now, just output contains and note it needs fixing
+                                self.add_code("contains");
+                                call.call_expr_list.accept(self);
+                            }
+                            "replace" => {
+                                // replace() is already correct in Python
+                                self.add_code("replace");
+                                call.call_expr_list.accept(self);
+                            }
+                            "split" => {
+                                // split() is already correct in Python
+                                self.add_code("split");
+                                call.call_expr_list.accept(self);
+                            }
+                            "substring" => {
+                                // Transform substring(start, end) to [start:end]
+                                // This needs special handling - for now just output substring
+                                self.add_code("substring");
+                                call.call_expr_list.accept(self);
+                            }
+                            _ => {
+                                // Default: output method name as-is
+                                self.add_code(&call.identifier.name.lexeme);
+                                call.call_expr_list.accept(self);
+                            }
+                        }
                     } else {
                         // Single-node chain - go through normal processing which might add self._ prefix
                         eprintln!("DEBUG: Single-node chain - calling accept");
@@ -5819,7 +5895,22 @@ impl AstVisitor for PythonVisitor {
                     }
                 }
                 CallChainNodeType::UndeclaredCallT { call_node: call } => {
-                    call.accept_to_string(self, output);
+                    // Check for string method transformations (v0.33 Phase 3)
+                    if self.in_call_chain {
+                        match call.identifier.name.lexeme.as_str() {
+                            "trim" => {
+                                // Transform trim() to strip()
+                                output.push_str("strip");
+                                call.call_expr_list.accept_to_string(self, output);
+                            }
+                            _ => {
+                                // Default behavior for other methods
+                                call.accept_to_string(self, output);
+                            }
+                        }
+                    } else {
+                        call.accept_to_string(self, output);
+                    }
                 }
                 CallChainNodeType::InterfaceMethodCallT {
                     interface_method_call_expr_node,
@@ -7573,7 +7664,53 @@ impl AstVisitor for PythonVisitor {
         eprintln!("DEBUG visit_variable_decl_node: var {} init type: {}", var_name, init_type_name);
         //self.newline();
         let mut code = String::new();
-        var_init_expr.accept_to_string(self, &mut code);
+        
+        // Special handling for FSL properties like .length
+        // Check if this is a CallChainExprT with a .length property
+        if let ExprType::CallChainExprT { call_chain_expr_node } = &**var_init_expr {
+            if call_chain_expr_node.call_chain.len() == 2 {
+                // Check if the second node is "length"
+                if let CallChainNodeType::UndeclaredIdentifierNodeT { id_node } = &call_chain_expr_node.call_chain[1] {
+                    if id_node.name.lexeme == "length" {
+                        // This is a .length property access - transform to len()
+                        // Get the variable name from the first node
+                        if let CallChainNodeType::VariableNodeT { var_node } = &call_chain_expr_node.call_chain[0] {
+                            code = format!("len({})", var_node.id_node.name.lexeme);
+                        } else if let CallChainNodeType::UndeclaredIdentifierNodeT { id_node: first_id } = &call_chain_expr_node.call_chain[0] {
+                            // Handle case where first node is also undeclared (happens during first pass)
+                            code = format!("len({})", first_id.name.lexeme);
+                        } else {
+                            // Fallback to normal processing
+                        }
+                    } else if id_node.name.lexeme == "is_empty" {
+                        // This is a .is_empty property access - transform to len() == 0
+                        // Get the variable name from the first node
+                        if let CallChainNodeType::VariableNodeT { var_node } = &call_chain_expr_node.call_chain[0] {
+                            code = format!("len({}) == 0", var_node.id_node.name.lexeme);
+                        } else if let CallChainNodeType::UndeclaredIdentifierNodeT { id_node: first_id } = &call_chain_expr_node.call_chain[0] {
+                            // Handle case where first node is also undeclared (happens during first pass)
+                            code = format!("len({}) == 0", first_id.name.lexeme);
+                        } else {
+                            // Fallback to normal processing
+                            var_init_expr.accept_to_string(self, &mut code);
+                        }
+                    } else {
+                        // Not a length property, process normally
+                        var_init_expr.accept_to_string(self, &mut code);
+                    }
+                } else {
+                    // Second node is not an identifier, process normally
+                    var_init_expr.accept_to_string(self, &mut code);
+                }
+            } else {
+                // Not a 2-node chain, process normally
+                var_init_expr.accept_to_string(self, &mut code);
+            }
+        } else {
+            // Not a call chain, process normally
+            var_init_expr.accept_to_string(self, &mut code);
+        }
+        
         eprintln!("DEBUG visit_variable_decl_node: var {} = {}", var_name, code);
         match &variable_decl_node.identifier_decl_scope {
             IdentifierDeclScope::DomainBlockScope => {
@@ -7914,7 +8051,7 @@ impl AstVisitor for PythonVisitor {
     // FSL Built-in operations (v0.33)
     
     fn visit_builtin_call_expr_node(&mut self, node: &crate::frame_c::fsl::BuiltInCallNode) {
-        use crate::frame_c::fsl::{BuiltInOperation, ConversionOperation};
+        use crate::frame_c::fsl::{BuiltInOperation, ConversionOperation, StringOperation};
         
         eprintln!("DEBUG visit_builtin_call_expr_node: Processing FSL operation {:?}", node.operation);
         
@@ -7944,6 +8081,67 @@ impl AstVisitor for PythonVisitor {
                     }
                 }
             }
+            BuiltInOperation::String(string_op) => {
+                // Handle string operations (v0.33 Phase 3)
+                match string_op {
+                    StringOperation::StringUpper => {
+                        node.target.accept(self);
+                        self.add_code(".upper()");
+                    }
+                    StringOperation::StringLower => {
+                        node.target.accept(self);
+                        self.add_code(".lower()");
+                    }
+                    StringOperation::StringTrim => {
+                        node.target.accept(self);
+                        self.add_code(".strip()");  // Python uses strip() for trim()
+                    }
+                    StringOperation::StringContains => {
+                        // For contains, we need the argument
+                        if !node.arguments.is_empty() {
+                            self.add_code("(");
+                            node.arguments[0].accept(self);
+                            self.add_code(" in ");
+                            node.target.accept(self);
+                            self.add_code(")");
+                        }
+                    }
+                    StringOperation::StringReplace => {
+                        // replace(old, new)
+                        if node.arguments.len() >= 2 {
+                            node.target.accept(self);
+                            self.add_code(".replace(");
+                            node.arguments[0].accept(self);
+                            self.add_code(",");
+                            node.arguments[1].accept(self);
+                            self.add_code(")");
+                        }
+                    }
+                    StringOperation::StringSplit => {
+                        // split(delimiter)
+                        node.target.accept(self);
+                        self.add_code(".split(");
+                        if !node.arguments.is_empty() {
+                            node.arguments[0].accept(self);
+                        }
+                        self.add_code(")");
+                    }
+                    StringOperation::StringSubstring => {
+                        // Python uses slicing: string[start:end]
+                        if node.arguments.len() >= 2 {
+                            node.target.accept(self);
+                            self.add_code("[");
+                            node.arguments[0].accept(self);
+                            self.add_code(":");
+                            node.arguments[1].accept(self);
+                            self.add_code("]");
+                        }
+                    }
+                    _ => {
+                        self.add_code(&format!("/* Unimplemented string operation: {:?} */", string_op));
+                    }
+                }
+            }
             _ => {
                 // Other FSL operations will be implemented in future phases
                 self.add_code(&format!("/* Unimplemented FSL operation: {:?} */", node.operation));
@@ -7952,7 +8150,7 @@ impl AstVisitor for PythonVisitor {
     }
     
     fn visit_builtin_call_expr_node_to_string(&mut self, node: &crate::frame_c::fsl::BuiltInCallNode, output: &mut String) {
-        use crate::frame_c::fsl::{BuiltInOperation, ConversionOperation};
+        use crate::frame_c::fsl::{BuiltInOperation, ConversionOperation, StringOperation};
         
         match &node.operation {
             BuiltInOperation::Conversion(conversion_op) => {
@@ -7976,6 +8174,67 @@ impl AstVisitor for PythonVisitor {
                         output.push_str("bool(");
                         node.target.accept_to_string(self, output);
                         output.push_str(")");
+                    }
+                }
+            }
+            BuiltInOperation::String(string_op) => {
+                // Handle string operations (v0.33 Phase 3)
+                match string_op {
+                    StringOperation::StringUpper => {
+                        node.target.accept_to_string(self, output);
+                        output.push_str(".upper()");
+                    }
+                    StringOperation::StringLower => {
+                        node.target.accept_to_string(self, output);
+                        output.push_str(".lower()");
+                    }
+                    StringOperation::StringTrim => {
+                        node.target.accept_to_string(self, output);
+                        output.push_str(".strip()");  // Python uses strip() for trim()
+                    }
+                    StringOperation::StringContains => {
+                        // For contains, we need the argument
+                        if !node.arguments.is_empty() {
+                            output.push_str("(");
+                            node.arguments[0].accept_to_string(self, output);
+                            output.push_str(" in ");
+                            node.target.accept_to_string(self, output);
+                            output.push_str(")");
+                        }
+                    }
+                    StringOperation::StringReplace => {
+                        // replace(old, new)
+                        if node.arguments.len() >= 2 {
+                            node.target.accept_to_string(self, output);
+                            output.push_str(".replace(");
+                            node.arguments[0].accept_to_string(self, output);
+                            output.push_str(",");
+                            node.arguments[1].accept_to_string(self, output);
+                            output.push_str(")");
+                        }
+                    }
+                    StringOperation::StringSplit => {
+                        // split(delimiter)
+                        node.target.accept_to_string(self, output);
+                        output.push_str(".split(");
+                        if !node.arguments.is_empty() {
+                            node.arguments[0].accept_to_string(self, output);
+                        }
+                        output.push_str(")");
+                    }
+                    StringOperation::StringSubstring => {
+                        // Python uses slicing: string[start:end]
+                        if node.arguments.len() >= 2 {
+                            node.target.accept_to_string(self, output);
+                            output.push_str("[");
+                            node.arguments[0].accept_to_string(self, output);
+                            output.push_str(":");
+                            node.arguments[1].accept_to_string(self, output);
+                            output.push_str("]");
+                        }
+                    }
+                    _ => {
+                        output.push_str(&format!("/* Unimplemented string operation: {:?} */", string_op));
                     }
                 }
             }

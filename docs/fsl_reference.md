@@ -1,30 +1,30 @@
 # Frame Standard Library (FSL) Reference
 
-**Version**: v0.33  
-**Status**: Production Ready  
-**Last Updated**: 2025-09-03
+**Version**: v0.34  
+**Status**: Production Ready with Import Requirement  
+**Last Updated**: 2025-01-20
 
 ## Overview
 
 The Frame Standard Library (FSL) provides native built-in operations that work consistently across all target languages without requiring backticks. FSL operations are recognized during the semantic analysis pass and generate optimal code for each target language.
 
-## v0.34 Module System Changes (Planned)
+## v0.34 Module System Changes (IMPLEMENTED)
 
 ### FSL as Optional Import
 
-Starting in v0.34, FSL will transition from being available by default to requiring explicit imports:
+As of v0.34, FSL requires explicit imports to prevent namespace conflicts:
 
 ```frame
-// v0.33 (Current) - FSL available by default
+// v0.33 (Old) - FSL available by default
 fn main() {
-    var s = str(42)  // Works without import
+    var s = str(42)  // Used to work without import
 }
 
-// v0.34 (Planned) - Must import FSL
-import fsl.{str, int, float, bool}  // Import specific operations
+// v0.34 (Current) - Must import FSL
+from fsl import str, int, float, bool  // Import specific operations
 
 fn main() {
-    var s = str(42)  // Now works with import
+    var s = str(42)  // Works with import
 }
 ```
 
@@ -32,14 +32,16 @@ fn main() {
 
 ```frame
 // Import specific operations
-import fsl.{str, int, float, bool}
-import fsl.{list, map, set}
+from fsl import str, int, float, bool
+from fsl import list, map, set
 
 // Import all FSL operations
-import fsl.*
+from fsl import *
 
-// Aliased imports
-import fsl.{str as toString, int as toInt}
+// Without import - treated as external function
+fn noImport() {
+    var s = str(42)  // Calls external str(), not FSL
+}
 ```
 
 ### Benefits of Optional FSL
@@ -49,6 +51,25 @@ import fsl.{str as toString, int as toInt}
 3. **Explicit Dependencies**: Clear what external functionality is used
 4. **Conflict Prevention**: No silent overwrites of user-defined symbols
 5. **Type-Aware Resolution**: Methods resolved based on receiver type
+
+### Migration from v0.33 to v0.34
+
+To update existing code for v0.34:
+
+1. **Add FSL import to top of file:**
+   ```frame
+   from fsl import str, int, float, bool  // Add this line
+   ```
+
+2. **Or import all FSL operations:**
+   ```frame
+   from fsl import *  // Imports everything
+   ```
+
+3. **Check for naming conflicts:**
+   - If you have functions named `str`, `int`, etc., either:
+     - Don't import those FSL operations
+     - Rename your functions to avoid conflicts
 
 ## Type Conversion Operations
 

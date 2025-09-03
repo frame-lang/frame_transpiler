@@ -11,7 +11,7 @@ use super::ast::*;
 use std::collections::VecDeque;
 use super::scanner::*;
 use super::symbol_table::*;
-use crate::frame_c::ast::ModuleElement::*;
+use crate::frame_c::ast::ModuleElement;
 use crate::frame_c::ast::CallContextType;
 use crate::frame_c::utils::SystemHierarchy;
 use std::cell::RefCell;
@@ -134,10 +134,12 @@ pub struct Parser<'a> {
     pub generate_enter_args: bool,
     pub generate_exit_args: bool,
     pub generate_state_context: bool,
+    pub fsl_imports: HashMap<String, bool>,  // v0.34: Track FSL imports
     pub generate_state_stack: bool,
     pub generate_change_state: bool,
     pub generate_transition_state: bool,
     pub sync_tokens_from_error_context: Vec<TokenType>,
+    debug_mode: bool,
 }
 
 impl<'a> Parser<'a> {
@@ -147,6 +149,7 @@ impl<'a> Parser<'a> {
         is_building_symbol_table: bool,
         mut arcanum: Arcanum,
     ) -> Parser<'a> {
+        let debug_mode = std::env::var("FRAME_TRANSPILER_DEBUG").is_ok();
         // Initialize foundational scopes ONLY for first pass (symbol table building)
         // Second pass reuses the populated symbol tables from first pass
         if is_building_symbol_table {
@@ -178,6 +181,7 @@ impl<'a> Parser<'a> {
             generate_enter_args: false,
             generate_exit_args: false,
             generate_state_context: false,
+            fsl_imports: HashMap::new(),  // v0.34: Initialize FSL import tracker
             generate_state_stack: false,
             generate_change_state: false,
             generate_transition_state: false,
@@ -190,6 +194,7 @@ impl<'a> Parser<'a> {
             stmt_idx: 0,
             interface_method_called: false,
             sync_tokens_from_error_context: Vec::new(),
+            debug_mode,
         }
     }
 
@@ -243,6 +248,7 @@ impl<'a> Parser<'a> {
         let mut systems = Vec::new();
         let mut variables = Vec::new();
         let mut enums = Vec::new();
+        let mut modules = Vec::new();  // v0.34: Nested modules
         let mut statements = Vec::new();
         
         // Parse all entities in sequence
@@ -254,7 +260,7 @@ impl<'a> Parser<'a> {
                         enums.push(enum_decl.clone());
                         // Also add to module elements for backward compatibility
                         if let Some(ref mut elements) = module_elements_opt {
-                            elements.push(ModuleElement::Enum { enum_decl_node: enum_decl });
+                            elements.push(crate::frame_c::ast::ModuleElement::Enum { enum_decl_node: enum_decl });
                         }
                     }
                     Err(e) => return Err(e),
@@ -269,7 +275,7 @@ impl<'a> Parser<'a> {
                         variables.push(var_decl.clone());
                         // Also add to module elements for backward compatibility
                         if let Some(ref mut elements) = module_elements_opt {
-                            elements.push(ModuleElement::Variable { var_decl_node: var_decl });
+                            elements.push(crate::frame_c::ast::ModuleElement::Variable { var_decl_node: var_decl });
                         }
                     }
                     Err(e) => return Err(e),
@@ -287,7 +293,7 @@ impl<'a> Parser<'a> {
             // Check what entity type we have
             if self.match_token(&[TokenType::System]) {
                 // v0.30: All individual systems get empty modules - module elements belong to FrameModule
-                let module_for_system = Module::new(vec![]);
+                let module_for_system = crate::frame_c::ast::Module::new(vec![]);
                 
                 let system = self.system_scope(Some(module_for_system), entity_attributes_opt, None)?;
                 systems.push(system);
@@ -298,6 +304,13 @@ impl<'a> Parser<'a> {
                 }
                 let function = self.function_scope()?;
                 functions.push(function);
+            } else if self.match_token(&[TokenType::Module]) {
+                // v0.34: Parse nested module declaration
+                if entity_attributes_opt.is_some() {
+                    return Err(ParseError::new("Modules do not support attributes."));
+                }
+                let module = self.module_declaration()?;
+                modules.push(module);
             } else if entity_attributes_opt.is_some() {
                 // We parsed attributes but found no system or function - this is an error
                 return Err(ParseError::new("Expected 'system' after attributes. Functions do not support attributes."));
@@ -327,11 +340,11 @@ impl<'a> Parser<'a> {
         
         // v0.31: Create FrameModule with all parsed elements
         let final_module = match module_elements_opt {
-            Some(module_elements) => Module::new(module_elements),
-            None => Module::new(vec![]),
+            Some(module_elements) => crate::frame_c::ast::Module::new(module_elements),
+            None => crate::frame_c::ast::Module::new(vec![]),
         };
         
-        Ok(FrameModule::new(final_module, functions, systems, variables, enums, statements))
+        Ok(FrameModule::new(final_module, functions, systems, variables, enums, modules, statements))
     }
 
     /* --------------------------------------------------------------------- */
@@ -348,7 +361,7 @@ impl<'a> Parser<'a> {
                         {
                             return Err(parse_error);
                         }
-                        module_elements.push(ModuleElement::ModuleAttribute { attribute_node });
+                        module_elements.push(crate::frame_c::ast::ModuleElement::ModuleAttribute { attribute_node });
                     }
                     Err(err) => {
                         return Err(err);
@@ -358,12 +371,12 @@ impl<'a> Parser<'a> {
                 let mut code_block = String::new();
                 let tok = self.previous();
                 code_block.push_str(&tok.lexeme.clone());
-                module_elements.push(CodeBlock { code_block });
+                module_elements.push(crate::frame_c::ast::ModuleElement::CodeBlock { code_block });
             } else if self.match_token(&[TokenType::Import]) {
                 // Parse import statement: import module [as alias]
                 match self.parse_import_statement() {
                     Ok(import_node) => {
-                        module_elements.push(ModuleElement::Import { import_node });
+                        module_elements.push(crate::frame_c::ast::ModuleElement::Import { import_node });
                     }
                     Err(err) => {
                         return Err(err);
@@ -373,7 +386,7 @@ impl<'a> Parser<'a> {
                 // Parse from import: from module import ...
                 match self.parse_from_import_statement() {
                     Ok(import_node) => {
-                        module_elements.push(ModuleElement::Import { import_node });
+                        module_elements.push(crate::frame_c::ast::ModuleElement::Import { import_node });
                     }
                     Err(err) => {
                         return Err(err);
@@ -670,7 +683,7 @@ impl<'a> Parser<'a> {
 
         let module = match module_opt {
             Some(m) => m,
-            None => Module {
+            None => crate::frame_c::ast::Module {
                 module_elements: vec![],
             },
         };
@@ -1248,7 +1261,9 @@ impl<'a> Parser<'a> {
 
         if self.is_building_symbol_table {
             // lexical pass
-            eprintln!("DEBUG: Building symbol table for function: {}", function_name);
+            if self.debug_mode {
+                eprintln!("DEBUG: Building symbol table for function: {}", function_name);
+            }
             let function_symbol = FunctionScopeSymbol::new(function_name.clone());
             //            function_symbol_opt = Some(function_symbol);
 
@@ -1318,7 +1333,7 @@ impl<'a> Parser<'a> {
 
     fn system_scope(
         &mut self,
-        module_opt: Option<Module>,
+        module_opt: Option<crate::frame_c::ast::Module>,
         system_attributes_opt: Option<HashMap<String, AttributeNode>>,
         functions_opt: Option<Vec<Rc<RefCell<FunctionNode>>>>,
     ) -> Result<SystemNode, ParseError> {
@@ -8854,12 +8869,15 @@ impl<'a> Parser<'a> {
         }
         
         // Check if this is an FSL operation (str, int, float, etc.)
-        // During symbol table building, we still need to parse these but treat them as regular calls
+        // v0.34: FSL operations must be explicitly imported
         let fsl_registry = FslRegistry::new();
-        eprintln!("DEBUG: Checking FSL for '{}': is_building_symbol_table={}, recognized={:?}", 
+        eprintln!("DEBUG: Checking FSL for '{}': is_building_symbol_table={}, recognized={:?}, imported={}", 
                  base_id.name.lexeme, self.is_building_symbol_table, 
-                 fsl_registry.recognize_operation(&base_id.name.lexeme));
-        if !self.is_building_symbol_table && fsl_registry.recognize_operation(&base_id.name.lexeme).is_some() {
+                 fsl_registry.recognize_operation(&base_id.name.lexeme),
+                 self.is_fsl_imported(&base_id.name.lexeme));
+        if !self.is_building_symbol_table 
+            && fsl_registry.recognize_operation(&base_id.name.lexeme).is_some()
+            && self.is_fsl_imported(&base_id.name.lexeme) {
             let fsl_operation = fsl_registry.recognize_operation(&base_id.name.lexeme).unwrap();
             eprintln!("DEBUG: FSL operation detected in second pass for: {}", base_id.name.lexeme);
             // This is an FSL operation in the second pass! Parse it as such
@@ -10336,7 +10354,119 @@ impl<'a> Parser<'a> {
         }
     }
     
+    // ===================== Frame v0.34 Module Support =====================
+    
+    fn module_declaration(&mut self) -> Result<Rc<RefCell<ModuleNode>>, ParseError> {
+        // We've already consumed 'module' keyword
+        if !self.match_token(&[TokenType::Identifier]) {
+            let err_msg = "Expected module name after 'module'";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        
+        let module_name = self.previous().lexeme.clone();
+        
+        if !self.match_token(&[TokenType::OpenBrace]) {
+            let err_msg = "Expected '{' after module name";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        
+        // v0.34: Enter the named module scope in the symbol table
+        if self.is_building_symbol_table {
+            self.arcanum.enter_scope(ParseScopeType::NamedModule { 
+                module_name: module_name.clone() 
+            });
+        }
+        
+        // Parse module contents
+        let mut functions = Vec::new();
+        let mut systems = Vec::new();
+        let mut variables = Vec::new();
+        let mut enums = Vec::new();
+        let mut nested_modules = Vec::new();
+        
+        while !self.check(TokenType::CloseBrace) && !self.is_at_end() {
+            if self.match_token(&[TokenType::Function]) {
+                let function = self.function_scope()?;
+                functions.push(function);
+            } else if self.match_token(&[TokenType::System]) {
+                let module_for_system = crate::frame_c::ast::Module::new(vec![]);
+                let system = self.system_scope(Some(module_for_system), None, None)?;
+                systems.push(system);
+            } else if self.match_token(&[TokenType::Var]) || self.match_token(&[TokenType::Const]) {
+                self.previous(); // Put the token back
+                match self.var_declaration(IdentifierDeclScope::ModuleScope) {
+                    Ok(var_decl) => variables.push(var_decl),
+                    Err(err) => return Err(err),
+                }
+            } else if self.match_token(&[TokenType::Enum]) {
+                match self.enum_decl() {
+                    Ok(enum_decl) => enums.push(enum_decl),
+                    Err(err) => return Err(err),
+                }
+            } else if self.match_token(&[TokenType::Module]) {
+                let nested_module = self.module_declaration()?;
+                nested_modules.push(nested_module);
+            } else {
+                let err_msg = format!("Unexpected token in module: {:?}", self.peek().token_type);
+                self.error_at_current(&err_msg);
+                return Err(ParseError::new(&err_msg));
+            }
+        }
+        
+        if !self.match_token(&[TokenType::CloseBrace]) {
+            let err_msg = "Expected '}' after module body";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        
+        // v0.34: Exit the named module scope
+        if self.is_building_symbol_table {
+            self.arcanum.exit_scope();
+        }
+        
+        Ok(Rc::new(RefCell::new(ModuleNode::new(
+            module_name,
+            functions,
+            systems,
+            variables,
+            enums,
+            nested_modules,
+        ))))
+    }
+    
     // ===================== Frame v0.31 Import Support =====================
+    
+    // v0.34: Helper methods for FSL import tracking
+    fn track_fsl_import(&mut self, module_name: &str) {
+        if module_name.starts_with("fsl.") {
+            let operation = module_name.strip_prefix("fsl.").unwrap();
+            self.track_fsl_operation(operation);
+        } else if module_name == "fsl" {
+            self.track_all_fsl_imports();
+        }
+    }
+    
+    fn track_fsl_operation(&mut self, operation: &str) {
+        self.fsl_imports.insert(operation.to_string(), true);
+    }
+    
+    fn track_all_fsl_imports(&mut self) {
+        // Track all standard FSL operations
+        let operations = vec![
+            "str", "int", "float", "bool",
+            "list", "map", "set",
+            "abs", "min", "max", "round", "floor", "ceil",
+        ];
+        for op in operations {
+            self.fsl_imports.insert(op.to_string(), true);
+        }
+    }
+    
+    fn is_fsl_imported(&self, operation: &str) -> bool {
+        self.fsl_imports.contains_key(operation)
+    }
     
     /// Parse import statement: import module [as alias]
     fn parse_import_statement(&mut self) -> Result<ImportNode, ParseError> {
@@ -10350,7 +10480,7 @@ impl<'a> Parser<'a> {
         let mut module_name = self.previous().lexeme.clone();
         let line = self.previous().line;
         
-        // Handle dotted module names (e.g., os.path)
+        // Handle dotted module names (e.g., os.path, fsl.str)
         while self.match_token(&[TokenType::Dot]) {
             if !self.match_token(&[TokenType::Identifier]) {
                 let err_msg = "Expected identifier after '.' in module name";
@@ -10360,6 +10490,9 @@ impl<'a> Parser<'a> {
             module_name.push('.');
             module_name.push_str(&self.previous().lexeme);
         }
+        
+        // v0.34: Track FSL imports
+        self.track_fsl_import(&module_name);
         
         // Check for 'as alias' syntax
         if self.match_token(&[TokenType::As]) {
@@ -10399,7 +10532,7 @@ impl<'a> Parser<'a> {
         let mut module_name = self.previous().lexeme.clone();
         let line = self.previous().line;
         
-        // Handle dotted module names (e.g., os.path)
+        // Handle dotted module names (e.g., os.path, fsl.list)
         while self.match_token(&[TokenType::Dot]) {
             if !self.match_token(&[TokenType::Identifier]) {
                 let err_msg = "Expected identifier after '.' in module name";
@@ -10418,6 +10551,10 @@ impl<'a> Parser<'a> {
         
         // Check for wildcard import
         if self.match_token(&[TokenType::Star]) {
+            // v0.34: Track FSL wildcard imports
+            if module_name == "fsl" {
+                self.track_all_fsl_imports();
+            }
             return Ok(ImportNode::new(
                 ImportType::FromImportAll { 
                     module: module_name 
@@ -10437,6 +10574,12 @@ impl<'a> Parser<'a> {
         
         items.push(self.previous().lexeme.clone());
         
+        // v0.34: Track specific FSL imports
+        if module_name == "fsl" {
+            let operation_name = self.previous().lexeme.clone();
+            self.track_fsl_operation(&operation_name);
+        }
+        
         // Parse additional items separated by commas
         while self.match_token(&[TokenType::Comma]) {
             if !self.match_token(&[TokenType::Identifier]) {
@@ -10445,6 +10588,12 @@ impl<'a> Parser<'a> {
                 return Err(ParseError::new(err_msg));
             }
             items.push(self.previous().lexeme.clone());
+            
+            // v0.34: Track specific FSL imports  
+            if module_name == "fsl" {
+                let operation_name = self.previous().lexeme.clone();
+                self.track_fsl_operation(&operation_name);
+            }
         }
         
         Ok(ImportNode::new(

@@ -153,9 +153,13 @@ impl Exe {
         let mut comments = Vec::new();
         // First pass: syntactic parsing to build symbol table
         {
-            eprintln!("DEBUG: Starting first pass - building symbol table");
+            if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                eprintln!("DEBUG: Starting first pass - building symbol table");
+            }
             let mut syntactic_parser = Parser::new(&tokens, &mut comments, true, arcanum);
-            eprintln!("DEBUG: Created syntactic parser with is_building_symbol_table=true");
+            if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                eprintln!("DEBUG: Created syntactic parser with is_building_symbol_table=true");
+            }
 
             // Check for parser errors before parsing
             if syntactic_parser.had_error() {
@@ -167,7 +171,9 @@ impl Exe {
 
             match syntactic_parser.parse() {
                 Ok(_) => {
-                    eprintln!("DEBUG: First pass parsing succeeded");
+                    if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                        eprintln!("DEBUG: First pass parsing succeeded");
+                    }
                     // Check for errors after parsing but before consuming the parser
                     if syntactic_parser.had_error() {
                         let mut errors = "First pass parsing errors:\n".to_string();
@@ -177,11 +183,15 @@ impl Exe {
                     }
                     // Symbol table building successful, extract arcanum for second pass
                     arcanum = syntactic_parser.get_arcanum();
-                    eprintln!("DEBUG: Extracted arcanum from first pass");
+                    if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                        eprintln!("DEBUG: Extracted arcanum from first pass");
+                    }
                     // Debug: Check what symbols are in the arcanum before second pass
                     let current_table = arcanum.current_symtab.borrow();
                     let symbol_keys: Vec<String> = current_table.symbols.keys().cloned().collect();
-                    eprintln!("DEBUG: Symbols in arcanum after first pass: {:?}", symbol_keys);
+                    if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                        eprintln!("DEBUG: Symbols in arcanum after first pass: {:?}", symbol_keys);
+                    }
                 }
                 Err(parse_error) => {
                     let mut errors = "First pass parse error:\n".to_string();
@@ -194,14 +204,20 @@ impl Exe {
         }
 
         let mut comments2 = comments.clone();
-        eprintln!("DEBUG: Starting second pass - semantic analysis");
+        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+            eprintln!("DEBUG: Starting second pass - semantic analysis");
+        }
         // Debug: Check if symbols are still there before creating second parser
         let module_table = arcanum.module_symtab.borrow();
         let module_symbol_keys: Vec<String> = module_table.symbols.keys().cloned().collect();
-        eprintln!("DEBUG: Symbols in module scope before second pass: {:?}", module_symbol_keys);
+        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+            eprintln!("DEBUG: Symbols in module scope before second pass: {:?}", module_symbol_keys);
+        }
         drop(module_table);
         let mut semantic_parser = Parser::new(&tokens, &mut comments2, false, arcanum);
-        eprintln!("DEBUG: Created semantic parser with is_building_symbol_table=false");
+        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+            eprintln!("DEBUG: Created semantic parser with is_building_symbol_table=false");
+        }
         
         // Parse with proper error handling - no more fallback architecture
         let frame_module = match semantic_parser.parse() {

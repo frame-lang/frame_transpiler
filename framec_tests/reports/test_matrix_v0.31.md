@@ -1,17 +1,17 @@
 # Frame v0.31 Test Matrix
 
-**Generated**: 2025-09-02 16:36  
-**Total Tests**: 173  
+**Generated**: 2025-09-03 06:16  
+**Total Tests**: 181  
 **Current Branch**: v0.31  
 
 ## Summary Statistics
 
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| **Total Tests** | 173 | 100% |
-| **Transpilation Success** | 173 | 100.0% |
-| **Execution Success** | 173 | 100.0% |
-| **Complete Success** | 173 | 100.0% |
+| **Total Tests** | 181 | 100% |
+| **Transpilation Success** | 181 | 100.0% |
+| **Execution Success** | 181 | 100.0% |
+| **Complete Success** | 181 | 100.0% |
 
 ## v0.31 Features
 
@@ -29,6 +29,7 @@
 | Test File | Transpile | Execute | Status |
 |-----------|-----------|---------|--------|
 | test_all_blocks_comprehensive.frm | ✅ | ✅ | ✅ PASS |
+| test_backticks_still_work.frm | ✅ | ✅ | ✅ PASS |
 | test_basic_scope.frm | ✅ | ✅ | ✅ PASS |
 | test_basic_scope_working.frm | ✅ | ✅ | ✅ PASS |
 | test_blocks_simple.frm | ✅ | ✅ | ✅ PASS |
@@ -68,6 +69,12 @@
 | test_first_system_only.frm | ✅ | ✅ | ✅ PASS |
 | test_force_syntactic.frm | ✅ | ✅ | ✅ PASS |
 | test_forward_event.frm | ✅ | ✅ | ✅ PASS |
+| test_fsl_bool.frm | ✅ | ✅ | ✅ PASS |
+| test_fsl_conversion_ops.frm | ✅ | ✅ | ✅ PASS |
+| test_fsl_list_operations.frm | ✅ | ✅ | ✅ PASS |
+| test_fsl_list_operations_extended.frm | ✅ | ✅ | ✅ PASS |
+| test_fsl_simple.frm | ✅ | ✅ | ✅ PASS |
+| test_fsl_string_operations.frm | ✅ | ✅ | ✅ PASS |
 | test_function_call.frm | ✅ | ✅ | ✅ PASS |
 | test_function_isolation.frm | ✅ | ✅ | ✅ PASS |
 | test_function_scope_isolation.frm | ✅ | ✅ | ✅ PASS |
@@ -119,6 +126,7 @@
 | test_multi_systems_with_transitions.frm | ✅ | ✅ | ✅ PASS |
 | test_multiple_systems_valid.frm | ✅ | ✅ | ✅ PASS |
 | test_native_print.frm | ✅ | ✅ | ✅ PASS |
+| test_negative_indexing.frm | ✅ | ✅ | ✅ PASS |
 | test_none_keyword.frm | ✅ | ✅ | ✅ PASS |
 | test_operations.frm | ✅ | ✅ | ✅ PASS |
 | test_operations_call_bug.frm | ✅ | ✅ | ✅ PASS |

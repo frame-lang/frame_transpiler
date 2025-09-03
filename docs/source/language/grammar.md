@@ -1,7 +1,7 @@
 # Frame Language Grammar (v0.34)
 
-**Last Updated**: 2025-09-03  
-**Status**: Complete with Frame Standard Library (FSL), module system design, and Rust as first-class target language. 100% test coverage (181/181 tests passing)
+**Last Updated**: 2025-01-20  
+**Status**: Module system foundation implemented with FSL as optional import. Qualified name resolution pending future work.
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -9,13 +9,61 @@ This document provides the formal grammar specification for the Frame language u
 
 ```bnf
 module: (import_stmt | module_decl | enum_decl | var_decl | function | system)*
+
+module_decl: 'module' IDENTIFIER '{' module_content '}'
+module_content: (module_decl | enum_decl | var_decl | function | system)*
 ```
 
-**v0.34 Module System (Planned)**: Files implicitly create modules. Explicit nested modules supported within files. FSL becomes an optional import, not default.
+**v0.34 Module System**: 
+- Module keyword and nested module declarations implemented
+- FSL requires explicit import (`from fsl import str, int, float`)
+- Symbol table supports nested module scopes
+- Qualified name resolution (`module.function()`) pending future implementation
 
 **v0.31 Import Support**: Modules can now include native import statements at the top level, supporting Python module imports without requiring backticks.
 
 **v0.30 Multi-Entity Support**: Modules can contain any combination of functions and systems in any order. Each entity (function or system) can have individual attributes.
+
+### Module Declaration Examples (v0.34)
+```frame
+// Empty module
+module utils {
+}
+
+// Module with functions
+module math_utils {
+    fn add(a, b) {
+        return a + b
+    }
+    
+    fn multiply(a, b) {
+        return a * b
+    }
+}
+
+// Nested modules
+module lib {
+    module helpers {
+        fn format(s) {
+            return str(s)
+        }
+    }
+    
+    module validators {
+        fn isValid(x) {
+            return x > 0
+        }
+    }
+}
+
+// Module with variables (pending full implementation)
+module config {
+    var debug = true
+    var maxRetries = 3
+}
+```
+
+**Note**: Qualified name access (`module.function()`) is not yet implemented. Currently, modules provide namespace organization but functions must still be accessed directly.
 
 ## Scope Rules (v0.31)
 
@@ -58,9 +106,9 @@ fn main() {
 }
 ```
 
-## Import Statements (v0.31)
+## Import Statements (v0.31/v0.34)
 
-Frame v0.31 introduces native import statement support, primarily targeting Python but designed for future multi-language support.
+Frame v0.31 introduces native import statement support. v0.34 adds FSL imports.
 
 ```bnf
 import_stmt: simple_import | aliased_import | from_import
@@ -75,6 +123,11 @@ import_items: IDENTIFIER (',' IDENTIFIER)*
 
 ### Import Examples
 ```frame
+// v0.34: FSL imports (required for FSL operations)
+from fsl import str, int, float, bool
+from fsl import list, map, set
+from fsl import *  // Import all FSL operations
+
 // Simple imports
 import math
 import json
@@ -1536,9 +1589,24 @@ fsl_string_method: expr '.' ('trim' | 'upper' | 'lower' | 'replace' | 'split' |
 
 **Frame Standard Library (v0.33)**: FSL provides native built-in operations guaranteed across all target languages, eliminating the need for backticks when using common operations like type conversions and collection methods.
 
-## Frame Standard Library (FSL) - v0.33
+## Frame Standard Library (FSL) - v0.34
 
-The Frame Standard Library provides native built-in operations that work consistently across all target languages without requiring backticks.
+The Frame Standard Library provides native built-in operations that work consistently across all target languages. 
+
+**v0.34 Change**: FSL operations now require explicit import to avoid namespace conflicts:
+
+```frame
+// Import specific FSL operations
+from fsl import str, int, float, bool
+
+// Import all FSL operations
+from fsl import *
+
+// Without import, str() is treated as external function
+fn noImport() {
+    var s = str(42)  // Calls external str(), not FSL
+}
+```
 
 ### Phase 1: Type Conversion Operations ✅
 ```frame

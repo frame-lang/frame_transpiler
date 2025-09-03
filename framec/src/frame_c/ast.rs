@@ -62,6 +62,7 @@ pub struct FrameModule {
     pub systems: Vec<SystemNode>,
     pub variables: Vec<Rc<RefCell<VariableDeclNode>>>,
     pub enums: Vec<Rc<RefCell<EnumDeclNode>>>,
+    pub modules: Vec<Rc<RefCell<ModuleNode>>>,  // v0.34: Nested modules
     pub statements: Vec<DeclOrStmtType>,
 }
 
@@ -72,9 +73,10 @@ impl FrameModule {
         systems: Vec<SystemNode>,
         variables: Vec<Rc<RefCell<VariableDeclNode>>>,
         enums: Vec<Rc<RefCell<EnumDeclNode>>>,
+        modules: Vec<Rc<RefCell<ModuleNode>>>,
         statements: Vec<DeclOrStmtType>,
     ) -> FrameModule {
-        FrameModule { module, functions, systems, variables, enums, statements }
+        FrameModule { module, functions, systems, variables, enums, modules, statements }
     }
     
     // v0.30: Backward compatibility - get primary system for legacy visitors
@@ -153,6 +155,8 @@ pub enum ModuleElement {
     Statement { stmt_node: DeclOrStmtType },
     // v0.32: Module-scope enums
     Enum { enum_decl_node: Rc<RefCell<EnumDeclNode>> },
+    // v0.34: Nested modules
+    Module { module_node: Rc<RefCell<ModuleNode>> },
 }
 
 // TODO: is this a good name for Identifier and Call expressions?
@@ -613,6 +617,44 @@ impl ImportNode {
 impl NodeElement for ImportNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         ast_visitor.visit_import_node(self);
+    }
+}
+
+//-----------------------------------------------------//
+// v0.34: Nested module support
+
+pub struct ModuleNode {
+    pub name: String,
+    pub functions: Vec<Rc<RefCell<FunctionNode>>>,
+    pub systems: Vec<SystemNode>,
+    pub variables: Vec<Rc<RefCell<VariableDeclNode>>>,
+    pub enums: Vec<Rc<RefCell<EnumDeclNode>>>,
+    pub modules: Vec<Rc<RefCell<ModuleNode>>>,  // Nested modules
+}
+
+impl ModuleNode {
+    pub fn new(
+        name: String,
+        functions: Vec<Rc<RefCell<FunctionNode>>>,
+        systems: Vec<SystemNode>,
+        variables: Vec<Rc<RefCell<VariableDeclNode>>>,
+        enums: Vec<Rc<RefCell<EnumDeclNode>>>,
+        modules: Vec<Rc<RefCell<ModuleNode>>>,
+    ) -> ModuleNode {
+        ModuleNode {
+            name,
+            functions,
+            systems,
+            variables,
+            enums,
+            modules,
+        }
+    }
+}
+
+impl NodeElement for ModuleNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_module_node(self);
     }
 }
 

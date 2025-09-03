@@ -1,11 +1,11 @@
 {
-  "timestamp": "2025-09-02T16:36:11.186446",
+  "timestamp": "2025-09-03T06:16:17.852868",
   "version": "v0.31",
   "summary": {
-    "total": 173,
-    "transpile_success": 173,
-    "execute_success": 173,
-    "complete_success": 173,
+    "total": 181,
+    "transpile_success": 181,
+    "execute_success": 181,
+    "complete_success": 181,
     "success_rate": "100.0%"
   },
   "results": [
@@ -14,6 +14,13 @@
       "transpile": true,
       "execute": true,
       "output": null,
+      "error": null
+    },
+    {
+      "file": "test_backticks_still_work.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Result: 42\n",
       "error": null
     },
     {
@@ -188,7 +195,7 @@
       "file": "test_enums.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
@@ -216,14 +223,14 @@
       "file": "test_enums_doc_grocery_demo.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
       "file": "test_enums_doc_grocery_full.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
@@ -287,6 +294,48 @@
       "transpile": true,
       "execute": true,
       "output": "in child\nin parent\n",
+      "error": null
+    },
+    {
+      "file": "test_fsl_bool.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "bool(1): True\nbool(0): False\nbool(42): True\nbool(-1): True\nbool('hello'): True\nbool(''): False\nbool(3.14): True\nbool(0.0): False\nbool(1) is truthy\nbool(0) is falsy\nbool(x=100): True\nbool(y=0): False\n",
+      "error": null
+    },
+    {
+      "file": "test_fsl_conversion_ops.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Testing FSL Conversion Operations ===\nNumber as string: 42\nPi as string: 3.14159\nBoolean as string: True\nString to int: 123\nFloat to int: 45\nBool to int: 1\nString to float: 3.14\nInt to float: 42.0",
+      "error": null
+    },
+    {
+      "file": "test_fsl_list_operations.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "After append: [1, 2, 3, 4, 5]\nPopped: 40\nAfter pop: [10, 20, 30]\nAfter clear: []\nLength: 3\nChain test after operations: [1, 2]\nPopped from chain: 3\n",
+      "error": null
+    },
+    {
+      "file": "test_fsl_list_operations_extended.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "After insert: [1, 2, 3, 4, 5]\nAfter remove: [10, 30, 20, 40]\nIndex of banana: 1\nCount of 2: 3\nAfter extend: [1, 2, 3, 4, 5, 6]\nAfter reverse: [5, 4, 3, 2, 1]\nAfter sort: [1, 1, 2, 3, 4, 5, 6, 9]\nOrigi",
+      "error": null
+    },
+    {
+      "file": "test_fsl_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Result: 42\n",
+      "error": null
+    },
+    {
+      "file": "test_fsl_string_operations.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Upper: HELLO\nLower: world\nTrimmed: [spaces]\nReplaced: hello Frame\nSplit result: ['apple', 'banana', 'orange']\nLength: 4\n",
       "error": null
     },
     {
@@ -644,6 +693,13 @@
       "transpile": true,
       "execute": true,
       "output": "Testing native Python print\nNo Frame built-in needed!\nHello from Frame\nx + y = 15\n",
+      "error": null
+    },
+    {
+      "file": "test_negative_indexing.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Last element [-1]: 50\nSecond to last [-2]: 40\nThird from last [-3]: 30\nAfter setting [-1] to 99: [10, 20, 30, 40, 99]\nAfter setting [-3] to 77: [10, 20, 77, 40, 99]\nnumbers[index] where index=-2: 40\nF",
       "error": null
     },
     {

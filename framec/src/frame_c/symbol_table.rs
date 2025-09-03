@@ -54,6 +54,10 @@ pub enum ParseScopeType {
     Builtin,
     Global,
     Module,
+    // v0.34: Named module scope for nested modules
+    NamedModule {
+        module_name: String,
+    },
     // Entity scopes
     Function {
         function_scope_symbol_rcref: Rc<RefCell<FunctionScopeSymbol>>,
@@ -692,6 +696,11 @@ impl SymbolTable {
             ParseScopeType::Builtin | ParseScopeType::Global | ParseScopeType::Module => {
                 // These foundational scopes don't need to be inserted as symbols
                 // They are managed directly by the Arcanum
+                return;
+            }
+            ParseScopeType::NamedModule { .. } => {
+                // v0.34: Named modules are handled in enter_scope
+                // They don't need to be inserted as symbols here
                 return;
             }
             ParseScopeType::Function {
@@ -1781,6 +1790,32 @@ impl Arcanum {
                 
                 if std::env::var("FRAME_DEBUG").is_ok() {
                     eprintln!(">>> ENTERED MODULE SCOPE");
+                    self.debug_dump_arcanum();
+                }
+            }
+            ParseScopeType::NamedModule { ref module_name } => {
+                // v0.34: Create named module scope
+                let module_st = SymbolTable::new(
+                    module_name.clone(),
+                    Some(Rc::clone(&self.current_symtab)),  // Parent is current scope
+                    IdentifierDeclScope::ModuleScope,
+                    false,
+                );
+                let module_symtab_rc = Rc::new(RefCell::new(module_st));
+                
+                // Clone the module name for insert_parse_scope
+                let scope_for_insert = ParseScopeType::NamedModule { 
+                    module_name: module_name.clone() 
+                };
+                
+                // Insert the module scope into the parent symbol table
+                self.current_symtab.borrow_mut().insert_parse_scope(scope_for_insert);
+                
+                // Update current symbol table to the new module's symbol table
+                self.current_symtab = module_symtab_rc;
+                
+                if std::env::var("FRAME_DEBUG").is_ok() {
+                    eprintln!(">>> ENTERED NAMED MODULE SCOPE: {}", module_name);
                     self.debug_dump_arcanum();
                 }
             }

@@ -8,7 +8,7 @@
 
 ## Project Overview
 
-Frame is a state machine language that transpiles to multiple target languages. The project has evolved through v0.20 (syntax modernization), v0.30 (multi-entity support), v0.31 (import statements and self expression enhancements), v0.32 (advanced enum features), v0.33 (Frame Standard Library), and v0.34 (Module System & Rust target - planned).
+Frame is a state machine language that transpiles to multiple target languages. The project has evolved through v0.20 (syntax modernization), v0.30 (multi-entity support), v0.31 (import statements and self expression enhancements), v0.32 (advanced enum features), v0.33 (Frame Standard Library), and v0.34 (Module System foundation - FSL as optional import).
 
 ## File Locations
 
@@ -36,14 +36,15 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 ## Current State
 
 **Branch**: `v0.30`  
-**Version**: `v0.33`  
-**Status**: ✅ **100% TEST SUCCESS RATE** (181/181 tests passing) 🎉
+**Version**: `v0.34`  
+**Status**: Module system foundation complete, FSL as optional import
 
 📋 **For release notes and development status, see**: [`docs/framelang_design/dev_notes.md`](docs/framelang_design/dev_notes.md)
 📊 **For v0.30 achievements, see**: [`docs/v0.30_achievements.md`](docs/v0.30_achievements.md)
 📊 **For v0.31 achievements, see**: [`docs/v0.31_achievements.md`](docs/v0.31_achievements.md)
 📊 **For v0.32 achievements, see**: [`docs/v0.32_achievements.md`](docs/v0.32_achievements.md)
 📊 **For v0.33 achievements, see**: [`docs/v0.33_achievements.md`](docs/v0.33_achievements.md)
+📊 **For v0.34 achievements, see**: [`docs/v0.34_achievements.md`](docs/v0.34_achievements.md)
 📋 **For v0.34 roadmap, see**: [`docs/v0.34_roadmap.md`](docs/v0.34_roadmap.md)
 📊 **For latest test results, see**: [`framec_tests/reports/test_log.md`](framec_tests/reports/test_log.md)
 
@@ -167,31 +168,44 @@ var len = text.length        // Converts to len(text)
 - **Shadowing Protection**: Local variables cannot shadow module variables (Python target)
 - **Conditional Imports**: Only generates imports (e.g., `from enum import Enum`) when actually used
 
-### v0.34 Module System Architecture (Planned)
+### v0.34 Module System (Implemented Foundation)
 
-#### File-as-Module Pattern
-- Each `.frm` file automatically creates a module namespace
-- Module name derived from filename (e.g., `utils.frm` → `utils` module)
-- No explicit module declaration needed at file level
+#### Module Declarations (NEW in v0.34)
+- **Module keyword**: `module name { ... }` syntax fully supported
+- **Nested modules**: Can declare modules within modules
+- **Symbol table scoping**: Proper scope management for module contents
 
-#### Explicit Nested Modules
+#### FSL as Optional Import (NEW in v0.34)
+- **Explicit import required**: FSL operations no longer available by default
+- **Import tracking**: Parser tracks which FSL operations are imported
+- **Namespace protection**: Prevents conflicts with user-defined functions
+
 ```frame
-// File: utils.frm
-module string {
-    fn format(s: str): str { }  // utils.string.format
-}
+// Must import FSL operations explicitly
+from fsl import str, int, float
 
-module math {
-    fn calculate(x: int): int { }  // utils.math.calculate
+fn example() {
+    var s = str(42)  // Works because str was imported
 }
 ```
 
-#### FSL as Optional Import
+#### Pending Implementation
+- **Qualified names**: `module.function()` syntax not yet working
+- **Code generation**: Module structures not generated in target languages
+- **Cross-module access**: Functions in modules not accessible from outside
+
+#### Example Module Declaration
 ```frame
-import fsl.{str, int, list}  // Must explicitly import FSL (not default)
+from fsl import str, int, list  // Must explicitly import FSL
+
+module utils {
+    fn helper() {
+        return 42
+    }
+}
 
 fn main() {
-    var s = str(42)  // Now works with FSL import
+    var s = str(42)  // Works with FSL import
 }
 ```
 

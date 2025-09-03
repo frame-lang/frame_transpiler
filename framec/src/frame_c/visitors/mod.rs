@@ -102,6 +102,7 @@ use super::ast::*;
 pub trait AstVisitor {
     fn visit_frame_module(&mut self, _frame_module: &FrameModule) {}
     fn visit_module(&mut self, _node: &Module) {}
+    fn visit_module_node(&mut self, _node: &ModuleNode) {}
     fn visit_import_node(&mut self, _node: &ImportNode) {}
     fn visit_function_node(&mut self, _node: &FunctionNode) {}
     fn visit_system_node(&mut self, _node: &SystemNode) {}

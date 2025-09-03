@@ -142,7 +142,9 @@ impl FslRegistry {
         self.operations.insert("delete".to_string(), Collection(MapDelete));
         self.operations.insert("has".to_string(), Collection(MapHas));
         
-        self.operations.insert("add".to_string(), Collection(SetAdd));
+        // Commented out: 'add' conflicts with user-defined functions
+        // Set operations should be methods on set objects, not standalone functions
+        // self.operations.insert("add".to_string(), Collection(SetAdd));
         
         self.operations.insert("substring".to_string(), String(StringSubstring));
         self.operations.insert("split".to_string(), String(StringSplit));
