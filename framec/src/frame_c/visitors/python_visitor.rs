@@ -7558,6 +7558,11 @@ impl AstVisitor for PythonVisitor {
         
         let var_init_expr = &variable_decl_node.get_initializer_value_rc();
         let init_type_name = match &**var_init_expr {
+            ExprType::BuiltInCallExprT { .. } => {
+                eprintln!("DEBUG: Found FSL BuiltInCallExprT as initializer!");
+                "BuiltInCall"
+            },
+            ExprType::BuiltInPropertyExprT { .. } => "BuiltInProperty",
             ExprType::CallChainExprT { .. } => "CallChain",
             ExprType::SystemTypeExprT { .. } => "SystemType",
             ExprType::SystemInstanceExprT { .. } => "SystemInstance",
@@ -7903,6 +7908,91 @@ impl AstVisitor for PythonVisitor {
             OperatorType::Percent => output.push_str(" % "),
             OperatorType::Unknown => output.push_str(" <Unknown> "),
         }
+    }
+    
+    //* --------------------------------------------------------------------- *//
+    // FSL Built-in operations (v0.33)
+    
+    fn visit_builtin_call_expr_node(&mut self, node: &crate::frame_c::fsl::BuiltInCallNode) {
+        use crate::frame_c::fsl::{BuiltInOperation, ConversionOperation};
+        
+        eprintln!("DEBUG visit_builtin_call_expr_node: Processing FSL operation {:?}", node.operation);
+        
+        match &node.operation {
+            BuiltInOperation::Conversion(conversion_op) => {
+                // Handle type conversion operations (str, int, float, bool)
+                match conversion_op {
+                    ConversionOperation::ToString => {
+                        self.add_code("str(");
+                        node.target.accept(self);
+                        self.add_code(")");
+                    }
+                    ConversionOperation::ToInt => {
+                        self.add_code("int(");
+                        node.target.accept(self);
+                        self.add_code(")");
+                    }
+                    ConversionOperation::ToFloat => {
+                        self.add_code("float(");
+                        node.target.accept(self);
+                        self.add_code(")");
+                    }
+                    ConversionOperation::ToBool => {
+                        self.add_code("bool(");
+                        node.target.accept(self);
+                        self.add_code(")");
+                    }
+                }
+            }
+            _ => {
+                // Other FSL operations will be implemented in future phases
+                self.add_code(&format!("/* Unimplemented FSL operation: {:?} */", node.operation));
+            }
+        }
+    }
+    
+    fn visit_builtin_call_expr_node_to_string(&mut self, node: &crate::frame_c::fsl::BuiltInCallNode, output: &mut String) {
+        use crate::frame_c::fsl::{BuiltInOperation, ConversionOperation};
+        
+        match &node.operation {
+            BuiltInOperation::Conversion(conversion_op) => {
+                match conversion_op {
+                    ConversionOperation::ToString => {
+                        output.push_str("str(");
+                        node.target.accept_to_string(self, output);
+                        output.push_str(")");
+                    }
+                    ConversionOperation::ToInt => {
+                        output.push_str("int(");
+                        node.target.accept_to_string(self, output);
+                        output.push_str(")");
+                    }
+                    ConversionOperation::ToFloat => {
+                        output.push_str("float(");
+                        node.target.accept_to_string(self, output);
+                        output.push_str(")");
+                    }
+                    ConversionOperation::ToBool => {
+                        output.push_str("bool(");
+                        node.target.accept_to_string(self, output);
+                        output.push_str(")");
+                    }
+                }
+            }
+            _ => {
+                output.push_str(&format!("/* Unimplemented FSL operation: {:?} */", node.operation));
+            }
+        }
+    }
+    
+    fn visit_builtin_property_expr_node(&mut self, _node: &crate::frame_c::fsl::BuiltInPropertyNode) {
+        // Properties will be implemented in future phases
+        self.add_code("/* FSL property access not yet implemented */");
+    }
+    
+    fn visit_builtin_property_expr_node_to_string(&mut self, _node: &crate::frame_c::fsl::BuiltInPropertyNode, output: &mut String) {
+        // Properties will be implemented in future phases  
+        output.push_str("/* FSL property access not yet implemented */");
     }
     
 }

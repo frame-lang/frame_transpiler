@@ -1,7 +1,7 @@
-# Frame Language Grammar (v0.32)
+# Frame Language Grammar (v0.33)
 
-**Last Updated**: 2025-09-02  
-**Status**: Complete with advanced enum features, module variables, self.variable syntax, and 100% test coverage
+**Last Updated**: 2025-09-03  
+**Status**: Complete with Frame Standard Library (FSL), advanced enum features, module variables, self.variable syntax, and 100% test coverage
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -1433,7 +1433,7 @@ actions:
 ## Expressions
 
 ```bnf
-expr: binary_expr | unary_expr | primary_expr | call_expr | self_expr
+expr: binary_expr | unary_expr | primary_expr | call_expr | self_expr | fsl_expr
 
 binary_expr: expr operator expr
 operator: '+' | '-' | '*' | '/' | '%'
@@ -1450,6 +1450,11 @@ self_expr: 'self' | 'self' '.' IDENTIFIER  // v0.31: self as standalone or dotte
 
 call_expr: IDENTIFIER '(' arg_list? ')' | '_' IDENTIFIER '(' arg_list? ')'
 arg_list: expr (',' expr)*
+
+fsl_expr: fsl_conversion | fsl_property | fsl_method  // v0.33: Frame Standard Library
+fsl_conversion: ('str' | 'int' | 'float' | 'bool') '(' expr ')'
+fsl_property: expr '.' ('length' | 'size' | 'capacity' | 'name' | 'value')
+fsl_method: expr '.' ('append' | 'pop' | 'clear' | 'remove') '(' arg_list? ')'
 ```
 
 **Action Call Syntax**: Action calls use underscore prefix syntax `_actionName()` to distinguish them from interface method calls. This generates with proper `self._actionName()` syntax in Python target language.
@@ -1457,6 +1462,60 @@ arg_list: expr (',' expr)*
 **Self Expression (v0.31)**: The `self` keyword can be used as a standalone expression (e.g., as a function argument) or with dotted access to reference instance members. Static methods cannot use `self` in any form.
 
 **Call Chain Support**: Multi-node call chains like `sys.methodName()` correctly generate interface method calls on system instances without adding action prefixes.
+
+**Frame Standard Library (v0.33)**: FSL provides native built-in operations guaranteed across all target languages, eliminating the need for backticks when using common operations like type conversions and collection methods.
+
+## Frame Standard Library (FSL) - v0.33
+
+The Frame Standard Library provides native built-in operations that work consistently across all target languages without requiring backticks.
+
+### Type Conversion Operations
+```frame
+fn example() {
+    var x = 42
+    var s = str(x)      // Convert to string: "42"
+    var i = int("123")  // Convert to integer: 123
+    var f = float("3.14") // Convert to float: 3.14
+    var b = bool(1)     // Convert to boolean: true
+}
+```
+
+### Collection Properties (Planned)
+```frame
+fn listExample() {
+    var items = [1, 2, 3]
+    var count = items.length  // Get list length
+    var size = items.size     // Alternative syntax
+}
+```
+
+### Collection Methods (Planned)
+```frame
+fn listOperations() {
+    var items = []
+    items.append(42)      // Add to end
+    var last = items.pop() // Remove and return last
+    items.clear()         // Remove all elements
+    items.remove(42)      // Remove specific value
+}
+```
+
+### Enum Properties (v0.32)
+```frame
+enum Status { Active, Inactive }
+
+fn enumExample() {
+    var s = Status.Active
+    var name = s.name   // "Active"
+    var value = s.value // 0
+}
+```
+
+**Implementation Status:**
+- ✅ Type conversions (str, int, float) - Phase 1 Complete
+- 🚧 Boolean conversion - In progress
+- 📋 Collection properties - Planned for Phase 2
+- 📋 Collection methods - Planned for Phase 2
 
 ## Tokens
 

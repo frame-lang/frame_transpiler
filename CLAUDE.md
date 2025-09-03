@@ -3,12 +3,12 @@
 ⚠️ **IMPORTANT: When starting a new session, ALWAYS read these documents first:**
 1. This file (CLAUDE.md) - Project structure and conventions
 2. `docs/framelang_design/dev_notes.md` - Latest development status
-3. `docs/v0.32_achievements.md` - Current release features
+3. `docs/v0.33_achievements.md` - Current release features
 4. `framec_tests/reports/test_matrix_v0.31.md` - Current test results
 
 ## Project Overview
 
-Frame is a state machine language that transpiles to multiple target languages. The project has evolved through v0.20 (syntax modernization), v0.30 (multi-entity support), v0.31 (import statements and self expression enhancements), and v0.32 (advanced enum features).
+Frame is a state machine language that transpiles to multiple target languages. The project has evolved through v0.20 (syntax modernization), v0.30 (multi-entity support), v0.31 (import statements and self expression enhancements), v0.32 (advanced enum features), and v0.33 (Frame Standard Library).
 
 ## File Locations
 
@@ -35,13 +35,14 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose
 ## Current State
 
 **Branch**: `v0.30`  
-**Version**: `v0.32`  
-**Status**: ✅ **100% TEST SUCCESS RATE** (170/170 tests passing)
+**Version**: `v0.33`  
+**Status**: ✅ **100% TEST SUCCESS RATE** (171/171 tests passing)
 
 📋 **For release notes and development status, see**: [`docs/framelang_design/dev_notes.md`](docs/framelang_design/dev_notes.md)
 📊 **For v0.30 achievements, see**: [`docs/v0.30_achievements.md`](docs/v0.30_achievements.md)
 📊 **For v0.31 achievements, see**: [`docs/v0.31_achievements.md`](docs/v0.31_achievements.md)
 📊 **For v0.32 achievements, see**: [`docs/v0.32_achievements.md`](docs/v0.32_achievements.md)
+📊 **For v0.33 achievements, see**: [`docs/v0.33_achievements.md`](docs/v0.33_achievements.md)
 📊 **For latest test results, see**: [`framec_tests/reports/test_matrix_v0.31.md`](framec_tests/reports/test_matrix_v0.31.md)
 
 ## Architecture
@@ -60,7 +61,16 @@ Visitors (Code Generation) → framec/src/frame_c/visitors/
 Target Code (Python, C#, etc.)
 ```
 
-### v0.32 Latest Features (NEW)
+### v0.33 Latest Features (NEW)
+
+#### Frame Standard Library (FSL) Support (NEW in v0.33)
+- **Type Conversions**: Native `str()`, `int()`, `float()` without backticks
+- **Two-Pass Parsing**: FSL operations recognized in semantic analysis pass
+- **Clean Syntax**: `var s = str(42)` instead of ``var s = `str(42)` ``
+- **Extensible Architecture**: Foundation for future collection and property operations
+- **Target Independence**: FSL operations transpile correctly to all target languages
+
+### v0.32 Features
 
 #### Advanced Enum Support (NEW in v0.32)
 - **Custom Integer Values**: `enum Status { Ok = 200, NotFound = 404 }`

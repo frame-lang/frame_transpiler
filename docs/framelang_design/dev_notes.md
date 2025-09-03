@@ -1,6 +1,21 @@
 # Frame v0.33 Development Notes
 
-## Latest Status: List Enhancement Planning (2025-09-02)
+## Latest Status: Frame Standard Library Phase 1 Complete (2025-09-03)
+
+### Frame Standard Library (FSL) - Phase 1 COMPLETE ✅
+- **Type Conversions Working**: `str()`, `int()`, `float()` now work without backticks
+- **Two-Pass Parsing Enhanced**: FSL operations recognized during semantic analysis
+- **Parser Fix Applied**: Added BuiltInCallExprT handling in unary_expression
+- **Test Coverage**: 171/171 tests passing (100% success rate)
+- **Clean Syntax**: `var s = str(42)` instead of ``var s = `str(42)` ``
+
+### FSL Architecture Implemented
+- **Recognition Layer**: FslRegistry identifies built-in operations
+- **AST Integration**: New BuiltInCallExprT and BuiltInPropertyExprT nodes
+- **Visitor Support**: Python visitor generates correct FSL operation code
+- **Extensible Design**: Foundation ready for Phase 2 (collection operations)
+
+## Previous Status: List Enhancement Planning (2025-09-02)
 
 ### List Support Enhancements - IN PROGRESS 🚧
 - **Analysis Complete**: Comprehensive analysis of list support across all target languages
@@ -37,6 +52,42 @@
 - **Import Statements**: Native Python import support without backticks
 
 ## Development History
+
+### 2025-09-03: Frame Standard Library Phase 1 (v0.33)
+
+#### Overview
+Implemented the Frame Standard Library (FSL) to provide native built-in operations that work consistently across all target languages without requiring backticks.
+
+#### Key Implementation Details
+1. **Two-Pass Parsing Enhancement**:
+   - First pass: Builds symbol table, treats FSL ops as regular calls
+   - Second pass: Recognizes FSL operations via FslRegistry
+   - Converts recognized operations to BuiltInCallExprT nodes
+
+2. **Parser Fix**:
+   - Added BuiltInCallExprT case to unary_expression function
+   - Prevents "TODO" parse errors for FSL operations
+   - Allows FSL operations to propagate through expression chain
+
+3. **FSL Registry Architecture**:
+   ```rust
+   pub struct FslRegistry {
+       operations: HashMap<String, BuiltInOperation>,
+   }
+   ```
+
+4. **Visitor Implementation**:
+   - Python visitor handles BuiltInCallExprT nodes
+   - Generates direct Python built-in calls (str, int, float)
+
+#### Phase 1 Completed Operations
+- `str(expr)` - Convert to string
+- `int(expr)` - Convert to integer  
+- `float(expr)` - Convert to float
+
+#### Test Results
+- New test: `test_fsl_simple.frm`
+- Total: 171/171 tests passing (100%)
 
 ### 2025-09-02: List Support Enhancements (v0.33)
 

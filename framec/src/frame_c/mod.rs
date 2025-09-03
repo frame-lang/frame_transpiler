@@ -2,6 +2,7 @@ mod ast;
 pub mod cli;
 pub mod compiler;
 pub mod config;
+pub mod fsl;
 mod parser;
 mod scanner;
 mod symbol_table;

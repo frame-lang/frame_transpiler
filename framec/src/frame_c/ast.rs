@@ -1473,6 +1473,13 @@ pub enum ExprType {
     SelfExprT {
         self_expr_node: SelfExprNode,
     },
+    // FSL Built-in operations (v0.33)
+    BuiltInCallExprT {
+        builtin_call_node: Box<crate::frame_c::fsl::BuiltInCallNode>,
+    },
+    BuiltInPropertyExprT {
+        builtin_property_node: Box<crate::frame_c::fsl::BuiltInPropertyNode>,
+    },
     // TODO:
     // NilExprT is a new ExprType used atm to hack around
     // differences between variables and parameters. Parameters
@@ -1513,6 +1520,8 @@ impl ExprType {
             ExprType::TransitionExprT { .. } => false,
             ExprType::StateStackOperationExprT { .. } => false,
             ExprType::CallExprListT { .. } => false, // this shouldn't happen
+            ExprType::BuiltInCallExprT { .. } => true, // FSL calls can be r-values
+            ExprType::BuiltInPropertyExprT { .. } => true, // FSL properties can be r-values
             _ => true,
         }
     }
@@ -1565,6 +1574,8 @@ impl ExprType {
             ExprType::TransitionExprT { .. } => "TransitionExprT",
             ExprType::NilExprT { .. } => "NilExprT",
             ExprType::SelfExprT { .. } => "SelfExprT",
+            ExprType::BuiltInCallExprT { .. } => "BuiltInCallExprT",
+            ExprType::BuiltInPropertyExprT { .. } => "BuiltInPropertyExprT",
         }
     }
 
@@ -1679,6 +1690,12 @@ impl NodeElement for ExprType {
             ExprType::DefaultLiteralValueForTypeExprT => {
                 panic!("Unexpect use of ExprType::DefaultLiteralValueForTypeExprT");
             }
+            ExprType::BuiltInCallExprT { builtin_call_node } => {
+                ast_visitor.visit_builtin_call_expr_node(builtin_call_node);
+            }
+            ExprType::BuiltInPropertyExprT { builtin_property_node } => {
+                ast_visitor.visit_builtin_property_expr_node(builtin_property_node);
+            }
         }
     }
 
@@ -1762,6 +1779,12 @@ impl NodeElement for ExprType {
             }
             ExprType::DefaultLiteralValueForTypeExprT => {
                 panic!("Unexpect use of ExprType::DefaultLiteralValueForTypeExprT");
+            }
+            ExprType::BuiltInCallExprT { builtin_call_node } => {
+                ast_visitor.visit_builtin_call_expr_node_to_string(builtin_call_node, output);
+            }
+            ExprType::BuiltInPropertyExprT { builtin_property_node } => {
+                ast_visitor.visit_builtin_property_expr_node_to_string(builtin_property_node, output);
             }
         }
     }

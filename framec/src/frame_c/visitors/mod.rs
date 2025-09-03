@@ -258,4 +258,10 @@ pub trait AstVisitor {
 
     fn visit_self_expr_node(&mut self, _self_expr_node: &SelfExprNode) {}
     fn visit_self_expr_node_to_string(&mut self, _self_expr_node: &SelfExprNode, _output: &mut String) {}
+
+    // FSL Built-in operations (v0.33)
+    fn visit_builtin_call_expr_node(&mut self, _node: &crate::frame_c::fsl::BuiltInCallNode) {}
+    fn visit_builtin_call_expr_node_to_string(&mut self, _node: &crate::frame_c::fsl::BuiltInCallNode, _output: &mut String) {}
+    fn visit_builtin_property_expr_node(&mut self, _node: &crate::frame_c::fsl::BuiltInPropertyNode) {}
+    fn visit_builtin_property_expr_node_to_string(&mut self, _node: &crate::frame_c::fsl::BuiltInPropertyNode, _output: &mut String) {}
 }

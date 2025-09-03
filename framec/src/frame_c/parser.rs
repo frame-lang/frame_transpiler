@@ -3185,6 +3185,7 @@ impl<'a> Parser<'a> {
         let mut value = Rc::new(ExprType::DefaultLiteralValueForTypeExprT);
 
         if self.match_token(&[TokenType::Equals]) {
+            eprintln!("DEBUG: Parsing initializer for variable '{}'", name);
             match self.equality() {
                 Ok(Some(LiteralExprT { literal_expr_node })) => {
                     value = Rc::new(LiteralExprT { literal_expr_node })
@@ -3203,8 +3204,26 @@ impl<'a> Parser<'a> {
                 Ok(Some(CallChainExprT {
                     call_chain_expr_node,
                 })) => {
+                    eprintln!("DEBUG: Found CallChainExprT as initializer for variable '{}'", name);
                     value = Rc::new(CallChainExprT {
                         call_chain_expr_node,
+                    })
+                }
+                Ok(Some(BuiltInCallExprT {
+                    builtin_call_node,
+                })) => {
+                    // FSL operation as initializer (v0.33)
+                    eprintln!("DEBUG: Found BuiltInCallExprT as initializer for variable '{}'", name);
+                    value = Rc::new(BuiltInCallExprT {
+                        builtin_call_node,
+                    })
+                }
+                Ok(Some(BuiltInPropertyExprT {
+                    builtin_property_node,
+                })) => {
+                    // FSL property as initializer (v0.33)
+                    value = Rc::new(BuiltInPropertyExprT {
+                        builtin_property_node,
                     })
                 }
                 Ok(Some(UnaryExprT { unary_expr_node })) => {
@@ -3290,6 +3309,7 @@ impl<'a> Parser<'a> {
                     })
                 }
                 Ok(None) => {
+                    eprintln!("DEBUG: Got None from equality() for variable '{}'", name);
                     let err_msg = "Unexpected assignment expression value.";
                     self.error_at_current(err_msg);
                     return Err(ParseError::new(err_msg));
@@ -4918,6 +4938,17 @@ impl<'a> Parser<'a> {
                     ExprType::DefaultLiteralValueForTypeExprT => {
                         panic!("Unexpect use of ExprType::DefaultLiteralValueForTypeExprT");
                     }
+                    ExprType::BuiltInCallExprT { .. } => {
+                        // FSL built-in calls are not valid as statements on their own
+                        // They're part of expressions or call chains
+                        self.error_at_previous("Built-in call expressions not allowed as statements.");
+                        return Err(ParseError::new("Built-in call must be part of an assignment or expression"));
+                    }
+                    ExprType::BuiltInPropertyExprT { .. } => {
+                        // FSL built-in properties are not valid as statements on their own
+                        self.error_at_previous("Built-in property expressions not allowed as statements.");
+                        return Err(ParseError::new("Built-in property must be part of an assignment or expression"));
+                    }
                 }
             }
             None => {
@@ -6069,6 +6100,7 @@ impl<'a> Parser<'a> {
     // unary_expression -> TODO
 
     fn unary_expression(&mut self) -> Result<Option<ExprType>, ParseError> {
+        use crate::frame_c::ast::ExprType::{BuiltInCallExprT, BuiltInPropertyExprT};
         if self.match_token(&[TokenType::Bang, TokenType::Dash]) {
             let token = self.previous();
             let mut operator_type = self.get_operator_type(&token.clone());
@@ -6468,6 +6500,14 @@ impl<'a> Parser<'a> {
                 }
                 Ok(Some(EnumeratorExprT { enum_expr_node })) => {
                     return Ok(Some(EnumeratorExprT { enum_expr_node }))
+                }
+                Ok(Some(BuiltInCallExprT { builtin_call_node })) => {
+                    // FSL operations (v0.33)
+                    return Ok(Some(BuiltInCallExprT { builtin_call_node }))
+                }
+                Ok(Some(BuiltInPropertyExprT { builtin_property_node })) => {
+                    // FSL properties (v0.33)
+                    return Ok(Some(BuiltInPropertyExprT { builtin_property_node }))
                 }
                 Ok(Some(_)) => return Err(ParseError::new("TODO")),
                 Err(parse_error) => return Err(parse_error),
@@ -7720,6 +7760,7 @@ impl<'a> Parser<'a> {
         &mut self,
         explicit_scope: IdentifierDeclScope,
     ) -> Result<Option<ExprType>, ParseError> {
+        use crate::frame_c::ast::ExprType::{BuiltInCallExprT, CallChainExprT};
         let mut scope: IdentifierDeclScope = explicit_scope.clone();
         let mut call_chain: std::collections::VecDeque<CallChainNodeType> =
             std::collections::VecDeque::new();
@@ -7922,8 +7963,26 @@ impl<'a> Parser<'a> {
                 if (is_first_node && call_chain.is_empty()) {
                     // Rewind the LParen token since build_call_chain_v2 expects to parse it
                     self.current -= 1;
-                    
-                    return self.build_call_chain_v2_with_existing(id_node, call_chain);
+                    eprintln!("DEBUG: Calling build_call_chain_v2_with_existing from call() for: {}", id_node.name.lexeme);
+                    let result = self.build_call_chain_v2_with_existing(id_node, call_chain);
+                    match &result {
+                        Ok(Some(BuiltInCallExprT { .. })) => {
+                            eprintln!("DEBUG: build_call_chain_v2_with_existing returned: BuiltInCallExprT");
+                        }
+                        Ok(Some(CallChainExprT { .. })) => {
+                            eprintln!("DEBUG: build_call_chain_v2_with_existing returned: CallChainExprT");
+                        }
+                        Ok(Some(_)) => {
+                            eprintln!("DEBUG: build_call_chain_v2_with_existing returned: Other ExprType");
+                        }
+                        Ok(None) => {
+                            eprintln!("DEBUG: build_call_chain_v2_with_existing returned: None");
+                        }
+                        Err(_) => {
+                            eprintln!("DEBUG: build_call_chain_v2_with_existing returned: Error");
+                        }
+                    }
+                    return result;
                 }
                 
                 let call_expr_node_result = self.finish_call(id_node);
@@ -8785,7 +8844,8 @@ impl<'a> Parser<'a> {
 
     // v0.30: Modified build_call_chain_v2 that can append to existing call chain for method calls
     fn build_call_chain_v2_with_existing(&mut self, base_id: IdentifierNode, mut existing_chain: VecDeque<CallChainNodeType>) -> Result<Option<ExprType>, ParseError> {
-        use crate::frame_c::ast::{CallChainNodeTypeV2, IdentifierScope};
+        use crate::frame_c::ast::{CallChainNodeTypeV2, IdentifierScope, ExprType::{ExprListT, BuiltInCallExprT}};
+        use crate::frame_c::fsl::{FslRegistry, BuiltInCallNode, ConversionOperation, BuiltInOperation};
         
         // Debug dump when starting V2 call chain building
         if std::env::var("FRAME_DEBUG").is_ok() {
@@ -8793,6 +8853,63 @@ impl<'a> Parser<'a> {
             self.arcanum.debug_dump_arcanum();
         }
         
+        // Check if this is an FSL operation (str, int, float, etc.)
+        // During symbol table building, we still need to parse these but treat them as regular calls
+        let fsl_registry = FslRegistry::new();
+        eprintln!("DEBUG: Checking FSL for '{}': is_building_symbol_table={}, recognized={:?}", 
+                 base_id.name.lexeme, self.is_building_symbol_table, 
+                 fsl_registry.recognize_operation(&base_id.name.lexeme));
+        if !self.is_building_symbol_table && fsl_registry.recognize_operation(&base_id.name.lexeme).is_some() {
+            let fsl_operation = fsl_registry.recognize_operation(&base_id.name.lexeme).unwrap();
+            eprintln!("DEBUG: FSL operation detected in second pass for: {}", base_id.name.lexeme);
+            // This is an FSL operation in the second pass! Parse it as such
+            if self.match_token(&[TokenType::LParen]) {
+                // Parse the arguments
+                let args = match self.expr_list() {
+                    Ok(Some(ExprListT { expr_list_node })) => expr_list_node.exprs_t,
+                    Ok(None) => Vec::new(),
+                    Ok(Some(_)) => return Err(ParseError::new("Invalid argument list for FSL operation")),
+                    Err(err) => return Err(err),
+                };
+                
+                // Validate argument count for conversion operations
+                match &fsl_operation {
+                    BuiltInOperation::Conversion(_) => {
+                        if args.len() != 1 {
+                            let err_msg = format!("{}() takes exactly 1 argument ({} given)", 
+                                base_id.name.lexeme, args.len());
+                            self.error_at_previous(&err_msg);
+                            return Err(ParseError::new(&err_msg));
+                        }
+                    }
+                    _ => {} // Other operations will have their own validation
+                }
+                
+                // Create the FSL built-in call node
+                // For conversion operations, we need to extract the first argument
+                let target_expr = if args.is_empty() {
+                    // Should not happen due to validation above, but handle gracefully
+                    return Err(ParseError::new("Missing argument for conversion operation"));
+                } else {
+                    args.into_iter().next().unwrap()
+                };
+                
+                let builtin_call_node = BuiltInCallNode {
+                    operation: fsl_operation,
+                    target: Box::new(target_expr), // Move the argument, don't clone
+                    arguments: Vec::new(), // Conversion ops don't have additional arguments
+                    line: base_id.name.line,
+                };
+                
+                // Return as a BuiltInCallExprT
+                eprintln!("DEBUG: Returning BuiltInCallExprT for FSL operation: {}", base_id.name.lexeme);
+                return Ok(Some(BuiltInCallExprT {
+                    builtin_call_node: Box::new(builtin_call_node),
+                }));
+            }
+        }
+        
+        // Not an FSL operation, continue with regular call chain building
         let mut chain: VecDeque<CallChainNodeTypeV2> = VecDeque::new();
         let current_id = base_id;
         
