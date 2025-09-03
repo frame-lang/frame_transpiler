@@ -10373,10 +10373,17 @@ impl<'a> Parser<'a> {
         }
         
         // v0.34: Enter the named module scope in the symbol table
+        // We need to do this in both passes so functions inside modules can be found
         if self.is_building_symbol_table {
             self.arcanum.enter_scope(ParseScopeType::NamedModule { 
                 module_name: module_name.clone() 
             });
+        } else {
+            // Second pass: we need to navigate to the module scope
+            if let Err(err) = self.arcanum.set_parse_scope(&module_name) {
+                // Module not found - this shouldn't happen if first pass succeeded
+                return Err(ParseError::new(&format!("Failed to enter module scope '{}': {}", module_name, err)));
+            }
         }
         
         // Parse module contents
@@ -10422,7 +10429,10 @@ impl<'a> Parser<'a> {
         }
         
         // v0.34: Exit the named module scope
+        // Exit in both passes to maintain proper scope
         if self.is_building_symbol_table {
+            self.arcanum.exit_scope();
+        } else {
             self.arcanum.exit_scope();
         }
         

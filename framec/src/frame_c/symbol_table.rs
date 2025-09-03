@@ -125,6 +125,9 @@ pub enum SymbolType {
     System {
         system_symbol_rcref: Rc<RefCell<SystemSymbol>>,
     },
+    Module {
+        module_symbol_rcref: Rc<RefCell<ModuleSymbol>>,
+    },
     #[allow(dead_code)] // not dead. weird
     InterfaceBlock {
         interface_block_symbol_rcref: Rc<RefCell<InterfaceBlockScopeSymbol>>,
@@ -427,6 +430,7 @@ impl SymbolType {
             SymbolType::EventHandlerParam { .. } => "EventHandlerParam",
             SymbolType::StateVariable { .. } => "StateVariable",
             SymbolType::ModuleVariable { .. } => "ModuleVariable",
+            SymbolType::Module { .. } => "Module",
         }
     }
 }
@@ -517,6 +521,9 @@ impl Symbol for SymbolType {
             SymbolType::ModuleVariable {
                 module_variable_symbol_rcref,
             } => module_variable_symbol_rcref.borrow().get_name(),
+            SymbolType::Module {
+                module_symbol_rcref,
+            } => module_symbol_rcref.borrow().name.clone(),
         }
     }
 }
@@ -530,6 +537,9 @@ impl ScopeSymbol for SymbolType {
             SymbolType::System {
                 system_symbol_rcref: system_symbol_ref,
             } => system_symbol_ref.borrow().get_symbol_table(),
+            SymbolType::Module {
+                module_symbol_rcref,
+            } => Rc::clone(&module_symbol_rcref.borrow().symtab_rcref),
             SymbolType::InterfaceBlock {
                 interface_block_symbol_rcref,
             } => interface_block_symbol_rcref.borrow().get_symbol_table(),
@@ -629,6 +639,18 @@ impl ScopeSymbol for SymbolType {
             } => system_symbol_ref
                 .borrow()
                 .get_symbol_table_for_symbol(symbol_name),
+            SymbolType::Module {
+                module_symbol_rcref,
+            } => {
+                let module_symtab_rc = Rc::clone(&module_symbol_rcref.borrow().symtab_rcref);
+                let module_symtab = module_symtab_rc.borrow();
+                if let Some(symbol_type_rcref) = module_symtab.symbols.get(symbol_name) {
+                    let symbol_type = symbol_type_rcref.borrow();
+                    Rc::clone(&symbol_type.get_symbol_table_for_symbol(symbol_name))
+                } else {
+                    panic!("Fatal error - could not find symbol {} in module scope.", symbol_name);
+                }
+            }
             SymbolType::MachineBlockScope {
                 machine_block_symbol_rcref: machine_symbol_ref,
             } => machine_symbol_ref
@@ -698,10 +720,11 @@ impl SymbolTable {
                 // They are managed directly by the Arcanum
                 return;
             }
-            ParseScopeType::NamedModule { .. } => {
-                // v0.34: Named modules are handled in enter_scope
-                // They don't need to be inserted as symbols here
-                return;
+            ParseScopeType::NamedModule { ref module_name } => {
+                // v0.34: Named modules need to be inserted as symbols so they can be found later
+                // This should only be called during the first pass
+                // The module's own symbol table will be created in enter_scope
+                return; // For now, we'll create and insert the symbol in enter_scope
             }
             ParseScopeType::Function {
                 function_scope_symbol_rcref,
@@ -1803,13 +1826,18 @@ impl Arcanum {
                 );
                 let module_symtab_rc = Rc::new(RefCell::new(module_st));
                 
-                // Clone the module name for insert_parse_scope
-                let scope_for_insert = ParseScopeType::NamedModule { 
-                    module_name: module_name.clone() 
-                };
+                // Create the module symbol
+                let module_symbol = ModuleSymbol::new(module_name.clone(), Rc::clone(&module_symtab_rc));
+                let module_symbol_rcref = Rc::new(RefCell::new(module_symbol));
                 
-                // Insert the module scope into the parent symbol table
-                self.current_symtab.borrow_mut().insert_parse_scope(scope_for_insert);
+                // Insert the module symbol into the parent symbol table so it can be found later
+                let module_symbol_type = SymbolType::Module {
+                    module_symbol_rcref: module_symbol_rcref,
+                };
+                self.current_symtab.borrow_mut().symbols.insert(
+                    module_name.clone(),
+                    Rc::new(RefCell::new(module_symbol_type)),
+                );
                 
                 // Update current symbol table to the new module's symbol table
                 self.current_symtab = module_symtab_rc;
@@ -2666,6 +2694,20 @@ impl Arcanum {
                 param_symbol_rcref: _param_symbol_rcref,
             } => Rc::clone(&self.current_symtab),
             _ => panic!("TODO"),
+        }
+    }
+}
+
+pub struct ModuleSymbol {
+    pub name: String,
+    pub symtab_rcref: Rc<RefCell<SymbolTable>>,
+}
+
+impl ModuleSymbol {
+    pub fn new(name: String, symtab_rcref: Rc<RefCell<SymbolTable>>) -> ModuleSymbol {
+        ModuleSymbol {
+            name,
+            symtab_rcref,
         }
     }
 }

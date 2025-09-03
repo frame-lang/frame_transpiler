@@ -1,7 +1,7 @@
-# Frame Language Grammar (v0.33)
+# Frame Language Grammar (v0.34)
 
 **Last Updated**: 2025-09-03  
-**Status**: Complete with Frame Standard Library (FSL), advanced enum features, module variables, self.variable syntax, and 100% test coverage
+**Status**: Complete with module system, Frame Standard Library (FSL), advanced enum features, and comprehensive import support with 100% test coverage (198/198 tests passing)
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -14,6 +14,71 @@ module: (import_stmt | enum_decl | var_decl | function | system)*
 **v0.31 Import Support**: Modules can now include native import statements at the top level, supporting Python module imports without requiring backticks.
 
 **v0.30 Multi-Entity Support**: Modules can contain any combination of functions and systems in any order. Each entity (function or system) can have individual attributes.
+
+## Module System (v0.34)
+
+Frame v0.34 introduces a complete module system with named modules, qualified access, and nested module support.
+
+```bnf
+module_decl: 'module' IDENTIFIER '{' module_body '}'
+module_body: (import_stmt | enum_decl | var_decl | function | system | module_decl)*
+qualified_name: IDENTIFIER ('.' IDENTIFIER)*
+```
+
+### Module Features
+
+- **Named Modules**: Declare named modules with `module ModuleName { ... }`
+- **Qualified Access**: Access module contents via `module.function()` or `module.variable`
+- **Nested Modules**: Support for hierarchical module organization
+- **Scope Isolation**: Each module has its own namespace
+- **Import Integration**: FSL imports work within module contexts
+
+### Module Examples
+
+```frame
+// Named module with functions and variables
+module Utils {
+    var counter = 0
+    
+    fn increment() {
+        counter = counter + 1
+        return counter
+    }
+    
+    fn reset() {
+        counter = 0
+    }
+}
+
+// Using module contents
+fn main() {
+    var val = Utils.increment()
+    print("Counter: " + str(val))
+    Utils.reset()
+}
+
+// Nested modules
+module Math {
+    module Constants {
+        var PI = 3.14159
+        var E = 2.71828
+    }
+    
+    fn circleArea(r) {
+        return Constants.PI * r * r
+    }
+}
+
+// Module with FSL imports
+module DataProcessor {
+    from fsl import str, int
+    
+    fn process(data) {
+        var result = str(data)
+        return "Processed: " + result
+    }
+}
+```
 
 ## Scope Rules (v0.31)
 
@@ -1552,18 +1617,36 @@ fsl_method: expr '.' ('append' | 'pop' | 'clear' | 'remove') '(' arg_list? ')'
 
 **Frame Standard Library (v0.33)**: FSL provides native built-in operations guaranteed across all target languages, eliminating the need for backticks when using common operations like type conversions and collection methods.
 
-## Frame Standard Library (FSL) - v0.33
+## Frame Standard Library (FSL) - v0.34
 
-The Frame Standard Library provides native built-in operations that work consistently across all target languages without requiring backticks.
+The Frame Standard Library provides native built-in operations that work consistently across all target languages. As of v0.34, FSL operations **require explicit import** to use them.
+
+### FSL Import Requirements (v0.34)
+
+FSL operations must be explicitly imported before use:
+
+```frame
+// Import specific FSL operations
+from fsl import str, int, float
+
+// Import all FSL operations
+from fsl import *
+
+// Without import, str/int/float are treated as external functions
+fn noImport() {
+    var s = str(42)  // Calls external str() if available
+}
+```
 
 ### Type Conversion Operations
 ```frame
+from fsl import str, int, float  // Required import
+
 fn example() {
     var x = 42
     var s = str(x)      // Convert to string: "42"
     var i = int("123")  // Convert to integer: 123
     var f = float("3.14") // Convert to float: 3.14
-    var b = bool(1)     // Convert to boolean: true
 }
 ```
 

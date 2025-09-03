@@ -1,11 +1,11 @@
 {
-  "timestamp": "2025-09-03T06:16:17.852868",
+  "timestamp": "2025-09-03T11:49:53.028541",
   "version": "v0.31",
   "summary": {
-    "total": 181,
-    "transpile_success": 181,
-    "execute_success": 181,
-    "complete_success": 181,
+    "total": 198,
+    "transpile_success": 198,
+    "execute_success": 198,
+    "complete_success": 198,
     "success_rate": "100.0%"
   },
   "results": [
@@ -150,6 +150,13 @@
       "error": null
     },
     {
+      "file": "test_empty_module.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "42\n",
+      "error": null
+    },
+    {
       "file": "test_empty_params.frm",
       "transpile": true,
       "execute": true,
@@ -195,7 +202,7 @@
       "file": "test_enums.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
@@ -223,14 +230,14 @@
       "file": "test_enums_doc_grocery_demo.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
       "file": "test_enums_doc_grocery_full.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
@@ -311,6 +318,13 @@
       "error": null
     },
     {
+      "file": "test_fsl_import_required.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "42\n123\n3.14\n",
+      "error": null
+    },
+    {
       "file": "test_fsl_list_operations.frm",
       "transpile": true,
       "execute": true,
@@ -322,6 +336,13 @@
       "transpile": true,
       "execute": true,
       "output": "After insert: [1, 2, 3, 4, 5]\nAfter remove: [10, 30, 20, 40]\nIndex of banana: 1\nCount of 2: 3\nAfter extend: [1, 2, 3, 4, 5, 6]\nAfter reverse: [5, 4, 3, 2, 1]\nAfter sort: [1, 1, 2, 3, 4, 5, 6, 9]\nOrigi",
+      "error": null
+    },
+    {
+      "file": "test_fsl_no_import_error.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "42\n",
       "error": null
     },
     {
@@ -416,6 +437,62 @@
       "error": null
     },
     {
+      "file": "test_import_conflicts.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_import_fsl_individual.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Testing Individual FSL Imports ===\nstr(42): 42\nstr(3.14159): 3.14159\nstr(true): True\nint('123'): 123\nint(45.67): 45\nint(true): 1\nfloat('3.14'): 3.14\nfloat(42): 42.0\nint(float('123.456')): 123\nstr(",
+      "error": null
+    },
+    {
+      "file": "test_import_fsl_no_import.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Testing FSL Operations Without Import ===\nExternal str(42): 42\nExternal int('123'): 123\n=== Test Complete - Used External Functions ===\n",
+      "error": null
+    },
+    {
+      "file": "test_import_fsl_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Simple FSL Import Test ===\nstr(42): 42\nint('123'): 123\n=== Test Complete ===\n",
+      "error": null
+    },
+    {
+      "file": "test_import_fsl_user_conflict.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "This test should fail at compile time\n",
+      "error": null
+    },
+    {
+      "file": "test_import_fsl_wildcard.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== FSL Wildcard Import Test ===\n=== Testing All FSL Conversions via Wildcard ===\nstr(42): 42\nstr(3.14159): 3.14159\nstr(true): True\nint('123'): 123\nint(45.67): 45\nint(true): 1\nfloat('99.9'): 99.9\nfloa",
+      "error": null
+    },
+    {
+      "file": "test_import_mixed.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Mixed Import Test ===\n=== Testing Mixed FSL and Python Imports ===\nFSL str(42): 42\nFSL int('999'): 999\nPython math.pi: 3.141592653589793\nPython math.sqrt(25): 5.0\nCurrent year: 2025\nFSL str() on P",
+      "error": null
+    },
+    {
+      "file": "test_import_python_comprehensive.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Python Import Types Test ===\n=== Testing Simple Imports ===\nmath.pi: 3.141592653589793\nmath.sqrt(16): 4.0\njson.dumps(): {\"key\": \"value\"}\n=== Testing Aliased Imports ===\nCurrent date: 2025-09-03\nRa",
+      "error": null
+    },
+    {
       "file": "test_import_simple.frm",
       "transpile": true,
       "execute": true,
@@ -427,6 +504,13 @@
       "transpile": true,
       "execute": true,
       "output": "Testing imports...\nPi: 3.141592653589793\nSquare root of 16: 4.0\nCreated defaultdict and OrderedDict\nJSON: {\"name\": \"Frame\", \"version\": \"0.31\"}\n",
+      "error": null
+    },
+    {
+      "file": "test_import_validation_summary.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== COMPREHENSIVE IMPORT/FSL VALIDATION ===\n=== Validating ALL FSL Operations ===\nstr(42): 42\nstr(3.14): 3.14\nstr(true): True\nint('123'): 123\nint(89.99): 89\nfloat('123.456'): 123.456\nfloat(789): 789.0",
       "error": null
     },
     {
@@ -591,10 +675,24 @@
       "error": null
     },
     {
+      "file": "test_module_declaration.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Module declaration parsed successfully\n",
+      "error": null
+    },
+    {
       "file": "test_module_function_calls.frm",
       "transpile": true,
       "execute": true,
       "output": "Main function calling helper\nHelper function called\nBack in main\n",
+      "error": null
+    },
+    {
+      "file": "test_module_qualified_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Testing module qualified names\n",
       "error": null
     },
     {
@@ -616,6 +714,13 @@
       "transpile": true,
       "execute": true,
       "output": "[LOG] Module initialized\nPI = 3.14159\nVERSION = 1.0.0\ncounter = 1\ninitialized = True\n[LOG] Main function called\nFinal counter = 2\nPI = 3.14159\nVERSION = 1.0.0\ncounter = 2\ninitialized = True\n[LOG] Main",
+      "error": null
+    },
+    {
+      "file": "test_module_syntax.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Module syntax test\n",
       "error": null
     },
     {
@@ -703,6 +808,13 @@
       "error": null
     },
     {
+      "file": "test_nested_modules.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Module test complete\n",
+      "error": null
+    },
+    {
       "file": "test_none_keyword.frm",
       "transpile": true,
       "execute": true,
@@ -763,6 +875,13 @@
       "transpile": true,
       "execute": true,
       "output": null,
+      "error": null
+    },
+    {
+      "file": "test_qualified_names.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Qualified names test - parsing only\n",
       "error": null
     },
     {

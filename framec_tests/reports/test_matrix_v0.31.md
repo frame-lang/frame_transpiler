@@ -1,17 +1,17 @@
 # Frame v0.31 Test Matrix
 
-**Generated**: 2025-09-03 06:16  
-**Total Tests**: 181  
+**Generated**: 2025-09-03 11:49  
+**Total Tests**: 198  
 **Current Branch**: v0.31  
 
 ## Summary Statistics
 
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| **Total Tests** | 181 | 100% |
-| **Transpilation Success** | 181 | 100.0% |
-| **Execution Success** | 181 | 100.0% |
-| **Complete Success** | 181 | 100.0% |
+| **Total Tests** | 198 | 100% |
+| **Transpilation Success** | 198 | 100.0% |
+| **Execution Success** | 198 | 100.0% |
+| **Complete Success** | 198 | 100.0% |
 
 ## v0.31 Features
 
@@ -48,6 +48,7 @@
 | test_domain_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_domain_type_debug.frm | ✅ | ✅ | ✅ PASS |
 | test_elif_with_return.frm | ✅ | ✅ | ✅ PASS |
+| test_empty_module.frm | ✅ | ✅ | ✅ PASS |
 | test_empty_params.frm | ✅ | ✅ | ✅ PASS |
 | test_enum_basic.frm | ✅ | ✅ | ✅ PASS |
 | test_enum_custom_values.frm | ✅ | ✅ | ✅ PASS |
@@ -71,8 +72,10 @@
 | test_forward_event.frm | ✅ | ✅ | ✅ PASS |
 | test_fsl_bool.frm | ✅ | ✅ | ✅ PASS |
 | test_fsl_conversion_ops.frm | ✅ | ✅ | ✅ PASS |
+| test_fsl_import_required.frm | ✅ | ✅ | ✅ PASS |
 | test_fsl_list_operations.frm | ✅ | ✅ | ✅ PASS |
 | test_fsl_list_operations_extended.frm | ✅ | ✅ | ✅ PASS |
+| test_fsl_no_import_error.frm | ✅ | ✅ | ✅ PASS |
 | test_fsl_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_fsl_string_operations.frm | ✅ | ✅ | ✅ PASS |
 | test_function_call.frm | ✅ | ✅ | ✅ PASS |
@@ -86,8 +89,17 @@
 | test_if_elif_returns.frm | ✅ | ✅ | ✅ PASS |
 | test_if_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_if_with_simple_stmt.frm | ✅ | ✅ | ✅ PASS |
+| test_import_conflicts.frm | ✅ | ✅ | ✅ PASS |
+| test_import_fsl_individual.frm | ✅ | ✅ | ✅ PASS |
+| test_import_fsl_no_import.frm | ✅ | ✅ | ✅ PASS |
+| test_import_fsl_simple.frm | ✅ | ✅ | ✅ PASS |
+| test_import_fsl_user_conflict.frm | ✅ | ✅ | ✅ PASS |
+| test_import_fsl_wildcard.frm | ✅ | ✅ | ✅ PASS |
+| test_import_mixed.frm | ✅ | ✅ | ✅ PASS |
+| test_import_python_comprehensive.frm | ✅ | ✅ | ✅ PASS |
 | test_import_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_import_statements.frm | ✅ | ✅ | ✅ PASS |
+| test_import_validation_summary.frm | ✅ | ✅ | ✅ PASS |
 | test_instantiation_debug.frm | ✅ | ✅ | ✅ PASS |
 | test_instantiation_fix.frm | ✅ | ✅ | ✅ PASS |
 | test_interface_type_annotation.frm | ✅ | ✅ | ✅ PASS |
@@ -111,10 +123,13 @@
 | test_mixed_function_system.frm | ✅ | ✅ | ✅ PASS |
 | test_mixed_returns.frm | ✅ | ✅ | ✅ PASS |
 | test_mixed_system_states.frm | ✅ | ✅ | ✅ PASS |
+| test_module_declaration.frm | ✅ | ✅ | ✅ PASS |
 | test_module_function_calls.frm | ✅ | ✅ | ✅ PASS |
+| test_module_qualified_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_module_scope_basic.frm | ✅ | ✅ | ✅ PASS |
 | test_module_scope_comprehensive.frm | ✅ | ✅ | ✅ PASS |
 | test_module_scope_variables.frm | ✅ | ✅ | ✅ PASS |
+| test_module_syntax.frm | ✅ | ✅ | ✅ PASS |
 | test_module_system.frm | ✅ | ✅ | ✅ PASS |
 | test_module_var_access.frm | ✅ | ✅ | ✅ PASS |
 | test_module_var_simple.frm | ✅ | ✅ | ✅ PASS |
@@ -127,6 +142,7 @@
 | test_multiple_systems_valid.frm | ✅ | ✅ | ✅ PASS |
 | test_native_print.frm | ✅ | ✅ | ✅ PASS |
 | test_negative_indexing.frm | ✅ | ✅ | ✅ PASS |
+| test_nested_modules.frm | ✅ | ✅ | ✅ PASS |
 | test_none_keyword.frm | ✅ | ✅ | ✅ PASS |
 | test_operations.frm | ✅ | ✅ | ✅ PASS |
 | test_operations_call_bug.frm | ✅ | ✅ | ✅ PASS |
@@ -136,6 +152,7 @@
 | test_parent_dispatch_complete.frm | ✅ | ✅ | ✅ PASS |
 | test_parent_transition_detection.frm | ✅ | ✅ | ✅ PASS |
 | test_python_style.frm | ✅ | ✅ | ✅ PASS |
+| test_qualified_names.frm | ✅ | ✅ | ✅ PASS |
 | test_return_assign.frm | ✅ | ✅ | ✅ PASS |
 | test_return_assign_actions.frm | ✅ | ✅ | ✅ PASS |
 | test_return_assign_event_handler.frm | ✅ | ✅ | ✅ PASS |
