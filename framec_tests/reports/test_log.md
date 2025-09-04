@@ -1,15 +1,15 @@
 # Frame Test Status Report
 
-## Last Run: 2025-09-04 05:24
+## Last Run: 2025-09-04 06:30
 
 ### Summary
-- **Total Tests**: 201
-- **Passed**: 201
-- **Failed**: 0
-- **Success Rate**: 100% 🎉
+- **Total Tests**: 203
+- **Passed**: 202
+- **Failed**: 1
+- **Success Rate**: 99.5%
 
 ### Test Categories Status
-✅ **All Categories Fully Passing:**
+✅ **All Core Categories Passing:**
 - Core Language Features
 - v0.30 Multi-Entity Support  
 - v0.31 Import System
@@ -22,35 +22,37 @@
 - Operations & Actions
 - Self Variable Handling
 
+⚠️ **v0.35 Async/Await - Partial Support:**
+- Simple async functions: ✅ WORKING
+- Async operations: ✅ WORKING  
+- Async interface methods: ⚠️ PARTIAL (declaration works, handlers need fix)
+- Await expressions: ✅ WORKING
+
 ### Implementation Milestones
 
-#### ✅ List Comprehensions - Complete
-- Basic syntax: `[expr for var in iter]`
-- With conditions: `[expr for var in iter if cond]`
-- Nested comprehensions: `[[expr for x in iter] for y in iter]`
-- Both visitor methods implemented (`accept` and `accept_to_string`)
+#### ✅ v0.35 Async/Await - Basic Support Complete
+- **Scanner**: Added `Async` and `Await` tokens
+- **Parser**: Handles `async fn`, async operations, async interface methods
+- **AST**: Added `AwaitExprNode`, `AwaitExprT`, `is_async` fields
+- **Visitor**: Generates `async def` and `await` statements
+- **Simple Test**: `test_async_simple.frm` passes successfully
 
-#### ✅ Unpacking Operator - Complete
-- List unpacking: `[*list1, *list2, 7, 8]`
-- Multiple unpacking: `[0, *a, *b, *c, 7]`
-- Mixed with expressions: `[5, *base, 40, 50]`
-- Visitor implementation fixed to generate correct Python syntax
+#### Known Issues
+1. **test_async_basic.frm** - Complex async with interface methods in state handlers needs additional parser work
 
-#### ✅ Module System - Complete
-- Module declarations with functions and variables
-- Qualified name access
-- FSL as optional import
-- Cross-module access
-
-### Recent Fixes
-1. **test_list_comprehensions.frm** - Removed unsupported dictionary syntax, replaced with valid Frame lists
-2. **test_self_variable_exhaustive.frm** - Removed problematic parentheses that were misinterpreted as ExprList
-3. **test_unpacking_operator.frm** - Fixed visitor's `visit_unpack_expr_node_to_string` method to generate correct Python unpacking syntax
+### Recent Changes (v0.35)
+1. Added async/await keywords to scanner
+2. Updated parser to handle async functions and operations
+3. Added AST nodes for async support
+4. Implemented Python visitor for async code generation
+5. Fixed operations and interface block parsing for async
 
 ### Conclusion
-Frame v0.34 achieves **100% test success rate** with all 201 tests passing. The implementation includes:
-- Complete module system with qualified names
-- Full list comprehension support
-- Working unpacking operator
-- Frame Standard Library (FSL) with explicit imports
-- All v0.30-v0.33 features preserved and working
+Frame v0.35 achieves **99.5% test success rate** with basic async/await support working. The implementation includes:
+- ✅ Async functions (`async fn`)
+- ✅ Async operations in systems
+- ✅ Await expressions
+- ✅ Python code generation for async
+- ⚠️ Complex async interface methods need refinement
+
+All v0.30-v0.34 features remain stable and working.

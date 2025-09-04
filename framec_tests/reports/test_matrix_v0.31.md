@@ -1,17 +1,17 @@
 # Frame v0.31 Test Matrix
 
-**Generated**: 2025-09-04 05:24  
-**Total Tests**: 201  
+**Generated**: 2025-09-04 07:38  
+**Total Tests**: 207  
 **Current Branch**: v0.31  
 
 ## Summary Statistics
 
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| **Total Tests** | 201 | 100% |
-| **Transpilation Success** | 201 | 100.0% |
-| **Execution Success** | 201 | 100.0% |
-| **Complete Success** | 201 | 100.0% |
+| **Total Tests** | 207 | 100% |
+| **Transpilation Success** | 207 | 100.0% |
+| **Execution Success** | 207 | 100.0% |
+| **Complete Success** | 207 | 100.0% |
 
 ## v0.31 Features
 
@@ -29,6 +29,12 @@
 | Test File | Transpile | Execute | Status |
 |-----------|-----------|---------|--------|
 | test_all_blocks_comprehensive.frm | ✅ | ✅ | ✅ PASS |
+| test_async_basic.frm | ✅ | ✅ | ✅ PASS |
+| test_async_debug.frm | ✅ | ✅ | ✅ PASS |
+| test_async_handler.frm | ✅ | ✅ | ✅ PASS |
+| test_async_interface.frm | ✅ | ✅ | ✅ PASS |
+| test_async_minimal.frm | ✅ | ✅ | ✅ PASS |
+| test_async_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_backticks_still_work.frm | ✅ | ✅ | ✅ PASS |
 | test_basic_scope.frm | ✅ | ✅ | ✅ PASS |
 | test_basic_scope_working.frm | ✅ | ✅ | ✅ PASS |

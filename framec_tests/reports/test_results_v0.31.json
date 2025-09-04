@@ -1,11 +1,11 @@
 {
-  "timestamp": "2025-09-04T05:24:28.594730",
+  "timestamp": "2025-09-04T07:38:54.562441",
   "version": "v0.31",
   "summary": {
-    "total": 201,
-    "transpile_success": 201,
-    "execute_success": 201,
-    "complete_success": 201,
+    "total": 207,
+    "transpile_success": 207,
+    "execute_success": 207,
+    "complete_success": 207,
     "success_rate": "100.0%"
   },
   "results": [
@@ -14,6 +14,48 @@
       "transpile": true,
       "execute": true,
       "output": null,
+      "error": null
+    },
+    {
+      "file": "test_async_basic.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Starting async test\nAsync test complete\n",
+      "error": null
+    },
+    {
+      "file": "test_async_debug.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_async_handler.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_async_interface.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_async_minimal.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_async_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Simple async test started\n",
       "error": null
     },
     {
@@ -202,7 +244,7 @@
       "file": "test_enums.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
@@ -230,14 +272,14 @@
       "file": "test_enums_doc_grocery_demo.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
       "file": "test_enums_doc_grocery_full.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
