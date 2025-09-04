@@ -1,6 +1,6 @@
-# Frame v0.34 Development Notes
+# Frame v0.36 Development Notes
 
-## Language Support Classification (Updated 2025-09-03)
+## Language Support Classification (Updated 2025-09-04)
 
 ### 1st Class Language (Full Visitor Implementation)
 - **Python**: Complete transpiler with visitor pattern
@@ -19,16 +19,24 @@ Languages considered in Frame's design with documented patterns:
 - Other languages via AI generation
 - No formal support or guarantees
 
-## Latest Status: v0.35 Async/Await Support Implemented (2025-09-04)
+## Latest Status: v0.36 Event-Handlers-as-Functions Architecture (2025-09-04)
 
-### v0.35 Release - Async/Await Foundation ✅
+### v0.36 Release - Event-Handlers-as-Functions Architecture ✅
+- **Architecture Restructure**: Event handlers generated as individual functions instead of monolithic state methods
+- **Configuration Flag**: `event_handlers_as_functions` flag in PythonConfig enables new architecture
+- **Handler Naming**: Automatic conversion of special events (`$>` → `_enter`, `<$` → `_exit`) for valid Python identifiers
+- **State Dispatchers**: State methods become lightweight dispatchers routing to individual handlers
+- **Async Detection**: Individual handlers detect and generate `async def` when containing await expressions
+- **Test Coverage**: **208/209 tests passing (99.5% success rate)** - Only async test remaining
+- **Foundation for Async**: Architecture sets foundation for proper async/await support in hybrid environments
+
+### v0.35 Features (Preserved) - Async/Await Foundation ✅
 - **Async Functions**: Complete `async fn` declaration and code generation
 - **Async Interface Methods**: Support for `async methodName()` in system interfaces
 - **Await Expressions**: Working `await expr` syntax and Python generation
 - **Async Propagation**: State handlers automatically marked async when handling async interface events
 - **Module System**: Complete v0.34 implementation maintained
 - **List Features**: All v0.34 list comprehensions and unpacking preserved
-- **Test Coverage**: **207/207 tests passing (100% success rate)** 🎉
 
 ### NEW: Async/Await Support (v0.35) ✅
 - **Async Function Declarations**: `async fn name() { ... }` syntax implemented

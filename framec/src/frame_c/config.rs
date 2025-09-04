@@ -351,6 +351,7 @@ pub struct PythonConfig {
 pub struct PythonCode {
     pub public_state_info: bool,
     pub public_compartment: bool,
+    pub event_handlers_as_functions: bool,  // v0.36: Generate event handlers as individual functions
 }
 
 impl Default for PythonCode {
@@ -358,6 +359,7 @@ impl Default for PythonCode {
         PythonCode {
             public_state_info: false,
             public_compartment: false,
+            event_handlers_as_functions: true,  // v0.36: Default to new architecture
         }
     }
 }

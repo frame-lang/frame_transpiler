@@ -1,7 +1,7 @@
-# Frame Language Grammar (v0.35)
+# Frame Language Grammar (v0.36)
 
 **Last Updated**: 2025-09-04  
-**Status**: Module system complete, async/await support implemented, and 100% test success rate (207/207 tests passing).
+**Status**: Event-handlers-as-functions architecture implemented with 99.5% test success rate (208/209 tests passing).
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -928,6 +928,8 @@ attribute: '@' IDENTIFIER  // Python-style attributes (e.g., @staticmethod)
 ```
 
 **v0.31 System Return Restriction**: Operations cannot use `system.return` as they may be called from contexts without an interface (e.g., directly from outside or from functions). This is enforced at parse time.
+
+**v0.36 Code Generation Architecture**: Event handlers can be generated as individual functions instead of inline code within state methods. This is controlled by the `event_handlers_as_functions` configuration flag. When enabled, each event handler becomes a separate function with state methods serving as dispatchers. Special events are automatically renamed for valid identifiers: `$>` → `_enter`, `<$` → `_exit`.
 
 **v0.30 Implementation Note**: Operations and actions are resolved at code generation time through symbol table lookup. Calls to operations generate with `self.` prefix for instance methods, while static operations use `ClassName.method()` syntax. Actions automatically receive the `_do` suffix in generated code.
 

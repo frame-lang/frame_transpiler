@@ -298,6 +298,267 @@ impl PythonVisitor {
     }
 
     //* --------------------------------------------------------------------- *//
+    // v0.36: Event-handlers-as-functions helper methods
+    //* --------------------------------------------------------------------- *//
+    
+    /// Generate a unique handler function name for an event handler
+    fn generate_handler_name(&self, state_name: &str, msg_t: &MessageType) -> String {
+        let handler_prefix = format!("__handle_{}", self.format_state_name(state_name));
+        match msg_t {
+            MessageType::CustomMessage { message_node } => {
+                format!("{}_{}", handler_prefix, message_node.name)
+            }
+            MessageType::None => {
+                format!("{}_enter", handler_prefix)
+            }
+        }
+    }
+    
+    fn format_state_name(&self, state_name: &str) -> String {
+        state_name.to_lowercase()
+    }
+    
+    /// Generate an individual event handler as a function (v0.36)
+    fn generate_event_handler_function(&mut self, state_node: &StateNode, evt_handler_node: &EventHandlerNode) {
+        // For enter/exit events, convert special characters for valid Python function names
+        let handler_name = match &evt_handler_node.msg_t {
+            MessageType::CustomMessage { message_node } => {
+                if message_node.name == "$>" {
+                    format!("__handle_{}_enter", self.format_state_name(&state_node.name))
+                } else if message_node.name == "<$" {
+                    format!("__handle_{}_exit", self.format_state_name(&state_node.name))
+                } else {
+                    format!("__handle_{}_{}", self.format_state_name(&state_node.name), message_node.name)
+                }
+            }
+            MessageType::None => {
+                format!("__handle_{}_enter", self.format_state_name(&state_node.name))
+            }
+        };
+        
+        // Track current parent state for => $^ dispatch
+        self.current_state_parent_opt = match &state_node.dispatch_opt {
+            Some(dispatch) => Some(dispatch.target_state_ref.name.clone()),
+            None => None,
+        };
+        
+        // v0.36: Check if handler needs to be async
+        let mut handler_needs_async = false;
+        
+        // Check if this event corresponds to an async interface method
+        if let MessageType::CustomMessage { message_node } = &evt_handler_node.msg_t {
+            // Look up the interface method to check if it's async
+            if let Some(interface_method_symbol) = self.arcanium.lookup_interface_method(&message_node.name) {
+                if let Some(ast_node) = &interface_method_symbol.borrow().ast_node_opt {
+                    if ast_node.borrow().is_async {
+                        handler_needs_async = true;
+                    }
+                }
+            }
+        }
+        
+        // Also check if the handler contains await expressions
+        if !handler_needs_async && self.contains_await_expr(&evt_handler_node.statements) {
+            handler_needs_async = true;
+        }
+        
+        self.newline();
+        if handler_needs_async {
+            self.add_code(&format!("async def {}(self, __e, compartment):", handler_name));
+        } else {
+            self.add_code(&format!("def {}(self, __e, compartment):", handler_name));
+        }
+        self.indent();
+        
+        // Clear global vars tracking for this handler
+        self.global_vars_in_function.clear();
+        
+        // Collect global assignments
+        if !evt_handler_node.statements.is_empty() {
+            self.collect_global_assignments(&evt_handler_node.statements);
+        }
+        
+        // Generate global declarations if needed
+        if !self.global_vars_in_function.is_empty() {
+            self.newline();
+            let global_vars: Vec<String> = self.global_vars_in_function.iter().cloned().collect();
+            self.add_code(&format!("global {}", global_vars.join(", ")));
+        }
+        
+        // If event handler has a default return value, set it
+        if let Some(return_init_expr) = &evt_handler_node.return_init_expr_opt {
+            self.newline();
+            let mut output = String::new();
+            return_init_expr.accept_to_string(self, &mut output);
+            self.add_code(&format!("self.return_stack[-1] = {}", output));
+        }
+        
+        // Generate handler statements
+        self.event_handler_has_code = !evt_handler_node.statements.is_empty();
+        if self.event_handler_has_code {
+            self.visit_decl_stmts(&evt_handler_node.statements);
+        }
+        
+        // Generate terminator
+        if let Some(terminator_node) = &evt_handler_node.terminator_node {
+            terminator_node.accept(self);
+        }
+        
+        self.outdent();
+        self.newline();
+    }
+    
+    /// Generate state method as dispatcher (v0.36)
+    fn generate_state_dispatcher(&mut self, state_node: &StateNode) {
+        // v0.36: Check if any handler in this state is async
+        let mut state_needs_async = false;
+        
+        for evt_handler_rcref in &state_node.evt_handlers_rcref {
+            let evt_handler = evt_handler_rcref.borrow();
+            
+            // Check if this event corresponds to an async interface method
+            if let MessageType::CustomMessage { message_node } = &evt_handler.msg_t {
+                // Look up the interface method to check if it's async
+                if let Some(interface_method_symbol) = self.arcanium.lookup_interface_method(&message_node.name) {
+                    if let Some(ast_node) = &interface_method_symbol.borrow().ast_node_opt {
+                        if ast_node.borrow().is_async {
+                            state_needs_async = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // Also check if the handler contains await expressions
+            if !state_needs_async && self.contains_await_expr(&evt_handler.statements) {
+                state_needs_async = true;
+                break;
+            }
+        }
+        
+        self.newline();
+        self.add_code("# ----------------------------------------");
+        self.newline();
+        self.add_code(&format!("# ${}", &state_node.name));
+        self.newline();
+        self.newline();
+        
+        if state_needs_async {
+            self.add_code(&format!(
+                "async def {}(self, __e, compartment):",
+                self.format_target_state_name(&state_node.name)
+            ));
+        } else {
+            self.add_code(&format!(
+                "def {}(self, __e, compartment):",
+                self.format_target_state_name(&state_node.name)
+            ));
+        }
+        self.indent();
+        
+        // Build handler mapping
+        let mut handler_mappings = Vec::new();
+        for evt_handler_rcref in &state_node.evt_handlers_rcref {
+            let evt_handler = evt_handler_rcref.borrow();
+            let _handler_name = self.generate_handler_name(&state_node.name, &evt_handler.msg_t);
+            
+            match &evt_handler.msg_t {
+                MessageType::CustomMessage { message_node } => {
+                    handler_mappings.push(format!("\"{}\"", message_node.name));
+                }
+                MessageType::None => {
+                    handler_mappings.push("\"$>\"".to_string());
+                }
+            }
+        }
+        
+        // Generate handler dispatch
+        if !state_node.evt_handlers_rcref.is_empty() {
+            self.newline();
+            
+            let mut first = true;
+            for (_i, evt_handler_rcref) in state_node.evt_handlers_rcref.iter().enumerate() {
+                let evt_handler = evt_handler_rcref.borrow();
+                
+                // Use same naming logic as generate_event_handler_function
+                let handler_name = match &evt_handler.msg_t {
+                    MessageType::CustomMessage { message_node } => {
+                        if message_node.name == "$>" {
+                            format!("__handle_{}_enter", self.format_state_name(&state_node.name))
+                        } else if message_node.name == "<$" {
+                            format!("__handle_{}_exit", self.format_state_name(&state_node.name))
+                        } else {
+                            format!("__handle_{}_{}", self.format_state_name(&state_node.name), message_node.name)
+                        }
+                    }
+                    MessageType::None => {
+                        format!("__handle_{}_enter", self.format_state_name(&state_node.name))
+                    }
+                };
+                
+                match &evt_handler.msg_t {
+                    MessageType::CustomMessage { message_node } => {
+                        if first {
+                            self.add_code(&format!("if __e._message == \"{}\":", message_node.name));
+                            first = false;
+                        } else {
+                            self.add_code(&format!("elif __e._message == \"{}\":", message_node.name));
+                        }
+                    }
+                    MessageType::None => {
+                        if first {
+                            self.add_code("if __e._message == \"$>\":");
+                            first = false;
+                        } else {
+                            self.add_code("elif __e._message == \"$>\":");
+                        }
+                    }
+                }
+                
+                self.indent();
+                self.newline();
+                
+                // v0.36: Check if this specific handler is async and await it if needed
+                let handler_is_async = {
+                    // Check if this event corresponds to an async interface method
+                    let mut is_async = false;
+                    if let MessageType::CustomMessage { message_node } = &evt_handler.msg_t {
+                        if let Some(interface_method_symbol) = self.arcanium.lookup_interface_method(&message_node.name) {
+                            if let Some(ast_node) = &interface_method_symbol.borrow().ast_node_opt {
+                                if ast_node.borrow().is_async {
+                                    is_async = true;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Also check if the handler contains await expressions
+                    if !is_async && self.contains_await_expr(&evt_handler.statements) {
+                        is_async = true;
+                    }
+                    
+                    is_async
+                };
+                
+                if handler_is_async && state_needs_async {
+                    self.add_code(&format!("return await self.{}(__e, compartment)", handler_name));
+                } else {
+                    self.add_code(&format!("return self.{}(__e, compartment)", handler_name));
+                }
+                
+                self.outdent();
+                self.newline();
+            }
+        } else {
+            self.newline();
+            self.add_code("pass");
+        }
+        
+        self.outdent();
+        self.newline();
+    }
+
+    //* --------------------------------------------------------------------- *//
 
     /// This helper function determines if there are any "real"  (non empty block)
     /// statements in a vec of statements and decls.
@@ -4703,6 +4964,22 @@ impl AstVisitor for PythonVisitor {
             Some(dispatch) => Some(dispatch.target_state_ref.name.clone()),
             None => None,
         };
+        
+        // v0.36: Use event-handlers-as-functions if enabled
+        if self.config.code.event_handlers_as_functions {
+            // Generate individual event handler functions
+            for evt_handler_rcref in &state_node.evt_handlers_rcref {
+                let evt_handler = evt_handler_rcref.borrow();
+                self.generate_event_handler_function(state_node, &evt_handler);
+            }
+            
+            // Generate state dispatcher
+            self.generate_state_dispatcher(state_node);
+            
+            self.current_state_name_opt = None;
+            self.current_state_parent_opt = None;
+            return;
+        }
 
         // v0.35: Check if state handler needs to be async
         // A state handler is async if it handles events from async interface methods
