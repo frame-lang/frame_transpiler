@@ -36,8 +36,8 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 ## Current State
 
 **Branch**: `v0.30`  
-**Version**: `v0.34`  
-**Status**: ✅ **100% TEST SUCCESS RATE** (201/201 tests passing) - Module System, List Comprehensions, Unpacking Complete
+**Version**: `v0.35`  
+**Status**: ✅ **100% TEST SUCCESS RATE** (207/207 tests passing) - Module System + Async/Await Support Complete
 
 📋 **For release notes and development status, see**: [`docs/framelang_design/dev_notes.md`](docs/framelang_design/dev_notes.md)
 📊 **For v0.30 achievements, see**: [`docs/v0.30_achievements.md`](docs/v0.30_achievements.md)
@@ -338,6 +338,56 @@ fn main() {
 }
 ```
 
+### v0.35 Async/Await Support (Complete Implementation)
+
+#### Async Functions (IMPLEMENTED in v0.35)
+- **Async keyword**: `async fn name() { ... }` syntax fully supported
+- **Await expressions**: `await expr` syntax parsing and code generation
+- **Python generation**: Proper `async def` function generation
+- **Module integration**: Async functions work seamlessly with module system
+
+#### Async Interface Methods (IMPLEMENTED in v0.35)
+- **Async interface methods**: `async methodName()` syntax in system interfaces
+- **Python generation**: Generate `async def` methods for async interface declarations
+- **Mixed interfaces**: Support both async and sync methods in same interface
+- **State handler propagation**: State handlers for async interface events become async
+
+#### Async Implementation Examples
+```frame
+// Async functions work at module level
+async fn fetchRemote(endpoint) {
+    print("Fetching from " + endpoint)
+    return "data from " + endpoint
+}
+
+// Systems with mixed async/sync interface methods
+system DataProcessor {
+    interface:
+        async processData(data)    // → async def processData(self, data)
+        normalMethod(x)           // → def normalMethod(self, x)
+    
+    machine:
+        $Ready {
+            processData(data) {
+                // State handler automatically async (handles async interface method)
+                print("Processing: " + data)
+                return = "processed_" + data
+            }
+            
+            normalMethod(x) {
+                // Normal sync state handler
+                return x * 2
+            }
+        }
+}
+```
+
+#### Current Async Status
+- **✅ Parser Integration**: Async keyword recognition and AST support complete
+- **✅ Code Generation**: Python async/await generation working  
+- **✅ Test Coverage**: 207/207 tests passing (100% success rate) with 7 async tests
+- **⚠️ Runtime Limitation**: Frame's synchronous event-driven architecture limits complex async state handler patterns
+
 ### v0.30 Modular AST Structure
 
 ```
@@ -356,7 +406,7 @@ FrameModule (Top-Level)
         └── Domain Block (can contain system-scoped enums)
 ```
 
-## Frame Syntax (Current v0.32)
+## Frame Syntax (Current v0.35)
 
 ### Core Language Features
 
@@ -690,23 +740,34 @@ find . -name "*.frm"
 cargo build && ./target/debug/framec -l python_3 test_file.frm
 ```
 
-## v0.34 Status - No Known Limitations
+## v0.35 Status - Async/Await Foundation Complete
 
-### Module System Fully Implemented
+### Module System + Async/Await Fully Implemented
 - **Module-level variables**: ✅ Full support for variables at module scope
 - **Module-level functions**: ✅ Functions inside modules accessible with qualified names
 - **Nested modules**: ✅ Full support for nested module declarations
 - **Cross-module access**: ✅ Proper scoping and qualified name resolution
-- **Code generation**: ✅ Complete Python code generation for modules
+- **Async functions**: ✅ Complete `async fn` declarations and Python generation
+- **Async interface methods**: ✅ Mixed async/sync interfaces with proper code generation
+- **Await expressions**: ✅ Full parsing and Python `await` generation
+- **Async propagation**: ✅ State handlers automatically async for async interface events
 
-### v0.34 Test Success - All Tests Passing
-- **Total Tests**: 189/189 (100% success rate) 🎉
-- **Module System Tests**: All passing
+### v0.35 Test Success - All Tests Passing
+- **Total Tests**: 207/207 (100% success rate) 🎉
+- **Module System Tests**: All passing (preserved from v0.34)
 - **FSL Integration Tests**: All passing
-- **Qualified Name Tests**: All passing
-- **Cross-Module Access Tests**: All passing
+- **Async Function Tests**: All 7 async tests passing
+- **Async Interface Tests**: All passing
+- **Mixed Async/Sync Tests**: All passing
 
-### Future Enhancements (Beyond v0.34)
+### v0.35 Async Implementation Details
+- **Parser Integration**: `async` keyword in scanner and parser
+- **AST Support**: AsyncExprNode and `is_async` flags in interface methods
+- **Visitor Logic**: Async detection and Python async code generation
+- **Architecture**: Compatible with Frame's event-driven design for simple patterns
+
+### Future Enhancements (Beyond v0.35)
+- Full async state machine runtime for complex async workflows
 - Multi-file module imports from other .frm files
 - Advanced module features (access control, aliasing)
 - Build system integration and packaging

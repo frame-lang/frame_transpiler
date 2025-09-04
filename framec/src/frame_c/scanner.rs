@@ -48,6 +48,8 @@ impl Scanner {
             ("from".to_string(), TokenType::From),
             ("as".to_string(), TokenType::As),
             ("module".to_string(), TokenType::Module),
+            ("async".to_string(), TokenType::Async),
+            ("await".to_string(), TokenType::Await),
             ("try".to_string(), TokenType::Try),
             ("except".to_string(), TokenType::Except),
             ("finally".to_string(), TokenType::Finally),
@@ -779,6 +781,8 @@ pub enum TokenType {
     From,     // 'from' keyword
     As,       // 'as' keyword
     Module,   // 'module' keyword
+    Async,    // 'async' keyword
+    Await,    // 'await' keyword
     Try,      // 'try' keyword
     Except,   // 'except' keyword
     Finally,  // 'finally' keyword

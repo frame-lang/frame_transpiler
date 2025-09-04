@@ -522,6 +522,7 @@ pub struct InterfaceMethodNode {
     pub return_type_opt: Option<TypeNode>,
     pub return_init_expr_opt: Option<ExprType>,
     pub alias: Option<MessageNode>,
+    pub is_async: bool,  // v0.35: async interface method support
 }
 
 impl InterfaceMethodNode {
@@ -531,6 +532,7 @@ impl InterfaceMethodNode {
         return_type: Option<TypeNode>,
         return_init_expr_opt: Option<ExprType>,
         alias: Option<MessageNode>,
+        is_async: bool,
     ) -> InterfaceMethodNode {
         InterfaceMethodNode {
             name,
@@ -538,6 +540,7 @@ impl InterfaceMethodNode {
             return_type_opt: return_type,
             return_init_expr_opt,
             alias,
+            is_async,
         }
     }
 }
@@ -667,6 +670,7 @@ pub struct FunctionNode {
     pub statements: Vec<DeclOrStmtType>,
     pub terminator_expr: TerminatorExpr,
     pub type_opt: Option<TypeNode>,
+    pub is_async: bool,  // v0.35: async function support
     pub line: usize,
 }
 
@@ -678,6 +682,7 @@ impl FunctionNode {
         statements: Vec<DeclOrStmtType>,
         terminator_node: TerminatorExpr,
         type_opt: Option<TypeNode>,
+        is_async: bool,
         line: usize,
     ) -> FunctionNode {
         FunctionNode {
@@ -687,6 +692,7 @@ impl FunctionNode {
             statements,
             terminator_expr: terminator_node,
             type_opt,
+            is_async,
             line,
         }
     }
@@ -764,6 +770,7 @@ pub struct OperationNode {
     pub statements: Vec<DeclOrStmtType>,
     pub terminator_expr: TerminatorExpr,
     pub type_opt: Option<TypeNode>,
+    pub is_async: bool,  // v0.35: async operation support
     pub code_opt: Option<String>, // TODO - remove
 }
 
@@ -776,6 +783,7 @@ impl OperationNode {
         statements: Vec<DeclOrStmtType>,
         terminator_node: TerminatorExpr,
         type_opt: Option<TypeNode>,
+        is_async: bool,
         code_opt: Option<String>,
     ) -> OperationNode {
         OperationNode {
@@ -786,6 +794,7 @@ impl OperationNode {
             statements,
             terminator_expr: terminator_node,
             type_opt,
+            is_async,
             code_opt,
         }
     }
@@ -1530,6 +1539,10 @@ pub enum ExprType {
     ListComprehensionExprT {
         list_comprehension_node: ListComprehensionNode,
     },
+    // Await expression (v0.35)
+    AwaitExprT {
+        await_expr_node: AwaitExprNode,
+    },
     // TODO:
     // NilExprT is a new ExprType used atm to hack around
     // differences between variables and parameters. Parameters
@@ -1628,6 +1641,7 @@ impl ExprType {
             ExprType::BuiltInPropertyExprT { .. } => "BuiltInPropertyExprT",
             ExprType::UnpackExprT { .. } => "UnpackExprT",
             ExprType::ListComprehensionExprT { .. } => "ListComprehensionExprT",
+            ExprType::AwaitExprT { .. } => "AwaitExprT",
         }
     }
 
@@ -1672,6 +1686,10 @@ impl ExprType {
                     cond.debug_print();
                 }
                 print!("]");
+            }
+            ExprType::AwaitExprT { await_expr_node } => {
+                print!("await ");
+                await_expr_node.expr.debug_print();
             }
             _ => {}
         }
@@ -1769,6 +1787,9 @@ impl NodeElement for ExprType {
             ExprType::ListComprehensionExprT { list_comprehension_node } => {
                 ast_visitor.visit_list_comprehension_node(list_comprehension_node);
             }
+            ExprType::AwaitExprT { await_expr_node } => {
+                ast_visitor.visit_await_expr_node(await_expr_node);
+            }
         }
     }
 
@@ -1864,6 +1885,9 @@ impl NodeElement for ExprType {
             }
             ExprType::ListComprehensionExprT { list_comprehension_node } => {
                 ast_visitor.visit_list_comprehension_node_to_string(list_comprehension_node, output);
+            }
+            ExprType::AwaitExprT { await_expr_node } => {
+                ast_visitor.visit_await_expr_node_to_string(await_expr_node, output);
             }
         }
     }
@@ -4253,6 +4277,31 @@ impl NodeElement for UnpackExprNode {
 
     fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
         ast_visitor.visit_unpack_expr_node_to_string(self, output);
+    }
+}
+
+//-----------------------------------------------------//
+
+// AwaitExprNode for await expressions (v0.35)
+pub struct AwaitExprNode {
+    pub expr: Box<ExprType>,
+}
+
+impl AwaitExprNode {
+    pub fn new(expr: ExprType) -> AwaitExprNode {
+        AwaitExprNode {
+            expr: Box::new(expr),
+        }
+    }
+}
+
+impl NodeElement for AwaitExprNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_await_expr_node(self);
+    }
+
+    fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
+        ast_visitor.visit_await_expr_node_to_string(self, output);
     }
 }
 

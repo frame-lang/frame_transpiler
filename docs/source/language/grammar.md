@@ -1,7 +1,7 @@
-# Frame Language Grammar (v0.34)
+# Frame Language Grammar (v0.35)
 
 **Last Updated**: 2025-09-04  
-**Status**: Complete module system with list comprehensions, unpacking operator, and 100% test success rate (201/201 tests passing).
+**Status**: Module system complete, async/await support implemented, and 100% test success rate (207/207 tests passing).
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -326,7 +326,7 @@ fn main() {
 Frame v0.30 supports multiple functions per module with any names. Functions are peer entities alongside systems within modules.
 
 ```bnf
-function: attributes? 'fn' IDENTIFIER '(' parameter_list? ')' type? function_body
+function: attributes? ('async')? 'fn' IDENTIFIER '(' parameter_list? ')' type? function_body
 function_body: '{' stmt* '}'
 parameter_list: parameter (',' parameter)*
 parameter: IDENTIFIER type?
@@ -400,6 +400,113 @@ system Utils {
         }
 }
 ```
+
+## Async/Await Support (v0.35)
+
+Frame v0.35 introduces async/await support for asynchronous programming patterns, enabling integration with async libraries and frameworks.
+
+```bnf
+async_function: 'async' 'fn' IDENTIFIER '(' parameter_list? ')' type? function_body
+async_interface_method: 'async' IDENTIFIER '(' parameter_list? ')' type?
+await_expr: 'await' expr
+```
+
+### Async Functions
+
+Async functions are declared with the `async` keyword and can contain await expressions:
+
+```frame
+// Async functions at module level
+async fn fetchData(url) {
+    print("Fetching from " + url)
+    return "data from " + url
+}
+
+async fn processData(data) {
+    print("Processing: " + data)
+    var result = await fetchData("api.example.com/process")
+    return "processed " + data + " with " + result
+}
+
+// Regular function calling async functions
+fn main() {
+    // Note: Cannot await in non-async function
+    // Use async_main() for async coordination
+    print("Starting application")
+}
+
+async fn async_main() {
+    var data = await fetchData("api.example.com/data")
+    var processed = await processData(data)
+    print("Final result: " + processed)
+}
+```
+
+### Async Interface Methods
+
+Systems can declare async interface methods that generate async Python methods:
+
+```frame
+system AsyncService {
+    interface:
+        async getData(id)          // Generates: async def getData(self, id)
+        async processItem(item)    // Generates: async def processItem(self, item)
+        normalMethod(x)            // Generates: def normalMethod(self, x)
+    
+    machine:
+        $Ready {
+            getData(id) {
+                print("Getting data for id: " + str(id))
+                var result = "data_" + str(id)
+                return = result
+            }
+            
+            processItem(item) {
+                print("Processing: " + item)
+                return = "processed_" + item
+            }
+            
+            normalMethod(x) {
+                return x * 2
+            }
+        }
+}
+```
+
+### Current Implementation Status
+
+**✅ Implemented Features**:
+- Async function declarations (`async fn name() { }`)
+- Async interface method declarations (`async methodName()`)
+- Await expression parsing (`await expression`)
+- Async function code generation (Python `async def`)
+- Async interface method code generation
+- State handler async propagation (when handling async interface events)
+
+**⚠️ Architectural Limitation**:
+Frame's event-driven state machine runtime is synchronous by design. While async interface methods and functions work correctly, complex async state handlers with await expressions may require runtime architecture changes for full compatibility.
+
+**Example Working Pattern**:
+```frame
+system SimpleAsync {
+    interface:
+        async getData(id)
+    
+    machine:
+        $Ready {
+            getData(id) {
+                // Works: Simple state logic without await
+                self.result = "data_" + str(id)
+                return = self.result
+            }
+        }
+    
+    domain:
+        var result = None
+}
+```
+
+**Test Coverage**: 207/207 tests passing (100% success rate) including multiple async test cases.
 
 ## Module Variables (v0.31)
 
@@ -1895,6 +2002,7 @@ system interface machine actions operations domain
 fn var return
 if elif else for while loop in break continue
 true false None
+async await
 ```
 
 ## Null Value (v0.31)

@@ -297,12 +297,23 @@ impl<'a> Parser<'a> {
                 
                 let system = self.system_scope(Some(module_for_system), entity_attributes_opt, None)?;
                 systems.push(system);
+            } else if self.match_token(&[TokenType::Async]) {
+                // Check if next token is 'fn' for async function
+                if self.match_token(&[TokenType::Function]) {
+                    if entity_attributes_opt.is_some() {
+                        return Err(ParseError::new("Functions do not support attributes. Remove attributes or change to system."));
+                    }
+                    let function = self.function_scope_async(true)?;
+                    functions.push(function);
+                } else {
+                    return Err(ParseError::new("Expected 'fn' after 'async' keyword"));
+                }
             } else if self.match_token(&[TokenType::Function]) {
                 // Functions shouldn't have system attributes, but warn if present
                 if entity_attributes_opt.is_some() {
                     return Err(ParseError::new("Functions do not support attributes. Remove attributes or change to system."));
                 }
-                let function = self.function_scope()?;
+                let function = self.function_scope_async(false)?;
                 functions.push(function);
             } else if self.match_token(&[TokenType::Module]) {
                 // v0.34: Parse nested module declaration
@@ -1222,7 +1233,7 @@ impl<'a> Parser<'a> {
         let mut functions = Vec::new();
 
         while self.match_token(&[TokenType::Function]) {
-            if let Ok(function) = self.function_scope() {
+            if let Ok(function) = self.function_scope_async(false) {
                 functions.push(function);
             }
         }
@@ -1244,7 +1255,7 @@ impl<'a> Parser<'a> {
     
     // ===================== Entity Scope Functions =====================
     
-    fn function_scope(&mut self) -> Result<Rc<RefCell<FunctionNode>>, ParseError> {
+    fn function_scope_async(&mut self, is_async: bool) -> Result<Rc<RefCell<FunctionNode>>, ParseError> {
         if !self.match_token(&[TokenType::Identifier]) {
             let err_msg = "Expected function name.";
             self.error_at_current(&err_msg);
@@ -1298,7 +1309,7 @@ impl<'a> Parser<'a> {
             self.arcanum.set_scope_context(ScopeContext::Function(function_name.clone()));
         }
 
-        let ret = self.function(function_name.clone(), line);
+        let ret = self.function(function_name.clone(), is_async, line);
 
         if self.is_building_symbol_table {
             match &ret {
@@ -1410,6 +1421,7 @@ impl<'a> Parser<'a> {
     fn function(
         &mut self,
         function_name: String,
+        is_async: bool,
         line: usize,
     ) -> Result<Rc<RefCell<FunctionNode>>, ParseError> {
         // foo(
@@ -1484,6 +1496,7 @@ impl<'a> Parser<'a> {
             statements,
             terminator_expr,
             type_opt,
+            is_async,
             line,
         );
 
@@ -1657,21 +1670,28 @@ impl<'a> Parser<'a> {
         // NOTE: this loop peeks() ahead and then interface_method() consumes
         // the identifier. Not sure if this is the best way.
 
-        while self.match_token(&[TokenType::Identifier]) {
-            match self.interface_method() {
-                Ok(interface_method_node) => {
-                    interface_methods.push(interface_method_node);
+        loop {
+            // v0.35: Check for async interface methods
+            let is_async = self.match_token(&[TokenType::Async]);
+            
+            if self.match_token(&[TokenType::Identifier]) {
+                match self.interface_method(is_async) {
+                    Ok(interface_method_node) => {
+                        interface_methods.push(interface_method_node);
+                    }
+                        Err(_parse_error) => {
+                        let sync_tokens = vec![
+                            TokenType::Identifier,
+                            TokenType::MachineBlock,
+                            TokenType::ActionsBlock,
+                            TokenType::DomainBlock,
+                            TokenType::CloseBrace,
+                        ];
+                        self.synchronize(&sync_tokens);
+                    }
                 }
-                Err(_parse_error) => {
-                    let sync_tokens = vec![
-                        TokenType::Identifier,
-                        TokenType::MachineBlock,
-                        TokenType::ActionsBlock,
-                        TokenType::DomainBlock,
-                        TokenType::CloseBrace,
-                    ];
-                    self.synchronize(&sync_tokens);
-                }
+            } else {
+                break;  // Exit loop when no more identifiers
             }
         }
 
@@ -1687,7 +1707,7 @@ impl<'a> Parser<'a> {
 
     // interface_method -> identifier ('[' parameters ']')? (':' return_type)?
 
-    fn interface_method(&mut self) -> Result<Rc<RefCell<InterfaceMethodNode>>, ParseError> {
+    fn interface_method(&mut self, is_async: bool) -> Result<Rc<RefCell<InterfaceMethodNode>>, ParseError> {
         let name = self.previous().lexeme.clone();
 
         let mut params_opt: Option<Vec<ParameterNode>> = Option::None;
@@ -1859,6 +1879,7 @@ impl<'a> Parser<'a> {
             return_type_opt,
             return_init_expr_opt,
             alias_opt,
+            is_async,  // v0.35: async interface methods support
         );
         let interface_method_rcref = Rc::new(RefCell::new(interface_method_node));
 
@@ -2721,6 +2742,7 @@ impl<'a> Parser<'a> {
                 TokenType::OuterAttributeOrDomainParams
             ) || matches!(self.peek().token_type, TokenType::At)
                 || matches!(self.peek().token_type, TokenType::Identifier)
+                || matches!(self.peek().token_type, TokenType::Async)  // v0.35: async operations
             {
                 if let Ok(operation_node) = self.operation_scope() {
                     operations.push(operation_node);
@@ -2758,6 +2780,9 @@ impl<'a> Parser<'a> {
                 return Err(parse_err);
             }
         }
+        
+        // v0.35: Check for async operations
+        let is_async = self.match_token(&[TokenType::Async]);
 
         if !self.match_token(&[TokenType::Identifier]) {
             let err_msg = "Expected Identifier.";
@@ -2799,7 +2824,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let ret = self.operation(operation_name.clone(), attributes_opt);
+        let ret = self.operation(operation_name.clone(), attributes_opt, is_async);
 
         if self.is_building_symbol_table {
             match &ret {
@@ -2831,6 +2856,7 @@ impl<'a> Parser<'a> {
         &mut self,
         operation_name: String,
         attributes_opt: Option<HashMap<String, AttributeNode>>,
+        is_async: bool,  // v0.35: async operations support
     ) -> Result<Rc<RefCell<OperationNode>>, ParseError> {
         // foo(
         if let Err(parse_error) = self.consume(TokenType::LParen, &format!("Expected '(' - found '{}'", self.current_token)) {
@@ -2927,6 +2953,7 @@ impl<'a> Parser<'a> {
             statements,
             terminator_node,
             type_opt,
+            is_async,  // v0.35: async operations support
             code_opt,
         );
 
@@ -3281,6 +3308,9 @@ impl<'a> Parser<'a> {
                 }
                 Ok(Some(UnpackExprT { unpack_expr_node })) => {
                     value = Rc::new(UnpackExprT { unpack_expr_node })
+                }
+                Ok(Some(AwaitExprT { await_expr_node })) => {
+                    value = Rc::new(AwaitExprT { await_expr_node })
                 }
                 Ok(Some(ExprListT { expr_list_node })) => {
                     let err_msg =
@@ -4980,6 +5010,16 @@ impl<'a> Parser<'a> {
                         self.error_at_previous("List comprehension expressions not allowed as statements.");
                         return Err(ParseError::new("List comprehension must be part of an assignment or expression"));
                     }
+                    ExprType::AwaitExprT { await_expr_node } => {
+                        // Await expressions can be statements (like await some_async_call())
+                        let expr_list_node = ExprListNode::new(vec![ExprType::AwaitExprT { await_expr_node }]);
+                        let stmt = StatementType::ExpressionStmt {
+                            expr_stmt_t: ExprStmtType::ExprListStmtT {
+                                expr_list_stmt_node: ExprListStmtNode::new(expr_list_node),
+                            },
+                        };
+                        return Ok(Some(stmt));
+                    }
                 }
             }
             None => {
@@ -6131,7 +6171,19 @@ impl<'a> Parser<'a> {
     // unary_expression -> TODO
 
     fn unary_expression(&mut self) -> Result<Option<ExprType>, ParseError> {
-        use crate::frame_c::ast::ExprType::{BuiltInCallExprT, BuiltInPropertyExprT};
+        use crate::frame_c::ast::ExprType::{BuiltInCallExprT, BuiltInPropertyExprT, AwaitExprT};
+        
+        // v0.35: Handle await expressions
+        if self.match_token(&[TokenType::Await]) {
+            let expr_result = self.unary_expression()?;
+            if let Some(expr) = expr_result {
+                let await_expr_node = AwaitExprNode::new(expr);
+                return Ok(Some(AwaitExprT { await_expr_node }));
+            } else {
+                return Err(ParseError::new("Expected expression after 'await'"));
+            }
+        }
+        
         if self.match_token(&[TokenType::Bang, TokenType::Dash]) {
             let token = self.previous();
             let mut operator_type = self.get_operator_type(&token.clone());
@@ -10521,8 +10573,16 @@ impl<'a> Parser<'a> {
         let mut nested_modules = Vec::new();
         
         while !self.check(TokenType::CloseBrace) && !self.is_at_end() {
-            if self.match_token(&[TokenType::Function]) {
-                let function = self.function_scope()?;
+            if self.match_token(&[TokenType::Async]) {
+                // Check for async function in module
+                if self.match_token(&[TokenType::Function]) {
+                    let function = self.function_scope_async(true)?;
+                    functions.push(function);
+                } else {
+                    return Err(ParseError::new("Expected 'fn' after 'async' keyword"));
+                }
+            } else if self.match_token(&[TokenType::Function]) {
+                let function = self.function_scope_async(false)?;
                 functions.push(function);
             } else if self.match_token(&[TokenType::System]) {
                 let module_for_system = crate::frame_c::ast::Module::new(vec![]);

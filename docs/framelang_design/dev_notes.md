@@ -19,17 +19,35 @@ Languages considered in Frame's design with documented patterns:
 - Other languages via AI generation
 - No formal support or guarantees
 
-## Latest Status: v0.34 Complete with List Comprehensions and Unpacking (2025-09-04)
+## Latest Status: v0.35 Async/Await Support Implemented (2025-09-04)
 
-### v0.34 Final Release - COMPLETE ✅
+### v0.35 Release - Async/Await Foundation ✅
+- **Async Functions**: Complete `async fn` declaration and code generation
+- **Async Interface Methods**: Support for `async methodName()` in system interfaces
+- **Await Expressions**: Working `await expr` syntax and Python generation
+- **Async Propagation**: State handlers automatically marked async when handling async interface events
+- **Module System**: Complete v0.34 implementation maintained
+- **List Features**: All v0.34 list comprehensions and unpacking preserved
+- **Test Coverage**: **207/207 tests passing (100% success rate)** 🎉
+
+### NEW: Async/Await Support (v0.35) ✅
+- **Async Function Declarations**: `async fn name() { ... }` syntax implemented
+- **Async Interface Methods**: `async methodName()` in system interfaces
+- **Await Expressions**: `await expr` syntax parsing and code generation
+- **Python Code Generation**: Proper `async def` and `await` in generated Python
+- **Async Propagation**: State handlers handling async interface events become async
+- **Parser Implementation**: `async` keyword recognition and AST integration
+- **Visitor Implementation**: Async detection and proper Python async/await generation
+- **Architecture Note**: Compatible with simple async patterns; complex async state machines may need runtime changes
+
+### v0.34 Features (Preserved) ✅
 - **Module System**: Complete implementation with named modules and qualified access
 - **List Comprehensions**: Full support for `[expr for var in iter if cond]` syntax
 - **Unpacking Operator**: Working `*` operator for list unpacking in literals
 - **Import System**: Comprehensive import support for Python and FSL
 - **FSL Imports**: Explicit import requirement (`from fsl import ...`)
-- **Test Coverage**: **201/201 tests passing (100% success rate)** 🎉
 
-### NEW: List Comprehensions (v0.34) ✅
+### List Comprehensions (v0.34) ✅
 - **Basic Syntax**: `[x * x for x in range(10)]`
 - **Conditional Filtering**: `[x for x in numbers if x % 2 == 0]`
 - **Nested Comprehensions**: `[[i * j for j in range(3)] for i in range(3)]`

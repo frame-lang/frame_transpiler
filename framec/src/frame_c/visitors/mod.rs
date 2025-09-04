@@ -172,6 +172,10 @@ pub trait AstVisitor {
     fn visit_unpack_expr_node_to_string(&mut self, _unpack_expr: &UnpackExprNode, _output: &mut String) {}
     fn visit_list_comprehension_node(&mut self, _comprehension: &ListComprehensionNode) {}
     fn visit_list_comprehension_node_to_string(&mut self, _comprehension: &ListComprehensionNode, _output: &mut String) {}
+    
+    // v0.35: Async/await support
+    fn visit_await_expr_node(&mut self, _await_expr: &AwaitExprNode) {}
+    fn visit_await_expr_node_to_string(&mut self, _await_expr: &AwaitExprNode, _output: &mut String) {}
 
     fn visit_list_stmt_node(&mut self, _list: &ListStmtNode) {}
 

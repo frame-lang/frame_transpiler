@@ -167,6 +167,121 @@ impl PythonVisitor {
     }
 
     //* --------------------------------------------------------------------- *//
+    
+    // v0.35: Check if statements contain await expressions
+    fn contains_await_expr(&self, statements: &[DeclOrStmtType]) -> bool {
+        for stmt in statements {
+            if self.statement_contains_await(stmt) {
+                return true;
+            }
+        }
+        false
+    }
+    
+    fn statement_contains_await(&self, stmt: &DeclOrStmtType) -> bool {
+        match stmt {
+            DeclOrStmtType::StmtT { stmt_t } => {
+                self.stmt_type_contains_await(stmt_t)
+            }
+            DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
+                // Check if variable initialization contains await
+                let var_decl = var_decl_t_rcref.borrow();
+                self.expr_contains_await(&var_decl.value_rc)
+            }
+        }
+    }
+    
+    fn stmt_type_contains_await(&self, stmt: &StatementType) -> bool {
+        match stmt {
+            StatementType::ExpressionStmt { expr_stmt_t } => {
+                match expr_stmt_t {
+                    ExprStmtType::CallChainStmtT { call_chain_literal_stmt_node } => {
+                        // Check if call chain contains await
+                        for node in &call_chain_literal_stmt_node.call_chain_literal_expr_node.call_chain {
+                            if self.call_chain_node_contains_await(node) {
+                                return true;
+                            }
+                        }
+                        false
+                    }
+                    _ => false
+                }
+            }
+            StatementType::IfStmt { if_stmt_node } => {
+                // Check condition and all branches
+                if self.expr_contains_await(&if_stmt_node.condition) {
+                    return true;
+                }
+                if self.contains_await_expr(&if_stmt_node.if_block.statements) {
+                    return true;
+                }
+                for elif_clause in &if_stmt_node.elif_clauses {
+                    if self.expr_contains_await(&elif_clause.condition) || 
+                       self.contains_await_expr(&elif_clause.block.statements) {
+                        return true;
+                    }
+                }
+                if let Some(else_block) = &if_stmt_node.else_block {
+                    if self.contains_await_expr(&else_block.statements) {
+                        return true;
+                    }
+                }
+                false
+            }
+            StatementType::LoopStmt { loop_stmt_node } => {
+                match &loop_stmt_node.loop_types {
+                    LoopStmtTypes::LoopInfiniteStmt { loop_infinite_stmt_node } => {
+                        self.contains_await_expr(&loop_infinite_stmt_node.statements)
+                    }
+                    LoopStmtTypes::LoopForStmt { loop_for_stmt_node } => {
+                        self.contains_await_expr(&loop_for_stmt_node.statements)
+                    }
+                    LoopStmtTypes::LoopInStmt { loop_in_stmt_node } => {
+                        self.contains_await_expr(&loop_in_stmt_node.statements)
+                    }
+                }
+            }
+            StatementType::ForStmt { for_stmt_node } => {
+                self.expr_contains_await(&for_stmt_node.iterable) ||
+                self.contains_await_expr(&for_stmt_node.block.statements)
+            }
+            StatementType::WhileStmt { while_stmt_node } => {
+                self.expr_contains_await(&while_stmt_node.condition) ||
+                self.contains_await_expr(&while_stmt_node.block.statements)
+            }
+            _ => false
+        }
+    }
+    
+    fn expr_contains_await(&self, expr: &ExprType) -> bool {
+        match expr {
+            ExprType::AwaitExprT { .. } => true,
+            ExprType::CallChainExprT { call_chain_expr_node } => {
+                for node in &call_chain_expr_node.call_chain {
+                    if self.call_chain_node_contains_await(node) {
+                        return true;
+                    }
+                }
+                false
+            }
+            ExprType::BinaryExprT { binary_expr_node } => {
+                self.expr_contains_await(&binary_expr_node.left_rcref.borrow()) ||
+                self.expr_contains_await(&binary_expr_node.right_rcref.borrow())
+            }
+            ExprType::UnaryExprT { unary_expr_node } => {
+                self.expr_contains_await(&unary_expr_node.right_rcref.borrow())
+            }
+            _ => false
+        }
+    }
+    
+    fn call_chain_node_contains_await(&self, _node: &CallChainNodeType) -> bool {
+        // For now, just return false for call chain nodes 
+        // TODO: Implement detailed call argument await checking
+        false
+    }
+
+    //* --------------------------------------------------------------------- *//
 
     /// This helper function determines if code is in the scope of
     /// an action or operation.
@@ -4069,7 +4184,12 @@ impl AstVisitor for PythonVisitor {
         self.in_standalone_function = true;
         
         self.newline();
-        self.add_code(&format!("def {}(", function_node.name));
+        // v0.35: Generate async def for async functions
+        if function_node.is_async {
+            self.add_code(&format!("async def {}(", function_node.name));
+        } else {
+            self.add_code(&format!("def {}(", function_node.name));
+        }
 
         self.format_parameter_list(&function_node.params);
 
@@ -4212,7 +4332,12 @@ impl AstVisitor for PythonVisitor {
             }
         }
 
-        self.add_code(&format!("def {}(self", interface_method_node.name));
+        // v0.35: Generate async def for async interface methods
+        if interface_method_node.is_async {
+            self.add_code(&format!("async def {}(self", interface_method_node.name));
+        } else {
+            self.add_code(&format!("def {}(self", interface_method_node.name));
+        }
 
         // match &interface_method_node.params {
         //     Some(params) => {
@@ -4329,7 +4454,12 @@ impl AstVisitor for PythonVisitor {
             self.add_code("@staticmethod");
             self.newline();
         }
-        self.add_code(&format!("def {}(", operation_name));
+        // v0.35: Generate async def for async operations
+        if operation_node.is_async {
+            self.add_code(&format!("async def {}(", operation_name));
+        } else {
+            self.add_code(&format!("def {}(", operation_name));
+        }
 
         // Add self parameter for non-static operations
         if !is_static {
@@ -4574,16 +4704,55 @@ impl AstVisitor for PythonVisitor {
             None => None,
         };
 
+        // v0.35: Check if state handler needs to be async
+        // A state handler is async if it handles events from async interface methods
+        // or contains await expressions in its handlers
+        let mut state_needs_async = false;
+        
+        // Check if any event handler in this state handles an async interface method
+        // or contains await expressions
+        for evt_handler_rcref in &state_node.evt_handlers_rcref {
+            let evt_handler = evt_handler_rcref.borrow();
+            
+            // Check if this event corresponds to an async interface method
+            if let MessageType::CustomMessage { message_node } = &evt_handler.msg_t {
+                // Look up the interface method to check if it's async
+                if let Some(interface_method_symbol) = self.arcanium.lookup_interface_method(&message_node.name) {
+                    if let Some(ast_node) = &interface_method_symbol.borrow().ast_node_opt {
+                        if ast_node.borrow().is_async {
+                            state_needs_async = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // Also check if the handler contains await expressions
+            if self.contains_await_expr(&evt_handler.statements) {
+                state_needs_async = true;
+                break;
+            }
+        }
+
         self.newline();
         self.add_code("# ----------------------------------------");
         self.newline();
         self.add_code(&format!("# ${}", &state_node.name));
         self.newline();
         self.newline();
-        self.add_code(&format!(
-            "def {}(self, __e, compartment):",
-            self.format_target_state_name(&state_node.name)
-        ));
+        
+        // Generate async def if needed
+        if state_needs_async {
+            self.add_code(&format!(
+                "async def {}(self, __e, compartment):",
+                self.format_target_state_name(&state_node.name)
+            ));
+        } else {
+            self.add_code(&format!(
+                "def {}(self, __e, compartment):",
+                self.format_target_state_name(&state_node.name)
+            ));
+        }
         self.indent();
         
         // Clear global vars tracking for this state
@@ -7289,6 +7458,18 @@ impl AstVisitor for PythonVisitor {
     fn visit_unpack_expr_node_to_string(&mut self, unpack: &UnpackExprNode, output: &mut String) {
         output.push('*');
         unpack.expr.accept_to_string(self, output);
+    }
+    
+    // v0.35: Visit await expression node
+    fn visit_await_expr_node(&mut self, await_expr: &AwaitExprNode) {
+        self.add_code("await ");
+        await_expr.expr.accept(self);
+    }
+    
+    // v0.35: Visit await expression node to string
+    fn visit_await_expr_node_to_string(&mut self, await_expr: &AwaitExprNode, output: &mut String) {
+        output.push_str("await ");
+        await_expr.expr.accept_to_string(self, output);
     }
 
     //* --------------------------------------------------------------------- *//
